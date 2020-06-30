@@ -67,10 +67,14 @@ class Docker(Storage):
             are included.
         - base_url (str, optional): a URL of a Docker daemon to use when for
             Docker related functionality.  Defaults to DOCKER_HOST env var if not set
-        - tls_config (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass to the Docker
-            client. [Documentation](https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig)
-        - build_kwargs (dict, optional): Additional keyword arguments to pass to Docker's build step.
-            [Documentation](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.build.BuildApiMixin.build)
+        - tls_config (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass
+            to the Docker client.
+            [Documentation](https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig)
+        - build_kwargs (dict, optional): Additional keyword arguments to pass to Docker's build
+            step. [Documentation](https://docker-py.readthedocs.io/en/stable/
+            api.html#docker.api.build.BuildApiMixin.build)
+        - prefect_directory (str, optional): Path to the directory where prefect configuration/flows
+             should be stored inside the Docker image. Defaults to `/opt/prefect`.
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
@@ -94,7 +98,8 @@ class Docker(Storage):
         base_url: str = None,
         tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
         build_kwargs: dict = None,
-        **kwargs: Any
+        prefect_directory: str = "/opt/prefect",
+        **kwargs: Any,
     ) -> None:
         self.registry_url = registry_url
         if sys.platform == "win32":
@@ -106,9 +111,11 @@ class Docker(Storage):
         self.python_dependencies = python_dependencies or []
         self.python_dependencies.append("wheel")
 
+        self.prefect_directory = prefect_directory
+
         self.env_vars = env_vars or {}
         self.env_vars.setdefault(
-            "PREFECT__USER_CONFIG_PATH", "/opt/prefect/config.toml"
+            "PREFECT__USER_CONFIG_PATH", "{}/config.toml".format(self.prefect_directory)
         )
 
         self.files = files or {}
@@ -132,7 +139,7 @@ class Docker(Storage):
             python_version = "{}.{}".format(
                 sys.version_info.major, sys.version_info.minor
             )
-            if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) != None:
+            if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) is not None:
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
@@ -150,12 +157,12 @@ class Docker(Storage):
             self.base_image = base_image  # type: ignore
 
         self.dockerfile = dockerfile
-        # we should always try to install prefect, unless it is already installed. We can't determine this until
-        # image build time.
+        # we should always try to install prefect, unless it is already installed. We can't
+        # determine this until image build time.
         self.extra_commands.append(
-            "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect[kubernetes]".format(
-                self.prefect_version
-            )
+            f"pip show prefect || "
+            f"pip install git+https://github.com/PrefectHQ/prefect.git"
+            f"@{self.prefect_version}#egg=prefect[kubernetes]"
         )
 
         not_absolute = [
@@ -163,9 +170,10 @@ class Docker(Storage):
         ]
         if not_absolute:
             raise ValueError(
-                "Provided paths {} are not absolute file paths, please provide absolute paths only.".format(
-                    ", ".join(not_absolute)
-                )
+                (
+                    "Provided paths {} are not absolute file paths, please provide "
+                    "absolute paths only."
+                ).format(", ".join(not_absolute))
             )
         super().__init__(**kwargs)
 
@@ -190,8 +198,9 @@ class Docker(Storage):
             client = self._get_client()
             container = client.create_container(image, command="tail -f /dev/null")
             client.start(container=container.get("Id"))
-            python_script = "import cloudpickle; f = open('{}', 'rb'); flow = cloudpickle.load(f); f.close(); flow.run()".format(
-                flow_location
+            python_script = (
+                f"import cloudpickle; f = open('{flow_location}', 'rb'); "
+                f"flow = cloudpickle.load(f); f.close(); flow.run()"
             )
             try:
                 ee = client.exec_create(
@@ -225,7 +234,9 @@ class Docker(Storage):
                     flow.name
                 )
             )
-        flow_path = "/opt/prefect/flows/{}.prefect".format(slugify(flow.name))
+        flow_path = "{}/flows/{}.prefect".format(
+            self.prefect_directory, slugify(flow.name)
+        )
         self.flows[flow.name] = flow_path
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
@@ -388,9 +399,7 @@ class Docker(Storage):
         directory as well.
 
         Args:
-            - directory (str, optional): A directory where the Dockerfile will be
-                created, if no directory is specified is will be created in the
-                current working directory
+            - directory (str): A directory where the Dockerfile will be created
 
         Returns:
             - str: the absolute file path to the Dockerfile
@@ -468,9 +477,9 @@ class Docker(Storage):
             {extra_commands}
             {pip_installs}
 
-            RUN mkdir -p /opt/prefect/
+            RUN mkdir -p {prefect_dir}/
             {copy_flows}
-            COPY {healthcheck_loc} /opt/prefect/healthcheck.py
+            COPY {healthcheck_loc} {prefect_dir}/healthcheck.py
             {copy_files}
 
             {env_vars}
@@ -484,6 +493,7 @@ class Docker(Storage):
                 else "healthcheck.py",
                 copy_files=copy_files,
                 env_vars=env_vars,
+                prefect_dir=self.prefect_directory,
             )
         )
 
@@ -492,12 +502,13 @@ class Docker(Storage):
             file_contents += textwrap.dedent(
                 """
 
-                RUN python /opt/prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
+                RUN python {prefect_dir}/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
                     flow_file_paths=", ".join(
                         ['"{}"'.format(k) for k in self.flows.values()]
                     ),
                     python_version=(sys.version_info.major, sys.version_info.minor),
+                    prefect_dir=self.prefect_directory,
                 )
             )
 

@@ -1,3 +1,4 @@
+import warnings
 from typing import Callable, List
 
 from distributed.security import Security
@@ -36,14 +37,17 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     Args:
         - address (str): an address of the scheduler of a Dask cluster in URL form,
             e.g. `tcp://172.33.17.28:8786`
-        - security (Security, optional): a Dask Security object from `distributed.security.Security`.
-            Use this to connect to a Dask cluster that is enabled with TLS encryption.
+        - security (Security, optional): a Dask Security object from
+          `distributed.security.Security`.  Use this to connect to a Dask cluster that is
+          enabled with TLS encryption.
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
@@ -57,6 +61,15 @@ class RemoteDaskEnvironment(RemoteEnvironment):
         on_exit: Callable = None,
         metadata: dict = None,
     ) -> None:
+        if type(self) is RemoteDaskEnvironment or not type(self).__module__.startswith(
+            "prefect."
+        ):
+            # Only warn if its a subclass not part of prefect, since we don't
+            # want to update the code for e.g. `DaskCloudProviderEnvironment`
+            warnings.warn(
+                "`RemoteDaskEnvironment` is deprecated, please use `LocalEnvironment` with a "
+                "`DaskExecutor` instead."
+            )
         self.address = address
         dask_executor_kwargs = executor_kwargs or dict()
         dask_executor_kwargs["address"] = address

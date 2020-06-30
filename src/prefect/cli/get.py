@@ -39,8 +39,10 @@ def get():
     \b
         $ prefect get tasks --flow-name Test-Flow
         NAME          FLOW NAME   FLOW VERSION   AGE          MAPPED   TYPE
-        first_task    Test-Flow   1              5 days ago   False    prefect.tasks.core.function.FunctionTask
-        second_task   Test-Flow   1              5 days ago   True     prefect.tasks.core.function.FunctionTask
+        first_task    Test-Flow   1              5 days ago   False    \
+prefect.tasks.core.function.FunctionTask
+        second_task   Test-Flow   1              5 days ago   True     \
+prefect.tasks.core.function.FunctionTask
     """
 
 
@@ -71,7 +73,7 @@ def flows(name, version, project, limit, all_versions):
     if all_versions:
         distinct_on = None
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}}}
 
     query_results = {
         "name": True,
@@ -219,7 +221,7 @@ def flow_runs(limit, flow, project, started):
 
         where = {
             "_and": {
-                "flow": {"_and": {"name": {"_eq": flow},}},
+                "flow": {"_and": {"name": {"_eq": flow}}},
                 "start_time": {"_is_null": False},
             }
         }
@@ -229,7 +231,7 @@ def flow_runs(limit, flow, project, started):
     else:
         order = {"created": EnumValue("desc")}
 
-        where = {"flow": {"_and": {"name": {"_eq": flow},}}}
+        where = {"flow": {"_and": {"name": {"_eq": flow}}}}
 
         if config.backend == "cloud":
             where["flow"]["_and"]["project"] = {"name": {"_eq": project}}
@@ -318,7 +320,7 @@ def tasks(name, flow_name, flow_version, project, limit):
     where_clause = {
         "_and": {
             "name": {"_eq": name},
-            "flow": {"name": {"_eq": flow_name}, "version": {"_eq": flow_version},},
+            "flow": {"name": {"_eq": flow_name}, "version": {"_eq": flow_version}},
         }
     }
 

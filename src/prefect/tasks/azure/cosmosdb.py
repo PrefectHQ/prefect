@@ -9,20 +9,20 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class CosmosDBCreateItem(Task):
     """
-    Task for creating an item in a Azure Cosmos database. 
+    Task for creating an item in a Azure Cosmos database.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:
         - url (str, optional): The url to the database.
         - database_or_container_link (str, optional): link to the database or container.
         - item (dict, optional): the item to create
-        - azure_credentials_secret (str, optional): the name of the Prefect Secret
-            that stores your Azure credentials; this Secret must be JSON string with the key
-            `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or `resourceTokens`, 
-            where the `masterKey` value is the default authorization key to use to
-            create the client, and `resourceTokens` value is the alternative
+        - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
+            your Azure credentials; this Secret must be JSON string with the key
+            `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or
+            `resourceTokens`, where the `masterKey` value is the default authorization key to
+            use to create the client, and `resourceTokens` value is the alternative
             authorization key.
-        - options (dict, optional): options to be passed to the 
+        - options (dict, optional): options to be passed to the
             `azure.cosmos.cosmos_client.CosmosClient.CreateItem` method.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -67,12 +67,12 @@ class CosmosDBCreateItem(Task):
             - database_or_container_link (str, optional): link to the database or container.
             - item (dict, optional): the item to create
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
-                that stores your Azure credentials; this Secret must be JSON string with the key
-                `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or `resourceTokens`, 
-                where the `masterKey` value is the default authorization key to use to
-                create the client, and `resourceTokens` value is the alternative
+                that stores your Azure credentials; this Secret must be JSON string with the
+                key `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or
+                `resourceTokens`, where the `masterKey` value is the default authorization key
+                to use to create the client, and `resourceTokens` value is the alternative
                 authorization key.
-            - options (dict, optional): options to be passed to the 
+            - options (dict, optional): options to be passed to the
                 `azure.cosmos.cosmos_client.CosmosClient.CreateItem` method.
 
         Returns:
@@ -104,21 +104,21 @@ class CosmosDBCreateItem(Task):
 
 class CosmosDBReadItems(Task):
     """
-    Task for reading items from a Azure Cosmos database.  
+    Task for reading items from a Azure Cosmos database.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:
         - url (str, optional): The url to the database.
-        - document_or_container_link (str, optional): link to a document or container. 
-            If a document link is provided, the document in question is returned, otherwise 
+        - document_or_container_link (str, optional): link to a document or container.
+            If a document link is provided, the document in question is returned, otherwise
             all docuements are returned.
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be JSON string with the key
-            `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or `resourceTokens`, 
-            where the `masterKey` value is the default authorization key to use to
-            create the client, and `resourceTokens` value is the alternative
+            `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or
+            `resourceTokens`, where the `masterKey` value is the default authorization key to
+            use to create the client, and `resourceTokens` value is the alternative
             authorization key.
-        - options (dict, optional): options to be passed to the 
+        - options (dict, optional): options to be passed to the
             `azure.cosmos.cosmos_client.CosmosClient.ReadItem` or `ReadItems` method.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -154,20 +154,20 @@ class CosmosDBReadItems(Task):
 
         Args:
             - url (str, optional): The url to the database.
-            - document_or_container_link (str, optional): link to a document or container. 
-                If a document link is provided, the document in question is returned, otherwise 
+            - document_or_container_link (str, optional): link to a document or container.
+                If a document link is provided, the document in question is returned, otherwise
                 all docuements are returned.
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
-                that stores your Azure credentials; this Secret must be JSON string with the key
-                `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or `resourceTokens`, 
-                where the `masterKey` value is the default authorization key to use to
-                create the client, and `resourceTokens` value is the alternative
+                that stores your Azure credentials; this Secret must be JSON string with the
+                key `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or
+                `resourceTokens`, where the `masterKey` value is the default authorization key
+                to use to create the client, and `resourceTokens` value is the alternative
                 authorization key.
-            - options (dict, optional): options to be passed to the 
+            - options (dict, optional): options to be passed to the
                 `azure.cosmos.cosmos_client.CosmosClient.ReadItem` or `ReadItems` method.
 
         Returns:
-            - (dict or list)): a single document or all documents. 
+            - (dict or list)): a single document or all documents.
         """
 
         if url is None:
@@ -210,7 +210,7 @@ class CosmosDBReadItems(Task):
 
 class CosmosDBQueryItems(Task):
     """
-    Task for creating an item in a Azure Cosmos database. 
+    Task for creating an item in a Azure Cosmos database.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:
@@ -219,11 +219,11 @@ class CosmosDBQueryItems(Task):
         - query (dict, optional): the query to run
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be JSON string with the key
-            `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or `resourceTokens`, 
-            where the `masterKey` value is the default authorization key to use to
-            create the client, and `resourceTokens` value is the alternative
+            `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or
+            `resourceTokens`, where the `masterKey` value is the default authorization key to
+            use to create the client, and `resourceTokens` value is the alternative
             authorization key.
-        - options (dict, optional): options to be passed to the 
+        - options (dict, optional): options to be passed to the
             `azure.cosmos.cosmos_client.CosmosClient.QueryItems` method.
         - partition_key (str, None): Partition key for the query.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -273,17 +273,17 @@ class CosmosDBQueryItems(Task):
             - database_or_container_link (str, optional): link to the database or container.
             - query (dict, optional): the query to run
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
-                that stores your Azure credentials; this Secret must be JSON string with the key
-                `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or `resourceTokens`, 
-                where the `masterKey` value is the default authorization key to use to
-                create the client, and `resourceTokens` value is the alternative
+                that stores your Azure credentials; this Secret must be JSON string with the
+                key `AZ_COSMOS_AUTH`. The value should be dictionary containing `masterKey` or
+                `resourceTokens`, where the `masterKey` value is the default authorization key
+                to use to create the client, and `resourceTokens` value is the alternative
                 authorization key.
-            - options (dict, optional): options to be passed to the 
+            - options (dict, optional): options to be passed to the
                 `azure.cosmos.cosmos_client.CosmosClient.QueryItems` method.
             - partition_key (str, None): Partition key for the query.
 
         Returns:
-            - (list): a list containing the query results, one item per row.  
+            - (list): a list containing the query results, one item per row.
         """
 
         if url is None:

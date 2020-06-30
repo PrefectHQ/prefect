@@ -10,7 +10,6 @@ from prefect.utilities.serialization import (
     ObjectSchema,
     OneOfSchema,
     StatefulFunctionReference,
-    to_qualified_name,
 )
 
 FILTERS = [

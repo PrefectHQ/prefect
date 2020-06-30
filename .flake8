@@ -1,0 +1,25 @@
+[flake8]
+exclude =
+    __init__.py,
+    versioneer.py,
+    _version.py
+ignore =
+    # Import formatting
+    E4,
+    # Space before :
+    E203,
+    # Comparing types instead of isinstance
+    E721,
+    # Assign a lambda
+    E731,
+    # Ambiguous variable names
+    E741,
+    # Allow breaks before/after binary operators
+    W503,
+    W504,
+    # Redefinition of unused import
+    F811
+
+# black is set to 88, but isn't a strict limit so we add some wiggle room for
+# flake8 testing.
+max-line-length = 105

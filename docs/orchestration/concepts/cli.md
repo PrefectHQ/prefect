@@ -245,7 +245,7 @@ $ prefect describe flows --name my-flow
     },
     "environment": {
         "type": "RemoteEnvironment",
-        "executor": "prefect.engine.executors.SynchronousExecutor",
+        "executor": "prefect.engine.executors.LocalExecutor",
         "__version__": "0.6.1",
         "executor_kwargs": {}
     }

@@ -43,8 +43,8 @@ def task_run(id, num):
 
     \b
     Options:
-        --id, -i                TEXT        The id of a task run to send heartbeats for         [required]
-        --num, -n               TEXT        The number of times to send a heartbeat             [required]
+        --id, -i                TEXT        The id of a task run to send heartbeats for [required]
+        --num, -n               TEXT        The number of times to send a heartbeat [required]
 
     \b
     If num is not provided, the heartbeat will be sent indefinitely.
@@ -81,8 +81,8 @@ def flow_run(id, num):
 
     \b
     Options:
-        --id, -i                TEXT        The id of a flow run to send heartbeats for         [required]
-        --num, -n               TEXT        The number of times to send a heartbeat             [required]
+        --id, -i                TEXT        The id of a flow run to send heartbeats for [required]
+        --num, -n               TEXT        The number of times to send a heartbeat [required]
 
     \b
     If num is not provided, the heartbeat will be sent indefinitely.

@@ -38,7 +38,7 @@ class SpacyNLP(Task):
         self.disable = disable or []
         self.component_cfg = component_cfg or {}
 
-        ## load spacy model
+        # load spacy model
         if nlp:
             self.nlp = nlp
         else:
@@ -212,7 +212,7 @@ class SpacyComponent(Task):
         if nlp is None:
             raise ValueError("A spaCy pipeline must be provided")
 
-        ## iterate through pipeline to find object
+        # iterate through pipeline to find object
         for name, component in nlp.pipeline:
             if name == component_name:
                 return component

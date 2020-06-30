@@ -240,7 +240,7 @@ def my_task():
 
 ### Slug
 
-Slugs are similar to ids, because Prefect will not allow two tasks with the same slug to both be in the same flow. Therefore, a slug can serve as an optional human-readable unique identifier. If not provided, it will automatically be generated as a UUID.
+Slugs are similar to ids, because Prefect will not allow two tasks with the same slug to both be in the same flow. Therefore, a slug can serve as an optional human-readable unique identifier. If not provided, it will automatically be generated based on the task name, its tags, and the order in which it was added to the Flow.
 
 ```python
 Task(slug="my-task")

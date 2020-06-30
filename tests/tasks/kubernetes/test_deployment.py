@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from kubernetes.config.config_exception import ConfigException
 
 import prefect
 from prefect.tasks.kubernetes import (
@@ -20,6 +19,16 @@ def kube_secret():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
             yield
+
+
+@pytest.fixture
+def api_client(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.tasks.kubernetes.deployment.get_kubernetes_client",
+        MagicMock(return_value=client),
+    )
+    return client
 
 
 class TestCreateNamespacedDeploymentTask:
@@ -52,155 +61,52 @@ class TestCreateNamespacedDeploymentTask:
         with pytest.raises(ValueError):
             task.run(body=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = CreateNamespacedDeployment(body={"test": "test"})
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = CreateNamespacedDeployment(
-            body={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = CreateNamespacedDeployment(
-            body={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedDeployment(body={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(body={"test": "b"})
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.create_namespaced_deployment.call_args[1]["body"] == {
             "test": "b"
         }
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedDeployment(body={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
 
         task.run(body={"a": "test"})
 
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.create_namespaced_deployment.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedDeployment()
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
                 task.run(body={"test": "a"})
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.create_namespaced_deployment.call_args[1]["body"] == {
             "test": "a"
         }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedDeployment(body={"test": "a"}, kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["test"] == "b"
+        assert api_client.create_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedDeployment(body={"test": "a"}, kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["a"] == "test"
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_deployment.call_args[1]["a"] == "test"
+        assert api_client.create_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedDeployment(body={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_deployment.call_args[1]["test"] == "a"
 
 
 class TestDeleteNamespacedDeploymentTask:
@@ -233,108 +139,28 @@ class TestDeleteNamespacedDeploymentTask:
         with pytest.raises(ValueError):
             task.run(deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = DeleteNamespacedDeployment(deployment_name="test")
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = DeleteNamespacedDeployment(
-            deployment_name="test",
-            kube_kwargs={"test": "a"},
-            kubernetes_api_key_secret=None,
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = DeleteNamespacedDeployment(
-            deployment_name="test",
-            kube_kwargs={"test": "a"},
-            kubernetes_api_key_secret=None,
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = DeleteNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "b"})
-        assert extensionsapi.delete_namespaced_deployment.call_args[1]["test"] == "b"
+        assert api_client.delete_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = DeleteNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
         )
 
         task.run(kube_kwargs={"a": "test"})
-        assert extensionsapi.delete_namespaced_deployment.call_args[1]["a"] == "test"
-        assert extensionsapi.delete_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_deployment.call_args[1]["a"] == "test"
+        assert api_client.delete_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = DeleteNamespacedDeployment(deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert extensionsapi.delete_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_deployment.call_args[1]["test"] == "a"
 
 
 class TestListNamespacedDeploymentTask:
@@ -354,100 +180,24 @@ class TestListNamespacedDeploymentTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = ListNamespacedDeployment()
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = ListNamespacedDeployment(
-            kube_kwargs={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = ListNamespacedDeployment(
-            kube_kwargs={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ListNamespacedDeployment(kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "b"})
-        assert extensionsapi.list_namespaced_deployment.call_args[1]["test"] == "b"
+        assert api_client.list_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ListNamespacedDeployment(kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
 
         task.run(kube_kwargs={"a": "test"})
-        assert extensionsapi.list_namespaced_deployment.call_args[1]["a"] == "test"
-        assert extensionsapi.list_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_deployment.call_args[1]["a"] == "test"
+        assert api_client.list_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ListNamespacedDeployment()
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert extensionsapi.list_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_deployment.call_args[1]["test"] == "a"
 
 
 class TestPatchNamespacedDeploymentTask:
@@ -488,156 +238,53 @@ class TestPatchNamespacedDeploymentTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = PatchNamespacedDeployment(body={"test": "test"}, deployment_name="test")
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = PatchNamespacedDeployment(
-            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = PatchNamespacedDeployment(
-            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(body={"test": "b"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.patch_namespaced_deployment.call_args[1]["body"] == {
             "test": "b"
         }
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(body={"a": "test"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.patch_namespaced_deployment.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedDeployment(deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.patch_namespaced_deployment.call_args[1]["body"] == {
             "test": "a"
         }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["test"] == "b"
+        assert api_client.patch_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["a"] == "test"
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_deployment.call_args[1]["a"] == "test"
+        assert api_client.patch_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_deployment.call_args[1]["test"] == "a"
 
 
 class TestReadNamespacedDeploymentTask:
@@ -670,108 +317,28 @@ class TestReadNamespacedDeploymentTask:
         with pytest.raises(ValueError):
             task.run(deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = ReadNamespacedDeployment(deployment_name="test")
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = ReadNamespacedDeployment(
-            deployment_name="test",
-            kube_kwargs={"test": "a"},
-            kubernetes_api_key_secret=None,
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = ReadNamespacedDeployment(
-            deployment_name="test",
-            kube_kwargs={"test": "a"},
-            kubernetes_api_key_secret=None,
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReadNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "b"})
-        assert extensionsapi.read_namespaced_deployment.call_args[1]["test"] == "b"
+        assert api_client.read_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReadNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
         )
 
         task.run(kube_kwargs={"a": "test"})
-        assert extensionsapi.read_namespaced_deployment.call_args[1]["a"] == "test"
-        assert extensionsapi.read_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_deployment.call_args[1]["a"] == "test"
+        assert api_client.read_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReadNamespacedDeployment(deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert extensionsapi.read_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_deployment.call_args[1]["test"] == "a"
 
 
 class TestReplaceNamespacedDeploymentTask:
@@ -812,155 +379,50 @@ class TestReplaceNamespacedDeploymentTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = ReplaceNamespacedDeployment(
-            body={"test": "test"}, deployment_name="test"
-        )
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = ReplaceNamespacedDeployment(
-            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
-        task = ReplaceNamespacedDeployment(
-            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(body={"test": "b"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.replace_namespaced_deployment.call_args[1]["body"] == {
             "test": "b"
         }
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(body={"a": "test"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.replace_namespaced_deployment.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedDeployment(deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {
+        assert api_client.replace_namespaced_deployment.call_args[1]["body"] == {
             "test": "a"
         }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["test"] == "b"
+        assert api_client.replace_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["a"] == "test"
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_deployment.call_args[1]["a"] == "test"
+        assert api_client.replace_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
-
-        extensionsapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.deployment.client",
-            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_deployment.call_args[1]["test"] == "a"

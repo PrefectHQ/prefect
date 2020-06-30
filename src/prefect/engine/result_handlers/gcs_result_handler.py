@@ -16,9 +16,10 @@ class GCSResultHandler(ResultHandler):
     """
     Result Handler for writing to and reading from a Google Cloud Bucket.
 
-    To authenticate with Google Cloud, you need to ensure that your flow's
-    runtime environment has the proper credentials available
-    (see https://cloud.google.com/docs/authentication/production for all the authentication options).
+    To authenticate with Google Cloud, you need to ensure that your flow's runtime environment
+    has the proper credentials available (see
+    https://cloud.google.com/docs/authentication/production for all the authentication
+    options).
 
     You can also optionally provide the name of a Prefect Secret containing your
     service account key.

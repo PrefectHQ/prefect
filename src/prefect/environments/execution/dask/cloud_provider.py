@@ -31,8 +31,8 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     should be as independent as possible, e.g. each Flow could have its own docker
     image, dynamically create the Dask cluster to run on, etc. However, for
     development and interactive testing, creating a Dask cluster manually with Dask
-    Cloud Provider and then using `RemoteDaskEnvironment` or just `DaskExecutor`
-    with your flows will result in a much better development experience.
+    Cloud Provider and then using `LocalEnvironment` with a `DaskExecutor`
+    will result in a much better development experience.
 
     (Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
     Support for AzureML is coming soon.)
@@ -54,23 +54,28 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             are using.
         - adaptive_max_workers (int, optional): Maximum number of workers for adaptive
             mode.
-        - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
-            Use this to connect to a Dask cluster that is enabled with TLS encryption.
-            For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
+        - security (Type[Security], optional): a Dask Security object from
+            `distributed.security.Security`.  Use this to connect to a Dask cluster that is
+            enabled with TLS encryption.  For more on using TLS with Dask see
+            https://distributed.dask.org/en/latest/tls.html
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_execute (Callable[[Dict[str, Any], Dict[str, Any]], None], optional): a function callback which will
-            be called before the flow begins to run. The callback function can examine the Flow run
-            parameters and modify  kwargs to be passed to the Dask Cloud Provider class's constructor prior
-            to launching the Dask cluster for the Flow run. This allows for dynamically sizing the cluster based
-            on the Flow run parameters, e.g. settings n_workers. The callback function's signature should be:
-                `def on_execute(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None:`
-            The callback function may modify provider_kwargs (e.g. `provider_kwargs["n_workers"] = 3`) and any
-            relevant changes will be used when creating the Dask cluster via a Dask Cloud Provider class.
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_execute (Callable[[Dict[str, Any], Dict[str, Any]], None], optional): a function
+            callback which will be called before the flow begins to run. The callback function
+            can examine the Flow run parameters and modify  kwargs to be passed to the Dask
+            Cloud Provider class's constructor prior to launching the Dask cluster for the Flow
+            run.  This allows for dynamically sizing the cluster based on the Flow run
+            parameters, e.g.  settings n_workers. The callback function's signature should be:
+            `on_execute(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None`
+            The callback function may modify provider_kwargs
+            (e.g.  `provider_kwargs["n_workers"] = 3`) and any relevant changes will be used when
+            creating the Dask cluster via a Dask Cloud Provider class.
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
@@ -96,8 +101,9 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         self._on_execute = on_execute
         self._provider_kwargs = kwargs
         if "skip_cleanup" not in self._provider_kwargs:
-            # Prefer this default (if not provided) to avoid deregistering task definitions
-            # See this issue in Dask Cloud Provider: https://github.com/dask/dask-cloudprovider/issues/94
+            # Prefer this default (if not provided) to avoid deregistering task definitions See
+            # this issue in Dask Cloud Provider:
+            # https://github.com/dask/dask-cloudprovider/issues/94
             self._provider_kwargs["skip_cleanup"] = True
         self._security = security
         if self._security:

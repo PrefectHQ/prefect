@@ -80,8 +80,9 @@ def cache(method: Callable) -> Callable:
 
 class Flow:
     """
-    The Flow class is used as the representation of a collection of dependent Tasks.
-    Flows track Task dependencies, parameters and provide the main API for constructing and managing workflows.
+    The Flow class is used as the representation of a collection of dependent Tasks.  Flows
+    track Task dependencies, parameters and provide the main API for constructing and managing
+    workflows.
 
     Initializing Flow example:
     ```python
@@ -111,14 +112,15 @@ class Flow:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `RemoteEnvironment` will be created.
+           that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
         - storage (prefect.environments.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks that determine the final
             state of a flow
-        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to retrieve and store task results during execution
+        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to
+            retrieve and store task results during execution
         - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
             retrieving and storing state results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
@@ -129,8 +131,8 @@ class Flow:
                 `state_handler(flow: Flow, old_state: State, new_state: State) -> Optional[State]`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - on_failure (Callable, optional): A function with signature `fn(flow: Flow, state: State) -> None`
-            which will be called anytime this Flow enters a failure state
+        - on_failure (Callable, optional): A function with signature `fn(flow: Flow, state:
+            State) -> None` which will be called anytime this Flow enters a failure state
         - validate (bool, optional): Whether or not to check the validity of
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
@@ -160,7 +162,7 @@ class Flow:
         self.name = name
         self.logger = logging.get_logger(self.name)
         self.schedule = schedule
-        self.environment = environment or prefect.environments.RemoteEnvironment()
+        self.environment = environment or prefect.environments.LocalEnvironment()
         self.storage = storage
         if result_handler:
             warnings.warn(
@@ -174,6 +176,7 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.slugs = dict()  # type: Dict[Task, str]
         self.constants = collections.defaultdict(
             dict
         )  # type: Dict[Task, Dict[str, Any]]
@@ -346,8 +349,9 @@ class Flow:
                 f"{unused_task_tracker.difference(self.tasks)}. This can occur "
                 "when `Task` classes, including `Parameters`, are instantiated "
                 "inside a `with flow:` block but not added to the flow either "
-                "explicitly or as the input to another task. For more information, "
-                "see https://docs.prefect.io/core/advanced_tutorials/task-guide.html#adding-tasks-to-flows."
+                "explicitly or as the input to another task. For more information, see "
+                "https://docs.prefect.io/core/advanced_tutorials/"
+                "task-guide.html#adding-tasks-to-flows."
             )
 
     def __enter__(self) -> "Flow":
@@ -355,7 +359,7 @@ class Flow:
         return self._ctx.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:  # type: ignore
-        result = self._ctx.__exit__(exc_type, exc_value, traceback)
+        self._ctx.__exit__(exc_type, exc_value, traceback)
         # delete _ctx because it's an active generator, which prevents pickling
         del self._ctx
 
@@ -393,23 +397,24 @@ class Flow:
 
     def reference_tasks(self) -> Set[Task]:
         """
-        A flow's "reference tasks" are used to determine its state when it runs. If all the reference
-        tasks are successful, then the flow run is considered successful. However, if
+        A flow's "reference tasks" are used to determine its state when it runs. If all the
+        reference tasks are successful, then the flow run is considered successful. However, if
         any of the reference tasks fail, the flow is considered to fail. (Note that skips are
-        counted as successes; see [the state documentation](../engine/state.html) for a full description
-        of what is considered failure, success, etc.)
+        counted as successes; see [the state documentation](../engine/state.html) for a full
+        description of what is considered failure, success, etc.)
 
         By default, a flow's reference tasks are its terminal tasks. This means the state of a
         flow is determined by those tasks that have no downstream dependencies.
 
-        In some situations, users may want to customize this behavior; for example, if a
-        flow's terminal tasks are "clean up" tasks for the rest of the flow that only run
-        if certain (more relevant) tasks fail, we might not want them determining the overall
-        state of the flow run. The `flow.set_reference_tasks()` method can be used to set such custom `reference_tasks`.
+        In some situations, users may want to customize this behavior; for example, if a flow's
+        terminal tasks are "clean up" tasks for the rest of the flow that only run if certain
+        (more relevant) tasks fail, we might not want them determining the overall state of the
+        flow run. The `flow.set_reference_tasks()` method can be used to set such custom
+        `reference_tasks`.
 
-        Please note that even if `reference_tasks` are provided that are not terminal tasks, the flow
-        will not be considered "finished" until all terminal tasks have completed. Only then
-        will state be determined, using the reference tasks.
+        Please note that even if `reference_tasks` are provided that are not terminal tasks,
+        the flow will not be considered "finished" until all terminal tasks have completed.
+        Only then will state be determined, using the reference tasks.
 
         Returns:
             - set of Task objects which are the reference tasks in the flow
@@ -437,6 +442,29 @@ class Flow:
 
     # Graph --------------------------------------------------------------------
 
+    def _generate_task_slug(self, task: Task) -> str:
+        """
+        Given a Task, generates the corresponding slug for this Flow.  Slugs are the unique IDs
+        the Prefect API uses to track state updates for each task within a Flow.
+
+        The logic for slug generation within a Flow is essentially "name-tags-#count".  Having
+        slugs be properties of (Task, Flow) instead of just Task alone allows Prefect to ensure
+        that every time you run the same build script for a Flow, the Task slugs remain
+        constant.
+
+        Args:
+            - task (Task): the task to generate a slug for
+
+        Returns:
+            - str: the corresponding slug
+        """
+        slug_bases = []
+        for t in self.tasks:
+            slug_bases.append(f"{t.name}-" + "-".join(sorted(t.tags)))
+        new_slug = f"{task.name}-" + "-".join(sorted(task.tags))
+        index = slug_bases.count(new_slug)
+        return f"{new_slug}{'' if new_slug.endswith('-') else '-'}{index + 1}"
+
     def add_task(self, task: Task) -> Task:
         """
         Add a task to the flow if the task does not already exist. The tasks are
@@ -457,11 +485,12 @@ class Flow:
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
-            if task.slug and any(task.slug == t.slug for t in self.tasks):
+            if task.slug and task.slug in self.slugs.values():
                 raise ValueError(
                     'A task with the slug "{}" already exists in this '
                     "flow.".format(task.slug)
                 )
+            self.slugs[task] = task.slug or self._generate_task_slug(task)
 
             self.tasks.add(task)
             self._cache.clear()
@@ -491,14 +520,15 @@ class Flow:
         Args:
             - upstream_task (Task): The task that the edge should start from
             - downstream_task (Task): The task that the edge should end with
-            - key (str, optional): The key to be set for the new edge; the result of the upstream task
-            will be passed to the downstream task's `run()` method under this keyword argument
-            - mapped (bool, optional): Whether the downstream task is mapping over the upstream task
+            - key (str, optional): The key to be set for the new edge; the result of the
+                upstream task will be passed to the downstream task's `run()` method under this
+                keyword argument
+            - mapped (bool, optional): Whether this edge represents a call to `Task.map()`;
+                defaults to `False`
             - flat (bool, optional): Whether the upstream task result is flattened
-            - metadata (Dict[str, Any], optional): An optional metadata dict for the edge
-            - validate (bool, optional): Whether or not to check the validity of
-                the flow (e.g., presence of cycles and illegal keys). Defaults to the value
-                of `eager_edge_validation` in your prefect configuration file.
+            - validate (bool, optional): Whether or not to check the validity of the flow
+                (e.g., presence of cycles and illegal keys). Defaults to the value of
+                `eager_edge_validation` in your prefect configuration file.
 
         Returns:
             - prefect.core.edge.Edge: The `Edge` object that was successfully added to the flow
@@ -509,6 +539,12 @@ class Flow:
         """
         if validate is None:
             validate = cast(bool, prefect.config.flows.eager_edge_validation)
+
+        if mapped and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
+
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -581,8 +617,8 @@ class Flow:
         Args:
             - *tasks (list): A list of tasks to chain together
             - validate (bool, optional): Whether or not to check the validity of
-                the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
-                in your prefect configuration file.
+                the flow (e.g., presence of cycles).  Defaults to the value of
+                `eager_edge_validation` in your prefect configuration file.
 
         Returns:
             - A list of Edge objects added to the flow
@@ -829,10 +865,10 @@ class Flow:
         Args:
             - task (object): a Task that will become part of the Flow. If the task is not a
                 Task subclass, Prefect will attempt to convert it to one.
-            - upstream_tasks ([object], optional): Tasks that will run before the task runs. If any task
-                is not a Task subclass, Prefect will attempt to convert it to one.
-            - downstream_tasks ([object], optional): Tasks that will run after the task runs. If any task
-                is not a Task subclass, Prefect will attempt to convert it to one.
+            - upstream_tasks ([object], optional): Tasks that will run before the task runs. If
+                any task is not a Task subclass, Prefect will attempt to convert it to one.
+            - downstream_tasks ([object], optional): Tasks that will run after the task runs.
+                If any task is not a Task subclass, Prefect will attempt to convert it to one.
             - keyword_tasks ({key: object}, optional): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
@@ -841,13 +877,17 @@ class Flow:
                 and non-keyed) should be mapped over; defaults to `False`. If `True`, any
                 tasks wrapped in the `prefect.utilities.edges.unmapped` container will
                 _not_ be mapped over.
-            - validate (bool, optional): Whether or not to check the validity of
-                the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
+            - validate (bool, optional): Whether or not to check the validity of the flow
+                (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
                 in your Prefect configuration file.
 
         Returns:
             - None
         """
+        if mapped and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
 
         task = as_task(task, flow=self)
         assert isinstance(task, Task)  # mypy assert
@@ -889,7 +929,7 @@ class Flow:
 
         base_parameters = parameters or dict()
 
-        ## determine time of first run
+        # determine time of first run
         try:
             if run_on_schedule and self.schedule is not None:
                 next_run_event = self.schedule.next(1, return_events=True)[0]
@@ -901,7 +941,7 @@ class Flow:
         except IndexError:
             raise ValueError("Flow has no more scheduled runs.") from None
 
-        ## setup initial states
+        # setup initial states
         flow_state = prefect.engine.state.Scheduled(start_time=next_run_time, result={})
         flow_state = kwargs.pop("state", flow_state)
         if not isinstance(flow_state.result, dict):
@@ -914,7 +954,7 @@ class Flow:
             "context", {}
         ).copy()  # copy to avoid modification
 
-        ## run this flow indefinitely, so long as its schedule has future dates
+        # run this flow indefinitely, so long as its schedule has future dates
         while True:
 
             flow_run_context.update(scheduled_start_time=next_run_time)
@@ -931,7 +971,7 @@ class Flow:
 
             error = False
 
-            ## begin a single flow run
+            # begin a single flow run
             while not flow_state.is_finished():
                 runner = runner_cls(flow=self)
                 flow_state = runner.run(
@@ -974,7 +1014,7 @@ class Flow:
                     default=pendulum.now("utc"),
                 )
 
-                ## wait until first task is ready for retry
+                # wait until first task is ready for retry
                 now = pendulum.now("utc")
                 naptime = max((earliest_start - now).total_seconds(), 0)
                 if naptime > 0:
@@ -985,7 +1025,7 @@ class Flow:
                     )
                 time.sleep(naptime)
 
-            ## create next scheduled run
+            # create next scheduled run
             if not error:
                 # update context cache
                 for t, s in flow_state.result.items():
@@ -1036,21 +1076,22 @@ class Flow:
         **kwargs: Any,
     ) -> "prefect.engine.state.State":
         """
-        Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no schedule,
-        a single stateful run will occur (including retries).
+        Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no
+        schedule, a single stateful run will occur (including retries).
 
-        Note that this command will block and run this Flow on its schedule indefinitely (if it has one);
-        all task states will be stored in memory, and task retries will not occur until every Task in the Flow has had a chance
-        to run.
+        Note that this command will block and run this Flow on its schedule indefinitely (if it
+        has one); all task states will be stored in memory, and task retries will not occur
+        until every Task in the Flow has had a chance to run.
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
-            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or run a single execution;
-                if not provided, will default to the value set in your user config
+            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or
+                run a single execution; if not provided, will default to the value set in your
+                user config
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
-            - **kwargs: additional keyword arguments; if any provided keywords
-                match known parameter names, they will be used as such. Otherwise they will be passed to the
-                `FlowRunner.run()` method
+            - **kwargs: additional keyword arguments; if any provided keywords match known
+                parameter names, they will be used as such. Otherwise they will be passed to
+                the `FlowRunner.run()` method
 
         Raises:
             - ValueError: if this Flow has a Schedule with no more scheduled runs
@@ -1059,6 +1100,12 @@ class Flow:
         Returns:
             - State: the state of the flow after its final run
         """
+        if prefect.context.get("loading_flow", False):
+            raise RuntimeError(
+                "Attempting to call `flow.run` during execution of flow file will lead to "
+                "unexpected results."
+            )
+
         # protect against old behavior
         if "return_tasks" in kwargs:
             raise ValueError(
@@ -1148,8 +1195,9 @@ class Flow:
 
         Args:
             - flow_state (State, optional): flow state object used to optionally color the nodes
-            - filename (str, optional): a filename specifying a location to save this visualization to; if provided,
-                the visualization will not be rendered automatically
+            - filename (str, optional): a filename specifying a location to save this
+                visualization to; if provided, the visualization will not be rendered
+                automatically
             - format (str, optional): a format specifying the output file type; defaults to 'pdf'.
               Refer to http://www.graphviz.org/doc/info/output.html for valid formats
 
@@ -1234,7 +1282,7 @@ class Flow:
                         e.key,
                         style=style,
                     )
-            ## this edge represents a "reduce" step from a mapped task -> normal task
+            # this edge represents a "reduce" step from a mapped task -> normal task
             elif flow_state and flow_state.result[e.upstream_task].is_mapped():
                 assert isinstance(flow_state.result, dict)  # mypy assert
                 up_state = flow_state.result[e.upstream_task]
@@ -1271,9 +1319,12 @@ class Flow:
                     try:
                         graph.render(tmp.name, view=True)
                     except graphviz.backend.ExecutableNotFound:
-                        msg = "It appears you do not have Graphviz installed, or it is not on your PATH.\n"
-                        msg += "Please install Graphviz from http://www.graphviz.org/download/\n"
-                        msg += "And note: just installing the `graphviz` python package is not sufficient!"
+                        msg = (
+                            "It appears you do not have Graphviz installed, or it is not on your "
+                            "PATH. Please install Graphviz from http://www.graphviz.org/download/. "
+                            "And note: just installing the `graphviz` python package is not "
+                            "sufficient!"
+                        )
                         raise graphviz.backend.ExecutableNotFound(msg)
                     finally:
                         os.unlink(tmp.name)
@@ -1299,7 +1350,15 @@ class Flow:
 
         self.validate()
         schema = prefect.serialization.flow.FlowSchema
-        serialized = schema(exclude=["storage"]).dump(self)
+
+        # because of how our serializers work, we need to make sure that
+        # each task has its slug attached as an attribute.  We don't perform this
+        # update when the task is added to the flow because the task might get used
+        # within another flow (and hence have a different slug)
+        flow_copy = self.copy()
+        for task, slug in flow_copy.slugs.items():
+            task.slug = slug
+        serialized = schema(exclude=["storage"]).dump(flow_copy)
 
         if build:
             if not self.storage:
@@ -1308,8 +1367,9 @@ class Flow:
                 self.storage.add_flow(self)
             else:
                 warnings.warn(
-                    "A flow with the same name is already contained in storage; if you changed your Flow since"
-                    " the last build, you might experience unexpected issues and should re-create your storage object."
+                    "A flow with the same name is already contained in storage; if you "
+                    "changed your Flow since the last build, you might experience "
+                    "unexpected issues and should re-create your storage object."
                 )
             storage = self.storage.build()  # type: Optional[Storage]
         else:
@@ -1326,8 +1386,8 @@ class Flow:
         Get flow and Prefect diagnostic information
 
         Args:
-            - include_secret_names (bool, optional): toggle output of Secret names, defaults to False.
-                Note: Secret values are never returned, only their names.
+            - include_secret_names (bool, optional): toggle output of Secret names, defaults to
+                False.  Note: Secret values are never returned, only their names.
         """
         return diagnostics.diagnostic_info(self, include_secret_names)
 
@@ -1385,10 +1445,10 @@ class Flow:
         Args:
             - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
                 will default to the token found in `config.cloud.agent.auth_token`
-            - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
-                to stdout; defaults to `False`
-            - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should be sent to Prefect Cloud;
-                defaults to `True`
+            - show_flow_logs (bool, optional): a boolean specifying whether the agent should
+                re-route Flow run logs to stdout; defaults to `False`
+            - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should
+                be sent to Prefect Cloud; defaults to `True`
         """
         temp_config = {
             "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
@@ -1412,29 +1472,37 @@ class Flow:
         **kwargs: Any,
     ) -> str:
         """
-        Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config
-        will be used and initialized with `**kwargs`.
+        Register the flow with Prefect Cloud; if no storage is present on the Flow, the default
+        value from your config will be used and initialized with `**kwargs`.
 
         Args:
             - project_name (str, optional): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
-            - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
-                associating Flows with individual Agents; see http://docs.prefect.io/orchestration/agents/overview.html#flow-affinity-labels
-            - set_schedule_active (bool, optional): if `False`, will set the
-                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
-                Defaults to `True`. This can be changed later.
-            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
-                in Cloud; if not provided, the version group ID associated with this Flow's project and name
-                will be used.
-            - no_url (bool, optional): if `True`, the stdout from this function will not contain the
-                URL link to the newly-registered flow in the Cloud UI
-            - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
-                will be passed to the initialization method of the default Storage class
+            - labels (List[str], optional): a list of labels to add to this Flow's environment;
+                useful for associating Flows with individual Agents; see
+                http://docs.prefect.io/orchestration/agents/overview.html#flow-affinity-labels
+            - set_schedule_active (bool, optional): if `False`, will set the schedule to
+                inactive in the database to prevent auto-scheduling runs (if the Flow has a
+                schedule).  Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning
+                this Flow in Cloud; if not provided, the version group ID associated with this
+                Flow's project and name will be used.
+            - no_url (bool, optional): if `True`, the stdout from this function will not
+                contain the URL link to the newly-registered flow in the Cloud UI
+            - **kwargs (Any): if instantiating a Storage object from default settings, these
+                keyword arguments will be passed to the initialization method of the default
+                Storage class
 
         Returns:
             - str: the ID of the flow that was registered
         """
+        if prefect.context.get("loading_flow", False):
+            raise RuntimeError(
+                "Attempting to call `flow.register` during execution of flow file will lead "
+                "to unexpected results."
+            )
+
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 

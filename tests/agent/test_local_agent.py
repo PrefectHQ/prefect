@@ -20,6 +20,7 @@ def test_local_agent_init(runner_token):
         "azure-flow-storage",
         "s3-flow-storage",
         "gcs-flow-storage",
+        "github-flow-storage",
     }
     assert agent.name == "agent"
 
@@ -44,6 +45,7 @@ def test_local_agent_config_options(runner_token):
             "azure-flow-storage",
             "s3-flow-storage",
             "gcs-flow-storage",
+            "github-flow-storage",
             "test_label",
         }
 
@@ -68,6 +70,7 @@ def test_local_agent_config_options_hostname(runner_token):
             "azure-flow-storage",
             "s3-flow-storage",
             "gcs-flow-storage",
+            "github-flow-storage",
         }
 
 
@@ -136,6 +139,7 @@ def test_populate_env_vars(runner_token):
                     "azure-flow-storage",
                     "gcs-flow-storage",
                     "s3-flow-storage",
+                    "github-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
@@ -175,6 +179,7 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
                     "azure-flow-storage",
                     "gcs-flow-storage",
                     "s3-flow-storage",
+                    "github-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",

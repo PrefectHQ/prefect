@@ -1,18 +1,19 @@
 import os
 import uuid
+import warnings
 from typing import Any, Callable, List, TYPE_CHECKING
 
 import yaml
 
 import prefect
-from prefect.environments.execution import Environment
+from prefect.environments.execution.base import Environment, _RunMixin
 from prefect.utilities.storage import get_flow_image
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
-class KubernetesJobEnvironment(Environment):
+class KubernetesJobEnvironment(Environment, _RunMixin):
     """
     KubernetesJobEnvironment is an environment which deploys your flow as a Kubernetes
     job. This environment allows (and requires) a custom job YAML spec to be provided.
@@ -35,18 +36,21 @@ class KubernetesJobEnvironment(Environment):
     - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Additionally, the following command will be applied to the first container:
-    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"`
+    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"`
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
-        - unique_job_name (bool, optional): whether to use a unique name for each job created with this environment. Defaults
-            to `False`
-        - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
-            the executor; defaults to an empty dictionary
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - unique_job_name (bool, optional): whether to use a unique name for each job created
+            with this environment. Defaults to `False`
+        - executor (Executor, optional): the executor to run the flow with. If not provided, the
+            default executor will be used.
+        - executor_kwargs (dict, optional): DEPRECATED
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
@@ -54,6 +58,7 @@ class KubernetesJobEnvironment(Environment):
         self,
         job_spec_file: str = None,
         unique_job_name: bool = False,
+        executor: "prefect.engine.executors.Executor" = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
@@ -62,7 +67,18 @@ class KubernetesJobEnvironment(Environment):
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
         self.unique_job_name = unique_job_name
-        self.executor_kwargs = executor_kwargs or dict()
+
+        if executor_kwargs is not None:
+            warnings.warn("`executor_kwargs` is deprecated, use `executor` instead")
+        if executor is None:
+            executor = prefect.engine.get_default_executor_class()(
+                **(executor_kwargs or {})
+            )
+        elif not isinstance(executor, prefect.engine.executors.Executor):
+            raise TypeError(
+                f"`executor` must be an `Executor` or `None`, got `{executor}`"
+            )
+        self.executor = executor
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
@@ -138,7 +154,8 @@ class KubernetesJobEnvironment(Environment):
 
     def _populate_job_spec_yaml(self, yaml_obj: dict, docker_name: str,) -> dict:
         """
-        Populate the custom execution job yaml object used in this environment with the proper values
+        Populate the custom execution job yaml object used in this environment with the proper
+        values.
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
@@ -230,7 +247,7 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
 
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
-            "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"
+            "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
         ]
 
         return yaml_obj

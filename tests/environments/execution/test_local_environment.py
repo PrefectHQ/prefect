@@ -2,8 +2,10 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect import Flow
+from prefect.engine.executors import LocalDaskExecutor
 from prefect.environments.execution import LocalEnvironment
 from prefect.environments.storage import Docker, Local
+from prefect.utilities.configuration import set_temporary_config
 
 
 class DummyStorage(Local):
@@ -16,8 +18,12 @@ class DummyStorage(Local):
 
 
 def test_create_environment():
-    environment = LocalEnvironment()
-    assert environment
+    with set_temporary_config(
+        {"engine.executor.default_class": "prefect.engine.executors.LocalDaskExecutor"}
+    ):
+        environment = LocalEnvironment()
+
+    assert isinstance(environment.executor, LocalDaskExecutor)
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
@@ -29,10 +35,15 @@ def test_create_environment_populated():
     def f():
         pass
 
+    executor = LocalDaskExecutor()
     environment = LocalEnvironment(
-        labels=["test"], on_start=f, on_exit=f, metadata={"test": "here"}
+        executor=executor,
+        labels=["test"],
+        on_start=f,
+        on_exit=f,
+        metadata={"test": "here"},
     )
-    assert environment
+    assert environment.executor is executor
     assert environment.labels == set(["test"])
     assert environment.on_start is f
     assert environment.on_exit is f
@@ -48,7 +59,6 @@ def test_environment_dependencies():
 def test_setup_environment_passes():
     environment = LocalEnvironment()
     environment.setup(flow=Flow("test", storage=Docker()))
-    assert environment
 
 
 def test_serialize_environment():
@@ -58,20 +68,31 @@ def test_serialize_environment():
 
 
 def test_environment_execute():
+    class MyExecutor(LocalDaskExecutor):
+        submit_called = False
+
+        def submit(self, *args, **kwargs):
+            self.submit_called = True
+            return super().submit(*args, **kwargs)
+
     global_dict = {}
 
     @prefect.task
     def add_to_dict():
         global_dict["run"] = True
 
-    environment = LocalEnvironment()
+    executor = MyExecutor()
+    environment = LocalEnvironment(executor=executor)
     storage = DummyStorage()
-    flow = prefect.Flow("test", tasks=[add_to_dict])
-    storage.add_flow(flow)
-    flow.storage = storage
+    flow = prefect.Flow(
+        "test", tasks=[add_to_dict], environment=environment, storage=storage
+    )
 
+    storage.add_flow(flow)
     environment.execute(flow=flow)
+
     assert global_dict.get("run") is True
+    assert executor.submit_called
 
 
 def test_environment_execute_with_env_runner():

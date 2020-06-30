@@ -16,17 +16,27 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class DatastoreRegisterBlobContainer(Task):
     """
-    Task for registering Azure Blob Storage container as a Datastore in a Azure ML service Workspace. 
+    Task for registering Azure Blob Storage container as a Datastore in a Azure ML service
+    Workspace.
 
     Args:
-        - workspace (azureml.core.workspace.Workspace): The Workspace to which the Datastore is to be registered.
+        - workspace (azureml.core.workspace.Workspace): The Workspace to which the Datastore is
+            to be registered.
         - container_name (str, optional): The name of the container.
-        - datastore_name (str, optional): The name of the datastore. If not defined, the container name will be used.
-        - create_container_if_not_exists (bool, optional): Create a container, if one does not exist with the given name. 
-        - overwrite_existing_datastore (bool, optional): Overwrite an existing datastore. If the datastore does not exist, it will be created.
-        - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that stores your Azure credentials; this Secret must be a JSON string with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined then`ACCOUNT_KEY` is used). 
-        - set_as_default (bool optional): Set the created Datastore as the default datastore for the Workspace.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
+        - datastore_name (str, optional): The name of the datastore. If not defined, the
+            container name will be used.
+        - create_container_if_not_exists (bool, optional): Create a container, if one does not
+            exist with the given name.
+        - overwrite_existing_datastore (bool, optional): Overwrite an existing datastore. If
+            the datastore does not exist, it will be created.
+        - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that stores
+            your Azure credentials; this Secret must be a JSON string with two keys:
+            `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined
+            then`ACCOUNT_KEY` is used).
+        - set_as_default (bool optional): Set the created Datastore as the default datastore
+            for the Workspace.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -69,18 +79,25 @@ class DatastoreRegisterBlobContainer(Task):
     ) -> AzureBlobDatastore:
         """
         Task run method.
-        
+
         Args:
             - container_name (str, optional): The name of the container.
-            - datastore_name (str, optional): The name of the datastore. If not defined, the container name will be used.
-            - create_container_if_not_exists (bool, optional): Create a container, if one does not exist with the given name. 
-            - overwrite_existing_datastore (bool, optional): Overwrite an existing datastore. If the datastore does not exist, it will be created.
-            - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that stores your Azure credentials; this Secret must be a JSON string with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined then`ACCOUNT_KEY` is used)
-            - set_as_default (bool optional): Set the created Datastore as the default datastore for the Workspace.
+            - datastore_name (str, optional): The name of the datastore. If not defined, the
+                container name will be used.
+            - create_container_if_not_exists (bool, optional): Create a container, if one does
+                not exist with the given name.
+            - overwrite_existing_datastore (bool, optional): Overwrite an existing datastore.
+                If the datastore does not exist, it will be created.
+            - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that
+                stores your Azure credentials; this Secret must be a JSON string with two keys:
+                `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined
+                then`ACCOUNT_KEY` is used)
+            - set_as_default (bool optional): Set the created Datastore as the default
+                datastore for the Workspace.
 
         Return:
             - (azureml.data.azure_storage_datastore.AzureBlobDatastore): The registered Datastore.
-        
+
         """
         if container_name is None:
             raise ValueError("A container name must be provided.")
@@ -116,9 +133,10 @@ class DatastoreList(Task):
     Task for listing the Datastores in a Workspace.
 
     Args:
-        - workspace (azureml.core.workspace.Workspace): The Workspace which Datastores are to be listed. 
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
-    """
+        - workspace (azureml.core.workspace.Workspace): The Workspace which Datastores are to
+            be listed.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor """
 
     def __init__(self, workspace: Workspace, **kwargs) -> None:
         self.workspace = workspace
@@ -130,7 +148,8 @@ class DatastoreList(Task):
         Task run method.
 
         Returns:
-            -  (Dict[str, Datastore]): a dictionary with the datastore names as keys and Datastore objects as items. 
+            -  Dict[str, Datastore]: a dictionary with the datastore names as keys and
+                 Datastore objects as items.
         """
 
         return self.workspace.datastores
@@ -141,9 +160,11 @@ class DatastoreGet(Task):
     Task for getting a Datastore registered to a given Workspace.
 
     Args:
-        - workspace (azureml.core.workspace.Workspace): The Workspace which Datastore is retrieved. 
-        - datastore_name (str, optional): The name of the Datastore. If `None`, then the default Datastore of the Workspace is returned. 
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
+        - workspace (azureml.core.workspace.Workspace): The Workspace which Datastore is retrieved.
+        - datastore_name (str, optional): The name of the Datastore. If `None`, then the
+            default Datastore of the Workspace is returned.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -157,13 +178,14 @@ class DatastoreGet(Task):
     @defaults_from_attrs("datastore_name")
     def run(self, datastore_name: str = None) -> azureml.core.datastore.Datastore:
         """
-        Task run method. 
+        Task run method.
 
         Args:
-            - datastore_name (str, optional): The name of the Datastore. If `None`, then the default Datastore of the Workspace is returned. 
-    
+            - datastore_name (str, optional): The name of the Datastore. If `None`, then the
+                default Datastore of the Workspace is returned.
+
         Returns:
-            - (azureml.core.datastore.Datastore): The Datastore. 
+            - (azureml.core.datastore.Datastore): The Datastore.
 
         """
         if datastore_name is None:
@@ -178,10 +200,16 @@ class DatastoreUpload(Task):
     Task for uploading local files to a Datastore.
 
     Args:
-        - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore, optional): The datastore to upload the files to. 
-        - relative_root (str, optional): The root from which is used to determine the path of the files in the blob. For example, if we upload /path/to/file.txt, and we define base path to be /path, when file.txt is uploaded to the blob storage, it will have the path of /to/file.txt.
-        - path (Union[str, List[str]], optional): The path to a single file, single directory, or a list of path to files to eb uploaded. 
-        - target_path (str, optional): The location in the blob container to upload to. If None, then upload to root.
+        - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore, optional):
+            The datastore to upload the files to.
+        - relative_root (str, optional): The root from which is used to determine the path of
+            the files in the blob. For example, if we upload /path/to/file.txt, and we define
+            base path to be /path, when file.txt is uploaded to the blob storage, it will have
+            the path of /to/file.txt.
+        - path (Union[str, List[str]], optional): The path to a single file, single directory,
+            or a list of path to files to eb uploaded.
+        - target_path (str, optional): The location in the blob container to upload to. If
+            None, then upload to root.
         - overwrite (bool, optional): Overwrite existing file(s).
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
@@ -217,16 +245,23 @@ class DatastoreUpload(Task):
     ) -> DataReference:
         """
         Task run method.
-        
+
         Args:
-            - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore, optional): The datastore to upload the files to. 
-            - relative_root (str, optional): The root from which is used to determine the path of the files in the blob. For example, if we upload `/path/to/file.txt`, and we define base path to be `/path`, when `file.txt` is uploaded to the blob storage, it will have the path of `/to/file.txt`.
-            - path (Union[str, List[str]], optional): The path to a single file, single directory, or a list of path to files to eb uploaded. 
-            - target_path (str, optional): The location in the blob container to upload to. If None, then upload to root.
+            - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore, optional):
+                The datastore to upload the files to.
+            - relative_root (str, optional): The root from which is used to determine the path
+                of the files in the blob. For example, if we upload `/path/to/file.txt`, and we
+                define base path to be `/path`, when `file.txt` is uploaded to the blob
+                storage, it will have the path of `/to/file.txt`.
+            - path (Union[str, List[str]], optional): The path to a single file, single
+                directory, or a list of path to files to eb uploaded.
+            - target_path (str, optional): The location in the blob container to upload to. If
+                None, then upload to root.
             - overwrite (bool, optional): Overwrite existing file(s).
 
         Returns:
-            - (azureml.data.data_reference.DataReference): The DataReference instance for the target path uploaded
+            - (azureml.data.data_reference.DataReference): The DataReference instance for the
+              target path uploaded
         """
 
         if datastore is None:

@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Callable, List, TYPE_CHECKING
 
 from prefect import config
@@ -30,11 +31,14 @@ class RemoteEnvironment(Environment):
             to `prefect.config.engine.executor.default_class`
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
-        - metadata (dict, optional): extra metadata to be set and serialized on this environment
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this
+            environment
     """
 
     def __init__(
@@ -46,6 +50,14 @@ class RemoteEnvironment(Environment):
         on_exit: Callable = None,
         metadata: dict = None,
     ) -> None:
+        if type(self) is RemoteEnvironment or not type(self).__module__.startswith(
+            "prefect."
+        ):
+            # Only warn if its a subclass not part of prefect, since we don't
+            # want to update the code for e.g. `DaskCloudProviderEnvironment`
+            warnings.warn(
+                "`RemoteEnvironment` is deprecated, please use `LocalEnvironment` instead."
+            )
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
         super().__init__(

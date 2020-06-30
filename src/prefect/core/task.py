@@ -1,7 +1,6 @@
 import collections.abc
 import copy
 import inspect
-import uuid
 import warnings
 from datetime import timedelta
 from typing import (
@@ -25,11 +24,11 @@ from prefect.utilities.notifications import callback_factory
 from prefect.utilities.tasks import unmapped
 
 if TYPE_CHECKING:
-    from prefect.core.flow import Flow  # pylint: disable=W0611
-    from prefect.engine.result import Result  # pylint: disable=W0611
-    from prefect.engine.result_handlers import ResultHandler  # pylint: disable=W0611
-    from prefect.engine.state import State  # pylint: disable=W0611
-    from prefect.core import Edge  # pylint: disable=W0611
+    from prefect.core.flow import Flow
+    from prefect.engine.result import Result
+    from prefect.engine.result_handlers import ResultHandler
+    from prefect.engine.state import State
+    from prefect.core import Edge
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -116,8 +115,9 @@ class Task(metaclass=SignatureValidator):
 
     Args:
         - name (str, optional): The name of this task
-        - slug (str, optional): The slug for this task. Slugs are required and must be unique
-            within any flow; if not provided a random UUID will be generated.
+        - slug (str, optional): The slug for this task. Slugs provide a stable ID for tasks so
+            that the Prefect API can identify task run states. If a slug is not provided, one
+            will be generated automatically once the task is added to a Flow.
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
@@ -190,7 +190,7 @@ class Task(metaclass=SignatureValidator):
         max_retries: int = None,
         retry_delay: timedelta = None,
         timeout: int = None,
-        trigger: Callable[[Dict["Edge", "State"]], bool] = None,
+        trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
@@ -204,7 +204,7 @@ class Task(metaclass=SignatureValidator):
         target: str = None,
     ):
         self.name = name or type(self).__name__
-        self.slug = slug or str(uuid.uuid4())
+        self.slug = slug
 
         self.logger = logging.get_logger(self.name)
 
@@ -235,7 +235,8 @@ class Task(metaclass=SignatureValidator):
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
             raise ValueError(
-                "A `max_retries` argument greater than 0 must be provided if specifying a retry delay."
+                "A `max_retries` argument greater than 0 must be provided if specifying "
+                "a retry delay."
             )
         if timeout is not None and not isinstance(timeout, int):
             raise TypeError(
@@ -253,7 +254,8 @@ class Task(metaclass=SignatureValidator):
             and cache_validator is not prefect.engine.cache_validators.never_use
         ):
             warnings.warn(
-                "cache_validator provided without specifying cache expiration (cache_for); this Task will not be cached."
+                "cache_validator provided without specifying cache expiration "
+                "(cache_for); this Task will not be cached."
             )
 
         self.cache_for = cache_for
@@ -325,23 +327,24 @@ class Task(metaclass=SignatureValidator):
         *Note:* The implemented `run` method cannot have `*args` in its signature. In addition,
         the following keywords are reserved: `upstream_tasks`, `task_args` and `mapped`.
 
-        If a task has arguments in its `run()` method, these can be bound either by using the functional
-        API and _calling_ the task instance, or by using `self.bind` directly.
+        If a task has arguments in its `run()` method, these can be bound either by using the
+        functional API and _calling_ the task instance, or by using `self.bind` directly.
 
         In addition to running arbitrary functions, tasks can interact with Prefect in a few ways:
         <ul><li> Return an optional result. When this function runs successfully,
             the task is considered successful and the result (if any) can be
             made available to downstream tasks. </li>
         <li> Raise an error. Errors are interpreted as failure. </li>
-        <li> Raise a [signal](../engine/signals.html). Signals can include `FAIL`, `SUCCESS`, `RETRY`, `SKIP`, etc.
-            and indicate that the task should be put in the indicated state.
+        <li> Raise a [signal](../engine/signals.html). Signals can include `FAIL`, `SUCCESS`,
+            `RETRY`, `SKIP`, etc. and indicate that the task should be put in the indicated state.
                 <ul>
                 <li> `FAIL` will lead to retries if appropriate </li>
                 <li> `SUCCESS` will cause the task to be marked successful </li>
                 <li> `RETRY` will cause the task to be marked for retry, even if `max_retries`
                     has been exceeded </li>
                 <li> `SKIP` will skip the task and possibly propogate the skip state through the
-                    flow, depending on whether downstream tasks have `skip_on_upstream_skip=True`. </li></ul>
+                    flow, depending on whether downstream tasks have `skip_on_upstream_skip=True`.
+                </li></ul>
         </li></ul>
         """
 
@@ -352,8 +355,8 @@ class Task(metaclass=SignatureValidator):
         Creates and returns a copy of the current Task.
 
         Args:
-            - **task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
-                will be set on the new copy
+            - **task_args (dict, optional): a dictionary of task attribute keyword arguments,
+                these attributes will be set on the new copy
 
         Raises:
             - AttributeError: if any passed `task_args` are not attributes of the original
@@ -375,9 +378,8 @@ class Task(metaclass=SignatureValidator):
 
         new = copy.copy(self)
 
-        # ensure new slug is provided
-        if "slug" not in task_args:
-            task_args["slug"] = str(uuid.uuid4())
+        if new.slug and "slug" not in task_args:
+            task_args["slug"] = new.slug + "-copy"
 
         # check task_args
         for attr, val in task_args.items():
@@ -453,8 +455,8 @@ class Task(metaclass=SignatureValidator):
                 with the specified keyword arguments; defaults to `False`.
                 If `True`, any arguments contained within a `prefect.utilities.edges.unmapped`
                 container will _not_ be mapped over.
-            - task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
-                will be set on the new copy
+            - task_args (dict, optional): a dictionary of task attribute keyword arguments,
+                these attributes will be set on the new copy
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
@@ -541,8 +543,8 @@ class Task(metaclass=SignatureValidator):
         **kwargs: Any
     ) -> "Task":
         """
-        Map the Task elementwise across one or more Tasks. Arguments that should _not_ be mapped over
-        should be placed in the `prefect.utilities.edges.unmapped` container.
+        Map the Task elementwise across one or more Tasks. Arguments that should _not_ be
+        mapped over should be placed in the `prefect.utilities.edges.unmapped` container.
 
         For example:
             ```
@@ -552,14 +554,16 @@ class Task(metaclass=SignatureValidator):
 
 
         Args:
-            - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
+            - *args: arguments to map over, which will elementwise be bound to the Task's `run`
+                method
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 to map over
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
             - task_args (dict, optional): a dictionary of task attribute keyword arguments,
                 these attributes will be set on the new copy
-            - **kwargs: keyword arguments to map over, which will elementwise be bound to the Task's `run` method
+            - **kwargs: keyword arguments to map over, which will elementwise be bound to the
+                Task's `run` method
 
         Raises:
             - AttributeError: if any passed `task_args` are not attributes of the original
@@ -597,9 +601,9 @@ class Task(metaclass=SignatureValidator):
             - upstream_tasks ([object], optional): A list of upstream tasks for this task
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
-                to this task under the specified keyword arguments.
-            - mapped (bool, optional): Whether the results of the _upstream_ tasks should be mapped over
-                with the specified keyword arguments
+            to this task under the specified keyword arguments.
+            - mapped (bool, optional): Whether the results of the _upstream_ tasks should be
+                mapped over with the specified keyword arguments
             - validate (bool, optional): Whether or not to check the validity of the flow. If not
                 provided, defaults to the value of `eager_edge_validation` in your Prefect
                 configuration file.
@@ -636,8 +640,9 @@ class Task(metaclass=SignatureValidator):
                 as a upstream dependency of this task.
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
-            - key (str, optional): The key to be set for the new edge; the result of the upstream task
-                will be passed to this task's `run()` method under this keyword argument.
+            - key (str, optional): The key to be set for the new edge; the result of the
+                upstream task will be passed to this task's `run()` method under this keyword
+                argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
             
         Raises:

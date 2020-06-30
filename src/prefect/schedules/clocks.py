@@ -48,9 +48,9 @@ class Clock:
     Args:
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
-        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
-            if provided, these values will be passed as the Parameter values for all Flow Runs which are
-            run on this clock's events
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter
+            values; if provided, these values will be passed as the Parameter values for all
+            Flow Runs which are run on this clock's events
 
     """
 
@@ -106,9 +106,9 @@ class IntervalClock(Clock):
         - start_date (datetime, optional): first date of clock. If None, will be set to
             "2019-01-01 00:00:00 UTC"
         - end_date (datetime, optional): an optional end date for the clock
-        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
-            if provided, these values will be passed as the Parameter values for all Flow Runs which are
-            run on this clock's events
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter
+            values; if provided, these values will be passed as the Parameter values for all
+            Flow Runs which are run on this clock's events
 
     Raises:
         - TypeError: if start_date is not a datetime
@@ -206,9 +206,9 @@ class CronClock(Clock):
         - cron (str): a valid cron string
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
-        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
-            if provided, these values will be passed as the Parameter values for all Flow Runs which are
-            run on this clock's events
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter
+            values; if provided, these values will be passed as the Parameter values for all
+            Flow Runs which are run on this clock's events
 
     Raises:
         - ValueError: if the cron string is invalid
@@ -299,9 +299,9 @@ class DatesClock(Clock):
 
     Args:
         - dates (List[datetime]): a list of `datetimes` on which the clock should fire
-        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
-            if provided, these values will be passed as the Parameter values for all Flow Runs which are
-            run on this clock's events
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter
+            values; if provided, these values will be passed as the Parameter values for all
+            Flow Runs which are run on this clock's events
     """
 
     def __init__(self, dates: List[datetime], parameter_defaults: dict = None):

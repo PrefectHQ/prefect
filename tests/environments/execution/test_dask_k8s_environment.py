@@ -179,94 +179,54 @@ def test_create_namespaced_job_fails_outside_cluster():
                 environment.execute(flow=flow)
 
 
-def test_run_flow(monkeypatch):
-    environment = DaskKubernetesEnvironment()
+def test_environment_run(monkeypatch):
+    from prefect.engine.executors import DaskExecutor
 
-    flow_runner = MagicMock()
-    monkeypatch.setattr(
-        "prefect.engine.get_default_flow_runner_class",
-        MagicMock(return_value=flow_runner),
-    )
-
-    kube_cluster = MagicMock()
-    monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster)
-
-    with tempfile.TemporaryDirectory() as directory:
-        d = Local(directory)
-        d.add_flow(prefect.Flow("name"))
-
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=MagicMock(
-                    flow_run=[
-                        GraphQLResult(
-                            {
-                                "flow": GraphQLResult(
-                                    {"name": "name", "storage": d.serialize(),}
-                                )
-                            }
-                        )
-                    ],
-                )
-            )
-        )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
-        monkeypatch.setattr("prefect.environments.execution.dask.k8s.Client", client)
-
-        with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
-            {"flow_run_id": "id"}
-        ):
-            environment.run_flow()
-
-        assert flow_runner.call_args[1]["flow"].name == "name"
-
-
-def test_run_flow_calls_callbacks(monkeypatch):
     start_func = MagicMock()
     exit_func = MagicMock()
 
-    environment = DaskKubernetesEnvironment(on_start=start_func, on_exit=exit_func)
+    flow = prefect.Flow("my-flow")
+    flow.environment = DaskKubernetesEnvironment(
+        on_start=start_func, on_exit=exit_func, min_workers=3, max_workers=5,
+    )
 
     flow_runner = MagicMock()
+    flow_runner_class = MagicMock(return_value=flow_runner)
     monkeypatch.setattr(
         "prefect.engine.get_default_flow_runner_class",
-        MagicMock(return_value=flow_runner),
+        MagicMock(return_value=flow_runner_class),
     )
 
     kube_cluster = MagicMock()
-    monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster)
+    kube_cluster.scheduler_address = "tcp://fake-address:8786"
+    kube_cluster_class = MagicMock()
+    kube_cluster_class.from_dict.return_value = kube_cluster
+    monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster_class)
 
-    with tempfile.TemporaryDirectory() as directory:
-        d = Local(directory)
-        d.add_flow(prefect.Flow("name"))
+    with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
+        {"flow_run_id": "id", "namespace": "mynamespace"}
+    ):
+        flow.environment.run(flow)
 
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=MagicMock(
-                    flow_run=[
-                        GraphQLResult(
-                            {
-                                "flow": GraphQLResult(
-                                    {"name": "name", "storage": d.serialize(),}
-                                )
-                            }
-                        )
-                    ],
-                )
-            )
-        )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
-        monkeypatch.setattr("prefect.environments.execution.dask.k8s.Client", client)
+    # Flow runner creation
+    assert flow_runner_class.call_args[1]["flow"] is flow
 
-        with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
-            {"flow_run_id": "id"}
-        ):
-            environment.run_flow()
+    # Kube cluster is created with proper config
+    assert kube_cluster_class.from_dict.called
+    assert kube_cluster_class.from_dict.call_args[1]["namespace"] == "mynamespace"
 
-        assert flow_runner.call_args[1]["flow"].name == "name"
+    # Kube  cluster adapt is called with config
+    assert kube_cluster.adapt.called
+    assert kube_cluster.adapt.call_args[1]["minimum"] == 3
+    assert kube_cluster.adapt.call_args[1]["maximum"] == 5
 
+    # Flow runner run is called with proper executor
+    assert flow_runner.run.called
+    executor = flow_runner.run.call_args[1]["executor"]
+    assert isinstance(executor, DaskExecutor)
+    assert executor.address == kube_cluster.scheduler_address
+
+    # start/exit callbacks are called
     assert start_func.called
     assert exit_func.called
 

@@ -166,6 +166,11 @@ title = "Result Subclasses"
 module = "prefect.engine.results"
 classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult", "SecretResult", "ConstantResult"]
 
+[pages.engine.serializers]
+title = "Result Serializers"
+module = "prefect.engine.serializers"
+classes = ["Serializer", "PickleSerializer", "JSONSerializer"]
+
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
@@ -179,12 +184,12 @@ classes = ["CloudFlowRunner", "CloudTaskRunner"]
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Docker", "Local", "S3", "GCS", "Azure"]
+classes = ["Docker", "Local", "S3", "GCS", "Azure", "GitHub"]
 
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment", "RemoteDaskEnvironment"]
+classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -303,12 +308,20 @@ classes = [
         "BigQueryStreamingInsert",
         "CreateBigQueryTable"
         ]
-
+ 
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = [
         "RunGreatExpectationsCheckpoint",
+        ]
+
+[pages.tasks.gsheets]
+title = "Google Sheets Tasks"
+module = "prefect.tasks.gsheets"
+classes = [
+        "WriteGsheetRow",
+        "ReadGsheetRow",
         ]
 
 [pages.tasks.jira]
@@ -495,4 +508,4 @@ functions = ["to_qualified_name", "from_qualified_name"]
 title = "Task Utilities"
 module = "prefect.utilities.tasks"
 classes = ["unmapped"]
-functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs"]
+functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs", "apply_map"]

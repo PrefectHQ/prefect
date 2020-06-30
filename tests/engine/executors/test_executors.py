@@ -14,7 +14,6 @@ from prefect.engine.executors import (
     Executor,
     LocalDaskExecutor,
     LocalExecutor,
-    SynchronousExecutor,
 )
 
 
@@ -41,17 +40,6 @@ class TestBaseExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, Executor)
-
-
-class TestSyncExecutor:
-    def test_sync_is_depcrecated(self):
-        with pytest.warns(UserWarning) as w:
-            e = SynchronousExecutor()
-
-        assert "deprecated" in str(w[0].message)
-        assert "LocalDaskExecutor" in str(w[0].message)
-        assert isinstance(e, LocalDaskExecutor)
-        assert e.scheduler == "synchronous"
 
 
 class TestLocalDaskExecutor:
@@ -95,6 +83,13 @@ class TestLocalDaskExecutor:
             f = e.submit(lambda x: x + 1, 1, extra_context={"task_name": "inc"})
             (res,) = e.wait([f])
             assert f.key.startswith("inc-")
+            assert res == 2
+
+            f = e.submit(
+                lambda x: x + 1, 1, extra_context={"task_name": "inc", "task_index": 1}
+            )
+            (res,) = e.wait([f])
+            assert f.key.startswith("inc-1-")
             assert res == 2
 
     def test_only_compute_once(self):
@@ -329,14 +324,26 @@ class TestDaskExecutor:
         kwargs = executor._prep_dask_kwargs(
             dict(task_name="FISH!", task_tags=["dask-resource:GPU=1"])
         )
-        assert kwargs["key"].startswith("FISH!")
+        assert kwargs["key"].startswith("FISH!-")
         assert kwargs["resources"] == {"GPU": 1.0}
+
+        kwargs = executor._prep_dask_kwargs(
+            dict(task_name="FISH!", task_tags=["dask-resource:GPU=1"], task_index=1)
+        )
+        assert kwargs["key"].startswith("FISH!-1-")
 
     def test_submit_sets_task_name(self, mthread):
         with mthread.start():
             fut = mthread.submit(lambda x: x + 1, 1, extra_context={"task_name": "inc"})
             (res,) = mthread.wait([fut])
             assert fut.key.startswith("inc-")
+            assert res == 2
+
+            fut = mthread.submit(
+                lambda x: x + 1, 1, extra_context={"task_name": "inc", "task_index": 1}
+            )
+            (res,) = mthread.wait([fut])
+            assert fut.key.startswith("inc-1-")
             assert res == 2
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)

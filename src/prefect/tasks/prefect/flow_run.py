@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlparse
 
 from prefect import config, Task
 from prefect.client import Client
@@ -8,16 +9,17 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class FlowRunTask(Task):
     """
-    Task used to kick off a flow run using Prefect Core's server or Prefect Cloud.
-    If multiple versions of the flow are found, this task will kick off the most recent unarchived version.
+    Task used to kick off a flow run using Prefect Core's server or Prefect Cloud.  If multiple
+    versions of the flow are found, this task will kick off the most recent unarchived version.
 
     Args:
-        - flow_name (str, optional): the name of the flow to schedule; this value may also be provided at run time
-        - project_name (str, optional): if running with Cloud as a backend, this is the project in which the flow is
-            located; this value may also be provided at runtime. If running with Prefect Core's server as the backend,
-            this should not be provided.
-        - parameters (dict, optional): the parameters to pass to the flow run being scheduled; this value may also
-            be provided at run time
+        - flow_name (str, optional): the name of the flow to schedule; this value may also be
+            provided at run time
+        - project_name (str, optional): if running with Cloud as a backend, this is the project
+            in which the flow is located; this value may also be provided at runtime. If
+            running with Prefect Core's server as the backend, this should not be provided.
+        - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
+            this value may also be provided at run time
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -41,20 +43,21 @@ class FlowRunTask(Task):
         Run method for the task; responsible for scheduling the specified flow run.
 
         Args:
-            - flow_name (str, optional): the name of the flow to schedule; if not provided, this method will
-                use the flow name provided at initialization
-            - project_name (str, optional): the Cloud project in which the flow is located; if not provided, this method
-                will use the project provided at initialization. If running with Prefect Core's server as the backend,
-                this should not be provided.
-            - parameters (dict, optional): the parameters to pass to the flow run being scheduled; if not provided,
-                this method will use the parameters provided at initialization
+            - flow_name (str, optional): the name of the flow to schedule; if not provided,
+                this method will use the flow name provided at initialization
+            - project_name (str, optional): the Cloud project in which the flow is located; if
+                not provided, this method will use the project provided at initialization. If
+                running with Prefect Core's server as the backend, this should not be provided.
+            - parameters (dict, optional): the parameters to pass to the flow run being
+                scheduled; if not provided, this method will use the parameters provided at
+                initialization
 
         Returns:
             - str: the ID of the newly-scheduled flow run
 
         Raises:
-            - ValueError: if flow was not provided, cannot be found, or if a project name was not provided while using
-                Cloud as a backend
+            - ValueError: if flow was not provided, cannot be found, or if a project name was
+                not provided while using Cloud as a backend
 
         Example:
             ```python
@@ -64,10 +67,12 @@ class FlowRunTask(Task):
             ```
 
         """
+        is_hosted_backend = "prefect.io" in urlparse(config.cloud.api).netloc
+
         # verify that flow and project names were passed where necessary
         if flow_name is None:
             raise ValueError("Must provide a flow name.")
-        if project_name is None and config.backend == "cloud":
+        if project_name is None and is_hosted_backend:
             raise ValueError("Must provide a project name.")
 
         where_clause = {

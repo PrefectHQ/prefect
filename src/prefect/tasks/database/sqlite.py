@@ -32,7 +32,8 @@ class SQLiteQuery(Task):
             - db (str, optional): the location of the database (.db) file;
                 if not provided, `self.db` will be used instead.
             - query (str, optional): the optional query to execute at runtime;
-                if not provided, `self.query` will be used instead. Note that a query should consist of a _single SQL statement_.
+                if not provided, `self.query` will be used instead. Note that a
+                query should consist of a _single SQL statement_.
 
         Returns:
             - [Any]: the results of the query

@@ -2,7 +2,8 @@
 State is the main currency in the Prefect platform. It is used to represent the current
 status of a flow or task.
 
-This module contains all Prefect state classes, all ultimately inheriting from the base State class as follows:
+This module contains all Prefect state classes, all ultimately inheriting from the base State
+class as follows:
 
 ![diagram of state inheritances](/state_inheritance_diagram.svg){.viz-padded}
 
@@ -94,9 +95,10 @@ class State:
 
     def load_result(self, result: Result = None) -> "State":
         """
-        Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
-        using the logic of the provided result.  This method is mainly intended to be used
-        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+        Given another Result instance, uses the current Result's `location` to create a fully
+        hydrated `Result` using the logic of the provided result.  This method is mainly
+        intended to be used by `TaskRunner` methods to hydrate deserialized Cloud results into
+        fully functional `Result` instances.
 
         Args:
             - result (Result): the result instance to hydrate with `self.location`
@@ -118,12 +120,14 @@ class State:
         self, results: Mapping[str, Optional[Result]] = None
     ) -> "State":
         """
-        Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
-        using the logic of the provided result.  This method is mainly intended to be used
-        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+        Given another Result instance, uses the current Result's `location` to create a fully
+        hydrated `Result` using the logic of the provided result.  This method is mainly
+        intended to be used by `TaskRunner` methods to hydrate deserialized Cloud results into
+        fully functional `Result` instances.
 
         Args:
-            - results (Dict[str, Result]): a dictionary of result instances to hydrate `self.cached_inputs` with
+            - results (Dict[str, Result]): a dictionary of result instances to hydrate
+                `self.cached_inputs` with
 
         Returns:
             - State: the current state with a fully hydrated Result attached
@@ -244,7 +248,7 @@ class State:
         Returns:
             - bool: `True` if the state is skipped, `False` otherwise
         """
-        return isinstance(self, Scheduled)
+        return isinstance(self, (Scheduled, Queued))
 
     def is_submitted(self) -> bool:
         """
@@ -661,8 +665,8 @@ class Finished(State):
 
 class Looped(Finished):
     """
-    Finished state indicating one successful run of a looped task - if a Task is in this state, it will
-    run the next iteration of the loop immediately after.
+    Finished state indicating one successful run of a looped task - if a Task is in this state,
+    it will run the next iteration of the loop immediately after.
 
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the

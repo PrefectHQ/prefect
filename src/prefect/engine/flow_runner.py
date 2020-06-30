@@ -6,7 +6,6 @@ from typing import (
     NamedTuple,
     Optional,
     Set,
-    Union,
 )
 
 import pendulum
@@ -20,7 +19,6 @@ from prefect.engine.state import (
     Failed,
     Mapped,
     Pending,
-    Retrying,
     Running,
     Scheduled,
     State,
@@ -61,7 +59,7 @@ class FlowRunner(Runner):
             opportunity to inspect or modify the new state. The handler
             will be passed the flow runner instance, the old (prior) state, and the new
             (current) state, with the following signature:
-                `state_handler(fr: FlowRunner, old_state: State, new_state: State) -> Optional[State]`
+            `state_handler(fr: FlowRunner, old_state: State, new_state: State) -> Optional[State]`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
 
@@ -139,7 +137,8 @@ class FlowRunner(Runner):
             - task_states (Dict[Task, State]): a dictionary of any initial task states
             - context (Dict[str, Any], optional): prefect.Context to use for execution
                 to use for each Task run
-            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be
+                provided to each task
             - parameters(dict): the parameter values for the run
 
         Returns:
@@ -210,13 +209,14 @@ class FlowRunner(Runner):
                 values, with keys being strings representing Parameter names and values being
                 their corresponding values
             - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
-                handlers that will be provided to the task_runner, and called whenever a task changes
-                state.
+                handlers that will be provided to the task_runner, and called whenever a task
+                changes state.
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
             - context (Dict[str, Any], optional): prefect.Context to use for execution
                 to use for each Task run
-            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be
+                provided to each task
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
@@ -371,14 +371,15 @@ class FlowRunner(Runner):
                 `Pending`
             - task_states (dict): dictionary of task states to begin
                 computation with, with keys being Tasks and values their corresponding state
-            - task_contexts (Dict[Task, Dict[str, Any]]): contexts that will be provided to each task
+            - task_contexts (Dict[Task, Dict[str, Any]]): contexts that will be provided to
+                each task
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
-            - task_runner_state_handlers (Iterable[Callable]): A list of state change
-                handlers that will be provided to the task_runner, and called whenever a task changes
+            - task_runner_state_handlers (Iterable[Callable]): A list of state change handlers
+                that will be provided to the task_runner, and called whenever a task changes
                 state.
-            - executor (Executor): executor to use when performing
-                computation; defaults to the executor provided in your prefect configuration
+            - executor (Executor): executor to use when performing computation; defaults to the
+                executor provided in your prefect configuration
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
@@ -399,6 +400,13 @@ class FlowRunner(Runner):
         if set(return_tasks).difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
+        def extra_context(task: Task, task_index: int = None) -> dict:
+            return {
+                "task_name": task.name,
+                "task_tags": task.tags,
+                "task_index": task_index,
+            }
+
         # -- process each task in order
 
         with executor.start():
@@ -413,10 +421,10 @@ class FlowRunner(Runner):
                 ):
                     task_states[task] = task_state = Success(result=task.value)
 
-                # if the state is finished, don't run the task, just use the provided state
-                # if the state is cached / mapped, we still want to run the task runner pipeline steps
-                # to either ensure the cache is still valid / or to recreate the mapped pipeline for
-                # possible retries
+                # if the state is finished, don't run the task, just use the provided state if
+                # the state is cached / mapped, we still want to run the task runner pipeline
+                # steps to either ensure the cache is still valid / or to recreate the mapped
+                # pipeline for possible retries
                 if (
                     isinstance(task_state, State)
                     and task_state.is_finished()
@@ -427,9 +435,9 @@ class FlowRunner(Runner):
 
                 upstream_states = {}  # type: Dict[Edge, State]
 
-                # this dictionary is used exclusively for "reduce" tasks
-                # in particular we store the states / futures corresponding to
-                # the upstream children, and if running on Dask, let Dask resolve them at the appropriate time
+                # this dictionary is used exclusively for "reduce" tasks in particular we store
+                # the states / futures corresponding to the upstream children, and if running
+                # on Dask, let Dask resolve them at the appropriate time
                 upstream_mapped_states = {}  # type: Dict[Edge, list]
 
                 # -- process each edge to the task
@@ -457,19 +465,17 @@ class FlowRunner(Runner):
                         result=ConstantResult(value=val),
                     )
 
-                extra_context = dict(task_name=task.name, task_tags=task.tags)
-
                 # handle mapped tasks
                 if any([edge.mapped for edge in upstream_states.keys()]):
 
-                    ## wait on upstream states to determine the width of the pipeline
-                    ## this is the key to depth-first execution
+                    # wait on upstream states to determine the width of the pipeline
+                    # this is the key to depth-first execution
                     upstream_states = executor.wait(
                         {e: state for e, state in upstream_states.items()}
                     )
-                    ## we submit the task to the task runner to determine if
-                    ## we can proceed with mapping - if the new task state is not a Mapped
-                    ## state then we don't proceed
+                    # we submit the task to the task runner to determine if
+                    # we can proceed with mapping - if the new task state is not a Mapped
+                    # state then we don't proceed
                     task_states[task] = executor.wait(
                         executor.submit(
                             run_task,
@@ -484,12 +490,12 @@ class FlowRunner(Runner):
                             task_runner_state_handlers=task_runner_state_handlers,
                             upstream_mapped_states=upstream_mapped_states,
                             is_mapped_parent=True,
-                            extra_context=extra_context,
+                            extra_context=extra_context(task),
                         )
                     )
 
-                    ## either way, we should now have enough resolved states to restructure
-                    ## the upstream states into a list of upstream state dictionaries to iterate over
+                    # either way, we should now have enough resolved states to restructure
+                    # the upstream states into a list of upstream state dictionaries to iterate over
                     list_of_upstream_states = prepare_upstream_states_for_mapping(
                         task_states[task], upstream_states, mapped_children
                     )
@@ -497,9 +503,9 @@ class FlowRunner(Runner):
                     submitted_states = []
 
                     for idx, states in enumerate(list_of_upstream_states):
-                        ## if we are on a future rerun of a partially complete flow run,
-                        ## there might be mapped children in a retrying state; this check
-                        ## looks into the current task state's map_states for such info
+                        # if we are on a future rerun of a partially complete flow run,
+                        # there might be mapped children in a retrying state; this check
+                        # looks into the current task state's map_states for such info
                         if (
                             isinstance(task_state, Mapped)
                             and len(task_state.map_states) >= idx + 1
@@ -512,8 +518,7 @@ class FlowRunner(Runner):
                         else:
                             current_state = task_state
 
-                        ## this is where each child is submitted for actual work
-                        extra_context.update(task_name=f"{task.name}[{idx}]")
+                        # this is where each child is submitted for actual work
                         submitted_states.append(
                             executor.submit(
                                 run_task,
@@ -529,7 +534,7 @@ class FlowRunner(Runner):
                                 task_runner_cls=self.task_runner_cls,
                                 task_runner_state_handlers=task_runner_state_handlers,
                                 upstream_mapped_states=upstream_mapped_states,
-                                extra_context=extra_context,
+                                extra_context=extra_context(task, task_index=idx),
                             )
                         )
                     if isinstance(task_states.get(task), Mapped):
@@ -546,7 +551,7 @@ class FlowRunner(Runner):
                         task_runner_cls=self.task_runner_cls,
                         task_runner_state_handlers=task_runner_state_handlers,
                         upstream_mapped_states=upstream_mapped_states,
-                        extra_context=extra_context,
+                        extra_context=extra_context(task),
                     )
 
             # ---------------------------------------------
@@ -608,7 +613,8 @@ class FlowRunner(Runner):
 
         Args:
             - state (State): the current state of the Flow
-            - key_states (Set[State]): the states which will determine the success / failure of the flow run
+            - key_states (Set[State]): the states which will determine the success / failure of
+                the flow run
             - return_states (Dict[Task, State]): states to return as results
             - terminal_states (Set[State]): the states of the terminal tasks for this flow
 

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect.agent.fargate import FargateAgent
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -168,6 +168,7 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
                 "secrets": "test",
                 "mountPoints": "test",
                 "logConfiguration": "test",
+                "repositoryCredentials": "repo",
             }
         ]
     }
@@ -183,7 +184,74 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
         "secrets": "test",
         "mountPoints": "test",
         "logConfiguration": "test",
+        "repositoryCredentials": "repo",
     }
+
+
+def test_parse_container_definition_kwargs_provided_as_string(
+    monkeypatch, runner_token
+):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "containerDefinitions": str(
+            [
+                {
+                    "environment": "test",
+                    "secrets": "test",
+                    "mountPoints": "test",
+                    "logConfiguration": "test",
+                    "repositoryCredentials": "repo",
+                }
+            ]
+        )
+    }
+
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
+
+    assert container_definitions_kwargs == {
+        "environment": "test",
+        "secrets": "test",
+        "mountPoints": "test",
+        "logConfiguration": "test",
+        "repositoryCredentials": "repo",
+    }
+
+
+def test_parse_container_definition_kwargs_errors_on_multiple(
+    monkeypatch, runner_token
+):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "containerDefinitions": [
+            {
+                "environment": "test",
+                "secrets": "test",
+                "mountPoints": "test",
+                "logConfiguration": "test",
+                "repositoryCredentials": "repo",
+            },
+            {"test": "here"},
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        (
+            task_definition_kwargs,
+            task_run_kwargs,
+            container_definitions_kwargs,
+        ) = agent._parse_kwargs(kwarg_dict)
 
 
 def test_parse_container_definition_kwargs_errors(monkeypatch, runner_token):
@@ -575,7 +643,7 @@ def test_deploy_flow_local_storage_raises(monkeypatch, runner_token):
                         {
                             "storage": Local().serialize(),
                             "id": "id",
-                            "environment": RemoteEnvironment().serialize(),
+                            "environment": LocalEnvironment().serialize(),
                         }
                     ),
                     "id": "id",
@@ -604,7 +672,7 @@ def test_deploy_flow_docker_storage_raises(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -670,7 +738,7 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -723,7 +791,7 @@ def test_deploy_flow_register_task_definition(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -758,7 +826,7 @@ def test_deploy_flow_register_task_definition_uses_environment_metadata(
                 "flow": GraphQLResult(
                     {
                         "storage": Local().serialize(),
-                        "environment": RemoteEnvironment(
+                        "environment": LocalEnvironment(
                             metadata={"image": "repo/name:tag"}
                         ).serialize(),
                         "id": "id",
@@ -803,7 +871,7 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -898,6 +966,7 @@ def test_deploy_flow_register_task_definition_all_args(
                         "awslogs-create-group": "true",
                     },
                 },
+                "repositoryCredentials": ["repo"],
             }
         ],
     }
@@ -918,7 +987,7 @@ def test_deploy_flow_register_task_definition_all_args(
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -983,6 +1052,7 @@ def test_deploy_flow_register_task_definition_all_args(
                     "awslogs-create-group": "true",
                 },
             },
+            "repositoryCredentials": ["repo"],
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -1051,7 +1121,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -1095,9 +1165,6 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                 },
             ],
             "essential": True,
-            "secrets": [],
-            "mountPoints": [],
-            "logConfiguration": {},
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -1106,69 +1173,6 @@ def test_deploy_flows_includes_agent_labels_in_environment(
     assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
     assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
-
-
-def test_deploy_flow_register_task_definition_no_repo_credentials(
-    monkeypatch, runner_token, cloud_api
-):
-    boto3_client = MagicMock()
-
-    boto3_client.describe_task_definition.side_effect = ClientError({}, None)
-    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
-    boto3_client.register_task_definition.return_value = {}
-
-    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
-
-    with set_temporary_config({"logging.log_to_cloud": True}):
-        agent = FargateAgent()
-
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "storage": Docker(
-                            registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
-                        "id": "id",
-                    }
-                ),
-                "id": "id",
-            }
-        )
-    )
-
-    assert boto3_client.describe_task_definition.called
-    assert boto3_client.register_task_definition.called
-    assert boto3_client.register_task_definition.call_args[1][
-        "containerDefinitions"
-    ] == [
-        {
-            "name": "flow",
-            "image": "test/name:tag",
-            "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
-            "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
-                {
-                    "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
-                    "value": "prefect.engine.cloud.CloudFlowRunner",
-                },
-                {
-                    "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
-                    "value": "prefect.engine.cloud.CloudTaskRunner",
-                },
-            ],
-            "essential": True,
-            "secrets": [],
-            "mountPoints": [],
-            "logConfiguration": {},
-        }
-    ]
 
 
 def test_deploy_flows_require_docker_storage(monkeypatch, runner_token):
@@ -1186,7 +1190,7 @@ def test_deploy_flows_require_docker_storage(monkeypatch, runner_token):
                     "flow": GraphQLResult(
                         {
                             "storage": Local().serialize(),
-                            "environment": RemoteEnvironment().serialize(),
+                            "environment": LocalEnvironment().serialize(),
                             "id": "id",
                             "version": 2,
                             "name": "name",
@@ -1224,7 +1228,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                         "version": 2,
                         "name": "name",
@@ -1259,9 +1263,6 @@ def test_deploy_flows_enable_task_revisions_no_tags(
                     },
                 ],
                 "essential": True,
-                "secrets": [],
-                "mountPoints": [],
-                "logConfiguration": {},
             }
         ],
         family="name",
@@ -1299,7 +1300,7 @@ def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, runner_tok
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                         "version": 5,
                         "name": "name #1",
@@ -1344,7 +1345,7 @@ def test_deploy_flows_enable_task_revisions_old_version_exists(
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                         "version": 3,
                         "name": "name",
@@ -1417,7 +1418,7 @@ def test_override_kwargs(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                         "version": 2,
                         "name": "name",
@@ -1485,7 +1486,7 @@ def test_override_kwargs_exception(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                         "version": 2,
                         "name": "name",
@@ -1533,7 +1534,7 @@ def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, runner_t
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                         "version": 2,
                         "name": "name",
@@ -1602,7 +1603,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "new_id",
                         "version": 6,
                         "name": "name",
@@ -1639,9 +1640,6 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                     },
                 ],
                 "essential": True,
-                "secrets": [],
-                "mountPoints": [],
-                "logConfiguration": {},
             }
         ],
         cpu="256",
@@ -1715,7 +1713,7 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "new_id",
                         "version": 6,
                         "name": "name",
@@ -1789,7 +1787,7 @@ def test_deploy_flows_launch_type_ec2(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "new_id",
                         "version": 6,
                         "name": "name",
@@ -1863,7 +1861,7 @@ def test_deploy_flows_launch_type_none(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "new_id",
                         "version": 6,
                         "name": "name",

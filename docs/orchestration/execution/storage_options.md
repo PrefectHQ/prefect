@@ -29,7 +29,7 @@ Additionally, in more recent releases of Core your flow will default to using a 
 
 ## Azure Blob Storage
 
-[Azure Storage](/api/latest/environments/storage.html#azure) is a storage option that uploads flows to an Azure Blob container. Flows stored using this option can be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from that Azure Blob container using a connection string or by container-based agents using the method outlined [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+[Azure Storage](/api/latest/environments/storage.html#azure) is a storage option that uploads flows to an Azure Blob container.
 
 ```python
 from prefect import Flow
@@ -54,7 +54,7 @@ Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us
 
 ## AWS S3
 
-[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket. Flows stored using this option can be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from an S3 bucket or by container-based agents using the method outlined [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket.
 
 ```python
 from prefect import Flow
@@ -79,7 +79,7 @@ S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.
 
 ## Google Cloud Storage
 
-[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket. Flows stored using this option can be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from a GCS bucket or by container-based agents using the method outlined [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket.
 
 ```python
 from prefect import Flow
@@ -100,6 +100,20 @@ Additionally, in more recent releases of Core your flow will default to using a 
 
 :::tip Google Cloud Credentials
 GCS Storage uses Google Cloud credentials the same way as the standard [google.cloud library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python) which means both upload (build) and download (local agent) times need to have the proper Google Application Credentials configuration.
+:::
+
+## GitHub
+
+[GitHub Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files.
+
+For a detailed look on how to use GitHub storage visit the [Using file based storage](/core/idioms/file-based.html) idiom.
+
+::: tip Sensible Defaults
+Flows registered with this storage option will automatically be labeled with `"github-flow-storage"`; this helps prevents agents not explicitly authenticated with your GitHub repo from attempting to run this flow.
+:::
+
+:::tip GitHub Credentials
+GitHub storage uses a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) for authenticating with repositories.
 :::
 
 ## Docker
@@ -129,7 +143,7 @@ Prefect allows for flows to be stored in cloud storage services and executed in 
 
 ```python
 from prefect import Flow
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 from prefect.environments.storage import S3
 
 flow = Flow("example")
@@ -138,7 +152,7 @@ flow = Flow("example")
 flow.storage = S3(bucket="my-flows")
 
 # set flow environment
-flow.environment = RemoteEnvironment(metadata={"image": "repo/name:tag"})
+flow.environment = LocalEnvironment(metadata={"image": "repo/name:tag"})
 ```
 
 This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example).
@@ -163,7 +177,7 @@ Prefect has a couple [default secrets](/core/concepts/secrets.html#default-secre
 ```python
 flow.storage = S3(bucket="my-flows", secrets=["AWS_CREDENTIALS"])
 
-flow.environment = RemoteEnvironment(metadata={"image": "prefecthq/prefect:all_extras"})
+flow.environment = LocalEnvironment(metadata={"image": "prefecthq/prefect:all_extras"})
 ```
 
 ::: warning Dependencies

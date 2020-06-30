@@ -2,7 +2,7 @@ import logging
 import uuid
 import warnings
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, TYPE_CHECKING, Union
+from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
 
 from prefect import context
 from prefect.engine.executors.base import Executor
@@ -26,6 +26,18 @@ _valid_client_kwargs = {
     "direct_to_workers",
     "heartbeat_interval",
 }
+
+
+def _make_task_key(
+    task_name: str = "", task_index: int = None, **kwargs: Any
+) -> Optional[str]:
+    """A helper for generating a dask task key from fields set in `extra_context`"""
+    if task_name:
+        suffix = uuid.uuid4().hex
+        if task_index is not None:
+            return f"{task_name}-{task_index}-{suffix}"
+        return f"{task_name}-{suffix}"
+    return None
 
 
 class DaskExecutor(Executor):
@@ -210,16 +222,15 @@ class DaskExecutor(Executor):
         if extra_context is None:
             extra_context = {}
 
-        task_name = extra_context.get("task_name", "")
-        task_tags = extra_context.get("task_tags", [])
-
         dask_kwargs = {"pure": False}  # type: dict
 
         # set a key for the dask scheduler UI
-        if task_name:
-            dask_kwargs.update(key=f"{task_name}-{uuid.uuid4().hex}")
+        key = _make_task_key(**extra_context)
+        if key is not None:
+            dask_kwargs["key"] = key
 
         # infer from context if dask resources are being utilized
+        task_tags = extra_context.get("task_tags", [])
         dask_resource_tags = [
             tag for tag in task_tags if tag.lower().startswith("dask-resource")
         ]
@@ -249,7 +260,8 @@ class DaskExecutor(Executor):
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - extra_context (dict, optional): an optional dictionary with extra information about the submitted task
+            - extra_context (dict, optional): an optional dictionary with extra information
+                about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -347,9 +359,9 @@ class LocalDaskExecutor(Executor):
         import dask
 
         extra_kwargs = {}
-        task_name = (extra_context or {}).get("task_name", "")
-        if task_name:
-            extra_kwargs["dask_key_name"] = f"{task_name}-{uuid.uuid4().hex}"
+        key = _make_task_key(**(extra_context or {}))
+        if key is not None:
+            extra_kwargs["dask_key_name"] = key
         return dask.delayed(fn, pure=False)(*args, **kwargs, **extra_kwargs)
 
     def wait(self, futures: Any) -> Any:

@@ -160,8 +160,8 @@ def start(
 
     \b
     Arguments:
-        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`)
-                                Defaults to `local`
+        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`,
+                                `local`, `fargate`). Defaults to `local`
 
     \b
     Options:
@@ -172,11 +172,13 @@ def start(
                                 Defaults to INFO level logging
         --label, -l     TEXT    Labels the agent will use to query for flow runs
                                 Multiple values supported e.g. `-l label1 -l label2`
+
         --env, -e       TEXT    Environment variables to set on each submitted flow run.
-                                Note that equal signs in environment variable values are not currently supported from the CLI.
-                                Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
-        --max-polls     INT     Maximum number of times the agent should poll the Prefect API for flow runs. Will run forever
-                                if not specified.
+                                Note that equal signs in environment variable values are not
+                                currently supported from the CLI.  Multiple values supported
+                                e.g. `-e AUTH=token -e PKG_SETTING=true`
+        --max-polls     INT     Maximum number of times the agent should poll the Prefect API
+                                for flow runs. Will run forever if not specified.
         --no-cloud-logs         Turn off logging to the Prefect API for all flow runs
                                 Defaults to `False`
         --agent-address TEXT    The address to server internal api at. Currently this is
@@ -185,22 +187,27 @@ def start(
 
     \b
     Local Agent Options:
-        --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime environment.
-                                    Used for Flows which might import from scripts or local packages.
-                                    Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
-        --show-flow-logs, -f        Display logging output from flows run by the agent (available for Local and Docker agents only)
+        --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime
+                                    environment.  Used for Flows which might import from
+                                    scripts or local packages.  Multiple values supported e.g.
+                                    `-p /root/my_scripts -p /utilities`
+        --show-flow-logs, -f        Display logging output from flows run by the agent (available
+                                    for Local and Docker agents only)
 
     \b
     Docker Agent Options:
         --base-url, -b      TEXT    A Docker daemon host URL for a DockerAgent
         --no-pull                   Pull images for a DockerAgent
                                     Defaults to pulling if not provided
-        --volume            TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
-                                    Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
+
+        --volume            TEXT    Host paths for Docker bind mount volumes attached to each
+                                    Flow runtime container.  Multiple values supported e.g.
+                                    `--volume /some/path --volume /some/other/path`
         --network           TEXT    Add containers to an existing docker network
+
         --no-docker-interface       Disable the check of a Docker interface on this machine.
-                                    **Note**: This is mostly relevant for some Docker-in-Docker setups that users may be
-                                    running their agent with.
+                                    **Note**: This is mostly relevant for some Docker-in-Docker
+                                    setups that users may be running their agent with.
 
     \b
     Kubernetes Agent Options:
@@ -414,16 +421,19 @@ def install(
 
     \b
     Arguments:
-        name                        TEXT    The name of an agent to install (e.g. `kubernetes`, `local`)
+        name                        TEXT    The name of an agent to install (e.g.
+                                            `kubernetes`, `local`)
 
     \b
     Options:
         --token, -t                 TEXT    A Prefect Cloud API token
         --label, -l                 TEXT    Labels the agent will use to query for flow runs
                                             Multiple values supported e.g. `-l label1 -l label2`
-        --env, -e                   TEXT    Environment variables to set on each submitted flow run.
-                                            Note that equal signs in environment variable values are not currently supported from the CLI.
-                                            Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
+        --env, -e                   TEXT    Environment variables to set on each submitted flow
+                                            run. Note that equal signs in environment variable
+                                            values are not currently supported from the CLI.
+                                            Multiple values supported e.g. `-e AUTH=token -e
+                                            PKG_SETTING=true`
 
     \b
     Kubernetes Agent Options:
@@ -445,7 +455,8 @@ def install(
     \b
     Local Agent Options:
         --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
-                                            Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
+                                            Multiple values supported e.g. `-p /root/my_scripts
+                                            -p /utilities`
         --show-flow-logs, -f                Display logging output from flows run by the agent
     """
 

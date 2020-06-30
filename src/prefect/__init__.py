@@ -16,7 +16,7 @@ from prefect.tasks.control_flow import case
 import prefect.serialization
 import prefect.agent
 
-from prefect.utilities.tasks import task, tags
+from prefect.utilities.tasks import task, tags, apply_map
 from prefect.utilities.edges import mapped, unmapped, flat
 
 from ._version import get_versions
