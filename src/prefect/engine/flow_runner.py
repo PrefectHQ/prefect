@@ -173,9 +173,7 @@ class FlowRunner(Runner):
 
         for task in self.flow.tasks:
             task_contexts.setdefault(task, {}).update(
-                task_name=task.name,
-                task_slug=self.flow.slugs[task],
-                task_id=self.flow.slugs[task],
+                task_name=task.name, task_slug=self.flow.slugs[task],
             )
 
         state, context = super().initialize_run(state=state, context=context)

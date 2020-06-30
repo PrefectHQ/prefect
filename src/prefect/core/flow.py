@@ -996,7 +996,9 @@ class Flow:
                 task_ctxts = kwargs.pop("task_contexts", {}).copy()
                 for t in self.tasks:
                     task_ctxts.setdefault(t, dict())
-                    task_ctxts[t].update(task_run_id=str(uuid.uuid4()))
+                    task_ctxts[t].update(
+                        task_run_id=str(uuid.uuid4()), task_id=self.slugs[t]
+                    )
                 flow_state = runner.run(
                     parameters=parameters,
                     return_tasks=self.tasks,
