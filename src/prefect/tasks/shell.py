@@ -21,8 +21,9 @@ class ShellTask(prefect.Task):
             change directories, define helper functions, etc. when re-using this Task
             for different commands in a Flow
         - shell (string, optional): shell to run the command with; defaults to "bash"
-        - return_all (bool, optional): boolean specifying whether this task should return all lines of stdout
-            as a list, or just the last line as a string; defaults to `False`
+        - return_all (bool, optional): boolean specifying whether this task
+            should return all lines of stdout as a list, or just the last line
+            as a string; defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -70,9 +71,11 @@ class ShellTask(prefect.Task):
                 the subprocess
 
         Returns:
-            - stdout (string): if `return_all` is `False` (the default), only the last line of stdout
-                is returned, otherwise all lines are returned, which is useful for passing
-                result of shell command to other downstream tasks. If there is no output, `None` is returned.
+            - stdout (string): if `return_all` is `False` (the default), only
+                the last line of stdout is returned, otherwise all lines are
+                returned, which is useful for passing result of shell command
+                to other downstream tasks. If there is no output, `None` is
+                returned.
 
         Raises:
             - prefect.engine.signals.FAIL: if command has an exit code other

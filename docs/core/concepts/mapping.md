@@ -136,6 +136,62 @@ This map will iterate over the `x` inputs but not over the `y` input. The result
 
 The `unmapped` function can be applied to any number of input arguments. This means that a mapped task can depend on both mapped and reduced upstream tasks seamlessly.
 
+## Complex mapped pipelines
+
+Sometimes you want to encode a more complex structure in your mapped pipelines
+- for example, adding conditional tasks using `prefect.case`. This can be done
+using `prefect.apply_map`. This takes a function that adds multiple *scalar*
+tasks to a flow, and converts those tasks to run as parallel *mapped*
+pipelines.
+
+For example, here we create a function that encodes in Prefect tasks the
+following logic:
+
+- If `x` is even, increment it
+- If `x` is odd, negate it
+
+Note that `inc_or_negate` is not a task itself - it's a function that creates
+several tasks. Just as we can map single tasks like `inc` using `inc.map`, we
+can map functions that create multiple tasks using `apply_map`.
+
+```python
+from prefect import Flow, task, case, apply_map
+from prefect.tasks.control_flow import merge
+
+@task
+def inc(x):
+    return x + 1
+
+@task
+def negate(x):
+    return -x
+
+@task
+def is_even(x):
+    return x % 2 == 0
+
+def inc_or_negate(x):
+    cond = is_even(x)
+    # If x is even, increment it
+    with case(cond, True):
+        res1 = inc(x)
+    # If x is odd, negate it
+    with case(cond, False):
+        res2 = negate(x)
+    return merge(res1, res2)
+
+with Flow("apply-map example") as flow:
+    result = apply_map(inc_or_negate, range(4))
+```
+
+Running the above flow we get four parallel, conditional mapped pipelines. The
+computed value of `result` is `[1, -1, 3, -3]`.
+
+Just as with `task.map`, arguments to `apply_map` can be wrapped with
+`unmapped`, allowing certain arguments to avoid being mapped. While not always
+necessary, `apply_map` can be quite useful when you want to create complex
+mapped pipelines, especially when using conditional logic within them.
+
 ## State behavior with mapped tasks
 
 Whenever a mapped task is reduced by a downstream task, Prefect treats its children as the inputs to that task. This means, among other things, that trigger functions will be applied to all of the mapped children, not the mapped parent.

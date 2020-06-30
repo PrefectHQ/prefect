@@ -81,6 +81,31 @@ def test_docker_serialize_with_flows():
     assert deserialized.secrets == ["FOO"]
 
 
+def test_docker_serialize_with_flow_and_custom_prefect_dir():
+    docker = storage.Docker(
+        registry_url="url",
+        image_name="name",
+        image_tag="tag",
+        secrets=["FOO"],
+        prefect_directory="/tmp/something",
+    )
+    f = prefect.Flow("test")
+    docker.add_flow(f)
+    serialized = DockerSchema().dump(docker)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["image_name"] == "name"
+    assert serialized["image_tag"] == "tag"
+    assert serialized["registry_url"] == "url"
+    assert serialized["flows"] == {"test": "/tmp/something/flows/test.prefect"}
+    assert serialized["secrets"] == ["FOO"]
+
+    deserialized = DockerSchema().load(serialized)
+    assert f.name in deserialized
+    assert deserialized.secrets == ["FOO"]
+
+
 def test_s3_empty_serialize():
     s3 = storage.S3(bucket="bucket")
     serialized = S3Schema().dump(s3)

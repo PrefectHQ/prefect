@@ -1,0 +1,2 @@
+fix:
+  "Fix Fargate agent providing empty parameters if not set - [#2878](https://github.com/PrefectHQ/prefect/issues/2878)"

@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.12.1 <Badge text="beta" type="success" />
+
+Released on June 25, 2020.
+
+### Features
+
+- Task slugs are now stable across rebuilds of the same Flow - [#2531](https://github.com/PrefectHQ/prefect/pull/2531)
+- Support configuring executors for `LocalEnvironment`, `KubernetesJobEnvironment`, and `FargateTaskEnvironment` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)
+- Flows can now be stored and executed using file-based storage - [#2840](https://github.com/PrefectHQ/prefect/pull/2840)
+
+### Enhancements
+
+- Add option to set `repositoryCredentials` on Fargate Agent `containerDefinitions` - [#2822](https://github.com/PrefectHQ/prefect/issues/2822)
+- Update GraphQL endpoint to `/graphql` - [#2669](https://github.com/PrefectHQ/prefect/pull/2669)
+- Allow Cloud Flow Runners to interact properly with Queued runs - [#2741](https://github.com/PrefectHQ/prefect/pull/2741)
+- Add `Result` serializers - [#2755](https://github.com/PrefectHQ/prefect/pull/2755)
+- Simplify `DaskExecutor` internals - [#2817](https://github.com/PrefectHQ/prefect/pull/2817)
+- Set task names in `LocalDaskExecutor` - [#2819](https://github.com/PrefectHQ/prefect/pull/2819)
+- Flows registered without an image set will default to `all_extras` - [#2828](https://github.com/PrefectHQ/prefect/pull/2828)
+- Improve error message when sending unauthorized requests to Cloud - [#2810](https://github.com/PrefectHQ/prefect/issues/2810)
+- Forward state change status back to core - [#2839](https://github.com/PrefectHQ/prefect/pull/2839)
+- Add GitHub storage for storing flows as files in a GitHub repo - [#2840](https://github.com/PrefectHQ/prefect/pull/2840)
+- Add `prefect register flow` CLI command for registering flows from files - [#2840](https://github.com/PrefectHQ/prefect/pull/2840)
+- Add default `GITHUB_ACCESS_TOKEN` secret - [#2840](https://github.com/PrefectHQ/prefect/pull/2840)
+- Create utility function for getting Kubernetes client - [#2845](https://github.com/PrefectHQ/prefect/pull/2845)
+
+### Task Library
+
+- Adds a MySQL task using pymysql driver - [#2124](https://github.com/PrefectHQ/prefect/issues/2124)
+- Add some tasks for working with Google Sheets - [#2614](https://github.com/PrefectHQ/prefect/pull/2614)
+- Add support for HTML content in the EmailTask - [#2811](https://github.com/PrefectHQ/prefect/pull/2811)
+
+### Server
+
+- Failing to set a state raises errors more aggressively - [#2708](https://github.com/PrefectHQ/prefect/pull/2708)
+
+### Fixes
+
+- Fix `all_extras` tag not being set during CI job to build image - [#2801](https://github.com/PrefectHQ/prefect/issues/2801)
+- Quiet *no candidate Cached states were valid* debug logging - [#2815](https://github.com/PrefectHQ/prefect/issues/2815)
+- Fix `LocalEnvironment` execute function's use of the flow object - [#2804](https://github.com/PrefectHQ/prefect/pull/2804)
+- Properly set task names when using `DaskExecutor` - [#2814](https://github.com/PrefectHQ/prefect/issues/2814)
+- Fix the `LocalDaskExecutor` to only compute tasks once, not multiple times - [#2819](https://github.com/PrefectHQ/prefect/pull/2819)
+- Generate key names for mapped tasks that work better with Dask's dashboard - [#2831](https://github.com/PrefectHQ/prefect/pull/2831)
+- Fix FlowRunTask when running against locally deployed Server - [#2832](https://github.com/PrefectHQ/prefect/pull/2832)
+- Make sure image from Docker storage is always used with KubernetesJobEnvironment - [#2838](https://github.com/PrefectHQ/prefect/pull/2838)
+- Change Environment.run_flow() to prefer executor from flow's environment - [#2849](https://github.com/PrefectHQ/prefect/pull/2849)
+
+### Deprecations
+
+- Deprecate `RemoteEnvironment` in favor of `LocalEnvironment` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)
+- Deprecate `RemoteDaskEnvironment` in favor of `LocalEnvironment` with a `DaskExecutor` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)
+- Deprecate `executor_kwargs` in `KubernetesJobEnvironment` and `FargateTaskEnvironment` in favor of `executor` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)
+
+### Breaking Changes
+
+- Remove previously deprecated `SynchronousExecutor` - [#2826](https://github.com/PrefectHQ/prefect/pull/2826)
+
+### Contributors
+
+- [manesioz](https://github.com/manesioz)
+- [Alex Cano](https://github.com/alexisprince1994)
+- [James Lamb](https://github.com/jameslamb)
+- [Matthew Alhonte](https://github.com/mattalhonte/)
+- [Paweł Cieśliński](https://github.com/pcieslinski)
+
 ## 0.12.0 <Badge text="beta" type="success" />
 
 Released on June 17, 2020.

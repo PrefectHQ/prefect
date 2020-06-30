@@ -1,2 +1,0 @@
-fix:
-  - "Properly set task names when using `DaskExecutor` - [#2814](https://github.com/PrefectHQ/prefect/issues/2814)"

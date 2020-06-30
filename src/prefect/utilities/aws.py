@@ -15,10 +15,11 @@ def get_boto_client(
 
     Args:
         - resource (str): the name of the resource to retrieve a client for
-        - credentials (dict, optional): a dictionary of AWS credentials used to initialize the Client; if
-            not provided, will attempt to load the Client using ambient environment settings
-        - use_session (bool, optional): a boolean specifying whether to load this client using a session or not;
-            defaults to `False`
+        - credentials (dict, optional): a dictionary of AWS credentials used to
+            initialize the Client; if not provided, will attempt to load the
+            Client using ambient environment settings
+        - use_session (bool, optional): a boolean specifying whether to load
+            this client using a session or not; defaults to `False`
         - **kwargs (Any, optional): additional keyword arguments to pass to boto3
 
     Returns:
@@ -39,7 +40,7 @@ def get_boto_client(
         aws_session_token = ctx_credentials.get("SESSION_TOKEN")
 
     if use_session:
-        # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
+        # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing  # noqa
         session = boto3.session.Session()
         return session.client(
             resource,

@@ -1,7 +1,8 @@
 """
 Tools and utilities for notifications and callbacks.
 
-For an in-depth guide to setting up your system for using Slack notifications, [please see our tutorial](/core/advanced_tutorials/slack-notifications.html).
+For an in-depth guide to setting up your system for using Slack notifications, [please see our
+tutorial](/core/advanced_tutorials/slack-notifications.html).
 """
 import smtplib
 from email.header import Header
@@ -16,7 +17,7 @@ import prefect
 if TYPE_CHECKING:
     import prefect.engine.state
     import prefect.client
-    from prefect import Flow, Task  # pylint: disable=W0611
+    from prefect import Flow, Task  # noqa
 
 TrackedObjectType = Union["Flow", "Task"]
 
@@ -33,14 +34,15 @@ def callback_factory(
 
     Args:
         - fn (Callable): a function with signature `fn(obj, state: State) -> None`
-            that will be called anytime the associated state-check passes; in general,
-            it is expected that this function will have side effects (e.g., sends an email).  The first
-            argument to this function is the `Task` or `Flow` it is attached to.
+            that will be called anytime the associated state-check passes; in general, it is
+            expected that this function will have side effects (e.g., sends an email).  The
+            first argument to this function is the `Task` or `Flow` it is attached to.
         - check (Callable): a function with signature `check(state: State) -> bool`
             that is used for determining when the callback function should be called
 
     Returns:
-        - state_handler (Callable): a state handler function that can be attached to both Tasks and Flows
+        - state_handler (Callable): a state handler function that can be attached to both Tasks
+            and Flows
 
     Example:
         ```python
@@ -82,19 +84,19 @@ def email_message_formatter(
 
     html = """
     <html>
-        <head></head>
-        <body>
-            <table align="left" border="0" cellpadding="2px" cellspacing="2px">
-                <tr>
-                    <td style="border-left: 2px solid {color};">
-                        <img src="https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png">
-                    </td>
-                    <td style="border-left: 2px solid {color}; padding-left: 6px;">
-                        {text}
-                    </td>
-                </tr>
-            </table>
-        </body>
+      <head></head>
+      <body>
+        <table align="left" border="0" cellpadding="2px" cellspacing="2px">
+          <tr>
+            <td style="border-left: 2px solid {color};">
+              <img src="https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png">
+            </td>
+            <td style="border-left: 2px solid {color}; padding-left: 6px;">
+              {text}
+            </td>
+          </tr>
+        </table>
+      </body>
     </html>
     """
     color = state.color
@@ -174,21 +176,25 @@ def gmail_notifier(
     only_states: list = None,
 ) -> "prefect.engine.state.State":
     """
-    Email state change handler - configured to work solely with Gmail; works as a standalone state handler, or can be called from within a custom
-    state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
+    Email state change handler - configured to work solely with Gmail; works as a standalone
+    state handler, or can be called from within a custom state handler.  This function is
+    curried meaning that it can be called multiple times to partially bind any keyword
+    arguments (see example below).
 
-    The username and password Gmail credentials will be taken from your `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` secrets, respectively; note the username
-    will also serve as the destination email address for the notification.
+    The username and password Gmail credentials will be taken from your `"EMAIL_USERNAME"` and
+    `"EMAIL_PASSWORD"` secrets, respectively; note the username will also serve as the
+    destination email address for the notification.
 
     Args:
-        - tracked_obj (Task or Flow): Task or Flow object the handler is
-            registered with
+        - tracked_obj (Task or Flow): Task or Flow object the handler is registered with
         - old_state (State): previous state of tracked object
         - new_state (State): new state of tracked object
-        - ignore_states ([State], optional): list of `State` classes to ignore,
-            e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
-        - only_states ([State], optional): similar to `ignore_states`, but
-            instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
+        - ignore_states ([State], optional): list of `State` classes to ignore, e.g.,
+            `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states,
+            no notification will occur.
+        - only_states ([State], optional): similar to `ignore_states`, but instead _only_
+            notifies you if the Task / Flow is in a state from the provided list of `State`
+            classes
 
     Returns:
         - State: the `new_state` object that was provided
@@ -225,7 +231,7 @@ def gmail_notifier(
     server.login(username, password)
     try:
         server.sendmail("notifications@prefect.io", username, body)
-    except:
+    except Exception:
         raise ValueError("Email notification for {} failed".format(tracked_obj))
     finally:
         server.quit()
@@ -243,21 +249,24 @@ def slack_notifier(
     webhook_secret: str = None,
 ) -> "prefect.engine.state.State":
     """
-    Slack state change handler; requires having the Prefect slack app installed.
-    Works as a standalone state handler, or can be called from within a custom
-    state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
+    Slack state change handler; requires having the Prefect slack app installed.  Works as a
+    standalone state handler, or can be called from within a custom state handler.  This
+    function is curried meaning that it can be called multiple times to partially bind any
+    keyword arguments (see example below).
 
     Args:
         - tracked_obj (Task or Flow): Task or Flow object the handler is
             registered with
         - old_state (State): previous state of tracked object
         - new_state (State): new state of tracked object
-        - ignore_states ([State], optional): list of `State` classes to ignore,
-            e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
-        - only_states ([State], optional): similar to `ignore_states`, but
-            instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - webhook_secret (str, optional): the name of the Prefect Secret that stores your slack webhook URL;
-            defaults to `"SLACK_WEBHOOK_URL"`
+        - ignore_states ([State], optional): list of `State` classes to ignore, e.g.,
+            `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states,
+            no notification will occur.
+        - only_states ([State], optional): similar to `ignore_states`, but instead _only_
+            notifies you if the Task / Flow is in a state from the provided list of `State`
+            classes
+        - webhook_secret (str, optional): the name of the Prefect Secret that stores your slack
+            webhook URL; defaults to `"SLACK_WEBHOOK_URL"`
 
     Returns:
         - State: the `new_state` object that was provided
