@@ -609,8 +609,8 @@ class Flow:
         self, flow: "Flow", merge_parameters: bool = False, validate: bool = None
     ) -> None:
         """
-        Take all tasks and edges in another flow and add it to this flow.  
-        When `parmerge` is set to`True` -- Duplicate parameters in the unput `flow`
+        Take all tasks and edges in another flow and add it to this flow.
+        When `merge_parameters` is set to`True` -- Duplicate parameters in the unput `flow`
         are replaced with those in the flow being updated. 
     
         Args:
