@@ -1,0 +1,5 @@
+enhancement:
+  - "flow.update` accepts the optional `kwarg` `parmerge` that allows flows to be updated with common `Parameters` - [#2501](https://github.com/PrefectHQ/prefect/issues/2501)"
+
+contributor:
+  - "[Itay Livni](https://github.com/gryBox)"
