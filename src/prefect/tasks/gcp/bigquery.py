@@ -33,10 +33,18 @@ class BigQueryTask(Task):
         - table_dest (str, optional): the optional name of a destination table to write the
             query results to, if you don't want them returned; if provided, `dataset_dest` must also be
             provided
+<<<<<<< HEAD
         - to_dataframe (bool, optional): if provided, returns the results of the query as a pandas
             dataframe instead of a list of `bigquery.table.Row` objects. Defaults to False
         - job_config (dict, optional): an optional dictionary of job configuration parameters; note that
             the parameters provided here must be pickleable (e.g., dataset references will be rejected)
+=======
+        - to_dataframe (bool, optional): if provided, returns the results of the query as a pandas dataframe 
+            instead of a list of `bigquery.table.Row` objects. Defaults to False
+        - job_config (dict, optional): an optional dictionary of job configuration parameters;
+            note that the parameters provided here must be pickleable (e.g., dataset references
+            will be rejected)
+>>>>>>> 52d7d5ade9a346f4cf9b864733c5965ea0e5bb56
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -115,6 +123,7 @@ class BigQueryTask(Task):
                 query results to, if you don't want them returned; if provided, `table_dest`
                 must also be provided
             - table_dest (str, optional): the optional name of a destination table to write the
+<<<<<<< HEAD
                 query results to, if you don't want them returned; if provided, `dataset_dest` must also
                 be provided
             - to_dataframe (bool, optional): if provided, returns the results of the query as a pandas
@@ -122,6 +131,15 @@ class BigQueryTask(Task):
             - job_config (dict, optional): an optional dictionary of job configuration parameters; note
                 that the parameters provided here must be pickleable (e.g., dataset references will be
                 rejected)
+=======
+                query results to, if you don't want them returned; if provided, `dataset_dest` must also be
+                provided
+            - to_dataframe (bool, optional): if provided, returns the results of the query as a pandas dataframe 
+                instead of a list of `bigquery.table.Row` objects. Defaults to False
+            - job_config (dict, optional): an optional dictionary of job configuration
+                parameters; note that the parameters provided here must be pickleable (e.g.,
+                dataset references will be rejected)
+>>>>>>> 52d7d5ade9a346f4cf9b864733c5965ea0e5bb56
 
         Raises:
             - ValueError: if the `query` is `None`
