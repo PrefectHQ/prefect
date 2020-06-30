@@ -545,6 +545,14 @@ class Flow:
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
             )
+        if (
+            key is not None
+            and isinstance(upstream_task, prefect.tasks.resources.Resource)
+            and isinstance(downstream_task, prefect.tasks.resources.Resource)
+        ):
+            raise ValueError(
+                "Resources may not have resources as direct upstream data dependencies."
+            )
 
         self.add_task(upstream_task)
         self.add_task(downstream_task)

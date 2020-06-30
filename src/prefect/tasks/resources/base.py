@@ -1,4 +1,6 @@
 import functools
+import inspect
+import threading
 import types
 import uuid
 import weakref
@@ -6,7 +8,6 @@ from typing import Callable, Any
 
 from toolz import curry
 
-import prefect
 from prefect.core.task import Task
 
 
@@ -16,8 +17,16 @@ __all__ = ("resource",)
 # A weak dictionary of all resources created in this process. They're keyed by
 # their uuid. The purpose of this is to ensure that serializing the same
 # `ResourceHandle` object twice to the same process results in only one
-# instance created.
-RESOURCES = weakref.WeakValueDictionary()
+# instance created. This is not a thread local, since we want only one instance
+# of the resource per *process*, not per thread.
+_RESOURCES = weakref.WeakValueDictionary()
+
+# A threadlocal to hold the current active resource pool. This is local to the
+# `FlowRunner` thread only, and is only used to ensure that any
+# `ResourceHandle` objects in the result state are cleared before returning
+# from `FlowRunner.run`. We don't store this in the `context`, since we don't want to
+# serialize it to other worker processes.
+_RESOURCE_POOL = threading.local()
 
 
 class ResourceHandle:
@@ -31,18 +40,18 @@ class ResourceHandle:
     def __new__(
         cls, key: str, func: Callable, func_args: tuple, func_kwargs: dict
     ) -> "ResourceHandle":
-        self = RESOURCES.get(key)
+        self = _RESOURCES.get(key)
         if self is not None:
             return self
 
-        self = RESOURCES[key] = object.__new__(cls)
+        self = _RESOURCES[key] = object.__new__(cls)
         self.key = key
         self.func = func
         self.args = func_args
         self.kwargs = func_kwargs
         self.generator = None
 
-        pool = prefect.context.get("resource_pool")
+        pool = getattr(_RESOURCE_POOL, "current", None)
         if pool is not None:
             pool.add(self)
 
@@ -69,7 +78,7 @@ class ResourceHandle:
                 self.value = result
         return self.value
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all state on the `ResourceHandle`.
 
         If the resource was already created, this cleans up the resource, then
@@ -108,16 +117,13 @@ class ResourcePool:
         self.resources.add(handle)
 
     def __enter__(self) -> None:
-        self.__prev_pool = prefect.context.get("resource_pool")
-        prefect.context.update(resource_pool=self)
+        self.__prev_pool = getattr(_RESOURCE_POOL, "current", None)
+        _RESOURCE_POOL.current = self
 
     def __exit__(self, *args) -> None:
         for r in self.resources:
             r.clear()
-        if self.__prev_pool is None:
-            prefect.context.pop("resource_pool", None)
-        else:
-            prefect.context.update(resource_pool=self.__prev_pool)
+        _RESOURCE_POOL.current = self.__prev_pool
 
 
 class Resource(Task):
@@ -142,10 +148,13 @@ class Resource(Task):
     def __init__(self, fn: Callable, **kwargs: Any):
         from prefect.engine.results import ResourceResult
 
-        # TODO: fix signature, the return type isn't correct
         @functools.wraps(fn)
         def run(*args, **kwargs):
             return ResourceHandle(uuid.uuid4().hex, fn, args, kwargs)
+
+        # Fix the return type in the `run` signature
+        sig = inspect.Signature.from_callable(fn)
+        run.__signature__ = sig.replace(return_annotation=ResourceHandle)
 
         self.run = run
         super().__init__(result=ResourceResult(), **kwargs)
@@ -184,7 +193,7 @@ def resource(fn: Callable, **task_init_kwargs: Any) -> Resource:
         - ValueError: if the provided function violates signature requirements
             for Task run methods
 
-    Usage:
+    Example:
 
     If a resource doesn't need to be cleaned up after completion, you can wrap
     a function that creates and returns the resource, just like you would with
