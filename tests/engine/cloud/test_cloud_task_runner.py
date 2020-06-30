@@ -952,6 +952,7 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
 
 def test_cloud_task_runner_sends_heartbeat_on_queued_retries(client):
     calls = []
+    tr_ids = []
 
     def queued_mock(*args, **kwargs):
         calls.append(kwargs)
@@ -961,13 +962,10 @@ def test_cloud_task_runner_sends_heartbeat_on_queued_retries(client):
         else:
             return kwargs.get("state")
 
-    client.set_task_run_state = queued_mock
-
-    tr_ids = []
-
     def mock_heartbeat(**kwargs):
         tr_ids.append(kwargs.get("task_run_id"))
 
+    client.set_task_run_state = queued_mock
     client.update_task_run_heartbeat = mock_heartbeat
 
     @prefect.task(
