@@ -743,8 +743,7 @@ class TestInitializeRun:
             state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
         )
         assert result.task_contexts == {
-            t: dict(task_name=t.name, task_slug=flow.slugs[t], task_id=flow.slugs[t])
-            for t in flow.tasks
+            t: dict(task_name=t.name, task_slug=flow.slugs[t]) for t in flow.tasks
         }
 
     def test_initialize_puts_parameters_in_context(self):
