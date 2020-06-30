@@ -39,7 +39,7 @@ def sig_handler(*args, **kwargs):
                 screen.timeout(30)
             if screen.getch() != -1:
                 break
-    except:
+    except Exception:
         pass
     finally:
         curses.endwin()

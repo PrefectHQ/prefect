@@ -65,7 +65,7 @@ class S3(Storage):
             - ValueError: if the Flow is not contained in this storage
             - botocore.ClientError: if there is an issue downloading the Flow from S3
         """
-        if not flow_location in self.flows.values():
+        if flow_location not in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
 
         stream = io.BytesIO()
@@ -83,7 +83,7 @@ class S3(Storage):
             self.logger.error("Error downloading Flow from S3: {}".format(err))
             raise err
 
-        ## prepare data and return
+        # prepare data and return
         stream.seek(0)
         output = stream.read()
 

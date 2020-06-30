@@ -32,7 +32,8 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
             prefect.environments.storage.Docker,
         ):
             raise ValueError(
-                f"Storage for flow run {flow_run.id} is not of type Docker and environment has no `image` attribute in the metadata field."
+                f"Storage for flow run {flow_run.id} is not of type Docker and "
+                f"environment has no `image` attribute in the metadata field."
             )
 
         return storage.name

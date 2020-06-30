@@ -308,7 +308,7 @@ classes = [
         "BigQueryStreamingInsert",
         "CreateBigQueryTable"
         ]
- 
+
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
@@ -328,6 +328,11 @@ classes = [
 title = "Jira Tasks"
 module = "prefect.tasks.jira"
 classes = ["JiraTask", "JiraServiceDeskTask"]
+
+[pages.tasks.mysql]
+title = "MySQL Tasks"
+module = "prefect.contrib.tasks.mysql"
+classes = ["MySQLExecute", "MySQLFetch"]
 
 [pages.tasks.notifications]
 title = "Notification Tasks"
@@ -508,4 +513,4 @@ functions = ["to_qualified_name", "from_qualified_name"]
 title = "Task Utilities"
 module = "prefect.utilities.tasks"
 classes = ["unmapped"]
-functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs"]
+functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs", "apply_map"]

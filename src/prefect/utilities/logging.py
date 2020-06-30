@@ -1,6 +1,6 @@
 """
-Utility functions for interacting with and configuring logging.  The main entrypoint for retrieving loggers for
-customization is the `get_logger` utility.
+Utility functions for interacting with and configuring logging.  The main entrypoint for
+retrieving loggers for customization is the `get_logger` utility.
 
 Note that Prefect Tasks come equipped with their own loggers.  These can be accessed via:
     - `self.logger` if implementing a Task class
@@ -82,7 +82,7 @@ class CloudHandler(logging.StreamHandler):
                 try:
                     assert self.client is not None
                     self.client.write_run_logs([self._make_error_log(message)])
-                except Exception as exc:
+                except Exception:
                     self.logger.critical("Unable to write logs to Prefect Cloud")
 
     def _monitor(self) -> None:
@@ -129,7 +129,7 @@ class CloudHandler(logging.StreamHandler):
             assert isinstance(self.client, Client)  # mypy assert
 
             record_dict = record.__dict__.copy()
-            ## remove potentially non-json serializable formatting args
+            # remove potentially non-json serializable formatting args
             record_dict.pop("args", None)
 
             log = dict()
@@ -168,7 +168,8 @@ class CloudHandler(logging.StreamHandler):
 
 def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord:
     """
-    A custom logger LogRecord Factory that injects selected context parameters into newly created logs.
+    A custom logger LogRecord Factory that injects selected context parameters into newly
+    created logs.
 
     Args:
         - *args: arguments to pass to the original LogRecord Factory

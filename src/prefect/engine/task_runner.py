@@ -6,7 +6,6 @@ from typing import (
     Callable,
     Dict,
     Iterable,
-    List,
     NamedTuple,
     Optional,
     Set,
@@ -28,7 +27,6 @@ from prefect.engine.state import (
     Failed,
     Looped,
     Mapped,
-    Paused,
     Pending,
     Resume,
     Retrying,
@@ -36,7 +34,6 @@ from prefect.engine.state import (
     Scheduled,
     Skipped,
     State,
-    Submitted,
     Success,
     TimedOut,
     TriggerFailed,
@@ -63,13 +60,13 @@ class TaskRunner(Runner):
 
     Args:
         - task (Task): the Task to be run / executed
-        - state_handlers (Iterable[Callable], optional): A list of state change handlers
-            that will be called whenever the task changes state, providing an
-            opportunity to inspect or modify the new state. The handler
-            will be passed the task runner instance, the old (prior) state, and the new
-            (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> Optional[State]`;
-            If multiple functions are passed, then the `new_state` argument will be the
-            result of the previous handler.
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers that
+            will be called whenever the task changes state, providing an opportunity to inspect
+            or modify the new state. The handler will be passed the task runner instance, the
+            old (prior) state, and the new (current) state, with the following signature:
+            `state_handler(TaskRunner, old_state, new_state) -> Optional[State]`; If multiple
+            functions are passed, then the `new_state` argument will be the result of the
+            previous handler.
         - flow_result: the result instance configured for the flow (if any)
     """
 
@@ -128,7 +125,8 @@ class TaskRunner(Runner):
         state. Otherwise, we assume the run count is 1. The run count is stored in context as
         task_run_count.
 
-        Also, if the task is being resumed through a `Resume` state, updates context to have `resume=True`.
+        Also, if the task is being resumed through a `Resume` state, updates context to have
+        `resume=True`.
 
         Args:
             - state (Optional[State]): the initial state of the run
@@ -210,8 +208,8 @@ class TaskRunner(Runner):
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
             - context (dict, optional): prefect Context to use for execution
-            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
-                mapped task
+            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of
+                a parent mapped task
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -430,7 +428,7 @@ class TaskRunner(Runner):
         if state.is_mapped():
             raise ENDRUN(state)
 
-        ## we can't map if there are no success states with iterables upstream
+        # we can't map if there are no success states with iterables upstream
         if upstream_states and not any(
             [
                 edge.mapped and state.is_successful()
@@ -529,18 +527,16 @@ class TaskRunner(Runner):
         # are generated (note that if the children tasks)
         elif state.is_mapped():
             self.logger.debug(
-                "Task '{name}': task is mapped, but run will proceed so children are generated.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
+                "Task '%s': task is mapped, but run will proceed so children are generated.",
+                prefect.context.get("task_full_name", self.task.name),
             )
             return state
 
         # this task is already running
         elif state.is_running():
             self.logger.debug(
-                "Task '{name}': task is already running.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
+                "Task '%s': task is already running.",
+                prefect.context.get("task_full_name", self.task.name),
             )
             raise ENDRUN(state)
 
@@ -642,7 +638,8 @@ class TaskRunner(Runner):
         self, state: State, upstream_states: Dict[Edge, State]
     ) -> Tuple[State, Dict[Edge, State]]:
         """
-        Given the task's current state and upstream states, populates all relevant result objects for this task run.
+        Given the task's current state and upstream states, populates all relevant result
+        objects for this task run.
 
         Args:
             - state (State): the task's current state.
@@ -812,7 +809,9 @@ class TaskRunner(Runner):
             )
             timeout_handler = prefect.utilities.executors.timeout_handler
             if getattr(self.task, "log_stdout", False):
-                with redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger)):  # type: ignore
+                with redirect_stdout(
+                    prefect.utilities.logging.RedirectToLog(self.logger)  # type: ignore
+                ):
                     value = timeout_handler(
                         self.task.run, timeout=self.task.timeout, **raw_inputs
                     )
@@ -845,7 +844,8 @@ class TaskRunner(Runner):
             )
             return new_state
 
-        ## checkpoint tasks if a result is present, except for when the user has opted out by disabling checkpointing
+        # checkpoint tasks if a result is present, except for when the user has opted out by
+        # disabling checkpointing
         if (
             prefect.context.get("checkpointing") is True
             and self.task.checkpoint is not False
@@ -929,7 +929,8 @@ class TaskRunner(Runner):
                     value=prefect.context.get("task_loop_result")
                 )
 
-                ## checkpoint tasks if a result is present, except for when the user has opted out by disabling checkpointing
+                # checkpoint tasks if a result is present, except for when the user has opted
+                # out by disabling checkpointing
                 if (
                     prefect.context.get("checkpointing") is True
                     and self.task.checkpoint is not False
@@ -973,7 +974,8 @@ class TaskRunner(Runner):
         context: Dict[str, Any] = None,
     ) -> State:
         """
-        Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an incremeneted `loop_count`.
+        Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an
+        incremeneted `loop_count`.
 
         Args:
             - state (State, optional): initial `State` to begin task run from;

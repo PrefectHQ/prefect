@@ -64,11 +64,11 @@ class Agent:
     Base class for Agents. Information on using the Prefect agents can be found at
     https://docs.prefect.io/orchestration/agents/overview.html
 
-    This Agent class is a standard point for executing Flows in Prefect Cloud. It is meant
-    to have subclasses which inherit functionality from this class. The only piece that
-    the subclasses should implement is the `deploy_flows` function, which specifies how to run a Flow on the given platform. It is built in this
-    way to keep Prefect Cloud logic standard but allows for platform specific
-    customizability.
+    This Agent class is a standard point for executing Flows in Prefect Cloud. It is meant to
+    have subclasses which inherit functionality from this class. The only piece that the
+    subclasses should implement is the `deploy_flows` function, which specifies how to run a
+    Flow on the given platform. It is built in this way to keep Prefect Cloud logic standard
+    but allows for platform specific customizability.
 
     In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
     environment variable or in your user configuration file.
@@ -76,15 +76,17 @@ class Agent:
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
-            on each flow run that this agent submits for execution
-        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
-            defaults to infinite
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will
+            be set on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
+            for flow runs; defaults to infinite
         - agent_address (str, optional): Address to serve internal api at. Currently this is
-            just health checks for use by an orchestration layer. Leave blank for no api server (default).
-        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
+            just health checks for use by an orchestration layer. Leave blank for no api server
+            (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
+            and all deployed flow runs
     """
 
     def __init__(
@@ -329,7 +331,7 @@ class Agent:
                     ]
                 )
         except Exception as exc:
-            ## if the state update failed, we don't want to follow up with another state update
+            # if the state update failed, we don't want to follow up with another state update
             if "State update failed" in str(exc):
                 self.logger.debug("Updating Flow Run state failed: {}".format(str(exc)))
                 return
@@ -360,7 +362,8 @@ class Agent:
         attempting to deploy the flow run if the flow run id is still in the Cloud run queue.
 
         Args:
-            - fut (Future): a callback requirement, the future which has completed or been cancelled.
+            - fut (Future): a callback requirement, the future which has completed or been
+                cancelled.
             - flow_run_id (str): the id of the flow run that the future represents.
         """
         self.submitting_flow_runs.remove(flow_run_id)
@@ -371,7 +374,8 @@ class Agent:
         Full process for finding flow runs, updating states, and deploying.
 
         Args:
-            - executor (ThreadPoolExecutor): the interface to submit flow deployments in background threads
+            - executor (ThreadPoolExecutor): the interface to submit flow deployments in
+                background threads
 
         Returns:
             - bool: whether or not flow runs were found
@@ -409,7 +413,8 @@ class Agent:
             - list: A list of GraphQLResult flow run objects
         """
         self.logger.debug("Querying for flow runs")
-        # keep a copy of what was curringly running before the query (future callbacks may be updating this set)
+        # keep a copy of what was curringly running before the query (future callbacks may be
+        # updating this set)
         currently_submitting_flow_runs = self.submitting_flow_runs.copy()
 
         # Get scheduled flow runs from queue
@@ -423,7 +428,7 @@ class Agent:
         result = self.client.graphql(
             mutation,
             variables={
-                "input": {"before": now.isoformat(), "labels": list(self.labels),}
+                "input": {"before": now.isoformat(), "labels": list(self.labels)}
             },
         )
 
@@ -462,7 +467,8 @@ class Agent:
                             "_or": [
                                 # who are EITHER scheduled...
                                 {"state": {"_eq": "Scheduled"}},
-                                # OR running with task runs scheduled to start more than 3 seconds ago
+                                # OR running with task runs scheduled to start more than 3
+                                # seconds ago
                                 {
                                     "state": {"_eq": "Running"},
                                     "task_runs": {

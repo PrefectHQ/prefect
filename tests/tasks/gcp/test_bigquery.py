@@ -226,3 +226,41 @@ class TestCreateBigQueryTableInitialization:
             task.run()
 
         assert "already exists" in str(exc.value)
+
+
+class TestBigQueryTaskResult:
+    def test_to_dataframe(self, monkeypatch):
+        task = BigQueryTask(to_dataframe=True)
+
+        from google.cloud.bigquery.job import QueryJob
+
+        res = MagicMock()
+        res.result = MagicMock(
+            return_value=MagicMock(to_dataframe=MagicMock(return_value="dataframe"))
+        )
+
+        client = MagicMock(query=MagicMock(return_value=res))
+        monkeypatch.setattr(
+            "prefect.tasks.gcp.bigquery.get_bigquery_client",
+            MagicMock(return_value=client),
+        )
+
+        task_res = task.run(query="SELECT *")
+        assert task_res == "dataframe"
+
+    def test_return_row_list(self, monkeypatch):
+        task = BigQueryTask(to_dataframe=False)
+
+        from google.cloud.bigquery.job import QueryJob
+
+        res = MagicMock()
+        res.result.return_value = "123"
+
+        client = MagicMock(query=MagicMock(return_value=res))
+        monkeypatch.setattr(
+            "prefect.tasks.gcp.bigquery.get_bigquery_client",
+            MagicMock(return_value=client),
+        )
+
+        task_res = task.run(query="SELECT *")
+        assert task_res == ["1", "2", "3"]

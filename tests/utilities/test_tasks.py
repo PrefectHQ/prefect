@@ -1,10 +1,11 @@
 import pytest
 
-from prefect.core import Flow, Task
+from prefect import Flow, Task, case
 from prefect.engine.flow_runner import FlowRunner
-from prefect.engine.signals import PAUSE
 from prefect.engine.state import Paused, Resume
 from prefect.utilities import tasks
+from prefect.utilities.tasks import apply_map
+from prefect.tasks.control_flow import merge
 from prefect.tasks.core.constants import Constant
 
 
@@ -85,6 +86,220 @@ class TestTaskDecorator:
             @tasks.task
             def fn(upstream_tasks):
                 pass
+
+
+@tasks.task
+def add(x, y):
+    return x + y
+
+
+@tasks.task
+def inc(x):
+    return x + 1
+
+
+@tasks.task
+def is_even(x):
+    return x % 2 == 0
+
+
+@tasks.task
+def ranged(n):
+    return range(n)
+
+
+class TestApplyMap:
+    def test_raises_no_flow_found(self):
+        with pytest.raises(ValueError, match="flow in the current context"):
+            apply_map(lambda x: inc(x), range(10))
+
+    def test_raises_non_sequence_args(self):
+        with Flow("test"):
+            with pytest.raises(TypeError, match="non-sequence object"):
+                apply_map(lambda x: inc(x), 1)
+
+            with pytest.raises(TypeError, match="non-sequence object"):
+                apply_map(lambda x: inc(x), x=1)
+
+    @pytest.mark.parametrize("method", ["map", "set_dependencies", "add_edge"])
+    def test_raises_use_map_in_mapped_function(self, method):
+        if method == "map":
+
+            def func(x):
+                inc.map(x)
+
+            pass_flow = False
+        elif method == "set_dependencies":
+
+            def func(x, flow):
+                flow.add_task(inc)
+                flow.set_dependencies(inc, keyword_tasks={"x": x}, mapped=True)
+
+            pass_flow = True
+        elif method == "add_edge":
+
+            def func(x, flow):
+                flow.add_task(inc)
+                flow.add_edge(x, inc, key="x", mapped=True)
+
+            pass_flow = True
+
+        flow = Flow("test")
+        with pytest.raises(ValueError, match="running from inside a mapped context"):
+            if pass_flow:
+                apply_map(func, range(3), flow=flow)
+            else:
+                with flow:
+                    apply_map(func, range(3))
+
+    def test_imperative_args_are_added_to_flow_before_mapping(self):
+        # Check an edge case when mapping over tasks that haven't been added to flow yet.
+        @tasks.task
+        def data():
+            return range(3)
+
+        def func(a, flow):
+            return inc.copy().bind(a, flow=flow)
+
+        flow = Flow("test")
+        res = apply_map(func, data, flow=flow)
+        state = flow.run()
+        assert state.result[res].result == [1, 2, 3]
+
+    @pytest.mark.parametrize("api", ["functional", "imperative"])
+    def test_apply_map_simple(self, api):
+        if api == "functional":
+
+            def func(x, y, z):
+                a = add(x, y)
+                a.name = "add-a"
+                b = add(a, z)
+                b.name = "add-b"
+                c = add(b, 1)
+                c.name = "add-c"
+                return inc(c)
+
+            with Flow("test") as flow:
+                y = ranged(3)
+                z = tasks.unmapped(1)
+                res = apply_map(func, range(3, 6), y=y, z=z)
+        else:
+
+            def func(x, y, z, flow):
+                a = add.copy(name="add-a").bind(x, y, flow=flow)
+                b = add.copy(name="add-b").bind(a, z, flow=flow)
+                c = add.copy(name="add-c").bind(b, 1, flow=flow)
+                return inc.copy().bind(c, flow=flow)
+
+            flow = Flow("test")
+            y = ranged.copy().bind(3, flow=flow)
+            z = tasks.unmapped(tasks.as_task(1, flow=flow))
+            res = apply_map(func, range(3, 6), y=y, z=z, flow=flow)
+
+        consts = {t.name: c for t, c in flow.constants.items()}
+        assert consts == {"ranged": {"n": 3}, "add-b": {"y": 1}, "add-c": {"y": 1}}
+
+        for task in flow.tasks:
+            if task.name != "ranged":
+                for e in flow.edges_to(task):
+                    assert e.mapped
+
+        state = flow.run()
+        assert state.result[res].result == [6, 8, 10]
+
+    def test_apply_map_return_multiple(self):
+        def func(x, y):
+            return inc(x), inc(y)
+
+        with Flow("test") as flow:
+            a, b = apply_map(func, range(3), range(3, 6))
+
+        state = flow.run()
+        assert state.result[a].result == [1, 2, 3]
+        assert state.result[b].result == [4, 5, 6]
+
+    def test_apply_map_disparate_length_args(self):
+        def func(x, y):
+            return inc(x), inc(y)
+
+        with Flow("test") as flow:
+            a, b = apply_map(func, range(3), range(3, 300))
+
+        state = flow.run()
+        assert state.result[a].result == [1, 2, 3]
+        assert state.result[b].result == [4, 5, 6]
+
+    @pytest.mark.parametrize("api", ["functional", "imperative"])
+    def test_apply_map_control_flow(self, api):
+        if api == "functional":
+
+            def func(x):
+                with case(is_even(x), True):
+                    x2 = add(x, 1)
+                return merge(x2, x)
+
+            with Flow("test") as flow:
+                res = apply_map(func, range(4))
+        else:
+
+            def func(x, flow):
+                cond = is_even.copy().bind(x, flow=flow)
+                with case(cond, True):
+                    x2 = add.copy().bind(x, 1, flow=flow)
+                return merge(x2, x, flow=flow)
+
+            flow = Flow("test")
+            res = apply_map(func, range(4), flow=flow)
+
+        state = flow.run()
+        assert state.result[res].result == [1, 1, 3, 3]
+
+    def test_tasks_have_all_non_unmapped_constant_args_as_transitive_upstream_deps(
+        self,
+    ):
+        def func(a, b, c, d):
+            m = inc.copy(name="m").bind(1)
+            n = inc.copy(name="n").bind(a)
+            o = inc.copy(name="o").bind(b)
+            p = add.copy(name="p").bind(n, o)
+            q = add.copy(name="q").bind(c, d)
+            r = add.copy(name="r").bind(q, m)
+            return m, n, o, p, q, r
+
+        with Flow("test") as flow:
+            a = ranged.copy(name="a").bind(3)
+            b = inc.copy(name="b").bind(1)
+            c = Constant(1, name="c")
+            d = Constant(range(3), name="d")
+            m, n, o, p, q, r = apply_map(
+                func, a, tasks.unmapped(b), c=tasks.unmapped(c), d=d
+            )
+
+        def edge_info(task):
+            """Returns a map of {upstream: (is_data_dep, is_mapped)}"""
+            return {
+                e.upstream_task: (e.key is not None, e.mapped)
+                for e in flow.edges_to(task)
+            }
+
+        assert edge_info(m) == {a: (False, True), b: (False, False), d: (False, True)}
+        assert edge_info(n) == {a: (True, True), b: (False, False), d: (False, True)}
+        assert edge_info(o) == {a: (False, True), b: (True, False), d: (False, True)}
+        assert edge_info(p) == {n: (True, True), o: (True, True)}
+        assert edge_info(q) == {a: (False, True), b: (False, False), d: (True, True)}
+        assert edge_info(r) == {q: (True, True), m: (True, True)}
+
+        state = flow.run()
+        res = {t: state.result[t].result for t in [m, n, o, p, q, r]}
+        sol = {
+            m: [2, 2, 2],
+            n: [1, 2, 3],
+            o: [3, 3, 3],
+            p: [4, 5, 6],
+            q: [1, 2, 3],
+            r: [3, 4, 5],
+        }
+        assert res == sol
 
 
 class TestAsTask:

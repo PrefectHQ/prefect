@@ -12,16 +12,19 @@ class S3Result(Result):
     """
     Result that is written to and retrieved from an AWS S3 Bucket.
 
-    For authentication, there are two options: you can provide your AWS credentials
-    to `prefect.context.secrets.AWS_CREDENTIALS` for automatic authentication
-    or you can [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    For authentication, there are two options: you can provide your AWS credentials to
+    `prefect.context.secrets.AWS_CREDENTIALS` for automatic authentication or you can
+    [configure your flow's runtime
+    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
 
-    See [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
+    See [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for
+    more information.
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
-        - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
+        - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client
+            session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized (changing the "service_name" is not permitted).
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
@@ -43,8 +46,8 @@ class S3Result(Result):
         """
         from prefect.utilities.aws import get_boto_client
 
-        # use a new boto session when initializing in case we are in a new thread
-        # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
+        # use a new boto session when initializing in case we are in a new thread see
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
         s3_client = get_boto_client(
             "s3", credentials=None, use_session=True, **self.boto3_kwargs
         )
@@ -54,7 +57,9 @@ class S3Result(Result):
     def client(self) -> "boto3.client":
         """
         Initializes a client if we believe we are in a new thread.
-        We consider ourselves in a new thread if we haven't stored a client yet in the current context.
+
+        We consider ourselves in a new thread if we haven't stored a client yet in the current
+        context.
         """
         if not prefect.context.get("boto3client") or not getattr(self, "_client", None):
             self.initialize_client()
@@ -96,7 +101,7 @@ class S3Result(Result):
 
         stream = io.BytesIO(binary_data)
 
-        ## upload
+        # upload
         from botocore.exceptions import ClientError
 
         try:
@@ -110,7 +115,8 @@ class S3Result(Result):
 
     def read(self, location: str) -> Result:
         """
-        Reads a result from S3, reads it and returns a new `Result` object with the corresponding value.
+        Reads a result from S3, reads it and returns a new `Result` object with the
+        corresponding value.
 
         Args:
             - location (str): the S3 URI to read from
@@ -125,7 +131,7 @@ class S3Result(Result):
             self.logger.debug("Starting to download result from {}...".format(location))
             stream = io.BytesIO()
 
-            ## download - uses `self` in case the client is already instantiated
+            # download - uses `self` in case the client is already instantiated
             self.client.download_fileobj(
                 Bucket=self.bucket, Key=location, Fileobj=stream
             )

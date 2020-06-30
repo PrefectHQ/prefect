@@ -7,18 +7,21 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class CreateGitHubPR(Task):
     """
-    Task for opening / creating new GitHub Pull Requests using the v3 version of the GitHub REST API.
+    Task for opening/creating new GitHub Pull Requests using the v3 version of the GitHub REST API.
 
     Args:
-        - repo (str, optional): the name of the repository to open the issue in; must be provided in the
-            form `organization/repo_name`; can also be provided to the `run` method
-        - title (str, optional): the title of the issue to create; can also be provided to the `run` method
+        - repo (str, optional): the name of the repository to open the issue in; must be
+            provided in the form `organization/repo_name`; can also be provided to the `run`
+            method
+        - title (str, optional): the title of the issue to create; can also be provided to the
+            `run` method
         - body (str, optional): the contents of the issue; can also be provided to the `run` method
         - head (str, optional): the name of the branch where your changes are implemented; can also
             be provided to the `run` method
         - base (str, optional): the name of the branch you want the changes pulled into; can also
             be provided to the `run` method
-        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
+        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
+            init method
     """
 
     def __init__(
@@ -48,14 +51,17 @@ class CreateGitHubPR(Task):
         token: str = None,
     ) -> None:
         """
-        Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
-        or by using `Task.bind`.
+        Run method for this Task. Invoked by calling this Task after initialization within a
+        Flow context, or by using `Task.bind`.
 
         Args:
-            - repo (str, optional): the name of the repository to open the issue in; must be provided in the
-                form `organization/repo_name`; defaults to the one provided at initialization
-            - title (str, optional): the title of the issue to create; defaults to the one provided at initialization
-            - body (str, optional): the contents of the issue; defaults to the one provided at initialization
+            - repo (str, optional): the name of the repository to open the issue in; must be
+                provided in the form `organization/repo_name`; defaults to the one provided at
+                initialization
+            - title (str, optional): the title of the issue to create; defaults to the one
+                provided at initialization
+            - body (str, optional): the contents of the issue; defaults to the one provided at
+                initialization
             - head (str, optional): the name of the branch where your changes are implemented;
                 defaults to the one provided at initialization
             - base (str, optional): the name of the branch you want the changes pulled into;
@@ -83,6 +89,6 @@ class CreateGitHubPR(Task):
         }
         pr = {"title": title, "body": body, "head": head, "base": base}
 
-        ## send the request
+        # send the request
         resp = requests.post(url, data=json.dumps(pr), headers=headers)
         resp.raise_for_status()

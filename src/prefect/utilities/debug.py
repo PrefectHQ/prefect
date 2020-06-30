@@ -18,8 +18,9 @@ def is_serializable(obj: Any, raise_on_error: bool = False) -> bool:
 
     Args:
         - obj (Any): the object to check
-        - raise_on_error(bool, optional): if `True`, raises the `CalledProcessError` for inspection;
-            the `output` attribute of this exception can contain useful information about why the object is not registrable
+        - raise_on_error(bool, optional): if `True`, raises the `CalledProcessError` for
+          inspection; the `output` attribute of this exception can contain useful information
+          about why the object is not registrable
 
     Returns:
         - bool: `True` if registrable, `False` otherwise

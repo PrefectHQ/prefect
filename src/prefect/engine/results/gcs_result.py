@@ -10,15 +10,19 @@ class GCSResult(Result):
     """
     Result that is written to and read from a Google Cloud Bucket.
 
-    To authenticate with Google Cloud, you need to ensure that your flow's
-    runtime environment has the proper credentials available
-    (see https://cloud.google.com/docs/authentication/production for all the authentication options).
+    To authenticate with Google Cloud, you need to ensure that your flow's runtime environment
+    has the proper credentials available (see
+    https://cloud.google.com/docs/authentication/production for all the authentication
+    options).
 
-    You can also optionally provide your service account key to `prefect.context.secrets.GCP_CREDENTIALS` for
-    automatic authentication - see [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
+    You can also optionally provide your service account key to
+    `prefect.context.secrets.GCP_CREDENTIALS` for automatic authentication - see [Third Party
+    Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
 
-    To read more about service account keys see https://cloud.google.com/iam/docs/creating-managing-service-account-keys.
-    To read more about the JSON representation of service account keys see https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys.
+    To read more about service account keys see
+    https://cloud.google.com/iam/docs/creating-managing-service-account-keys.  To read more
+    about the JSON representation of service account keys see
+    https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys.
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
