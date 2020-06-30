@@ -10,7 +10,6 @@ from prefect.utilities.storage import extract_flow_from_file
 def register():
     """
     Register flows
-    Get commands that refer to querying Prefect API metadata.
 
     \b
     Usage:
