@@ -11,9 +11,8 @@ from typing import (
 import pendulum
 import prefect
 from prefect.core import Edge, Flow, Task
-from prefect.core.resource import ResourcePool, ResourceResult
 from prefect.engine.result import Result
-from prefect.engine.results import ConstantResult
+from prefect.engine.results import ConstantResult, ResourceResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cancelled,
@@ -410,7 +409,7 @@ class FlowRunner(Runner):
 
         # -- process each task in order
 
-        with executor.start(), ResourcePool():
+        with executor.start(), prefect.tasks.resources.base.ResourcePool():
 
             for task in self.flow.sorted_tasks():
                 task_state = task_states.get(task)

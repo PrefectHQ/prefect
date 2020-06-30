@@ -1,11 +1,20 @@
-from typing import Any
+from typing import Any, cast
 
 import prefect
 from prefect.engine.result import Result
 
 
 class ResourceResult(Result):
-    def __init__(self, **kwargs):
+    """A result for Resource objects.
+
+    Resource objects are never written or read from anywhere, this interface
+    only exists to enable support for resource objects in an active flow run.
+
+    Args:
+        - **kwargs (Any, optional): any additional `Result` initialization options
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
         if "serializer" in kwargs:
             raise ValueError("Can't pass a serializer to a ResourceResult.")
         self.handle = None
@@ -20,24 +29,34 @@ class ResourceResult(Result):
         """
         return self
 
-    @property
-    def value(self):
+    @property  # type: ignore
+    def value(self) -> Any:  # type: ignore
         if self.handle is None:
             raise ValueError("No value found for this result")
         return self.handle.get()
 
     @value.setter
-    def value(self, val):
+    def value(self, val: Any) -> None:
         pass
 
-    def from_value(self, value: Any) -> "Result":
+    def from_value(self, value: Any) -> "ResourceResult":
+        """
+        Create a new copy of the result object with the provided value.
+
+        Args:
+            - value (ResourceHandle or None): the value to use
+
+        Returns:
+            - ResourceResult: a new ResourceResult instance with the given value
+        """
         if not (
-            value is None or isinstance(value, prefect.core.resources.ResourceHandle)
+            value is None
+            or isinstance(value, prefect.tasks.resources.base.ResourceHandle)
         ):
             raise TypeError(f"value must be a ResourceHandle or None, got `{value}`")
-        new = self.copy()
+        new = cast(ResourceResult, self.copy())
         new.location = None
-        new.handle = value
+        new.handle = value  # type: ignore
         return new
 
     def write(self, value: Any, **kwargs: Any) -> Result:

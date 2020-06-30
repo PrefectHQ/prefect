@@ -9,4 +9,5 @@ import prefect.tasks.docker
 import prefect.tasks.github
 import prefect.tasks.notifications
 import prefect.tasks.secrets
+import prefect.tasks.resources
 import prefect.tasks.shell
