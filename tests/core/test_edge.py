@@ -101,6 +101,7 @@ def test_serialize_edge():
         downstream_task=dict(slug=t2.slug, __version__=prefect.__version__),
         key="key",
         mapped=True,
+        flat=False,
         __version__=prefect.__version__,
     )
 
@@ -131,19 +132,19 @@ class TestEdgeAnnotations:
         e = Edge(edges.unmapped(Task()), Task(), mapped=True)
         assert e.mapped is False
 
-    def test_flatten(self):
-        e = Edge(edges.flatten(Task()), Task())
+    def test_flat(self):
+        e = Edge(edges.flat(Task()), Task())
         assert e.flat is True
 
-    def test_flatten_kwarg(self):
+    def test_flat_kwarg(self):
         e = Edge(Task(), Task(), flat=True)
         assert e.flat is True
 
     def test_unmapped_annotation_takes_precedence(self):
-        e = Edge(edges.flatten(Task()), Task(), flat=False)
+        e = Edge(edges.flat(Task()), Task(), flat=False)
         assert e.flat is True
 
     def test_nested_annotation(self):
-        e = Edge(edges.flatten(edges.mapped(Task())), Task())
+        e = Edge(edges.flat(edges.mapped(Task())), Task())
         assert e.flat is True
         assert e.mapped is True
