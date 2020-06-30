@@ -6,7 +6,7 @@ from prefect.utilities import edges, tasks
 ALL_ANNOTATIONS = {edges.unmapped, edges.mapped, edges.flat}
 
 
-class TestEdgeAnnotations:
+class TestEdgeAttributes:
     def test_unmapped():
         ea = edges.unmapped(Task())
         assert ea.annotations == {"mapped": False}

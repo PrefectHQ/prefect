@@ -106,7 +106,7 @@ def test_serialize_edge():
     )
 
 
-class TestEdgeAnnotations:
+class TestEdgeAttributes:
     def test_none(self):
         e = Edge(Task(), Task())
         assert e.mapped is False

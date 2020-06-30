@@ -238,7 +238,7 @@ def as_task(x: Any, flow: "Optional[Flow]" = None) -> "prefect.Task":
         Helper function for determining if nested collections are constants without calling
         `bind()`, which would create new tasks on the active graph.
         """
-        if isinstance(x, (prefect.core.Task, prefect.utilities.edges.EdgeAnnotation)):
+        if isinstance(x, (prefect.core.Task, prefect.utilities.edges.EdgeAttribute)):
             return False
         elif isinstance(x, (list, tuple, set)):
             return all(is_constant(xi) for xi in x)
@@ -249,7 +249,7 @@ def as_task(x: Any, flow: "Optional[Flow]" = None) -> "prefect.Task":
     # task objects
     if isinstance(x, prefect.core.Task):  # type: ignore
         return x
-    elif isinstance(x, prefect.utilities.edges.EdgeAnnotation):
+    elif isinstance(x, prefect.utilities.edges.EdgeAttribute):
         return x.task
 
     # handle constants, including collections of constants

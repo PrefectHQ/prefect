@@ -40,7 +40,7 @@ from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.edges import EdgeAnnotation
+from prefect.utilities.edges import EdgeAttribute
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.tasks import as_task
 
@@ -566,6 +566,7 @@ class Flow:
             isinstance(edge.upstream_task, prefect.tasks.core.constants.Constant)
             and edge.key
             and not edge.mapped
+            and not edge.flat
         ):
             self.constants[edge.downstream_task].update(
                 {edge.key: edge.upstream_task.value}

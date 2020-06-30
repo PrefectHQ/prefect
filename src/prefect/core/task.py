@@ -21,7 +21,7 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
-from prefect.utilities.tasks import unmapped
+from prefect.utilities.edges import EdgeAttribute
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -572,7 +572,7 @@ class Task(metaclass=SignatureValidator):
             - Task: a new Task instance
         """
         for arg in args:
-            if not hasattr(arg, "__getitem__") and not isinstance(arg, unmapped):
+            if not hasattr(arg, "__getitem__") and not isinstance(arg, EdgeAttribute):
                 raise TypeError(
                     "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
                         t=type(arg), preview=repr(arg)[:10]
