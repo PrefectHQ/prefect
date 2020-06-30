@@ -427,4 +427,3 @@ def flatten_mapped_children(
 
     flattened_states = [i for s in new_states for i in s]
     return flattened_states
-

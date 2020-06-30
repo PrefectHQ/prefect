@@ -40,7 +40,7 @@ from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.edges import EdgeAttribute
+from prefect.utilities.edges import EdgeAnnotation
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.tasks import as_task
 

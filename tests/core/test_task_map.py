@@ -10,7 +10,8 @@ from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.result import NoResult, Result, NoResult
 from prefect.engine.state import Mapped, Pending, Retrying, Success
 from prefect.utilities.debug import raise_on_exception
-from prefect.utilities.tasks import task, unmapped
+from prefect.utilities.tasks import task
+from prefect.utilities.edges import unmapped, flat, mapped
 
 
 class AddTask(Task):
@@ -31,6 +32,12 @@ class IdTask(Task):
 class ListTask(Task):
     def run(self, start=1):
         return [start + 0, start + 1, start + 2]
+
+
+class NestTask(Task):
+    # given x, returns [x]
+    def run(self, x):
+        return [x]
 
 
 def test_map_returns_a_task_copy():
@@ -402,6 +409,26 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
 
     with Flow(name="test") as f:
         res = ll.map(start=ll(), upstream_tasks=[unmapped(ii(5))])
+
+    s = f.run(executor=executor)
+    m = s.result[res]
+    assert s.is_successful()
+    assert isinstance(m.map_states, list)
+    assert len(m.result) == 3
+    assert m.result == [[1 + i, 2 + i, 3 + i] for i in range(3)]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args_2(executor):
+    # identical to test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args
+    # but uses the `mapped()` annotation instead of calling .map()
+    ii = IdTask()
+    ll = ListTask()
+
+    with Flow(name="test") as f:
+        res = ll(start=mapped(ll()), upstream_tasks=[ii(5)])
 
     s = f.run(executor=executor)
     m = s.result[res]
@@ -1009,3 +1036,96 @@ class TestLooping:
         # Pending -> Mapped (parent)
         # (Pending -> (Running -> Looped) * 2 -> Running -> Failed -> Retrying -> Running -> Successful) * 2
         assert len(state_history) == 19
+
+
+class TestFlatMap:
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_constant(self, executor):
+        # flatmap over a constant
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            x = a.map(flat([[1, 2, 3]]))
+            y = a.map(flat([[1], [2], [3]]))
+            z = a.map(flat([[1], [2, 3]]))
+
+        s = f.run(executor=executor)
+
+        # all results should be the same
+        for task in [x, y, z]:
+            assert s.result[task].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_task_result(self, executor):
+        # flatmap over a task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest(ll())
+            x = a.map(flat(nested))
+
+        s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_mapped_result(self, executor):
+        # flatmap over a mapped task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest.map(ll())
+            x = a.map(flat(nested))
+
+        s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_flatmapped_result(self, executor):
+        # flatmap over a flattened mapped task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest.map(ll())
+            nested2 = nest.map(flat(nested))
+            x = a.map(flat(nested2))
+
+        s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_reduced_result(self, executor):
+        # flatmap over a reduced flattened mapped task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest.map(ll())
+            nested2 = nest(flat(nested))
+            x = a.map(flat(nested2))
+
+        from prefect.utilities.debug import raise_on_exception
+
+        with raise_on_exception():
+            s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]

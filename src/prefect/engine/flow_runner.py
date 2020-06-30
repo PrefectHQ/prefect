@@ -459,17 +459,17 @@ class FlowRunner(Runner):
                     # this checks whether the task is a "reduce" task for a mapped pipeline
                     # and if so, collects the appropriate upstream children
                     if not edge.mapped and isinstance(upstream_states[edge], Mapped):
-                        mapped_children = mapped_children.get(edge.upstream_task, [])
+                        children = mapped_children.get(edge.upstream_task, [])
 
                         # if the edge is flat, then we need to wait for the mapped children
                         # to complete and then flatten them
                         if edge.flat:
-                            mapped_children = executor.wait(mapped_children)
-                            mapped_children = executors.flatten_mapped_children(
-                                mapped_children=mapped_children, executor=executor,
+                            children = executor.wait(children)
+                            children = executors.flatten_mapped_children(
+                                mapped_children=children, executor=executor,
                             )
 
-                        upstream_mapped_states[edge] = mapped_children
+                        upstream_mapped_states[edge] = children
 
                 # augment edges with upstream constants
                 for key, val in self.flow.constants[task].items():

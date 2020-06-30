@@ -104,9 +104,9 @@ class Edge:
                 )
 
         annotations = {}
-        if isinstance(upstream_task, prefect.utilities.edges.EdgeAttribute):
+        if isinstance(upstream_task, prefect.utilities.edges.EdgeAnnotation):
             annotations.update(upstream_task.annotations)
-        if isinstance(downstream_task, prefect.utilities.edges.EdgeAttribute):
+        if isinstance(downstream_task, prefect.utilities.edges.EdgeAnnotation):
             annotations.update(downstream_task.annotations)
         upstream_task = prefect.utilities.tasks.as_task(upstream_task, flow=flow)
         downstream_task = prefect.utilities.tasks.as_task(downstream_task, flow=flow)
