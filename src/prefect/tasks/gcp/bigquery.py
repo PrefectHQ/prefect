@@ -176,10 +176,10 @@ class BigQueryTask(Task):
 
         query_job = client.query(query, location=location, job_config=job_config)
 
-        ## if returning the results as a dataframe
+        # if returning the results as a dataframe
         if to_dataframe:
             return query_job.result().to_dataframe()
-        ## else if returning as a list of bigquery.table.Row objects (default)
+        # else if returning as a list of bigquery.table.Row objects (default)
         else:
             return list(query_job.result())
 
