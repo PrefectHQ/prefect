@@ -1,6 +1,8 @@
 """
 ::: warning Secret Tasks are preferred
-While this Secrets API is fully supported, using a [Prefect Secret Task](../tasks/secrets) is typically preferred for better reuse of Secret values and visibility into the secrets used within Tasks / Flows.
+While this Secrets API is fully supported, using a [Prefect Secret Task](../tasks/secrets) is
+typically preferred for better reuse of Secret values and visibility into the secrets used
+within Tasks / Flows.
 :::
 
 A Secret is a serializable object used to represent a secret key & value.
@@ -9,7 +11,8 @@ The value of the `Secret` is not set upon initialization and instead is set
 either in `prefect.context` or on the server, with behavior dependent on the value
 of the `use_local_secrets` flag in your Prefect configuration file.
 
-To set a Secret in Prefect Cloud, you can use `prefect.Client.set_secret`, or set it directly via GraphQL:
+To set a Secret in Prefect Cloud, you can use `prefect.Client.set_secret`, or set it directly
+via GraphQL:
 
 ```graphql
 mutation {
@@ -19,7 +22,8 @@ mutation {
 }
 ```
 
-To set a _local_ Secret, either place the value in your user configuration file (located at `~/.prefect/config.toml`):
+To set a _local_ Secret, either place the value in your user configuration file (located at
+`~/.prefect/config.toml`):
 
 ```
 [context.secrets]
@@ -42,11 +46,16 @@ export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
 ```
 
 ::: tip Default secrets
-Special default secret names can be used to authenticate to third-party systems in a installation-wide way. Read more about this in our [Secrets concept documentation](/core/concepts/secrets.md#default-secrets).
+Special default secret names can be used to authenticate to third-party systems in a
+installation-wide way. Read more about this in our [Secrets concept
+documentation](/core/concepts/secrets.md#default-secrets).
 :::
 
 ::: tip
-When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
+When settings secrets via `.toml` config files, you can use the [TOML
+Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running
+`prefect` commands with invalid `.toml` config files will lead to tracebacks that contain
+references to: `..../toml/decoder.py`.
 :::
 
 """
@@ -112,10 +121,11 @@ class Secret:
             - Any: the value of the secret; if not found, raises an error
 
         Raises:
-            - ValueError: if `.get()` is called within a Flow building context, or if `use_local_secrets=True`
-                and your Secret doesn't exist
+            - ValueError: if `.get()` is called within a Flow building context, or if
+                `use_local_secrets=True` and your Secret doesn't exist
             - KeyError: if `use_local_secrets=False` and the Client fails to retrieve your secret
-            - ClientError: if the client experiences an unexpected error communicating with the backend
+            - ClientError: if the client experiences an unexpected error communicating with the
+                backend
         """
         if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
             raise ValueError(
@@ -139,7 +149,9 @@ class Secret:
                 except ClientError as exc:
                     if "No value found for the requested key" in str(exc):
                         raise KeyError(
-                            f"The secret {self.name} was not found.  Please ensure that it was set correctly in your tenant: https://docs.prefect.io/orchestration/concepts/secrets.html"
+                            f"The secret {self.name} was not found.  Please ensure that it "
+                            f"was set correctly in your tenant: https://docs.prefect.io/"
+                            f"orchestration/concepts/secrets.html"
                         )
                     else:
                         raise exc

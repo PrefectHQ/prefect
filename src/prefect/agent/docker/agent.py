@@ -34,27 +34,30 @@ class DockerAgent(Agent):
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
-            on each flow run that this agent submits for execution
-        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
-            defaults to infinite
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will
+            be set on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
+            for flow runs; defaults to infinite
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
-            just health checks for use by an orchestration layer. Leave blank for no api server (default).
-        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
+            just health checks for use by an orchestration layer. Leave blank for no api server
+            (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
+            and all deployed flow runs
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
         - no_pull (bool, optional): Flag on whether or not to pull flow images.
             Defaults to `False` if not provided here or in context.
-        - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
-            to stdout; defaults to `False`
-        - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
+        - show_flow_logs (bool, optional): a boolean specifying whether the agent should
+            re-route Flow run logs to stdout; defaults to `False`
+        - volumes (List[str], optional): a list of Docker volume mounts to be attached to any
+            and all created containers.
         - network (str, optional): Add containers to an existing docker network
-        - docker_interface (bool, optional): Toggle whether or not a `docker0` interface is present on this machine.
-            Defaults to `True`. **Note**: This is mostly relevant for some Docker-in-Docker setups that users may be
-            running their agent with.
+        - docker_interface (bool, optional): Toggle whether or not a `docker0` interface is
+            present on this machine.  Defaults to `True`. **Note**: This is mostly relevant for
+            some Docker-in-Docker setups that users may be running their agent with.
     """
 
     def __init__(
@@ -245,7 +248,8 @@ class DockerAgent(Agent):
                     )
             else:
                 if not external:
-                    # no internal container path given, assume the host path is the same as the internal path
+                    # no internal container path given, assume the host path is the same as the
+                    # internal path
                     external = internal
                 host_spec[external] = {
                     "bind": internal,
@@ -266,9 +270,8 @@ class DockerAgent(Agent):
 
             if len(fields) > 3:
                 raise ValueError(
-                    "Docker volume format is invalid: {} (should be 'external:internal[:mode]')".format(
-                        volume_spec
-                    )
+                    f"Docker volume format is invalid: {volume_spec} "
+                    f"(should be 'external:internal[:mode]')"
                 )
 
             if len(fields) == 1:
@@ -294,7 +297,8 @@ class DockerAgent(Agent):
                     )
             else:
                 if not external:
-                    # no internal container path given, assume the host path is the same as the internal path
+                    # no internal container path given, assume the host path is the same as the
+                    # internal path
                     external = internal
                 host_spec[external] = {
                     "bind": internal,

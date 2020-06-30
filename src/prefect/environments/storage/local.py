@@ -71,7 +71,7 @@ class Local(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if not flow_location in self.flows.values():
+        if flow_location not in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
 
         return prefect.core.flow.Flow.load(flow_location)

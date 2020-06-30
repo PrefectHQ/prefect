@@ -31,11 +31,14 @@ class RemoteEnvironment(Environment):
             to `prefect.config.engine.executor.default_class`
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
-        - metadata (dict, optional): extra metadata to be set and serialized on this environment
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this
+            environment
     """
 
     def __init__(

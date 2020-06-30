@@ -6,8 +6,8 @@ from prefect.engine.result_handlers import ResultHandler
 
 class SecretResultHandler(ResultHandler):
     """
-    Hook for storing and retrieving sensitive task results from a Secret store. Only intended to be used
-    for Secret tasks.
+    Hook for storing and retrieving sensitive task results from a Secret store. Only intended
+    to be used for Secret tasks.
 
     Args:
         - secret_task (Task): the Secret Task that this result handler will be used for

@@ -9,11 +9,15 @@ class GetRepoInfo(Task):
     Task for retrieving GitHub repository information using the v3 version of the GitHub REST API.
 
     Args:
-        - repo (str, optional): the name of the repository to open the issue in; must be provided in the
-            form `organization/repo_name` or `user/repo_name`; can also be provided to the `run` method
-        - info_keys (List[str], optional): a list of repo attributes to pull (e.g., `["stargazers_count", "subscribers_count"]`).
-            A full list of available keys can be found in the official [GitHub documentation](https://developer.github.com/v3/repos/)
-        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
+        - repo (str, optional): the name of the repository to open the issue in; must be
+            provided in the form `organization/repo_name` or `user/repo_name`; can also be
+            provided to the `run` method
+        - info_keys (List[str], optional): a list of repo attributes to pull (e.g.,
+            `["stargazers_count", "subscribers_count"]`).  A full list of available keys can be
+            found in the official [GitHub
+            documentation](https://developer.github.com/v3/repos/)
+        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
+            init method
     """
 
     def __init__(self, repo: str = None, info_keys: List[str] = None, **kwargs: Any):
@@ -27,14 +31,17 @@ class GetRepoInfo(Task):
         self, repo: str = None, info_keys: List[str] = None, token: str = None
     ) -> None:
         """
-        Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
-        or by using `Task.bind`.
+        Run method for this Task. Invoked by calling this Task after initialization within a
+        Flow context, or by using `Task.bind`.
 
         Args:
-            - repo (str, optional): the name of the repository to open the issue in; must be provided in the
-                form `organization/repo_name`; defaults to the one provided at initialization
-            - info_keys (List[str], optional): a list of repo attributes to pull (e.g., `["stargazers_count", "subscribers_count"]`).
-                A full list of available keys can be found in the official [GitHub documentation](https://developer.github.com/v3/repos/)
+            - repo (str, optional): the name of the repository to open the issue in; must be
+                provided in the form `organization/repo_name`; defaults to the one provided at
+                initialization
+            - info_keys (List[str], optional): a list of repo attributes to pull (e.g.,
+                `["stargazers_count", "subscribers_count"]`).  A full list of available keys
+                can be found in the official [GitHub
+                documentation](https://developer.github.com/v3/repos/)
             - token (str): a GitHub access token
 
         Raises:
@@ -57,7 +64,7 @@ class GetRepoInfo(Task):
             "Accept": "application/vnd.github.v3+json",
         }
 
-        ## send the request
+        # send the request
         resp = requests.get(url, headers=headers)
         resp.raise_for_status()
         data = resp.json()
@@ -70,12 +77,15 @@ class CreateBranch(Task):
     Task for creating new branches using the v3 version of the GitHub REST API.
 
     Args:
-        - repo (str, optional): the name of the repository to create the branch in; must be provided in the
-            form `organization/repo_name` or `user/repo_name`; can also be provided to the `run` method
-        - base (str, optional): the name of the branch you want to branch off; can also
-            be provided to the `run` method.  Defaults to "master".
-        - branch_name (str, optional): the name of the new branch; can also be provided to the `run` method
-        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
+        - repo (str, optional): the name of the repository to create the branch in; must be
+            provided in the form `organization/repo_name` or `user/repo_name`; can also be
+            provided to the `run` method
+        - base (str, optional): the name of the branch you want to branch off; can also be
+            provided to the `run` method.  Defaults to "master".
+        - branch_name (str, optional): the name of the new branch; can also be provided to the
+            `run` method
+        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
+            init method
     """
 
     def __init__(
@@ -100,20 +110,22 @@ class CreateBranch(Task):
         token: str = None,
     ) -> dict:
         """
-        Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
-        or by using `Task.bind`.
+        Run method for this Task. Invoked by calling this Task after initialization within a
+        Flow context, or by using `Task.bind`.
 
         Args:
-            - repo (str, optional): the name of the repository to open the issue in; must be provided in the
-                form `organization/repo_name`; defaults to the one provided at initialization
-            - base (str, optional): the name of the branch you want to branch off; if not provided here,
+            - repo (str, optional): the name of the repository to open the issue in; must be
+                provided in the form `organization/repo_name`; defaults to the one provided at
+                initialization
+            - base (str, optional): the name of the branch you want to branch off; if not
+                provided here, defaults to the one set at initialization
+            - branch_name (str, optional): the name of the new branch; if not provided here,
                 defaults to the one set at initialization
-            - branch_name (str, optional): the name of the new branch; if not provided here, defaults to
-                the one set at initialization
             - token (str): a GitHub access token
 
         Raises:
-            - ValueError: if a `repo` or `branch_name` was never provided, or if the base branch wasn't found
+            - ValueError: if a `repo` or `branch_name` was never provided, or if the base
+                branch wasn't found
             - HTTPError: if the GET request returns a non-200 status code
 
         Returns:
@@ -135,7 +147,7 @@ class CreateBranch(Task):
             "Accept": "application/vnd.github.v3+json",
         }
 
-        ## gather branch information
+        # gather branch information
         resp = requests.get(url + "/heads", headers=headers)
         resp.raise_for_status()
         branch_data = resp.json()
@@ -149,7 +161,7 @@ class CreateBranch(Task):
         if commit_sha is None:
             raise ValueError("Base branch {} not found.".format(base))
 
-        ## create new branch
+        # create new branch
         new_branch = {"ref": "refs/heads/{}".format(branch_name), "sha": commit_sha}
         resp = requests.post(url, headers=headers, json=new_branch)
         resp.raise_for_status()
