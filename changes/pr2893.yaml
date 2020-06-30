@@ -1,0 +1,2 @@
+enhancement:
+  - "Send heartbeats on each iteration of the Cloud task runner's retry loop - [#2893](https://github.com/PrefectHQ/prefect/pull/2893)"
