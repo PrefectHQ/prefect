@@ -80,7 +80,9 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
 
     # Check if args/kwargs are valid first
     for x in itertools.chain(args, kwargs.values()):
-        if not isinstance(x, (prefect.Task, unmapped, Sequence)):
+        if not isinstance(
+            x, (prefect.Task, prefect.utilities.edges.EdgeAnnotation, Sequence)
+        ):
             raise TypeError(
                 f"Cannot map over non-sequence object of type `{type(x).__name__}`"
             )
@@ -99,7 +101,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     #   added later as needed.
     def preprocess(a: Any) -> "prefect.Task":
         a2 = as_task(a, flow=flow2)
-        is_mapped = not isinstance(a, unmapped)
+        is_mapped = not isinstance(a, prefect.utilities.edges.unmapped)
         is_constant = isinstance(a2, Constant)
         arg_info[a2] = (is_mapped, is_constant)
         if not is_constant:
