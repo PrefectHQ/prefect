@@ -53,6 +53,7 @@ class CreateContainer(Task):
 
     @defaults_from_attrs(
         "image_name",
+        "container_name",
         "command",
         "detach",
         "entrypoint",
