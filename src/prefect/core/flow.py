@@ -611,7 +611,7 @@ class Flow:
     ) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow.
-            When `merge_parameters` is set to`True` -- Duplicate parameters in the unput `flow`
+            When `merge_parameters` is set to`True` -- Duplicate parameters in the input `flow`
             are replaced with those in the flow being updated.
 
         Args:
