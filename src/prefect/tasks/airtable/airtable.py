@@ -69,7 +69,6 @@ class ReadAirtableRow(Task):
     def run(
         self,
         id: str,
-        data: dict,
         base_key: str = None,
         table_name: str = None,
         api_key: str = None,

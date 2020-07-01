@@ -1,23 +1,5 @@
+task:
+  - "Add ReadAirtableRow task - [#2843](https://github.com/PrefectHQ/prefect/pull/2843)"
 
-**Thanks for contributing to Prefect!**
-
-Please describe your work and make sure your PR:
-
-- [ ] adds new tests (if appropriate)
-- [x] add a changelog entry in the `changes/` directory (if appropriate)
-- [x] updates docstrings for any new functions or function arguments, including `docs/outline.toml` for API reference docs (if appropriate)
-
-Note that your PR will not be reviewed unless all three boxes are checked.
-
-## What does this PR change?
-
-Added a Reader task for Airtable.
-
-
-
-
-## Why is this PR important?
-
-
-Reading rows from Airtable as Prefect Tasks should make Airtable flows easier.
-
+contributor:
+  - "[Matthew Alhonte](https://github.com/mattalhonte)"
