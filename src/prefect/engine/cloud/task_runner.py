@@ -350,6 +350,11 @@ class CloudTaskRunner(TaskRunner):
                 )
                 time.sleep(naptime)
 
+                # send heartbeat on each iteration to let API know task run is still alive
+                self.client.update_task_run_heartbeat(
+                    task_run_id=prefect.context.get("task_run_id")
+                )
+
                 # mapped children will retrieve their latest info inside
                 # initialize_run(), but we can load up-to-date versions
                 # for all other task runs here

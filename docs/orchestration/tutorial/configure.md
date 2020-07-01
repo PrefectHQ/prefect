@@ -49,7 +49,7 @@ If the `prefect` command is not found then Prefect may not be installed. Go [her
 Running deployed Flows requires an Agent being authenticated against Prefect Cloud. To do this, let's generate a `RUNNER`-scoped API token:
 
 ```bash
-prefect auth create-token -n my-runner-token -r RUNNER
+prefect auth create-token -n my-runner-token -s RUNNER
 ```
 
 Keep this runner token handy for future steps, or store it as an environment variable:

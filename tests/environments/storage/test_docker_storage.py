@@ -51,6 +51,18 @@ def test_add_flow_to_docker():
     assert storage.flows[f.name] == "/opt/prefect/flows/test.prefect"
 
 
+def test_add_flow_to_docker_custom_prefect_dir():
+    storage = Docker(prefect_directory="/usr/prefect-is-gr8")
+    f = Flow("test")
+    assert f not in storage
+    assert storage.add_flow(f) == "/usr/prefect-is-gr8/flows/test.prefect"
+    assert f.name in storage
+    assert storage.flows[f.name] == "/usr/prefect-is-gr8/flows/test.prefect"
+    assert storage.env_vars == {
+        "PREFECT__USER_CONFIG_PATH": "/usr/prefect-is-gr8/config.toml"
+    }
+
+
 @pytest.mark.parametrize(
     "platform,url",
     [
@@ -515,6 +527,29 @@ def test_create_dockerfile_with_weird_flow_name():
             )
 
 
+def test_create_dockerfile_with_weird_flow_name_custom_prefect_dir(tmpdir):
+
+    with open(os.path.join(tmpdir, "test"), "w+") as t:
+        t.write("asdf")
+
+    storage = Docker(
+        registry_url="test1",
+        base_image="test3",
+        prefect_directory="/tmp/prefect-is-c00l",
+    )
+    f = Flow("WHAT IS THIS !!! ~~~~")
+    storage.add_flow(f)
+    dpath = storage.create_dockerfile_object(directory=tmpdir)
+
+    with open(dpath, "r") as dockerfile:
+        output = dockerfile.read()
+
+    assert (
+        "COPY what-is-this.flow /tmp/prefect-is-c00l/flows/what-is-this.prefect"
+        in output
+    )
+
+
 def test_create_dockerfile_from_everything(no_docker_host_var):
 
     with tempfile.TemporaryDirectory() as tempdir_outside:
@@ -582,6 +617,29 @@ def test_run_healthchecks_arg(ignore_healthchecks):
                 assert "RUN python /opt/prefect/healthcheck.py" not in output
             else:
                 assert "RUN python /opt/prefect/healthcheck.py" in output
+
+
+@pytest.mark.parametrize("ignore_healthchecks", [True, False])
+def test_run_healthchecks_arg_custom_prefect_dir(ignore_healthchecks, tmpdir):
+
+    with open(os.path.join(tmpdir, "test"), "w+") as t:
+        t.write("asdf")
+
+    storage = Docker(
+        ignore_healthchecks=ignore_healthchecks, prefect_directory="/usr/local/prefect",
+    )
+
+    f = Flow("test")
+    storage.add_flow(f)
+    dpath = storage.create_dockerfile_object(directory=tmpdir)
+
+    with open(dpath, "r") as dockerfile:
+        output = dockerfile.read()
+
+    if ignore_healthchecks:
+        assert "RUN python /usr/local/prefect/healthcheck.py" not in output
+    else:
+        assert "RUN python /usr/local/prefect/healthcheck.py" in output
 
 
 def test_pull_image(capsys, monkeypatch):

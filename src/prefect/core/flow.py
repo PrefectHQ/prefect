@@ -6,6 +6,7 @@ import inspect
 import os
 import tempfile
 import time
+import uuid
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
@@ -535,6 +536,12 @@ class Flow:
         """
         if validate is None:
             validate = cast(bool, prefect.config.flows.eager_edge_validation)
+
+        if mapped and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
+
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -850,6 +857,10 @@ class Flow:
         Returns:
             - None
         """
+        if mapped and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
 
         task = as_task(task, flow=self)
         assert isinstance(task, Task)  # mypy assert
@@ -859,7 +870,7 @@ class Flow:
 
         # add upstream tasks
         for t in upstream_tasks or []:
-            is_mapped = mapped & (not isinstance(t, unmapped))
+            is_mapped = mapped and not isinstance(t, unmapped)
             t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
@@ -877,7 +888,7 @@ class Flow:
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
-            is_mapped = mapped & (not isinstance(t, unmapped))
+            is_mapped = mapped and not isinstance(t, unmapped)
             t = as_task(t, flow=self)
 
             # if the task can be represented as a constant and we don't need to map over it
@@ -933,7 +944,14 @@ class Flow:
         # run this flow indefinitely, so long as its schedule has future dates
         while True:
 
-            flow_run_context.update(scheduled_start_time=next_run_time)
+            # add relevant context keys
+            # many of these are intended to ensure local runs behave similarly as runs against a backend
+            flow_run_context.update(
+                scheduled_start_time=next_run_time,
+                flow_id=self.name,
+                flow_run_id=str(uuid.uuid4()),
+                flow_run_name=str(uuid.uuid4()),
+            )
 
             if flow_state.is_scheduled():
                 next_run_time = flow_state.start_time
@@ -950,12 +968,19 @@ class Flow:
             # begin a single flow run
             while not flow_state.is_finished():
                 runner = runner_cls(flow=self)
+                task_ctxts = kwargs.pop("task_contexts", {}).copy()
+                for t in self.tasks:
+                    task_ctxts.setdefault(t, dict())
+                    task_ctxts[t].update(
+                        task_run_id=str(uuid.uuid4()), task_id=self.slugs[t]
+                    )
                 flow_state = runner.run(
                     parameters=parameters,
                     return_tasks=self.tasks,
                     state=flow_state,
                     task_states=flow_state.result,
                     context=flow_run_context,
+                    task_contexts=task_ctxts,
                     **kwargs,
                 )
 

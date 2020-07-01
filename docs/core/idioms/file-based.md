@@ -4,6 +4,14 @@ Prefect version `0.12.1` began to implement support for storing flows as paths t
 
 ### Example file based workflow
 
+::: warning GitHub dependency
+This idiom requires that `git` is installed as well as Prefect's `github` extra dependencies:
+
+```bash
+pip install 'prefect[github]'
+```
+:::
+
 In this example we will walk through a potential workflow you may use when registering flows with [GitHub](/api/latest/environments/storage.html#github) storage. This example takes place in a GitHub repository with the following structure:
 
 ```
@@ -57,7 +65,7 @@ git push
 Now that the file exists on the repo the flow needs to be registered with a Prefect API backend (either Core's server or Prefect Cloud).
 
 ```bash
-prefect register -f flows/my_flow.py
+prefect register flow -f flows/my_flow.py
 Result check: OK
 Flow: http://localhost:8080/flow/9f5f7bea-186e-44d1-a746-417239663614
 ```

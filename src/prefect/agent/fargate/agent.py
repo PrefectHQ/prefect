@@ -370,7 +370,18 @@ class FargateAgent(Agent):
                 self.logger.debug("{} = {}".format(key, item))
 
         container_definitions_kwargs = {}
-        for key, item in user_kwargs.get("containerDefinitions", [{}])[0].items():
+        container_defs = user_kwargs.get("containerDefinitions", [{}])
+        try:
+            container_defs = literal_eval(container_defs)
+        except (ValueError, SyntaxError):
+            pass
+
+        if len(container_defs) != 1:
+            raise ValueError(
+                "Fargate agent only accepts configuration for a single container definition."
+            )
+
+        for key, item in container_defs[0].items():
             if key in container_definitions_kwarg_list:
                 try:
                     # Parse kwarg if needed
@@ -599,9 +610,6 @@ class FargateAgent(Agent):
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
                 ],
-                "secrets": [],
-                "mountPoints": [],
-                "logConfiguration": {},
                 "essential": True,
             }
         ]
@@ -630,18 +638,26 @@ class FargateAgent(Agent):
         container_definitions[0]["environment"].extend(  # type: ignore
             container_definitions_environment
         )
-        container_definitions[0]["secrets"] = container_definitions_kwargs.get(
-            "secrets", []
-        )
-        container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
-            "mountPoints", []
-        )
-        container_definitions[0]["logConfiguration"] = container_definitions_kwargs.get(
-            "logConfiguration", {}
-        )
-        container_definitions[0][
-            "repositoryCredentials"
-        ] = container_definitions_kwargs.get("repositoryCredentials", {})
+
+        # Set container definition values if provided
+        if container_definitions_kwargs.get("secrets"):
+            container_definitions[0]["secrets"] = container_definitions_kwargs.get(
+                "secrets", []
+            )
+
+        if container_definitions_kwargs.get("mountPoints"):
+            container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
+                "mountPoints", []
+            )
+        if container_definitions_kwargs.get("logConfiguration"):
+            container_definitions[0][
+                "logConfiguration"
+            ] = container_definitions_kwargs.get("logConfiguration", {})
+
+        if container_definitions_kwargs.get("repositoryCredentials"):
+            container_definitions[0][
+                "repositoryCredentials"
+            ] = container_definitions_kwargs.get("repositoryCredentials", {})
 
         # Register task definition
         self.logger.debug(
@@ -728,9 +744,6 @@ class FargateAgent(Agent):
                 "image": "busybox",
                 "command": ["/bin/sh", "-c", "echo 'I am alive!'"],
                 "environment": [],
-                "secrets": [],
-                "mountPoints": [],
-                "logConfiguration": {},
                 "essential": True,
             }
         ]
@@ -746,15 +759,27 @@ class FargateAgent(Agent):
         container_definitions[0]["environment"].extend(  # type: ignore
             container_definitions_environment
         )
-        container_definitions[0]["secrets"] = flow_container_definitions_kwargs.get(
-            "secrets", []
-        )
-        container_definitions[0]["mountPoints"] = flow_container_definitions_kwargs.get(
-            "mountPoints", []
-        )
-        container_definitions[0][
-            "logConfiguration"
-        ] = flow_container_definitions_kwargs.get("logConfiguration", {})
+
+        # Assign user-provided container definition options
+        if flow_container_definitions_kwargs.get("secrets"):
+            container_definitions[0]["secrets"] = flow_container_definitions_kwargs.get(
+                "secrets", []
+            )
+
+        if flow_container_definitions_kwargs.get("mountPoints"):
+            container_definitions[0][
+                "mountPoints"
+            ] = flow_container_definitions_kwargs.get("mountPoints", [])
+
+        if flow_container_definitions_kwargs.get("logConfiguration"):
+            container_definitions[0][
+                "logConfiguration"
+            ] = flow_container_definitions_kwargs.get("logConfiguration", {})
+
+        if flow_container_definitions_kwargs.get("repositoryCredentials"):
+            container_definitions[0][
+                "repositoryCredentials"
+            ] = flow_container_definitions_kwargs.get("repositoryCredentials", {})
 
         # Register task definition
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
