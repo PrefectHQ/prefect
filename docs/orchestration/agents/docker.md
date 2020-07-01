@@ -48,5 +48,5 @@ The Docker Agent periodically polls for new flow runs to execute. When a flow ru
 The agent will block on the process in between finding the flow run and submitting it for execution if it has to pull the flow's Docker image.
 
 ::: tip no-pull
-The docker agent has an optional `--no-pull` flag where it will not attempt to pull the flow's Docker storage from a registry if desired. This is useful for cases in which a user may be testing the process completely dockerly without pushing the flow's Docker storage to a registry. Alternatively, if a flow's Docker storage does not have a `registry_url` specified then the Docker Agent will not attempt to pull the image.
+The docker agent has an optional `--no-pull` flag where it will not attempt to pull the flow's Docker storage from a registry if desired. This is useful for cases in which a user may be testing the process completely locally without pushing the flow's Docker storage to a registry. Alternatively, if a flow's Docker storage does not have a `registry_url` specified then the Docker Agent will not attempt to pull the image.
 :::

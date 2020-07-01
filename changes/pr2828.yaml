@@ -1,2 +1,0 @@
-enhancement:
-  - "Flows registered without an image set will default to `all_extras` - [#2828](https://github.com/PrefectHQ/prefect/pull/2828)"

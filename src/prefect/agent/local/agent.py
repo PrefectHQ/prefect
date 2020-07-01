@@ -6,7 +6,7 @@ from typing import Iterable, List
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import GCS, S3, Azure, Local
+from prefect.environments.storage import GCS, S3, Azure, Local, GitHub
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
@@ -32,22 +32,25 @@ class LocalAgent(Agent):
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
-            on each flow run that this agent submits for execution
-        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
-            defaults to infinite
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will
+            be set on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
+            for flow runs; defaults to infinite
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
-            just health checks for use by an orchestration layer. Leave blank for no api server (default).
-        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
-        - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
-            useful for Flows which import from locally hosted scripts or packages
-        - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
-            to stdout; defaults to `False`
-        - hostname_label (boolean, optional): a boolean specifying whether this agent should auto-label itself
-            with the hostname of the machine it is running on.  Useful for flows which are stored on the local
-            filesystem.
+            just health checks for use by an orchestration layer. Leave blank for no api server
+            (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
+            and all deployed flow runs
+        - import_paths (List[str], optional): system paths which will be provided to each
+            Flow's runtime environment; useful for Flows which import from locally hosted
+            scripts or packages
+        - show_flow_logs (bool, optional): a boolean specifying whether the agent should
+            re-route Flow run logs to stdout; defaults to `False`
+        - hostname_label (boolean, optional): a boolean specifying whether this agent should
+            auto-label itself with the hostname of the machine it is running on.  Useful for
+            flows which are stored on the local filesystem.
     """
 
     def __init__(
@@ -83,7 +86,12 @@ class LocalAgent(Agent):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
         self.labels.extend(
-            ["azure-flow-storage", "gcs-flow-storage", "s3-flow-storage"]
+            [
+                "azure-flow-storage",
+                "gcs-flow-storage",
+                "s3-flow-storage",
+                "github-flow-storage",
+            ]
         )
 
         self.logger.debug(f"Import paths: {self.import_paths}")
@@ -117,7 +125,7 @@ class LocalAgent(Agent):
         )
 
         if not isinstance(
-            StorageSchema().load(flow_run.flow.storage), (Local, Azure, GCS, S3)
+            StorageSchema().load(flow_run.flow.storage), (Local, Azure, GCS, S3, GitHub)
         ):
             self.logger.error(
                 "Storage for flow run {} is not a supported type.".format(flow_run.id)
@@ -199,10 +207,11 @@ class LocalAgent(Agent):
             - token (str, optional): A `RUNNER` token to give the agent
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
-            - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
-                useful for Flows which import from locally hosted scripts or packages
-            - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
-                to stdout; defaults to `False`
+            - import_paths (List[str], optional): system paths which will be provided to each
+                Flow's runtime environment; useful for Flows which import from locally hosted
+                scripts or packages
+            - show_flow_logs (bool, optional): a boolean specifying whether the agent should
+                re-route Flow run logs to stdout; defaults to `False`
 
         Returns:
             - str: A string representation of the generated configuration file

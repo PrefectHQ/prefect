@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from marshmallow import fields, post_load
 
@@ -9,11 +9,7 @@ from prefect.utilities.serialization import (
     Nested,
     ObjectSchema,
     OneOfSchema,
-    to_qualified_name,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 def get_safe(obj: state.State, context: dict) -> Any:

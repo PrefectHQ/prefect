@@ -58,7 +58,7 @@ class TestAzureResult:
         assert service.get_blob_client.call_args[1]["container"] == "foo"
 
     def test_azure_reads_and_updates_location(self, monkeypatch):
-        client = MagicMock(download_blob=MagicMock(return_value=""))
+        client = MagicMock(download_blob=MagicMock(return_value=b""))
         service = MagicMock(get_blob_client=MagicMock(return_value=client))
         monkeypatch.setattr(
             "prefect.engine.results.azure_result.AzureResult.service", service
@@ -80,7 +80,7 @@ class TestAzureResult:
         result = AzureResult(container="foo", location="nothing/here.txt")
         new_result = result.write(None)
         assert client.upload_blob.called
-        assert isinstance(client.upload_blob.call_args[0][0], str)
+        assert isinstance(client.upload_blob.call_args[0][0], bytes)
 
     def test_azure_result_is_pickleable(self, azure_client):
         result = AzureResult("foo")

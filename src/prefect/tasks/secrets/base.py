@@ -11,9 +11,9 @@ class SecretBase(Task):
     Base Secrets Task.  This task does not perform any action but rather serves as the base
     task class which should be inherited from when writing new Secret Tasks.
 
-    Users should subclass this Task and override its `run` method for plugging into other Secret stores,
-    as it is handled differently during execution to ensure the underlying secret value is not accidentally
-    persisted in a non-safe location.
+    Users should subclass this Task and override its `run` method for plugging into other
+    Secret stores, as it is handled differently during execution to ensure the underlying
+    secret value is not accidentally persisted in a non-safe location.
 
     Args:
         - **kwargs (Any, optional): additional keyword arguments to pass to the Task constructor
@@ -50,10 +50,11 @@ class PrefectSecret(SecretBase):
     @defaults_from_attrs("name")
     def run(self, name: str = None):
         """
-        The run method for Secret Tasks.  This method actually retrieves and returns the underlying secret value
-        using the `Secret.get()` method.  Note that this method first checks context for the secret value, and if not
-        found either raises an error or queries Prefect Cloud, depending on whether `config.cloud.use_local_secrets`
-        is `True` or `False`.
+        The run method for Secret Tasks.  This method actually retrieves and returns the
+        underlying secret value using the `Secret.get()` method.  Note that this method first
+        checks context for the secret value, and if not found either raises an error or queries
+        Prefect Cloud, depending on whether `config.cloud.use_local_secrets` is `True` or
+        `False`.
 
         Args:
             - name (str, optional): the name of the underlying Secret to retrieve. Defaults

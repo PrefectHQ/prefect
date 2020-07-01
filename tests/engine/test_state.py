@@ -199,7 +199,6 @@ def test_only_scheduled_states_have_task_run_count_in_context(cls):
         assert state.context["task_run_count"] == 910
     else:
         assert not isinstance(state, Scheduled)
-        assert not state.is_scheduled()
 
 
 def test_retry_stores_loop_count():
@@ -423,7 +422,9 @@ class TestStateHierarchy:
         dict(state=Mapped(), assert_true={"is_finished", "is_mapped", "is_successful"}),
         dict(state=Paused(), assert_true={"is_pending", "is_scheduled"}),
         dict(state=Pending(), assert_true={"is_pending"}),
-        dict(state=Queued(), assert_true={"is_meta_state", "is_queued"}),
+        dict(
+            state=Queued(), assert_true={"is_meta_state", "is_queued", "is_scheduled"}
+        ),
         dict(state=Resume(), assert_true={"is_pending", "is_scheduled"}),
         dict(
             state=Retrying(), assert_true={"is_pending", "is_scheduled", "is_retrying"}

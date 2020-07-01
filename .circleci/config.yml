@@ -74,7 +74,7 @@ jobs:
 
       - run:
           name: Install python packages for static analysis
-          command: pip install black mypy mypy_extensions autoflake profimp
+          command: pip install black mypy mypy_extensions flake8 profimp
 
       - run:
           name: Quick installation of Prefect
@@ -89,13 +89,8 @@ jobs:
           command: mypy src/
 
       - run:
-          name: Check for potentially unused imports
-          command: |
-            if [[ $(autoflake --remove-all-unused-imports -r --exclude __init__.py src | tee .unused-imports.txt | wc -c ) -ne 0 ]]; then
-              echo "Potentially unused imports found"
-              cat .unused-imports.txt
-              exit 2
-            fi
+          name: Run flake8
+          command: flake8 src/
 
       - run:
           name: Ensure 'import prefect' is under 1 second

@@ -13,28 +13,41 @@ except ImportError:
 class JiraServiceDeskTask(Task):
     """
     Task for creating a Jira Service Desk customer request. For this task to function properly,
-    you need a Jira account and API token.  The API token can be created at: https://id.atlassian.com/manage/api-tokens 
-    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') can be set as part of a 'JIRASECRETS' object in Prefect Secrets. 
-    
-    An example 'JIRASECRETS' object looks like this:
-    ```
-    JIRASECRETS = { JIRATOKEN = "XXXXXXXXX", JIRAUSER = "xxxxx@yyy.com", JIRASERVER = "https://???.atlassian.net" }
+    you need a Jira account and API token.  The API token can be created at:
+    https://id.atlassian.com/manage/api-tokens The Jira account username ('JIRAUSER'), API
+    token ('JIRATOKEN') can be set as part of a 'JIRASECRETS' object in Prefect Secrets.
+
+    An example 'JIRASECRETS' secret configuration looks like:
+
+    ```toml
+    [secrets]
+    JIRASECRETS.JIRATOKEN = "XXXXXXXXX"
+    JIRASECRETS.JIRAUSER = "xxxxx@yyy.com"
+    JIRASECRETS.JIRASERVER = "https://???.atlassian.net"
     ```
 
-    The server URL can be set as part of the 'JIRASECRETS' object ('JIRASERVER') or passed to the task as the "server_URL" argument.
+    The server URL can be set as part of the 'JIRASECRETS' object ('JIRASERVER') or passed to
+    the task as the "server_URL" argument.
 
-    The service desk id and issue type will show in the URL when you raise a customer request in the UI.  For example, in the below URL the service desk id is "3" and the issue_type is 10010:
+    The service desk id and issue type will show in the URL when you raise a customer request
+    in the UI.  For example, in the below URL the service desk id is "3" and the issue_type is
+    10010:
+
     ```
     https://test.atlassian.net/servicedesk/customer/portal/3/group/3/create/10010
     ````
-    
+
     Args:
-        - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. 
-        - service_desk_id (str):  the id for your jira service desk. Can also be set at run time. 
-        - issue_type (int, optional): the type of issue you want to create.  Can also be set at run time. 
-        - summary (str, optional): summary or title for your issue. Can also be set at run time. 
-        - description (str, optional): description or additional information for the issue. Can also be set at run time. 
-        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method. 
+        - server_url (str): the URL of your atlassian account e.g.
+            "https://test.atlassian.net".  Can also be set as a Prefect Secret.
+        - service_desk_id (str):  the id for your jira service desk. Can also be set at run time.
+        - issue_type (int, optional): the type of issue you want to create.  Can also be set at
+            run time.
+        - summary (str, optional): summary or title for your issue. Can also be set at run time.
+        - description (str, optional): description or additional information for the issue. Can
+            also be set at run time.
+        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
+            init method.
     """
 
     def __init__(
@@ -67,21 +80,28 @@ class JiraServiceDeskTask(Task):
         description: str = None,
     ) -> None:
         """
-        Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
-        or by using `Task.bind`.
+        Run method for this Task. Invoked by calling this Task after initialization within a
+        Flow context, or by using `Task.bind`.
 
         Args:
-            - username(str): the jira username, provided with a Prefect secret (defaults to JIRAUSER in JIRASECRETS)
-            - access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
-            - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
-            - service_desk_id(str):  the key for your jira project; defaults to the one provided at initialization
-            - issue_type (str, optional): the type of issue you want to create; 
-            - summary (str, optional): summary or title for your issue; defaults to the one provided at initialization
-            - description (str, optional): description or additional information for the issue; defaults to the one provided at initialization
-        
+            - username(str): the jira username, provided with a Prefect secret (defaults to
+                JIRAUSER in JIRASECRETS)
+            - access_token (str): a Jira access token, provided with a Prefect secret (defaults
+                to JIRATOKEN in JIRASECRETS)
+            - server_url (str): the URL of your atlassian account e.g.
+                "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to
+                the one provided at initialization
+            - service_desk_id(str):  the key for your jira project; defaults to the one
+                provided at initialization
+            - issue_type (str, optional): the type of issue you want to create;
+            - summary (str, optional): summary or title for your issue; defaults to the one
+                provided at initialization
+            - description (str, optional): description or additional information for the issue;
+                defaults to the one provided at initialization
+
         Raises:
             - ValueError: if a `service_desk_id`, `request_type`, or `summary` are not provided
-        
+
         Returns:
             - None
         """

@@ -8,8 +8,8 @@ from prefect.triggers import all_finished
 class FilterTask(Task):
     """
     Task for filtering lists of results.  The default filter removes `NoResult`s, `None`s and
-    Exceptions, intended to be used for filtering out mapped results.  Note that this task has a default trigger of
-    `all_finished` and `skip_on_upstream_skip=False`.
+    Exceptions, intended to be used for filtering out mapped results.  Note that this task has
+    a default trigger of `all_finished` and `skip_on_upstream_skip=False`.
 
     Args:
         - filter_func (Callable, optional): a function to use for filtering

@@ -335,10 +335,11 @@ class Client:
         except json.JSONDecodeError:
             if prefect.config.backend == "cloud" and "Authorization" not in headers:
                 raise ClientError(
-                    "Malformed response received from Cloud - please ensure that you have an API token properly configured."
+                    "Malformed response received from Cloud - please ensure that you "
+                    "have an API token properly configured."
                 )
             else:
-                raise ClientError(f"Malformed response received from API.")
+                raise ClientError("Malformed response received from API.")
 
         # check if there was an API_ERROR code in the response
         if "API_ERROR" in str(json_resp.get("errors")):
@@ -584,16 +585,16 @@ class Client:
             - project_name (str, optional): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
-            - set_schedule_active (bool, optional): if `False`, will set the
-                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
-                Defaults to `True`. This can be changed later.
-            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
-                in Cloud; if not provided, the version group ID associated with this Flow's project and name
-                will be used.
-            - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
-                compressed
-            - no_url (bool, optional): if `True`, the stdout from this function will not contain the
-                URL link to the newly-registered flow in the Cloud UI
+            - set_schedule_active (bool, optional): if `False`, will set the schedule to
+                inactive in the database to prevent auto-scheduling runs (if the Flow has a
+                schedule).  Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning
+                this Flow in Cloud; if not provided, the version group ID associated with this
+                Flow's project and name will be used.
+            - compressed (bool, optional): if `True`, the serialized flow will be; defaults to
+                `True` compressed
+            - no_url (bool, optional): if `True`, the stdout from this function will not
+                contain the URL link to the newly-registered flow in the Cloud UI
 
         Returns:
             - str: the ID of the newly-registered flow
@@ -615,8 +616,8 @@ class Client:
                 )
         if any(e.key for e in flow.edges) and flow.result is None:
             warnings.warn(
-                "No result handler was specified on your Flow. Cloud features such as input caching and resuming task runs from failure may not work properly.",
-                UserWarning,
+                "No result handler was specified on your Flow. Cloud features such as "
+                "input caching and resuming task runs from failure may not work properly."
             )
         if compressed:
             create_mutation = {
@@ -637,7 +638,8 @@ class Client:
             if project_name is None:
                 raise TypeError(
                     "'project_name' is a required field when registering a flow with Cloud. "
-                    "If you are attempting to register a Flow with a local Prefect server you may need to run `prefect backend server` first."
+                    "If you are attempting to register a Flow with a local Prefect server "
+                    "you may need to run `prefect backend server` first."
                 )
 
             query_project = {
@@ -662,6 +664,7 @@ class Client:
         # Set Docker storage image in environment metadata if provided
         if isinstance(flow.storage, prefect.environments.storage.Docker):
             flow.environment.metadata["image"] = flow.storage.name
+            serialized_flow = flow.serialize(build=False)
 
         # If no image ever set, default metadata to all_extras image on current version
         if not flow.environment.metadata.get("image"):
@@ -669,6 +672,7 @@ class Client:
             flow.environment.metadata[
                 "image"
             ] = f"prefecthq/prefect:all_extras-{version}"
+            serialized_flow = flow.serialize(build=False)
 
         # verify that the serialized flow can be deserialized
         try:
@@ -686,7 +690,7 @@ class Client:
             create_mutation,
             variables=dict(
                 input=dict(
-                    project_id=project[0].id if project else None,
+                    project_id=(project[0].id if project else None),
                     serialized_flow=serialized_flow,
                     set_schedule_active=set_schedule_active,
                     version_group_id=version_group_id,
@@ -719,7 +723,8 @@ class Client:
                 defaults to `True`. Only used internally for queries made from RUNNERs
 
         Returns:
-            - str: the URL corresponding to the appropriate base URL, tenant slug, subdirectory and ID
+            - str: the URL corresponding to the appropriate base URL, tenant slug, subdirectory
+                and ID
 
         Example:
 
@@ -747,7 +752,7 @@ class Client:
         if tenant_slug:
             full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
         elif prefect.config.backend == "server":
-            full_url = "/".join([prefect.config.server.ui.endpoint, subdirectory, id,])
+            full_url = "/".join([prefect.config.server.ui.endpoint, subdirectory, id])
 
         return full_url
 
@@ -818,22 +823,26 @@ class Client:
         version_group_id: str = None,
     ) -> str:
         """
-        Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
-        If both `flow_id` and `version_group_id` are provided, only the `flow_id` will be used.
+        Create a new flow run for the given flow id.  If `start_time` is not provided, the flow
+        run will be scheduled to start immediately.  If both `flow_id` and `version_group_id`
+        are provided, only the `flow_id` will be used.
 
         Args:
             - flow_id (str, optional): the id of the Flow you wish to schedule
             - context (dict, optional): the run context
             - parameters (dict, optional): a dictionary of parameter values to pass to the flow run
-            - scheduled_start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
-            - idempotency_key (str, optional): an idempotency key; if provided, this run will be cached for 24
-                hours. Any subsequent attempts to create a run with the same idempotency key
-                will return the ID of the originally created run (no new run will be created after the first).
-                An error will be raised if parameters or context are provided and don't match the original.
-                Each subsequent request will reset the TTL for 24 hours.
+            - scheduled_start_time (datetime, optional): the time to schedule the execution
+                for; if not provided, defaults to now
+            - idempotency_key (str, optional): an idempotency key; if provided, this run will
+                be cached for 24 hours. Any subsequent attempts to create a run with the same
+                idempotency key will return the ID of the originally created run (no new run
+                will be created after the first).  An error will be raised if parameters or
+                context are provided and don't match the original.  Each subsequent request
+                will reset the TTL for 24 hours.
             - run_name (str, optional): The name assigned to this flow run
-            - version_group_id (str, optional): if provided, the unique unarchived flow within this version group will be scheduled
-                to run.  This input can be used as a stable API for running flows which are regularly updated.
+            - version_group_id (str, optional): if provided, the unique unarchived flow within
+                this version group will be scheduled to run.  This input can be used as a
+                stable API for running flows which are regularly updated.
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -849,9 +858,10 @@ class Client:
         if not flow_id and not version_group_id:
             raise ValueError("One of flow_id or version_group_id must be provided")
 
-        inputs = (
-            dict(flow_id=flow_id) if flow_id else dict(version_group_id=version_group_id)  # type: ignore
-        )
+        if flow_id:
+            inputs = dict(flow_id=flow_id)
+        else:
+            inputs = dict(version_group_id=version_group_id)  # type: ignore
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
         if context is not None:
@@ -1034,8 +1044,10 @@ class Client:
 
         Args:
             - task_id (str): the task id for this task run
-            - cache_key (Optional[str]): the cache key for this Task's cache; if `None`, the task id alone will be used
-            - created_after (datetime.datetime): the earliest date the state should have been created at
+            - cache_key (Optional[str]): the cache key for this Task's cache; if `None`, the
+                task id alone will be used
+            - created_after (datetime.datetime): the earliest date the state should have been
+                created at
 
         Returns:
             - List[State]: a list of Cached states created after the given date
@@ -1143,8 +1155,8 @@ class Client:
             - task_run_id (str): the id of the task run to set state for
             - version (int): the current version of the task run state
             - state (State): the new state for this task run
-            - cache_for (timedelta, optional): how long to store the result of this task for, using the
-                serializer set in config; if not provided, no caching occurs
+            - cache_for (timedelta, optional): how long to store the result of this task for,
+                using the serializer set in config; if not provided, no caching occurs
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason

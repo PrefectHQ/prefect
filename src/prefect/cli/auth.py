@@ -42,7 +42,8 @@ def auth():
         $ prefect auth list-tenants
         NAME                        SLUG                        ID
         Test Person                 test-person                 816sghf2-4d51-4338-a333-1771gns7614d
-        test@prefect.io's Account   test-prefect-io-s-account   1971hs9f-e8ha-4a33-8c33-64512gds86g1  *
+        test@prefect.io's Account   test-prefect-io-s-account   \
+1971hs9f-e8ha-4a33-8c33-64512gds86g1  *
 
     \b
         $ prefect auth switch-tenants --slug test-person
@@ -192,7 +193,7 @@ def create_token(name, scope):
     \b
     Options:
         --name, -n      TEXT    A name to give the generated token
-        --scope, -r     TEXT    A scope for the token
+        --scope, -s     TEXT    A scope for the token
     """
     check_override_auth_token()
 
