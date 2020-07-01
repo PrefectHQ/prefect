@@ -133,6 +133,19 @@ def test_secret_result():
     assert new_result.value is None
 
 
+def test_resource_result():
+    schema = StateResultSchema()
+    result = results.ResourceResult()
+    serialized = schema.dump(result)
+
+    assert serialized["type"] == "ResourceResult"
+
+    new_result = schema.load(serialized)
+    assert isinstance(new_result, results.ResourceResult)
+    assert new_result.location is None
+    assert new_result.handle is None
+
+
 def test_result_handler_result():
     class MyHandler(ResultHandler):
         pass

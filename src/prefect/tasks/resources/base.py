@@ -1,5 +1,6 @@
 import functools
 import inspect
+import logging
 import threading
 import types
 import uuid
@@ -8,10 +9,11 @@ from typing import Callable, Any
 
 from toolz import curry
 
+import prefect
 from prefect.core.task import Task
 
 
-__all__ = ("resource",)
+__all__ = ("Resource", "resource")
 
 
 # A weak dictionary of all resources created in this process. They're keyed by
@@ -38,8 +40,21 @@ class ResourceHandle:
     """
 
     def __new__(
-        cls, key: str, func: Callable, func_args: tuple, func_kwargs: dict
+        cls,
+        func: Callable,
+        func_args: tuple = None,
+        func_kwargs: dict = None,
+        name: str = None,
+        logger: logging.Logger = None,
+        key: str = None,
     ) -> "ResourceHandle":
+        if func_args is None:
+            func_args = ()
+        if func_kwargs is None:
+            func_kwargs = {}
+        if key is None:
+            key = uuid.uuid4().hex
+
         self = _RESOURCES.get(key)
         if self is not None:
             return self
@@ -49,7 +64,9 @@ class ResourceHandle:
         self.func = func
         self.args = func_args
         self.kwargs = func_kwargs
-        self.generator = None
+        self._generator = None
+        self.name = name
+        self.logger = logger
 
         pool = getattr(_RESOURCE_POOL, "current", None)
         if pool is not None:
@@ -61,7 +78,10 @@ class ResourceHandle:
         self.clear()
 
     def __reduce__(self):
-        return (ResourceHandle, (self.key, self.func, self.args, self.kwargs))
+        return (
+            ResourceHandle,
+            (self.func, self.args, self.kwargs, self.name, self.logger, self.key),
+        )
 
     def get(self) -> Any:
         """Get or recreate the wrapped resource"""
@@ -69,14 +89,14 @@ class ResourceHandle:
             raise ValueError(
                 "Cannot access value of `Resource` tasks outside of a flow run"
             )
-        elif not hasattr(self, "value"):
+        elif not hasattr(self, "_value"):
             result = self.func(*self.args, **self.kwargs)
             if isinstance(result, types.GeneratorType):
-                self.generator = result
-                self.value = next(self.generator)
+                self._generator = result
+                self._value = next(self._generator)
             else:
-                self.value = result
-        return self.value
+                self._value = result
+        return self._value
 
     def clear(self) -> None:
         """Clear all state on the `ResourceHandle`.
@@ -84,17 +104,24 @@ class ResourceHandle:
         If the resource was already created, this cleans up the resource, then
         drops all additional state used for recreating it.
         """
-        if hasattr(self, "value"):
-            del self.value
-            if self.generator is not None:
+        if hasattr(self, "_value"):
+            del self._value
+            if self._generator is not None:
                 try:
-                    next(self.generator)
+                    next(self._generator)
                 except StopIteration:
                     pass
-                del self.generator
+                except Exception as exc:
+                    if self.logger is not None:
+                        self.logger.warning(
+                            "Error during cleanup of resource {}",
+                            self.name,
+                            exc_info=exc,
+                        )
+        self.func = None
         self.args = None
         self.kwargs = None
-        self.func = None
+        self._generator = None
 
 
 class ResourcePool:
@@ -119,6 +146,7 @@ class ResourcePool:
     def __enter__(self) -> None:
         self.__prev_pool = getattr(_RESOURCE_POOL, "current", None)
         _RESOURCE_POOL.current = self
+        return self
 
     def __exit__(self, *args) -> None:
         for r in self.resources:
@@ -150,11 +178,15 @@ class Resource(Task):
 
         @functools.wraps(fn)
         def run(*args, **kwargs):
-            return ResourceHandle(uuid.uuid4().hex, fn, args, kwargs)
+            name = prefect.context.get("task_full_name")
+            logger = prefect.context.get("logger")
+            return ResourceHandle(fn, args, kwargs, name=name, logger=logger)
 
         # Fix the return type in the `run` signature
         sig = inspect.Signature.from_callable(fn)
         run.__signature__ = sig.replace(return_annotation=ResourceHandle)
+
+        kwargs.setdefault("name", getattr(fn, "__name__", type(self).__name__))
 
         self.run = run
         super().__init__(result=ResourceResult(), **kwargs)

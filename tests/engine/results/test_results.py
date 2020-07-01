@@ -14,9 +14,11 @@ from prefect.engine.results import (
     LocalResult,
     PrefectResult,
     SecretResult,
+    ResourceResult,
 )
 from prefect.engine.serializers import JSONSerializer, PickleSerializer
 from prefect.tasks.core.constants import Constant
+from prefect.tasks.resources.base import ResourceHandle
 from prefect.tasks.secrets import PrefectSecret
 
 
@@ -61,6 +63,59 @@ class TestSecretResult:
     def test_cant_pass_serializer_to_secret_result(self):
         with pytest.raises(ValueError, match="Can't pass a serializer"):
             SecretResult(PrefectSecret("foo"), serializer=None)
+
+
+class TestResourceResult:
+    def test_initialize_empty(self):
+        result = ResourceResult()
+        assert result.handle is None
+        assert result.location is None
+
+    def test_from_value_and_value_property(self):
+        result = ResourceResult()
+
+        with pytest.raises(ValueError, match="No value found for this resource result"):
+            result.value
+
+        with pytest.raises(TypeError, match="value must be a ResourceHandle"):
+            result.from_value(123)
+
+        # from_value works with a resource handle
+        handle = ResourceHandle(lambda x, y=1: x + y, (1, 2), {})
+        result2 = result.from_value(handle)
+        assert result2.handle is handle
+        assert result2.location is None
+
+        # Value attribute recreates resource
+        assert result2.value == 3
+
+        # Value attribute setter is a no-op
+        result2.value = None
+        assert result2.value == 3
+
+        # After resource is cleared, `value` attribute raises
+        handle.clear()
+
+        with pytest.raises(ValueError, match="Cannot access value of `Resource`"):
+            result2.value
+
+    def test_read_returns_self(self):
+        result = ResourceResult()
+        assert result.read("unused") is result
+
+    def test_write_raises(self):
+        result = ResourceResult()
+
+        with pytest.raises(ValueError):
+            result.write("unused")
+
+    def test_exists(self):
+        result = ResourceResult()
+        assert result.exists("unused")
+
+    def test_cant_pass_serializer_to_resource_result(self):
+        with pytest.raises(ValueError, match="Can't pass a serializer"):
+            ResourceResult(serializer=JSONSerializer())
 
 
 class TestConstantResult:

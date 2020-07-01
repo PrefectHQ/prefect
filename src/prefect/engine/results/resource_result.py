@@ -32,7 +32,7 @@ class ResourceResult(Result):
     @property  # type: ignore
     def value(self) -> Any:  # type: ignore
         if self.handle is None:
-            raise ValueError("No value found for this result")
+            raise ValueError("No value found for this resource result")
         return self.handle.get()
 
     @value.setter
