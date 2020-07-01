@@ -1,0 +1,199 @@
+{% set data = load_setup_py_data()  %}
+{% set version = data.get('version').lstrip('v') %}
+
+package:
+  name: "prefect"
+  version: {{ version }}
+
+source:
+  path: ../
+
+build:
+  noarch: python
+  number: 0
+  script: python -m pip install --no-deps -vv .
+  entry_points:
+    - prefect = prefect.cli:cli
+
+requirements:
+  host:
+    - python {{ data.get('python_requires') }}
+    - pip
+  run:
+    - python {{ data.get('python_requires') }}
+    - click >=7.0,<8.0
+    - cloudpickle >=0.6.0,<1.5
+    - croniter >=0.3.24,<1.0
+    - dask-core >=0.19.3,<3.0
+    - distributed >=1.26.1,<3.0
+    - docker-py >=3.4.1,<5.0
+    - marshmallow >=3.0.0b19,<4.0
+    - marshmallow-oneofschema >=2.0.0b2,<3.0
+    - mypy_extensions >=0.4.0,<1.0
+    - pendulum >=2.0.4,<3.0
+    - python-dateutil >2.7.3,<3.0
+    - pyyaml >=3.13,<5.4
+    - python-box >=3.4.4,<5.0
+    - python-slugify >=1.2.6,<5.0
+    - pytz >=2018.7
+    - requests >=2.20,<3.0
+    - tabulate >=0.8.0,<1.0
+    - toml >=0.9.4,<1.0
+    - urllib3 >=1.24.3
+
+test:
+  imports:
+    - prefect
+    - prefect.triggers
+    - prefect.schedules
+    - prefect.tasks.shell
+    - prefect.tasks.control_flow
+    - prefect.tasks.github
+
+outputs:
+  - name: prefect
+  - name: prefect-airtable
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - airtable-python-wrapper >=0.11,<0.12
+  - name: prefect-aws
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - boto3 >=1.9,<2.0
+  - name: prefect-azure
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - azure-storage-blob >=12.1.0,<13.0
+        - azureml-sdk >=1.0.65,<1.1
+        - azure-cosmos >=3.1.1,<3.2
+  - name: prefect-dask-cloudprovider
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - dask-cloudprovider >=0.2.0,<1.0
+  - name: prefect-dev
+    requirements:
+      run:
+        - prefect-test =={{ version }}
+        - black
+        - graphviz >=0.8,<0.15
+        - jinja2 >=2.0,<3.0
+        - mypy >=0.600,<0.800
+        - pygments >=2.2,<3.0
+  - name: prefect-dropbox
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - dropbox ~= 9.0
+  - name: prefect-ge
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - great-expectations >=0.11.1
+  - name: prefect-gcp
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - google-cloud-bigquery >=1.6.0,<2.0
+        - google-cloud-storage >=1.13,<2.0
+  - name: prefect-github
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - pygithub >=1.51,<2.0
+  - name: prefect-google
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - google-cloud-bigquery >=1.6.0,<2.0
+        - google-cloud-storage >=1.13,<2.0
+  - name: prefect-gsheets
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - gspread >=3.6.0
+  - name: prefect-jira
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - jira >=2.0.0
+  - name: prefect-kubernetes
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - python-kubernetes >=9.0.0a1,<=11.0.0b2
+        - dask-kubernetes >=0.8.0
+  - name: prefect-postgres
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - psycopg2-binary >=2.8.2
+  - name: prefect-mysql
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - pymysql >=0.9.3
+  - name: prefect-pushbullet
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - pushbullet >=0.11.0
+  - name: prefect-redis
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - redis-py >=3.2.1
+  - name: prefect-rss
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - feedparser >=5.0.1,<6.0
+  - name: prefect-snowflake
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - snowflake-connector-python >=1.8.2,<2.5
+  - name: prefect-spacy
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - spacy >=2.0.0,<3.0.0
+  - name: prefect-templates
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - jinja2 >=2.0,<3.0
+  - name: prefect-test
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - pytest >=5.0,<6.0
+        - testfixtures >=6.10.3,<7.0
+        - pytest-cov >=2.6,<3.0
+        - pytest-env >=0.6.0,<0.7.0
+        - pytest-xdist >=1.23,<1.32.0
+  - name: prefect-viz
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - python-graphviz >=0.8.3
+  - name: prefect-twitter
+    requirements:
+      run:
+        - prefect =={{ version }}
+        - tweepy >=3.5,<4.0
+
+about:
+  home: {{ data.get('url') }}
+  license: APACHE-2.0
+  license_family: APACHE
+  license_file: LICENSE
+  summary: {{ data.get('description') }}
+  description: |
+    Prefect is a new workflow management system, designed for modern
+    infrastructure and powered by the open-source Prefect Core workflow engine.
+    Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
+  doc_url: https://docs.prefect.io/
