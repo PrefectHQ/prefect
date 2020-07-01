@@ -152,7 +152,7 @@ class CloudTaskRunner(TaskRunner):
             state.state = old_state  # type: ignore
             raise ENDRUN(state=state)
 
-        prefect.context.update(flow_run_version=(version or 0) + 1)
+        prefect.context.update(task_run_version=(version or 0) + 1)
 
         return new_state
 
