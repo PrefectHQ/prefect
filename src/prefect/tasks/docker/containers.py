@@ -77,6 +77,7 @@ class CreateContainer(Task):
 
         Args:
             - image_name (str, optional): Name of the image to run
+            - container_name (str, optional): A name for the container
             - command (Union[list, str], optional): A single command or a list of commands to run
             - detach (bool, optional): Run container in the background
             - entrypoint (Union[str, list]): The entrypoint for the container
