@@ -1,0 +1,2 @@
+fix:
+  - "Fix issue with short-interval IntervalClocks that had a start_date far in the past - [#2906](https://github.com/PrefectHQ/prefect/pull/2906)"
