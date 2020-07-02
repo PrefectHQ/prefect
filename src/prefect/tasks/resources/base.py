@@ -223,6 +223,7 @@ def resource_manager(
     """
     return ResourceManager(
         resource_class,
+        name=name,
         init_task_kwargs=init_task_kwargs,
         setup_task_kwargs=setup_task_kwargs,
         cleanup_task_kwargs=cleanup_task_kwargs,
