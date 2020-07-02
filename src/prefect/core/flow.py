@@ -394,6 +394,17 @@ class Flow:
         """
         return {p for p in self.tasks if isinstance(p, Parameter)}
 
+    @cache
+    def _default_reference_tasks(self) -> Set[Task]:
+        return {
+            t
+            for t in self.tasks
+            if t.reference_task_candidate
+            and not any(
+                t for t in self.downstream_tasks(t) if t.reference_task_candidate
+            )
+        }
+
     def reference_tasks(self) -> Set[Task]:
         """
         A flow's "reference tasks" are used to determine its state when it runs. If all the
@@ -421,7 +432,7 @@ class Flow:
         if self._reference_tasks:
             return set(self._reference_tasks)
         else:
-            return self.terminal_tasks()
+            return self._default_reference_tasks()
 
     def set_reference_tasks(self, tasks: Iterable[Task]) -> None:
         """
@@ -495,11 +506,14 @@ class Flow:
             self._cache.clear()
 
             # Parameters must be root tasks
-            # All other new tasks should be added to the current case (if any)
+            # All other new tasks should be added to the current case/resource (if any)
             if not isinstance(task, Parameter):
                 case = prefect.context.get("case", None)
                 if case is not None:
                     case.add_task(task, self)
+                resource = prefect.context.get("resource", None)
+                if resource is not None:
+                    resource.add_task(task, self)
 
         return task
 
