@@ -632,7 +632,6 @@ class Flow:
                 duped_parameter = [p for p in self.parameters() if p.name == task.name]
             else:
                 duped_parameter = []
-            # duped_task = self.get_tasks(slug=task.slug) if merge_parameters else list()
 
             # Adds a task if slugs are not duplicate
             if (task not in self.tasks) and (not duped_parameter):
