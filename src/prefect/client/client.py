@@ -227,7 +227,9 @@ class Client:
                 raise AuthorizationError(result["errors"])
             elif "Malformed Authorization header" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
-            elif "State update failed" in str(result["errors"]):
+            elif all(
+                s in str(result["errors"]) for s in ["State update failed", "version"]
+            ):
                 raise VersionLockError(result["errors"])
             raise ClientError(result["errors"])
         else:
