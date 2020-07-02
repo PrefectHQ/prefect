@@ -176,6 +176,9 @@ class IntervalClock(Clock):
             days = interval.days
             seconds = interval.total_seconds() - (days * 24 * 60 * 60)
             next_date = start_date.add(days=days, seconds=seconds)
+            if next_date < after:
+                interval += self.interval
+                continue
             if self.end_date and next_date > self.end_date:
                 break
             yield ClockEvent(
