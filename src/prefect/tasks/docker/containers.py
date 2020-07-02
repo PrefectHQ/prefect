@@ -12,6 +12,7 @@ class CreateContainer(Task):
 
     Args:
         - image_name (str, optional): Name of the image to run
+        - container_name (str, optional): A name for the container
         - command (Union[list, str], optional): A single command or a list of commands to run
         - detach (bool, optional): Run container in the background
         - entrypoint (Union[str, list]): The entrypoint for the container
@@ -30,6 +31,7 @@ class CreateContainer(Task):
     def __init__(
         self,
         image_name: str = None,
+        container_name: str = None,
         command: Union[list, str] = None,
         detach: bool = False,
         entrypoint: Union[list, str] = None,
@@ -39,6 +41,7 @@ class CreateContainer(Task):
         **kwargs: Any
     ):
         self.image_name = image_name
+        self.container_name = container_name
         self.command = command
         self.detach = detach
         self.entrypoint = entrypoint
@@ -50,6 +53,7 @@ class CreateContainer(Task):
 
     @defaults_from_attrs(
         "image_name",
+        "container_name",
         "command",
         "detach",
         "entrypoint",
@@ -60,6 +64,7 @@ class CreateContainer(Task):
     def run(
         self,
         image_name: str = None,
+        container_name: str = None,
         command: Union[list, str] = None,
         detach: bool = False,
         entrypoint: Union[list, str] = None,
@@ -72,6 +77,7 @@ class CreateContainer(Task):
 
         Args:
             - image_name (str, optional): Name of the image to run
+            - container_name (str, optional): A name for the container
             - command (Union[list, str], optional): A single command or a list of commands to run
             - detach (bool, optional): Run container in the background
             - entrypoint (Union[str, list]): The entrypoint for the container
@@ -105,6 +111,7 @@ class CreateContainer(Task):
         )
         container = client.create_container(
             image=image_name,
+            name=container_name,
             command=command,
             detach=detach,
             entrypoint=entrypoint,
