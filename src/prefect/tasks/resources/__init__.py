@@ -1,1 +1,1 @@
-from .base import resource, Resource, ResourceInstance
+from .base import resource_manager, ResourceManager
