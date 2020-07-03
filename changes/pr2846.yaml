@@ -1,2 +1,0 @@
-feature:
-  - "Add `apply_map`, a function to simplify creating complex mapped pipelines - [#2846](https://github.com/PrefectHQ/prefect/pull/2846)"

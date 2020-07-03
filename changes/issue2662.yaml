@@ -1,2 +1,0 @@
-fix:
-  - "Add more context keys when running locally so that templating is consistent between local and Cloud runs - [#2662](https://github.com/PrefectHQ/prefect/issues/2662)"
