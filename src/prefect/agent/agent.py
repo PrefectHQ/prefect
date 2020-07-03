@@ -31,7 +31,8 @@ ascii_name = r"""
 |_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
                                            |___/
 """
-
+# Event to notify agent process to start looking for available flow runs.
+AGENT_WAKE_EVENT = threading.Event()
 
 @contextmanager
 def exit_handler(agent: "Agent") -> Generator:
@@ -58,6 +59,16 @@ class HealthHandler(web.RequestHandler):
         # Empty json blob, may add more info later
         self.write({})
 
+class PokeHandler(web.RequestHandler):
+    """Respond to /poke
+
+    The handler is expected to be called by python client when new flow run is
+    created, which needs to be immediately executed.
+    """
+
+    def get(self) -> None:
+        # Wake up agent that might be waiting for interval loop to complete.
+        AGENT_WAKE_EVENT.set()
 
 class Agent:
     """
@@ -204,10 +215,12 @@ class Agent:
 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     self.logger.debug("Max Workers: {}".format(max_workers))
-                    while (
-                        not exit_event.wait(timeout=loop_intervals[index])
-                        and remaining_polls
-                    ):
+                    while exit_event and remaining_polls:
+                        # Wait for loop interval timeout or agent to be poked by
+                        # external call.
+                        AGENT_WAKE_EVENT.wait(timeout=loop_intervals[index])
+                        # Immediately clear the event for next poll.
+                        AGENT_WAKE_EVENT.clear()
                         self.heartbeat()
 
                         if self.agent_process(executor):
@@ -222,6 +235,7 @@ class Agent:
                                 loop_intervals[index]
                             )
                         )
+
         finally:
             self.cleanup()
 
@@ -234,7 +248,10 @@ class Agent:
                 raise ValueError("Must specify port in agent address")
             port = cast(int, parsed.port)
             hostname = parsed.hostname or ""
-            app = web.Application([("/api/health", HealthHandler)])
+            app = web.Application([
+                ("/api/health", HealthHandler),
+                ("/poke", PokeHandler)
+            ])
 
             def run() -> None:
                 self.logger.debug(
