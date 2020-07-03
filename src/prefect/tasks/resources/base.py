@@ -1,9 +1,12 @@
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 from toolz import curry
 
 import prefect
 from prefect import Task, Flow
+from prefect.core import Edge
+from prefect.engine.state import State
+from prefect.engine import signals
 
 
 __all__ = ("resource_manager", "ResourceManager")
@@ -15,6 +18,31 @@ def setup_resource(mgr):
 
 def cleanup_resource(mgr, resource):
     return mgr.cleanup(resource)
+
+
+def should_cleanup(upstream_states: Dict[Edge, State]) -> bool:
+    """Run the cleanup task, provided the following hold:
+
+    - All upstream tasks have finished
+    - The resource init task succeeded and wasn't skipped
+    - The resource setup task succeeded and wasn't skipped
+    """
+    for edge, state in upstream_states.items():
+        if not state.is_finished():
+            raise signals.TRIGGERFAIL(
+                'Trigger was "should_cleanup" but some of the upstream tasks were not finished.'
+            )
+        if edge.key == "mgr":
+            if state.is_skipped():
+                raise signals.SKIP("Resource manager init skipped")
+            elif not state.is_successful():
+                raise signals.SKIP("Resource manager init failed")
+        elif edge.key == "resource":
+            if state.is_skipped():
+                raise signals.SKIP("Resource manager setup skipped")
+            elif not state.is_successful():
+                raise signals.SKIP("Resource manager setup failed")
+    return True
 
 
 class ResourceContext:
@@ -116,7 +144,8 @@ class ResourceManager:
         self.init_task_kwargs.setdefault("name", name)
         self.setup_task_kwargs.setdefault("name", f"{name}.setup")
         self.cleanup_task_kwargs.setdefault("name", f"{name}.cleanup")
-        self.cleanup_task_kwargs.setdefault("trigger", prefect.triggers.always_run)
+        self.cleanup_task_kwargs.setdefault("trigger", should_cleanup)
+        self.cleanup_task_kwargs.setdefault("skip_on_upstream_skip", False)
         self.cleanup_task_kwargs.setdefault("reference_task_candidate", False)
 
     def __call__(self, *args: Any, flow: Flow = None, **kwargs: Any) -> ResourceContext:
