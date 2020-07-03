@@ -200,7 +200,7 @@ functions = ["switch", "ifelse", "merge"]
 [pages.tasks.airtable]
 title = "Airtable Tasks"
 module = "prefect.tasks.airtable"
-classes = ["WriteAirtableRow"]
+classes = ["WriteAirtableRow", "ReadAirtableRow"]
 
 [pages.tasks.aws]
 title = "AWS Tasks"

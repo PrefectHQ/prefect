@@ -1,5 +1,0 @@
-task:
-  - "Add option to BigQueryTask to return query as dataframe - [#2862](https://github.com/PrefectHQ/prefect/pull/2862)"
-
-contributor:
-  - "[nathaniel-md](https://github.com/nathaniel-md)"

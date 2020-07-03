@@ -193,7 +193,7 @@ def create_token(name, scope):
     \b
     Options:
         --name, -n      TEXT    A name to give the generated token
-        --scope, -r     TEXT    A scope for the token
+        --scope, -s     TEXT    A scope for the token
     """
     check_override_auth_token()
 

@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.12.2 <Badge text="beta" type="success" />
+
+Released on June 30, 2020.
+
+### Features
+
+- Add `apply_map`, a function to simplify creating complex mapped pipelines - [#2846](https://github.com/PrefectHQ/prefect/pull/2846)
+
+### Enhancements
+
+- Make storage location inside Docker storage configurable - [#2865](https://github.com/PrefectHQ/prefect/pull/2865)
+- Send heartbeats on each iteration of the Cloud task runner's retry loop - [#2893](https://github.com/PrefectHQ/prefect/pull/2893)
+
+### Task Library
+
+- Add option to BigQueryTask to return query as dataframe - [#2862](https://github.com/PrefectHQ/prefect/pull/2862)
+
+### Server
+
+- None
+
+### Fixes
+
+- Add more context keys when running locally so that templating is consistent between local and Cloud runs - [#2662](https://github.com/PrefectHQ/prefect/issues/2662)
+- Fix Fargate agent not parsing string provided containerDefinitions - [#2875](https://github.com/PrefectHQ/prefect/issues/2875)
+- Fix Fargate agent providing empty parameters if not set - [#2878](https://github.com/PrefectHQ/prefect/issues/2878)
+- Fix issue with Queued task runs flooding agents with work - [#2884](https://github.com/PrefectHQ/prefect/issues/2884)
+- Add missing `prefect register flow` to CLI help text - [#2895](https://github.com/PrefectHQ/prefect/pull/2895)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [James Lamb](https://github.com/jameslamb)
+- [nathaniel-md](https://github.com/nathaniel-md)
+
 ## 0.12.1 <Badge text="beta" type="success" />
 
 Released on June 25, 2020.

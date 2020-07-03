@@ -187,6 +187,23 @@ class TestIntervalClockDaylightSavingsTime:
     survives.
     """
 
+    def test_interval_clock_always_has_the_right_offset(self):
+        """
+        Tests the situation where a long duration has passed since the start date that crosses a DST boundary;
+        for very short intervals this occasionally could result in "next" scheduled times that are in the past by one hour.
+        """
+        start_date = pendulum.from_timestamp(1582002945.964696).astimezone(
+            pendulum.timezone("US/Pacific")
+        )
+        current_date = pendulum.from_timestamp(1593643144.233938).astimezone(
+            pendulum.timezone("UTC")
+        )
+        c = clocks.IntervalClock(
+            timedelta(minutes=1, seconds=15), start_date=start_date
+        )
+        next_4 = islice(c.events(after=current_date), 4)
+        assert all([d > current_date for d in next_4])
+
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_hourly_daylight_savings_time_forward_with_UTC(
         self, serialize

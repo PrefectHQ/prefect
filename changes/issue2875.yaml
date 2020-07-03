@@ -1,2 +1,0 @@
-fix:
-  - "Fix Fargate agent not parsing string provided containerDefinitions - [#2875](https://github.com/PrefectHQ/prefect/issues/2875)"

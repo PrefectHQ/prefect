@@ -1,5 +1,0 @@
-enhancement:
-  - "Make storage location inside Docker storage configurable - [#2865](https://github.com/PrefectHQ/prefect/pull/2865)"
-
-contributor:
- - "[James Lamb](https://github.com/jameslamb)"
