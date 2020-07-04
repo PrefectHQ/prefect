@@ -543,8 +543,10 @@ def test_agent_health_check(runner_token, cloud_api):
     agent.cleanup()
     assert not agent._api_server_thread.is_alive()
 
+
 def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
     import threading
+
     requests = pytest.importorskip("requests")
 
     def _poke_agent(agent_address):
@@ -571,7 +573,6 @@ def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
     heartbeat = MagicMock()
     monkeypatch.setattr("prefect.agent.agent.Agent.heartbeat", heartbeat)
 
-
     with socket.socket() as sock:
         sock.bind(("", 0))
         port = sock.getsockname()[1]
@@ -586,7 +587,7 @@ def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
     agent_start_time = time.time()
     agent = Agent(agent_address=agent_address, max_polls=1)
     # Override loop interval to 5 seconds.
-    agent.start(_loop_intervals={0:5.0})
+    agent.start(_loop_intervals={0: 5.0})
     agent_stop_time = time.time()
 
     agent.cleanup()
