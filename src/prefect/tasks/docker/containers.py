@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 from prefect import Task
 from prefect.engine.signals import FAIL
@@ -24,6 +24,7 @@ class CreateContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - extra_docker_kwargs (dict, optional): Extra kwargs to pass through to `create_container`
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
@@ -38,6 +39,7 @@ class CreateContainer(Task):
         environment: Union[list, dict] = None,
         volumes: Union[list, dict] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: Optional[dict] = None,
         **kwargs: Any
     ):
         self.image_name = image_name
@@ -48,7 +50,7 @@ class CreateContainer(Task):
         self.environment = environment
         self.volumes = volumes
         self.docker_server_url = docker_server_url
-
+        self.extra_docker_kwargs = extra_docker_kwargs
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -60,6 +62,7 @@ class CreateContainer(Task):
         "environment",
         "volumes",
         "docker_server_url",
+        "extra_docker_kwargs",
     )
     def run(
         self,
@@ -71,6 +74,7 @@ class CreateContainer(Task):
         environment: Union[list, dict] = None,
         volumes: Union[list, dict] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: Optional[dict] = None,
     ) -> str:
         """
         Task run method.
@@ -89,6 +93,7 @@ class CreateContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra kwargs to pass through to `create_container`
 
         Returns:
             - str: A string representing the container id
@@ -117,6 +122,7 @@ class CreateContainer(Task):
             entrypoint=entrypoint,
             environment=environment,
             volumes=volumes,
+            **(self.extra_docker_kwargs or dict())
         )
         self.logger.debug(
             "Completed created container {} with command {}".format(image_name, command)
