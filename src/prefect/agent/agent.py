@@ -185,7 +185,7 @@ class Agent:
 
         return agent_id
 
-    def start(self, _loop_intervals=None) -> None:
+    def start(self, _loop_intervals: dict = None) -> None:
         """
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
