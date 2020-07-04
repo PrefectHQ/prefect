@@ -76,7 +76,7 @@ class Client:
             will be used as authorization.
     """
 
-    def __init__(self, api_server: str = None, api_token: str = None, agent_server: str = None):
+    def __init__(self, api_server: str = None, api_token: str = None):
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
@@ -91,8 +91,6 @@ class Client:
         self._api_token = api_token or prefect.context.config.cloud.get(
             "auth_token", None
         )
-
-        self.agent_server = agent_server
 
         # if no api token was passed, attempt to load state from local storage
         if not self._api_token and prefect.config.backend == "cloud":
@@ -877,16 +875,6 @@ class Client:
         if run_name is not None:
             inputs.update(flow_run_name=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
-
-        import requests
-
-        url = urljoin(self.agent_server, "/poke")
-        self.logger.debug("Poking agent process for new flow runs: %s", url)
-        try:
-            requests.get(url, timeout=0.25)
-        except requests.exceptions.RequestException as rex:
-            self.logger.info("Error poking agent process: %s", str(rex))
-
         return res.data.create_flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
