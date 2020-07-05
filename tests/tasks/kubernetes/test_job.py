@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
+from prefect.engine import signals
 from prefect.tasks.kubernetes import (
     CreateNamespacedJob,
     DeleteNamespacedJob,
@@ -10,6 +11,7 @@ from prefect.tasks.kubernetes import (
     PatchNamespacedJob,
     ReadNamespacedJob,
     ReplaceNamespacedJob,
+    RunNamespacedJob,
 )
 from prefect.utilities.configuration import set_temporary_config
 
@@ -29,6 +31,15 @@ def api_client(monkeypatch):
         MagicMock(return_value=client),
     )
     return client
+
+
+@pytest.fixture
+def successful_job_status():
+    job_status = MagicMock()
+    job_status.status.active = None
+    job_status.status.failed = None
+    job_status.status.succeeded = 1
+    return job_status
 
 
 class TestCreateNamespacedJobTask:
@@ -404,3 +415,169 @@ class TestReplaceNamespacedJobTask:
 
         task.run(kube_kwargs={"test": "a"})
         assert api_client.replace_namespaced_job.call_args[1]["test"] == "a"
+
+
+class TestRunNamespacedJobTask:
+    def test_empty_initialization(self, kube_secret):
+        task = RunNamespacedJob()
+        assert task.body == {}
+        assert task.namespace == "default"
+        assert task.kube_kwargs == {}
+        assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
+
+    def test_filled_initialization(self, kube_secret):
+        task = RunNamespacedJob(
+            body={"test": "test"},
+            namespace="test",
+            kube_kwargs={"test": "test"},
+            kubernetes_api_key_secret="test",
+        )
+        assert task.body == {"test": "test"}
+        assert task.namespace == "test"
+        assert task.kube_kwargs == {"test": "test"}
+        assert task.kubernetes_api_key_secret == "test"
+
+    def test_empty_body_raises_error(self, kube_secret):
+        task = RunNamespacedJob()
+        with pytest.raises(ValueError):
+            task.run()
+
+    def test_invalid_body_raises_error(self, kube_secret):
+        task = RunNamespacedJob()
+        with pytest.raises(ValueError):
+            task.run(body=None)
+
+    def test_body_value_is_replaced(
+        self, kube_secret, api_client, successful_job_status
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        task = RunNamespacedJob(body={"metadata": {"name": "a"}})
+
+        task.run(body={"metadata": {"name": "b"}})
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
+            "metadata": {"name": "b"}
+        }
+
+    def test_body_value_is_appended(
+        self, kube_secret, api_client, successful_job_status
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+        task = RunNamespacedJob(body={"metadata": {"name": "a"}})
+
+        task.run(body={"a": "test"})
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
+            "a": "test",
+            "metadata": {"name": "a"},
+        }
+
+    def test_empty_body_value_is_updated(
+        self, kube_secret, api_client, successful_job_status
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        task = RunNamespacedJob()
+
+        task.run(body={"metadata": {"name": "a"}})
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
+            "metadata": {"name": "a"}
+        }
+
+    def test_kube_kwargs_value_is_replaced(
+        self, kube_secret, api_client, successful_job_status
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        task = RunNamespacedJob(
+            body={"metadata": {"name": "a"}}, kube_kwargs={"test": "a"}
+        )
+
+        task.run(kube_kwargs={"test": "b"})
+        assert api_client.create_namespaced_job.call_args[1]["test"] == "b"
+
+    def test_kube_kwargs_value_is_appended(
+        self, kube_secret, api_client, successful_job_status
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        task = RunNamespacedJob(
+            body={"metadata": {"name": "a"}}, kube_kwargs={"test": "a"}
+        )
+
+        task.run(kube_kwargs={"a": "test"})
+        assert api_client.create_namespaced_job.call_args[1]["a"] == "test"
+        assert api_client.create_namespaced_job.call_args[1]["test"] == "a"
+
+    def test_empty_kube_kwargs_value_is_updated(
+        self, kube_secret, api_client, successful_job_status
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        task = RunNamespacedJob(body={"metadata": {"name": "a"}})
+
+        task.run(kube_kwargs={"test": "a"})
+        assert api_client.create_namespaced_job.call_args[1]["test"] == "a"
+
+    def test_run_successful_path(self, kube_secret, api_client, successful_job_status):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        task = RunNamespacedJob(body={"metadata": {"name": "success"}})
+        task.run()
+
+        assert api_client.create_namespaced_job.call_count == 1
+        assert api_client.create_namespaced_job.call_args[1]["namespace"] == "default"
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
+            "metadata": {"name": "success"}
+        }
+
+        assert api_client.read_namespaced_job_status.call_count == 1
+        assert api_client.read_namespaced_job_status.call_args[1]["name"] == "success"
+        assert (
+            api_client.read_namespaced_job_status.call_args[1]["namespace"] == "default"
+        )
+
+        assert api_client.delete_namespaced_job.call_count == 1
+        assert api_client.delete_namespaced_job.call_args[1]["name"] == "success"
+        assert api_client.delete_namespaced_job.call_args[1]["namespace"] == "default"
+
+    def test_run_unsuccessful_path(self, kube_secret, api_client):
+        unsuccessful_job_status = MagicMock()
+        unsuccessful_job_status.status.active = None
+        unsuccessful_job_status.status.failed = 1
+        unsuccessful_job_status.status.succeeded = None
+
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=unsuccessful_job_status
+        )
+
+        task = RunNamespacedJob(body={"metadata": {"name": "failure"}})
+        with pytest.raises(signals.FAIL) as failed:
+            task.run()
+
+        assert api_client.create_namespaced_job.call_count == 1
+        assert api_client.create_namespaced_job.call_args[1]["namespace"] == "default"
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
+            "metadata": {"name": "failure"}
+        }
+
+        assert api_client.read_namespaced_job_status.call_count == 1
+        assert api_client.read_namespaced_job_status.call_args[1]["name"] == "failure"
+        assert (
+            api_client.read_namespaced_job_status.call_args[1]["namespace"] == "default"
+        )
+
+        assert api_client.delete_namespaced_job.call_count == 0
