@@ -42,11 +42,17 @@ def _make_task_key(
     return None
 
 
-def _maybe_run(should_run: "Variable", fn: Callable, *args: Any, **kwargs: Any) -> Any:
+def _maybe_run(
+    should_run_var: "Variable", fn: Callable, *args: Any, **kwargs: Any
+) -> Any:
     """Check if the task should run against a `distributed.Variable` before
     starting the task. This offers stronger guarantees than distributed's
     current cancellation mechanism, which only cancels pending tasks."""
-    if should_run.get():
+    try:
+        should_run = should_run_var.get(timeout=0)
+    except Exception:
+        pass
+    if should_run:
         return fn(*args, **kwargs)
 
 
@@ -213,52 +219,70 @@ class DaskExecutor(Executor):
 
         Creates a `dask.distributed.Client` and yields it.
         """
-        from distributed import Client, wait, Variable
+        from distributed import Client
 
         try:
             if self.address is not None:
                 with Client(self.address, **self.client_kwargs) as client:
                     self.client = client
-                    self._futures = weakref.WeakSet()
                     try:
-                        # TODO: once we require distributed >= 2.20, we should
-                        # switch to using `distributed.Event` here instead.
-                        self._should_run_var = Variable(
-                            f"prefect-{uuid.uuid4().hex}", client=client
-                        )
-                        self._should_run_var.set(True)
-                        yield self.client
+                        self._pre_start_yield()
+                        yield
                     finally:
-                        if self._should_run_var is not None:
-                            # Multipart cleanup, ignoring exceptions in each stage
-                            # 1.) Stop pending tasks from starting
-                            try:
-                                self._should_run_var.set(False)
-                            except Exception:
-                                pass
-                            # 2.) Wait for all running tasks to complete
-                            try:
-                                # Form a strong reference to these futures before waiting
-                                futures = list(self._futures)
-                                wait(futures)
-                            except Exception:
-                                pass
-                            # 3.) Delete the distributed variable
-                            try:
-                                self._should_run_var.delete()
-                            except Exception:
-                                pass
-                        self._should_run_var = None
-                        self._futures = None
+                        self._post_start_yield()
             else:
                 with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
                     if self.adapt_kwargs:
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
                         self.client = client
-                        yield self.client
+                        try:
+                            self._pre_start_yield()
+                            yield
+                        finally:
+                            self._post_start_yield()
         finally:
             self.client = None
+
+    def _pre_start_yield(self) -> None:
+        from distributed import Variable
+
+        is_inproc = self.client.scheduler.address.startswith("inproc")  # type: ignore
+        if self.address is not None or is_inproc:
+            self._futures = weakref.WeakSet()
+            self._should_run_var = Variable(
+                f"prefect-{uuid.uuid4().hex}", client=self.client
+            )
+            self._should_run_var.set(True)
+
+    def _post_start_yield(self) -> None:
+        from distributed import wait
+
+        if self._should_run_var is not None:
+            # Multipart cleanup, ignoring exceptions in each stage
+            # 1.) Stop pending tasks from starting
+            try:
+                self._should_run_var.set(False)
+            except Exception:
+                pass
+            # 2.) Wait for all running tasks to complete
+            try:
+                futures = [f for f in list(self._futures) if not f.done()]  # type: ignore
+                if futures:
+                    self.logger.info(
+                        "Stopping executor, waiting for %d active tasks to complete",
+                        len(futures),
+                    )
+                    wait(futures)
+            except Exception:
+                pass
+            # 3.) Delete the distributed variable
+            try:
+                self._should_run_var.delete()
+            except Exception:
+                pass
+        self._should_run_var = None
+        self._futures = None
 
     def _prep_dask_kwargs(self, extra_context: dict = None) -> dict:
         if extra_context is None:
@@ -313,7 +337,7 @@ class DaskExecutor(Executor):
             raise ValueError("This executor has not been started.")
 
         kwargs.update(self._prep_dask_kwargs(extra_context))
-        if self.address is None:
+        if self._should_run_var is None:
             fut = self.client.submit(fn, *args, **kwargs)
         else:
             fut = self.client.submit(

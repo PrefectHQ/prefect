@@ -1,7 +1,10 @@
 import logging
+import os
 import random
 import sys
+import threading
 import time
+import uuid
 
 import cloudpickle
 import dask
@@ -58,6 +61,18 @@ class TestLocalDaskExecutor:
             check_scheduler("threads")
             with e.start():
                 e.submit(check_scheduler, "synchronous")
+
+    def test_normalize_scheduler(self):
+        normalize = LocalDaskExecutor._normalize_scheduler
+        assert normalize("THREADS") == "threads"
+        for name in ["threading", "threads"]:
+            assert normalize(name) == "threads"
+        for name in ["multiprocessing", "processes"]:
+            assert normalize(name) == "processes"
+        for name in ["sync", "synchronous", "single-threaded"]:
+            assert normalize(name) == "synchronous"
+        with pytest.raises(ValueError):
+            normalize("unknown")
 
     def test_submit(self):
         e = LocalDaskExecutor()
@@ -125,6 +140,59 @@ class TestLocalDaskExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalDaskExecutor)
             assert post._pool is None
+
+    @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])
+    @pytest.mark.parametrize("num_workers", [None, 2])
+    def test_temporary_pool_created_of_proper_size_and_kind(
+        self, scheduler, num_workers
+    ):
+        from dask.system import CPU_COUNT
+        from multiprocessing.pool import Pool, ThreadPool
+
+        e = LocalDaskExecutor(scheduler, num_workers=num_workers)
+        with e.start():
+            if scheduler == "synchronous":
+                assert e._pool is None
+            else:
+                sol = num_workers or CPU_COUNT
+                kind = ThreadPool if scheduler == "threads" else Pool
+                assert isinstance(e._pool, kind)
+                assert e._pool._processes == sol
+        assert e._pool is None
+
+    @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])
+    def test_interrupt_stops_running_tasks_quickly(self, scheduler):
+        # Windows implements `queue.get` using polling,
+        # which means we can set an exception to interrupt the call to `get`.
+        # Python 3 on other platforms requires sending SIGINT to the main thread.
+        if os.name == "nt":
+            from _thread import interrupt_main
+        else:
+            main_thread = threading.get_ident()
+
+            def interrupt_main():
+                import signal
+
+                signal.pthread_kill(main_thread, signal.SIGINT)
+
+        def long_task():
+            for i in range(50):
+                time.sleep(0.1)
+
+        e = LocalDaskExecutor(scheduler)
+        try:
+            interrupter = threading.Timer(0.5, interrupt_main)
+            interrupter.start()
+            start = time.time()
+            with e.start():
+                e.wait(e.submit(long_task))
+        except KeyboardInterrupt:
+            pass
+        except Exception:
+            assert False, "Failed to interrupt"
+        stop = time.time()
+        if stop - start > 4:
+            assert False, "Failed to interrupt"
 
 
 class TestLocalExecutor:
@@ -358,3 +426,61 @@ class TestDaskExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(executor))
             assert isinstance(post, DaskExecutor)
             assert post.client is None
+            assert post._futures is None
+            assert post._should_run_var is None
+
+    @pytest.mark.parametrize("kind", ["external", "inproc"])
+    def test_exit_early_with_external_or_inproc_cluster_waits_for_pending_futures(
+        self, kind, monkeypatch
+    ):
+        key = "TESTING_%s" % uuid.uuid4().hex
+
+        monkeypatch.setenv(key, "initial")
+
+        def slow():
+            time.sleep(0.5)
+            os.environ[key] = "changed"
+
+        def pending(x):
+            # This function shouldn't ever start, since it's pending when the
+            # shutdown signal is received
+            os.environ[key] = "changed more"
+
+        if kind == "external":
+            with distributed.Client(processes=False, set_as_default=False) as client:
+                executor = DaskExecutor(address=client.scheduler.address)
+                with executor.start():
+                    fut = executor.submit(slow)
+                    fut2 = executor.submit(pending, fut)  # noqa
+                    time.sleep(0.2)
+                assert os.environ[key] == "changed"
+
+        elif kind == "inproc":
+            executor = DaskExecutor(cluster_kwargs={"processes": False})
+            with executor.start():
+                fut = executor.submit(slow)
+                fut2 = executor.submit(pending, fut)  # noqa
+                time.sleep(0.2)
+            assert os.environ[key] == "changed"
+
+        assert executor.client is None
+        assert executor._futures is None
+        assert executor._should_run_var is None
+
+    def test_temporary_cluster_forcefully_cancels_pending_tasks(self, tmpdir):
+        filname = tmpdir.join("signal")
+
+        def slow():
+            time.sleep(10)
+            with open(filname, "w") as f:
+                f.write("Got here")
+
+        executor = DaskExecutor()
+        with executor.start():
+            start = time.time()
+            fut = executor.submit(slow)  # noqa
+            time.sleep(0.1)
+        stop = time.time()
+        # Cluster shutdown before task could complete
+        assert stop - start < 5
+        assert not os.path.exists(filname)
