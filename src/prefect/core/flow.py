@@ -40,7 +40,6 @@ from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.edges import EdgeAnnotation
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.tasks import as_task
 
@@ -518,9 +517,9 @@ class Flow:
         an upstream task and ending with a downstream task.
 
         Args:
-            - upstream_task (Any): The task that the edge should start from. If 
+            - upstream_task (Any): The task that the edge should start from. If
                 it is not a `Task`, it will be converted into one.
-            - downstream_task (Any): The task that the edge should end with. If 
+            - downstream_task (Any): The task that the edge should end with. If
                 it is not a `Task`, it will be converted into one.
             - key (str, optional): The key to be set for the new edge; the result of the
                 upstream task will be passed to the downstream task's `run()` method under this

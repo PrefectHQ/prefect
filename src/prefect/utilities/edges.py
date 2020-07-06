@@ -86,7 +86,7 @@ class unmapped(EdgeAnnotation):
 class flat(EdgeAnnotation):
     """
     A container for specifying that a task's output should be flattened before
-    being passed to another task. 
+    being passed to another task.
 
     Args:
         - task (Task): the task to mark as "flattened"; if not a Task subclass,

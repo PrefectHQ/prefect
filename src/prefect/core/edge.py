@@ -1,5 +1,5 @@
 import keyword
-from typing import Set, Dict, Any
+from typing import Set, Any
 
 import prefect
 from prefect.core.task import Task
@@ -44,13 +44,13 @@ class Edge:
     are passed to the downstream task.
 
     Args:
-        - upstream_task (Any): the task that must run before the 
-            `downstream_task`. It will be converted to as task with 
+        - upstream_task (Any): the task that must run before the
+            `downstream_task`. It will be converted to as task with
             `prefect.utilities.tasks.as_task()`
         - downstream_task (Any): the task that will be run after the
             `upstream_task`. The upstream task state is passed to the
             downstream task's trigger function to determine whether the
-            downstream task should run. It will be converted to as task with 
+            downstream task should run. It will be converted to as task with
             `prefect.utilities.tasks.as_task()`
         - key (str, optional): Passing a key indicates
             that the upstream result should be passed to the downstream
@@ -59,7 +59,10 @@ class Edge:
             represents a downstream mapped task; defaults to `False`
         - flat (bool, optional): boolean indicating whether this edge
             represents an upstream flattened task; defaults to `False
-        - flow (prefect.Flow, optional): 
+        - flow (prefect.Flow, optional): a flow object that will be used
+            if either the `upstream_task` or `downstream_task` is a
+            collection that needs to be bound to a flow. If not provided,
+            the context flow will be used instead.
 
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
