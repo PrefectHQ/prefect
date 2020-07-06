@@ -506,8 +506,8 @@ class Flow:
 
     def add_edge(
         self,
-        upstream_task: Task,
-        downstream_task: Task,
+        upstream_task: Any,
+        downstream_task: Any,
         key: str = None,
         mapped: bool = False,
         flat: bool = False,
@@ -518,8 +518,10 @@ class Flow:
         an upstream task and ending with a downstream task.
 
         Args:
-            - upstream_task (Task): The task that the edge should start from
-            - downstream_task (Task): The task that the edge should end with
+            - upstream_task (Any): The task that the edge should start from. If 
+                it is not a `Task`, it will be converted into one.
+            - downstream_task (Any): The task that the edge should end with. If 
+                it is not a `Task`, it will be converted into one.
             - key (str, optional): The key to be set for the new edge; the result of the
                 upstream task will be passed to the downstream task's `run()` method under this
                 keyword argument
@@ -853,10 +855,10 @@ class Flow:
 
     def set_dependencies(
         self,
-        task: object,
-        upstream_tasks: Iterable[object] = None,
-        downstream_tasks: Iterable[object] = None,
-        keyword_tasks: Mapping[str, object] = None,
+        task: Any,
+        upstream_tasks: Iterable[Any] = None,
+        downstream_tasks: Iterable[Any] = None,
+        keyword_tasks: Mapping[str, Any] = None,
         mapped: bool = False,
         validate: bool = None,
     ) -> None:
@@ -864,13 +866,13 @@ class Flow:
         Convenience function for adding task dependencies.
 
         Args:
-            - task (object): a Task that will become part of the Flow. If the task is not a
+            - task (Any): a Task that will become part of the Flow. If the task is not a
                 Task subclass, Prefect will attempt to convert it to one.
-            - upstream_tasks ([object], optional): Tasks that will run before the task runs. If
+            - upstream_tasks ([Any], optional): Tasks that will run before the task runs. If
                 any task is not a Task subclass, Prefect will attempt to convert it to one.
-            - downstream_tasks ([object], optional): Tasks that will run after the task runs.
+            - downstream_tasks ([Any], optional): Tasks that will run after the task runs.
                 If any task is not a Task subclass, Prefect will attempt to convert it to one.
-            - keyword_tasks ({key: object}, optional): The results of these tasks
+            - keyword_tasks ({key: Any}, optional): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
@@ -1187,7 +1189,7 @@ class Flow:
         flow_state: "prefect.engine.state.State" = None,
         filename: str = None,
         format: str = None,
-    ) -> object:
+    ) -> Any:
         """
         Creates graphviz object for representing the current flow; this graphviz
         object will be rendered inline if called from an IPython notebook, otherwise

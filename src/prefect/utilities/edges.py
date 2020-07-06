@@ -12,7 +12,7 @@ class EdgeAnnotation:
     """
 
     def __init__(self, task: "prefect.Task", annotations: Dict[str, Any]):
-        self.annotations = dict()
+        self.annotations = dict()  # type: Dict[str, Any]
         if isinstance(task, EdgeAnnotation):
             self.annotations.update(task.annotations)
         self.annotations.update(annotations)
@@ -47,7 +47,7 @@ class mapped(EdgeAnnotation):
         ```
     """
 
-    def __init__(self, task: "Task"):
+    def __init__(self, task: "prefect.core.task.Task"):
         super().__init__(task=task, annotations={"mapped": True})
 
 
@@ -79,7 +79,7 @@ class unmapped(EdgeAnnotation):
         ```
     """
 
-    def __init__(self, task: "Task"):
+    def __init__(self, task: "prefect.core.task.Task"):
         super().__init__(task=task, annotations={"mapped": False})
 
 
@@ -114,5 +114,5 @@ class flat(EdgeAnnotation):
         ```
     """
 
-    def __init__(self, task: "Task"):
+    def __init__(self, task: "prefect.core.task.Task"):
         super().__init__(task=task, annotations={"flat": True})

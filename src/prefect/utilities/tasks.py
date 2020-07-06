@@ -187,7 +187,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
 from prefect.utilities.edges import unmapped as _unmapped
 
 
-def unmapped(*args, **kwargs):
+def unmapped(*args, **kwargs):  # type: ignore
     warnings.warn(
         "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`"
     )

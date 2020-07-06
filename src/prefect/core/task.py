@@ -644,7 +644,10 @@ class Task(metaclass=SignatureValidator):
                 upstream task will be passed to this task's `run()` method under this keyword
                 argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
-            
+
+        Returns:
+            - None
+
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """

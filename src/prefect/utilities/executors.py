@@ -285,7 +285,7 @@ def prepare_upstream_states_for_mapping(
     state: "State",
     upstream_states: "Dict[Edge, State]",
     mapped_children: "Dict[Task, list]",
-    executor: "prefect.engine.Executor",
+    executor: "prefect.engine.executors.Executor",
 ) -> list:
     """
     If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
@@ -395,10 +395,12 @@ def prepare_upstream_states_for_mapping(
     return map_upstream_states
 
 
-def _build_flattened_state(state, index):
+def _build_flattened_state(state: "State", index: int) -> "State":
     """Helper function for `flatten_upstream_state`"""
     new_state = copy.copy(state)
-    new_state.result = state._result.from_value(state.result[index])
+    new_state.result = state._result.from_value(  # type: ignore
+        state.result[index]
+    )
     return new_state
 
 
@@ -408,13 +410,15 @@ def flatten_upstream_state(upstream_state: "State") -> "State":
         flattened_result = [y for x in upstream_state.result for y in x]
     except TypeError:
         raise TypeError("Cannot flat-map over non-nested object.")
-    new_state.result = new_state._result.from_value(flattened_result)
+    new_state.result = new_state._result.from_value(  # type: ignore
+        flattened_result
+    )
     return new_state
 
 
 def flatten_mapped_children(
-    mapped_children: List["State"], executor: "prefect.engine.Executor",
-):
+    mapped_children: List["State"], executor: "prefect.engine.executors.Executor",
+) -> List["State"]:
     counts = executor.wait(
         [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]
     )
