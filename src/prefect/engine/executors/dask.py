@@ -43,10 +43,11 @@ def _make_task_key(
 
 
 def _maybe_run(should_run: "Variable", fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Check if the task should run against a `distributed.Variable` before
+    starting the task. This offers stronger guarantees than distributed's
+    current cancellation mechanism, which only cancels pending tasks."""
     if should_run.get():
         return fn(*args, **kwargs)
-    else:
-        print("Skipping run")
 
 
 class DaskExecutor(Executor):
@@ -229,20 +230,23 @@ class DaskExecutor(Executor):
                         yield self.client
                     finally:
                         if self._should_run_var is not None:
+                            # Multipart cleanup, ignoring exceptions in each stage
+                            # 1.) Stop pending tasks from starting
                             try:
-                                # Notify all scheduled tasks that they shouldn't run
                                 self._should_run_var.set(False)
+                            except Exception:
+                                pass
+                            # 2.) Wait for all running tasks to complete
+                            try:
                                 # Form a strong reference to these futures before waiting
                                 futures = list(self._futures)
-                                # Wait for all pending futures
                                 wait(futures)
                             except Exception:
-                                # Ignore exceptions on shutdown
                                 pass
+                            # 3.) Delete the distributed variable
                             try:
                                 self._should_run_var.delete()
                             except Exception:
-                                # Ignore exceptions on shutdown
                                 pass
                         self._should_run_var = None
                         self._futures = None
@@ -371,28 +375,40 @@ class LocalDaskExecutor(Executor):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def _interrupt_threadpool(self) -> None:
-        """Interrupt all threads in a thread pool"""
-        import platform
+    def _interrupt_pool(self) -> None:
+        """Interrupt all tasks in the backing `pool`, if any."""
+        if self.scheduler == "threads" and self._pool is not None:
+            # `ThreadPool.terminate()` doesn't stop running tasks, only
+            # prevents new tasks from running. In CPython we can attempt to
+            # raise an exception in all threads. This exception will be raised
+            # the next time the task does something with the Python api.
+            # However, if the task is currently blocked in a c extension, it
+            # will not immediately be interrupted. There isn't a good way
+            # around this unfortunately.
+            import platform
 
-        if platform.python_implementation() != "CPython":
-            warnings.warn(
-                "Interrupting a running threadpool only supported in CPython."
-            )
-            return
+            if platform.python_implementation() != "CPython":
+                self.logger.warning(
+                    "Interrupting a running threadpool is only supported in CPython, "
+                    "all currently running tasks will continue to completion"
+                )
+                return
 
-        import sys
-        import ctypes
+            self.logger.info("Attempting to interrupt and cancel all running tasks...")
 
-        if sys.version_info >= (3, 7):
-            id_type = ctypes.c_ulong
-        else:
-            id_type = ctypes.c_long
+            import sys
+            import ctypes
 
-        for t in self._pool._pool:  # type: ignore
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                id_type(t.ident), ctypes.py_object(KeyboardInterrupt)
-            )
+            # signature of this method changed in python 3.7
+            if sys.version_info >= (3, 7):
+                id_type = ctypes.c_ulong
+            else:
+                id_type = ctypes.c_long
+
+            for t in self._pool._pool:  # type: ignore
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                    id_type(t.ident), ctypes.py_object(KeyboardInterrupt)
+                )
 
     @contextmanager
     def start(self) -> Iterator:
@@ -429,14 +445,18 @@ class LocalDaskExecutor(Executor):
                     context = get_context()
                     self._pool = context.Pool(num_workers)
             try:
+                exiting_early = False
                 yield
+            except BaseException:
+                exiting_early = True
+                raise
             finally:
                 if self._pool is not None:
                     self._pool.terminate()
-                    if self.scheduler == "threads":
-                        self._interrupt_threadpool()
+                    if exiting_early:
+                        self._interrupt_pool()
                     self._pool.join()
-                self._pool = None
+                    self._pool = None
 
     def submit(
         self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
