@@ -94,6 +94,38 @@ When this flow runs, the result of the `mapped_result_2` task will be `[21, 22, 
 Even though we observed that the result of `mapped_result` was a list, Prefect won't apply a reduce step to gather that list unless the user requires it. In this example, we never needed the entire list (we only needed each of its elements), so no reduce took place. The two mapped tasks generated three completely-independent pipelines, each one containing two tasks.
 :::
 
+## Flat-mapping
+
+In general, each layer of an iterated map has the same number of children: if you map over a list of N items, you produce N results. Sometimes, it's useful to produce a sequence of results for each mapped input. For example, you might map over a list of directories to load all the files in each directory, then want to map over each file. Prefect provides a `flat` annotation to make this possible. When the input to a map is marked as `flat`, the input is assumed to be a list-of-lists and is "un-nested" into a single list prior to applying the map.
+
+Using `flat()` is more efficient than adding a reduce step to an otherwise-iterated map, because Prefect will compute the flatmap without gathering all data to a single worker.
+
+```python
+from prefect import Flow, task, flat
+
+@task
+def A():
+    return [1, 2, 3]
+
+@task
+def B(x):
+    return list(range(x))
+
+@task
+def C(y):
+    return y + 100
+
+with Flow('flat map') as f:
+    a = A() # [1, 2, 3]
+    b = B.map(x=a) # [[0], [0, 1], [0, 1, 2]]
+    c = C.map(y=flat(b)) # [100, 100, 101, 100, 101, 102]
+```
+
+::: tip
+`flat()` can be used on any task input, even if it isn't being mapped over.
+:::
+
+
 ## Reduce
 
 Prefect automatically gathers mapped results into a list if they are needed by a non-mapped task. Therefore, all users need to do to "reduce" a mapped result is supply it to a task!
@@ -117,9 +149,10 @@ with Flow('reduce') as flow:
 
 In this example, `sum_numbers` received an automatically-reduced list of results from `mapped_result`. It appropriately computes the sum: 66.
 
+
 ## Unmapped inputs
 
-When a task is mapped over its inputs, it retains the same call signature and arguments, but iterates over the inputs to generate its children tasks. Sometimes, we don't want to to iterate over one of the inputs -- perhaps it's a constant value, or a list that's required in its entirety. Prefect supplies a convenient `unmapped()` function for this case.
+When a task is mapped over its inputs, it retains the same call signature and arguments, but iterates over the inputs to generate its children tasks. Sometimes, we don't want to to iterate over one of the inputs -- perhaps it's a constant value, or a list that's required in its entirety. Prefect supplies a convenient `unmapped()` annotation for this case.
 
 ```python
 from prefect import Flow, task, unmapped
@@ -134,8 +167,11 @@ with Flow('unmapped inputs') as flow:
 
 This map will iterate over the `x` inputs but not over the `y` input. The result will be `[11, 12, 13]`.
 
-The `unmapped` function can be applied to any number of input arguments. This means that a mapped task can depend on both mapped and reduced upstream tasks seamlessly.
+The `unmapped` annotation can be applied to any number of input arguments. This means that a mapped task can depend on both mapped and reduced upstream tasks seamlessly.
 
+::: tip
+Prefect also provides a `mapped()` annotation that can be used to indicate that an input should be mapped over when binding inputs without calling `.map()`
+:::
 ## Complex mapped pipelines
 
 Sometimes you want to encode a more complex structure in your mapped pipelines

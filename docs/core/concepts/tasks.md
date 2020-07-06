@@ -201,7 +201,7 @@ _For more detail, see the [mapping concept docs](mapping.html)._
 
 Generally speaking, Prefect's [functional API](flows.html#functional-api) allows you to call a task like a function.
 
-In addition, you can call `Task.map()` to automatically map a task over its inputs. Prefect will generate a dynamic copy of the task for each element of the input. If you don't want an input to be treated as iterable (for example, you want to provide it to every dynamic copy), just wrap it with Prefect's `unmapped` function.
+In addition, you can call `Task.map()` to automatically map a task over its inputs. Prefect will generate a dynamic copy of the task for each element of the input. If you don't want an input to be treated as iterable (for example, you want to provide it to every dynamic copy), just wrap it with Prefect's `unmapped()` annotation.
 
 ```python
 from prefect import task, unmapped
@@ -221,6 +221,12 @@ z2 = add.map(x=z1, y=unmapped(100))
 ```
 
 In addition, if the result of a mapped task is passed to an un-mapped task (or used as the `unmapped` input to a mapped task), then its results will be collected in a list. This allows transparent but totally flexible map/reduce functionality.
+
+## Flattening
+
+_For more detail, see the [mapping concept docs](mapping.html)._
+
+To "un-nest" a task that returns a list of lists, use Prefect's `flat()` annotation. This is most useful when a task in a mapped pipeline returns a sequence.
 
 ## Identification
 

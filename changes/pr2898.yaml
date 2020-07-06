@@ -1,0 +1,3 @@
+
+feature:
+  - "Add `flat` operator for unnesting and flat-maps - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)"
