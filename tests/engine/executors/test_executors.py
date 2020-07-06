@@ -124,7 +124,7 @@ class TestLocalDaskExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalDaskExecutor)
-            assert post._callback is None
+            assert post._pool is None
 
 
 class TestLocalExecutor:
@@ -185,7 +185,7 @@ class TestDaskExecutor:
 
         def record_times():
             start_time = time.time()
-            time.sleep(random.random() * 0.25 + 0.1)
+            time.sleep(random.random() * 0.25 + 0.5)
             end_time = time.time()
             return start_time, end_time
 
