@@ -41,8 +41,8 @@ def exit_handler(agent: "Agent") -> Generator:
 
     def _exit_handler(*args: Any, **kwargs: Any) -> None:
         agent.logger.info("Keyboard Interrupt received: Agent is shutting down.")
-        AGENT_WAKE_EVENT.set()
         exit_event.set()
+        AGENT_WAKE_EVENT.set()
 
     original = signal.getsignal(signal.SIGINT)
     try:
@@ -191,7 +191,7 @@ class Agent:
         new flow runs to deploy
 
         Args:
-            - _loop_intervals (dict, optional): Default loop_intervals override for unit tests.
+            - _loop_intervals (dict, optional): Exposed for testing only.
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
