@@ -77,10 +77,10 @@ class TestLocalDaskExecutor:
     def test_submit(self):
         e = LocalDaskExecutor()
         with e.start():
-            assert e.submit(lambda: 1).compute() == 1
-            assert e.submit(lambda x: x, 1).compute() == 1
-            assert e.submit(lambda x: x, x=1).compute() == 1
-            assert e.submit(lambda: prefect).compute() is prefect
+            assert e.submit(lambda: 1).compute(scheduler="sync") == 1
+            assert e.submit(lambda x: x, 1).compute(scheduler="sync") == 1
+            assert e.submit(lambda x: x, x=1).compute(scheduler="sync") == 1
+            assert e.submit(lambda: prefect).compute(scheduler="sync") is prefect
 
     def test_wait(self):
         e = LocalDaskExecutor()
@@ -274,7 +274,7 @@ class TestDaskExecutor:
             assert executor.address == client.scheduler.address
             assert executor.cluster_class is None
             assert executor.cluster_kwargs is None
-            assert executor.client_kwargs == {}
+            assert executor.client_kwargs == {"set_as_default": False}
 
             with executor.start():
                 res = executor.wait(executor.submit(lambda x: x + 1, 1))
@@ -358,7 +358,7 @@ class TestDaskExecutor:
 
         assert executor.cluster_class == TestCluster
         assert executor.cluster_kwargs == {}
-        assert executor.client_kwargs == {}
+        assert executor.client_kwargs == {"set_as_default": False}
 
     def test_deprecated_client_kwargs(self):
         with pytest.warns(UserWarning, match="client_kwargs"):

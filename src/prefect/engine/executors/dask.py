@@ -193,12 +193,15 @@ class DaskExecutor(Executor):
 
         if client_kwargs is None:
             client_kwargs = {}
+        else:
+            client_kwargs = client_kwargs.copy()
         if kwargs:
             warnings.warn(
                 "Forwarding executor kwargs to `Client` is now handled by the "
                 "`client_kwargs` parameter, please update accordingly"
             )
             client_kwargs.update(kwargs)
+        client_kwargs.setdefault("set_as_default", False)
 
         self.address = address
         self.cluster_class = cluster_class
@@ -458,7 +461,7 @@ class LocalDaskExecutor(Executor):
             if self.scheduler == "synchronous":
                 self._pool = None
             else:
-                num_workers = dask.config.get("num_workers", CPU_COUNT)
+                num_workers = dask.config.get("num_workers", None) or CPU_COUNT
                 if self.scheduler == "threads":
                     from multiprocessing.pool import ThreadPool
 
