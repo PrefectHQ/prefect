@@ -109,6 +109,7 @@ classes = [
             "Queued",
             "ClientFailed",
             "Running",
+            "Cancelling",
             "Finished",
             "Success",
             "Cached",
