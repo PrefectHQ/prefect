@@ -97,6 +97,11 @@ class RunningSchema(BaseStateSchema):
         object_class = state.Running
 
 
+class CancellingSchema(RunningSchema):
+    class Meta:
+        object_class = state.Cancelling
+
+
 class FinishedSchema(BaseStateSchema):
     class Meta:
         object_class = state.Finished
@@ -195,6 +200,7 @@ class StateSchema(OneOfSchema):
         "Resume": ResumeSchema,
         "Retrying": RetryingSchema,
         "Running": RunningSchema,
+        "Cancelling": CancellingSchema,
         "Scheduled": ScheduledSchema,
         "Skipped": SkippedSchema,
         "Submitted": SubmittedSchema,
