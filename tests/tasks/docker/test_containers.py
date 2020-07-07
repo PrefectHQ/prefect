@@ -148,6 +148,17 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
         monkeypatch.setattr("docker.APIClient", api)
         self.assert_doesnt_log_on_param_failure(task, caplog)
 
+    def test_extra_kwargs(self, monkeypatch, caplog):
+        task = CreateContainer(extra_docker_kwargs={"network": "test-network"})
+
+        api = MagicMock()
+        monkeypatch.setattr("docker.APIClient", api)
+
+        task.run(image_name="test")
+        assert (
+            api.return_value.create_container.call_args[1]["network"] == "test-network"
+        )
+
 
 class TestGetContainerLogsTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
