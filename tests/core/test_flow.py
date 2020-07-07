@@ -1568,7 +1568,7 @@ class TestReplace:
 
     def test_replace_update_slugs(self):
         flow = Flow("test")
-        p1, p2 = Parameter('p'), Parameter('p')
+        p1, p2 = Parameter("p"), Parameter("p")
         t1, t2 = Task(), Task()
 
         flow.add_task(p1)
