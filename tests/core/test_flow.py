@@ -1566,6 +1566,21 @@ class TestReplace:
         with pytest.raises(ValueError):
             f.edges_to(t1)
 
+    def test_replace_update_slugs(self):
+        flow = Flow("test")
+        p1, p2 = Parameter("p"), Parameter("p")
+        t1, t2 = Task(), Task()
+
+        flow.add_task(p1)
+        flow.add_task(t1)
+
+        flow.replace(t1, t2)
+        assert flow.tasks == {p1, t2}
+        assert set(flow.slugs.keys()) == {p1, t2}
+        flow.replace(p1, p2)
+        assert flow.tasks == {p2, t2}
+        assert set(flow.slugs.keys()) == {p2, t2}
+
     def test_replace_complains_about_tasks_not_in_flow(self):
         with Flow(name="test") as f:
             t1 = Task(name="t1")()
