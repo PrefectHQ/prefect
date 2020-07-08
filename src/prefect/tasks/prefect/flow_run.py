@@ -1,8 +1,10 @@
+import time
 from typing import Any
 from urllib.parse import urlparse
 
 from prefect import config, Task
 from prefect.client import Client
+from prefect.engine.signals import PrefectStateSignal
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -20,6 +22,9 @@ class FlowRunTask(Task):
             running with Prefect Core's server as the backend, this should not be provided.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
+        - mirror (bool, optional): whether to mirror the triggered flow run's state; if True, this
+            task will wait until the flow run is complete, and then reflect the corresponding
+            state as the state of this task.  Defaults to `False`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -28,11 +33,13 @@ class FlowRunTask(Task):
         flow_name: str = None,
         project_name: str = None,
         parameters: dict = None,
-        **kwargs: Any
+        mirror: bool = False,
+        **kwargs: Any,
     ):
         self.flow_name = flow_name
         self.project_name = project_name
         self.parameters = parameters
+        self.mirror = mirror
         super().__init__(**kwargs)
 
     @defaults_from_attrs("flow_name", "project_name", "parameters")
@@ -106,4 +113,20 @@ class FlowRunTask(Task):
 
         # grab the ID for the most recent version
         flow_id = flow[0].id
-        return client.create_flow_run(flow_id=flow_id, parameters=parameters)
+        flow_run_id = client.create_flow_run(flow_id=flow_id, parameters=parameters)
+
+        if not mirror:
+            return flow_run_id
+
+        signals = {
+            sig._state_cls.__name__: sig for sig in PrefectStateSignal.__subclasses__()
+        }
+
+        while True:
+            time.sleep(10)
+            flow_run_state = client.get_flow_run_info(flow_run_id).state
+            if state.is_finished():
+                exc = signals[type(state).__name__](
+                    f"{flow_run_id} finished in state {state}"
+                )
+                raise exc
