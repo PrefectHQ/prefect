@@ -898,14 +898,12 @@ class Flow:
         self.add_task(task)
 
         # add upstream tasks
-        # also unpack any edge annotations
         for t in upstream_tasks or []:
             self.add_edge(
                 upstream_task=t, downstream_task=task, mapped=mapped, validate=validate
             )
 
         # add downstream tasks
-        # downstream tasks don't apply annotations, as this gets confusing
         for t in downstream_tasks or []:
             self.add_edge(upstream_task=task, downstream_task=t, validate=validate)
 
