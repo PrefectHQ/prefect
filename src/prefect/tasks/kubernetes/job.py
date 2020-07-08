@@ -579,8 +579,8 @@ class RunNamespacedJob(Task):
     """
     Task for running a namespaced job on Kubernetes.
     This task first creates a job on a Kubernetes cluster according to the specification
-    given in the body, and then regularly checks its status at 5-second intervals.
-    After the job is successfully completed, all resources are deleted: job and the
+    given in the body, and then by default regularly checks its status at 5-second intervals.
+    After the job is successfully completed, all resources by default are deleted: job and the
     corresponding pods. If job is in the failed status, resources will not be removed
     from the cluster so that user can check the logs on the cluster.
 
@@ -616,6 +616,9 @@ class RunNamespacedJob(Task):
         - job_status_pool_interval (int, optional): The interval given in seconds
             indicating how often the Kubernetes API will be requested about the status
             of the job being performed, defaults to the `5` seconds
+        - delete_job_after_completion (bool, optional): boolean value determining whether
+            resources related to a given job will be removed from the Kubernetes cluster
+            after completion, defaults to the `True` value
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
@@ -627,6 +630,7 @@ class RunNamespacedJob(Task):
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         job_status_pool_interval: int = 5,
+        delete_job_after_completion: bool = True,
         **kwargs: Any,
     ):
         self.body = body or {}
@@ -634,6 +638,7 @@ class RunNamespacedJob(Task):
         self.kube_kwargs = kube_kwargs or {}
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
         self.job_status_pool_interval = job_status_pool_interval
+        self.delete_job_after_completion = delete_job_after_completion
 
         super().__init__(**kwargs)
 
@@ -643,6 +648,7 @@ class RunNamespacedJob(Task):
         "kube_kwargs",
         "kubernetes_api_key_secret",
         "job_status_pool_interval",
+        "delete_job_after_completion",
     )
     def run(
         self,
@@ -651,6 +657,7 @@ class RunNamespacedJob(Task):
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         job_status_pool_interval: int = 5,
+        delete_job_after_completion: bool = True,
     ) -> None:
         """
         Task run method.
@@ -668,6 +675,9 @@ class RunNamespacedJob(Task):
             - job_status_pool_interval (int, optional): The interval given in seconds
                 indicating how often the Kubernetes API will be requested about the status
                 of the job being performed, defaults to the `5` seconds
+            - delete_job_after_completion (bool, optional): boolean value determining whether
+                resources related to a given job will be removed from the Kubernetes cluster
+                after completion, defaults to the `True` value
 
         Raises:
             - ValueError: if `body` is `None`
@@ -709,9 +719,10 @@ class RunNamespacedJob(Task):
                     self.logger.info(f"Job {job_name} has been completed.")
                     completed = True
 
-        api_client.delete_namespaced_job(
-            name=job_name,
-            namespace=namespace,
-            body=client.V1DeleteOptions(propagation_policy="Background"),
-        )
-        self.logger.info(f"Job {job_name} has been deleted.")
+        if delete_job_after_completion:
+            api_client.delete_namespaced_job(
+                name=job_name,
+                namespace=namespace,
+                body=client.V1DeleteOptions(propagation_policy="Background"),
+            )
+            self.logger.info(f"Job {job_name} has been deleted.")

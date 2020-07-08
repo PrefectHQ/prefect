@@ -554,6 +554,32 @@ class TestRunNamespacedJobTask:
         assert api_client.delete_namespaced_job.call_args[1]["name"] == "success"
         assert api_client.delete_namespaced_job.call_args[1]["namespace"] == "default"
 
+    def test_run_successful_path_without_deleting_resources_after_completion(
+        self, kube_secret, api_client, successful_job_status
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        task = RunNamespacedJob(
+            body={"metadata": {"name": "success"}}, delete_job_after_completion=False
+        )
+        task.run()
+
+        assert api_client.create_namespaced_job.call_count == 1
+        assert api_client.create_namespaced_job.call_args[1]["namespace"] == "default"
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
+            "metadata": {"name": "success"}
+        }
+
+        assert api_client.read_namespaced_job_status.call_count == 1
+        assert api_client.read_namespaced_job_status.call_args[1]["name"] == "success"
+        assert (
+            api_client.read_namespaced_job_status.call_args[1]["namespace"] == "default"
+        )
+
+        assert api_client.delete_namespaced_job.call_count == 0
+
     def test_run_unsuccessful_path(self, kube_secret, api_client):
         unsuccessful_job_status = MagicMock()
         unsuccessful_job_status.status.active = None
