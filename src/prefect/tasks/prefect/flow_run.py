@@ -132,8 +132,8 @@ class FlowRunTask(Task):
         while True:
             time.sleep(10)
             flow_run_state = client.get_flow_run_info(flow_run_id).state
-            if state.is_finished():
-                exc = signals[type(state).__name__](
-                    f"{flow_run_id} finished in state {state}"
+            if flow_run_state.is_finished():
+                exc = signals[type(flow_run_state).__name__](
+                    f"{flow_run_id} finished in state {flow_run_state}"
                 )
                 raise exc
