@@ -47,15 +47,15 @@ def cloud_flow():
         }
     }
 
-    client = Client()
-    result = client.graphql(query)
-    flow_run = result.data.flow_run
-
-    if not flow_run:
-        click.echo("Flow run {} not found".format(flow_run_id))
-        raise ValueError("Flow run {} not found".format(flow_run_id))
-
     try:
+        client = Client()
+        result = client.graphql(query)
+        flow_run = result.data.flow_run
+
+        if not flow_run:
+            click.echo("Flow run {} not found".format(flow_run_id))
+            raise ValueError("Flow run {} not found".format(flow_run_id))
+
         flow_data = flow_run[0].flow
         storage_schema = prefect.serialization.storage.StorageSchema()
         storage = storage_schema.load(flow_data.storage)
