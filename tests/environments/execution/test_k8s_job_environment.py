@@ -241,7 +241,7 @@ def test_populate_job_yaml_no_defaults(job_spec_file, job):
     assert env[2]["value"] == "id_test"
     assert env[3]["value"] == "namespace_test"
     assert env[4]["value"] == "test1/test2:test3"
-    assert env[9]["value"] == "[]"
+    assert env[9]["value"] == "['py.warnings']"
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]

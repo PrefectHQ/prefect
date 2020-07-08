@@ -99,7 +99,7 @@ datefmt = "%Y-%m-%d %H:%M:%S"
 log_to_cloud = false
 
 # Extra loggers for Prefect log configuration
-extra_loggers = "[]"
+extra_loggers = "['py.warnings']"
 
 [flows]
 # If true, edges are checked for cycles as soon as they are added to the flow. If false,

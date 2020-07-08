@@ -246,6 +246,8 @@ def configure_extra_loggers() -> None:
     """
     loggers = context.config.logging.get("extra_loggers", [])
     for l in loggers:
+        if l == "py.warnings":
+            logging.captureWarnings(True)
         _create_logger(l)
 
 
