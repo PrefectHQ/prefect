@@ -513,5 +513,5 @@ functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs", "ap
 [pages.utilities.edges]
 title = "Edge Utilities"
 module = "prefect.utilities.edges"
-classes = ["unmapped", "mapped", "flat"]
+classes = ["unmapped", "mapped", "flatten"]
 functions = []

@@ -322,10 +322,10 @@ def prepare_upstream_states_for_mapping(
         if edge.key in state.cached_inputs:
             upstream_state._result = state.cached_inputs[edge.key]
 
-        # if the upstream was mapped and the edge is flat, we need
+        # if the upstream was mapped and the edge is flattened, we need
         # to process the mapped children (which could be futures) into a
         # flat structure
-        if upstream_state.is_mapped() and edge.flat:
+        if upstream_state.is_mapped() and edge.flattened:
             mapped_children[edge.upstream_task] = flatten_mapped_children(
                 mapped_children=mapped_children[edge.upstream_task], executor=executor
             )

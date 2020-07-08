@@ -226,7 +226,7 @@ In addition, if the result of a mapped task is passed to an un-mapped task (or u
 
 _For more detail, see the [mapping concept docs](mapping.html)._
 
-To "un-nest" a task that returns a list of lists, use Prefect's `flat()` annotation. This is most useful when a task in a mapped pipeline returns a sequence.
+To "un-nest" a task that returns a list of lists, use Prefect's `flatten()` annotation. This is most useful when a task in a mapped pipeline returns a sequence.
 
 ## Identification
 

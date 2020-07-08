@@ -3,7 +3,7 @@ import pytest
 from prefect import Flow, Task, task
 from prefect.utilities import edges, tasks
 
-ALL_ANNOTATIONS = {edges.unmapped, edges.mapped, edges.flat}
+ALL_ANNOTATIONS = {edges.unmapped, edges.mapped, edges.flatten}
 
 
 class TestEdgeAnnotations:
@@ -16,12 +16,12 @@ class TestEdgeAnnotations:
         assert ea.annotations == {"mapped": True}
 
     def test_flat(self):
-        ea = edges.flat(Task())
-        assert ea.annotations == {"flat": True}
+        ea = edges.flatten(Task())
+        assert ea.annotations == {"flattened": True}
 
     def test_multiple_annotations(self):
-        ea = edges.mapped(edges.flat(edges.unmapped(edges.mapped(Task()))))
-        assert ea.annotations == {"flat": True, "mapped": True}
+        ea = edges.mapped(edges.flatten(edges.unmapped(edges.mapped(Task()))))
+        assert ea.annotations == {"flattened": True, "mapped": True}
 
     @pytest.mark.parametrize("edge_annotation", ALL_ANNOTATIONS)
     def test_as_task_unpacks_unmapped_objects(self, edge_annotation):
@@ -59,14 +59,14 @@ class TestFlow:
 
     def test_flat_applied(self):
         with Flow("test") as flow:
-            z = add.map(x=edges.flat([[1], [2, 3]]), y=edges.unmapped(100))
+            z = add.map(x=edges.flatten([[1], [2, 3]]), y=edges.unmapped(100))
 
         state = flow.run()
         assert state.result[z].result == [101, 102, 103]
 
     def test_multiple_annotations_applied(self):
         with Flow("test") as flow:
-            z = add(x=edges.mapped(edges.flat([[1], [2, 3]])), y=edges.unmapped(100))
+            z = add(x=edges.mapped(edges.flatten([[1], [2, 3]])), y=edges.unmapped(100))
 
         state = flow.run()
         assert state.result[z].result == [101, 102, 103]

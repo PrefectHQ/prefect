@@ -13,4 +13,4 @@ class EdgeSchema(ObjectSchema):
     downstream_task = fields.Nested(TaskSchema, only=["slug"])
     key = fields.String(allow_none=True)
     mapped = fields.Boolean(allow_none=True)
-    flat = fields.Boolean(allow_none=True)
+    flattened = fields.Boolean(allow_none=True)

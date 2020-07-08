@@ -190,7 +190,7 @@ class Flow:
                 downstream_task=e.downstream_task,
                 key=e.key,
                 mapped=e.mapped,
-                flat=e.flat,
+                flattened=e.flattened,
                 validate=validate,
             )
 
@@ -311,7 +311,7 @@ class Flow:
                 downstream_task=downstream,
                 key=edge.key,
                 mapped=edge.mapped,
-                flat=edge.flat,
+                flattened=edge.flattened,
                 validate=False,
             )
 
@@ -509,7 +509,7 @@ class Flow:
         downstream_task: Any,
         key: str = None,
         mapped: bool = False,
-        flat: bool = False,
+        flattened: bool = False,
         validate: bool = None,
     ) -> Edge:
         """
@@ -526,7 +526,7 @@ class Flow:
                 keyword argument
             - mapped (bool, optional): Whether this edge represents a call to `Task.map()`;
                 defaults to `False`
-            - flat (bool, optional): Whether the upstream task result is flattened
+            - flattened (bool, optional): Whether the upstream task result is flattened
             - validate (bool, optional): Whether or not to check the validity of the flow
                 (e.g., presence of cycles and illegal keys). Defaults to the value of
                 `eager_edge_validation` in your prefect configuration file.
@@ -556,7 +556,7 @@ class Flow:
             downstream_task=downstream_task,
             key=key,
             mapped=mapped,
-            flat=flat,
+            flattened=flattened,
             flow=self,
         )
 
@@ -567,7 +567,7 @@ class Flow:
             isinstance(edge.upstream_task, prefect.tasks.core.constants.Constant)
             and edge.key
             and not edge.mapped
-            and not edge.flat
+            and not edge.flattened
         ):
             self.constants[edge.downstream_task].update(
                 {edge.key: edge.upstream_task.value}
@@ -656,7 +656,7 @@ class Flow:
                     downstream_task=edge.downstream_task,
                     key=edge.key,
                     mapped=edge.mapped,
-                    flat=edge.flat,
+                    flattened=edge.flattened,
                     validate=validate,
                 )
 

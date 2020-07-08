@@ -57,7 +57,7 @@ class Edge:
             task as a keyword argument given by `key`.
         - mapped (bool, optional): boolean indicating whether this edge
             represents a downstream mapped task; defaults to `False`
-        - flat (bool, optional): boolean indicating whether this edge
+        - flattened (bool, optional): boolean indicating whether this edge
             represents an upstream flattened task; defaults to `False
         - flow (prefect.Flow, optional): a flow object that will be used
             if either the `upstream_task` or `downstream_task` is a
@@ -94,7 +94,7 @@ class Edge:
         downstream_task: Any,
         key: str = None,
         mapped: bool = None,
-        flat: bool = None,
+        flattened: bool = None,
         flow: "prefect.core.flow.Flow" = None,
     ):
         if upstream_task is downstream_task:
@@ -118,7 +118,7 @@ class Edge:
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
         self.mapped = annotations.get("mapped", mapped or False)
-        self.flat = annotations.get("flat", flat or False)
+        self.flattened = annotations.get("flattened", flattened or False)
 
     # Comparison --------------------------------------------------------------
 
@@ -130,18 +130,24 @@ class Edge:
         return {self.upstream_task, self.downstream_task}
 
     def __repr__(self) -> str:
-        desc = f"Edge(key={self.key}, mapped={self.mapped}, flat={self.flat})"
+        desc = f"Edge(key={self.key}, mapped={self.mapped}, flattened={self.flattened})"
         return f"<{desc}: {self.upstream_task.name} to {self.downstream_task.name}>"
 
     def __eq__(self, other: "Edge") -> bool:  # type: ignore
         if type(self) == type(other):
-            attrs = ["upstream_task", "downstream_task", "key", "mapped", "flat"]
+            attrs = ["upstream_task", "downstream_task", "key", "mapped", "flattened"]
             return all(getattr(self, a) == getattr(other, a) for a in attrs)
         return False
 
     def __hash__(self) -> int:
         return hash(
-            (self.upstream_task, self.downstream_task, self.key, self.mapped, self.flat)
+            (
+                self.upstream_task,
+                self.downstream_task,
+                self.key,
+                self.mapped,
+                self.flattened,
+            )
         )
 
     def serialize(self) -> dict:

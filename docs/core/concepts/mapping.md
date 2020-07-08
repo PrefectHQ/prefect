@@ -96,12 +96,12 @@ Even though we observed that the result of `mapped_result` was a list, Prefect w
 
 ## Flat-mapping
 
-In general, each layer of an iterated map has the same number of children: if you map over a list of N items, you produce N results. Sometimes, it's useful to produce a sequence of results for each mapped input. For example, you might map over a list of directories to load all the files in each directory, then want to map over each file. Prefect provides a `flat` annotation to make this possible. When the input to a map is marked as `flat`, the input is assumed to be a list-of-lists and is "un-nested" into a single list prior to applying the map.
+In general, each layer of an iterated map has the same number of children: if you map over a list of N items, you produce N results. Sometimes, it's useful to produce a sequence of results for each mapped input. For example, you might map over a list of directories to load all the files in each directory, then want to map over each file. Prefect provides a `flatten` annotation to make this possible. When the input to a map is marked as `flatten`, the input is assumed to be a list-of-lists and is "un-nested" into a single list prior to applying the map.
 
-Using `flat()` is more efficient than adding a reduce step to an otherwise-iterated map, because Prefect will compute the flatmap without gathering all data to a single worker.
+Using `flatten()` is more efficient than adding a reduce step to an otherwise-iterated map, because Prefect will compute the flatmap without gathering all data to a single worker.
 
 ```python
-from prefect import Flow, task, flat
+from prefect import Flow, task, flatten
 
 @task
 def A():
@@ -118,11 +118,11 @@ def C(y):
 with Flow('flat map') as f:
     a = A() # [1, 2, 3]
     b = B.map(x=a) # [[0], [0, 1], [0, 1, 2]]
-    c = C.map(y=flat(b)) # [100, 100, 101, 100, 101, 102]
+    c = C.map(y=flatten(b)) # [100, 100, 101, 100, 101, 102]
 ```
 
 ::: tip
-`flat()` can be used on any task input, even if it isn't being mapped over.
+`flatten()` can be used on any task input, even if it isn't being mapped over.
 :::
 
 

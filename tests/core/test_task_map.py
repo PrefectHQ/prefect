@@ -11,7 +11,7 @@ from prefect.engine.result import NoResult, Result, NoResult
 from prefect.engine.state import Mapped, Pending, Retrying, Success
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task
-from prefect.utilities.edges import unmapped, flat, mapped
+from prefect.utilities.edges import unmapped, flatten, mapped
 
 
 class AddTask(Task):
@@ -1047,9 +1047,9 @@ class TestFlatMap:
         a = AddTask()
 
         with Flow(name="test") as f:
-            x = a.map(flat([[1, 2, 3]]))
-            y = a.map(flat([[1], [2], [3]]))
-            z = a.map(flat([[1], [2, 3]]))
+            x = a.map(flatten([[1, 2, 3]]))
+            y = a.map(flatten([[1], [2], [3]]))
+            z = a.map(flatten([[1], [2, 3]]))
 
         s = f.run(executor=executor)
 
@@ -1068,7 +1068,7 @@ class TestFlatMap:
 
         with Flow(name="test") as f:
             nested = nest(ll())
-            x = a.map(flat(nested))
+            x = a.map(flatten(nested))
 
         s = f.run(executor=executor)
 
@@ -1085,7 +1085,7 @@ class TestFlatMap:
 
         with Flow(name="test") as f:
             nested = nest.map(ll())
-            x = a.map(flat(nested))
+            x = a.map(flatten(nested))
 
         s = f.run(executor=executor)
 
@@ -1102,8 +1102,8 @@ class TestFlatMap:
 
         with Flow(name="test") as f:
             nested = nest.map(ll())
-            nested2 = nest.map(flat(nested))
-            x = a.map(flat(nested2))
+            nested2 = nest.map(flatten(nested))
+            x = a.map(flatten(nested2))
 
         s = f.run(executor=executor)
 
@@ -1120,8 +1120,8 @@ class TestFlatMap:
 
         with Flow(name="test") as f:
             nested = nest.map(ll())
-            nested2 = nest(flat(nested))
-            x = a.map(flat(nested2))
+            nested2 = nest(flatten(nested))
+            x = a.map(flatten(nested2))
 
         from prefect.utilities.debug import raise_on_exception
 

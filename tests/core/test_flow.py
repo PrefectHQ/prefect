@@ -44,7 +44,7 @@ from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.tasks import task
-from prefect.utilities.edges import unmapped, flat
+from prefect.utilities.edges import unmapped
 
 
 class AddTask(Task):

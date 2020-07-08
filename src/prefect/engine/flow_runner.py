@@ -447,10 +447,10 @@ class FlowRunner(Runner):
                         edge.upstream_task, Pending(message="Task state not available.")
                     )
 
-                    # if the edge is flat and not the result of a map, then we
+                    # if the edge is flattened and not the result of a map, then we
                     # preprocess the upstream states. If it IS the result of a
                     # map, it will be handled in `prepare_upstream_states_for_mapping`
-                    if edge.flat:
+                    if edge.flattened:
                         if not isinstance(upstream_states[edge], Mapped):
                             upstream_states[edge] = executor.submit(
                                 executors.flatten_upstream_state, upstream_states[edge]
@@ -461,9 +461,9 @@ class FlowRunner(Runner):
                     if not edge.mapped and isinstance(upstream_states[edge], Mapped):
                         children = mapped_children.get(edge.upstream_task, [])
 
-                        # if the edge is flat, then we need to wait for the mapped children
+                        # if the edge is flattened, then we need to wait for the mapped children
                         # to complete and then flatten them
-                        if edge.flat:
+                        if edge.flattened:
                             children = executor.wait(children)
                             children = executors.flatten_mapped_children(
                                 mapped_children=children, executor=executor,

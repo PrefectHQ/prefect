@@ -4,7 +4,7 @@ from typing import Dict, Any
 
 class EdgeAnnotation:
     """
-    A parent class for containers like `unmapped` and `flat` that indicate
+    A parent class for containers like `unmapped` and `flatten` that indicate
     an annotation for an edge
 
     EdgeAnnotations store a set of annotations, allowing multiple annotations
@@ -83,7 +83,7 @@ class unmapped(EdgeAnnotation):
         super().__init__(task=task, annotations={"mapped": False})
 
 
-class flat(EdgeAnnotation):
+class flatten(EdgeAnnotation):
     """
     A container for specifying that a task's output should be flattened before
     being passed to another task.
@@ -94,7 +94,7 @@ class flat(EdgeAnnotation):
 
     Example:
         ```python
-        from prefect import Flow, Task, flat
+        from prefect import Flow, Task, flatten
 
         class Add(Task):
             def run(self, x):
@@ -108,11 +108,11 @@ class flat(EdgeAnnotation):
             add = Add()
             ll = ListTask()
 
-            result = add.map(x=flat(ll))
+            result = add.map(x=flatten(ll))
 
         # result represents [101, 102, 103]
         ```
     """
 
     def __init__(self, task: "prefect.core.task.Task"):
-        super().__init__(task=task, annotations={"flat": True})
+        super().__init__(task=task, annotations={"flattened": True})
