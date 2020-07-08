@@ -616,8 +616,8 @@ class Flow:
 
         Args:
             - flow (Flow): A flow which is used to update this flow.
-            - merge_parameters (bool, False): Duplicate paramaeters in the input flow are replaced
-                with parameters from the updated flow. If `True`, validate will also be set to `True`.
+            - merge_parameters (bool, False): If `True`, duplicate paramaeters are replaced
+                with parameters from the provided flow. Defaults to `False`. If `True`, validate will also be set to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
 
         Returns:
