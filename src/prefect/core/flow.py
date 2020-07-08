@@ -617,7 +617,7 @@ class Flow:
         Args:
             - flow (Flow): A flow which is used to update this flow.
             - merge_parameters (bool, False): Duplicate paramaeters in the input flow are replaced
-                with parameters from the updated flow. Validate defaults to `True`.
+                with parameters from the updated flow. If `True`, validate will also be set to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
 
         Returns:
@@ -625,35 +625,24 @@ class Flow:
         """
         if merge_parameters:
             validate = True
+            new_parameters = {p.name: p for p in flow.parameters()}
+            for p in self.parameters():
+                if p.name in new_parameters:
+                    self.replace(p, new_parameters[p.name])
 
         for task in flow.tasks:
-
-            if merge_parameters and isinstance(task, Parameter):
-                duped_parameter = [p for p in self.parameters() if p.name == task.name]
-            else:
-                duped_parameter = []
-
-            # Adds a task if slugs are not duplicate
-            if (task not in self.tasks) and (not duped_parameter):
+            if task not in self.tasks:
                 self.add_task(task)
 
-        # Append the new edges to this flow.
         for edge in flow.edges:
-
-            if edge.upstream_task.name in self.slugs.values():
-
-                upstream_task = self.get_tasks(name=edge.upstream_task.name)[0]
-
-            else:
-                upstream_task = edge.upstream_task
-
-            self.add_edge(
-                upstream_task=upstream_task,
-                downstream_task=edge.downstream_task,
-                key=edge.key,
-                mapped=edge.mapped,
-                validate=validate,
-            )
+            if edge not in self.edges:
+                self.add_edge(
+                    upstream_task=edge.upstream_task,
+                    downstream_task=edge.downstream_task,
+                    key=edge.key,
+                    mapped=edge.mapped,
+                    validate=validate,
+                )
 
         self.constants.update(flow.constants or {})
 

@@ -947,9 +947,7 @@ def test_update_with_parameter_merge():
 
     with Flow("Add") as add_fl:
         a_number = Parameter("a_number", default=1)
-
         the_result = add_one(a_number)
-
         pos_two = mult_one(the_result)
 
     @task
@@ -957,29 +955,25 @@ def test_update_with_parameter_merge():
         return a_number - another_number
 
     with Flow("Subtract") as subtract_fl:
-
-        a_number = Parameter("a_number", default=1)
+        a_number = Parameter("a_number", default=2)
         another_number = Parameter("another_number", default=2)
-
         the_result = sub_one(a_number, another_number)
-
         neg_one = mult_one(the_result)
 
-    add_fl.update(subtract_fl, merge_parameters=True)
+    with pytest.raises(
+        ValueError, match='A task with the slug "a_number" already exists in this flow.'
+    ):
+        add_fl.update(subtract_fl)
 
+    add_fl.update(subtract_fl, merge_parameters=True)
     state = add_fl.run()
     assert state.is_successful()
 
     add_res = state.result[pos_two].result
     sub_res = state.result[neg_one].result
 
-    assert add_res == 2
-    assert sub_res == -1
-
-    with pytest.raises(
-        ValueError, match='A task with the slug "a_number" already exists in this flow.'
-    ):
-        add_fl.update(subtract_fl)
+    assert add_res == 3
+    assert sub_res == 0
 
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
