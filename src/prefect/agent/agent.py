@@ -31,6 +31,8 @@ ascii_name = r"""
 |_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
                                            |___/
 """
+# Event to notify agent process to start looking for available flow runs.
+AGENT_WAKE_EVENT = threading.Event()
 
 
 @contextmanager
@@ -40,6 +42,7 @@ def exit_handler(agent: "Agent") -> Generator:
     def _exit_handler(*args: Any, **kwargs: Any) -> None:
         agent.logger.info("Keyboard Interrupt received: Agent is shutting down.")
         exit_event.set()
+        AGENT_WAKE_EVENT.set()
 
     original = signal.getsignal(signal.SIGINT)
     try:
@@ -57,6 +60,18 @@ class HealthHandler(web.RequestHandler):
     def get(self) -> None:
         # Empty json blob, may add more info later
         self.write({})
+
+
+class PokeHandler(web.RequestHandler):
+    """Respond to /api/poke
+
+    The handler is expected to be called by user to notify agent of available
+    flow runs waiting for execution.
+    """
+
+    def get(self) -> None:
+        # Wake up agent that might be waiting for interval loop to complete.
+        AGENT_WAKE_EVENT.set()
 
 
 class Agent:
@@ -170,10 +185,13 @@ class Agent:
 
         return agent_id
 
-    def start(self) -> None:
+    def start(self, _loop_intervals: dict = None) -> None:
         """
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
+
+        Args:
+            - _loop_intervals (dict, optional): Exposed for testing only.
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
@@ -185,7 +203,7 @@ class Agent:
             with exit_handler(self) as exit_event:
 
                 # Loop intervals for query sleep backoff
-                loop_intervals = {
+                loop_intervals = _loop_intervals or {
                     0: 0.25,
                     1: 0.5,
                     2: 1.0,
@@ -204,10 +222,10 @@ class Agent:
 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     self.logger.debug("Max Workers: {}".format(max_workers))
-                    while (
-                        not exit_event.wait(timeout=loop_intervals[index])
-                        and remaining_polls
-                    ):
+                    while not exit_event.is_set() and remaining_polls:
+                        # Reset the event in case it was set by poke handler.
+                        AGENT_WAKE_EVENT.clear()
+
                         self.heartbeat()
 
                         if self.agent_process(executor):
@@ -222,6 +240,11 @@ class Agent:
                                 loop_intervals[index]
                             )
                         )
+
+                        # Wait for loop interval timeout or agent to be poked by
+                        # external process before querying for flow runs again.
+                        AGENT_WAKE_EVENT.wait(timeout=loop_intervals[index])
+
         finally:
             self.cleanup()
 
@@ -234,7 +257,9 @@ class Agent:
                 raise ValueError("Must specify port in agent address")
             port = cast(int, parsed.port)
             hostname = parsed.hostname or ""
-            app = web.Application([("/api/health", HealthHandler)])
+            app = web.Application(
+                [("/api/health", HealthHandler), ("/api/poke", PokeHandler)]
+            )
 
             def run() -> None:
                 self.logger.debug(

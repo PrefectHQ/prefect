@@ -293,6 +293,7 @@ class Flow:
 
         # update tasks
         self.tasks.remove(old)
+        self.slugs.pop(old)
         self.add_task(new)
 
         self._cache.clear()

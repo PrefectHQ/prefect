@@ -8,6 +8,11 @@ The local agent is designed to operate in any environment in which Prefect is in
 
 The local agent has no outside dependencies and only requires that Prefect is installed!
 
+If running the local agent inside a Docker container, we recommend you also use
+an init process like [`tini`](https://github.com/krallin/tini). Running without
+an init process may result in lingering zombie processes accumulating in your
+container.
+
 ### Usage
 
 #### Start from Flow
