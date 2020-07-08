@@ -8,14 +8,14 @@ import yaml
 
 SKIPLINES = 1
 SECTIONS = [
-    "feature",
-    "enhancement",
-    "server",
-    "task",
-    "fix",
-    "deprecation",
-    "breaking",
-    "contributor",
+    ("feature", "Features"),
+    ("enhancement", "Enhancements"),
+    ("server", "Server"),
+    ("task", "Task Library"),
+    ("fix", "Fixes"),
+    ("deprecation", "Deprecations"),
+    ("breaking", "Breaking Changes"),
+    ("contributor", "Contributors"),
 ]
 DEDUPLICATE_SECTIONS = ["contributor"]
 
@@ -24,37 +24,7 @@ TEMPLATE = """
 
 Released on {date}.
 
-### Features
-
-{feature}
-
-### Enhancements
-
-{enhancement}
-
-### Task Library
-
-{task}
-
-### Server
-
-{server}
-
-### Fixes
-
-{fix}
-
-### Deprecations
-
-{deprecation}
-
-### Breaking Changes
-
-{breaking}
-
-### Contributors
-
-{contributor}
+{sections}
 """
 
 REPO_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -66,7 +36,7 @@ def run(version, overwrite=False):
     change_files = sorted(glob.glob(os.path.join(CHANGES_DIR, "*.yaml")))
     change_files = [p for p in change_files if not p.endswith("EXAMPLE.yaml")]
     # Load changes
-    changes = {s: [] for s in SECTIONS}
+    changes = {s: [] for s, _ in SECTIONS}
     for path in change_files:
         with open(path) as f:
             data = yaml.safe_load(f)
@@ -80,19 +50,18 @@ def run(version, overwrite=False):
                     raise ValueError(f"invalid file {path}")
 
     # Build up subsections
-    sections = {}
-    for name, values in changes.items():
+    sections = []
+    for name, header in SECTIONS:
+        values = changes[name]
         if name in DEDUPLICATE_SECTIONS:
             values = sorted(set(values))
         if values:
             text = "\n".join("- %s" % v for v in values)
-        else:
-            text = "- None"
-        sections[name] = text
+            sections.append(f"{header}\n\n{text}")
 
     # Build new release section
     date = "{dt:%B} {dt.day}, {dt:%Y}".format(dt=datetime.date.today())
-    new = TEMPLATE.format(version=version, date=date, **sections)
+    new = TEMPLATE.format(version=version, date=date, sections="\n\n".join(sections))
 
     # Insert new section in existing changelog
     with open(CHANGELOG_PATH) as f:
