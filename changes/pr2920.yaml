@@ -1,0 +1,2 @@
+fix:
+  - When terminating early, executors ensure all pending work is cancelled/completed before returning, ensuring no lingering background processing - [#2920](https://github.com/PrefectHQ/prefect/pull/2920)

@@ -1,6 +1,7 @@
-import uuid
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator
+
+from prefect.utilities.logging import get_logger
 
 
 class Executor:
@@ -9,7 +10,7 @@ class Executor:
     """
 
     def __init__(self) -> None:
-        self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
+        self.logger = get_logger(type(self).__name__)
 
     def __repr__(self) -> str:
         return "<Executor: {}>".format(type(self).__name__)
