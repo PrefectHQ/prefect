@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.12.3 <Badge text="beta" type="success" />
+
+Released on July 8, 2020.
+
+### Enhancements
+
+- Update `flow.slugs` during `flow.replace` - [#2919](https://github.com/PrefectHQ/prefect/issues/2919)
+- `flow.update` accepts the optional kwarg `merge_parameters` that allows flows to be updated with common `Parameters` - [#2501](https://github.com/PrefectHQ/prefect/issues/2501)
+- Added poke handler to notify agent process of available flow runs - [#2914](https://github.com/PrefectHQ/prefect/pull/2914)
+- Add `Cancelling` state for indicating a flow-run that is being cancelled, but may still have tasks running - [#2923](https://github.com/PrefectHQ/prefect/pull/2923)
+
+### Task Library
+
+- Add `ReadAirtableRow` task - [#2843](https://github.com/PrefectHQ/prefect/pull/2843)
+- Add `container_name` kwarg to `CreateContainer` Docker task - [#2904](https://github.com/PrefectHQ/prefect/pull/2904)
+- Adds an `extra_docker_kwargs` argument to `CreateContainer` Docker task - [#2915](https://github.com/PrefectHQ/prefect/pull/2915)
+
+### Fixes
+
+- Fix issue with short-interval IntervalClocks that had a start_date far in the past - [#2906](https://github.com/PrefectHQ/prefect/pull/2906)
+- When terminating early, executors ensure all pending work is cancelled/completed before returning, ensuring no lingering background processing - [#2920](https://github.com/PrefectHQ/prefect/pull/2920)
+
+### Contributors
+
+- [Bradley McElroy](https://github.com/limx0)
+- [Itay Livni](https://github.com/gryBox)
+- [Matthew Alhonte](https://github.com/mattalhonte)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+- [Sandeep Aggarwal](https://github.com/asandeep)
+
 ## 0.12.2 <Badge text="beta" type="success" />
 
 Released on June 30, 2020.

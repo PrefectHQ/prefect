@@ -1,5 +1,0 @@
-task:
-    - "Adds an `extra_docker_kwargs` argument to `CreateContainer` Docker task - [#2915](https://github.com/PrefectHQ/prefect/pull/2915)"
-
-contributor:
-    - "[Bradley McElroy](https://github.com/limx0)"
