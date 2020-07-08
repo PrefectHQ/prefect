@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 
+import prefect
 from prefect.tasks.prefect.flow_run import FlowRunTask
 
 
@@ -52,7 +53,24 @@ class TestFlowRunTaskCloud:
 
         # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
-            flow_id="abc123", parameters={"test": "ing"}
+            flow_id="abc123", parameters={"test": "ing"}, idempotency_key=None
+        )
+
+    def test_flow_run_task_with_flow_run_id(self, client, cloud_api):
+        # verify that create_flow_run was called
+        task = FlowRunTask(
+            project_name="Test Project",
+            flow_name="Test Flow",
+            parameters={"test": "ing"},
+        )
+
+        # verify that run returns the new flow run ID
+        with prefect.context(flow_run_id="test-id"):
+            assert task.run() == "xyz890"
+
+        # verify create_flow_run was called with the correct arguments
+        client.create_flow_run.assert_called_once_with(
+            flow_id="abc123", parameters={"test": "ing"}, idempotency_key="test-id"
         )
 
     def test_flow_run_task_without_flow_name(self, cloud_api):
@@ -100,7 +118,7 @@ class TestFlowRunTaskCoreServer:
 
         # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
-            flow_id="abc123", parameters={"test": "ing"}
+            flow_id="abc123", parameters={"test": "ing"}, idempotency_key=None
         )
 
     def test_flow_run_task_without_flow_name(self, server_api):
