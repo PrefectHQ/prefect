@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 from prefect import config, context, Task
 from prefect.client import Client
-from prefect.engine.signals import PrefectStateSignal
+from prefect.engine.signals import signal_from_state
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -125,15 +125,11 @@ class FlowRunTask(Task):
         if not self.wait:
             return flow_run_id
 
-        signals = {
-            sig._state_cls.__name__: sig for sig in PrefectStateSignal.__subclasses__()
-        }
-
         while True:
             time.sleep(10)
             flow_run_state = client.get_flow_run_info(flow_run_id).state
             if flow_run_state.is_finished():
-                exc = signals[type(flow_run_state).__name__](
+                exc = signal_from_state(flow_run_state)(
                     f"{flow_run_id} finished in state {flow_run_state}"
                 )
                 raise exc

@@ -14,6 +14,7 @@ from prefect.engine.signals import (
     TRIGGERFAIL,
     VALIDATIONFAIL,
     PrefectStateSignal,
+    signal_from_state,
 )
 from prefect.engine.state import (
     Failed,
@@ -118,3 +119,19 @@ def test_retry_signals_carry_default_retry_time_on_state():
     assert exc.value.state.start_time is not None
     now = pendulum.now("utc")
     assert now - exc.value.state.start_time < datetime.timedelta(seconds=0.1)
+
+
+@pytest.mark.parametrize(
+    "signal,state",
+    [
+        (FAIL, Failed),
+        (TRIGGERFAIL, TriggerFailed),
+        (VALIDATIONFAIL, ValidationFailed),
+        (SUCCESS, Success),
+        (PAUSE, Paused),
+        (RETRY, Retrying),
+        (SKIP, Skipped),
+    ],
+)
+def test_signal_from_state_returns_correct_signal(signal, state):
+    assert signal_from_state(state("Dummy message")) == signal
