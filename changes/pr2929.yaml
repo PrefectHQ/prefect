@@ -1,0 +1,2 @@
+enhancement:
+  - "Add py.warnings as a default extra logger to capture Warnings as logs - [#2929](https://github.com/PrefectHQ/prefect/pull/2929)"
