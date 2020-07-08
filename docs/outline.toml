@@ -253,6 +253,7 @@ classes = [
         "PatchNamespacedJob",
         "ReadNamespacedJob",
         "ReplaceNamespacedJob",
+        "RunNamespacedJob",
         "CreateNamespacedPod",
         "DeleteNamespacedPod",
         "ListNamespacedPod",
