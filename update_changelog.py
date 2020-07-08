@@ -2,6 +2,7 @@ import argparse
 import datetime
 import glob
 import os
+import sys
 
 import yaml
 
@@ -37,20 +38,34 @@ def get_change_files():
     return change_files
 
 
+def bad_entry(path):
+    return ValueError(
+        f"{path!r} does not contain a valid changelog entry, see the "
+        f"`changes/README.md` file for more information."
+    )
+
+
 def generate_new_section(version):
     # Load changes
     changes = {s: [] for s, _ in SECTIONS}
     for path in get_change_files():
         with open(path) as f:
-            data = yaml.safe_load(f)
+            try:
+                data = yaml.safe_load(f)
+            except Exception:
+                raise ValueError(
+                    f"{path!r} does not contain valid YAML - perhaps you forgot to quote a string?"
+                )
+            if not isinstance(data, dict):
+                raise bad_entry(path)
             for k, v in data.items():
                 if k in changes:
                     if isinstance(v, list) and all(isinstance(i, str) for i in v):
                         changes[k].extend(v)
                     else:
-                        raise ValueError(f"invalid file {path}")
+                        raise bad_entry(path)
                 else:
-                    raise ValueError(f"invalid file {path}")
+                    raise bad_entry(path)
 
     # Build up subsections
     sections = []
@@ -65,6 +80,17 @@ def generate_new_section(version):
     # Build new release section
     date = "{dt:%B} {dt.day}, {dt:%Y}".format(dt=datetime.date.today())
     return TEMPLATE.format(version=version, date=date, sections="\n\n".join(sections))
+
+
+def lint():
+    try:
+        generate_new_section("Upcoming Release")
+    except Exception as exc:
+        print("Linting the `changes/` directory failed:\n")
+        print(exc)
+        sys.exit(1)
+    else:
+        print("All `changes/` files are in excellent condition!")
 
 
 def preview():
@@ -106,11 +132,17 @@ def main():
     generate_parser.add_argument(
         "version", help="The version number to name this release section"
     )
+    lint_parser = subparser.add_parser(
+        "lint", help="Ensure the changelog entries are all valid"
+    )
+    lint_parser.set_defaults(command="lint")
     args = parser.parse_args()
     if args.command == "generate":
         generate(args.version)
     elif args.command == "preview":
         preview()
+    elif args.command == "lint":
+        lint()
 
 
 if __name__ == "__main__":
