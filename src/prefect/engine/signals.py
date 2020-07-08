@@ -22,7 +22,7 @@ def signal_from_state(state: state.State) -> Type["PrefectStateSignal"]:
             the provided state
 
     Raises:
-        - KeyError: if no signal matches the provided state
+        - ValueError: if no signal matches the provided state
     """
     unprocessed = set(PrefectStateSignal.__subclasses__())
     signals = dict()
@@ -33,7 +33,7 @@ def signal_from_state(state: state.State) -> Type["PrefectStateSignal"]:
     try:
         return signals[type(state).__name__]
     except KeyError:
-        raise KeyError(f"No signal matches the provided state: {state}") from None
+        raise ValueError(f"No signal matches the provided state: {state}") from None
 
 
 class ENDRUN(Exception):
