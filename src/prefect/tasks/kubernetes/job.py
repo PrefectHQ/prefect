@@ -723,6 +723,6 @@ class RunNamespacedJob(Task):
             api_client.delete_namespaced_job(
                 name=job_name,
                 namespace=namespace,
-                body=client.V1DeleteOptions(propagation_policy="Background"),
+                body=client.V1DeleteOptions(propagation_policy="Foreground"),
             )
             self.logger.info(f"Job {job_name} has been deleted.")
