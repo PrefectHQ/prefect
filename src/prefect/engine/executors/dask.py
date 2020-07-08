@@ -210,6 +210,9 @@ class DaskExecutor(Executor):
         self.client_kwargs = client_kwargs
         # Runtime attributes
         self.client = None
+        # These are coupled - they're either both None, or both non-None.
+        # They're used in the case we can't forcibly kill all the dask workers,
+        # and need to wait for all the dask tasks to cleanup before exiting.
         self._futures = None  # type: Optional[weakref.WeakSet[Future]]
         self._should_run_var = None  # type: Optional[Variable]
 
