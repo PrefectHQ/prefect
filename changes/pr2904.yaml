@@ -1,5 +1,0 @@
-task:
-    - "Add `container_name` kwarg to `CreateContainer` Docker task - [#2904](https://github.com/PrefectHQ/prefect/pull/2904)"
-
-contributor:
-    - "[Bradley McElroy](https://github.com/limx0)"
