@@ -47,6 +47,8 @@ def cloud_flow():
         }
     }
 
+    flow_run = None
+
     try:
         client = Client()
         result = client.graphql(query)
@@ -74,7 +76,10 @@ def cloud_flow():
     except Exception as exc:
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)
-        version = result.data.flow_run[0].version
-        client.set_flow_run_state(flow_run_id=flow_run_id, version=version, state=state)
+        if flow_run:
+            version = result.data.flow_run[0].version
+            client.set_flow_run_state(
+                flow_run_id=flow_run_id, version=version, state=state
+            )
         click.echo(str(exc))
         raise exc
