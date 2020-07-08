@@ -15,6 +15,7 @@ import pytest
 import toml
 
 import prefect
+from prefect import task
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Task
@@ -933,6 +934,46 @@ def test_update_with_mapped_edges():
     assert f2.tasks == {m, t1, t2, t3}
     assert len(f2.edges) == 2
     assert len([e for e in f2.edges if e.mapped]) == 1
+
+
+def test_update_with_parameter_merge():
+    @task
+    def add_one(a_number: int):
+        return a_number + 1
+
+    @task
+    def mult_one(z: int):
+        return z * 1
+
+    with Flow("Add") as add_fl:
+        a_number = Parameter("a_number", default=1)
+        the_result = add_one(a_number)
+        pos_two = mult_one(the_result)
+
+    @task
+    def sub_one(a_number: int, another_number: int):
+        return a_number - another_number
+
+    with Flow("Subtract") as subtract_fl:
+        a_number = Parameter("a_number", default=2)
+        another_number = Parameter("another_number", default=2)
+        the_result = sub_one(a_number, another_number)
+        neg_one = mult_one(the_result)
+
+    with pytest.raises(
+        ValueError, match='A task with the slug "a_number" already exists in this flow.'
+    ):
+        add_fl.update(subtract_fl)
+
+    add_fl.update(subtract_fl, merge_parameters=True)
+    state = add_fl.run()
+    assert state.is_successful()
+
+    add_res = state.result[pos_two].result
+    sub_res = state.result[neg_one].result
+
+    assert add_res == 3
+    assert sub_res == 0
 
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():

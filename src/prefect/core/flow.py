@@ -607,17 +607,31 @@ class Flow:
             )
         return edges
 
-    def update(self, flow: "Flow", validate: bool = None) -> None:
+    def update(
+        self, flow: "Flow", merge_parameters: bool = False, validate: bool = None
+    ) -> None:
         """
-        Take all tasks and edges in another flow and add it to this flow
+        Take all tasks and edges in another flow and add it to this flow.
+            When `merge_parameters` is set to`True` -- Duplicate parameters in the input `flow`
+            are replaced with those in the flow being updated.
 
         Args:
-            - flow (Flow): A flow which is used to update this flow
-            - validate (bool, optional): Whether or not to check the validity of the flow
+            - flow (Flow): A flow which is used to update this flow.
+            - merge_parameters (bool, False): If `True`, duplicate paramaeters are replaced
+                with parameters from the provided flow. Defaults to `False`.
+                If `True`, validate will also be set to `True`.
+            - validate (bool, optional): Whether or not to check the validity of the flow.
 
         Returns:
             - None
         """
+        if merge_parameters:
+            validate = True
+            new_parameters = {p.name: p for p in flow.parameters()}
+            for p in self.parameters():
+                if p.name in new_parameters:
+                    self.replace(p, new_parameters[p.name])
+
         for task in flow.tasks:
             if task not in self.tasks:
                 self.add_task(task)
