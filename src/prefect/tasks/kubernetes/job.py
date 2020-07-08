@@ -613,11 +613,12 @@ class RunNamespacedJob(Task):
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
+        - job_status_pool_interval (int, optional): The interval given in seconds
+            indicating how often the Kubernetes API will be requested about the status
+            of the job being performed, defaults to the `5` seconds
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
-
-    JOB_STATUS_POOL_INTERVAL = 5
 
     def __init__(
         self,
@@ -625,17 +626,23 @@ class RunNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
+        job_status_pool_interval: int = 5,
         **kwargs: Any,
     ):
         self.body = body or {}
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
+        self.job_status_pool_interval = job_status_pool_interval
 
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "body", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
+        "body",
+        "namespace",
+        "kube_kwargs",
+        "kubernetes_api_key_secret",
+        "job_status_pool_interval",
     )
     def run(
         self,
@@ -643,6 +650,7 @@ class RunNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
+        job_status_pool_interval: int = 5,
     ) -> None:
         """
         Task run method.
@@ -657,6 +665,9 @@ class RunNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+            - job_status_pool_interval (int, optional): The interval given in seconds
+                indicating how often the Kubernetes API will be requested about the status
+                of the job being performed, defaults to the `5` seconds
 
         Raises:
             - ValueError: if `body` is `None`
@@ -688,7 +699,7 @@ class RunNamespacedJob(Task):
             )
 
             if res.status.active:
-                time.sleep(self.JOB_STATUS_POOL_INTERVAL)
+                time.sleep(job_status_pool_interval)
             else:
                 if res.status.failed:
                     raise signals.FAIL(
