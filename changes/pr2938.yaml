@@ -1,2 +1,0 @@
-fix:
-  - "Handle possible Client exceptions in `execute` CLI command - [#2938](https://github.com/PrefectHQ/prefect/pull/2938)"

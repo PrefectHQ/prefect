@@ -47,17 +47,15 @@ def cloud_flow():
         }
     }
 
-    flow_run = None
+    client = Client()
+    result = client.graphql(query)
+    flow_run = result.data.flow_run
+
+    if not flow_run:
+        click.echo("Flow run {} not found".format(flow_run_id))
+        raise ValueError("Flow run {} not found".format(flow_run_id))
 
     try:
-        client = Client()
-        result = client.graphql(query)
-        flow_run = result.data.flow_run
-
-        if not flow_run:
-            click.echo("Flow run {} not found".format(flow_run_id))
-            raise ValueError("Flow run {} not found".format(flow_run_id))
-
         flow_data = flow_run[0].flow
         storage_schema = prefect.serialization.storage.StorageSchema()
         storage = storage_schema.load(flow_data.storage)
@@ -76,10 +74,7 @@ def cloud_flow():
     except Exception as exc:
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)
-        if flow_run:
-            version = result.data.flow_run[0].version
-            client.set_flow_run_state(
-                flow_run_id=flow_run_id, version=version, state=state
-            )
+        version = result.data.flow_run[0].version
+        client.set_flow_run_state(flow_run_id=flow_run_id, version=version, state=state)
         click.echo(str(exc))
         raise exc
