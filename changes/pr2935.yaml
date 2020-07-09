@@ -1,0 +1,2 @@
+enhancement:
+  - "Add new `wait` kwarg to Flow Run Task for reflecting the flow run state in the task - [#2935](https://github.com/PrefectHQ/prefect/pull/2935)"
