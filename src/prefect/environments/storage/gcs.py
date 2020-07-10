@@ -7,6 +7,7 @@ from slugify import slugify
 from prefect.engine.results import GCSResult
 from prefect.environments.storage import Storage
 from prefect.utilities.exceptions import StorageError
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -33,11 +34,13 @@ class GCS(Storage):
             is only useful when storing a single Flow using this storage object.
         - project (str, optional): the google project where any GCS API requests are billed to;
             if not provided, the project will be inferred from your Google Cloud credentials.
+        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self, bucket: str, key: str = None, project: str = None, **kwargs: Any
+        self, bucket: str, key: str = None, project: str = None, stored_as_file: bool = False, **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -47,7 +50,7 @@ class GCS(Storage):
         self.project = project
 
         result = GCSResult(bucket=bucket)
-        super().__init__(result=result, **kwargs)
+        super().__init__(result=result, stored_as_file=stored_as_file, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -82,6 +85,10 @@ class GCS(Storage):
                 )
             )
         content = blob.download_as_string()
+
+        if self.stored_as_file:
+            return extract_flow_from_file(file_contents=content)
+
         return cloudpickle.loads(content)
 
     def add_flow(self, flow: "Flow") -> str:
@@ -132,6 +139,13 @@ class GCS(Storage):
                 each flow is stored
         """
         self.run_basic_healthchecks()
+
+        if self.stored_as_file:
+            if not self.key:
+                raise ValueError(
+                    "A `key` must be provided to show where flow `.py` file is stored in GCS."
+                )
+            return self
 
         for flow_name, flow in self._flows.items():
             content = cloudpickle.dumps(flow)

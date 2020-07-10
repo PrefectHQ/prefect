@@ -7,6 +7,7 @@ from slugify import slugify
 
 from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -28,12 +29,19 @@ class S3(Storage):
         - bucket (str): the name of the S3 Bucket to store Flows
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
+        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - client_options (dict, optional): Additional options for the `boto3` client.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self, bucket: str, client_options: dict = None, key: str = None, **kwargs: Any
+        self,
+        bucket: str,
+        key: str = None,
+        stored_as_file: bool = False,
+        client_options: dict = None,
+        **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -43,7 +51,7 @@ class S3(Storage):
         self.client_options = client_options
 
         result = S3Result(bucket=bucket)
-        super().__init__(result=result, **kwargs)
+        super().__init__(result=result, stored_as_file=stored_as_file, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -86,6 +94,9 @@ class S3(Storage):
         # prepare data and return
         stream.seek(0)
         output = stream.read()
+
+        if self.stored_as_file:
+            return extract_flow_from_file(file_contents=output)  # type: ignore
 
         return cloudpickle.loads(output)
 
@@ -132,6 +143,13 @@ class S3(Storage):
             - botocore.ClientError: if there is an issue uploading a Flow to S3
         """
         self.run_basic_healthchecks()
+
+        if self.stored_as_file:
+            if not self.key:
+                raise ValueError(
+                    "A `key` must be provided to show where flow `.py` file is stored in S3."
+                )
+            return self
 
         for flow_name, flow in self._flows.items():
             # Pickle Flow

@@ -7,6 +7,7 @@ from slugify import slugify
 
 from prefect.engine.results import AzureResult
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -31,6 +32,8 @@ class Azure(Storage):
             `AZURE_STORAGE_CONNECTION_STRING` will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
+        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -39,6 +42,7 @@ class Azure(Storage):
         container: str,
         connection_string: str = None,
         blob_name: str = None,
+        stored_as_file: bool = False,
         **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
@@ -54,7 +58,7 @@ class Azure(Storage):
         result = AzureResult(
             connection_string=self.connection_string, container=container
         )
-        super().__init__(result=result, **kwargs)
+        super().__init__(result=result, stored_as_file=stored_as_file, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -83,8 +87,12 @@ class Azure(Storage):
 
         self.logger.info("Downloading {} from {}".format(flow_location, self.container))
 
-        content = client.download_blob()
-        return cloudpickle.loads(content.content_as_bytes())
+        content = client.download_blob().content_as_bytes()
+
+        if self.stored_as_file:
+            return extract_flow_from_file(file_contents=content)  # type: ignore
+
+        return cloudpickle.loads(content)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -134,6 +142,13 @@ class Azure(Storage):
                 each flow is stored
         """
         self.run_basic_healthchecks()
+
+        if self.stored_as_file:
+            if not self.blob_name:
+                raise ValueError(
+                    "A `blob_name` must be provided to show where flow `.py` file is stored in Azure."
+                )
+            return self
 
         for flow_name, flow in self._flows.items():
             data = cloudpickle.dumps(flow)
