@@ -180,37 +180,57 @@ class CloudFlowRunner(FlowRunner):
 
         def interrupt_if_cancelling() -> None:
             flow_run_id = prefect.context["flow_run_id"]
-            while not done.wait(prefect.config.cloud.check_cancellation_interval):
-                flow_run_info = self.client.get_flow_run_info(flow_run_id)
+            while True:
+                exiting_context = done.wait(
+                    prefect.config.cloud.check_cancellation_interval
+                )
+                try:
+                    self.logger.debug("Checking flow run state...")
+                    flow_run_info = self.client.get_flow_run_info(flow_run_id)
+                except Exception:
+                    self.logger.warning("Error getting flow run info", exc_info=True)
+                    continue
+                else:
+                    self.logger.debug(
+                        "Successfully queried server for flow run state: %r",
+                        flow_run_info.state,
+                    )
                 if isinstance(flow_run_info.state, Cancelling):
+                    self.logger.info(
+                        "Flow run has been cancelled, cancelling active tasks"
+                    )
                     nonlocal cancelling
                     nonlocal flow_run_version
                     cancelling = True
                     flow_run_version = flow_run_info.version
-                    # Raise KeyboardInterrupt in the main thread
-                    if hasattr(signal, "raise_signal"):
-                        # New in python 3.8
-                        signal.raise_signal(signal.SIGINT)  # type: ignore
-                    else:
-                        if os.name == "nt":
-                            os.kill(os.getpid(), signal.SIGINT)
+                    # If not already leaving context, raise KeyboardInterrupt in the main thread
+                    if not exiting_context:
+                        if hasattr(signal, "raise_signal"):
+                            # New in python 3.8
+                            signal.raise_signal(signal.SIGINT)  # type: ignore
                         else:
-                            signal.pthread_kill(
-                                threading.main_thread().ident, signal.SIGINT  # type: ignore
-                            )
+                            if os.name == "nt":
+                                os.kill(os.getpid(), signal.SIGINT)
+                            else:
+                                signal.pthread_kill(
+                                    threading.main_thread().ident, signal.SIGINT  # type: ignore
+                                )
+                if exiting_context:
+                    break
 
         thread = threading.Thread(target=interrupt_if_cancelling, daemon=True)
         thread.start()
         try:
             yield
         except KeyboardInterrupt:
-            if cancelling:
-                prefect.context.update(flow_run_version=flow_run_version)
-                raise ENDRUN(state=Cancelled("Flow run is cancelled"))
-            raise
+            if not cancelling:
+                raise
         finally:
             done.set()
             thread.join()
+            if cancelling:
+                prefect.context.update(flow_run_version=flow_run_version)
+                raise ENDRUN(state=Cancelled("Flow run is cancelled"))
 
     def run(
         self,
