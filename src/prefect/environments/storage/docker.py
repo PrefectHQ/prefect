@@ -448,8 +448,8 @@ class Docker(Storage):
                 )
 
         # Write all flows to file and load into the image
+        copy_flows = ""
         if not self.stored_as_file:
-            copy_flows = ""
             for flow_name, flow_location in self.flows.items():
                 clean_name = slugify(flow_name)
                 flow_path = os.path.join(directory, "{}.flow".format(clean_name))
