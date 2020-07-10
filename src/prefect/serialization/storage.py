@@ -36,6 +36,7 @@ class DockerSchema(ObjectSchema):
     registry_url = fields.String(allow_none=True)
     image_name = fields.String(allow_none=True)
     image_tag = fields.String(allow_none=True)
+    path = fields.Str(allow_none=True)
     stored_as_file = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     prefect_version = fields.String(allow_none=False)
