@@ -70,6 +70,8 @@ class LocalSchema(ObjectSchema):
         object_class = Local
 
     directory = fields.Str(allow_none=False)
+    path = fields.Str(allow_none=True)
+    stored_as_file = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
 

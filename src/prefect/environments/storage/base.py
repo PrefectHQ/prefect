@@ -26,6 +26,8 @@ class Storage(metaclass=ABCMeta):
         - add_default_labels (bool): If `True`, adds the storage specific default label (if
             applicable) to the storage labels. Defaults to the value specified in the
             configuration at `flows.defaults.storage.add_default_labels`.
+        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
     """
 
     def __init__(
@@ -34,9 +36,11 @@ class Storage(metaclass=ABCMeta):
         secrets: List[str] = None,
         labels: List[str] = None,
         add_default_labels: bool = None,
+        stored_as_file: bool = False,
     ) -> None:
         self.result = result
         self.secrets = secrets or []
+        self.stored_as_file = stored_as_file
         self._labels = labels or []
         if add_default_labels is None:
             self.add_default_labels = config.flows.defaults.storage.add_default_labels
