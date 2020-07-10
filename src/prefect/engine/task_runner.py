@@ -23,7 +23,6 @@ from prefect.engine.results import PrefectResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
-    Cancelled,
     Failed,
     Looped,
     Mapped,
@@ -819,11 +818,6 @@ class TaskRunner(Runner):
                 value = timeout_handler(
                     self.task.run, timeout=self.task.timeout, **raw_inputs
                 )
-
-        except KeyboardInterrupt:
-            self.logger.debug("Interrupt signal raised, cancelling task run.")
-            state = Cancelled(message="Interrupt signal raised, cancelling task run.")
-            return state
 
         # inform user of timeout
         except TimeoutError as exc:

@@ -1,5 +1,9 @@
+import os
+import signal
+import threading
 import time
-from typing import Any, Callable, Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, Optional, Iterator
+from contextlib import contextmanager
 
 import pendulum
 
@@ -9,7 +13,7 @@ from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
-from prefect.engine.state import Failed, Queued, State
+from prefect.engine.state import Failed, Queued, State, Cancelling, Cancelled, Finished
 from prefect.utilities.graphql import with_args
 
 
@@ -130,9 +134,83 @@ class CloudFlowRunner(FlowRunner):
             state.state = old_state  # type: ignore
             raise ENDRUN(state=state)
 
+        if isinstance(state, Cancelled):
+            finished_states = [s.__name__ for s in Finished.children()]
+            query = {
+                "query": {
+                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                        with_args(
+                            "task_runs",
+                            {"where": {"state": {"_nin": finished_states}}},
+                        ): {"id": True, "state": True}
+                    }
+                }
+            }
+            res = self.client.graphql(query)
+            if res.data.flow_run_by_pk.task_runs:
+                task_state = Cancelled("Flow run cancelled").serialize()
+                mutation = {
+                    "mutation($input: set_task_run_states_input!)": {
+                        "set_task_run_states(input: $input)": {
+                            "states": {"id", "status", "message"}
+                        }
+                    }
+                }
+                variables = {
+                    "input": {
+                        "states": [
+                            {"state": task_state, "task_run_id": run.id}
+                            for run in res.data.flow_run_by_pk.task_runs
+                        ]
+                    }
+                }
+                self.client.graphql(mutation, variables=variables)  # type: ignore
+
         prefect.context.update(flow_run_version=version + 1)
 
         return new_state
+
+    @contextmanager
+    def check_for_cancellation(self) -> Iterator:
+        """Contextmanager used to wrap a cancellable section of a flow run."""
+
+        cancelling = False
+        done = threading.Event()
+        flow_run_version = None
+
+        def interrupt_if_cancelling() -> None:
+            flow_run_id = prefect.context["flow_run_id"]
+            while not done.wait(prefect.config.cloud.check_cancellation_interval):
+                flow_run_info = self.client.get_flow_run_info(flow_run_id)
+                if isinstance(flow_run_info.state, Cancelling):
+                    nonlocal cancelling
+                    nonlocal flow_run_version
+                    cancelling = True
+                    flow_run_version = flow_run_info.version
+                    # Raise KeyboardInterrupt in the main thread
+                    if hasattr(signal, "raise_signal"):
+                        # New in python 3.8
+                        signal.raise_signal(signal.SIGINT)  # type: ignore
+                    else:
+                        if os.name == "nt":
+                            os.kill(os.getpid(), signal.SIGINT)
+                        else:
+                            signal.pthread_kill(
+                                threading.main_thread().ident, signal.SIGINT  # type: ignore
+                            )
+
+        thread = threading.Thread(target=interrupt_if_cancelling, daemon=True)
+        thread.start()
+        try:
+            yield
+        except KeyboardInterrupt:
+            if cancelling:
+                prefect.context.update(flow_run_version=flow_run_version)
+                raise ENDRUN(state=Cancelled("Flow run is cancelled"))
+            raise
+        finally:
+            done.set()
+            thread.join()
 
     def run(
         self,
