@@ -98,7 +98,7 @@ from prefect import Flow, task
 from prefect.engine.results import LocalResult
 
 @task
-def my_task(result=LocalResult(dir='~/Desktop/HelloWorld/results'), target='result.bytes'):
+def my_task(result=LocalResult(dir='~/Desktop/HelloWorld/results')):
     return 3
 ```
 
