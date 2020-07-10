@@ -30,8 +30,9 @@ class Local(Storage):
         - validate (bool, optional): a boolean specifying whether to validate the
             provided directory path; if `True`, the directory will be converted to an
             absolute path and created.  Defaults to `True`
-        - path (str, optional): a direct path to the location of the flow file if `stored_as_script=True`,
-            otherwise this path will be used when storing the serialized, pickled flow.
+        - path (str, optional): a direct path to the location of the flow file if
+            `stored_as_script=True`, otherwise this path will be used when storing the serialized,
+            pickled flow.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
