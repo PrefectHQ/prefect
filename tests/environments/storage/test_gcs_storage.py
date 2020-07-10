@@ -113,7 +113,7 @@ class TestGCSStorage:
         bucket_mock = MagicMock(get_blob=MagicMock(return_value=blob_mock))
         google_client.return_value.get_bucket = MagicMock(return_value=bucket_mock)
 
-        storage = GCS(bucket="awesome-bucket", key="a-place", stored_as_file=True)
+        storage = GCS(bucket="awesome-bucket", key="a-place", stored_as_script=True)
         storage.add_flow(f)
 
         fetched_flow = storage.get_flow("a-place")
@@ -123,12 +123,12 @@ class TestGCSStorage:
         assert blob_mock.download_as_string.call_count == 1
 
     def test_build_no_upload_if_file(self, google_client):
-        storage = GCS(bucket="awesome-bucket", stored_as_file=True)
+        storage = GCS(bucket="awesome-bucket", stored_as_script=True)
 
         with pytest.raises(ValueError):
             storage.build()
 
-        storage = GCS(bucket="awesome-bucket", stored_as_file=True, key="myflow.py")
+        storage = GCS(bucket="awesome-bucket", stored_as_script=True, key="myflow.py")
         assert storage == storage.build()
 
     def test_upload_single_flow_to_gcs(self, google_client):

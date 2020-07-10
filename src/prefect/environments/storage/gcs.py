@@ -34,7 +34,7 @@ class GCS(Storage):
             is only useful when storing a single Flow using this storage object.
         - project (str, optional): the google project where any GCS API requests are billed to;
             if not provided, the project will be inferred from your Google Cloud credentials.
-        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
@@ -44,7 +44,7 @@ class GCS(Storage):
         bucket: str,
         key: str = None,
         project: str = None,
-        stored_as_file: bool = False,
+        stored_as_script: bool = False,
         **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
@@ -55,7 +55,7 @@ class GCS(Storage):
         self.project = project
 
         result = GCSResult(bucket=bucket)
-        super().__init__(result=result, stored_as_file=stored_as_file, **kwargs)
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -91,7 +91,7 @@ class GCS(Storage):
             )
         content = blob.download_as_string()
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             return extract_flow_from_file(file_contents=content)
 
         return cloudpickle.loads(content)
@@ -145,7 +145,7 @@ class GCS(Storage):
         """
         self.run_basic_healthchecks()
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             if not self.key:
                 raise ValueError(
                     "A `key` must be provided to show where flow `.py` file is stored in GCS."

@@ -67,12 +67,12 @@ def test_add_flow_file_to_storage(tmpdir):
         f.write(contents)
 
     f = Flow("test-flow")
-    storage = Local(stored_as_file=True)
+    storage = Local(stored_as_script=True)
 
     with pytest.raises(ValueError):
         storage.add_flow(f)
 
-    storage = Local(stored_as_file=True, path=full_path)
+    storage = Local(stored_as_script=True, path=full_path)
 
     loc = storage.add_flow(f)
     assert loc == full_path
@@ -119,7 +119,7 @@ def test_get_flow_from_file_returns_flow(tmpdir):
         f.write(contents)
 
     f = Flow("test-flow")
-    storage = Local(stored_as_file=True, path=full_path)
+    storage = Local(stored_as_script=True, path=full_path)
     storage.add_flow(f)
 
     flow = storage.get_flow(full_path)

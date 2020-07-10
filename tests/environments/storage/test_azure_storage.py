@@ -67,12 +67,12 @@ def test_add_multiple_flows_to_Azure():
 
 
 def test_build_no_upload_if_file(monkeypatch):
-    storage = Azure(container="container", stored_as_file=True)
+    storage = Azure(container="container", stored_as_script=True)
 
     with pytest.raises(ValueError):
         storage.build()
 
-    storage = Azure(container="container", stored_as_file=True, blob_name="flow.py")
+    storage = Azure(container="container", stored_as_script=True, blob_name="flow.py")
     assert storage == storage.build()
 
 
@@ -244,7 +244,7 @@ def test_get_flow_form_file_azure_runs(monkeypatch):
         MagicMock(return_value=f),
     )
 
-    storage = Azure(container="container", stored_as_file=True)
+    storage = Azure(container="container", stored_as_script=True)
 
     assert f.name not in storage
     flow_location = storage.add_flow(f)

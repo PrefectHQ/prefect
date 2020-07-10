@@ -29,7 +29,7 @@ class S3(Storage):
         - bucket (str): the name of the S3 Bucket to store Flows
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
-        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - client_options (dict, optional): Additional options for the `boto3` client.
         - **kwargs (Any, optional): any additional `Storage` initialization options
@@ -39,7 +39,7 @@ class S3(Storage):
         self,
         bucket: str,
         key: str = None,
-        stored_as_file: bool = False,
+        stored_as_script: bool = False,
         client_options: dict = None,
         **kwargs: Any
     ) -> None:
@@ -51,7 +51,7 @@ class S3(Storage):
         self.client_options = client_options
 
         result = S3Result(bucket=bucket)
-        super().__init__(result=result, stored_as_file=stored_as_file, **kwargs)
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -95,7 +95,7 @@ class S3(Storage):
         stream.seek(0)
         output = stream.read()
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             return extract_flow_from_file(file_contents=output)  # type: ignore
 
         return cloudpickle.loads(output)
@@ -144,7 +144,7 @@ class S3(Storage):
         """
         self.run_basic_healthchecks()
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             if not self.key:
                 raise ValueError(
                     "A `key` must be provided to show where flow `.py` file is stored in S3."

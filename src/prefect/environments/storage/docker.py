@@ -77,8 +77,8 @@ class Docker(Storage):
         - prefect_directory (str, optional): Path to the directory where prefect configuration/flows
              should be stored inside the Docker image. Defaults to `/opt/prefect`.
         - path (str, optional): a direct path to the location of the flow file in the Docker image
-            if `stored_as_file=True`.
-        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+            if `stored_as_script=True`.
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
@@ -105,7 +105,7 @@ class Docker(Storage):
         build_kwargs: dict = None,
         prefect_directory: str = "/opt/prefect",
         path: str = None,
-        stored_as_file: bool = False,
+        stored_as_script: bool = False,
         **kwargs: Any,
     ) -> None:
         self.registry_url = registry_url
@@ -183,7 +183,7 @@ class Docker(Storage):
                     "absolute paths only."
                 ).format(", ".join(not_absolute))
             )
-        super().__init__(stored_as_file=stored_as_file, **kwargs)
+        super().__init__(stored_as_script=stored_as_script, **kwargs)
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """
@@ -260,7 +260,7 @@ class Docker(Storage):
         Returns:
             - Flow: the requested flow
         """
-        if self.stored_as_file:
+        if self.stored_as_script:
             return extract_flow_from_file(file_path=flow_location)
 
         with open(flow_location, "rb") as f:
@@ -449,7 +449,7 @@ class Docker(Storage):
 
         # Write all flows to file and load into the image
         copy_flows = ""
-        if not self.stored_as_file:
+        if not self.stored_as_script:
             for flow_name, flow_location in self.flows.items():
                 clean_name = slugify(flow_name)
                 flow_path = os.path.join(directory, "{}.flow".format(clean_name))
@@ -518,7 +518,7 @@ class Docker(Storage):
 
         # append the line that runs the healthchecks
         # skip over for now if storing flow as file
-        if not self.ignore_healthchecks and not self.stored_as_file:
+        if not self.ignore_healthchecks and not self.stored_as_script:
             file_contents += textwrap.dedent(
                 """
 

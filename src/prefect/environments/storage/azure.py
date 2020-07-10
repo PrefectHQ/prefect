@@ -32,7 +32,7 @@ class Azure(Storage):
             `AZURE_STORAGE_CONNECTION_STRING` will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
-        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
@@ -42,7 +42,7 @@ class Azure(Storage):
         container: str,
         connection_string: str = None,
         blob_name: str = None,
-        stored_as_file: bool = False,
+        stored_as_script: bool = False,
         **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
@@ -58,7 +58,7 @@ class Azure(Storage):
         result = AzureResult(
             connection_string=self.connection_string, container=container
         )
-        super().__init__(result=result, stored_as_file=stored_as_file, **kwargs)
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -89,7 +89,7 @@ class Azure(Storage):
 
         content = client.download_blob().content_as_bytes()
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             return extract_flow_from_file(file_contents=content)  # type: ignore
 
         return cloudpickle.loads(content)
@@ -143,7 +143,7 @@ class Azure(Storage):
         """
         self.run_basic_healthchecks()
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             if not self.blob_name:
                 raise ValueError(
                     "A `blob_name` must be provided to show where flow `.py` file is stored in Azure."

@@ -30,9 +30,9 @@ class Local(Storage):
         - validate (bool, optional): a boolean specifying whether to validate the
             provided directory path; if `True`, the directory will be converted to an
             absolute path and created.  Defaults to `True`
-        - path (str, optional): a direct path to the location of the flow file if `stored_as_file=True`,
+        - path (str, optional): a direct path to the location of the flow file if `stored_as_script=True`,
             otherwise this path will be used when storing the serialized, pickled flow.
-        - stored_as_file (bool, optional): boolean for specifying if the flow has been stored
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
@@ -42,7 +42,7 @@ class Local(Storage):
         directory: str = None,
         validate: bool = True,
         path: str = None,
-        stored_as_file: bool = False,
+        stored_as_script: bool = False,
         **kwargs: Any
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
@@ -60,7 +60,7 @@ class Local(Storage):
 
         self.directory = abs_directory
         result = LocalResult(self.directory, validate_dir=validate)
-        super().__init__(result=result, stored_as_file=stored_as_file, **kwargs)
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -86,7 +86,7 @@ class Local(Storage):
         if flow_location not in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             return extract_flow_from_file(file_path=flow_location)
         else:
             return prefect.core.flow.Flow.load(flow_location)
@@ -111,7 +111,7 @@ class Local(Storage):
                 )
             )
 
-        if self.stored_as_file:
+        if self.stored_as_script:
             if not self.path:
                 raise ValueError(
                     "A `path` must be provided to show where flow `.py` file is stored."

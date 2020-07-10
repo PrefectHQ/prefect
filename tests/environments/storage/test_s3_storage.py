@@ -115,12 +115,12 @@ def test_upload_flow_to_s3(monkeypatch):
 
 
 def test_build_no_upload_if_file(monkeypatch):
-    storage = S3(bucket="bucket", stored_as_file=True)
+    storage = S3(bucket="bucket", stored_as_script=True)
 
     with pytest.raises(ValueError):
         storage.build()
 
-    storage = S3(bucket="bucket", stored_as_file=True, key="flow.py")
+    storage = S3(bucket="bucket", stored_as_script=True, key="flow.py")
     assert storage == storage.build()
 
 
@@ -335,7 +335,7 @@ def test_get_flow_as_file_s3_runs(monkeypatch):
         MagicMock(return_value=f),
     )
 
-    storage = S3(bucket="bucket", stored_as_file=True)
+    storage = S3(bucket="bucket", stored_as_script=True)
 
     assert f.name not in storage
     flow_location = storage.add_flow(f)

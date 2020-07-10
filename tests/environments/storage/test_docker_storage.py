@@ -610,7 +610,7 @@ def test_create_dockerfile_with_flow_file(no_docker_host_var, tmpdir):
     with tempfile.TemporaryDirectory() as tempdir_inside:
 
         storage = Docker(
-            files={full_path: "flow.py"}, stored_as_file=True, path="flow.py",
+            files={full_path: "flow.py"}, stored_as_script=True, path="flow.py",
         )
         f = Flow("test-flow")
         storage.add_flow(f)
@@ -621,7 +621,7 @@ def test_create_dockerfile_with_flow_file(no_docker_host_var, tmpdir):
 
         assert "COPY flow.py flow.py" in output
 
-        storage = Docker(files={full_path: "flow.py"}, stored_as_file=True,)
+        storage = Docker(files={full_path: "flow.py"}, stored_as_script=True,)
         f = Flow("test-flow")
         storage.add_flow(f)
 
