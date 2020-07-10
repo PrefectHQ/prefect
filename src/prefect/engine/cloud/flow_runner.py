@@ -268,20 +268,29 @@ class CloudFlowRunner(FlowRunner):
             end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
         ):
             assert isinstance(end_state, Queued)
-            naptime = max(
+            time_remaining = max(
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
             self.logger.info(
                 (
-                    "Flow run is in a Queued state."
-                    f" Sleeping for {naptime:.2f} seconds and attempting to run again."
+                    f"Flow run is in a Queued state. Sleeping for at most {time_remaining:.2f} "
+                    f"seconds and attempting to run again."
                 )
             )
-            time.sleep(naptime)
+            # Sleep until not in a queued state, then attempt to re-run
+            while time_remaining > 0:
+                delay = min(
+                    prefect.config.cloud.check_cancellation_interval, time_remaining
+                )
+                time_remaining -= delay
+                time.sleep(delay)
 
-            flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id")
-            )
+                flow_run_info = self.client.get_flow_run_info(
+                    flow_run_id=prefect.context.get("flow_run_id")
+                )
+                if not isinstance(flow_run_info.state, Queued):
+                    break
+
             context.update(flow_run_version=flow_run_info.version)
 
             # When concurrency slots become free, this will eventually result
