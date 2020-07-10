@@ -58,6 +58,27 @@ def test_add_flow_to_storage():
     assert cloudpickle.loads(wat).name == "test"
 
 
+def test_add_flow_file_to_storage(tmpdir):
+    contents = """from prefect import Flow\nf=Flow('test-flow')"""
+
+    full_path = os.path.join(tmpdir, "flow.py")
+
+    with open(full_path, "w") as f:
+        f.write(contents)
+
+    f = Flow("test-flow")
+    storage = Local(stored_as_file=True)
+
+    with pytest.raises(ValueError):
+        storage.add_flow(f)
+
+    storage = Local(stored_as_file=True, path=full_path)
+
+    loc = storage.add_flow(f)
+    assert loc == full_path
+    assert f.name in storage
+
+
 def test_add_flow_raises_if_name_conflict():
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = Local(directory=tmpdir)
@@ -87,6 +108,22 @@ def test_get_flow_returns_flow():
         loc = storage.add_flow(f)
         runner = storage.get_flow(loc)
         assert runner == f
+
+
+def test_get_flow_from_file_returns_flow(tmpdir):
+    contents = """from prefect import Flow\nf=Flow('test-flow')"""
+
+    full_path = os.path.join(tmpdir, "flow.py")
+
+    with open(full_path, "w") as f:
+        f.write(contents)
+
+    f = Flow("test-flow")
+    storage = Local(stored_as_file=True, path=full_path)
+    storage.add_flow(f)
+
+    flow = storage.get_flow(full_path)
+    assert flow.run()
 
 
 def test_containment():

@@ -464,7 +464,7 @@ class Docker(Storage):
         else:
             if not self.path:
                 raise ValueError(
-                    "A `path` must be provided to show where flow `.py` file is stored in the Docker image."
+                    "A `path` must be provided to show where flow `.py` file is stored in the image."
                 )
 
         # Write all extra commands that should be run in the image

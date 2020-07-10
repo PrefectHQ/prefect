@@ -40,7 +40,12 @@ class GCS(Storage):
     """
 
     def __init__(
-        self, bucket: str, key: str = None, project: str = None, stored_as_file: bool = False, **kwargs: Any
+        self,
+        bucket: str,
+        key: str = None,
+        project: str = None,
+        stored_as_file: bool = False,
+        **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]

@@ -595,6 +595,40 @@ def test_create_dockerfile_from_everything(no_docker_host_var):
             assert "COPY other.flow /opt/prefect/flows/other.prefect" in output
 
 
+def test_create_dockerfile_with_flow_file(no_docker_host_var, tmpdir):
+
+    contents = """from prefect import Flow\nf=Flow('test-flow')"""
+
+    full_path = os.path.join(tmpdir, "flow.py")
+
+    with open(full_path, "w") as f:
+        f.write(contents)
+
+    with open(os.path.join(tmpdir, "test"), "w+") as t:
+        t.write("asdf")
+
+    with tempfile.TemporaryDirectory() as tempdir_inside:
+
+        storage = Docker(
+            files={full_path: "flow.py"}, stored_as_file=True, path="flow.py",
+        )
+        f = Flow("test-flow")
+        storage.add_flow(f)
+        dpath = storage.create_dockerfile_object(directory=tempdir_inside)
+
+        with open(dpath, "r") as dockerfile:
+            output = dockerfile.read()
+
+        assert "COPY flow.py flow.py" in output
+
+        storage = Docker(files={full_path: "flow.py"}, stored_as_file=True,)
+        f = Flow("test-flow")
+        storage.add_flow(f)
+
+        with pytest.raises(ValueError):
+            storage.create_dockerfile_object(directory=tempdir_inside)
+
+
 @pytest.mark.parametrize("ignore_healthchecks", [True, False])
 def test_run_healthchecks_arg(ignore_healthchecks):
 
