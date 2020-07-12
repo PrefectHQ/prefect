@@ -6,7 +6,7 @@ sidebarDepth: 0
 
 Welcome to Prefect! These docs will give you a gentle introduction to Prefect's core concepts. 
 
-We also have a [full tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect.
+We also have a [full tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect. You can also run some interactive tutorials with a hosted Jupyter Lab instance on Binder by clicking here: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/PrefectHQ/prefect-binder-tutorial/master?urlpath=lab/tree/README.md)
 
 ## Thinking Prefectly
 
