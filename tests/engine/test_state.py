@@ -536,7 +536,7 @@ class TestResultInterface:
         assert [getattr(s, "result", None) for s in state.map_states] == [None] * 3
 
         new_state = state.load_result(MyResult(location=""))
-        assert new_state.result is None
+        assert new_state.result == [None, "foo", "bar"]
         assert not new_state._result.location
         assert [getattr(s, "result", None) for s in state.map_states] == [
             None,

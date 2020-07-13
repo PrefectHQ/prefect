@@ -111,6 +111,8 @@ class State:
                 s.load_result(result) if s is not None else None
                 for s in self.map_states  # type: ignore
             ]
+            if self.map_states:
+                self.result = [getattr(s, "result", None) for s in self.map_states]
             return self
 
         result_reader = result or self._result
