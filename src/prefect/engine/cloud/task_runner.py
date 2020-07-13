@@ -262,6 +262,9 @@ class CloudTaskRunner(TaskRunner):
         upstream_results = {}
 
         try:
+            if state.is_mapped():
+                # ensures mapped children are only loaded once
+                state = state.load_result(self.result)
             for edge, upstream_state in upstream_states.items():
                 upstream_states[edge] = upstream_state.load_result(
                     edge.upstream_task.result or self.flow_result
