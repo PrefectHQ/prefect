@@ -85,7 +85,7 @@ def build(version):
     """
     docker_dir = Path(prefect_server.__file__).parents[2] / "docker"
 
-    env = make_env()
+    env = make_dev_env()
 
     if "PREFECT_SERVER_TAG" not in env:
         env.update(PREFECT_SERVER_TAG=version)
