@@ -173,9 +173,6 @@ class Task(metaclass=SignatureValidator):
             Task enters a failure state
         - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
             the Prefect logger. Defaults to `False`.
-        - reference_task_candidate (bool, optional): Whether this task is a candidate to
-            be a reference task in the flow. Defaults to `True`. Note that if reference
-            tasks are manually set on a `Flow` this setting is ignored.
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -205,7 +202,6 @@ class Task(metaclass=SignatureValidator):
         log_stdout: bool = False,
         result: "Result" = None,
         target: str = None,
-        reference_task_candidate: bool = True,
     ):
         self.name = name or type(self).__name__
         self.slug = slug
@@ -307,7 +303,7 @@ class Task(metaclass=SignatureValidator):
         self.auto_generated = False
 
         self.log_stdout = log_stdout
-        self.reference_task_candidate = reference_task_candidate
+        self.reference_task_candidate = True
 
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget

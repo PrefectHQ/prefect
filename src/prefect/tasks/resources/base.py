@@ -146,7 +146,6 @@ class ResourceManager:
         self.cleanup_task_kwargs.setdefault("name", f"{name}.cleanup")
         self.cleanup_task_kwargs.setdefault("trigger", should_cleanup)
         self.cleanup_task_kwargs.setdefault("skip_on_upstream_skip", False)
-        self.cleanup_task_kwargs.setdefault("reference_task_candidate", False)
 
     def __call__(self, *args: Any, flow: Flow = None, **kwargs: Any) -> ResourceContext:
         if flow is None:
@@ -165,6 +164,7 @@ class ResourceManager:
         cleanup_task = prefect.task(cleanup_resource, **self.cleanup_task_kwargs)(
             init_task, setup_task, flow=flow
         )
+        cleanup_task.reference_task_candidate = False
 
         return ResourceContext(init_task, setup_task, cleanup_task, flow)
 
