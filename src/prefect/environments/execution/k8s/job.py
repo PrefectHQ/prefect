@@ -40,9 +40,9 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
     `$ /bin/sh -c "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"`
 
     Args:
-        - job_spec_file (str, optional): Path to a job spec YAML file.
-            When this class is initialized, the contents of `job_spec_file` are read in
-            and stored in `self._job_spec`.
+        - job_spec_file (str, optional): Path to a job spec YAML file. This path is only
+            used when the environment is built, so should refer to a file on the machine
+            used to build the flow.
         - unique_job_name (bool, optional): whether to use a unique name for each job created
             with this environment. Defaults to `False`
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
