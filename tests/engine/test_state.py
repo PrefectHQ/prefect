@@ -518,6 +518,11 @@ class TestResultInterface:
             assert not new_state._result.location
 
     def test_state_load_result_loads_map_states(self):
+        """
+        This test ensures that loading state results also loads mapped children results.
+        See https://github.com/PrefectHQ/prefect/pull/2952
+        """
+
         class MyResult(Result):
             def read(self, *args, **kwargs):
                 new = self.copy()
