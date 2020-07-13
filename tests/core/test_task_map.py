@@ -12,6 +12,7 @@ from prefect.engine.state import Mapped, Pending, Retrying, Success
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task
 from prefect.utilities.edges import unmapped, flatten, mapped
+from prefect.tasks.core.constants import Constant
 
 
 class AddTask(Task):
@@ -180,6 +181,34 @@ def test_multiple_map_arguments(executor):
     assert isinstance(m.map_states, list)
     assert len(m.result) == 3
     assert m.result == [2, 4, 6]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_mapping_over_no_successful_upstreams(executor):
+    with Flow(name="test") as f:
+        a = AddTask().map(x=DivTask()(0))
+
+    s = f.run(executor=executor)
+    assert s.is_failed()
+    assert s.result[a].is_failed()
+    assert s.result[a].message == "No upstream states can be mapped over."
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_mapping_over_one_unmappable_input(executor):
+    with Flow(name="test") as f:
+        a = AddTask().map(x=Constant(1), y=Constant([1]))
+
+    s = f.run(executor=executor)
+    assert s.is_failed()
+    assert s.result[a].is_failed()
+    assert (
+        s.result[a].message == "At least one upstream state has an unmappable result."
+    )
 
 
 @pytest.mark.parametrize(
@@ -1129,3 +1158,27 @@ class TestFlatMap:
             s = f.run(executor=executor)
 
         assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_unnested_input(self, executor):
+        a = AddTask()
+        with Flow("test") as flow:
+            z = a.map(x=flatten([1]))
+
+        state = flow.run()
+        assert state.result[z].is_failed()
+        assert state.result[z].message == "No upstream states can be mapped over."
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_one_unnested_input(self, executor):
+        a = AddTask()
+        with Flow("test") as flow:
+            z = a.map(x=flatten([1]), y=flatten([[1]]))
+
+        state = flow.run()
+        assert state.result[z].is_mapped()
+        assert state.result[z].result == []

@@ -334,7 +334,6 @@ def prepare_upstream_states_for_mapping(
     while True and upstream_states:
         i = next(counter)
         states = {}
-
         try:
 
             for edge, upstream_state in upstream_states.items():
@@ -368,6 +367,8 @@ def prepare_upstream_states_for_mapping(
                         not state.is_mapped()
                         or upstream_state._result != prefect.engine.result.NoResult
                     ):
+                        # this line should never be hit due to a check
+                        # in the TaskRunner when evaluating the mapped parent
                         if not hasattr(upstream_state.result, "__getitem__"):
                             raise TypeError(
                                 (
@@ -409,7 +410,8 @@ def flatten_upstream_state(upstream_state: "State") -> "State":
     try:
         flattened_result = [y for x in upstream_state.result for y in x]
     except TypeError:
-        raise TypeError("Cannot flat-map over non-nested object.")
+        # this will pass a Failed upstream state to the mapped task
+        return prefect.engine.state.Failed("Cannot flat-map over non-nested object.")
     new_state.result = new_state._result.from_value(  # type: ignore
         flattened_result
     )
