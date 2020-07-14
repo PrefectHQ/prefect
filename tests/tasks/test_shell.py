@@ -96,7 +96,7 @@ def test_shell_task_env_can_be_set_at_init():
     assert out.result[task].result == "test"
 
 
-def test_shell_logs_error_on_non_zero_exit(caplog):
+def test_shell_logs_non_zero_exit(caplog):
     with Flow(name="test") as f:
         task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist")
     out = f.run()
@@ -105,8 +105,7 @@ def test_shell_logs_error_on_non_zero_exit(caplog):
     error_log = [c for c in caplog.records if c.levelname == "ERROR"]
     assert len(error_log) == 1
     assert error_log[0].name == "prefect.ShellTask"
-    assert "surely_a_dir_that_doesnt_exist" in error_log[0].message
-    assert "No such file or directory" in error_log[0].message
+    assert "Command failed" in error_log[0].message
 
 
 def test_shell_logs_stderr_on_non_zero_exit(caplog):
@@ -118,11 +117,11 @@ def test_shell_logs_stderr_on_non_zero_exit(caplog):
     assert out.is_failed()
 
     error_log = [c for c in caplog.records if c.levelname == "ERROR"]
-    assert len(error_log) == 1
+    assert len(error_log) == 2
     assert error_log[0].name == "prefect.ShellTask"
-    assert "surely_a_dir_that_doesnt_exist" in error_log[0].message
-    assert "No such file or directory" in error_log[0].message
     assert "Command failed" in error_log[0].message
+    assert "No such file or directory" in error_log[1].message
+    assert "surely_a_dir_that_doesnt_exist" in error_log[1].message
 
 
 def test_shell_initializes_and_runs_multiline_cmd():
