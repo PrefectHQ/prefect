@@ -111,7 +111,9 @@ def test_shell_logs_error_on_non_zero_exit(caplog):
 
 def test_shell_logs_stderr_on_non_zero_exit(caplog):
     with Flow(name="test") as f:
-        task = ShellTask(log_stderr=True, return_all=True)(command="ls surely_a_dir_that_doesnt_exist")
+        task = ShellTask(log_stderr=True, return_all=True)(
+            command="ls surely_a_dir_that_doesnt_exist"
+        )
     out = f.run()
     assert out.is_failed()
 
