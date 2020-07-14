@@ -517,6 +517,38 @@ class TestResultInterface:
             assert new_state.result is None
             assert not new_state._result.location
 
+    def test_state_load_result_loads_map_states(self):
+        """
+        This test ensures that loading state results also loads mapped children results.
+        See https://github.com/PrefectHQ/prefect/pull/2952
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                new = self.copy()
+                new.value = kwargs.get("location", args[0])
+                return new
+
+        state = Mapped(
+            map_states=[
+                None,
+                Success("1", result=MyResult(location="foo")),
+                Success("2", result=MyResult(location="bar")),
+            ]
+        )
+        assert state.message is None
+        assert state.result is None
+        assert [getattr(s, "result", None) for s in state.map_states] == [None] * 3
+
+        new_state = state.load_result(MyResult(location=""))
+        assert new_state.result == [None, "foo", "bar"]
+        assert not new_state._result.location
+        assert [getattr(s, "result", None) for s in state.map_states] == [
+            None,
+            "foo",
+            "bar",
+        ]
+
     @pytest.mark.parametrize("cls", all_states)
     def test_state_load_result_doesnt_call_read_if_value_present(self, cls):
         """
