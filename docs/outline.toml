@@ -354,6 +354,12 @@ title = "RSS Tasks"
 module = "prefect.tasks.rss"
 classes = ["ParseRSSFeed"]
 
+[pages.tasks.resources]
+title = "Resource Tasks"
+module = "prefect.tasks.resources"
+classes = ["ResourceManager"]
+functions = ["resource_manager"]
+
 [pages.tasks.secrets]
 title = "Secret Tasks"
 module = "prefect.tasks.secrets"

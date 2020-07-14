@@ -115,9 +115,14 @@ class ResourceContext:
 class ResourceManager:
     """An object for managing temporary resources.
 
-    ResourceManager objects are used for creating tasks using temporary objects that
-    need to cleaned up after usage. Examples might include temporary Dask/Spark
-    clusters, Docker containers, etc...
+    Used as a context manager, `ResourceManager` objects create tasks to setup
+    and cleanup temporary objects used within a block of tasks.  Examples might
+    include temporary Dask/Spark clusters, Docker containers, etc...
+
+    `ResourceManager` objects are usually created using the `resource_manager`
+    decorator, but can be created directly using this class if desired.
+
+    For more information, see the docs for `resource_manager`.
 
     Args:
         - resource_class (Callable): A callable (usually the class itself) for
@@ -130,6 +135,41 @@ class ResourceManager:
             passed to the `Task` constructor for the `setup` task.
         - cleanup_task_kwargs (dict, optional): keyword arguments that will be
             passed to the `Task` constructor for the `cleanup` task.
+
+    Example:
+
+    Here's an example resource manager for creating a temporary local dask
+    cluster as part of the flow.
+
+    ```python
+    from prefect import resource_manager
+    from dask.distributed import Client
+
+    @resource_manager
+    class DaskCluster:
+        def __init__(self, n_workers):
+            self.n_workers = n_workers
+
+        def setup(self):
+            "Create a local dask cluster"
+            return Client(n_workers=self.n_workers)
+
+        def cleanup(self, client):
+            "Cleanup the local dask cluster"
+            client.close()
+    ```
+
+    To use the `DaskCluster` resource manager as part of your Flow, you can use
+    `DaskCluster` as a context manager:
+
+    ```python
+    with Flow("example") as flow:
+        n_workers = Parameter("n_workers")
+
+        with DaskCluster(n_workers=n_workers) as client:
+            some_task(client)
+            some_other_task(client)
+    ```
     """
 
     def __init__(
@@ -183,9 +223,9 @@ def resource_manager(
 ) -> ResourceManager:
     """A decorator for creating a `ResourceManager` object.
 
-    ResourceManager objects are used for creating tasks using temporary objects that
-    need to cleaned up after usage. Examples might include temporary Dask/Spark
-    clusters, Docker containers, etc...
+    Used as a context manager, `ResourceManager` objects create tasks to setup
+    and cleanup temporary objects used within a block of tasks.  Examples might
+    include temporary Dask/Spark clusters, Docker containers, etc...
 
     Through usage a ResourceManager object adds three tasks to the graph:
         - A `init` task, which returns an object that meets the `ResourceManager`
@@ -214,8 +254,8 @@ def resource_manager(
 
     Example:
 
-    Here's an example resource manager for creating a local temporary local
-    dask cluster as part of the flow.
+    Here's an example resource manager for creating a temporary local dask
+    cluster as part of the flow.
 
     ```
     from prefect import resource_manager
@@ -252,7 +292,8 @@ def resource_manager(
     `ResourceManager` class. A `Task` is automatically added to call the
     `cleanup` method (closing the Dask cluster) after all tasks under the
     context have completed. By default this `cleanup` task is configured with
-    an `always_run` trigger, and won't be set as a reference task.
+    a trigger to always run if the `setup` task succeeds, and won't be set as
+    a reference task.
     """
     return ResourceManager(
         resource_class,
