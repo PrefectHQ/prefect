@@ -683,3 +683,20 @@ class TestResultInterface:
         new_state = state.load_cached_results(dict(y=MyResult(location="foo")))
         assert new_state.cached_inputs["y"].value == "bar"
         assert new_state.cached_inputs["y"].location == "foo"
+
+
+def test_meta_states_dont_nest():
+    state = Queued(state=Pending())
+
+    for i in range(300):
+        if i % 2:
+            state = Queued(state=state)
+        else:
+            state = Submitted(state=state)
+
+    assert state.state.is_pending()
+    assert not state.state.is_meta_state()
+
+    new_state = StateSchema().load(state.serialize())
+    assert new_state.is_meta_state()
+    assert not new_state.state.is_meta_state()
