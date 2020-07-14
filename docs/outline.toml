@@ -170,7 +170,7 @@ classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult
 [pages.engine.serializers]
 title = "Result Serializers"
 module = "prefect.engine.serializers"
-classes = ["Serializer", "PickleSerializer", "JSONSerializer"]
+classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DataFrameSerializer"]
 
 [pages.engine.result_handlers]
 title = "Result Handlers"
