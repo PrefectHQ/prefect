@@ -1,5 +1,0 @@
-enhancement:
-  - "Separate build-time and run-time job spec details in KubernetsJobEnvironment - [#2950](https://github.com/PrefectHQ/prefect/pull/2950)"
-
-contributor:
- - "[James Lamb](https://github.com/jameslamb)"
