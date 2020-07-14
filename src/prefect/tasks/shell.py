@@ -110,6 +110,8 @@ class ShellTask(prefect.Task):
                     sub_process.returncode, line
                 )
                 self.logger.error(msg)
+                if self.return_all:
+                    self.logger.error(lines)
                 raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
         if self.return_all:
             return lines
