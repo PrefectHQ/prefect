@@ -123,21 +123,25 @@ class DataFrameSerializer(Serializer):
         - TypeError: if the specified format is not supported
     """
 
-    def _to_csv(df: pd.DataFrame, **kwargs) -> bytes:
+    @staticmethod
+    def _to_csv(df: pd.DataFrame, **kwargs: Any) -> bytes:
         s = StringIO()
         df.to_csv(s, **kwargs)
         return bytes(s.getvalue().encode())
 
-    def _read_csv(value: bytes, **kwargs) -> pd.DataFrame:
+    @staticmethod
+    def _read_csv(value: bytes, **kwargs: Any) -> pd.DataFrame:
         b = BytesIO(value)
         return pd.read_csv(b, **kwargs)
 
-    def _to_parquet(df: pd.DataFrame, **kwargs) -> bytes:
+    @staticmethod
+    def _to_parquet(df: pd.DataFrame, **kwargs: Any) -> bytes:
         b = BytesIO()
         df.to_parquet(b, **kwargs)
         return b.getvalue()
 
-    def _read_parquet(value: bytes, **kwargs) -> pd.DataFrame:
+    @staticmethod
+    def _read_parquet(value: bytes, **kwargs: Any) -> pd.DataFrame:
         b = BytesIO(value)
         return pd.read_parquet(b, **kwargs)
 
@@ -149,8 +153,8 @@ class DataFrameSerializer(Serializer):
     def __init__(
         self,
         format: str = "csv",
-        serialize_kwargs: Dict[str, Any] = {},
-        deserialize_kwargs: Dict[str, Any] = {},
+        serialize_kwargs: Any = {},
+        deserialize_kwargs: Any = {},
     ):
         super().__init__()
 
@@ -158,7 +162,7 @@ class DataFrameSerializer(Serializer):
         if format not in self.FORMAT_SERDES_LUT:
             raise TypeError(
                 f"Unsupported file format for DataFrameSerializer."
-                f"Provided: {format}. Support formats: {FORMAT_SERDES_LUT.keys()}"
+                f"Provided: {format}. Support formats: {self.FORMAT_SERDES_LUT.keys()}"
             )
 
         # Store format and kwargs
