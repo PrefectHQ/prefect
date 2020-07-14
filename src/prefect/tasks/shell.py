@@ -24,6 +24,9 @@ class ShellTask(prefect.Task):
         - return_all (bool, optional): boolean specifying whether this task
             should return all lines of stdout as a list, or just the last line
             as a string; defaults to `False`
+        - log_stderr (bool, optional): boolean specifying whether this task
+            should log the output from stderr in the case of a non-zero exit code;
+            defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -48,6 +51,7 @@ class ShellTask(prefect.Task):
         helper_script: str = None,
         shell: str = "bash",
         return_all: bool = False,
+        log_stderr: bool = False,
         **kwargs: Any
     ):
         self.command = command
@@ -55,6 +59,7 @@ class ShellTask(prefect.Task):
         self.helper_script = helper_script
         self.shell = shell
         self.return_all = return_all
+        self.log_stderr = log_stderr
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env")
@@ -110,8 +115,10 @@ class ShellTask(prefect.Task):
                     sub_process.returncode, line
                 )
                 self.logger.error(msg)
-                if self.return_all:
+
+                if self.log_stderr:
                     self.logger.error(lines)
+
                 raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
         if self.return_all:
             return lines
