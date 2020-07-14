@@ -118,6 +118,9 @@ class DataFrameSerializer(Serializer):
         - format (str): the serialization format (i.e. CSV, Parquet)
         - serialize_kwargs: (Dict[str, Any]): Extra kwargs to pass to the Pandas API
         - deserialize_kwargs: (Dict[str, Any]): Extra kwargs to pass to the Pandas API
+
+    Raises:
+        - TypeError: if the specified format is not supported
     """
 
     def _to_csv(df: pd.DataFrame, **kwargs) -> bytes:
