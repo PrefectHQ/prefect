@@ -139,14 +139,8 @@ class DataFrameSerializer(Serializer):
         return pd.read_parquet(b, **kwargs)
 
     FORMAT_SERDES_LUT = {
-        "csv": {
-            "serialize": _to_csv,
-            "deserialize": _read_csv,
-        },
-        "parquet": {
-            "serialize": _to_parquet,
-            "deserialize": _read_parquet,
-        },
+        "csv": {"serialize": _to_csv, "deserialize": _read_csv,},
+        "parquet": {"serialize": _to_parquet, "deserialize": _read_parquet,},
     }
 
     def __init__(
@@ -180,7 +174,6 @@ class DataFrameSerializer(Serializer):
             - bytes: the serialized value
         """
         return self.format_io["serialize"](value, **self.serialize_kwargs)
-
 
     def deserialize(self, value: bytes) -> pd.DataFrame:
         """

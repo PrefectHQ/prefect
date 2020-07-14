@@ -10,7 +10,7 @@ import pytest
 from prefect.engine.serializers import (
     DataFrameSerializer,
     JSONSerializer,
-    PickleSerializer
+    PickleSerializer,
 )
 
 
@@ -77,7 +77,6 @@ class TestDataFrameSerializer:
     def test_serialize_returns_bytes(self, value):
         serialized = DataFrameSerializer().serialize(value)
         assert isinstance(serialized, bytes)
-
 
     def test_deserialize_returns_objects_simple(self):
         # Only testing the simple case here because CSV is a bad storage format
