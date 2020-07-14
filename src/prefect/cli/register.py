@@ -10,6 +10,18 @@ from prefect.utilities.storage import extract_flow_from_file
 def register():
     """
     Register flows
+
+    \b
+    Usage:
+        $ prefect register [OBJECT]
+
+    \b
+    Arguments:
+        flow    Register flows with a backend API
+
+    \b
+    Examples:
+        $ prefect register flow --file my_flow.py --name My-Flow
     """
 
 

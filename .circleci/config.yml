@@ -93,6 +93,10 @@ jobs:
           command: flake8 src/
 
       - run:
+          name: Lint changelog entries
+          command: python update_changelog.py lint
+
+      - run:
           name: Ensure 'import prefect' is under 1 second
           command: |
             apt update && apt install jq bc -y

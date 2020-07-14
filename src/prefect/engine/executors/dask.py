@@ -1,6 +1,7 @@
 import logging
 import uuid
 import warnings
+import weakref
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
 
@@ -10,7 +11,8 @@ from prefect.utilities.importtools import import_object
 
 if TYPE_CHECKING:
     import dask
-    from distributed import Future
+    from distributed import Future, Variable
+    import multiprocessing.pool
 
 
 __any__ = ("DaskExecutor", "LocalDaskExecutor")
@@ -38,6 +40,20 @@ def _make_task_key(
             return f"{task_name}-{task_index}-{suffix}"
         return f"{task_name}-{suffix}"
     return None
+
+
+def _maybe_run(
+    should_run_var: "Variable", fn: Callable, *args: Any, **kwargs: Any
+) -> Any:
+    """Check if the task should run against a `distributed.Variable` before
+    starting the task. This offers stronger guarantees than distributed's
+    current cancellation mechanism, which only cancels pending tasks."""
+    try:
+        should_run = should_run_var.get(timeout=0)
+    except Exception:
+        pass
+    if should_run:
+        return fn(*args, **kwargs)
 
 
 class DaskExecutor(Executor):
@@ -177,19 +193,28 @@ class DaskExecutor(Executor):
 
         if client_kwargs is None:
             client_kwargs = {}
+        else:
+            client_kwargs = client_kwargs.copy()
         if kwargs:
             warnings.warn(
                 "Forwarding executor kwargs to `Client` is now handled by the "
                 "`client_kwargs` parameter, please update accordingly"
             )
             client_kwargs.update(kwargs)
+        client_kwargs.setdefault("set_as_default", False)
 
         self.address = address
         self.cluster_class = cluster_class
         self.cluster_kwargs = cluster_kwargs
         self.adapt_kwargs = adapt_kwargs
         self.client_kwargs = client_kwargs
+        # Runtime attributes
         self.client = None
+        # These are coupled - they're either both None, or both non-None.
+        # They're used in the case we can't forcibly kill all the dask workers,
+        # and need to wait for all the dask tasks to cleanup before exiting.
+        self._futures = None  # type: Optional[weakref.WeakSet[Future]]
+        self._should_run_var = None  # type: Optional[Variable]
 
         super().__init__()
 
@@ -200,23 +225,70 @@ class DaskExecutor(Executor):
 
         Creates a `dask.distributed.Client` and yields it.
         """
-        # import dask client here to decrease our import times
         from distributed import Client
 
         try:
             if self.address is not None:
                 with Client(self.address, **self.client_kwargs) as client:
                     self.client = client
-                    yield self.client
+                    try:
+                        self._pre_start_yield()
+                        yield
+                    finally:
+                        self._post_start_yield()
             else:
                 with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
                     if self.adapt_kwargs:
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
                         self.client = client
-                        yield self.client
+                        try:
+                            self._pre_start_yield()
+                            yield
+                        finally:
+                            self._post_start_yield()
         finally:
             self.client = None
+
+    def _pre_start_yield(self) -> None:
+        from distributed import Variable
+
+        is_inproc = self.client.scheduler.address.startswith("inproc")  # type: ignore
+        if self.address is not None or is_inproc:
+            self._futures = weakref.WeakSet()
+            self._should_run_var = Variable(
+                f"prefect-{uuid.uuid4().hex}", client=self.client
+            )
+            self._should_run_var.set(True)
+
+    def _post_start_yield(self) -> None:
+        from distributed import wait
+
+        if self._should_run_var is not None:
+            # Multipart cleanup, ignoring exceptions in each stage
+            # 1.) Stop pending tasks from starting
+            try:
+                self._should_run_var.set(False)
+            except Exception:
+                pass
+            # 2.) Wait for all running tasks to complete
+            try:
+                futures = [f for f in list(self._futures) if not f.done()]  # type: ignore
+                if futures:
+                    self.logger.info(
+                        "Stopping executor, waiting for %d active tasks to complete",
+                        len(futures),
+                    )
+                    wait(futures)
+            except Exception:
+                pass
+            # 3.) Delete the distributed variable
+            try:
+                self._should_run_var.delete()
+            except Exception:
+                pass
+        self._should_run_var = None
+        self._futures = None
 
     def _prep_dask_kwargs(self, extra_context: dict = None) -> dict:
         if extra_context is None:
@@ -245,7 +317,7 @@ class DaskExecutor(Executor):
 
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
-        state["client"] = None
+        state.update({k: None for k in ["client", "_futures", "_should_run_var"]})
         return state
 
     def __setstate__(self, state: dict) -> None:
@@ -271,7 +343,14 @@ class DaskExecutor(Executor):
             raise ValueError("This executor has not been started.")
 
         kwargs.update(self._prep_dask_kwargs(extra_context))
-        return self.client.submit(fn, *args, **kwargs)
+        if self._should_run_var is None:
+            fut = self.client.submit(fn, *args, **kwargs)
+        else:
+            fut = self.client.submit(
+                _maybe_run, self._should_run_var, fn, *args, **kwargs
+            )
+            self._futures.add(fut)
+        return fut
 
     def wait(self, futures: Any) -> Any:
         """
@@ -301,24 +380,73 @@ class LocalDaskExecutor(Executor):
     """
 
     def __init__(self, scheduler: str = "threads", **kwargs: Any):
-        self._callback = None
-        self.scheduler = scheduler
+        self.scheduler = self._normalize_scheduler(scheduler)
         self.dask_config = kwargs
+        self._pool = None  # type: Optional[multiprocessing.pool.Pool]
         super().__init__()
+
+    @staticmethod
+    def _normalize_scheduler(scheduler: str) -> str:
+        scheduler = scheduler.lower()
+        if scheduler in ("threads", "threading"):
+            return "threads"
+        elif scheduler in ("processes", "multiprocessing"):
+            return "processes"
+        elif scheduler in ("sync", "synchronous", "single-threaded"):
+            return "synchronous"
+        else:
+            raise ValueError(f"Unknown scheduler {scheduler!r}")
 
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
-        state["_callback"] = None
+        state["_pool"] = None
         return state
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
+    def _interrupt_pool(self) -> None:
+        """Interrupt all tasks in the backing `pool`, if any."""
+        if self.scheduler == "threads" and self._pool is not None:
+            # `ThreadPool.terminate()` doesn't stop running tasks, only
+            # prevents new tasks from running. In CPython we can attempt to
+            # raise an exception in all threads. This exception will be raised
+            # the next time the task does something with the Python api.
+            # However, if the task is currently blocked in a c extension, it
+            # will not immediately be interrupted. There isn't a good way
+            # around this unfortunately.
+            import platform
+
+            if platform.python_implementation() != "CPython":
+                self.logger.warning(
+                    "Interrupting a running threadpool is only supported in CPython, "
+                    "all currently running tasks will continue to completion"
+                )
+                return
+
+            self.logger.info("Attempting to interrupt and cancel all running tasks...")
+
+            import sys
+            import ctypes
+
+            # signature of this method changed in python 3.7
+            if sys.version_info >= (3, 7):
+                id_type = ctypes.c_ulong
+            else:
+                id_type = ctypes.c_long
+
+            for t in self._pool._pool:  # type: ignore
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                    id_type(t.ident), ctypes.py_object(KeyboardInterrupt)
+                )
+
     @contextmanager
     def start(self) -> Iterator:
         """Context manager for initializing execution."""
         # import dask here to reduce prefect import times
+        import dask.config
         from dask.callbacks import Callback
+        from dask.system import CPU_COUNT
 
         class PrefectCallback(Callback):
             def __init__(self):  # type: ignore
@@ -332,11 +460,33 @@ class LocalDaskExecutor(Executor):
             def _posttask(self, key, value, dsk, state, id):  # type: ignore
                 self.cache[key] = value
 
-        try:
-            self._callback = PrefectCallback()  # type: ignore
-            yield
-        finally:
-            self._callback = None
+        with PrefectCallback(), dask.config.set(**self.dask_config):
+            if self.scheduler == "synchronous":
+                self._pool = None
+            else:
+                num_workers = dask.config.get("num_workers", None) or CPU_COUNT
+                if self.scheduler == "threads":
+                    from multiprocessing.pool import ThreadPool
+
+                    self._pool = ThreadPool(num_workers)
+                else:
+                    from dask.multiprocessing import get_context
+
+                    context = get_context()
+                    self._pool = context.Pool(num_workers)
+            try:
+                exiting_early = False
+                yield
+            except BaseException:
+                exiting_early = True
+                raise
+            finally:
+                if self._pool is not None:
+                    self._pool.terminate()
+                    if exiting_early:
+                        self._interrupt_pool()
+                    self._pool.join()
+                    self._pool = None
 
     def submit(
         self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
@@ -378,5 +528,4 @@ class LocalDaskExecutor(Executor):
         # import dask here to reduce prefect import times
         import dask
 
-        with self._callback, dask.config.set(**self.dask_config):  # type: ignore
-            return dask.compute(futures, scheduler=self.scheduler)[0]
+        return dask.compute(futures, scheduler=self.scheduler, pool=self._pool)[0]

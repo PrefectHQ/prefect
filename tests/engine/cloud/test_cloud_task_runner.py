@@ -950,6 +950,47 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
     assert calls[2]["state"].cached_inputs["x"].value == 42
 
 
+def test_cloud_task_runner_sends_heartbeat_on_queued_retries(client):
+    calls = []
+    tr_ids = []
+
+    def queued_mock(*args, **kwargs):
+        calls.append(kwargs)
+        # first retry attempt will get queued
+        if len(calls) == 4:
+            return Queued()  # immediate start time
+        else:
+            return kwargs.get("state")
+
+    def mock_heartbeat(**kwargs):
+        tr_ids.append(kwargs.get("task_run_id"))
+
+    client.set_task_run_state = queued_mock
+    client.update_task_run_heartbeat = mock_heartbeat
+
+    @prefect.task(
+        max_retries=2,
+        retry_delay=datetime.timedelta(seconds=0),
+        result=PrefectResult(),
+    )
+    def tagged_task(x):
+        if prefect.context.get("task_run_count", 1) == 1:
+            raise ValueError("gimme a sec")
+        return x
+
+    upstream_result = PrefectResult(value=42, location="42")
+    CloudTaskRunner(task=tagged_task).run(
+        context={"task_run_version": 1, "task_run_id": "id"},
+        state=None,
+        upstream_states={
+            Edge(Task(), tagged_task, key="x"): Success(result=upstream_result)
+        },
+    )
+
+    assert len(calls) == 6
+    assert tr_ids == ["id", "id"]
+
+
 class TestLoadResults:
     def test_load_results_from_upstream_reads_results(self):
         result = PrefectResult(location="1")

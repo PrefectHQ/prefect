@@ -4,8 +4,36 @@ running. Signals are used in TaskRunners and FlowRunners as a way of communicati
 in states.
 """
 
+from typing import Type
+
 from prefect.engine import state
 from prefect.utilities.exceptions import PrefectError
+
+
+def signal_from_state(state: state.State) -> Type["PrefectStateSignal"]:
+    """
+    Given a state instance, returns the corresponding Signal type.
+
+    Args:
+        - state (State): an instance of a Prefect State
+
+    Returns:
+        - PrefectStateSignal: the Prefect Signal corresponding to
+            the provided state
+
+    Raises:
+        - ValueError: if no signal matches the provided state
+    """
+    unprocessed = set(PrefectStateSignal.__subclasses__())
+    signals = dict()
+    while unprocessed:
+        sig = unprocessed.pop()
+        signals[sig._state_cls.__name__] = sig
+        unprocessed = unprocessed.union(sig.__subclasses__())
+    try:
+        return signals[type(state).__name__]
+    except KeyError:
+        raise ValueError(f"No signal matches the provided state: {state}") from None
 
 
 class ENDRUN(Exception):

@@ -26,6 +26,11 @@ You can use the `prefect backend` CLI command to toggle between a local server a
 
 ## Authenticating with Prefect Cloud <Badge text="Cloud"/>
 
+If you plan to use Prefect Cloud, make sure that Prefect is configured to look for a cloud backend:
+```
+prefect backend cloud
+```
+
 Interacting with the Prefect Cloud API requires the use of JWT tokens for secure authentication.
 
 ### Log in to Prefect Cloud
@@ -49,7 +54,7 @@ If the `prefect` command is not found then Prefect may not be installed. Go [her
 Running deployed Flows requires an Agent being authenticated against Prefect Cloud. To do this, let's generate a `RUNNER`-scoped API token:
 
 ```bash
-prefect auth create-token -n my-runner-token -r RUNNER
+prefect auth create-token -n my-runner-token -s RUNNER
 ```
 
 Keep this runner token handy for future steps, or store it as an environment variable:

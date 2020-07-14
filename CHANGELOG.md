@@ -1,5 +1,105 @@
 # Changelog
 
+## 0.12.4 <Badge text="beta" type="success" />
+
+Released on July 14, 2020.
+
+### Enhancements
+
+- Improve output formatting of `prefect describe` CLI - [#2934](https://github.com/PrefectHQ/prefect/pull/2934)
+- Add new `wait` kwarg to Flow Run Task for reflecting the flow run state in the task - [#2935](https://github.com/PrefectHQ/prefect/pull/2935)
+- Separate build-time and run-time job spec details in KubernetsJobEnvironment - [#2950](https://github.com/PrefectHQ/prefect/pull/2950)
+
+### Task Library
+
+- Implement RunNamespacedJob task for Kubernetes - [#2916](https://github.com/PrefectHQ/prefect/pull/2916)
+- Add `log_stderr` option to `ShellTask` and `DbtShellTask` for logging the full output from stderr - [#2961](https://github.com/PrefectHQ/prefect/pull/2961)
+
+### Fixes
+
+- Ensure `is_serializable` always uses same executable for subprocess. - [#1262](https://github.com/PrefectHQ/prefect/issues/1262)
+- Fix issue with Mapped tasks not always reloading child state results on reruns - [#2656](https://github.com/PrefectHQ/prefect/issues/2656)
+- Fix `FargateTaskEnvironment` attempting to retrieve authorization token when not present - [#2940](https://github.com/PrefectHQ/prefect/pull/2940)
+- Fix issue with Metastates compounding - [#2965](https://github.com/PrefectHQ/prefect/pull/2965)
+
+### Contributors
+
+- [Chris Bowdon](https://github.com/cbowdon)
+- [James Lamb](https://github.com/jameslamb)
+- [Paweł Cieśliński](https://github.com/pcieslinski)
+
+## 0.12.3 <Badge text="beta" type="success" />
+
+Released on July 8, 2020.
+
+### Enhancements
+
+- Update `flow.slugs` during `flow.replace` - [#2919](https://github.com/PrefectHQ/prefect/issues/2919)
+- `flow.update` accepts the optional kwarg `merge_parameters` that allows flows to be updated with common `Parameters` - [#2501](https://github.com/PrefectHQ/prefect/issues/2501)
+- Added poke handler to notify agent process of available flow runs - [#2914](https://github.com/PrefectHQ/prefect/pull/2914)
+- Add `Cancelling` state for indicating a flow-run that is being cancelled, but may still have tasks running - [#2923](https://github.com/PrefectHQ/prefect/pull/2923)
+
+### Task Library
+
+- Add `ReadAirtableRow` task - [#2843](https://github.com/PrefectHQ/prefect/pull/2843)
+- Add `container_name` kwarg to `CreateContainer` Docker task - [#2904](https://github.com/PrefectHQ/prefect/pull/2904)
+- Adds an `extra_docker_kwargs` argument to `CreateContainer` Docker task - [#2915](https://github.com/PrefectHQ/prefect/pull/2915)
+
+### Fixes
+
+- Fix issue with short-interval IntervalClocks that had a start_date far in the past - [#2906](https://github.com/PrefectHQ/prefect/pull/2906)
+- When terminating early, executors ensure all pending work is cancelled/completed before returning, ensuring no lingering background processing - [#2920](https://github.com/PrefectHQ/prefect/pull/2920)
+
+### Contributors
+
+- [Bradley McElroy](https://github.com/limx0)
+- [Itay Livni](https://github.com/gryBox)
+- [Matthew Alhonte](https://github.com/mattalhonte)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+- [Sandeep Aggarwal](https://github.com/asandeep)
+
+## 0.12.2 <Badge text="beta" type="success" />
+
+Released on June 30, 2020.
+
+### Features
+
+- Add `apply_map`, a function to simplify creating complex mapped pipelines - [#2846](https://github.com/PrefectHQ/prefect/pull/2846)
+
+### Enhancements
+
+- Make storage location inside Docker storage configurable - [#2865](https://github.com/PrefectHQ/prefect/pull/2865)
+- Send heartbeats on each iteration of the Cloud task runner's retry loop - [#2893](https://github.com/PrefectHQ/prefect/pull/2893)
+
+### Task Library
+
+- Add option to BigQueryTask to return query as dataframe - [#2862](https://github.com/PrefectHQ/prefect/pull/2862)
+
+### Server
+
+- None
+
+### Fixes
+
+- Add more context keys when running locally so that templating is consistent between local and Cloud runs - [#2662](https://github.com/PrefectHQ/prefect/issues/2662)
+- Fix Fargate agent not parsing string provided containerDefinitions - [#2875](https://github.com/PrefectHQ/prefect/issues/2875)
+- Fix Fargate agent providing empty parameters if not set - [#2878](https://github.com/PrefectHQ/prefect/issues/2878)
+- Fix issue with Queued task runs flooding agents with work - [#2884](https://github.com/PrefectHQ/prefect/issues/2884)
+- Add missing `prefect register flow` to CLI help text - [#2895](https://github.com/PrefectHQ/prefect/pull/2895)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [James Lamb](https://github.com/jameslamb)
+- [nathaniel-md](https://github.com/nathaniel-md)
+
 ## 0.12.1 <Badge text="beta" type="success" />
 
 Released on June 25, 2020.

@@ -41,6 +41,7 @@ def cli():
         create      Create objects
         execute     Execute a flow's environment
         run         Run a flow
+        register    Register flows with an API
         heartbeat   Send heartbeats for a run
 
     \b

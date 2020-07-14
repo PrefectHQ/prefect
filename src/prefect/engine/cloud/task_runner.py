@@ -262,6 +262,9 @@ class CloudTaskRunner(TaskRunner):
         upstream_results = {}
 
         try:
+            if state.is_mapped():
+                # ensures mapped children are only loaded once
+                state = state.load_result(self.result)
             for edge, upstream_state in upstream_states.items():
                 upstream_states[edge] = upstream_state.load_result(
                     edge.upstream_task.result or self.flow_result
@@ -322,6 +325,11 @@ class CloudTaskRunner(TaskRunner):
                     (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
                 )
                 time.sleep(naptime)
+
+                # send heartbeat on each iteration to let API know task run is still alive
+                self.client.update_task_run_heartbeat(
+                    task_run_id=prefect.context.get("task_run_id")
+                )
 
                 # mapped children will retrieve their latest info inside
                 # initialize_run(), but we can load up-to-date versions

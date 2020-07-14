@@ -30,6 +30,6 @@ Having flows stuck in a Submitted state most commonly indicates an issue with yo
 
 Here are are some steps for debugging issues in execution:
 
-1. Check the agent logs to see if anything obvious stands out
+1. Check the agent logs to see if anything obvious stands out (running an agent with the `--show-flow-logs` could show more useful output)
 2. Verify that your platform has the proper services running (e.g. Docker daemon for Local Agent) or permissions configured (e.g. RBAC for Kubernetes Agent)
 3. Open an issue on [GitHub](https://github.com/PrefectHQ/prefect/issues/new/choose)!

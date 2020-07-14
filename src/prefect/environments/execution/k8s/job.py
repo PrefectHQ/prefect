@@ -1,3 +1,4 @@
+import copy
 import os
 import uuid
 import warnings
@@ -39,7 +40,9 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
     `$ /bin/sh -c "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"`
 
     Args:
-        - job_spec_file (str, optional): Path to a job spec YAML file
+        - job_spec_file (str, optional): Path to a job spec YAML file. This path is only
+            used when the environment is built, so should refer to a file on the machine
+            used to build the flow.
         - unique_job_name (bool, optional): whether to use a unique name for each job created
             with this environment. Defaults to `False`
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
@@ -82,6 +85,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
+        self._job_spec = self._populate_build_time_job_spec_details(self._job_spec)
 
         self._identifier_label = ""
 
@@ -135,9 +139,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
 
         batch_client = client.BatchV1Api()
 
-        job = self._populate_job_spec_yaml(
-            yaml_obj=self._job_spec, docker_name=docker_name,
-        )
+        job = self._populate_run_time_job_spec_details(docker_name=docker_name,)
 
         # Create Job
         try:
@@ -152,13 +154,113 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
     # Custom YAML Spec Manipulation
     ###############################
 
-    def _populate_job_spec_yaml(self, yaml_obj: dict, docker_name: str,) -> dict:
+    @staticmethod
+    def _ensure_required_job_spec_sections(yaml_obj: dict) -> dict:
         """
-        Populate the custom execution job yaml object used in this environment with the proper
-        values.
+        Ensure that the required sections exist in the given job YAML.
+
+        Makes sure the following sections exist:
+
+        * `metadata`
+        * `metadata.labels`
+        * `spec`
+        * `spec.template`
+        * `spec.template.metadata`
+        * `spec.template.metadata.labels`
+        * `spec.template.spec`
+        * `spec.template.spec.containers`
+        * and on the first container in `spec.template.spec.containers`:
+            - `command`
+            - `args`
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
+
+        Returns:
+            - dict: a dictionary with the yaml values replaced
+        """
+        if not yaml_obj.get("metadata"):
+            yaml_obj["metadata"] = {}
+
+        if not yaml_obj["metadata"].get("labels"):
+            yaml_obj["metadata"]["labels"] = {}
+
+        if not yaml_obj.get("spec"):
+            yaml_obj["spec"] = {}
+
+        if not yaml_obj["spec"].get("template"):
+            yaml_obj["spec"]["template"] = {}
+
+        if not yaml_obj["spec"]["template"].get("spec"):
+            yaml_obj["spec"]["template"]["spec"] = {}
+
+        if not yaml_obj["spec"]["template"]["spec"].get("containers"):
+            yaml_obj["spec"]["template"]["spec"]["containers"] = {}
+
+        if not yaml_obj["spec"]["template"].get("metadata"):
+            yaml_obj["spec"]["template"]["metadata"] = {}
+
+        if not yaml_obj["spec"]["template"]["metadata"].get("labels"):
+            yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
+
+        if not yaml_obj["spec"]["template"]["spec"].get("containers"):
+            yaml_obj["spec"]["template"]["spec"]["containers"] = [{}]
+
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("command"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = []
+
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("args"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
+
+        return yaml_obj
+
+    def _populate_build_time_job_spec_details(self, yaml_obj: dict) -> dict:
+        """
+        Populate some details of the custom execution job YAML used in this environment.
+
+        This method fills in details that are known at the build time (when assigning
+        `flow.environment`). Other details which can only be filled in at runtime are
+        handled by `_populate_job_spec_yaml()`.
+
+        Changes the first container in `spec.template.spec.containers`.
+
+        * `/bin/sh -c` as the `command`
+        * prefect-specific `args` that run the floow
+
+        Args:
+            - yaml_obj (dict): A dictionary representing the parsed yaml
+
+        Returns:
+            - dict: a dictionary with the yaml values replaced
+        """
+        yaml_obj = self._ensure_required_job_spec_sections(yaml_obj)
+
+        # set command on first container
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = [
+            "/bin/sh",
+            "-c",
+        ]
+
+        # set args on first container
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
+            'python -c "import prefect; prefect.environments.execution.load_and_run_flow()"'
+        ]
+
+        return yaml_obj
+
+    def _populate_run_time_job_spec_details(self, docker_name: str) -> dict:
+        """
+        Fill in the custom execution job yaml object stored in `self._job_spec`
+        with relevant details.
+
+        * `metadata.name`: adds a random name if `self.unique_job_name` is True
+        * `metadata.labels`: appends prefect-specific labels
+        * `spec.template.metadata.labels`: appends prefect-specific labels
+        * `spec.template.spec.containers` (first container):
+            - `env`: appends prefect-specific environment variables
+            - `image`: writes in image from flow's storage or evironment metadata
+
+        Args:
             - docker_name (str): the full path to the docker image
 
         Returns:
@@ -166,23 +268,13 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
 
-        # Create metadata label fields if they do not exist
-        if not yaml_obj.get("metadata"):
-            yaml_obj["metadata"] = {}
+        yaml_obj = copy.deepcopy(self._job_spec)
+        yaml_obj = self._ensure_required_job_spec_sections(yaml_obj)
 
         if self.unique_job_name:
             yaml_obj["metadata"][
                 "name"
             ] = f"{yaml_obj['metadata']['name']}-{str(uuid.uuid4())[:8]}"
-
-        if not yaml_obj["metadata"].get("labels"):
-            yaml_obj["metadata"]["labels"] = {}
-
-        if not yaml_obj["spec"]["template"].get("metadata"):
-            yaml_obj["spec"]["template"]["metadata"] = {}
-
-        if not yaml_obj["spec"]["template"]["metadata"].get("labels"):
-            yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
 
         # Populate metadata label fields
         k8s_labels = {
@@ -228,27 +320,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
             container["env"].extend(env_values)
 
         # set image on first container
-        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("image"):
-            yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = ""
-
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
-
-        # set command on first container
-        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("command"):
-            yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = []
-
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = [
-            "/bin/sh",
-            "-c",
-        ]
-
-        # set args on first container
-        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("args"):
-            yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
-
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
-            "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
-        ]
 
         return yaml_obj
 

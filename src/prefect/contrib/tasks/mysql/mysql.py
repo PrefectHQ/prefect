@@ -9,6 +9,7 @@ from typing import Any
 class MySQLExecute(Task):
     """
     Task for executing a query against a MySQL database.
+
     Args:
         - db_name (str): name of MySQL database
         - user (str): user name used to authenticate
