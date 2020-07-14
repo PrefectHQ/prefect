@@ -1,0 +1,5 @@
+enhancement:
+  - "Add DataFrame Serializer for Result objects for DataFrame storage to CSV or Parquet - [#2963](https://github.com/PrefectHQ/prefect/pull/2963)"
+
+contributor:
+ - "[Jackson Maxfield Brown](https://github.com/JacksonMaxfield)"
