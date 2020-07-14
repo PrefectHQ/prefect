@@ -12,15 +12,17 @@ from prefect.engine import signals
 __all__ = ("resource_manager", "ResourceManager")
 
 
-def setup_resource(mgr):
+def setup_resource(mgr: Any) -> Any:
+    """Setup a resource from a resource manager"""
     return mgr.setup()
 
 
-def cleanup_resource(mgr, resource):
-    return mgr.cleanup(resource)
+def cleanup_resource(mgr: Any, resource: Any) -> None:
+    """Cleanup a resource with its resource manager"""
+    mgr.cleanup(resource)
 
 
-def should_cleanup(upstream_states: Dict[Edge, State]) -> bool:
+def resource_cleanup_trigger(upstream_states: Dict[Edge, State]) -> bool:
     """Run the cleanup task, provided the following hold:
 
     - All upstream tasks have finished
@@ -30,7 +32,8 @@ def should_cleanup(upstream_states: Dict[Edge, State]) -> bool:
     for edge, state in upstream_states.items():
         if not state.is_finished():
             raise signals.TRIGGERFAIL(
-                'Trigger was "should_cleanup" but some of the upstream tasks were not finished.'
+                "Trigger was 'resource_cleanup_trigger' but some of the "
+                "upstream tasks were not finished."
             )
         if edge.key == "mgr":
             if state.is_skipped():
@@ -144,7 +147,7 @@ class ResourceManager:
         self.init_task_kwargs.setdefault("name", name)
         self.setup_task_kwargs.setdefault("name", f"{name}.setup")
         self.cleanup_task_kwargs.setdefault("name", f"{name}.cleanup")
-        self.cleanup_task_kwargs.setdefault("trigger", should_cleanup)
+        self.cleanup_task_kwargs.setdefault("trigger", resource_cleanup_trigger)
         self.cleanup_task_kwargs.setdefault("skip_on_upstream_skip", False)
 
     def __call__(self, *args: Any, flow: Flow = None, **kwargs: Any) -> ResourceContext:
