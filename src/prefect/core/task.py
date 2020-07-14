@@ -303,7 +303,6 @@ class Task(metaclass=SignatureValidator):
         self.auto_generated = False
 
         self.log_stdout = log_stdout
-        self.reference_task_candidate = True
 
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget

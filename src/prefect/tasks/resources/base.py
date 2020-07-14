@@ -12,14 +12,18 @@ from prefect.engine import signals
 __all__ = ("resource_manager", "ResourceManager")
 
 
-def setup_resource(mgr: Any) -> Any:
-    """Setup a resource from a resource manager"""
-    return mgr.setup()
+class ResourceSetupTask(Task):
+    """Setup a resource with its resource manager"""
+
+    def run(self, mgr: Any) -> Any:
+        return mgr.setup()
 
 
-def cleanup_resource(mgr: Any, resource: Any) -> None:
+class ResourceCleanupTask(Task):
     """Cleanup a resource with its resource manager"""
-    mgr.cleanup(resource)
+
+    def run(self, mgr: Any, resource: Any) -> None:
+        mgr.cleanup(resource)
 
 
 def resource_cleanup_trigger(upstream_states: Dict[Edge, State]) -> bool:
@@ -160,14 +164,11 @@ class ResourceManager:
             *args, flow=flow, **kwargs
         )
 
-        setup_task = prefect.task(setup_resource, **self.setup_task_kwargs)(
-            init_task, flow=flow
-        )
+        setup_task = ResourceSetupTask(**self.setup_task_kwargs)(init_task, flow=flow)
 
-        cleanup_task = prefect.task(cleanup_resource, **self.cleanup_task_kwargs)(
+        cleanup_task = ResourceCleanupTask(**self.cleanup_task_kwargs)(
             init_task, setup_task, flow=flow
         )
-        cleanup_task.reference_task_candidate = False
 
         return ResourceContext(init_task, setup_task, cleanup_task, flow)
 

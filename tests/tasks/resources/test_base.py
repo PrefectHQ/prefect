@@ -36,11 +36,6 @@ def add(x, y):
     return x + y
 
 
-@task
-def fail(x):
-    raise ValueError("Oh no!")
-
-
 def test_resource_manager_default_init():
     manager = resource_manager(MyResource)
     assert manager.name == "MyResource"
@@ -286,3 +281,32 @@ def test_resource_cleanup_trigger():
 
     with pytest.raises(signals.SKIP, match="setup skipped"):
         resource_cleanup_trigger(generate(Success(), Skipped(), Success()))
+
+
+@task
+def post_cleanup():
+    pass
+
+
+def test_resource_cleanup_reference_tasks():
+    manager = resource_manager(MyResource)
+
+    with Flow("test") as flow:
+        with manager() as resource:
+            a = inc(resource)
+            b = inc(a)
+            c = inc(2)
+        d = inc(b)
+
+    assert flow.reference_tasks() == {c, d}
+
+    with Flow("test") as flow:
+        context = manager()
+        with context as resource:
+            a = inc(resource)
+            b = inc(a)
+            c = inc(2)
+        d = inc(b)
+        e = post_cleanup(upstream_tasks=[context.cleanup_task])
+
+    assert flow.reference_tasks() == {c, d, e}
