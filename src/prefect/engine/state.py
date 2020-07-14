@@ -475,6 +475,16 @@ class _MetaState(State):
         )
         self.state = state
 
+    @property
+    def state(self) -> Optional[State]:
+        return self._state
+
+    @state.setter
+    def state(self, val: Optional[State]) -> None:
+        while isinstance(val, State) and val.is_meta_state():
+            val = val.state  # type: ignore
+        self._state = val
+
 
 class ClientFailed(_MetaState):
     """
