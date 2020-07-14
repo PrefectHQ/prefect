@@ -1,2 +1,0 @@
-fix:
-  - "Fix issue with Metastates compounding - [#2965](https://github.com/PrefectHQ/prefect/pull/2965)"
