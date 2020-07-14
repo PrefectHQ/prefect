@@ -112,12 +112,10 @@ class ShellTask(prefect.Task):
             sub_process.wait()
             if sub_process.returncode:
                 msg = "Command failed with exit code {0}: {1}".format(
-                    sub_process.returncode, line
+                    sub_process.returncode,
+                    "\n".join(lines) if self.log_stderr else line,
                 )
                 self.logger.error(msg)
-
-                if self.log_stderr:
-                    self.logger.error(lines)
 
                 raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
         if self.return_all:

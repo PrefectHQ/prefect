@@ -111,12 +111,12 @@ def test_shell_logs_error_on_non_zero_exit(caplog):
 
 def test_shell_logs_stderr_on_non_zero_exit(caplog):
     with Flow(name="test") as f:
-        task = ShellTask(log_stderr=True)(command="ls surely_a_dir_that_doesnt_exist")
+        task = ShellTask(log_stderr=True, return_all=True)(command="ls surely_a_dir_that_doesnt_exist")
     out = f.run()
     assert out.is_failed()
 
     error_log = [c for c in caplog.records if c.levelname == "ERROR"]
-    assert len(error_log) == 2
+    assert len(error_log) == 1
     assert error_log[0].name == "prefect.ShellTask"
     assert "surely_a_dir_that_doesnt_exist" in error_log[0].message
     assert "No such file or directory" in error_log[0].message
