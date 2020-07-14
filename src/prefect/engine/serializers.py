@@ -1,7 +1,7 @@
 import base64
 import json
 from io import BytesIO, StringIO
-from typing import Any, Dict
+from typing import Any
 
 import cloudpickle
 import pandas as pd
@@ -123,31 +123,27 @@ class DataFrameSerializer(Serializer):
         - TypeError: if the specified format is not supported
     """
 
-    @staticmethod
-    def _to_csv(df: pd.DataFrame, **kwargs: Any) -> bytes:
+    def _to_csv(df: pd.DataFrame, **kwargs: Any) -> bytes:  # type: ignore
         s = StringIO()
         df.to_csv(s, **kwargs)
         return bytes(s.getvalue().encode())
 
-    @staticmethod
-    def _read_csv(value: bytes, **kwargs: Any) -> pd.DataFrame:
+    def _read_csv(value: bytes, **kwargs: Any) -> pd.DataFrame:  # type: ignore
         b = BytesIO(value)
         return pd.read_csv(b, **kwargs)
 
-    @staticmethod
-    def _to_parquet(df: pd.DataFrame, **kwargs: Any) -> bytes:
+    def _to_parquet(df: pd.DataFrame, **kwargs: Any) -> bytes:  # type: ignore
         b = BytesIO()
         df.to_parquet(b, **kwargs)
         return b.getvalue()
 
-    @staticmethod
-    def _read_parquet(value: bytes, **kwargs: Any) -> pd.DataFrame:
+    def _read_parquet(value: bytes, **kwargs: Any) -> pd.DataFrame:  # type: ignore
         b = BytesIO(value)
         return pd.read_parquet(b, **kwargs)
 
     FORMAT_SERDES_LUT = {
-        "csv": {"serialize": _to_csv, "deserialize": _read_csv,},
-        "parquet": {"serialize": _to_parquet, "deserialize": _read_parquet,},
+        "csv": {"serialize": _to_csv, "deserialize": _read_csv},  # type: ignore
+        "parquet": {"serialize": _to_parquet, "deserialize": _read_parquet},  # type: ignore
     }
 
     def __init__(
