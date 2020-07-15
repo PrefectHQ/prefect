@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 from prefect import Task
 from prefect.engine.signals import FAIL
@@ -12,6 +12,7 @@ class CreateContainer(Task):
 
     Args:
         - image_name (str, optional): Name of the image to run
+        - container_name (str, optional): A name for the container
         - command (Union[list, str], optional): A single command or a list of commands to run
         - detach (bool, optional): Run container in the background
         - entrypoint (Union[str, list]): The entrypoint for the container
@@ -23,6 +24,7 @@ class CreateContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - extra_docker_kwargs (dict, optional): Extra kwargs to pass through to `create_container`
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
@@ -30,48 +32,56 @@ class CreateContainer(Task):
     def __init__(
         self,
         image_name: str = None,
+        container_name: str = None,
         command: Union[list, str] = None,
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
         volumes: Union[list, dict] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: Optional[dict] = None,
         **kwargs: Any
     ):
         self.image_name = image_name
+        self.container_name = container_name
         self.command = command
         self.detach = detach
         self.entrypoint = entrypoint
         self.environment = environment
         self.volumes = volumes
         self.docker_server_url = docker_server_url
-
+        self.extra_docker_kwargs = extra_docker_kwargs
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
         "image_name",
+        "container_name",
         "command",
         "detach",
         "entrypoint",
         "environment",
         "volumes",
         "docker_server_url",
+        "extra_docker_kwargs",
     )
     def run(
         self,
         image_name: str = None,
+        container_name: str = None,
         command: Union[list, str] = None,
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
         volumes: Union[list, dict] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: Optional[dict] = None,
     ) -> str:
         """
         Task run method.
 
         Args:
             - image_name (str, optional): Name of the image to run
+            - container_name (str, optional): A name for the container
             - command (Union[list, str], optional): A single command or a list of commands to run
             - detach (bool, optional): Run container in the background
             - entrypoint (Union[str, list]): The entrypoint for the container
@@ -83,6 +93,7 @@ class CreateContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra kwargs to pass through to `create_container`
 
         Returns:
             - str: A string representing the container id
@@ -105,11 +116,13 @@ class CreateContainer(Task):
         )
         container = client.create_container(
             image=image_name,
+            name=container_name,
             command=command,
             detach=detach,
             entrypoint=entrypoint,
             environment=environment,
             volumes=volumes,
+            **(self.extra_docker_kwargs or dict())
         )
         self.logger.debug(
             "Completed created container {} with command {}".format(image_name, command)

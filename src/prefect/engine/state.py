@@ -107,6 +107,14 @@ class State:
             - State: the current state with a fully hydrated Result attached
         """
         if self.is_mapped():
+            self.map_states = [
+                s.load_result(result) if s is not None else None
+                for s in self.map_states  # type: ignore
+            ]
+            if self.map_states:
+                self.result = [
+                    s.result if s is not None else None for s in self.map_states
+                ]
             return self
 
         result_reader = result or self._result
@@ -467,6 +475,16 @@ class _MetaState(State):
         )
         self.state = state
 
+    @property
+    def state(self) -> Optional[State]:
+        return self._state
+
+    @state.setter
+    def state(self, val: Optional[State]) -> None:
+        while isinstance(val, State) and val.is_meta_state():
+            val = val.state  # type: ignore
+        self._state = val
+
 
 class ClientFailed(_MetaState):
     """
@@ -639,6 +657,24 @@ class Running(State):
     """
 
     color = "#3d67ff"
+
+
+class Cancelling(Running):
+    """
+    State indicating that a previously running flow run is in the process of
+    cancelling, but still may have tasks running.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
+    """
+
+    color = "#bdbdbd"
 
 
 # -------------------------------------------------------------------

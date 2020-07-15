@@ -68,6 +68,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
 
     with Flow("example") as flow:
         apply_map(inc_if_even, range(10))
+    ```
     """
     from prefect.tasks.core.constants import Constant
 

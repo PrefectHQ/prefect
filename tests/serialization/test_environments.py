@@ -1,6 +1,8 @@
 import os
 import tempfile
 
+import pytest
+
 import prefect
 from prefect import environments
 from prefect.serialization.environment import (
@@ -13,6 +15,11 @@ from prefect.serialization.environment import (
     RemoteEnvironmentSchema,
     RemoteDaskEnvironmentSchema,
 )
+
+
+@pytest.fixture
+def k8s_job_spec_content() -> str:
+    return "apiVersion: batch/v1\nkind: Job\n"
 
 
 def test_serialize_base_environment():
@@ -166,11 +173,11 @@ def test_serialize_fargate_task_environment_with_labels():
     assert new.labels == set(["a", "b", "c"])
 
 
-def test_serialize_k8s_job_environment():
+def test_serialize_k8s_job_environment(k8s_job_spec_content):
     with tempfile.TemporaryDirectory() as directory:
 
         with open(os.path.join(directory, "job.yaml"), "w+") as file:
-            file.write("job")
+            file.write(k8s_job_spec_content)
 
         env = environments.KubernetesJobEnvironment(
             job_spec_file=os.path.join(directory, "job.yaml")
@@ -188,10 +195,10 @@ def test_serialize_k8s_job_environment():
     assert new.job_spec_file is None
 
 
-def test_serialize_k8s_job_env_with_job_spec():
+def test_serialize_k8s_job_env_with_job_spec(k8s_job_spec_content):
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "job.yaml"), "w+") as f:
-            f.write("job")
+            f.write(k8s_job_spec_content)
 
         env = environments.KubernetesJobEnvironment(
             job_spec_file=os.path.join(directory, "job.yaml")
@@ -204,11 +211,11 @@ def test_serialize_k8s_job_env_with_job_spec():
         assert isinstance(deserialized, environments.KubernetesJobEnvironment)
 
 
-def test_serialize_k8s_job_environment_with_labels():
+def test_serialize_k8s_job_environment_with_labels(k8s_job_spec_content):
     with tempfile.TemporaryDirectory() as directory:
 
         with open(os.path.join(directory, "job.yaml"), "w+") as file:
-            file.write("job")
+            file.write(k8s_job_spec_content)
 
         env = environments.KubernetesJobEnvironment(
             job_spec_file=os.path.join(directory, "job.yaml"), labels=["a", "b", "c"]
