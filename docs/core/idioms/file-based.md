@@ -82,7 +82,6 @@ The flow is ready to run! Every time you need to change the code inside your flo
 If you change any of the structure of your flow such as task names, rearrange task order, etc. then you will need to reregister that flow.
 :::
 
-
 ### File based Docker storage
 
 ```python
@@ -93,8 +92,19 @@ flow.storage = Docker(
 )
 ```
 
-To store flows as files in Docker storage three kwargs needs to be set:
+To store flows as files in Docker storage three kwargs needs to be set if you are using Prefect's default
+Docker storage build step:
 
 - `path`: the path that the file is stored in the Docker image
 - `files`: a dictionary of local file source to path destination in image
 - `stored_as_script`: boolean enabling file based storage
+
+If your Docker storage is using an image that already has your flow files added into it then you only
+need to specify the following:
+
+```python
+flow.storage = Docker(
+    path="/location/in/image/my_flow.py",
+    stored_as_script=True
+)
+```
