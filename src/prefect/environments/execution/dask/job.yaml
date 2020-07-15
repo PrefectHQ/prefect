@@ -45,9 +45,7 @@ spec:
             - name: PREFECT__DEBUG
               value: "true"
             - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
-              value: "False"
-            - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
-              value: "['feed', 'run_function']"
+              value: "True"
             - name: PREFECT__LOGGING__EXTRA_LOGGERS
               value: PREFECT__LOGGING__EXTRA_LOGGERS
           resources:
