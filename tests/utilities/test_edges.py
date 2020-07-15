@@ -30,11 +30,6 @@ class TestEdgeAnnotations:
         assert tasks.as_task(annotated) is t1
         assert tasks.as_task(annotated).auto_generated is False
 
-    @pytest.mark.parametrize("edge_annotation", ALL_ANNOTATIONS)
-    def test_unmapped_converts_its_argument_to_task(self, edge_annotation):
-        annotated = edge_annotation(5)
-        assert isinstance(annotated.task, Task)
-
 
 @task
 def add(x, y):

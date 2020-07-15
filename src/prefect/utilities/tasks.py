@@ -254,7 +254,7 @@ def as_task(x: Any, flow: "Optional[Flow]" = None) -> "prefect.Task":
     if isinstance(x, prefect.core.Task):  # type: ignore
         return x
     elif isinstance(x, prefect.utilities.edges.EdgeAnnotation):
-        return x.task
+        return as_task(x.task, flow=flow)
 
     # handle constants, including collections of constants
     elif is_constant(x):

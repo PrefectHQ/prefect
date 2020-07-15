@@ -1,5 +1,5 @@
 import prefect
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 
 class EdgeAnnotation:
@@ -11,12 +11,15 @@ class EdgeAnnotation:
     to be applied.
     """
 
-    def __init__(self, task: "prefect.Task", annotations: Dict[str, Any]):
-        self.annotations = dict()  # type: Dict[str, Any]
+    annotations = {}  # type: Dict[str, Any]
+
+    def __init__(self, task: Union["prefect.core.task.Task", "EdgeAnnotation"]):
+        # copy class attribute to the instance
+        self.annotations = self.annotations.copy()
         if isinstance(task, EdgeAnnotation):
             self.annotations.update(task.annotations)
-        self.annotations.update(annotations)
-        self.task = prefect.utilities.tasks.as_task(task)
+            task = task.task
+        self.task = task
 
 
 class mapped(EdgeAnnotation):
@@ -47,8 +50,7 @@ class mapped(EdgeAnnotation):
         ```
     """
 
-    def __init__(self, task: "prefect.core.task.Task"):
-        super().__init__(task=task, annotations={"mapped": True})
+    annotations = {"mapped": True}
 
 
 class unmapped(EdgeAnnotation):
@@ -79,8 +81,7 @@ class unmapped(EdgeAnnotation):
         ```
     """
 
-    def __init__(self, task: "prefect.core.task.Task"):
-        super().__init__(task=task, annotations={"mapped": False})
+    annotations = {"mapped": False}
 
 
 class flatten(EdgeAnnotation):
@@ -114,5 +115,4 @@ class flatten(EdgeAnnotation):
         ```
     """
 
-    def __init__(self, task: "prefect.core.task.Task"):
-        super().__init__(task=task, annotations={"flattened": True})
+    annotations = {"flattened": True}
