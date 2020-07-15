@@ -22,12 +22,12 @@ class AWSSecretsManager(SecretBase):
             Task constructor
     """
 
-    def __init__(self, name: str, **kwargs):
-        kwargs["name"] = name
+    def __init__(self, secret: str = None, **kwargs):
+        self.secret = secret
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("name")
-    def run(self, name: str = None, credentials: str = None) -> dict:
+    @defaults_from_attrs("secret")
+    def run(self, secret: str = None, credentials: str = None) -> dict:
         """
         Task run method.
 
@@ -43,11 +43,13 @@ class AWSSecretsManager(SecretBase):
             - dict: the contents of this secret, as a dictionary
         """
 
-        if name is None:
+        if secret is None:
             raise ValueError("A secret name must be provided.")
 
         secrets_client = get_boto_client("secretsmanager", credentials=credentials)
 
-        secret = secrets_client.get_secret_value(SecretId=name)
+        secret_string = secrets_client.get_secret_value(SecretId=secret)
 
-        return json.loads(secret["SecretString"])
+        secret_dict = json.loads(secret["SecretString"])
+
+        return secret_dict
