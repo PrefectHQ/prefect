@@ -1,5 +1,5 @@
 import prefect
-from typing import Dict, Any, Union
+from typing import Dict, Any
 
 
 class EdgeAnnotation:
@@ -13,13 +13,14 @@ class EdgeAnnotation:
 
     annotations = {}  # type: Dict[str, Any]
 
-    def __init__(self, task: Union["prefect.core.task.Task", "EdgeAnnotation"]):
+    def __init__(self, value: Any):
         # copy class attribute to the instance
         self.annotations = self.annotations.copy()
-        if isinstance(task, EdgeAnnotation):
-            self.annotations.update(task.annotations)
-            task = task.task
-        self.task = task
+
+        if isinstance(value, EdgeAnnotation):
+            self.annotations.update(value.annotations)
+            value = value.value
+        self.value = value  # type: Any
 
 
 class mapped(EdgeAnnotation):
