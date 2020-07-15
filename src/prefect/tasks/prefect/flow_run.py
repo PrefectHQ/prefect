@@ -122,6 +122,8 @@ class FlowRunTask(Task):
             idempotency_key=context.get("flow_run_id"),
         )
 
+        self.logger.debug(f"Flow Run {flow_run_id} created.")
+
         if not self.wait:
             return flow_run_id
 

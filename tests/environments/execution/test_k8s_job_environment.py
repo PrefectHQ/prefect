@@ -1,5 +1,6 @@
 import copy
 import os
+from typing import List
 from unittest.mock import MagicMock
 
 import cloudpickle
@@ -15,10 +16,36 @@ from prefect.utilities.configuration import set_temporary_config
 
 
 @pytest.fixture
+def default_command_args() -> List[str]:
+    return [
+        'python -c "import prefect; prefect.environments.execution.load_and_run_flow()"'
+    ]
+
+
+@pytest.fixture
+def initial_job_spec(default_command_args):
+    return {
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {"labels": {},},
+        "spec": {
+            "template": {
+                "spec": {
+                    "containers": [
+                        {"command": ["/bin/sh", "-c"], "args": default_command_args}
+                    ]
+                },
+                "metadata": {"labels": {}},
+            }
+        },
+    }
+
+
+@pytest.fixture
 def job_spec_file(tmpdir):
     job_spec_file = str(tmpdir.join("job.yaml"))
     with open(job_spec_file, "w") as f:
-        f.write("job")
+        f.write("apiVersion: batch/v1\nkind: Job\n")
     return job_spec_file
 
 
@@ -154,12 +181,13 @@ def test_create_namespaced_job_fails_outside_cluster(job_spec_file):
             environment.execute(Flow("test", storage=storage))
 
 
-def test_populate_job_yaml(job_spec_file, job):
+def test_populate_job_yaml(job_spec_file, job, default_command_args):
     environment = KubernetesJobEnvironment(
         job_spec_file=job_spec_file, unique_job_name=True
     )
 
     job["spec"]["template"]["spec"]["containers"][0]["env"] = []
+    environment._job_spec = job
 
     with set_temporary_config(
         {
@@ -169,8 +197,8 @@ def test_populate_job_yaml(job_spec_file, job):
         }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
-            yaml_obj = environment._populate_job_spec_yaml(
-                yaml_obj=job, docker_name="test1/test2:test3",
+            yaml_obj = environment._populate_run_time_job_spec_details(
+                docker_name="test1/test2:test3",
             )
 
     assert "prefect-dask-job-" in yaml_obj["metadata"]["name"]
@@ -204,24 +232,31 @@ def test_populate_job_yaml(job_spec_file, job):
         "/bin/sh",
         "-c",
     ]
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
-    ]
+    assert (
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"]
+        == default_command_args
+    )
 
 
 def test_populate_job_yaml_no_defaults(job_spec_file, job):
     environment = KubernetesJobEnvironment(job_spec_file=job_spec_file)
 
-    job["spec"]["template"]["spec"]["containers"][0] = {}
+    # only command and args are set on the container when the instance
+    # is initialized
+    job["spec"]["template"]["spec"]["containers"][0] = {
+        "command": ["/bin/sh", "-c"],
+        "args": default_command_args,
+    }
     del job["metadata"]
     del job["spec"]["template"]["metadata"]
+    environment._job_spec = job
 
     with set_temporary_config(
         {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
-            yaml_obj = environment._populate_job_spec_yaml(
-                yaml_obj=job, docker_name="test1/test2:test3",
+            yaml_obj = environment._populate_run_time_job_spec_details(
+                docker_name="test1/test2:test3",
             )
 
     assert (
@@ -248,16 +283,36 @@ def test_populate_job_yaml_no_defaults(job_spec_file, job):
         == "test1/test2:test3"
     )
 
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] == [
-        "/bin/sh",
-        "-c",
-    ]
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
-    ]
+
+def test_populate_job_yaml_command_and_args_not_overridden_at_run_time(job_spec_file):
+    environment = KubernetesJobEnvironment(job_spec_file=job_spec_file)
+
+    test_command = ["/bin/bash", "-acdefg"]
+    test_args = "echo 'hello'; python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
+    environment._job_spec["spec"]["template"]["spec"]["containers"][0][
+        "command"
+    ] = test_command
+    environment._job_spec["spec"]["template"]["spec"]["containers"][0][
+        "args"
+    ] = test_args
+
+    with set_temporary_config(
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+    ):
+        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+            yaml_obj = environment._populate_run_time_job_spec_details(
+                docker_name="test1/test2:test3",
+            )
+
+    assert (
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] == test_command
+    )
+    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == test_args
 
 
-def test_populate_job_yaml_multiple_containers(job_spec_file, job):
+def test_populate_job_yaml_multiple_containers(
+    job_spec_file, job, default_command_args
+):
     environment = KubernetesJobEnvironment(job_spec_file=job_spec_file)
 
     # Generate yaml object with multiple containers
@@ -266,6 +321,8 @@ def test_populate_job_yaml_multiple_containers(job_spec_file, job):
         copy.deepcopy(job["spec"]["template"]["spec"]["containers"][0])
     )
     job["spec"]["template"]["spec"]["containers"][1]["env"] = []
+    job["spec"]["template"]["spec"]["containers"][1]["args"] = "echo 'other command'"
+    environment._job_spec = job
 
     with set_temporary_config(
         {
@@ -275,8 +332,8 @@ def test_populate_job_yaml_multiple_containers(job_spec_file, job):
         }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
-            yaml_obj = environment._populate_job_spec_yaml(
-                yaml_obj=job, docker_name="test1/test2:test3",
+            yaml_obj = environment._populate_run_time_job_spec_details(
+                docker_name="test1/test2:test3",
             )
 
     assert (
@@ -308,9 +365,10 @@ def test_populate_job_yaml_multiple_containers(job_spec_file, job):
         "/bin/sh",
         "-c",
     ]
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
-    ]
+    assert (
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"]
+        == default_command_args
+    )
 
     # Assert Second Container
     env = yaml_obj["spec"]["template"]["spec"]["containers"][1]["env"]
@@ -327,24 +385,34 @@ def test_populate_job_yaml_multiple_containers(job_spec_file, job):
         != "test1/test2:test3"
     )
 
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][1]["args"] != [
-        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
-    ]
+    assert (
+        yaml_obj["spec"]["template"]["spec"]["containers"][1]["args"]
+        != default_command_args
+    )
 
 
-def test_initialize_environment_with_spec_populates(monkeypatch, job_spec_file):
+def test_initialize_environment_with_spec_populates(
+    monkeypatch, job_spec_file, initial_job_spec, default_command_args
+):
     environment = KubernetesJobEnvironment(job_spec_file=job_spec_file)
-    assert environment._job_spec == "job"
+    assert environment._job_spec == initial_job_spec
+    assert environment._job_spec["spec"]["template"]["spec"]["containers"][0][
+        "command"
+    ] == ["/bin/sh", "-c",]
+    assert (
+        environment._job_spec["spec"]["template"]["spec"]["containers"][0]["args"]
+        == default_command_args
+    )
 
 
-def test_roundtrip_cloudpickle(job_spec_file):
+def test_roundtrip_cloudpickle(job_spec_file, initial_job_spec):
     environment = KubernetesJobEnvironment(job_spec_file=job_spec_file)
 
-    assert environment._job_spec == "job"
+    assert environment._job_spec == initial_job_spec
 
     new = cloudpickle.loads(cloudpickle.dumps(environment))
     assert isinstance(new, KubernetesJobEnvironment)
-    assert new._job_spec == "job"
+    assert new._job_spec == initial_job_spec
 
     # Identifer labels do not persist
     assert environment.identifier_label

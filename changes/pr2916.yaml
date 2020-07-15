@@ -1,5 +1,0 @@
-task:
-  - "Implement RunNamespacedJob task for Kubernetes - [#2916](https://github.com/PrefectHQ/prefect/pull/2916)"
-
-contributor:
-  - "[Paweł Cieśliński](https://github.com/pcieslinski)"

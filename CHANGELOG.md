@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.12.4 <Badge text="beta" type="success" />
+
+Released on July 14, 2020.
+
+### Enhancements
+
+- Improve output formatting of `prefect describe` CLI - [#2934](https://github.com/PrefectHQ/prefect/pull/2934)
+- Add new `wait` kwarg to Flow Run Task for reflecting the flow run state in the task - [#2935](https://github.com/PrefectHQ/prefect/pull/2935)
+- Separate build-time and run-time job spec details in KubernetsJobEnvironment - [#2950](https://github.com/PrefectHQ/prefect/pull/2950)
+
+### Task Library
+
+- Implement RunNamespacedJob task for Kubernetes - [#2916](https://github.com/PrefectHQ/prefect/pull/2916)
+- Add `log_stderr` option to `ShellTask` and `DbtShellTask` for logging the full output from stderr - [#2961](https://github.com/PrefectHQ/prefect/pull/2961)
+
+### Fixes
+
+- Ensure `is_serializable` always uses same executable for subprocess. - [#1262](https://github.com/PrefectHQ/prefect/issues/1262)
+- Fix issue with Mapped tasks not always reloading child state results on reruns - [#2656](https://github.com/PrefectHQ/prefect/issues/2656)
+- Fix `FargateTaskEnvironment` attempting to retrieve authorization token when not present - [#2940](https://github.com/PrefectHQ/prefect/pull/2940)
+- Fix issue with Metastates compounding - [#2965](https://github.com/PrefectHQ/prefect/pull/2965)
+
+### Contributors
+
+- [Chris Bowdon](https://github.com/cbowdon)
+- [James Lamb](https://github.com/jameslamb)
+- [Paweł Cieśliński](https://github.com/pcieslinski)
+
 ## 0.12.3 <Badge text="beta" type="success" />
 
 Released on July 8, 2020.
