@@ -1,4 +1,3 @@
-import prefect
 from typing import Dict, Any
 
 
@@ -25,12 +24,13 @@ class EdgeAnnotation:
 
 class mapped(EdgeAnnotation):
     """
-    A container for specifying that a task should be mapped over when supplied as
-    the input to another task.
+    A container for specifying that a task should be mapped over when supplied
+    as the input to another task.
 
     Args:
-        - task (Task): the task to mark as "unmapped"; if not a Task subclass,
-            Prefect will attempt to convert it to one.
+        - value (Any): the task or value to mark as "unmapped"; if not a Task
+            subclass, Prefect will attempt to convert it to one when the edge is
+            created.
 
     Example:
         ```python
@@ -60,8 +60,9 @@ class unmapped(EdgeAnnotation):
     called with `task.map`.
 
     Args:
-        - task (Task): the task to mark as "unmapped"; if not a Task subclass,
-            Prefect will attempt to convert it to one.
+        - value (Any): the task or value to mark as "unmapped"; if not a Task
+            subclass, Prefect will attempt to convert it to one when the edge is
+            created.
 
     Example:
         ```python
@@ -91,8 +92,9 @@ class flatten(EdgeAnnotation):
     being passed to another task.
 
     Args:
-        - task (Task): the task to mark as "flattened"; if not a Task subclass,
-            Prefect will attempt to convert it to one.
+        - value (Any): the task or value to mark as "flattened"; if not a Task
+            subclass, Prefect will attempt to convert it to one when the edge is
+            created.
 
     Example:
         ```python
