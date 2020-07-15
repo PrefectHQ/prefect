@@ -97,4 +97,4 @@ To store flows as files in Docker storage three kwargs needs to be set:
 
 - `path`: pointing to the path that the file is stored in the Docker image
 - `files`: a dictionary of local file source to path destination in image
-- `stored_as_file`: boolean opting into file based storage
+- `stored_as_script`: boolean enabling file based storage
