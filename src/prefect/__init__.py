@@ -12,6 +12,7 @@ from prefect.core import Task, Flow, Parameter
 import prefect.engine
 import prefect.tasks
 from prefect.tasks.control_flow import case
+from prefect.tasks.core.resource_manager import resource_manager
 from prefect.utilities.tasks import task, tags, unmapped, apply_map
 
 import prefect.serialization

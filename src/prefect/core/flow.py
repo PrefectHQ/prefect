@@ -395,6 +395,28 @@ class Flow:
         """
         return {p for p in self.tasks if isinstance(p, Parameter)}
 
+    @cache
+    def _default_reference_tasks(self) -> Set[Task]:
+        from prefect.tasks.core.resource_manager import ResourceCleanupTask
+
+        # Select all tasks that aren't ResourceCleanupTasks and have no
+        # downstream dependencies that aren't ResourceCleanupTasks
+        #
+        # Note: this feels a bit gross, since it special cases a certain
+        # subclass inside the flow runner. If this behavior expands to other
+        # classes we should think of a general way of indicating this on a Task
+        # class instead of special casing.
+        return {
+            t
+            for t in self.tasks
+            if not isinstance(t, ResourceCleanupTask)
+            and not any(
+                t
+                for t in self.downstream_tasks(t)
+                if not isinstance(t, ResourceCleanupTask)
+            )
+        }
+
     def reference_tasks(self) -> Set[Task]:
         """
         A flow's "reference tasks" are used to determine its state when it runs. If all the
@@ -422,7 +444,7 @@ class Flow:
         if self._reference_tasks:
             return set(self._reference_tasks)
         else:
-            return self.terminal_tasks()
+            return self._default_reference_tasks()
 
     def set_reference_tasks(self, tasks: Iterable[Task]) -> None:
         """
@@ -496,11 +518,14 @@ class Flow:
             self._cache.clear()
 
             # Parameters must be root tasks
-            # All other new tasks should be added to the current case (if any)
+            # All other new tasks should be added to the current case/resource (if any)
             if not isinstance(task, Parameter):
                 case = prefect.context.get("case", None)
                 if case is not None:
                     case.add_task(task, self)
+                resource = prefect.context.get("resource", None)
+                if resource is not None:
+                    resource.add_task(task, self)
 
         return task
 
