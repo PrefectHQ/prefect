@@ -12,13 +12,13 @@ class TestAWSSecretsManager:
         task = AWSSecretsManager("test")
 
     def test_initialization_passes_to_task_constructor(self):
-        task = AWSSecretsManager(secret_name="test", tags=["AWS"])
+        task = AWSSecretsManager(name="test", tags=["AWS"])
         assert task.name == "test"
         assert task.tags == {"AWS"}
 
     def test_raises_if_secret_not_eventually_provided(self):
-        task = AWSSecretsManager(secret_name="test", tags=["AWS"])
+        task = AWSSecretsManager(name="test", tags=["AWS"])
 
         # TODO: I did not understand what this test tests (copied from S3Download)
-        with pytest.raises(ValueError, match="secret_name"):
+        with pytest.raises(ValueError, match="name"):
             task.run(name="")
