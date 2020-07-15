@@ -1073,13 +1073,13 @@ class TestFlatMap:
     )
     def test_flatmap_constant(self, executor):
         # flatmap over a constant
-        a = AddTask()
+        add = AddTask()
 
         with Flow(name="test") as f:
-            a = a.map(flatten([[1, 2, 3]]))
-            b = a.map(flatten([[1], [2], [3]]))
-            c = a.map(flatten([[1], [2, 3]]))
-            d = a.map(flatten([1, 2, 3]))
+            a = add.map(flatten([[1, 2, 3]]))
+            b = add.map(flatten([[1], [2], [3]]))
+            c = add.map(flatten([[1], [2, 3]]))
+            d = add.map(flatten([1, 2, 3]))
 
         s = f.run(executor=executor)
 
