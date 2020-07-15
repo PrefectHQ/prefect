@@ -1,7 +1,5 @@
 import json
 
-import boto3
-
 from prefect.tasks.secrets.base import SecretBase
 from prefect.utilities.aws import get_boto_client
 from prefect.utilities.tasks import defaults_from_attrs
