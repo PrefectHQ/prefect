@@ -17,7 +17,7 @@ class AWSSecretsManager(SecretBase):
     for `boto3`.
 
     Args:
-        - name (str, optional): the name of the secret to retrieve
+        - secret (str, optional): the name of the secret to retrieve
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -32,7 +32,7 @@ class AWSSecretsManager(SecretBase):
         Task run method.
 
         Args:
-            - name (str): the name of the secret to retrieve
+            - secret (str): the name of the secret to retrieve
             - credentials (dict, optional): your AWS credentials passed from an upstream
                 Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
