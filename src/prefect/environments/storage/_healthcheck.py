@@ -41,12 +41,15 @@ def cloudpickle_deserialization_check(flow_file_paths: list):
     print("Cloudpickle serialization check: OK")
     return flows
 
+
 def import_flow_from_script_check(flow_file_path: str):
     from prefect.utilities.storage import extract_flow_from_file
+
     flows = [extract_flow_from_file(file_path=flow_file_path)]
 
     print("Flow import from script check: OK")
     return flows
+
 
 def result_check(flows: list):
     for flow in flows:
@@ -120,9 +123,7 @@ if __name__ == "__main__":
 
     print("Beginning health checks...")
 
-    flow_file_paths = ast.literal_eval(
-        flow_file_path
-    )
+    flow_file_paths = ast.literal_eval(flow_file_path)
 
     system_check(python_version)
 

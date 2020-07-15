@@ -25,7 +25,7 @@ class TestSerialization:
             f.seek(0)
             with pytest.raises(ImportError, match="foo_machine"):
                 objs = healthchecks.cloudpickle_deserialization_check(
-                    "['{}']".format(f.name)
+                    ["{}".format(f.name)]
                 )
 
     def test_cloudpickle_deserialization_check_passes_and_returns_objs(self):
@@ -33,9 +33,7 @@ class TestSerialization:
         with tempfile.NamedTemporaryFile() as f:
             f.write(good_bytes)
             f.seek(0)
-            objs = healthchecks.cloudpickle_deserialization_check(
-                "['{}']".format(f.name)
-            )
+            objs = healthchecks.cloudpickle_deserialization_check(["{}".format(f.name)])
 
         assert len(objs) == 1
 
@@ -56,10 +54,35 @@ class TestSerialization:
             with open(file_two, "wb") as f:
                 f.write(flow_two)
 
-            paths = "['{0}', '{1}']".format(file_one, file_two)
+            paths = ["{}".format(file_one), "{}".format(file_two)]
             objs = healthchecks.cloudpickle_deserialization_check(paths)
 
         assert len(objs) == 2
+
+
+class TestScriptImport:
+    def test_import_from_script(self, tmpdir):
+        contents = """from prefect import Flow\nf=Flow('test-flow')"""
+
+        full_path = os.path.join(tmpdir, "flow.py")
+
+        with open(full_path, "w") as f:
+            f.write(contents)
+
+        flows = healthchecks.import_flow_from_script_check(full_path)
+        assert len(flows) == 1
+        assert flows[0].run().is_successful()
+
+    def test_import_from_script_fails(self, tmpdir):
+        contents = """from my_module import not_exists\nfrom prefect import Flow\nf=Flow('test-flow')"""
+
+        full_path = os.path.join(tmpdir, "flow.py")
+
+        with open(full_path, "w") as f:
+            f.write(contents)
+
+        with pytest.raises(ModuleNotFoundError):
+            healthchecks.import_flow_from_script_check(full_path)
 
 
 class TestSystemCheck:
