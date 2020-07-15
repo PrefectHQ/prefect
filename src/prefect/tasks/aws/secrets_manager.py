@@ -43,6 +43,9 @@ class AWSSecretsManager(SecretBase):
             - dict: the contents of this secret, as a dictionary
         """
 
+        if name is None:
+            raise ValueError("A secret name must be provided.")
+
         secrets_client = get_boto_client("secretsmanager", credentials=credentials)
 
         secret = secrets_client.get_secret_value(SecretId=name)

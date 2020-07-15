@@ -17,7 +17,7 @@ class TestAWSSecretsManager:
         assert task.tags == {"AWS"}
 
     def test_raises_if_secret_not_eventually_provided(self):
-        task = AWSSecretsManager(name="test", tags=["AWS"])
+        task = AWSSecretsManager(tags=["AWS"])
 
         # TODO: I did not understand what this test tests (copied from S3Download)
         with pytest.raises(ValueError, match="name"):
