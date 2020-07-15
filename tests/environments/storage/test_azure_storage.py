@@ -230,7 +230,7 @@ def test_get_flow_azure_runs(monkeypatch):
     assert state.is_successful()
 
 
-def test_get_flow_form_file_azure_runs(monkeypatch):
+def test_get_flow_from_file_azure_runs(monkeypatch):
     client = MagicMock(download_blob=MagicMock())
     service = MagicMock(get_blob_client=MagicMock(return_value=client))
     monkeypatch.setattr(
