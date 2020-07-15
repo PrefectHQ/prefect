@@ -69,9 +69,10 @@ class TestScriptImport:
         with open(full_path, "w") as f:
             f.write(contents)
 
-        flows = healthchecks.import_flow_from_script_check(full_path)
-        assert len(flows) == 1
+        flows = healthchecks.import_flow_from_script_check([full_path, full_path])
+        assert len(flows) == 2
         assert flows[0].run().is_successful()
+        assert flows[1].run().is_successful()
 
     def test_import_from_script_fails(self, tmpdir):
         contents = """from my_module import not_exists\nfrom prefect import Flow\nf=Flow('test-flow')"""
@@ -82,7 +83,7 @@ class TestScriptImport:
             f.write(contents)
 
         with pytest.raises(ModuleNotFoundError):
-            healthchecks.import_flow_from_script_check(full_path)
+            healthchecks.import_flow_from_script_check([full_path])
 
 
 class TestSystemCheck:

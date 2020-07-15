@@ -42,10 +42,12 @@ def cloudpickle_deserialization_check(flow_file_paths: list):
     return flows
 
 
-def import_flow_from_script_check(flow_file_path: str):
+def import_flow_from_script_check(flow_file_paths: list):
     from prefect.utilities.storage import extract_flow_from_file
 
-    flows = [extract_flow_from_file(file_path=flow_file_path)]
+    flows = []
+    for flow_file_path in flow_file_paths:
+        flows.append(extract_flow_from_file(file_path=flow_file_path))
 
     print("Flow import from script check: OK")
     return flows
@@ -119,16 +121,16 @@ def environment_dependency_check(flows: list):
 
 
 if __name__ == "__main__":
-    flow_file_path, python_version = sys.argv[1:3]
+    flow_file_paths, python_version = sys.argv[1:3]
 
     print("Beginning health checks...")
 
-    flow_file_paths = ast.literal_eval(flow_file_path)
+    flow_file_paths = ast.literal_eval(flow_file_paths)
 
     system_check(python_version)
 
-    if len(flow_file_paths) == 1 and ".py" in flow_file_paths[0]:
-        flows = import_flow_from_script_check(flow_file_paths[0])
+    if any(".py" in file_path for file_path in flow_file_paths):
+        flows = import_flow_from_script_check(flow_file_paths)
     else:
         flows = cloudpickle_deserialization_check(flow_file_paths)
 
