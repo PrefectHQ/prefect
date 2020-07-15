@@ -39,7 +39,7 @@ class State:
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
     """
 
