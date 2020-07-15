@@ -1,0 +1,2 @@
+enhancement:
+  - "Turn work stealing ON by default on Dask K8s environment - [#2973](https://github.com/PrefectHQ/prefect/pull/2973)"
