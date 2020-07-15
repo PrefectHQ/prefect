@@ -465,7 +465,6 @@ class FlowRunner(Runner):
                         # if the edge is flattened, then we need to wait for the mapped children
                         # to complete and then flatten them
                         if edge.flattened:
-                            children = executor.wait(children)
                             children = executors.flatten_mapped_children(
                                 mapped_children=children, executor=executor,
                             )
