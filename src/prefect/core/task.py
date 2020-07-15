@@ -540,6 +540,7 @@ class Task(metaclass=SignatureValidator):
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
         task_args: dict = None,
+        display_name_callable: Callable = None,
         **kwargs: Any
     ) -> "Task":
         """
@@ -562,6 +563,8 @@ class Task(metaclass=SignatureValidator):
                 flow in context if no flow is specified
             - task_args (dict, optional): a dictionary of task attribute keyword arguments,
                 these attributes will be set on the new copy
+            - display_name_callable (Callable, optional): a function that can be used to format the
+                name of mapped tasks
             - **kwargs: keyword arguments to map over, which will elementwise be bound to the
                 Task's `run` method
 
@@ -579,6 +582,11 @@ class Task(metaclass=SignatureValidator):
                     )
                 )
         new = self.copy(**(task_args or {}))
+
+        # TODO: is setting attributes like this a weird access pattern?
+        if display_name_callable is not None:
+            setattr(new, "display_name_callable", display_name_callable)
+
         return new.bind(
             *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs
         )

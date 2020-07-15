@@ -217,16 +217,25 @@ class TaskRunner(Runner):
         upstream_states = upstream_states or {}
         context = context or prefect.context.to_dict()
         map_index = context.setdefault("map_index", None)
-        context["task_full_name"] = "{name}{index}".format(
-            name=self.task.name,
-            index=("" if map_index is None else "[{}]".format(map_index)),
-        )
 
         task_inputs = {}  # type: Dict[str, Any]
 
         try:
             # initialize the run
             state, context = self.initialize_run(state, context)
+
+            # TODO: this attempt to retrieve raw inputs before the checks below. This could be a bad
+            # place to do this. The only issue with moving it later in the pipeline is the initial
+            # starting task run log below will not have the proper formatted display name meaning it will
+            # show up like this because we have logs prior to the initial input retrieval:
+            # prefect.TaskRunner | Task 'mytask[0]': Starting task run...
+            # prefect.TaskRunner | Task 'mytask[abc]': Handling state change from Pending to Running
+            # ...
+
+            # get the full task name
+            context["task_full_name"] = self.get_task_full_name(
+                state=state, upstream_states=upstream_states, map_index=map_index,
+            )
 
             # run state transformation pipeline
             with prefect.context(context):
@@ -1011,3 +1020,52 @@ class TaskRunner(Runner):
             )
 
         return state
+
+    def get_task_full_name(
+        self, state: State, upstream_states: Dict[Edge, State], map_index: int = -1,
+    ) -> str:
+        """
+        Gets the full name of a task for display purposes and to put into context. This makes use of
+        the `.map(display_name_callable)` to format a task's display name based on some provided
+        callable.
+
+        Args:
+            - state (State): initial `State` to begin task run from;
+                defaults to `Pending()`
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+            - map_index (int, optional): the current map index for this task. Defaults to `-1` if not
+                provided meaning task is not mapped.
+
+        Returns:
+            - str: a full name for the task display
+        """
+
+        initial_task_inputs = self.get_task_inputs(state, upstream_states)
+
+        # TODO: is retrieving attributes like this a weird access pattern?
+        if hasattr(self.task, "display_name_callable"):
+            display_name_callable = getattr(self.task, "display_name_callable")
+
+            raw_inputs = {k: r.value for k, r in initial_task_inputs.items()}
+
+            return "{name}{index}".format(
+                name=self.task.name,
+                index=(
+                    ""
+                    if map_index is None
+                    else "[{}]".format(
+                        display_name_callable(
+                            **raw_inputs,
+                            **prefect.context.get("parameters", {}).copy(),
+                            **prefect.context,
+                        )
+                    )
+                ),
+            )
+        else:
+            return "{name}{index}".format(
+                name=self.task.name,
+                index=("" if map_index is None else "[{}]".format(map_index)),
+            )
