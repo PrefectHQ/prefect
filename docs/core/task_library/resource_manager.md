@@ -1,7 +1,7 @@
-# Resources
+# ResourceManagers
 
-Tasks and utilities for implementing control flow constructs like branching and
-rejoining flows.
+`ResourceManager` objects provide a way to manage temporary resources that
+other tasks can then use.
 
 ## ResourceManager <Badge text="class"/>
 

@@ -356,12 +356,6 @@ title = "RSS Tasks"
 module = "prefect.tasks.rss"
 classes = ["ParseRSSFeed"]
 
-[pages.tasks.resources]
-title = "Resource Tasks"
-module = "prefect.tasks.resources"
-classes = ["ResourceManager"]
-functions = ["resource_manager"]
-
 [pages.tasks.secrets]
 title = "Secret Tasks"
 module = "prefect.tasks.secrets"
@@ -418,6 +412,12 @@ classes = [
 title = "Constant Tasks"
 module = "prefect.tasks.core.constants"
 classes = ["Constant"]
+
+[pages.tasks.resources]
+title = "ResourceManager Tasks"
+module = "prefect.tasks.core.resource_manager"
+classes = ["ResourceManager"]
+functions = ["resource_manager"]
 
 [pages.tasks.shell]
 title = "Shell Tasks"

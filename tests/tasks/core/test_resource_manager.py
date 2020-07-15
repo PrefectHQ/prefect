@@ -6,7 +6,7 @@ from prefect import Flow, task, Task
 from prefect.core import Edge
 from prefect.engine.state import Success, Failed, Skipped, Pending
 from prefect.engine import signals
-from prefect.tasks.resources.base import (
+from prefect.tasks.core.resource_manager import (
     ResourceManager,
     resource_manager,
     resource_cleanup_trigger,

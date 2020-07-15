@@ -397,7 +397,7 @@ class Flow:
 
     @cache
     def _default_reference_tasks(self) -> Set[Task]:
-        from prefect.tasks.resources.base import ResourceCleanupTask
+        from prefect.tasks.core.resource_manager import ResourceCleanupTask
 
         # Select all tasks that aren't ResourceCleanupTasks and have no
         # downstream dependencies that aren't ResourceCleanupTasks
