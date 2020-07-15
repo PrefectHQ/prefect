@@ -518,7 +518,7 @@ class Docker(Storage):
 
         # append the line that runs the healthchecks
         # skip over for now if storing flow as file
-        if not self.ignore_healthchecks and not self.stored_as_script:
+        if not self.ignore_healthchecks:
             file_contents += textwrap.dedent(
                 """
 

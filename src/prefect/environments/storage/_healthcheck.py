@@ -32,11 +32,7 @@ def system_check(python_version: str):
         print("System Version check: OK")
 
 
-def cloudpickle_deserialization_check(flow_file_paths: str):
-    flow_file_paths = ast.literal_eval(
-        flow_file_paths
-    )  # convert string to list of strings
-
+def cloudpickle_deserialization_check(flow_file_paths: list):
     flows = []
     for flow_file in flow_file_paths:
         with open(flow_file, "rb") as f:
@@ -45,6 +41,12 @@ def cloudpickle_deserialization_check(flow_file_paths: str):
     print("Cloudpickle serialization check: OK")
     return flows
 
+def import_flow_from_script_check(flow_file_path: str):
+    from prefect.utilities.storage import extract_flow_from_file
+    flows = [extract_flow_from_file(file_path=flow_file_path)]
+
+    print("Flow import from script check: OK")
+    return flows
 
 def result_check(flows: list):
     for flow in flows:
@@ -117,8 +119,18 @@ if __name__ == "__main__":
     flow_file_path, python_version = sys.argv[1:3]
 
     print("Beginning health checks...")
+
+    flow_file_paths = ast.literal_eval(
+        flow_file_path
+    )
+
     system_check(python_version)
-    flows = cloudpickle_deserialization_check(flow_file_path)
+
+    if len(flow_file_paths) == 1 and ".py" in flow_file_paths[0]:
+        flows = import_flow_from_script_check(flow_file_paths[0])
+    else:
+        flows = cloudpickle_deserialization_check(flow_file_paths)
+
     result_check(flows)
     environment_dependency_check(flows)
     print("All health checks passed.")

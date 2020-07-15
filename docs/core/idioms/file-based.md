@@ -81,3 +81,6 @@ If you change any of the structure of your flow such as task names, rearrange ta
 GitHub storage only supports files however the other storage options (Local, Docker, S3, etc.) store
 flows both as pickles and files. To switch to using file storage and enable the workflow above set
 `stored_as_script=True` on the storage object.
+
+
+### Docker
