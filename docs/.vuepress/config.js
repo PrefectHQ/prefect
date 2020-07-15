@@ -207,13 +207,6 @@ module.exports = {
           ]
         },
         {
-          title: 'Storage',
-          collapsable: true,
-          children: [
-            'storage/overview',
-          ]
-        },
-        {
           title: 'Agents',
           collapsable: true,
           children: [
