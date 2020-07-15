@@ -1,0 +1,5 @@
+task:
+  - "Implement AWSSecretsManager task - [#2069](https://github.com/PrefectHQ/prefect/issues/2069)"
+
+contributor:
+  - "[Robin Beer](https://github.com/Zaubeerer)"
