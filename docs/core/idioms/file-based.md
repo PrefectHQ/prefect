@@ -89,7 +89,7 @@ If you change any of the structure of your flow such as task names, rearrange ta
 flow.storage = Docker(
     path="my_flow.py",
     files={"/source/of/my_flow.py": "my_flow.py"},
-    stored_as_file=True
+    stored_as_script=True
 )
 ```
 
