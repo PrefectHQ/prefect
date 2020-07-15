@@ -1,3 +1,6 @@
 
 feature:
   - "Add `flat` operator for unnesting and flat-maps - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)"
+
+deprecation:
+  - "`prefect.utilities.tasks.unmapped` moved to `prefect.utilities.edges.unmapped` - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)"
