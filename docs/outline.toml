@@ -413,6 +413,12 @@ title = "Constant Tasks"
 module = "prefect.tasks.core.constants"
 classes = ["Constant"]
 
+[pages.tasks.resources]
+title = "ResourceManager Tasks"
+module = "prefect.tasks.core.resource_manager"
+classes = ["ResourceManager"]
+functions = ["resource_manager"]
+
 [pages.tasks.shell]
 title = "Shell Tasks"
 module = "prefect.tasks.shell"
