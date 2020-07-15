@@ -48,8 +48,8 @@ class AWSSecretsManager(SecretBase):
 
         secrets_client = get_boto_client("secretsmanager", credentials=credentials)
 
-        secret_string = secrets_client.get_secret_value(SecretId=secret)
+        secret_string = secrets_client.get_secret_value(SecretId=secret)["SecretString"]
 
-        secret_dict = json.loads(secret["SecretString"])
+        secret_dict = json.loads(secret_string)
 
         return secret_dict
