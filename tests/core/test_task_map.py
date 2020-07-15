@@ -1076,14 +1076,15 @@ class TestFlatMap:
         a = AddTask()
 
         with Flow(name="test") as f:
-            x = a.map(flatten([[1, 2, 3]]))
-            y = a.map(flatten([[1], [2], [3]]))
-            z = a.map(flatten([[1], [2, 3]]))
+            a = a.map(flatten([[1, 2, 3]]))
+            b = a.map(flatten([[1], [2], [3]]))
+            c = a.map(flatten([[1], [2, 3]]))
+            d = a.map(flatten([1, 2, 3]))
 
         s = f.run(executor=executor)
 
         # all results should be the same
-        for task in [x, y, z]:
+        for task in [a, b, c, d]:
             assert s.result[task].result == [2, 3, 4]
 
     @pytest.mark.parametrize(
@@ -1168,8 +1169,8 @@ class TestFlatMap:
             z = a.map(x=flatten([1]))
 
         state = flow.run()
-        assert state.result[z].is_failed()
-        assert state.result[z].message == "No upstream states can be mapped over."
+        assert state.result[z].is_mapped()
+        assert state.result[z].result == [2]
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
@@ -1177,8 +1178,23 @@ class TestFlatMap:
     def test_flatmap_one_unnested_input(self, executor):
         a = AddTask()
         with Flow("test") as flow:
-            z = a.map(x=flatten([1]), y=flatten([[1]]))
+            z = a.map(x=flatten([1]), y=flatten([[5]]))
 
         state = flow.run()
         assert state.result[z].is_mapped()
-        assert state.result[z].result == []
+        assert state.result[z].result == [6]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_one_unmappable_input(self, executor):
+        a = AddTask()
+        with Flow("test") as flow:
+            z = a.map(x=flatten(1), y=flatten([[1]]))
+
+        state = flow.run()
+        assert state.result[z].is_failed()
+        assert (
+            state.result[z].message
+            == "At least one upstream state has an unmappable result."
+        )

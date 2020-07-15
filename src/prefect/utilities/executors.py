@@ -406,12 +406,17 @@ def _build_flattened_state(state: "State", index: int) -> "State":
 
 
 def flatten_upstream_state(upstream_state: "State") -> "State":
-    new_state = copy.copy(upstream_state)
+    """
+    Given an upstream state, returns its result as a flattened list. If
+    flattening fails, the object is returned unmodified.
+    """
     try:
+        # attempt to unnest
         flattened_result = [y for x in upstream_state.result for y in x]
     except TypeError:
-        # this will pass a Failed upstream state to the mapped task
-        return prefect.engine.state.Failed("Cannot flat-map over non-nested object.")
+        return upstream_state
+
+    new_state = copy.copy(upstream_state)
     new_state.result = new_state._result.from_value(  # type: ignore
         flattened_result
     )

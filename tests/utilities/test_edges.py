@@ -64,6 +64,20 @@ class TestFlow:
         state = flow.run()
         assert state.result[z].result == [101, 102, 103]
 
+    def test_flat_applied_to_unnested_list(self):
+        with Flow("test") as flow:
+            z = add.map(x=edges.flatten([1, 2, 3]), y=edges.unmapped(100))
+
+        state = flow.run()
+        assert state.result[z].result == [101, 102, 103]
+
+    def test_flat_applied_to_constant(self):
+        with Flow("test") as flow:
+            z = add.map(x=[1, 2, 3], y=edges.unmapped(edges.flatten(100)))
+
+        state = flow.run()
+        assert state.result[z].result == [101, 102, 103]
+
     def test_multiple_annotations_applied(self):
         with Flow("test") as flow:
             z = add(x=edges.mapped(edges.flatten([[1], [2, 3]])), y=edges.unmapped(100))
