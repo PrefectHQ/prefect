@@ -2,6 +2,12 @@
 
 As of Prefect version `0.12.5` all storage options support storing flows as files. This means that flow code can change in between (or even during) runs without needing to be reregistered. As long as the structure of the flow itself does not change, only the task content, then a Prefect API backend will be able to execute the flow. This is a useful storage mechanism especially for testing, debugging, CI/CD processes, and more!
 
+### Enable file storage
+
+GitHub storage only supports files however the other storage options (Local, Docker, S3, etc.) store
+flows both as pickles and files. To switch to using file storage and enable the workflow above set
+`stored_as_script=True` on the storage object.
+
 ### Example file based workflow
 
 ::: warning GitHub dependency
@@ -76,11 +82,19 @@ The flow is ready to run! Every time you need to change the code inside your flo
 If you change any of the structure of your flow such as task names, rearrange task order, etc. then you will need to reregister that flow.
 :::
 
-### Enable file storage
 
-GitHub storage only supports files however the other storage options (Local, Docker, S3, etc.) store
-flows both as pickles and files. To switch to using file storage and enable the workflow above set
-`stored_as_script=True` on the storage object.
+### File based Docker storage
 
+```python
+flow.storage = Docker(
+    path="my_flow.py",
+    files={"/source/of/my_flow.py": "my_flow.py"},
+    stored_as_file=True
+)
+```
 
-### Docker
+To store flows as files in Docker storage three kwargs needs to be set:
+
+- `path`: pointing to the path that the file is stored in the Docker image
+- `files`: a dictionary of local file source to path destination in image
+- `stored_as_file`: boolean opting into file based storage
