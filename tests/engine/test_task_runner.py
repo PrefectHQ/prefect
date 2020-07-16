@@ -4,6 +4,7 @@ import pytest
 import sys
 import tempfile
 
+from dask.base import tokenize
 from datetime import datetime, timedelta
 from time import sleep, time
 from unittest.mock import MagicMock
@@ -356,7 +357,6 @@ def test_task_runner_can_handle_timeouts_by_default():
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=Result(2))
 
 
 def test_task_runner_handles_secrets():
@@ -372,10 +372,10 @@ def test_task_that_starts_failed_doesnt_get_retried():
     assert state.is_failed()
 
 
-def test_runner_checks_cached_inputs_correctly():
+def test_runner_checks_hashed_inputs_correctly():
     with pytest.warns(UserWarning):
         task = AddTask(cache_validator=cache_validators.all_inputs)
-    pre = Cached(cached_inputs={"x": Result(1), "y": Result(2)}, result=99)
+    pre = Cached(hashed_inputs={"x": tokenize(1), "y": tokenize(2)}, result=99)
     upstream = {
         Edge(Task(), task, key="x"): Success(result=1),
         Edge(Task(), task, key="y"): Success(result=2),
@@ -815,40 +815,6 @@ class TestGetTaskInputs:
         )
         assert inputs == {"x": Result([1, 2])}
 
-    def test_get_inputs_from_cached_inputs(self):
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": Result(1)}), upstream_states={}
-        )
-        assert inputs == {"x": Result(1)}
-
-    def test_get_inputs_from_cached_inputs_and_upstream_states(self):
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": Result(1)}),
-            upstream_states={Edge(1, 2, key="y"): Success(result=2)},
-        )
-        assert inputs == {"x": Result(1), "y": Result(2)}
-
-    def test_cached_inputs_overwrites_upstream_states_if_they_are_noresult(self):
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": Result(value=1), "y": Result(value=2)}),
-            upstream_states={
-                Edge(1, 2, key="x"): Success(),
-                Edge(1, 2, key="y"): Success(),
-            },
-        )
-        assert inputs == {"x": Result(1), "y": Result(2)}
-
-    def test_cached_inputs_doesnt_overwrites_upstream_states_if_hydrated(self):
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": Result(value=1), "y": Result(value=2)}),
-            upstream_states={
-                Edge(1, 2, key="x"): Success(result=None),
-                Edge(1, 2, key="y"): Success(result=5),
-            },
-        )
-        assert inputs["x"].value == None
-        assert inputs["y"].value == 5
-
 
 class TestCheckTaskCached:
     @pytest.mark.parametrize("state", [Pending(), Success(), Retrying()])
@@ -859,7 +825,7 @@ class TestCheckTaskCached:
     def test_cached_same_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": Result(1)}, result=Result(2))
+        state = Cached(hashed_inputs={"a": tokenize(1)}, result=Result(2))
         new = TaskRunner(task).check_task_is_cached(
             state=state, inputs={"a": Result(1)}
         )
@@ -868,7 +834,7 @@ class TestCheckTaskCached:
     def test_cached_different_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": Result(1)}, result=2)
+        state = Cached(hashed_inputs={"a": tokenize(1)}, result=2)
         new_state = TaskRunner(task).check_task_is_cached(
             state=state, inputs={"a": Result(2)}
         )
@@ -997,7 +963,6 @@ class TestSetTaskRunning:
             state=state, inputs=dict()
         )
         assert new_state.is_running()
-        assert new_state.cached_inputs == dict()
 
     @pytest.mark.parametrize("state", [Pending()])
     def test_inputs_are_cached(self, state):
@@ -1005,7 +970,6 @@ class TestSetTaskRunning:
             state=state, inputs=dict(x=Result(42))
         )
         assert new_state.is_running()
-        assert new_state.cached_inputs == dict(x=Result(42))
 
     @pytest.mark.parametrize("state", [Cached(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
@@ -1321,7 +1285,6 @@ class TestCheckRetryStep:
             task=Task(max_retries=1, retry_delay=timedelta(0))
         ).check_for_retry(state=state, inputs={"x": Result(1)})
         assert new_state.is_retrying()
-        assert new_state.cached_inputs == {"x": Result(1)}
 
     def test_retrying_when_run_count_greater_than_max_retries(self):
         with prefect.context(task_run_count=10):
@@ -1372,7 +1335,6 @@ class TestCacheResultStep:
         )
         assert new_state is state
         assert new_state._result is NoResult
-        assert new_state.cached_inputs == {"x": Result(1)}
 
     @pytest.mark.parametrize(
         "validator",
@@ -1406,7 +1368,6 @@ class TestCacheResultStep:
         assert isinstance(new_state, Cached)
         assert new_state.message == "hello"
         assert new_state.result == 2
-        assert new_state.cached_inputs == {"x": Result(5)}
 
 
 class TestTargetExistsStep:
@@ -1947,7 +1908,6 @@ def test_retry_has_updated_metadata():
     )
 
     assert state.is_retrying()
-    assert state.cached_inputs == dict(x=Result(15), y=Result("abc"))
 
 
 def test_pending_raised_from_endrun_has_updated_metadata():
@@ -1961,7 +1921,6 @@ def test_pending_raised_from_endrun_has_updated_metadata():
     state = runner.run(upstream_states={Edge(Task(), Task(), key="x"): upstream_state})
 
     assert state.is_pending()
-    assert state.cached_inputs == dict(x=Result(15))
 
 
 @pytest.mark.parametrize("checkpoint", [True, None])
@@ -2148,17 +2107,6 @@ class TestLooping:
         state = runner.run(state=state)
         assert state.is_successful()
         assert state.result == 2
-
-
-def test_failure_caches_inputs():
-    @prefect.task
-    def fail(x):
-        raise ValueError()
-
-    upstream_states = {Edge(Task(), fail, key="x"): Success(result=Result(1))}
-    new_state = TaskRunner(task=fail).run(upstream_states=upstream_states)
-    assert new_state.is_failed()
-    assert new_state.cached_inputs == {"x": Result(1)}
 
 
 def test_task_tags_are_attached_to_all_states():
