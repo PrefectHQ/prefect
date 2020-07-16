@@ -26,6 +26,15 @@ class KubernetesAgent(Agent):
     prefect agent start kubernetes --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
+    These can also be used to control the k8s job spec that describes the flow run jobs.
+    For example, to set the k8s secret used to pull images from a non-public registry:
+    ```
+    prefect agent start kubernetes --env IMAGE_PULL_SECRETS=my-img-pull-secret
+    ```
+
+    For details on the available environment variables for customizing the job spec,
+    see `help(KubernetesAgent.replace_job-spec_yaml)`.
+
     Specifying a namespace for the agent will create flow run jobs in that namespace:
     ```
     prefect agent start kubernetes --namespace dev
@@ -39,11 +48,12 @@ class KubernetesAgent(Agent):
         - labels (List[str], optional): a list of labels, which are arbitrary string
             identifiers used by Prefect Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will
-            be set on each flow run that this agent submits for execution
+            be set on each flow run that this agent submits for execution and in the agent's
+            own environment
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
             for flow runs; defaults to infinite
-        - agent_address (str, optional):  Address to serve internal api at. Currently this is
-            just health checks for use by an orchestration layer. Leave blank for no api server
+        - agent_address (str, optional):  Address to serve internal API at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no API server
             (default).
         - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
             and all deployed flow runs
@@ -117,14 +127,33 @@ class KubernetesAgent(Agent):
 
     def replace_job_spec_yaml(self, flow_run: GraphQLResult, image: str) -> dict:
         """
-        Populate metadata and variables in the job_spec.yaml file for flow runs
+        Populate a k8s job spec. This spec defines a k8s job that handles
+        executing a flow. This method runs each time the agent receives
+        a flow to run.
+
+        That job spec can optionally be customized by setting the
+        following environment variables on the agent.
+
+        - `NAMESPACE`: the k8s namespace the job will run in, defaults to `"default"`
+        - `JOB_MEM_REQUEST`: memory requested, for example, `256Mi` for 256 MB. If this
+                environment variable is not set, the cluster's defaults will be used.
+        - `JOB_MEM_LIMIT`: memory limit, for example, `512Mi` For 512 MB. If this
+                environment variable is not set, the cluster's defaults will be used.
+        - `JOB_CPU_REQUEST`: CPU requested, defaults to `"100m"`
+        - `JOB_CPU_LIMIT`: CPU limit, defaults to `"100m"`
+        - `IMAGE_PULL_POLICY`: policy for pulling images. Defaults to `"IfNotPresent"`.
+        - `IMAGE_PULL_SECRETS`: name of an existing k8s secret that can be used to pull
+                images. This is necessary if your flow uses an image that is in a non-public
+                container registry, such as Amazon ECR.
+        - `SERVICE_ACCOUNT_NAME`: name of a service account to run the job as.
+                By default, none is specified.
 
         Args:
             - flow_run (GraphQLResult): A flow run object
             - image (str): The full name of an image to use for the job
 
         Returns:
-            - dict: a dictionary representing the populated yaml object
+            - dict: a dictionary representation of a k8s job for flow execution
         """
         with open(path.join(path.dirname(__file__), "job_spec.yaml"), "r") as job_file:
             job = yaml.safe_load(job_file)
@@ -235,7 +264,7 @@ class KubernetesAgent(Agent):
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): additional environment variables to attach to all
-                jobs created by this agent
+                jobs created by this agent and to set in the agent's own environment
             - backend (str, optional): toggle which backend to use for this agent.
                 Defaults to backend currently set in config.
 
