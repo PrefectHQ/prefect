@@ -1,0 +1,2 @@
+enhancement:
+  - "Send regular heartbeats while waiting to retry / dequeue - [#2977](https://github.com/PrefectHQ/prefect/pull/2977)"
