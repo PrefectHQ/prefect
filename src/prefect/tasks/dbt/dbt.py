@@ -149,6 +149,4 @@ class DbtShellTask(ShellTask):
         if self.set_profiles_envar:
             os.environ["DBT_PROFILES_DIR"] = self.profiles_dir
 
-        super(DbtShellTask, self).run(
-            command=command, env=env,
-        )
+        return super(DbtShellTask, self).run(command=command, env=env,)
