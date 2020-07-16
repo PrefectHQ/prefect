@@ -17,6 +17,7 @@ from slugify import slugify
 
 import prefect
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     import docker
@@ -75,6 +76,10 @@ class Docker(Storage):
             api.html#docker.api.build.BuildApiMixin.build)
         - prefect_directory (str, optional): Path to the directory where prefect configuration/flows
              should be stored inside the Docker image. Defaults to `/opt/prefect`.
+        - path (str, optional): a direct path to the location of the flow file in the Docker image
+            if `stored_as_script=True`.
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
@@ -99,6 +104,8 @@ class Docker(Storage):
         tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
         build_kwargs: dict = None,
         prefect_directory: str = "/opt/prefect",
+        path: str = None,
+        stored_as_script: bool = False,
         **kwargs: Any,
     ) -> None:
         self.registry_url = registry_url
@@ -112,6 +119,7 @@ class Docker(Storage):
         self.python_dependencies.append("wheel")
 
         self.prefect_directory = prefect_directory
+        self.path = path
 
         self.env_vars = env_vars or {}
         self.env_vars.setdefault(
@@ -175,7 +183,7 @@ class Docker(Storage):
                     "absolute paths only."
                 ).format(", ".join(not_absolute))
             )
-        super().__init__(**kwargs)
+        super().__init__(stored_as_script=stored_as_script, **kwargs)
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """
@@ -234,7 +242,7 @@ class Docker(Storage):
                     flow.name
                 )
             )
-        flow_path = "{}/flows/{}.prefect".format(
+        flow_path = self.path or "{}/flows/{}.prefect".format(
             self.prefect_directory, slugify(flow.name)
         )
         self.flows[flow.name] = flow_path
@@ -252,6 +260,9 @@ class Docker(Storage):
         Returns:
             - Flow: the requested flow
         """
+        if self.stored_as_script:
+            return extract_flow_from_file(file_path=flow_location)
+
         with open(flow_location, "rb") as f:
             return cloudpickle.load(f)
 
@@ -438,15 +449,23 @@ class Docker(Storage):
 
         # Write all flows to file and load into the image
         copy_flows = ""
-        for flow_name, flow_location in self.flows.items():
-            clean_name = slugify(flow_name)
-            flow_path = os.path.join(directory, "{}.flow".format(clean_name))
-            with open(flow_path, "wb") as f:
-                cloudpickle.dump(self._flows[flow_name], f)
-            copy_flows += "COPY {source} {dest}\n".format(
-                source=flow_path if self.dockerfile else "{}.flow".format(clean_name),
-                dest=flow_location,
-            )
+        if not self.stored_as_script:
+            for flow_name, flow_location in self.flows.items():
+                clean_name = slugify(flow_name)
+                flow_path = os.path.join(directory, "{}.flow".format(clean_name))
+                with open(flow_path, "wb") as f:
+                    cloudpickle.dump(self._flows[flow_name], f)
+                copy_flows += "COPY {source} {dest}\n".format(
+                    source=flow_path
+                    if self.dockerfile
+                    else "{}.flow".format(clean_name),
+                    dest=flow_location,
+                )
+        else:
+            if not self.path:
+                raise ValueError(
+                    "A `path` must be provided to show where flow `.py` file is stored in the image."
+                )
 
         # Write all extra commands that should be run in the image
         extra_commands = ""
@@ -498,6 +517,7 @@ class Docker(Storage):
         )
 
         # append the line that runs the healthchecks
+        # skip over for now if storing flow as file
         if not self.ignore_healthchecks:
             file_contents += textwrap.dedent(
                 """

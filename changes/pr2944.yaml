@@ -1,0 +1,2 @@
+enhancement:
+  - "All storage types now support file-based storage - [#2944](https://github.com/PrefectHQ/prefect/pull/2944)"

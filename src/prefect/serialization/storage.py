@@ -12,6 +12,7 @@ class AzureSchema(ObjectSchema):
 
     container = fields.String(allow_none=False)
     blob_name = fields.String(allow_none=True)
+    stored_as_script = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
 
@@ -35,6 +36,8 @@ class DockerSchema(ObjectSchema):
     registry_url = fields.String(allow_none=True)
     image_name = fields.String(allow_none=True)
     image_tag = fields.String(allow_none=True)
+    path = fields.Str(allow_none=True)
+    stored_as_script = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     prefect_version = fields.String(allow_none=False)
     secrets = fields.List(fields.Str(), allow_none=True)
@@ -54,6 +57,7 @@ class GCSSchema(ObjectSchema):
     bucket = fields.Str(allow_none=False)
     key = fields.Str(allow_none=True)
     project = fields.Str(allow_none=True)
+    stored_as_script = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
 
@@ -70,6 +74,8 @@ class LocalSchema(ObjectSchema):
         object_class = Local
 
     directory = fields.Str(allow_none=False)
+    path = fields.Str(allow_none=True)
+    stored_as_script = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
 
@@ -88,6 +94,7 @@ class S3Schema(ObjectSchema):
 
     bucket = fields.String(allow_none=False)
     key = fields.String(allow_none=True)
+    stored_as_script = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     client_options = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True

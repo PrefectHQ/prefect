@@ -6,6 +6,9 @@ As of Prefect version `0.9.0` every storage option except for `Docker` will auto
 
 Version `0.12.0` introduces a new way to store flows using the various cloud storage options (S3, GCS, Azure) and then in turn run them using Agents which orchestrate containerized environments. For more information see [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
 
+Version `0.12.5` introduces file-based storage for all storage options. For more information see the
+[Using file based flow storage idiom](/core/idioms/file-based.html).
+
 ## Local
 
 [Local Storage](/api/latest/environments/storage.html#local) is the default `Storage` option for all flows. This stores the flow as bytes in the local filesystem which means it can only be run by a [local agent](/orchestration/agents/local.html) running on the same machine.

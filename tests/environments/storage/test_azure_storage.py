@@ -66,6 +66,16 @@ def test_add_multiple_flows_to_Azure():
     assert g.name in storage
 
 
+def test_build_no_upload_if_file(monkeypatch):
+    storage = Azure(container="container", stored_as_script=True)
+
+    with pytest.raises(ValueError):
+        storage.build()
+
+    storage = Azure(container="container", stored_as_script=True, blob_name="flow.py")
+    assert storage == storage.build()
+
+
 def test_upload_flow_to_azure(monkeypatch):
     client = MagicMock(upload_blob=MagicMock())
     service = MagicMock(get_blob_client=MagicMock(return_value=client))
@@ -204,6 +214,37 @@ def test_get_flow_azure_runs(monkeypatch):
     monkeypatch.setattr("cloudpickle.loads", MagicMock(return_value=f))
 
     storage = Azure(container="container")
+
+    assert f.name not in storage
+    flow_location = storage.add_flow(f)
+
+    new_flow = storage.get_flow(flow_location)
+    assert client.download_blob.called
+    assert f.name in storage
+
+    assert isinstance(new_flow, Flow)
+    assert new_flow.name == "test"
+    assert len(new_flow.tasks) == 0
+
+    state = new_flow.run()
+    assert state.is_successful()
+
+
+def test_get_flow_from_file_azure_runs(monkeypatch):
+    client = MagicMock(download_blob=MagicMock())
+    service = MagicMock(get_blob_client=MagicMock(return_value=client))
+    monkeypatch.setattr(
+        "prefect.environments.storage.Azure._azure_block_blob_service", service
+    )
+
+    f = Flow("test")
+
+    monkeypatch.setattr(
+        "prefect.environments.storage.azure.extract_flow_from_file",
+        MagicMock(return_value=f),
+    )
+
+    storage = Azure(container="container", stored_as_script=True)
 
     assert f.name not in storage
     flow_location = storage.add_flow(f)
