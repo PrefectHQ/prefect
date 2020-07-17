@@ -170,10 +170,21 @@ You can turn auto-scheduling on or off at any time: <Badge text="GQL"/>
 
 ```graphql
 mutation {
-  setFlowScheduleState(input: { flow_id: "<flow id>", set_active: true }) {
+  set_schedule_active(input: {
+    flow_id: "<flow_id>"
+  }) {
     success
   }
 }
+
+mutation {
+  set_schedule_inactive(input: {
+    flow_id: "<flow_id>"
+  }) {
+    success
+  }
+}
+
 ```
 
 ::: warning Scheduling with parameters
