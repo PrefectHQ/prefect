@@ -147,10 +147,10 @@ class TaskRunner(Runner):
 
         if "_loop_count" in state.context:
             loop_result = state._result
-            if loop_result.value is None and loop_result.location is not None:
-                loop_result_value = self.result.read(loop_result.location).value
+            if loop_result.value is None and loop_result.location is not None:  # type: ignore
+                loop_result_value = self.result.read(loop_result.location).value  # type: ignore
             else:
-                loop_result_value = loop_result.value
+                loop_result_value = loop_result.value  # type: ignore
             loop_context = {
                 "task_loop_count": state.context.pop("_loop_count"),
                 "task_loop_result": loop_result_value,
