@@ -351,7 +351,7 @@ class Pending(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -384,7 +384,7 @@ class Scheduled(Pending):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -421,7 +421,7 @@ class Paused(Scheduled):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to resume; defaults
             to 10 years from now if not provided.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -500,7 +500,7 @@ class ClientFailed(_MetaState):
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that the task run ended in
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -525,7 +525,7 @@ class Submitted(_MetaState):
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that has been marked as "submitted".
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -549,7 +549,7 @@ class Queued(_MetaState):
         - state (State): the `State` state that has been marked as
             "queued".
         - start_time (datetime): a time the state is queued until. Defaults to `now`.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -586,7 +586,7 @@ class Resume(Scheduled):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -604,7 +604,7 @@ class Retrying(Scheduled):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to be retried
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -650,7 +650,7 @@ class Running(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -668,8 +668,8 @@ class Cancelling(Running):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -690,7 +690,7 @@ class Finished(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -711,7 +711,7 @@ class Looped(Finished):
         - loop_count (int): The iteration number of the looping task.
             Defaults to the value stored in context under "task_loop_count" or 1,
             if that value isn't found.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -744,7 +744,7 @@ class Success(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -762,7 +762,7 @@ class Cached(Success):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the
             state, which will be cached.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - cached_parameters (dict): Defaults to `None`
         - cached_result_expiration (datetime): The time at which this cache
@@ -812,7 +812,7 @@ class Mapped(Success):
         - map_states (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -846,8 +846,8 @@ class Cancelled(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -863,7 +863,7 @@ class Failed(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -891,7 +891,7 @@ class TimedOut(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -908,7 +908,7 @@ class TriggerFailed(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -925,7 +925,7 @@ class ValidationFailed(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
@@ -942,7 +942,7 @@ class Skipped(Success):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+        - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated `Result`s.
             Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
