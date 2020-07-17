@@ -5,15 +5,11 @@ from prefect.tasks.postgres import PostgresExecute, PostgresFetch
 
 class TestPostgresExecute:
     def test_construction(self):
-        task = PostgresExecute(
-            db_name="test", user="test", host="test"
-        )
+        task = PostgresExecute(db_name="test", user="test", host="test")
         assert task.commit is False
 
     def test_query_string_must_be_provided(self):
-        task = PostgresExecute(
-            db_name="test", user="test", host="test"
-        )
+        task = PostgresExecute(db_name="test", user="test", host="test")
         with pytest.raises(ValueError, match="A query string must be provided"):
             task.run()
 
