@@ -1,0 +1,2 @@
+enhancement:
+  - Simplify creation of optional parameters with default of `None` - [#2995](https://github.com/PrefectHQ/prefect/pull/2995)

@@ -10,6 +10,14 @@ if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
+# A sentinel value indicating no default was provided
+no_default = type(
+    "no_default",
+    (object,),
+    dict.fromkeys(["__repr__", "__reduce__"], lambda s: "no_default"),
+)()
+
+
 class Parameter(Task):
     """
     A Parameter is a special task that defines a required flow input.
@@ -20,10 +28,10 @@ class Parameter(Task):
 
     Args:
         - name (str): the Parameter name.
-        - required (bool, optional): If True, the Parameter is required and the default
-            value is ignored.
-        - default (any, optional): A default value for the parameter. If the default
-            is not None, the Parameter will not be required.
+        - default (any, optional): A default value for the parameter.
+        - required (bool, optional): If True, the Parameter is required and the
+            default value is ignored. Defaults to `False` if a `default` is
+            provided, otherwise `True`.
         - tags ([str], optional): A list of tags for this parameter
 
     """
@@ -31,13 +39,14 @@ class Parameter(Task):
     def __init__(
         self,
         name: str,
-        default: Any = None,
-        required: bool = True,
+        default: Any = no_default,
+        required: bool = None,
         tags: Iterable[str] = None,
     ):
-        if default is not None:
-            required = False
-
+        if required is None:
+            required = default is no_default
+        if default is no_default:
+            default = None
         self.required = required
         self.default = default
 
