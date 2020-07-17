@@ -1,6 +1,5 @@
 from contextlib import redirect_stdout
 from dask.base import tokenize
-import json
 from typing import (
     Any,
     Callable,
@@ -18,8 +17,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult, Result
-from prefect.engine.results import PrefectResult
+from prefect.engine.result import Result
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
