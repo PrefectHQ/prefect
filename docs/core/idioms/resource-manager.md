@@ -1,6 +1,6 @@
 # Managing temporary resources
 
-Sometimes you have workloads that depend on temporary that need to be setup,
+Sometimes you have workloads that depend on resources that need to be setup,
 used, then cleaned up. Examples might include:
 
 - Compute resources like Dask or Spark clusters
@@ -47,7 +47,7 @@ class MyResource:
         ...
 ```
 
-The resulting `ResourceManager` can then be used in a `Flow` as a
+The resulting `ResourceManager` can then be used when building a `Flow` as a
 context-manager around tasks that rely on that resource. The resource will be
 created upon entering the context block, and will be cleaned up upon exiting
 the block, even if tasks contained inside the context fail.
