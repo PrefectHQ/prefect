@@ -171,7 +171,7 @@ You can turn auto-scheduling on or off at any time: <Badge text="GQL"/>
 ```graphql
 mutation {
   set_schedule_active(input: {
-    flow_id: "<flow_id>"
+    schedule_id: "<schedule_id>"
   }) {
     success
   }
@@ -179,7 +179,7 @@ mutation {
 
 mutation {
   set_schedule_inactive(input: {
-    flow_id: "<flow_id>"
+    schedule_id: "<schedule_id>"
   }) {
     success
   }
