@@ -147,9 +147,8 @@ class PandasSerializer(Serializer):
         """
         serialization_method = self._get_write_method(dataframe=value)
         buffer = BytesIO()
-        breakpoint()
-        serialized_data = serialization_method(buffer, **self.write_kwargs)
-        return serialized_data
+        serialization_method(buffer, **self.write_kwargs)
+        return buffer.getvalue()
 
     def deserialize(self, value: bytes) -> "pandas.DataFrame":  # noqa: F821
         """
