@@ -5,7 +5,11 @@ import json
 import cloudpickle
 import pendulum
 
-from prefect.engine.serializers import JSONSerializer, PickleSerializer
+from prefect.engine.serializers import (
+    JSONSerializer,
+    PandasSerializer,
+    PickleSerializer,
+)
 
 
 class TestPickleSerializer:
@@ -59,7 +63,30 @@ class TestJSONSerializer:
         assert serialized == json.dumps(value).encode()
 
 
+class TestPandasSerializer:
+    @pytest.fixture(scope="function")
+    def input_dataframe(self):
+        pd = pytest.importorskip("pandas", reason="Pandas not installed")
+        return pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
+
+    def test_serialize_returns_bytes(self, input_dataframe):
+        serialized = PandasSerializer("csv").serialize(input_dataframe)
+        assert isinstance(serialized, bytes)
+
+
 def test_equality():
     assert PickleSerializer() == PickleSerializer()
     assert JSONSerializer() == JSONSerializer()
+    assert PandasSerializer("csv") == PandasSerializer("csv")
+    assert PandasSerializer("csv", write_kwargs={"one": 1}) == PandasSerializer(
+        "csv", write_kwargs={"one": 1}
+    )
     assert PickleSerializer() != JSONSerializer()
+    assert PickleSerializer() != PandasSerializer("csv")
+    assert PandasSerializer("csv") != PandasSerializer("parquet")
+    assert PandasSerializer("csv", read_kwargs={"one": 1}) != PandasSerializer(
+        "csv", read_kwargs={"one": 2}
+    )
+    assert PandasSerializer("csv", write_kwargs={"one": 1}) != PandasSerializer(
+        "csv", write_kwargs={"one": 2}
+    )
