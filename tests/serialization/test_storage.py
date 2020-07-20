@@ -321,7 +321,7 @@ def test_webhook_full_serialize():
         get_flow_kwargs={
             "url": get_url,
             "headers": {
-                "Content-Type": content_type,
+                "Accept": content_type,
                 "Dropbox-API-Arg": json.dumps({"path": test_file}),
             },
         },
@@ -350,7 +350,7 @@ def test_webhook_full_serialize():
     assert serialized["get_flow_kwargs"] == {
         "url": get_url,
         "headers": {
-            "Content-Type": content_type,
+            "Accept": content_type,
             "Dropbox-API-Arg": json.dumps({"path": test_file}),
         },
     }

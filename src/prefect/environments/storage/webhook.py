@@ -4,9 +4,6 @@
 #   until after build() is done
 # * test with Google Drive
 # * test with something custom on API Gateway
-# * test that creds work with Prefect Cloud secrets
-# * test that creds work with environment variables
-# * different secret_config for get_flow() vs. build()
 # * add to all the relevant docs
 
 import cloudpickle
@@ -82,7 +79,7 @@ class WebHook(Storage):
         ...
         build_secret_config={
             "X-Api-Key": {
-                "value": "MY_COOL_ENV_VARIABLE",
+                "name": "MY_COOL_ENV_VARIABLE",
                 "type": "environment"
             }
         }
@@ -259,10 +256,13 @@ class WebHook(Storage):
             - headers (dict): A dictionary of headers.
             - secret_config (dict): A secret config. See `help(WebHook)` for
                 details on how this should be constructed.
+        Raises:
+            - KeyError if referencing an environment variable that does not exist
+            - ValueError if referencing a Secret that does not exist
         """
         out_headers = deepcopy(headers)
         for header, details in secret_config.items():
-            name = details["value"]
+            name = details["name"]
             if details["type"] == "environment":
                 out_headers[header] = os.environ[name]
             elif details["type"] == "secret":

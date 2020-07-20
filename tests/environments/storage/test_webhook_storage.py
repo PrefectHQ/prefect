@@ -6,6 +6,7 @@ import uuid
 from requests.exceptions import HTTPError
 from typing import Any, Dict, Optional
 
+from prefect import context
 from prefect import task, Flow
 from prefect.environments.storage import WebHook
 
@@ -215,7 +216,77 @@ def test_webhook_raises_error_on_get_flow_failure(sample_flow):
         "POST": _mock_successful_post,
     }
     webhook.add_flow(sample_flow)
-    res = webhook.build()
+    webhook.build()
 
     with pytest.raises(HTTPError, match="test-error-message"):
         webhook.get_flow()
+
+
+def test_render_headers_gets_env_variables(monkeypatch):
+    some_cred = str(uuid.uuid4())
+    another_secret = str(uuid.uuid4())
+    monkeypatch.setenv("SOME_CRED", some_cred)
+    webhook = WebHook(
+        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_http_method="POST",
+        build_secret_config={
+            "X-Api-Key": {"name": "SOME_CRED", "type": "environment"},
+            "X-Custom-Key": {"name": "ANOTHER_SECRET", "type": "secret"},
+        },
+        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_http_method="GET",
+    )
+
+    # set a local secret
+    context.setdefault("secrets", {})
+    context.secrets["ANOTHER_SECRET"] = another_secret
+
+    initial_headers = {"X-Api-Key": "abc"}
+    new_headers = webhook._render_headers(
+        headers=initial_headers, secret_config=webhook.build_secret_config
+    )
+
+    # _render_headers should not have side effects
+    assert initial_headers == {"X-Api-Key": "abc"}
+
+    # env variables and secrets should have been filled in
+    assert new_headers["X-Api-Key"] == some_cred
+    assert new_headers["X-Custom-Key"] == another_secret
+
+
+def test_render_headers_raises_expected_exception_on_missing_env_var(monkeypatch):
+    monkeypatch.delenv("SOME_CRED", raising=False)
+    webhook = WebHook(
+        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_http_method="POST",
+        build_secret_config={
+            "X-Api-Key": {"name": "SOME_CRED", "type": "environment"},
+        },
+        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_http_method="GET",
+    )
+
+    with pytest.raises(KeyError, match="SOME_CRED"):
+        initial_headers = {"X-Api-Key": "abc"}
+        webhook._render_headers(
+            headers=initial_headers, secret_config=webhook.build_secret_config
+        )
+
+
+def test_render_headers_raises_expected_exception_on_missing_secret(monkeypatch):
+    monkeypatch.delenv("ANOTHER_SECRET", raising=False)
+    webhook = WebHook(
+        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_http_method="POST",
+        build_secret_config={
+            "X-Custom-Key": {"name": "ANOTHER_SECRET", "type": "secret"},
+        },
+        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_http_method="GET",
+    )
+
+    with pytest.raises(ValueError, match='Local Secret "ANOTHER_SECRET" was not found'):
+        initial_headers = {"X-Api-Key": "abc"}
+        webhook._render_headers(
+            headers=initial_headers, secret_config=webhook.build_secret_config
+        )
