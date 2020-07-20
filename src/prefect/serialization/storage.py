@@ -149,7 +149,7 @@ class WebHookSchema(ObjectSchema):
     secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> GitHub:
+    def create_object(self, data: dict, **kwargs: Any) -> WebHook:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows
