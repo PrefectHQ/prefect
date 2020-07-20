@@ -1,6 +1,6 @@
 import base64
+import io
 import json
-from io import BytesIO
 from typing import Any
 
 import cloudpickle
@@ -95,7 +95,6 @@ class JSONSerializer(Serializer):
         Returns:
             - bytes: the serialized value
         """
-        breakpoint()
         return json.dumps(value).encode()
 
     def deserialize(self, value: bytes) -> Any:
@@ -146,9 +145,17 @@ class PandasSerializer(Serializer):
             - bytes: the serialized value
         """
         serialization_method = self._get_write_method(dataframe=value)
-        buffer = BytesIO()
-        serialization_method(buffer, **self.write_kwargs)
-        return buffer.getvalue()
+        buffer = io.BytesIO()
+        try:
+            serialization_method(buffer, **self.write_kwargs)
+            return buffer.getvalue()
+        except TypeError:
+            # there are some weird bugs with several of the Pandas serialization
+            # methods when trying to serialize to bytes directly. This is a
+            # workaround
+            buffer = io.StringIO()
+            serialization_method(buffer, **self.write_kwargs)
+            return buffer.getvalue().encode()
 
     def deserialize(self, value: bytes) -> "pandas.DataFrame":  # noqa: F821
         """
@@ -161,7 +168,7 @@ class PandasSerializer(Serializer):
             - DataFrame: the deserialized DataFrame
         """
         deserialization_method = self._get_read_method()
-        buffer = BytesIO(bytes)
+        buffer = io.BytesIO(bytes)
         deserialized_data = deserialization_method(buffer, **self.read_kwargs)
         return deserialized_data
 

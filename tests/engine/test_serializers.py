@@ -69,8 +69,13 @@ class TestPandasSerializer:
         pd = pytest.importorskip("pandas", reason="Pandas not installed")
         return pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
 
-    def test_serialize_returns_bytes(self, input_dataframe):
-        serialized = PandasSerializer("csv").serialize(input_dataframe)
+    def test_complains_when_unavailable_file_type_specified(self):
+        with pytest.raises(ValueError):
+            PandasSerializer("blerg")
+
+    @pytest.mark.parametrize("file_type", ["csv", "json"])
+    def test_serialize_returns_bytes(self, file_type, input_dataframe):
+        serialized = PandasSerializer(file_type).serialize(input_dataframe)
         assert isinstance(serialized, bytes)
 
 
