@@ -1,0 +1,8 @@
+enhancement:
+  - "Remove the storage of `cached_inputs` for faster serialization - [#2984](https://github.com/PrefectHQ/prefect/pull/2984)"
+
+enhancement:
+  - "Cached states now validate based on `hashed_inputs` for more efficient storage - [#2984](https://github.com/PrefectHQ/prefect/pull/2984)"
+
+deprecation:
+  - "All states have deprecated the usage of `cached_inputs` - [#2984](https://github.com/PrefectHQ/prefect/pull/2984)"

@@ -810,6 +810,8 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
     run multiple times and without available upstream results. In this test, we run the pipeline
     from a variety of starting points, ensuring that some upstream results are unavailable and
     checking that children pipelines are properly regenerated.
+
+    Note that upstream results will be hydrated from remote locations when running with a Cloud TaskRunner.
     """
 
     @prefect.task
@@ -817,71 +819,25 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
         return [1, 2, 3]
 
     @prefect.task
-    def plus_one(x):
-        return x + 1
-
-    @prefect.task
-    def get_sum(x):
-        return sum(x)
+    def identity(x):
+        return x
 
     with Flow(name="test") as f:
         n = numbers()
-        x = plus_one.map(n)
-        y = plus_one.map(x)
-        s = get_sum(y)
+        x = identity.map(n)
 
     # first run with a missing result from `n` but map_states for `x`
     state = FlowRunner(flow=f).run(
         executor=executor,
         task_states={
             n: Success(),
-            x: Mapped(
-                map_states=[
-                    Pending(cached_inputs={"x": Result(i)}) for i in range(1, 4)
-                ]
-            ),
+            x: Mapped(map_states=[Pending() for i in range(1, 4)]),
         },
         return_tasks=f.tasks,
     )
 
     assert state.is_successful()
-    assert state.result[s].result == 12
-
-    # next run with missing results for n and x
-    state = FlowRunner(flow=f).run(
-        executor=executor,
-        task_states={
-            n: Success(),
-            x: Mapped(map_states=[Success(), Success(), Success()]),
-            y: Mapped(
-                map_states=[
-                    Success(result=3),
-                    Success(result=4),
-                    Retrying(cached_inputs={"x": Result(4)}),
-                ]
-            ),
-        },
-        return_tasks=f.tasks,
-    )
-
-    assert state.is_successful()
-    assert state.result[s].result == 12
-
-    # next run with missing results for n, x, and y
-    state = FlowRunner(flow=f).run(
-        executor=executor,
-        task_states={
-            n: Success(),
-            x: Mapped(map_states=[Success(), Success(), Success()]),
-            y: Mapped(
-                map_states=[Success(result=3), Success(result=4), Success(result=5)]
-            ),
-        },
-        return_tasks=f.tasks,
-    )
-
-    assert state.is_successful()
-    assert state.result[s].result == 12
+    assert state.result[x].result == [None] * 3
 
 
 @pytest.mark.parametrize(
