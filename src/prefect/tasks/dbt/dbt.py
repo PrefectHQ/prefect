@@ -86,10 +86,12 @@ class DbtShellTask(ShellTask):
         self.dbt_kwargs = dbt_kwargs
         super().__init__(
             **kwargs,
+            command=command,
+            env=env,
+            helper_script=helper_script,
             shell=shell,
             return_all=return_all,
-            log_stderr=log_stderr,
-            helper_script=helper_script
+            log_stderr=log_stderr
         )
 
     @defaults_from_attrs("command", "env", "dbt_kwargs")
