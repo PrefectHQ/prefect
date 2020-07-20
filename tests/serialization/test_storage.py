@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import tempfile
@@ -13,6 +14,7 @@ from prefect.serialization.storage import (
     GCSSchema,
     LocalSchema,
     S3Schema,
+    WebHookSchema,
 )
 
 
@@ -298,3 +300,84 @@ def test_gcs_serialize_with_flows():
     deserialized = GCSSchema().load(serialized)
     assert f.name in deserialized
     assert deserialized.secrets == ["CREDS"]
+
+
+def test_webhook_full_serialize():
+    test_file = "/Apps/test-app.flow"
+    content_type = "application/octet-stream"
+    base_url = "https://content.dropboxapi.com/2/files"
+    build_url = f"{base_url}/upload"
+    get_url = f"{base_url}/download"
+
+    webhook = storage.WebHook(
+        build_kwargs={
+            "url": build_url,
+            "headers": {
+                "Content-Type": content_type,
+                "Dropbox-API-Arg": json.dumps({"path": test_file}),
+            },
+        },
+        build_http_method="POST",
+        get_flow_kwargs={
+            "url": get_url,
+            "headers": {
+                "Content-Type": content_type,
+                "Dropbox-API-Arg": json.dumps({"path": test_file}),
+            },
+        },
+        get_flow_http_method="POST",
+        build_secret_config={
+            "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
+        },
+        secrets=["CREDS"],
+    )
+    f = prefect.Flow("test")
+    webhook.flows["test"] = "key"
+
+    serialized = WebHookSchema().dump(webhook)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["secrets"] == ["CREDS"]
+    assert serialized["build_kwargs"] == {
+        "url": build_url,
+        "headers": {
+            "Content-Type": content_type,
+            "Dropbox-API-Arg": json.dumps({"path": test_file}),
+        },
+    }
+    assert serialized["build_http_method"] == "POST"
+    assert serialized["get_flow_kwargs"] == {
+        "url": get_url,
+        "headers": {
+            "Content-Type": content_type,
+            "Dropbox-API-Arg": json.dumps({"path": test_file}),
+        },
+    }
+    assert serialized["get_flow_http_method"] == "POST"
+    assert serialized["build_secret_config"] == {
+        "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
+    }
+    assert serialized["build_secret_config"] == serialized["get_flow_secret_config"]
+
+
+def test_webhook_different_secret_configs():
+    build_config = {
+        "Authorization": {"value": "WRITE_ONLY_TOKEN", "type": "environment"}
+    }
+    get_flow_config = {"Authorization": {"value": "READ_ONLY_TOKEN", "type": "secret"}}
+    webhook = storage.WebHook(
+        build_kwargs={},
+        build_http_method="POST",
+        get_flow_kwargs={},
+        get_flow_http_method="POST",
+        build_secret_config=build_config,
+        get_flow_secret_config=get_flow_config,
+    )
+    f = prefect.Flow("test")
+    webhook.flows["test"] = "key"
+
+    serialized = WebHookSchema().dump(webhook)
+    assert serialized["build_secret_config"] == build_config
+    assert serialized["get_flow_secret_config"] == get_flow_config
+    assert serialized["build_secret_config"] != serialized["get_flow_secret_config"]
