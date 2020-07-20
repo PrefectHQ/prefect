@@ -1,0 +1,3 @@
+task:
+  - "Update return value and config for DbtShellTask - [#2980](https://github.com/PrefectHQ/prefect/pull/2980)"
+  
