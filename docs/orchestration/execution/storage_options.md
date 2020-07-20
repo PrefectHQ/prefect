@@ -152,7 +152,7 @@ from prefect.environments.storage import WebHook
 
 flow = Flow(
     "dropbox-flow",
-    storage=WebHoook(
+    storage=WebHook(
         build_kwargs={
             "url": "https://content.dropboxapi.com/2/files/upload",
             "headers": {

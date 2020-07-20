@@ -40,7 +40,7 @@ class WebHook(Storage):
         - build_secret_config (dict): A dictionary describing how to set
             request headers from environment variables or Prefect Cloud
             secrets. See example for details on specifying this. This config
-            applies to tthe request issued by `.build()`, and  wiill also be
+            applies to the request issued by `.build()`, and  will also be
             used for `.get_flow()` unless you explicitly set
             `get_flow_secret_config`.
         - get_flow_kwargs (dict): Dictionary of keyword arguments to the
@@ -147,7 +147,7 @@ class WebHook(Storage):
         """
         Get the flow from storage. This method will call
         `cloudpickle.loads()` on the binary content of the flow, so it
-        shuould only be called in an environment with all of the flow's
+        should only be called in an environment with all of the flow's
         dependencies.
 
         Args:
@@ -296,7 +296,7 @@ class WebHook(Storage):
     ) -> Dict[str, Any]:
         """
         Given a dictionary of headers, add additional headers with values
-        resolved froom environment variables or Prefect Cloud secrets.
+        resolved from environment variables or Prefect Cloud secrets.
 
         Args:
             - headers (dict): A dictionary of headers.
