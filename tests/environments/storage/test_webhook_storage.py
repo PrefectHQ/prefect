@@ -115,6 +115,9 @@ def test_add_flow_and_contains_work_as_expected(sample_flow):
     assert sample_flow.name in webhook
     assert str(uuid.uuid4()) not in webhook
 
+    # should return False if input is not a string
+    assert sample_flow not in webhook
+
 
 def test_webhook_build_works_with_no_arguments(sample_flow):
     webhook = WebHook(
