@@ -168,7 +168,7 @@ class WebHook(Storage):
             secret_config=self.get_flow_secret_config,
         )
 
-        response = req_function(**get_flow_kwargs)
+        response = req_function(**get_flow_kwargs)  # type: ignore
         response.raise_for_status()
 
         return cloudpickle.loads(response.content)
@@ -273,7 +273,7 @@ class WebHook(Storage):
                 warnings.warn(msg, RuntimeWarning)
             build_kwargs["data"] = data
 
-            response = req_function(**build_kwargs)
+            response = req_function(**build_kwargs)  # type: ignore
             response.raise_for_status()
 
             self._build_responses[flow_name] = response
