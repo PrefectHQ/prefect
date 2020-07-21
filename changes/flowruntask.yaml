@@ -1,0 +1,5 @@
+enhancement:
+  - "Add map_index to FlowRunTask idempotency key and expose to users - [#2997](https://github.com/PrefectHQ/prefect/issues/2997)"
+
+fix:
+  - "Don't send idempotency key when running against a local backend - [#3001](https://github.com/PrefectHQ/prefect/issues/3001)"
