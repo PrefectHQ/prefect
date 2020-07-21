@@ -22,6 +22,7 @@ class FlowRunTask(Task):
             running with Prefect Core's server as the backend, this should not be provided.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
+        - new_flow_context (dict, optional): the optional run context for the new flow run
         - wait (bool, optional): whether to wait the triggered flow run's state; if True, this
             task will wait until the flow run is complete, and then reflect the corresponding
             state as the state of this task.  Defaults to `False`.
@@ -34,23 +35,26 @@ class FlowRunTask(Task):
         project_name: str = None,
         parameters: dict = None,
         wait: bool = False,
+        new_flow_context: dict = None,
         **kwargs: Any,
     ):
         self.flow_name = flow_name
         self.project_name = project_name
         self.parameters = parameters
+        self.new_flow_context = new_flow_context
         self.wait = wait
         if flow_name:
             kwargs.setdefault("name", f"Flow {flow_name}")
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("flow_name", "project_name", "parameters")
+    @defaults_from_attrs("flow_name", "project_name", "parameters", "new_flow_context")
     def run(
         self,
         flow_name: str = None,
         project_name: str = None,
         parameters: dict = None,
         idempotency_key: str = None,
+        new_flow_context: dict = None,
     ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
@@ -67,6 +71,7 @@ class FlowRunTask(Task):
             - idempotency_key (str, optional): an optional idempotency key for scheduling the
                 flow run; if provided, ensures that only run is created if this task is retried
                 or rerun with the same inputs.  If not provided, the current flow run ID will be used.
+            - new_flow_context (dict, optional): the optional run context for the new flow run
 
         Returns:
             - str: the ID of the newly-scheduled flow run
@@ -135,7 +140,10 @@ class FlowRunTask(Task):
         # providing an idempotency key ensures that retries for this task
         # will not create additional flow runs
         flow_run_id = client.create_flow_run(
-            flow_id=flow_id, parameters=parameters, idempotency_key=idem_key,
+            flow_id=flow_id,
+            parameters=parameters,
+            idempotency_key=idem_key,
+            context=new_flow_context,
         )
 
         self.logger.debug(f"Flow Run {flow_run_id} created.")
