@@ -40,6 +40,8 @@ class FlowRunTask(Task):
         self.project_name = project_name
         self.parameters = parameters
         self.wait = wait
+        if flow_name:
+            kwargs.setdefault("name", f"Flow {flow_name}")
         super().__init__(**kwargs)
 
     @defaults_from_attrs("flow_name", "project_name", "parameters")
