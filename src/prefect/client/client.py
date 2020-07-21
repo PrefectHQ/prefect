@@ -107,6 +107,11 @@ class Client:
                     # be cleared
                     self.logout_from_tenant()
 
+        if prefect.config.backend == "server":
+            if not self._active_tenant_id:
+                tenant = self.graphql({"query": {"tenant": {"id"}}},)
+                self._active_tenant_id = tenant.data.tenant[0].id
+
     # -------------------------------------------------------------------------
     # Utilities
 
@@ -634,30 +639,29 @@ class Client:
 
         project = None
 
-        if prefect.config.backend == "cloud":
-            if project_name is None:
-                raise TypeError(
-                    "'project_name' is a required field when registering a flow with Cloud. "
-                    "If you are attempting to register a Flow with a local Prefect server "
-                    "you may need to run `prefect backend server` first."
-                )
+        if project_name is None:
+            raise TypeError(
+                "'project_name' is a required field when registering a flow with Cloud. "
+                "If you are attempting to register a Flow with a local Prefect server "
+                "you may need to run `prefect backend server` first."
+            )
 
-            query_project = {
-                "query": {
-                    with_args("project", {"where": {"name": {"_eq": project_name}}}): {
-                        "id": True
-                    }
+        query_project = {
+            "query": {
+                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                    "id": True
                 }
             }
+        }
 
-            project = self.graphql(query_project).data.project  # type: ignore
+        project = self.graphql(query_project).data.project  # type: ignore
 
-            if not project:
-                raise ValueError(
-                    'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
-                        project_name, project_name
-                    )
+        if not project:
+            raise ValueError(
+                'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
+                    project_name, project_name
                 )
+            )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
@@ -806,7 +810,11 @@ class Client:
         res = self.graphql(
             project_mutation,
             variables=dict(
-                input=dict(name=project_name, description=project_description)
+                input=dict(
+                    name=project_name,
+                    description=project_description,
+                    tenant_id=self._active_tenant_id,
+                )
             ),
         )  # type: Any
 
