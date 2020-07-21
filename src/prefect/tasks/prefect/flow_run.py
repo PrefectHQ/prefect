@@ -44,7 +44,11 @@ class FlowRunTask(Task):
 
     @defaults_from_attrs("flow_name", "project_name", "parameters")
     def run(
-        self, flow_name: str = None, project_name: str = None, parameters: dict = None
+        self,
+        flow_name: str = None,
+        project_name: str = None,
+        parameters: dict = None,
+        idempotency_key: str = None,
     ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
@@ -58,6 +62,9 @@ class FlowRunTask(Task):
             - parameters (dict, optional): the parameters to pass to the flow run being
                 scheduled; if not provided, this method will use the parameters provided at
                 initialization
+            - idempotency_key (str, optional): an optional idempotency key for scheduling the
+                flow run; if provided, ensures that only run is created if this task is retried
+                or rerun with the same inputs.  If not provided, the current flow run ID will be used.
 
         Returns:
             - str: the ID of the newly-scheduled flow run
@@ -114,12 +121,15 @@ class FlowRunTask(Task):
         # grab the ID for the most recent version
         flow_id = flow[0].id
 
+        if is_hosted_backend:
+            idem_key = idempotency_key or context.get("flow_run_id")
+        else:
+            idem_key = None
+
         # providing an idempotency key ensures that retries for this task
         # will not create additional flow runs
         flow_run_id = client.create_flow_run(
-            flow_id=flow_id,
-            parameters=parameters,
-            idempotency_key=context.get("flow_run_id"),
+            flow_id=flow_id, parameters=parameters, idempotency_key=idem_key,
         )
 
         self.logger.debug(f"Flow Run {flow_run_id} created.")
