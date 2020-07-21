@@ -32,7 +32,7 @@ def extract_some_data():
     return {"param-key": "some-random-piece-of-data"}
 
 
-# assumes you have registered a flow named "exampled" in a project named "examples"
+# assumes you have registered a flow named "example" in a project named "examples"
 flow_run = FlowRunTask(flow_name="example", project_name="examples")
 
 with Flow("parent-flow") as flow:
