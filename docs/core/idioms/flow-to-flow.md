@@ -125,3 +125,7 @@ with Flow("parent-flow", schedule=weekday_schedule) as flow:
 :::
 ::::
 
+::: warning Concurrency Limits
+If running on Prefect Cloud, the above example demonstrating `wait=True` requires at least 2 Flow
+concurrency slots.
+:::
