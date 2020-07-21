@@ -1,2 +1,0 @@
-breaking:
-  - "Remove password from Postgres tasks' initialization methods for security - [#1345](https://github.com/PrefectHQ/prefect/issues/1345)"
