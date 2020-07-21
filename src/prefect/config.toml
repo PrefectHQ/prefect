@@ -48,7 +48,7 @@ endpoint = "${server.host}:${server.port}"
     graphql_url = "http://localhost:4200/graphql"
 
     [server.telemetry]
-    enabled = false
+    enabled = true
 
 [cloud]
 api = "${${backend}.endpoint}"
