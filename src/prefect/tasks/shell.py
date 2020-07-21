@@ -110,6 +110,7 @@ class ShellTask(prefect.Task):
                     # if we're returning all, we don't log every line
                     self.logger.debug(line)
             sub_process.wait()
+            sub_process.stdout.close()
             if sub_process.returncode:
                 msg = "Command failed with exit code {}".format(sub_process.returncode,)
                 self.logger.error(msg)
