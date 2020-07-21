@@ -130,6 +130,8 @@ class Client:
             - headers (dict, optional): Headers to pass with the request
             - params (dict): GET parameters
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - dict: Dictionary representation of the request made
@@ -168,6 +170,8 @@ class Client:
             - headers(dict): headers to pass with the request
             - params (dict): POST parameters
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - dict: Dictionary representation of the request made
@@ -208,6 +212,8 @@ class Client:
             - variables (dict): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -292,6 +298,8 @@ class Client:
                 server is used if not specified
             - headers (dict, optional): Headers to pass with the request
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - requests.models.Response: The response returned from the request
@@ -703,7 +711,7 @@ class Client:
                     version_group_id=version_group_id,
                 )
             ),
-            retry_on_api_error=False
+            retry_on_api_error=False,
         )  # type: Any
 
         flow_id = (
