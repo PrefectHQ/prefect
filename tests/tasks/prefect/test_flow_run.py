@@ -73,6 +73,19 @@ class TestFlowRunTaskCloud:
             flow_id="abc123", parameters={"test": "ing"}, idempotency_key="test-id"
         )
 
+    def test_idempotency_key_uses_map_index_if_present(self, client, cloud_api):
+        # verify that create_flow_run was called
+        task = FlowRunTask(project_name="Test Project", flow_name="Test Flow",)
+
+        # verify that run returns the new flow run ID
+        with prefect.context(flow_run_id="test-id", map_index=4):
+            assert task.run() == "xyz890"
+
+        # verify create_flow_run was called with the correct arguments
+        client.create_flow_run.assert_called_once_with(
+            flow_id="abc123", idempotency_key="test-id-4", parameters=None
+        )
+
     def test_flow_run_task_without_flow_name(self, cloud_api):
         # verify that a ValueError is raised without a flow name
         task = FlowRunTask(project_name="Test Project")
@@ -133,3 +146,20 @@ class TestFlowRunTaskCoreServer:
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
+
+    def test_flow_run_task_with_flow_run_id(self, client, server_api):
+        # verify that create_flow_run was called
+        task = FlowRunTask(
+            project_name="Test Project",
+            flow_name="Test Flow",
+            parameters={"test": "ing"},
+        )
+
+        # verify that run returns the new flow run ID
+        with prefect.context(flow_run_id="test-id"):
+            assert task.run() == "xyz890"
+
+        # verify create_flow_run was called with the correct arguments
+        client.create_flow_run.assert_called_once_with(
+            flow_id="abc123", parameters={"test": "ing"}, idempotency_key=None
+        )

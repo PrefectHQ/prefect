@@ -121,8 +121,12 @@ class FlowRunTask(Task):
         # grab the ID for the most recent version
         flow_id = flow[0].id
 
-        if is_hosted_backend:
-            idem_key = idempotency_key or context.get("flow_run_id")
+        if is_hosted_backend and context.get("flow_run_id"):
+            map_index = context.get("map_index")
+            default = context.get("flow_run_id") + (
+                f"-{map_index}" if map_index else ""
+            )
+            idem_key = idempotency_key or default
         else:
             idem_key = None
 
