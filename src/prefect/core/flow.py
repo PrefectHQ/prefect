@@ -1558,7 +1558,7 @@ class Flow:
             self.result = self.storage.result
 
         client = prefect.Client()
-        print(client._active_tenant_id)
+
         registered_flow = client.register(
             flow=self,
             build=build,
