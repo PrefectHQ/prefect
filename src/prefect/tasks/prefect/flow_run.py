@@ -69,7 +69,7 @@ class FlowRunTask(Task):
                 scheduled; if not provided, this method will use the parameters provided at
                 initialization
             - idempotency_key (str, optional): an optional idempotency key for scheduling the
-                flow run; if provided, ensures that only run is created if this task is retried
+                flow run; if provided, ensures that only one run is created if this task is retried
                 or rerun with the same inputs.  If not provided, the current flow run ID will be used.
             - new_flow_context (dict, optional): the optional run context for the new flow run
 
