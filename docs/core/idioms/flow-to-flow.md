@@ -1,4 +1,4 @@
-# Running Dependent Flows
+# Running dependent flows
 
 There are many situations where users want to configure dependencies at the flow level; for example,
 if you have a data preprocessing flow that you maintain separately from a model training flow, and you 
