@@ -13,7 +13,7 @@ from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
-from prefect.engine.state import Failed, Queued, State, Cancelling, Cancelled, Finished
+from prefect.engine.state import Failed, Queued, State, Cancelling, Cancelled
 from prefect.utilities.graphql import with_args
 
 
@@ -133,38 +133,6 @@ class CloudFlowRunner(FlowRunner):
         if state.is_queued():
             state.state = old_state  # type: ignore
             raise ENDRUN(state=state)
-
-        if isinstance(state, Cancelled):
-            finished_states = [s.__name__ for s in Finished.children()]
-            query = {
-                "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                        with_args(
-                            "task_runs",
-                            {"where": {"state": {"_nin": finished_states}}},
-                        ): {"id": True, "state": True}
-                    }
-                }
-            }
-            res = self.client.graphql(query)
-            if res.data.flow_run_by_pk.task_runs:
-                task_state = Cancelled("Flow run cancelled").serialize()
-                mutation = {
-                    "mutation($input: set_task_run_states_input!)": {
-                        "set_task_run_states(input: $input)": {
-                            "states": {"id", "status", "message"}
-                        }
-                    }
-                }
-                variables = {
-                    "input": {
-                        "states": [
-                            {"state": task_state, "task_run_id": run.id}
-                            for run in res.data.flow_run_by_pk.task_runs
-                        ]
-                    }
-                }
-                self.client.graphql(mutation, variables=variables)  # type: ignore
 
         prefect.context.update(flow_run_version=version + 1)
 
