@@ -552,24 +552,30 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
 @pytest.mark.parametrize("num_attempts", [5, 10, 15])
 def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_attempts):
+    queue_time = 55
 
     mock_sleep = MagicMock()
-    monkeypatch.setattr("prefect.engine.cloud.flow_runner.time.sleep", mock_sleep)
 
-    run_states = [
-        Queued(start_time=pendulum.now("UTC").add(seconds=i))
-        for i in range(num_attempts - 1)
-    ]
-    run_states.append(Success())
+    run_calls = 0
 
-    mock_run = MagicMock(side_effect=run_states)
+    def mock_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        if run_calls < num_attempts:
+            return Queued(start_time=pendulum.now("UTC").add(seconds=queue_time))
+        return Success()
 
-    client.get_flow_run_info = MagicMock(
-        side_effect=[MagicMock(version=i) for i in range(num_attempts)]
-    )
+    get_flow_run_info_calls = 0
 
-    # Mock out the actual flow execution
+    def mock_get_flow_run_info(*args, **kwargs):
+        nonlocal get_flow_run_info_calls
+        get_flow_run_info_calls += 1
+        return MagicMock(version=get_flow_run_info_calls, state=Queued())
+
+    client.get_flow_run_info = mock_get_flow_run_info
     monkeypatch.setattr("prefect.engine.cloud.flow_runner.FlowRunner.run", mock_run)
+    # only mock the sleep call in the flow_runner module, otherwise bad things can happen
+    monkeypatch.setattr("prefect.engine.cloud.flow_runner.time.sleep", mock_sleep)
 
     @prefect.task
     def return_one():
@@ -578,14 +584,12 @@ def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_at
     with prefect.Flow("test-cloud-flow-runner-with-queues") as flow:
         one = return_one()
 
-    # Without these (actual, not mocked) sleep calls, when running full test suite this
-    # test can fail for no reason.
     final_state = CloudFlowRunner(flow=flow).run()
     assert final_state.is_successful()
 
-    assert mock_run.call_count == num_attempts
-    # Not called on the initial run attempt
-    assert client.get_flow_run_info.call_count == num_attempts - 1
-    # Not checking the value of the `time.sleep` mock, since it appears to
-    # be getting called thousands of times, likely due to a pytest
-    # plugin or something of the like.
+    assert run_calls == num_attempts
+    total_sleep_time = sum(i[0][0] for i in mock_sleep.call_args_list)
+    expected_sleep_time = (num_attempts - 1) * queue_time
+    # Slept for approximately the right amount of time. Due to processing time,
+    # the amount of time spent in sleep may be slightly less.
+    assert expected_sleep_time - 2 < total_sleep_time < expected_sleep_time + 2

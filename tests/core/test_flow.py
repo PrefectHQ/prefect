@@ -2418,20 +2418,6 @@ class TestFlowRunMethod:
         f.run()
         assert REPORTED_START_TIMES == start_times
 
-    def test_flow_dot_run_handles_keyboard_signals_gracefully(self):
-        class BadExecutor(LocalExecutor):
-            def submit(self, *args, **kwargs):
-                raise KeyboardInterrupt
-
-        @task
-        def do_something():
-            pass
-
-        f = Flow("test", tasks=[do_something])
-        state = f.run(executor=BadExecutor())
-        assert isinstance(state, Cancelled)
-        assert "interrupt" in state.message.lower()
-
 
 class TestFlowDiagnostics:
     def test_flow_diagnostics(self, monkeypatch):

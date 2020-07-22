@@ -276,10 +276,9 @@ class CloudFlowRunner(FlowRunner):
                 flow_run_info = self.client.get_flow_run_info(
                     flow_run_id=prefect.context.get("flow_run_id")
                 )
+                context.update(flow_run_version=flow_run_info.version)
                 if not isinstance(flow_run_info.state, Queued):
                     break
-
-            context.update(flow_run_version=flow_run_info.version)
 
             # When concurrency slots become free, this will eventually result
             # in a non queued state, but will result in more or less just waiting
