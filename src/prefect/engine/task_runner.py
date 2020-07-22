@@ -1,6 +1,5 @@
 from contextlib import redirect_stdout
 from dask.base import tokenize
-import json
 from typing import (
     Any,
     Callable,
@@ -18,8 +17,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult, Result
-from prefect.engine.results import PrefectResult
+from prefect.engine.result import Result
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -144,18 +142,14 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
-        if "_loop_count" in state.cached_inputs:  # type: ignore
-            loop_result = state.cached_inputs.pop("_loop_result")
-            if loop_result.value is None and loop_result.location is not None:
-                loop_result_value = self.result.read(loop_result.location).value
+        if "_loop_count" in state.context:
+            loop_result = state._result
+            if loop_result.value is None and loop_result.location is not None:  # type: ignore
+                loop_result_value = self.result.read(loop_result.location).value  # type: ignore
             else:
-                loop_result_value = loop_result.value
+                loop_result_value = loop_result.value  # type: ignore
             loop_context = {
-                "task_loop_count": json.loads(
-                    state.cached_inputs.pop(  # type: ignore
-                        "_loop_count"
-                    ).location
-                ),  # type: ignore
+                "task_loop_count": state.context.pop("_loop_count"),
                 "task_loop_result": loop_result_value,
             }
             context.update(loop_context)
@@ -302,7 +296,6 @@ class TaskRunner(Runner):
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
         except (ENDRUN, signals.PrefectStateSignal) as exc:
-            exc.state.cached_inputs = task_inputs or {}
             state = exc.state
         except RecursiveCall as exc:
             raise exc
@@ -312,7 +305,7 @@ class TaskRunner(Runner):
                 name=context["task_full_name"], exc=repr(exc)
             )
             self.logger.exception(msg)
-            state = Failed(message=msg, result=exc, cached_inputs=task_inputs)
+            state = Failed(message=msg, result=exc)
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
@@ -604,8 +597,7 @@ class TaskRunner(Runner):
     ) -> Dict[str, Result]:
         """
         Given the task's current state and upstream states, generates the inputs for this task.
-        Upstream state result values are used. If the current state has `cached_inputs`, they
-        will override any upstream values.
+        Upstream state result values are used.
 
         Args:
             - state (State): the task's current state.
@@ -621,15 +613,6 @@ class TaskRunner(Runner):
             # construct task inputs
             if edge.key is not None:
                 task_inputs[edge.key] = upstream_state._result  # type: ignore
-
-        if state.is_pending() and state.cached_inputs:
-            task_inputs.update(
-                {
-                    k: r
-                    for k, r in state.cached_inputs.items()
-                    if task_inputs.get(k, NoResult) == NoResult
-                }
-            )
 
         return task_inputs
 
@@ -684,7 +667,6 @@ class TaskRunner(Runner):
                     hashed_inputs={
                         key: tokenize(val.value) for key, val in inputs.items()
                     },
-                    cached_inputs=inputs,
                     cached_result_expiration=None,
                     cached_parameters=formatting_kwargs.get("parameters"),
                     message=f"Result found at task target {target}",
@@ -766,7 +748,7 @@ class TaskRunner(Runner):
             )
             raise ENDRUN(state)
 
-        new_state = Running(message="Starting task run.", cached_inputs=inputs)
+        new_state = Running(message="Starting task run.")
         return new_state
 
     @run_with_heartbeat
@@ -823,16 +805,13 @@ class TaskRunner(Runner):
         except TimeoutError as exc:
             if prefect.context.get("raise_on_exception"):
                 raise exc
-            state = TimedOut(
-                "Task timed out during execution.", result=exc, cached_inputs=inputs
-            )
+            state = TimedOut("Task timed out during execution.", result=exc,)
             return state
 
         except signals.LOOP as exc:
             new_state = exc.state
             assert isinstance(new_state, Looped)
             new_state.result = self.result.from_value(value=new_state.result)
-            new_state.cached_inputs = inputs
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
@@ -857,9 +836,7 @@ class TaskRunner(Runner):
         else:
             result = self.result.from_value(value=value)
 
-        state = Success(
-            result=result, message="Task run succeeded.", cached_inputs=inputs
-        )
+        state = Success(result=result, message="Task run succeeded.",)
         return state
 
     @call_state_handlers
@@ -882,8 +859,6 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
-        state.cached_inputs = inputs
-
         if (
             state.is_successful()
             and not state.is_skipped()
@@ -893,7 +868,6 @@ class TaskRunner(Runner):
             cached_state = Cached(
                 result=state._result,
                 hashed_inputs={key: tokenize(val.value) for key, val in inputs.items()},
-                cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
                 message=state.message,
@@ -909,7 +883,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
 
         Returns:
@@ -917,6 +891,8 @@ class TaskRunner(Runner):
         """
         if state.is_failed():
             run_count = prefect.context.get("task_run_count", 1)
+            loop_result = None
+            state_context = None
             if prefect.context.get("task_loop_count") is not None:
 
                 loop_result = self.result.from_value(
@@ -931,20 +907,19 @@ class TaskRunner(Runner):
                     and loop_result.value is not None
                 ):
                     try:
-                        value = prefect.context.get("task_loop_result")
+                        raw_inputs = {k: r.value for k, r in inputs.items()}
+                        formatting_kwargs = {
+                            **prefect.context.get("parameters", {}).copy(),
+                            **raw_inputs,
+                            **prefect.context,
+                        }
                         loop_result = self.result.write(
-                            value, filename="output", **prefect.context
+                            loop_result.value, **formatting_kwargs
                         )
                     except NotImplementedError:
                         pass
 
-                loop_context = {
-                    "_loop_count": PrefectResult(
-                        location=json.dumps(prefect.context["task_loop_count"]),
-                    ),
-                    "_loop_result": loop_result,
-                }
-                inputs.update(loop_context)
+                state_context = {"_loop_count": prefect.context["task_loop_count"]}
             if run_count <= self.task.max_retries:
                 start_time = pendulum.now("utc") + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
@@ -952,9 +927,10 @@ class TaskRunner(Runner):
                 )
                 retry_state = Retrying(
                     start_time=start_time,
-                    cached_inputs=inputs,
+                    context=state_context,
                     message=msg,
                     run_count=run_count,
+                    result=loop_result,
                 )
                 return retry_state
 
@@ -995,7 +971,7 @@ class TaskRunner(Runner):
                 }
             )
             context.update(task_run_version=prefect.context.get("task_run_version"))
-            new_state = Pending(message=msg, cached_inputs=inputs)
+            new_state = Pending(message=msg)
             raise RecursiveCall(
                 self.run,
                 self,

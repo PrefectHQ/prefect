@@ -1,5 +1,0 @@
-fix:
-  - "Ensure `is_serializable` always uses same executable for subprocess. - [#1262](https://github.com/PrefectHQ/prefect/issues/1262)"
-
-contributor:
-  - "[Chris Bowdon](https://github.com/cbowdon)"

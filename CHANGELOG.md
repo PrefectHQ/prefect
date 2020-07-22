@@ -1,5 +1,72 @@
 # Changelog
 
+## version=0.12.5 <Badge text="beta" type="success" />
+
+Released on July 21, 2020.
+
+### Features
+
+- Add `resource_manager` api for cleaner setup/cleanup of temporary resources - [#2913](https://github.com/PrefectHQ/prefect/pull/2913)
+
+### Enhancements
+
+- Add `new_flow_context` to FlowRunTask for configurable context - [#2941](https://github.com/PrefectHQ/prefect/issues/2941)
+- All storage types now support file-based storage - [#2944](https://github.com/PrefectHQ/prefect/pull/2944)
+- Turn work stealing ON by default on Dask K8s environment - [#2973](https://github.com/PrefectHQ/prefect/pull/2973)
+- Send regular heartbeats while waiting to retry / dequeue - [#2977](https://github.com/PrefectHQ/prefect/pull/2977)
+- Cached states now validate based on `hashed_inputs` for more efficient storage - [#2984](https://github.com/PrefectHQ/prefect/pull/2984)
+- Simplify creation of optional parameters with default of `None` - [#2995](https://github.com/PrefectHQ/prefect/pull/2995)
+
+### Task Library
+
+- Implement AWSSecretsManager task - [#2069](https://github.com/PrefectHQ/prefect/issues/2069)
+- Update return value and config for DbtShellTask - [#2980](https://github.com/PrefectHQ/prefect/pull/2980)
+
+### Fixes
+
+- Don't send idempotency key when running against a local backend - [#3001](https://github.com/PrefectHQ/prefect/issues/3001)
+- Fix bug in `DaskExecutor` when running with external cluster where dask clients could potentially be leaked - [#3009](https://github.com/PrefectHQ/prefect/pull/3009)
+
+### Deprecations
+
+- All states have deprecated the usage of `cached_inputs` - [#2984](https://github.com/PrefectHQ/prefect/pull/2984)
+
+### Breaking Changes
+
+- Remove password from Postgres tasks' initialization methods for security - [#1345](https://github.com/PrefectHQ/prefect/issues/1345)
+
+### Contributors
+
+- [Robin Beer](https://github.com/Zaubeerer)
+
+## 0.12.4 <Badge text="beta" type="success" />
+
+Released on July 14, 2020.
+
+### Enhancements
+
+- Improve output formatting of `prefect describe` CLI - [#2934](https://github.com/PrefectHQ/prefect/pull/2934)
+- Add new `wait` kwarg to Flow Run Task for reflecting the flow run state in the task - [#2935](https://github.com/PrefectHQ/prefect/pull/2935)
+- Separate build-time and run-time job spec details in KubernetsJobEnvironment - [#2950](https://github.com/PrefectHQ/prefect/pull/2950)
+
+### Task Library
+
+- Implement RunNamespacedJob task for Kubernetes - [#2916](https://github.com/PrefectHQ/prefect/pull/2916)
+- Add `log_stderr` option to `ShellTask` and `DbtShellTask` for logging the full output from stderr - [#2961](https://github.com/PrefectHQ/prefect/pull/2961)
+
+### Fixes
+
+- Ensure `is_serializable` always uses same executable for subprocess. - [#1262](https://github.com/PrefectHQ/prefect/issues/1262)
+- Fix issue with Mapped tasks not always reloading child state results on reruns - [#2656](https://github.com/PrefectHQ/prefect/issues/2656)
+- Fix `FargateTaskEnvironment` attempting to retrieve authorization token when not present - [#2940](https://github.com/PrefectHQ/prefect/pull/2940)
+- Fix issue with Metastates compounding - [#2965](https://github.com/PrefectHQ/prefect/pull/2965)
+
+### Contributors
+
+- [Chris Bowdon](https://github.com/cbowdon)
+- [James Lamb](https://github.com/jameslamb)
+- [Paweł Cieśliński](https://github.com/pcieslinski)
+
 ## 0.12.3 <Badge text="beta" type="success" />
 
 Released on July 8, 2020.

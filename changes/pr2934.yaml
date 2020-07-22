@@ -1,2 +1,0 @@
-enhancement:
-  - "Improve output formatting of `prefect describe` CLI - [#2934](https://github.com/PrefectHQ/prefect/pull/2934)"

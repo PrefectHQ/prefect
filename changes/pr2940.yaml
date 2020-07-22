@@ -1,2 +1,0 @@
-fix:
-  - "Fix `FargateTaskEnvironment` attempting to retrieve authorization token when not present - [#2940](https://github.com/PrefectHQ/prefect/pull/2940)"
