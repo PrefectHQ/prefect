@@ -1,0 +1,2 @@
+breaking:
+  - "Remove `dbt` extra from dependencies - [#3018](https://github.com/PrefectHQ/prefect/pull/3018)"
