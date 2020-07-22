@@ -1,7 +1,7 @@
 import os
 import signal
 import threading
-import time
+from time import sleep as time_sleep
 from typing import Any, Callable, Dict, Iterable, Optional, Iterator
 from contextlib import contextmanager
 
@@ -271,8 +271,8 @@ class CloudFlowRunner(FlowRunner):
                     prefect.config.cloud.check_cancellation_interval, time_remaining
                 )
                 time_remaining -= delay
-                time.sleep(delay)
-                self.logger.info(f"Sleeping for {delay:.2f} seconds...")
+                # Imported `time.sleep` as `time_sleep` to allow monkeypatching in tests
+                time_sleep(delay)
 
                 flow_run_info = self.client.get_flow_run_info(
                     flow_run_id=prefect.context.get("flow_run_id")

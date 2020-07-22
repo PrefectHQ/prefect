@@ -574,8 +574,7 @@ def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_at
 
     client.get_flow_run_info = mock_get_flow_run_info
     monkeypatch.setattr("prefect.engine.cloud.flow_runner.FlowRunner.run", mock_run)
-    # only mock the sleep call in the flow_runner module, otherwise bad things can happen
-    monkeypatch.setattr("prefect.engine.cloud.flow_runner.time.sleep", mock_sleep)
+    monkeypatch.setattr("prefect.engine.cloud.flow_runner.time_sleep", mock_sleep)
 
     @prefect.task
     def return_one():
@@ -588,9 +587,7 @@ def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_at
     assert final_state.is_successful()
 
     assert run_calls == num_attempts
-    sleep_times = [i[0][0] for i in mock_sleep.call_args_list]
-    print(sleep_times)
-    total_sleep_time = sum(sleep_times)
+    total_sleep_time = sum(i[0][0] for i in mock_sleep.call_args_list)
     expected_sleep_time = (num_attempts - 1) * queue_time
     # Slept for approximately the right amount of time. Due to processing time,
     # the amount of time spent in sleep may be slightly less.
