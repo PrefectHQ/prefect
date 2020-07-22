@@ -272,6 +272,7 @@ class CloudFlowRunner(FlowRunner):
                 )
                 time_remaining -= delay
                 time.sleep(delay)
+                self.logger.info(f"Sleeping for {delay:.2f} seconds...")
 
                 flow_run_info = self.client.get_flow_run_info(
                     flow_run_id=prefect.context.get("flow_run_id")

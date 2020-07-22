@@ -588,7 +588,9 @@ def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_at
     assert final_state.is_successful()
 
     assert run_calls == num_attempts
-    total_sleep_time = sum(i[0][0] for i in mock_sleep.call_args_list)
+    sleep_times = [i[0][0] for i in mock_sleep.call_args_list]
+    print(sleep_times)
+    total_sleep_time = sum(sleep_times)
     expected_sleep_time = (num_attempts - 1) * queue_time
     # Slept for approximately the right amount of time. Due to processing time,
     # the amount of time spent in sleep may be slightly less.
