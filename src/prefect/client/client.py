@@ -576,6 +576,7 @@ class Client:
         version_group_id: str = None,
         compressed: bool = True,
         no_url: bool = False,
+        headers: Dict[Any, Any] = dict()
     ) -> str:
         """
         Push a new flow to Prefect Cloud
