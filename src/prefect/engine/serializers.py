@@ -1,10 +1,12 @@
 import base64
 import io
 import json
-from typing import Any
+from typing import Any, Callable, TYPE_CHECKING
 
 import cloudpickle
 
+if TYPE_CHECKING:
+    import pandas as pd
 
 __all__ = ("Serializer", "PickleSerializer", "JSONSerializer", "PandasSerializer")
 
@@ -140,11 +142,12 @@ class PandasSerializer(Serializer):
         )
         self.serialize_kwargs = {} if serialize_kwargs is None else serialize_kwargs
 
-    def serialize(self, value: "pandas.DataFrame") -> bytes:  # noqa: F821
+    def serialize(self, value: "pd.DataFrame") -> bytes:  # noqa: F821
         """
-        Serialize a Pandas DataFrame to bytes
+        Serialize a Pandas DataFrame to bytes.
+
         Args:
-            value (DataFrame): the DataFrame to serialize
+            - value (DataFrame): the DataFrame to serialize
 
         Returns:
             - bytes: the serialized value
@@ -162,7 +165,7 @@ class PandasSerializer(Serializer):
             serialization_method(buffer, **self.serialize_kwargs)
             return buffer.getvalue().encode()
 
-    def deserialize(self, value: bytes) -> "pandas.DataFrame":  # noqa: F821
+    def deserialize(self, value: bytes) -> "pd.DataFrame":  # noqa: F821
         """
         Deserialize an object to a Pandas DataFrame
 
@@ -189,7 +192,7 @@ class PandasSerializer(Serializer):
     # _get_read_method and _get_write_method are constructed as they are both to
     # limit copy/paste but also to make it easier for potential future extension to serialization
     # methods that do not map to the "to_{}/read_{}" interface.
-    def _get_deserialize_method(self):
+    def _get_deserialize_method(self) -> Callable:
         import pandas as pd
 
         try:
@@ -199,7 +202,7 @@ class PandasSerializer(Serializer):
                 "Could not find deserialization methods for {}".format(self.file_type)
             )
 
-    def _get_serialize_method(self, dataframe: "pandas.DataFrame" = None):  # noqa: F821
+    def _get_serialize_method(self, dataframe: "pd.DataFrame" = None) -> Callable:
         import pandas as pd
 
         if dataframe is None:
