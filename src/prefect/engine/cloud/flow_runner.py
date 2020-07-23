@@ -178,7 +178,7 @@ class CloudFlowRunner(FlowRunner):
                             signal.raise_signal(signal.SIGINT)  # type: ignore
                         else:
                             if os.name == "nt":
-                                os.kill(os.getpid(), signal.SIGINT)
+                                os.kill(os.getpid(), signal.CTRL_C_EVENT)
                             else:
                                 signal.pthread_kill(
                                     threading.main_thread().ident, signal.SIGINT  # type: ignore
