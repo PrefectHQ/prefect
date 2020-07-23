@@ -285,6 +285,7 @@ def prepare_upstream_states_for_mapping(
     state: "State",
     upstream_states: "Dict[Edge, State]",
     mapped_children: "Dict[Task, list]",
+    executor: "prefect.engine.executors.Executor",
 ) -> list:
     """
     If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
@@ -306,15 +307,33 @@ def prepare_upstream_states_for_mapping(
 
     map_upstream_states = []
 
+    # copy the mapped children dict to avoid mutating the global one
+    # when we flatten mapped children
+    mapped_children = mapped_children.copy()
+
     # we don't know how long the iterables are, but we want to iterate until we reach
     # the end of the shortest one
     counter = itertools.count()
+
+    # preprocessing
+    for edge, upstream_state in upstream_states.items():
+
+        # ensure we are working with populated result objects
+        if edge.key in state.cached_inputs:
+            upstream_state._result = state.cached_inputs[edge.key]
+
+        # if the upstream was mapped and the edge is flattened, we need
+        # to process the mapped children (which could be futures) into a
+        # flat structure
+        if upstream_state.is_mapped() and edge.flattened:
+            mapped_children[edge.upstream_task] = flatten_mapped_children(
+                mapped_children=mapped_children[edge.upstream_task], executor=executor
+            )
 
     # infinite loop, if upstream_states has any entries
     while True and upstream_states:
         i = next(counter)
         states = {}
-
         try:
 
             for edge, upstream_state in upstream_states.items():
@@ -347,6 +366,8 @@ def prepare_upstream_states_for_mapping(
                         not state.is_mapped()
                         or upstream_state._result != prefect.engine.result.NoResult
                     ):
+                        # this line should never be hit due to a check
+                        # in the TaskRunner when evaluating the mapped parent
                         if not hasattr(upstream_state.result, "__getitem__"):
                             raise TypeError(
                                 (
@@ -372,3 +393,47 @@ def prepare_upstream_states_for_mapping(
             break
 
     return map_upstream_states
+
+
+def _build_flattened_state(state: "State", index: int) -> "State":
+    """Helper function for `flatten_upstream_state`"""
+    new_state = copy.copy(state)
+    new_state.result = state._result.from_value(  # type: ignore
+        state.result[index]
+    )
+    return new_state
+
+
+def flatten_upstream_state(upstream_state: "State") -> "State":
+    """
+    Given an upstream state, returns its result as a flattened list. If
+    flattening fails, the object is returned unmodified.
+    """
+    try:
+        # attempt to unnest
+        flattened_result = [y for x in upstream_state.result for y in x]
+    except TypeError:
+        return upstream_state
+
+    new_state = copy.copy(upstream_state)
+    new_state.result = new_state._result.from_value(  # type: ignore
+        flattened_result
+    )
+    return new_state
+
+
+def flatten_mapped_children(
+    mapped_children: List["State"], executor: "prefect.engine.executors.Executor",
+) -> List["State"]:
+    counts = executor.wait(
+        [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]
+    )
+    new_states = []
+
+    for child, count in zip(mapped_children, counts):
+        new_states.append(
+            [executor.submit(_build_flattened_state, child, i) for i in range(count)]
+        )
+
+    flattened_states = [i for s in new_states for i in s]
+    return flattened_states

@@ -10,7 +10,9 @@ from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.result import NoResult, Result, NoResult
 from prefect.engine.state import Mapped, Pending, Retrying, Success
 from prefect.utilities.debug import raise_on_exception
-from prefect.utilities.tasks import task, unmapped
+from prefect.utilities.tasks import task
+from prefect.utilities.edges import unmapped, flatten, mapped
+from prefect.tasks.core.constants import Constant
 
 
 class AddTask(Task):
@@ -31,6 +33,12 @@ class IdTask(Task):
 class ListTask(Task):
     def run(self, start=1):
         return [start + 0, start + 1, start + 2]
+
+
+class NestTask(Task):
+    # given x, returns [x]
+    def run(self, x):
+        return [x]
 
 
 def test_map_returns_a_task_copy():
@@ -173,6 +181,34 @@ def test_multiple_map_arguments(executor):
     assert isinstance(m.map_states, list)
     assert len(m.result) == 3
     assert m.result == [2, 4, 6]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_mapping_over_no_successful_upstreams(executor):
+    with Flow(name="test") as f:
+        a = AddTask().map(x=DivTask()(0))
+
+    s = f.run(executor=executor)
+    assert s.is_failed()
+    assert s.result[a].is_failed()
+    assert s.result[a].message == "No upstream states can be mapped over."
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_mapping_over_one_unmappable_input(executor):
+    with Flow(name="test") as f:
+        a = AddTask().map(x=Constant(1), y=Constant([1]))
+
+    s = f.run(executor=executor)
+    assert s.is_failed()
+    assert s.result[a].is_failed()
+    assert (
+        s.result[a].message == "At least one upstream state has an unmappable result."
+    )
 
 
 @pytest.mark.parametrize(
@@ -402,6 +438,26 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
 
     with Flow(name="test") as f:
         res = ll.map(start=ll(), upstream_tasks=[unmapped(ii(5))])
+
+    s = f.run(executor=executor)
+    m = s.result[res]
+    assert s.is_successful()
+    assert isinstance(m.map_states, list)
+    assert len(m.result) == 3
+    assert m.result == [[1 + i, 2 + i, 3 + i] for i in range(3)]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args_2(executor):
+    # identical to test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args
+    # but uses the `mapped()` annotation instead of calling .map()
+    ii = IdTask()
+    ll = ListTask()
+
+    with Flow(name="test") as f:
+        res = ll(start=mapped(ll()), upstream_tasks=[ii(5)])
 
     s = f.run(executor=executor)
     m = s.result[res]
@@ -965,3 +1021,136 @@ class TestLooping:
         # Pending -> Mapped (parent)
         # (Pending -> (Running -> Looped) * 2 -> Running -> Failed -> Retrying -> Running -> Successful) * 2
         assert len(state_history) == 19
+
+
+class TestFlatMap:
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_constant(self, executor):
+        # flatmap over a constant
+        add = AddTask()
+
+        with Flow(name="test") as f:
+            a = add.map(flatten([[1, 2, 3]]))
+            b = add.map(flatten([[1], [2], [3]]))
+            c = add.map(flatten([[1], [2, 3]]))
+            d = add.map(flatten([1, 2, 3]))
+
+        s = f.run(executor=executor)
+
+        # all results should be the same
+        for task in [a, b, c, d]:
+            assert s.result[task].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_task_result(self, executor):
+        # flatmap over a task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest(ll())
+            x = a.map(flatten(nested))
+
+        s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_mapped_result(self, executor):
+        # flatmap over a mapped task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest.map(ll())
+            x = a.map(flatten(nested))
+
+        s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_flatmapped_result(self, executor):
+        # flatmap over a flattened mapped task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest.map(ll())
+            nested2 = nest.map(flatten(nested))
+            x = a.map(flatten(nested2))
+
+        s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_reduced_result(self, executor):
+        # flatmap over a reduced flattened mapped task
+        ll = ListTask()
+        nest = NestTask()
+        a = AddTask()
+
+        with Flow(name="test") as f:
+            nested = nest.map(ll())
+            nested2 = nest(flatten(nested))
+            x = a.map(flatten(nested2))
+
+        from prefect.utilities.debug import raise_on_exception
+
+        with raise_on_exception():
+            s = f.run(executor=executor)
+
+        assert s.result[x].result == [2, 3, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_unnested_input(self, executor):
+        a = AddTask()
+        with Flow("test") as flow:
+            z = a.map(x=flatten([1]))
+
+        state = flow.run()
+        assert state.result[z].is_mapped()
+        assert state.result[z].result == [2]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_one_unnested_input(self, executor):
+        a = AddTask()
+        with Flow("test") as flow:
+            z = a.map(x=flatten([1]), y=flatten([[5]]))
+
+        state = flow.run()
+        assert state.result[z].is_mapped()
+        assert state.result[z].result == [6]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_one_unmappable_input(self, executor):
+        a = AddTask()
+        with Flow("test") as flow:
+            z = a.map(x=flatten(1), y=flatten([[1]]))
+
+        state = flow.run()
+        assert state.result[z].is_failed()
+        assert (
+            state.result[z].message
+            == "At least one upstream state has an unmappable result."
+        )
