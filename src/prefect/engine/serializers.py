@@ -117,14 +117,17 @@ class PandasSerializer(Serializer):
         - file_type (str): The type you want the resulting file to be
             saved as, e.g. "csv" or "parquet". Must match a type used
             in a `DataFrame.to_` method and a `pd.read_` function.
-        - read_kwargs (dict, optional): Keyword arguments to pass to the
+        - deserialize_kwargs (dict, optional): Keyword arguments to pass to the
             serialization method.
-        - write_kwargs (dict, optional): Keyword arguments to pass to the
+        - serialize_kwargs (dict, optional): Keyword arguments to pass to the
             deserialization method.
     """
 
     def __init__(
-        self, file_type: str, read_kwargs: dict = None, write_kwargs: dict = None
+        self,
+        file_type: str,
+        deserialize_kwargs: dict = None,
+        serialize_kwargs: dict = None,
     ) -> None:
         self.file_type = file_type
 
@@ -132,8 +135,10 @@ class PandasSerializer(Serializer):
         self._get_read_method()
         self._get_write_method()
 
-        self.read_kwargs = {} if read_kwargs is None else read_kwargs
-        self.write_kwargs = {} if write_kwargs is None else write_kwargs
+        self.deserialize_kwargs = (
+            {} if deserialize_kwargs is None else deserialize_kwargs
+        )
+        self.serialize_kwargs = {} if serialize_kwargs is None else serialize_kwargs
 
     def serialize(self, value: "pandas.DataFrame") -> bytes:  # noqa: F821
         """
@@ -147,14 +152,14 @@ class PandasSerializer(Serializer):
         serialization_method = self._get_write_method(dataframe=value)
         buffer = io.BytesIO()
         try:
-            serialization_method(buffer, **self.write_kwargs)
+            serialization_method(buffer, **self.serialize_kwargs)
             return buffer.getvalue()
         except TypeError:
             # there are some weird bugs with several of the Pandas serialization
             # methods when trying to serialize to bytes directly. This is a
             # workaround
             buffer = io.StringIO()
-            serialization_method(buffer, **self.write_kwargs)
+            serialization_method(buffer, **self.serialize_kwargs)
             return buffer.getvalue().encode()
 
     def deserialize(self, value: bytes) -> "pandas.DataFrame":  # noqa: F821
@@ -169,15 +174,15 @@ class PandasSerializer(Serializer):
         """
         deserialization_method = self._get_read_method()
         buffer = io.BytesIO(bytes)
-        deserialized_data = deserialization_method(buffer, **self.read_kwargs)
+        deserialized_data = deserialization_method(buffer, **self.deserialize_kwargs)
         return deserialized_data
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
             return (
                 self.file_type == other.file_type
-                and self.write_kwargs == other.write_kwargs
-                and self.read_kwargs == other.read_kwargs
+                and self.serialize_kwargs == other.write_kwargs
+                and self.deserialize_kwargs == other.read_kwargs
             )
         return False
 

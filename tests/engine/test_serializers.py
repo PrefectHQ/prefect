@@ -83,15 +83,15 @@ def test_equality():
     assert PickleSerializer() == PickleSerializer()
     assert JSONSerializer() == JSONSerializer()
     assert PandasSerializer("csv") == PandasSerializer("csv")
-    assert PandasSerializer("csv", write_kwargs={"one": 1}) == PandasSerializer(
-        "csv", write_kwargs={"one": 1}
+    assert PandasSerializer("csv", serialize_kwargs={"one": 1}) == PandasSerializer(
+        "csv", serialize_kwargs={"one": 1}
     )
     assert PickleSerializer() != JSONSerializer()
     assert PickleSerializer() != PandasSerializer("csv")
     assert PandasSerializer("csv") != PandasSerializer("parquet")
-    assert PandasSerializer("csv", read_kwargs={"one": 1}) != PandasSerializer(
-        "csv", read_kwargs={"one": 2}
+    assert PandasSerializer("csv", deserialize_kwargs={"one": 1}) != PandasSerializer(
+        "csv", deserialize_kwargs={"one": 2}
     )
-    assert PandasSerializer("csv", write_kwargs={"one": 1}) != PandasSerializer(
-        "csv", write_kwargs={"one": 2}
+    assert PandasSerializer("csv", serialize_kwargs={"one": 1}) != PandasSerializer(
+        "csv", serialize_kwargs={"one": 2}
     )
