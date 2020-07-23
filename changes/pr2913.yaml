@@ -1,2 +1,0 @@
-feature:
-  - "Add `resource_manager` api for cleaner setup/cleanup of temporary resources - [#2913](https://github.com/PrefectHQ/prefect/pull/2913)"

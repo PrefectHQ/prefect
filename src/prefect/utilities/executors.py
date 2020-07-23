@@ -319,10 +319,6 @@ def prepare_upstream_states_for_mapping(
 
             for edge, upstream_state in upstream_states.items():
 
-                # ensure we are working with populated result objects
-                if edge.key in state.cached_inputs:
-                    upstream_state._result = state.cached_inputs[edge.key]
-
                 # if the edge is not mapped over, then we take its state
                 if not edge.mapped:
                     states[edge] = upstream_state
@@ -344,8 +340,7 @@ def prepare_upstream_states_for_mapping(
 
                     # if the current state is already Mapped, then we might be executing
                     # a re-run of the mapping pipeline. In that case, the upstream states
-                    # might not have `result` attributes (as any required results could be
-                    # in the `cached_inputs` attribute of one of the child states).
+                    # might not have `result` attributes.
                     # Therefore, we only try to get a result if EITHER this task's
                     # state is not already mapped OR the upstream result is not None.
                     if (

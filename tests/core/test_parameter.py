@@ -20,6 +20,13 @@ def test_create_parameter_with_default():
     assert x.run() == 2
 
 
+def test_create_parameter_with_default_none():
+    x = Parameter("x", default=None)
+    assert x.default is None
+    assert not x.required
+    assert x.run() is None
+
+
 def test_parameter_slug_is_its_name():
     x = Parameter("x")
     assert x.name == x.slug == "x"

@@ -11,7 +11,6 @@ class PostgresExecute(Task):
     Args:
         - db_name (str): name of Postgres database
         - user (str): user name used to authenticate
-        - password (str): password used to authenticate
         - host (str): database host address
         - port (int, optional): port used to connect to Postgres database, defaults to 5432 if
             not provided
@@ -27,7 +26,6 @@ class PostgresExecute(Task):
         self,
         db_name: str,
         user: str,
-        password: str,
         host: str,
         port: int = 5432,
         query: str = None,
@@ -37,7 +35,6 @@ class PostgresExecute(Task):
     ):
         self.db_name = db_name
         self.user = user
-        self.password = password
         self.host = host
         self.port = port
         self.query = query
@@ -46,7 +43,13 @@ class PostgresExecute(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "data", "commit")
-    def run(self, query: str = None, data: tuple = None, commit: bool = False):
+    def run(
+        self,
+        query: str = None,
+        data: tuple = None,
+        commit: bool = False,
+        password: str = None,
+    ):
         """
         Task run method. Executes a query against Postgres database.
 
@@ -55,6 +58,7 @@ class PostgresExecute(Task):
             - data (tuple, optional): values to use in query, must be specified using
                 placeholder is query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
+            - password (str): password used to authenticate; should be provided from a `Secret` task
 
         Returns:
             - None
@@ -71,7 +75,7 @@ class PostgresExecute(Task):
         conn = pg.connect(
             dbname=self.db_name,
             user=self.user,
-            password=self.password,
+            password=password,
             host=self.host,
             port=self.port,
         )
@@ -103,7 +107,6 @@ class PostgresFetch(Task):
     Args:
         - db_name (str): name of Postgres database
         - user (str): user name used to authenticate
-        - password (str): password used to authenticate
         - host (str): database host address
         - port (int, optional): port used to connect to Postgres database, defaults to 5432 if
             not provided
@@ -123,7 +126,6 @@ class PostgresFetch(Task):
         self,
         db_name: str,
         user: str,
-        password: str,
         host: str,
         port: int = 5432,
         fetch: str = "one",
@@ -135,7 +137,6 @@ class PostgresFetch(Task):
     ):
         self.db_name = db_name
         self.user = user
-        self.password = password
         self.host = host
         self.port = port
         self.fetch = fetch
@@ -153,6 +154,7 @@ class PostgresFetch(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
+        password: str = None,
     ):
         """
         Task run method. Executes a query against Postgres database and fetches results.
@@ -166,6 +168,7 @@ class PostgresFetch(Task):
             - data (tuple, optional): values to use in query, must be specified using
                 placeholder is query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
+            - password (str): password used to authenticate; should be provided from a `Secret` task
 
         Returns:
             - records (tuple or list of tuples): records from provided query
@@ -187,7 +190,7 @@ class PostgresFetch(Task):
         conn = pg.connect(
             dbname=self.db_name,
             user=self.user,
-            password=self.password,
+            password=password,
             host=self.host,
             port=self.port,
         )

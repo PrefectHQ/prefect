@@ -5,6 +5,8 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
+from dask.base import tokenize
+
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
@@ -331,7 +333,7 @@ class TestCheckTaskCached:
             cached_result_expiration=datetime.datetime.utcnow()
             + datetime.timedelta(minutes=2),
             result=PrefectResult(location="99"),
-            cached_inputs={"x": PrefectResult(location="2")},
+            hashed_inputs={"x": tokenize(2)},
         )
         client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
 
@@ -342,80 +344,6 @@ class TestCheckTaskCached:
         assert res.is_successful()
         assert res.is_cached()
         assert res.result == 99
-
-    def test_task_runner_validates_cached_state_inputs_with_upstream_handlers_if_task_has_caching(
-        self, client
-    ):
-        class MyResult(Result):
-            def read(self, *args, **kwargs):
-                new = self.copy()
-                new.value = 1337
-                return new
-
-        @prefect.task(
-            cache_for=datetime.timedelta(minutes=1),
-            cache_validator=all_inputs,
-            result=PrefectResult(),
-        )
-        def cached_task(x):
-            return 42
-
-        dull_state = Cached(
-            cached_result_expiration=datetime.datetime.utcnow()
-            + datetime.timedelta(minutes=2),
-            result=PrefectResult(location="-1"),
-        )
-        state = Cached(
-            cached_result_expiration=datetime.datetime.utcnow()
-            + datetime.timedelta(minutes=2),
-            result=PrefectResult(location="99"),
-            cached_inputs={"x": PrefectResult(location="2")},
-        )
-        client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
-
-        res = CloudTaskRunner(task=cached_task).check_task_is_cached(
-            Pending(), inputs={"x": MyResult(value=2)}
-        )
-        assert client.get_latest_cached_states.called
-        assert res.is_pending()
-
-    def test_task_runner_validates_cached_state_inputs_if_task_has_caching_and_uses_task_handler(
-        self, client
-    ):
-        class MyResult(Result):
-            def read(self, *args, **kwargs):
-                new = self.copy()
-                new.value = 1337
-                return new
-
-        @prefect.task(
-            cache_for=datetime.timedelta(minutes=1),
-            cache_validator=all_inputs,
-            result=MyResult(),
-        )
-        def cached_task(x):
-            return 42
-
-        dull_state = Cached(
-            cached_result_expiration=datetime.datetime.utcnow()
-            + datetime.timedelta(minutes=2),
-            result=PrefectResult(location="-1"),
-        )
-        state = Cached(
-            cached_result_expiration=datetime.datetime.utcnow()
-            + datetime.timedelta(minutes=2),
-            result=PrefectResult(location="99"),
-            cached_inputs={"x": PrefectResult(location="2")},
-        )
-        client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
-
-        res = CloudTaskRunner(task=cached_task).check_task_is_cached(
-            Pending(), inputs={"x": PrefectResult(value=2)}
-        )
-        assert client.get_latest_cached_states.called
-        assert res.is_successful()
-        assert res.is_cached()
-        assert res.result == 1337
 
 
 def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):
@@ -476,31 +404,6 @@ def test_task_runner_respects_the_db_state(monkeypatch, state):
     assert get_task_run_info.call_count == 1  # one time to pull latest state
     assert set_task_run_state.call_count == 0  # never needs to update state
     assert res == db_state
-
-
-def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
-    @prefect.task(name="test", result=PrefectResult())
-    def add_one(x):
-        return x + 1
-
-    db_state = Retrying(cached_inputs=dict(x=PrefectResult(value=41)))
-    get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_task_run_state = MagicMock(
-        side_effect=lambda task_run_id, version, state, cache_for: state
-    )
-    client = MagicMock(
-        get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudTaskRunner(task=add_one).run(context={"map_index": 1})
-
-    ## assertions
-    assert get_task_run_info.call_count == 1  # one time to pull latest state
-    assert set_task_run_state.call_count == 2  # Pending -> Running -> Success
-    assert res.is_successful()
-    assert res.result == 42
 
 
 @pytest.mark.parametrize(
@@ -615,7 +518,6 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_successful()
         assert isinstance(states[2], Cached)
-        assert states[2].cached_inputs == dict(x=result, y=result)
         assert states[2].result == 2
 
     def test_task_runner_errors_if_no_result_provided_as_input(self, client):
@@ -674,43 +576,6 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_successful()
         assert states[1]._result.location == "2"
-
-    def test_task_runner_preserves_location_of_inputs_when_retrying(self, client):
-        """
-        If a user opts out of checkpointing via checkpoint=False, we don't want to
-        surprise them by storing the result in cached_inputs.  This test ensures
-        that whatever location is provided to a downstream task is the one that is used.
-        """
-
-        @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
-        def add(x, y):
-            return x + y
-
-        x = PrefectResult(value=1)
-        y = PrefectResult(value="0", location="foo")
-        state = Pending(cached_inputs=dict(x=x, y=y))
-        x_state = Success()
-        y_state = Success()
-        upstream_states = {
-            Edge(Task(), Task(), key="x"): x_state,
-            Edge(Task(), Task(), key="y"): y_state,
-        }
-        res = CloudTaskRunner(task=add).run(
-            state=state, upstream_states=upstream_states
-        )
-
-        ## assertions
-        assert client.get_task_run_info.call_count == 0  # never called
-        assert (
-            client.set_task_run_state.call_count == 3
-        )  # Pending -> Running -> Failed -> Retrying
-
-        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
-        assert states[0].is_running()
-        assert states[1].is_failed()
-        assert isinstance(states[2], Retrying)
-        assert states[2].cached_inputs["x"].location is None
-        assert states[2].cached_inputs["y"].location == "foo"
 
 
 def test_state_handler_failures_are_handled_appropriately(client, caplog):
@@ -947,8 +812,6 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
         "Success",
     ]
 
-    assert calls[2]["state"].cached_inputs["x"].value == 42
-
 
 def test_cloud_task_runner_sends_heartbeat_on_queued_retries(client):
     calls = []
@@ -1029,23 +892,6 @@ class TestLoadResults:
             )
 
         assert upstreams[edge].result == 42
-
-    def test_load_results_from_upstream_reads_cached_inputs_using_upstream_results(
-        self,
-    ):
-        class CustomResult(Result):
-            def read(self, *args, **kwargs):
-                self.value = 99
-                return self
-
-        result = PrefectResult(location="1")
-        state = Pending(cached_inputs=dict(x=result))
-        edge = Edge(Task(result=CustomResult()), 2, key="x")
-        new_state, upstreams = CloudTaskRunner(
-            task=Task(result=PrefectResult())
-        ).load_results(state=state, upstream_states={edge: Success(result=result)})
-
-        assert new_state.cached_inputs["x"].value == 99
 
 
 def test_task_runner_uses_upstream_result_handlers(client):
