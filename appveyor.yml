@@ -3,8 +3,8 @@ skip_branch_with_pr: true
 
 environment:
   matrix:
-    - PYTHON: "C:\\Python37-x64"
-      PYTHON_VERSION: "3.7"
+    - PYTHON: "C:\\Python38-x64"
+      PYTHON_VERSION: "3.8"
       ARCH: "64"
 
 init:
