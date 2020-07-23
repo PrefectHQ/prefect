@@ -145,9 +145,9 @@ class CloudFlowRunner(FlowRunner):
         cancelling = False
         done = threading.Event()
         flow_run_version = None
+        flow_run_id = prefect.context.get("flow_run_id")
 
         def interrupt_if_cancelling() -> None:
-            flow_run_id = prefect.context["flow_run_id"]
             while True:
                 exiting_context = done.wait(
                     prefect.config.cloud.check_cancellation_interval
@@ -183,7 +183,8 @@ class CloudFlowRunner(FlowRunner):
                                 signal.pthread_kill(
                                     threading.main_thread().ident, signal.SIGINT  # type: ignore
                                 )
-                if exiting_context:
+                    break
+                elif exiting_context:
                     break
 
         thread = threading.Thread(target=interrupt_if_cancelling, daemon=True)
