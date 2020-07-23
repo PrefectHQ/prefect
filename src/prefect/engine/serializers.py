@@ -6,7 +6,7 @@ from typing import Any
 import cloudpickle
 
 
-__all__ = ("Serializer", "PickleSerializer", "JSONSerializer")
+__all__ = ("Serializer", "PickleSerializer", "JSONSerializer", "PandasSerializer")
 
 
 class Serializer:
