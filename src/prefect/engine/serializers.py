@@ -132,8 +132,8 @@ class PandasSerializer(Serializer):
         self.file_type = file_type
 
         # Fails fast if user specifies a format that Pandas can't deal with.
-        self._get_read_method()
-        self._get_write_method()
+        self._get_deserialize_method()
+        self._get_serialize_method()
 
         self.deserialize_kwargs = (
             {} if deserialize_kwargs is None else deserialize_kwargs
@@ -149,7 +149,7 @@ class PandasSerializer(Serializer):
         Returns:
             - bytes: the serialized value
         """
-        serialization_method = self._get_write_method(dataframe=value)
+        serialization_method = self._get_serialize_method(dataframe=value)
         buffer = io.BytesIO()
         try:
             serialization_method(buffer, **self.serialize_kwargs)
@@ -157,7 +157,7 @@ class PandasSerializer(Serializer):
         except TypeError:
             # there are some weird bugs with several of the Pandas serialization
             # methods when trying to serialize to bytes directly. This is a
-            # workaround
+            # workaround. See https://github.com/pandas-dev/pandas/pull/35129
             buffer = io.StringIO()
             serialization_method(buffer, **self.serialize_kwargs)
             return buffer.getvalue().encode()
@@ -172,8 +172,8 @@ class PandasSerializer(Serializer):
         Returns:
             - DataFrame: the deserialized DataFrame
         """
-        deserialization_method = self._get_read_method()
-        buffer = io.BytesIO(bytes)
+        deserialization_method = self._get_deserialize_method()
+        buffer = io.BytesIO(value)
         deserialized_data = deserialization_method(buffer, **self.deserialize_kwargs)
         return deserialized_data
 
@@ -181,15 +181,15 @@ class PandasSerializer(Serializer):
         if type(self) == type(other):
             return (
                 self.file_type == other.file_type
-                and self.serialize_kwargs == other.write_kwargs
-                and self.deserialize_kwargs == other.read_kwargs
+                and self.serialize_kwargs == other.serialize_kwargs
+                and self.deserialize_kwargs == other.deserialize_kwargs
             )
         return False
 
     # _get_read_method and _get_write_method are constructed as they are both to
     # limit copy/paste but also to make it easier for potential future extension to serialization
     # methods that do not map to the "to_{}/read_{}" interface.
-    def _get_read_method(self):
+    def _get_deserialize_method(self):
         import pandas as pd
 
         try:
@@ -199,7 +199,7 @@ class PandasSerializer(Serializer):
                 "Could not find deserialization methods for {}".format(self.file_type)
             )
 
-    def _get_write_method(self, dataframe: "pandas.DataFrame" = None):  # noqa: F821
+    def _get_serialize_method(self, dataframe: "pandas.DataFrame" = None):  # noqa: F821
         import pandas as pd
 
         if dataframe is None:

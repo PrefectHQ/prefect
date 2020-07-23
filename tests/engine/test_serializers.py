@@ -78,6 +78,35 @@ class TestPandasSerializer:
         serialized = PandasSerializer(file_type).serialize(input_dataframe)
         assert isinstance(serialized, bytes)
 
+    def test_serialize_deserialize_is_invariant(self, input_dataframe):
+        file_type = "json"
+        pd = pytest.importorskip("pandas", reason="Pandas not installed")
+        serializer = PandasSerializer(file_type)
+        serialized = serializer.serialize(input_dataframe)
+        deserialized = serializer.deserialize(serialized)
+        pd.testing.assert_frame_equal(input_dataframe, deserialized)
+
+    def test_serialize_kwargs_work_as_expected(self, input_dataframe):
+        pd = pytest.importorskip("pandas", reason="Pandas not installed")
+        serializer = PandasSerializer(
+            "csv", serialize_kwargs={"sep": ":", "index": False}
+        )
+        serialized = serializer.serialize(input_dataframe)
+        deserialized = serializer.deserialize(serialized)
+        expected = pd.DataFrame({"one:two": ["1:4", "2:5", "3:6"]})
+        pd.testing.assert_frame_equal(expected, deserialized)
+
+    def test_deserialize_kwargs_work_as_expected(self, input_dataframe):
+        pd = pytest.importorskip("pandas", reason="Pandas not installed")
+        np = pytest.importorskip("numpy", reason="numpy not installed")
+        serializer = PandasSerializer("csv", deserialize_kwargs={"na_values": [3, 5]})
+        serialized = serializer.serialize(input_dataframe)
+        deserialized = serializer.deserialize(serialized)
+        expected = pd.DataFrame(
+            {"Unnamed: 0": [0, 1, 2], "one": [1, 2, np.nan], "two": [4, np.nan, 6]}
+        )
+        pd.testing.assert_frame_equal(expected, deserialized)
+
 
 def test_equality():
     assert PickleSerializer() == PickleSerializer()
