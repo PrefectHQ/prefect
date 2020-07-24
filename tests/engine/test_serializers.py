@@ -70,6 +70,7 @@ class TestPandasSerializer:
         return pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
 
     def test_complains_when_unavailable_file_type_specified(self):
+        pd = pytest.importorskip("pandas", reason="Pandas not installed")
         with pytest.raises(ValueError):
             PandasSerializer("blerg")
 
