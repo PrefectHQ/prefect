@@ -109,8 +109,22 @@ class Client:
 
         if prefect.config.backend == "server":
             if not self._active_tenant_id:
-                tenant = self.graphql({"query": {"tenant": {"id"}}},)
-                self._active_tenant_id = tenant.data.tenant[0].id
+                tenant_info = self.graphql({"query": {"tenant": {"id"}}},)
+
+
+                # TODO: Move into separate server tenant initialization function
+                if not tenant_info.data.tenant:
+                    tenant_info = self.graphql(
+                        {
+                            "mutation($input: create_tenant_input!)": {
+                                "create_tenant(input: $input)": {"id"}
+                            }
+                        },
+                        variables=dict(input=dict(name="default", slug="default"))
+                    )
+                    self._active_tenant_id = tenant_info.data.create_tenant.id
+                else:
+                    self._active_tenant_id = tenant_info.data.tenant[0].id
 
     # -------------------------------------------------------------------------
     # Utilities
