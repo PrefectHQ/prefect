@@ -63,8 +63,8 @@ class S3(Storage):
         If the Flow is not found an error will be logged and `None` will be returned.
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                an S3 object key where a Flow has been serialized to
+            - flow_location (str, optional): the location of a flow within this Storage; in this case,
+                an S3 object key where a Flow has been serialized to.
 
         Returns:
             - Flow: the requested Flow
