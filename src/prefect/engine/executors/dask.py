@@ -42,16 +42,23 @@ def _make_task_key(
     return None
 
 
-def _maybe_run(
-    should_run_var: "Variable", fn: Callable, *args: Any, **kwargs: Any
-) -> Any:
+def _maybe_run(var_name: str, fn: Callable, *args: Any, **kwargs: Any) -> Any:
     """Check if the task should run against a `distributed.Variable` before
     starting the task. This offers stronger guarantees than distributed's
     current cancellation mechanism, which only cancels pending tasks."""
+    # In certain configurations, the way distributed unpickles variables can
+    # lead to excess client connections being created. To avoid this issue we
+    # manually lookup the variable by name.
+    from distributed import Variable, get_client
+
+    var = Variable(var_name, client=get_client())
     try:
-        should_run = should_run_var.get(timeout=0)
+        should_run = var.get(timeout=0)
     except Exception:
-        pass
+        # Errors here indicate the get operation timed out, which can happen if
+        # the variable is undefined (usually indicating the flow runner has
+        # stopped or the cluster is shutting down).
+        should_run = False
     if should_run:
         return fn(*args, **kwargs)
 
@@ -347,7 +354,7 @@ class DaskExecutor(Executor):
             fut = self.client.submit(fn, *args, **kwargs)
         else:
             fut = self.client.submit(
-                _maybe_run, self._should_run_var, fn, *args, **kwargs
+                _maybe_run, self._should_run_var.name, fn, *args, **kwargs
             )
             self._futures.add(fut)
         return fut

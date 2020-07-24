@@ -375,7 +375,7 @@ class Docker(Storage):
             )
             self._parse_generator_output(output)
 
-            if len(client.images(name=full_name)) == 0:
+            if len(client.images(name="{}:{}".format(full_name, self.image_tag))) == 0:
                 raise ValueError(
                     "Your docker image failed to build!  Your flow might have "
                     "failed one of its deployment health checks - please ensure "

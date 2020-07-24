@@ -274,13 +274,29 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
             return False
         elif validate_on is None:
             return True  # if you dont want to validate on anything, then the cache is valid
+        elif getattr(state, "hashed_inputs", None) is not None:
+            assert isinstance(state.hashed_inputs, dict)  # mypy assert
+            partial_provided = {
+                key: tokenize(value)
+                for key, value in inputs.items()
+                if key in validate_on
+            }
+            partial_needed = {
+                key: value
+                for key, value in state.hashed_inputs.items()
+                if key in validate_on
+            }
+            if partial_provided == partial_needed:
+                return True
+            else:
+                return False
         else:
             cached = {key: res.value for key, res in state.cached_inputs.items()}
             partial_provided = {
                 key: value for key, value in inputs.items() if key in validate_on
             }
             partial_needed = {
-                key: value for key, value in cached.items() if key in validate_on
+                key: value for key, value in cached.items() if key in validate_on  # type: ignore
             }
             return partial_provided == partial_needed
 
