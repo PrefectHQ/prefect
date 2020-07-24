@@ -132,6 +132,13 @@ def cloud(
 @click.option(
     "--name", "-n", required=True, help="The name of a flow to run.", hidden=True
 )
+@click.option(
+    "--project",
+    "-p",
+    required=True,
+    help="The project that contains the flow.",
+    hidden=True,
+)
 @click.option("--version", "-v", type=int, help="A flow version to run.", hidden=True)
 @click.option(
     "--parameters-file",
@@ -161,7 +168,7 @@ def cloud(
     hidden=True,
 )
 def server(
-    name, version, parameters_file, parameters_string, run_name, watch, logs, no_url,
+    name, project, version, parameters_file, parameters_string, run_name, watch, logs, no_url,
 ):
     """
     Run a registered flow with Prefect Server
@@ -169,6 +176,8 @@ def server(
     \b
     Options:
         --name, -n                  TEXT        The name of a flow to run [required]
+        --project, -p               TEXT        The name of a project that contains
+                                                the flow [required]
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
         --parameters-string, -ps    TEXT        A string of JSON parameters
@@ -194,6 +203,7 @@ def server(
     """
     return _run_flow(
         name=name,
+        project=project,
         version=version,
         parameters_file=parameters_file,
         parameters_string=parameters_string,
