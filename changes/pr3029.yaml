@@ -1,0 +1,5 @@
+fix:
+  - 'Use fullname and tag when Docker Storage determines if build was successful - [#3029](https://github.com/PrefectHQ/prefect/pull/3029)'
+
+contributor:
+  - "[Thomas Frederik Hoeck](https://github.com/thomasfrederikhoeck)"
