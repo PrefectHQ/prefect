@@ -161,9 +161,9 @@ class PandasSerializer(Serializer):
             # there are some weird bugs with several of the Pandas serialization
             # methods when trying to serialize to bytes directly. This is a
             # workaround. See https://github.com/pandas-dev/pandas/pull/35129
-            buffer = io.StringIO()
-            serialization_method(buffer, **self.serialize_kwargs)
-            return buffer.getvalue().encode()
+            string_buffer = io.StringIO()
+            serialization_method(string_buffer, **self.serialize_kwargs)
+            return string_buffer.getvalue().encode()
 
     def deserialize(self, value: bytes) -> "pd.DataFrame":  # noqa: F821
         """
