@@ -168,7 +168,15 @@ def cloud(
     hidden=True,
 )
 def server(
-    name, project, version, parameters_file, parameters_string, run_name, watch, logs, no_url,
+    name,
+    project,
+    version,
+    parameters_file,
+    parameters_string,
+    run_name,
+    watch,
+    logs,
+    no_url,
 ):
     """
     Run a registered flow with Prefect Server

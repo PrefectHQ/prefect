@@ -111,7 +111,6 @@ class Client:
             if not self._active_tenant_id:
                 tenant_info = self.graphql({"query": {"tenant": {"id"}}},)
 
-
                 # TODO: Move into separate server tenant initialization function
                 if not tenant_info.data.tenant:
                     tenant_info = self.graphql(
@@ -120,7 +119,7 @@ class Client:
                                 "create_tenant(input: $input)": {"id"}
                             }
                         },
-                        variables=dict(input=dict(name="default", slug="default"))
+                        variables=dict(input=dict(name="default", slug="default")),
                     )
                     self._active_tenant_id = tenant_info.data.create_tenant.id
                 else:

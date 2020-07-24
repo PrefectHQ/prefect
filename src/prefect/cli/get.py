@@ -2,7 +2,6 @@ import click
 import pendulum
 from tabulate import tabulate
 
-from prefect import config
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
@@ -73,19 +72,23 @@ def flows(name, version, project, limit, all_versions):
     if all_versions:
         distinct_on = None
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}, "project": {"name": {"_eq": project}}}}
+    where_clause = {
+        "_and": {
+            "name": {"_eq": name},
+            "version": {"_eq": version},
+            "project": {"name": {"_eq": project}},
+        }
+    }
 
     query_results = {
         "name": True,
         "version": True,
         "created": True,
-        "project": {
-            "name": True
-        },
         "id": True,
+        "project": {"name": True},
     }
 
-    headers = ["NAME", "VERSION", "AGE", "PROJECT NAME", "ID"]
+    headers = ["NAME", "VERSION", "AGE", "ID", "PROJECT NAME"]
 
     query = {
         "query": {
@@ -114,8 +117,8 @@ def flows(name, version, project, limit, all_versions):
             item.name,
             item.version,
             pendulum.parse(item.created).diff_for_humans(),
-            item.project.name,
             item.id,
+            item.project.name,
         ]
 
         output.append(result_output)
@@ -216,14 +219,23 @@ def flow_runs(limit, flow, project, started):
 
         where = {
             "_and": {
-                "flow": {"_and": {"name": {"_eq": flow}, "project": {"name": {"_eq": project}}}},
+                "flow": {
+                    "_and": {
+                        "name": {"_eq": flow},
+                        "project": {"name": {"_eq": project}},
+                    }
+                },
                 "start_time": {"_is_null": False},
             }
         }
     else:
         order = {"created": EnumValue("desc")}
 
-        where = {"flow": {"_and": {"name": {"_eq": flow}, "project": {"name": {"_eq": project}}}}}
+        where = {
+            "flow": {
+                "_and": {"name": {"_eq": flow}, "project": {"name": {"_eq": project}}}
+            }
+        }
 
     query = {
         "query": {
@@ -309,7 +321,11 @@ def tasks(name, flow_name, flow_version, project, limit):
     where_clause = {
         "_and": {
             "name": {"_eq": name},
-            "flow": {"name": {"_eq": flow_name}, "version": {"_eq": flow_version}, "project": {"name": {"_eq": project}}},
+            "flow": {
+                "name": {"_eq": flow_name},
+                "version": {"_eq": flow_version},
+                "project": {"name": {"_eq": project}},
+            },
         }
     }
 
