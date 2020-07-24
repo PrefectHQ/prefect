@@ -22,7 +22,11 @@ from prefect.utilities.graphql import GraphQLResult, decompress
 class TestClientConfig:
     def test_client_initializes_from_config(self):
         with set_temporary_config(
-            {"cloud.graphql": "api_server", "cloud.auth_token": "token"}
+            {
+                "cloud.graphql": "api_server",
+                "cloud.auth_token": "token",
+                "backend": "cloud",
+            }
         ):
             client = Client()
         assert client.api_server == "api_server"
@@ -30,7 +34,11 @@ class TestClientConfig:
 
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(
-            {"cloud.graphql": "api_server", "cloud.auth_token": "token"}
+            {
+                "cloud.graphql": "api_server",
+                "cloud.auth_token": "token",
+                "backend": "cloud",
+            }
         ):
             client = Client(api_server="my-graphql")
         assert client.api_server == "my-graphql"
@@ -39,7 +47,9 @@ class TestClientConfig:
     def test_client_settings_path_is_path_object(self):
         assert isinstance(Client()._local_settings_path, Path)
 
-    def test_client_settings_path_depends_on_api_server(self, prefect_home_dir):
+    def test_client_settings_path_depends_on_api_server(
+        self, prefect_home_dir, cloud_api
+    ):
         path = Client(
             api_server="https://a-test-api.prefect.test/subdomain"
         )._local_settings_path
@@ -51,7 +61,7 @@ class TestClientConfig:
         )
         assert str(path) == expected
 
-    def test_client_settings_path_depends_on_home_dir(self):
+    def test_client_settings_path_depends_on_home_dir(self, cloud_api):
         with set_temporary_config(dict(home_dir="abc/def")):
             path = Client(api_server="xyz")._local_settings_path
             expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
@@ -68,7 +78,7 @@ class TestClientConfig:
                 client = Client()
         assert client._api_token == "FILE_TOKEN"
 
-    def test_client_token_priotizes_config_over_file(selfmonkeypatch):
+    def test_client_token_priotizes_config_over_file(selfmonkeypatch, cloud_api):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config(
                 {
@@ -90,7 +100,7 @@ class TestClientConfig:
             client = Client(api_token="ARG_TOKEN")
         assert client._api_token == "ARG_TOKEN"
 
-    def test_save_local_settings(self):
+    def test_save_local_settings(self, cloud_api):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
@@ -120,17 +130,17 @@ class TestClientConfig:
 
 
 class TestTenantAuth:
-    def test_login_to_tenant_requires_argument(self):
+    def test_login_to_tenant_requires_argument(self, cloud_api):
         client = Client()
         with pytest.raises(ValueError, match="At least one"):
             client.login_to_tenant()
 
-    def test_login_to_tenant_requires_valid_uuid(self):
+    def test_login_to_tenant_requires_valid_uuid(self, cloud_api):
         client = Client()
         with pytest.raises(ValueError, match="valid UUID"):
             client.login_to_tenant(tenant_id="a")
 
-    def test_login_to_client_sets_access_token(self, patch_post):
+    def test_login_to_client_sets_access_token(self, patch_post, cloud_api):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
             {
@@ -151,7 +161,7 @@ class TestTenantAuth:
         assert client._access_token == "ACCESS_TOKEN"
         assert client._refresh_token == "REFRESH_TOKEN"
 
-    def test_login_uses_api_token(self, patch_post):
+    def test_login_uses_api_token(self, patch_post, cloud_api):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
             {
@@ -172,7 +182,7 @@ class TestTenantAuth:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_login_uses_api_token_when_access_token_is_set(self, patch_post):
+    def test_login_uses_api_token_when_access_token_is_set(self, patch_post, cloud_api):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
             {
@@ -195,7 +205,7 @@ class TestTenantAuth:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_graphql_uses_access_token_after_login(self, patch_post):
+    def test_graphql_uses_access_token_after_login(self, patch_post, cloud_api):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
             {
@@ -253,7 +263,7 @@ class TestTenantAuth:
         assert Client()._api_token == "abc"
 
     def test_login_to_client_doesnt_reload_active_tenant_when_token_isnt_loaded(
-        self, patch_post
+        self, patch_post, cloud_api
     ):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
@@ -277,7 +287,7 @@ class TestTenantAuth:
         # new client doesn't load the active tenant because there's no api token loaded
         assert Client()._active_tenant_id is None
 
-    def test_logout_clears_access_token_and_tenant(self, patch_post):
+    def test_logout_clears_access_token_and_tenant(self, patch_post, cloud_api):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
             {
@@ -307,7 +317,7 @@ class TestTenantAuth:
         # new client doesn't load the active tenant
         assert Client()._active_tenant_id is None
 
-    def test_refresh_token_sets_attributes(self, patch_post):
+    def test_refresh_token_sets_attributes(self, patch_post, cloud_api):
         patch_post(
             {
                 "data": {
@@ -330,7 +340,7 @@ class TestTenantAuth:
         assert client._refresh_token == "REFRESH_TOKEN"
         assert client._access_token_expires_at > pendulum.now().add(seconds=599)
 
-    def test_refresh_token_passes_access_token_as_arg(self, patch_post):
+    def test_refresh_token_passes_access_token_as_arg(self, patch_post, cloud_api):
         post = patch_post(
             {
                 "data": {
@@ -348,7 +358,7 @@ class TestTenantAuth:
         variables = json.loads(post.call_args[1]["json"]["variables"])
         assert variables["input"]["access_token"] == "access"
 
-    def test_refresh_token_passes_refresh_token_as_header(self, patch_post):
+    def test_refresh_token_passes_refresh_token_as_header(self, patch_post, cloud_api):
         post = patch_post(
             {
                 "data": {
@@ -368,7 +378,7 @@ class TestTenantAuth:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_get_available_tenants(self, patch_post):
+    def test_get_available_tenants(self, patch_post, cloud_api):
         tenants = [
             {"id": "a", "name": "a-name", "slug": "a-slug"},
             {"id": "b", "name": "b-name", "slug": "b-slug"},
@@ -379,18 +389,18 @@ class TestTenantAuth:
         gql_tenants = client.get_available_tenants()
         assert gql_tenants == tenants
 
-    def test_get_auth_token_returns_api_if_access_token_not_set(self):
+    def test_get_auth_token_returns_api_if_access_token_not_set(self, cloud_api):
         client = Client(api_token="api")
         assert client._access_token is None
         assert client.get_auth_token() == "api"
 
-    def test_get_auth_token_returns_access_token_if_set(self):
+    def test_get_auth_token_returns_access_token_if_set(self, cloud_api):
         client = Client(api_token="api")
         client._access_token = "access"
         assert client.get_auth_token() == "access"
 
     def test_get_auth_token_refreshes_if_refresh_token_and_expiration_within_30_seconds(
-        self, monkeypatch
+        self, monkeypatch, cloud_api
     ):
         refresh_token = MagicMock()
         monkeypatch.setattr("prefect.Client._refresh_access_token", refresh_token)
@@ -402,7 +412,7 @@ class TestTenantAuth:
         assert refresh_token.called
 
     def test_get_auth_token_refreshes_if_refresh_token_and_no_expiration(
-        self, monkeypatch
+        self, monkeypatch, cloud_api
     ):
         refresh_token = MagicMock()
         monkeypatch.setattr("prefect.Client._refresh_access_token", refresh_token)
@@ -414,7 +424,7 @@ class TestTenantAuth:
         assert refresh_token.called
 
     def test_get_auth_token_doesnt_refresh_if_refresh_token_and_future_expiration(
-        self, monkeypatch
+        self, monkeypatch, cloud_api
     ):
         refresh_token = MagicMock()
         monkeypatch.setattr("prefect.Client._refresh_access_token", refresh_token)
@@ -454,7 +464,7 @@ class TestTenantAuth:
 
 
 class TestPassingHeadersAndTokens:
-    def test_headers_are_passed_to_get(self, monkeypatch):
+    def test_headers_are_passed_to_get(self, monkeypatch, cloud_api):
         get = MagicMock()
         session = MagicMock()
         session.return_value.get = get
@@ -471,7 +481,7 @@ class TestPassingHeadersAndTokens:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_headers_are_passed_to_post(self, monkeypatch):
+    def test_headers_are_passed_to_post(self, monkeypatch, cloud_api):
         post = MagicMock()
         session = MagicMock()
         session.return_value.post = post
@@ -488,7 +498,7 @@ class TestPassingHeadersAndTokens:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_headers_are_passed_to_graphql(self, monkeypatch):
+    def test_headers_are_passed_to_graphql(self, monkeypatch, cloud_api):
         post = MagicMock()
         session = MagicMock()
         session.return_value.post = post
@@ -505,7 +515,7 @@ class TestPassingHeadersAndTokens:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_tokens_are_passed_to_get(self, monkeypatch):
+    def test_tokens_are_passed_to_get(self, monkeypatch, cloud_api):
         get = MagicMock()
         session = MagicMock()
         session.return_value.get = get
@@ -519,7 +529,7 @@ class TestPassingHeadersAndTokens:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_tokens_are_passed_to_post(self, monkeypatch):
+    def test_tokens_are_passed_to_post(self, monkeypatch, cloud_api):
         post = MagicMock()
         session = MagicMock()
         session.return_value.post = post
@@ -533,7 +543,7 @@ class TestPassingHeadersAndTokens:
             "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
-    def test_tokens_are_passed_to_graphql(self, monkeypatch):
+    def test_tokens_are_passed_to_graphql(self, monkeypatch, cloud_api):
         post = MagicMock()
         session = MagicMock()
         session.return_value.post = post

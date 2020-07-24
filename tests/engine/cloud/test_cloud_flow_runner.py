@@ -37,11 +37,9 @@ from prefect.utilities.configuration import set_temporary_config
 
 
 @pytest.fixture(autouse=True)
-def cloud_settings():
+def cloud_settings(cloud_api):
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
-            "cloud.auth_token": "token",
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
         }

@@ -50,7 +50,7 @@ def test_secret_value_depends_on_use_local_secrets(monkeypatch):
                 secret.get()
 
 
-def test_secrets_use_client(monkeypatch):
+def test_secrets_use_client(monkeypatch, cloud_api):
     response = {"data": {"secret_value": '"1234"'}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
@@ -79,7 +79,7 @@ def test_cloud_secrets_use_context_first(monkeypatch):
     assert val == "foo"
 
 
-def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch):
+def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch, cloud_api):
     response = {"data": {"secret_value": '"1234"'}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
@@ -94,7 +94,7 @@ def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch):
     assert val == "1234"
 
 
-def test_cloud_secrets_remain_plain_dictionaries(monkeypatch):
+def test_cloud_secrets_remain_plain_dictionaries(monkeypatch, cloud_api):
     response = {"data": {"secret_value": {"a": "1234", "b": [1, 2, {"c": 3}]}}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
@@ -113,7 +113,7 @@ def test_cloud_secrets_remain_plain_dictionaries(monkeypatch):
     assert isinstance(val3, dict) and not isinstance(val3, box.Box)
 
 
-def test_cloud_secrets_auto_load_json_strings(monkeypatch):
+def test_cloud_secrets_auto_load_json_strings(monkeypatch, cloud_api):
     response = {"data": {"secret_value": '{"x": 42}'}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
