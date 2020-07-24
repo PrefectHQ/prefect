@@ -1,0 +1,5 @@
+
+fix:
+  - "Move initial check in `get_flows()` to be checked when a flow_location generated from `add_flow()` is provided. - [#3027](https://github.com/PrefectHQ/prefect/issues/3027)"
+
+
