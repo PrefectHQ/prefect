@@ -76,6 +76,7 @@ class TestPandasSerializer:
 
     @pytest.mark.parametrize("file_type", ["csv", "json"])
     def test_serialize_returns_bytes(self, file_type, input_dataframe):
+        pd = pytest.importorskip("pandas", reason="Pandas not installed")
         serialized = PandasSerializer(file_type).serialize(input_dataframe)
         assert isinstance(serialized, bytes)
 
@@ -112,12 +113,16 @@ class TestPandasSerializer:
 def test_equality():
     assert PickleSerializer() == PickleSerializer()
     assert JSONSerializer() == JSONSerializer()
+    assert PickleSerializer() != JSONSerializer()
+
+
+def test_pandas_serializer_equality():
+    pd = pytest.importorskip("pandas", reason="Pandas not installed")
+    assert PickleSerializer() != PandasSerializer("csv")
     assert PandasSerializer("csv") == PandasSerializer("csv")
     assert PandasSerializer("csv", serialize_kwargs={"one": 1}) == PandasSerializer(
         "csv", serialize_kwargs={"one": 1}
     )
-    assert PickleSerializer() != JSONSerializer()
-    assert PickleSerializer() != PandasSerializer("csv")
     assert PandasSerializer("csv") != PandasSerializer("parquet")
     assert PandasSerializer("csv", deserialize_kwargs={"one": 1}) != PandasSerializer(
         "csv", deserialize_kwargs={"one": 2}
