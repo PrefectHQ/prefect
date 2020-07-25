@@ -1,10 +1,11 @@
 from unittest.mock import MagicMock
 
+
 import cloudpickle
 import pytest
 
 import prefect
-from prefect import Flow
+from prefect import Flow, config
 from prefect.engine.executors import LocalDaskExecutor
 from prefect.environments import FargateTaskEnvironment
 from prefect.environments.storage import Docker
@@ -227,10 +228,7 @@ def test_setup_definition_exists(monkeypatch):
         "containerDefinitions": [
             {
                 "environment": [
-                    {
-                        "name": "PREFECT__CLOUD__GRAPHQL",
-                        "value": "http://localhost:4200/graphql",
-                    },
+                    {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -241,7 +239,10 @@ def test_setup_definition_exists(monkeypatch):
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                    {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]"},
+                    {
+                        "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                        "value": str(config.logging.extra_loggers),
+                    },
                 ],
                 "name": "flow-container",
                 "image": "test/image:tag",
@@ -278,10 +279,7 @@ def test_setup_definition_changed(monkeypatch):
         "containerDefinitions": [
             {
                 "environment": [
-                    {
-                        "name": "PREFECT__CLOUD__GRAPHQL",
-                        "value": "http://localhost:4200/graphql",
-                    },
+                    {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -292,7 +290,10 @@ def test_setup_definition_changed(monkeypatch):
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                    {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]"},
+                    {
+                        "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                        "value": str(config.logging.extra_loggers),
+                    },
                 ],
                 "name": "flow-container",
                 "image": "test/image:tag",
