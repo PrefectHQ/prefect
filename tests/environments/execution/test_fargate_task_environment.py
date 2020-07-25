@@ -229,7 +229,12 @@ def test_setup_definition_exists(monkeypatch):
 
     environment = FargateTaskEnvironment()
 
-    environment.setup(Docker(registry_url="test", image_name="image", image_tag="tag"))
+    environment.setup(
+        Flow(
+            "test",
+            storage=Docker(registry_url="test", image_name="image", image_tag="tag"),
+        )
+    )
 
     assert boto3_client.describe_task_definition.called
 
