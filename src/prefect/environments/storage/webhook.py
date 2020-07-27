@@ -18,9 +18,9 @@ if TYPE_CHECKING:
     from prefect.core.flow import Flow
 
 
-class WebHook(Storage):
+class Webhook(Storage):
     """
-    WebHook storage class. This class represents the Storage interface for
+    Webhook storage class. This class represents the Storage interface for
     Flows stored and retrieved with HTTP requests.
 
     This storage class takes in keyword arguments which describe how to
@@ -171,7 +171,7 @@ class WebHook(Storage):
         Args:
             - flow_location (str): This argument is included to comply with the
                 interface used by other storage objects, but it has no meaning
-                for `WebHook` storage, since `WebHook` only corresponds to a
+                for `Webhook` storage, since `Webhook` only corresponds to a
                 single flow. Ignore it.
 
         Raises:
@@ -200,7 +200,7 @@ class WebHook(Storage):
         Method for adding a flow to a `Storage` object's in-memory
         storage. `.build()` will look here for flows.
 
-        `WebHook` storage only supports a single flow per storage
+        `Webhook` storage only supports a single flow per storage
         object, so this method will overwrite any existing flows
         stored in an instance.
 
@@ -214,9 +214,9 @@ class WebHook(Storage):
         self._flows = {flow.name: flow}
         return flow.name
 
-    def build(self) -> "WebHook":
+    def build(self) -> "Webhook":
         """
-        Build the WebHook storage object by issuing an HTTP request
+        Build the Webhook storage object by issuing an HTTP request
         to store the flow.
 
         If `self.stored_as_script` is `True`, this method
@@ -236,7 +236,7 @@ class WebHook(Storage):
         import requests
 
         from prefect import task, Task, Flow
-        from prefect.environments.storage import WebHook
+        from prefect.environments.storage import Webhook
 
         @task
         def random_number():
@@ -245,7 +245,7 @@ class WebHook(Storage):
             random_number()
 
 
-        flow.storage = WebHook(
+        flow.storage = Webhook(
             build_kwargs={
                 "url": "some-service/upload",
                 "headers": {"Content-Type": "application/octet-stream"},
@@ -269,7 +269,7 @@ class WebHook(Storage):
         ```
 
         Returns:
-            - Storage: a WebHook storage object
+            - Storage: a Webhook storage object
 
         Raises:
             - requests.exceptions.HTTPError if pushing the flow fails
@@ -344,7 +344,7 @@ class WebHook(Storage):
 
         Args:
             - headers (dict): A dictionary of headers.
-            - secret_config (dict): A secret config. See `help(WebHook)` for
+            - secret_config (dict): A secret config. See `help(Webhook)` for
                 details on how this should be constructed.
         Raises:
             - KeyError if referencing an environment variable that does not exist

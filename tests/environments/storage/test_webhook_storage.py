@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 
 from prefect import context
 from prefect import task, Flow
-from prefect.environments.storage import WebHook
+from prefect.environments.storage import Webhook
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ class _MockResponse:
 def test_create_webhook_storage():
     build_kwargs = {"url": "https://content.dropboxapi.com/2/files/upload"}
     get_flow_kwargs = {"url": "https://content.dropboxapi.com/2/files/download"}
-    storage = WebHook(
+    storage = Webhook(
         build_kwargs=build_kwargs,
         build_http_method="PATCH",
         get_flow_kwargs=get_flow_kwargs,
@@ -74,7 +74,7 @@ def test_all_valid_http_verb_combinations_work():
     possible_verbs = ["GET", "PATCH", "POST", "PUT"]
     for build_verb in possible_verbs:
         for get_verb in possible_verbs:
-            storage = WebHook(
+            storage = Webhook(
                 build_kwargs={"url": "whatever"},
                 build_http_method=build_verb,
                 get_flow_kwargs={"url": "whatever"},
@@ -86,7 +86,7 @@ def test_all_valid_http_verb_combinations_work():
 
 def test_webhook_fails_for_bad_build_http_method():
     with pytest.raises(RuntimeError, match="HTTP method 'PASTA' not recognized"):
-        WebHook(
+        Webhook(
             build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
             build_http_method="PASTA",
             get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
@@ -96,7 +96,7 @@ def test_webhook_fails_for_bad_build_http_method():
 
 def test_webhook_fails_for_bad_get_flow_http_method():
     with pytest.raises(RuntimeError, match="HTTP method 'BET' not recognized"):
-        WebHook(
+        Webhook(
             build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
             build_http_method="POST",
             get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
@@ -105,7 +105,7 @@ def test_webhook_fails_for_bad_get_flow_http_method():
 
 
 def test_add_flow_and_contains_work_as_expected(sample_flow):
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         build_http_method="POST",
         get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
@@ -122,7 +122,7 @@ def test_add_flow_and_contains_work_as_expected(sample_flow):
 
 
 def test_webhook_build_works_with_no_arguments(sample_flow):
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         build_http_method="POST",
         get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
@@ -144,14 +144,14 @@ def test_webhook_build_works_with_no_arguments(sample_flow):
     webhook.add_flow(sample_flow)
 
     res = webhook.build()
-    assert isinstance(res, WebHook)
+    assert isinstance(res, Webhook)
 
     res = webhook.get_flow()
     assert isinstance(res, Flow)
 
 
 def test_webhook_raises_warning_if_data_in_build_kwargs(sample_flow):
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "data": cloudpickle.dumps(sample_flow),
@@ -179,11 +179,11 @@ def test_webhook_raises_warning_if_data_in_build_kwargs(sample_flow):
         RuntimeWarning, match="flow content and should not be set directly"
     ):
         res = webhook.build()
-    assert isinstance(res, WebHook)
+    assert isinstance(res, Webhook)
 
 
 def test_webhook_raises_error_on_build_failure(sample_flow):
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         build_http_method="POST",
         get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
@@ -203,7 +203,7 @@ def test_webhook_raises_error_on_build_failure(sample_flow):
 
 
 def test_webhook_raises_error_on_get_flow_failure(sample_flow):
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         build_http_method="POST",
         get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
@@ -231,7 +231,7 @@ def test_render_headers_gets_env_variables(monkeypatch):
     some_cred = str(uuid.uuid4())
     another_secret = str(uuid.uuid4())
     monkeypatch.setenv("SOME_CRED", some_cred)
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         build_http_method="POST",
         build_secret_config={
@@ -261,7 +261,7 @@ def test_render_headers_gets_env_variables(monkeypatch):
 
 def test_render_headers_raises_expected_exception_on_missing_env_var(monkeypatch):
     monkeypatch.delenv("SOME_CRED", raising=False)
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         build_http_method="POST",
         build_secret_config={
@@ -280,7 +280,7 @@ def test_render_headers_raises_expected_exception_on_missing_env_var(monkeypatch
 
 def test_render_headers_raises_expected_exception_on_missing_secret(monkeypatch):
     monkeypatch.delenv("ANOTHER_SECRET", raising=False)
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         build_http_method="POST",
         build_secret_config={
@@ -304,7 +304,7 @@ def test_webhook_works_with_file_storage(sample_flow, tmpdir):
     with open(script_file, "w") as f:
         f.write(script_contents)
 
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Content-Type": "application/octet-stream"},
@@ -335,7 +335,7 @@ def test_webhook_works_with_file_storage(sample_flow, tmpdir):
     webhook.add_flow(sample_flow)
 
     res = webhook.build()
-    assert isinstance(res, WebHook)
+    assert isinstance(res, Webhook)
 
     res = webhook.get_flow()
     assert isinstance(res, Flow)
@@ -344,7 +344,7 @@ def test_webhook_works_with_file_storage(sample_flow, tmpdir):
 
 def test_webhook_throws_informative_error_if_flow_script_path_not_set(sample_flow):
 
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Content-Type": "application/octet-stream"},
@@ -363,7 +363,7 @@ def test_webhook_throws_informative_error_if_flow_script_path_not_set(sample_flo
     error_msg = "flow_script_path must be provided if stored_as_script=True"
     with pytest.raises(RuntimeError, match=error_msg):
         res = webhook.build()
-        assert isinstance(res, WebHook)
+        assert isinstance(res, Webhook)
 
 
 def test_webhook_throws_informative_error_if_flow_script_file_does_not_exist(
@@ -371,7 +371,7 @@ def test_webhook_throws_informative_error_if_flow_script_file_does_not_exist(
 ):
 
     nonexistent_file = "{}.py".format(str(uuid.uuid4()))
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Content-Type": "application/octet-stream"},
@@ -391,4 +391,4 @@ def test_webhook_throws_informative_error_if_flow_script_file_does_not_exist(
     error_msg = "passed to flow_script_path does not exist"
     with pytest.raises(RuntimeError, match=error_msg):
         res = webhook.build()
-        assert isinstance(res, WebHook)
+        assert isinstance(res, Webhook)

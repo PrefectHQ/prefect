@@ -22,7 +22,7 @@ from prefect.environments.storage.azure import Azure
 from prefect.environments.storage.gcs import GCS
 from prefect.environments.storage.s3 import S3
 from prefect.environments.storage.github import GitHub
-from prefect.environments.storage.webhook import WebHook
+from prefect.environments.storage.webhook import Webhook
 
 
 def get_default_storage_class() -> type:

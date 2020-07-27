@@ -10,7 +10,7 @@ from prefect.environments.storage import (
     Local,
     Storage,
     GitHub,
-    WebHook,
+    Webhook,
 )
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
@@ -135,9 +135,9 @@ class GitHubSchema(ObjectSchema):
         return base_obj
 
 
-class WebHookSchema(ObjectSchema):
+class WebhookSchema(ObjectSchema):
     class Meta:
-        object_class = WebHook
+        object_class = Webhook
 
     build_kwargs = fields.Dict(key=fields.Str, allow_none=False)
     build_http_method = fields.String(allow_none=False)
@@ -150,7 +150,7 @@ class WebHookSchema(ObjectSchema):
     secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> WebHook:
+    def create_object(self, data: dict, **kwargs: Any) -> Webhook:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows
@@ -171,5 +171,5 @@ class StorageSchema(OneOfSchema):
         "Storage": BaseStorageSchema,
         "S3": S3Schema,
         "GitHub": GitHubSchema,
-        "WebHook": WebHookSchema,
+        "Webhook": WebhookSchema,
     }

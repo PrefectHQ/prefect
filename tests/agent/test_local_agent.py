@@ -7,7 +7,7 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import Docker, Local, Azure, GCS, S3, WebHook
+from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -289,7 +289,7 @@ def test_local_agent_deploy_processes_webhook_storage(monkeypatch, runner_token)
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    webhook = WebHook(
+    webhook = Webhook(
         build_kwargs={"url": "test-service/upload"},
         build_http_method="POST",
         get_flow_kwargs={"url": "test-service/download"},

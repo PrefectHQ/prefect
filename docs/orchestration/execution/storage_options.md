@@ -140,19 +140,19 @@ If you do not specify a `registry_url` for your Docker Storage then the image wi
 Docker Storage uses the [Docker SDK for Python](https://docker-py.readthedocs.io/en/stable/index.html) to build the image and push to a registry. Make sure you have the Docker daemon running locally and you are configured to push to your desired container registry. Additionally make sure whichever platform Agent deploys the container also has permissions to pull from that same registry.
 :::
 
-## WebHook
+## Webhook
 
-[WebHook Storage](/api/latest/environments/storage.html#webhook) is a storage option that stores and retrieves flows with HTTP requests. This type of storage can be used with any type of agent, and is intended to be a flexible way to integrate Prefect with your existing ecosystem, including your own file storage services.
+[Webhook Storage](/api/latest/environments/storage.html#webhook) is a storage option that stores and retrieves flows with HTTP requests. This type of storage can be used with any type of agent, and is intended to be a flexible way to integrate Prefect with your existing ecosystem, including your own file storage services.
 
 For example, the following code could be used to store flows in DropBox.
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import WebHook
+from prefect.environments.storage import Webhook
 
 flow = Flow(
     "dropbox-flow",
-    storage=WebHook(
+    storage=Webhook(
         build_kwargs={
             "url": "https://content.dropboxapi.com/2/files/upload",
             "headers": {
@@ -190,7 +190,7 @@ flow.storage.build()
 The `build_secret_config` is used to resolve environment variables to fill in request headers with sensitive information. Because this resolution is at runtime, this storage option never has your sensitive information stored in it and that sensitive information is never sent to Prefect Cloud. That config supports environment variables and [Prefect secrets](/core/concepts/secrets.html).
 
 ::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"webhook-flow-storage"`. Add that label to an agent to tell Prefect Cloud that that agent should run flows with `WebHook` storage.
+Flows registered with this storage option will automatically be labeled with `"webhook-flow-storage"`. Add that label to an agent to tell Prefect Cloud that that agent should run flows with `Webhook` storage.
 :::
 
 ### Non-Docker Storage for Containerized Environments

@@ -14,7 +14,7 @@ from prefect.serialization.storage import (
     GCSSchema,
     LocalSchema,
     S3Schema,
-    WebHookSchema,
+    WebhookSchema,
 )
 
 
@@ -309,7 +309,7 @@ def test_webhook_full_serialize():
     build_url = f"{base_url}/upload"
     get_url = f"{base_url}/download"
 
-    webhook = storage.WebHook(
+    webhook = storage.Webhook(
         build_kwargs={
             "url": build_url,
             "headers": {
@@ -334,7 +334,7 @@ def test_webhook_full_serialize():
     f = prefect.Flow("test")
     webhook.flows["test"] = "key"
 
-    serialized = WebHookSchema().dump(webhook)
+    serialized = WebhookSchema().dump(webhook)
 
     assert serialized
     assert serialized["__version__"] == prefect.__version__
@@ -367,7 +367,7 @@ def test_webhook_different_secret_configs():
         "Authorization": {"value": "WRITE_ONLY_TOKEN", "type": "environment"}
     }
     get_flow_config = {"Authorization": {"value": "READ_ONLY_TOKEN", "type": "secret"}}
-    webhook = storage.WebHook(
+    webhook = storage.Webhook(
         build_kwargs={},
         build_http_method="POST",
         get_flow_kwargs={},
@@ -378,7 +378,7 @@ def test_webhook_different_secret_configs():
     f = prefect.Flow("test")
     webhook.flows["test"] = "key"
 
-    serialized = WebHookSchema().dump(webhook)
+    serialized = WebhookSchema().dump(webhook)
     assert serialized["build_secret_config"] == build_config
     assert serialized["get_flow_secret_config"] == get_flow_config
     assert serialized["build_secret_config"] != serialized["get_flow_secret_config"]
