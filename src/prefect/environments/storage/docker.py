@@ -249,13 +249,14 @@ class Docker(Storage):
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
 
-    def get_flow(self, flow_location: str) -> "prefect.core.flow.Flow":
+    def get_flow(self, flow_location: str = None) -> "prefect.core.flow.Flow":
         """
         Given a file path within this Docker container, returns the underlying Flow.
         Note that this method should only be run _within_ the container itself.
 
         Args:
-            - flow_location (str): the file path of a flow within this container
+            - flow_location (str, optional): the file path of a flow within this container. Will use
+                `path` if not provided.
 
         Returns:
             - Flow: the requested flow

@@ -64,7 +64,7 @@ class S3(Storage):
 
         Args:
             - flow_location (str, optional): the location of a flow within this Storage; in this case
-                an S3 object key where a Flow has been serialized to.
+                an S3 object key where a Flow has been serialized to. Will use `key` if not provided.
 
         Returns:
             - Flow: the requested Flow

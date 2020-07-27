@@ -767,6 +767,9 @@ def test_docker_storage_get_flow_method():
     with tempfile.TemporaryDirectory() as directory:
         storage = Docker(base_image="python:3.6", prefect_directory=directory)
 
+        with pytest.raises(ValueError):
+            storage.get_flow()
+
         @prefect.task
         def add_to_dict():
             with open(os.path.join(directory, "output"), "w") as tmp:
@@ -803,3 +806,4 @@ def test_add_flow_with_weird_name_is_cleaned():
     assert "!" not in loc
     assert " " not in loc
     assert "~" not in loc
+

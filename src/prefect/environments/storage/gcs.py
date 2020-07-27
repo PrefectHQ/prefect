@@ -61,13 +61,13 @@ class GCS(Storage):
     def default_labels(self) -> List[str]:
         return ["gcs-flow-storage"]
 
-    def get_flow(self, flow_location: str) -> "Flow":
+    def get_flow(self, flow_location: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to
+            - flow_location (str, optional): the location of a flow within this Storage; in this case,
+                a file path where a Flow has been serialized to. Will use `key` if not provided.
 
         Returns:
             - Flow: the requested flow
