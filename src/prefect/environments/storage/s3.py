@@ -59,11 +59,11 @@ class S3(Storage):
 
     def get_flow(self, flow_location: str = None) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
-        If the Flow is not found an error will be logged and `None` will be returned.
+        Given a flow_location within this Storage object or S3, returns the underlying Flow (if possible).
+        If the Flow cannot be found or properly downloaded an exception will be raised.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage; in this case,
+            - flow_location (str, optional): the location of a flow within this Storage or ; in this case,
                 an S3 object key where a Flow has been serialized to.
 
         Returns:
