@@ -234,6 +234,9 @@ def test_get_flow_s3(monkeypatch):
 
     storage = S3(bucket="bucket")
 
+    with pytest.raises(ValueError):
+        storage.get_flow()
+
     assert f.name not in storage
     flow_location = storage.add_flow(f)
 
