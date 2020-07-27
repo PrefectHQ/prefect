@@ -1,6 +1,6 @@
 
 fix:
-  - "Move initial check in `get_flows()` to be checked when a flow_location generated from `add_flow()` is provided. - [#3027](https://github.com/PrefectHQ/prefect/issues/3027)"
+  - "Fix check of flow existence in storage object `get_flow` to only occur when provided - [#3027](https://github.com/PrefectHQ/prefect/issues/3027)"
 
 contributor:
-    - "[berosen](https://github.com/berosen)"
+  - "[berosen](https://github.com/berosen)"

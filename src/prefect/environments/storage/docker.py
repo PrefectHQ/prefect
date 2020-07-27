@@ -259,7 +259,18 @@ class Docker(Storage):
 
         Returns:
             - Flow: the requested flow
+
+        Raises:
+            - ValueError: if the flow is not contained in this storage
         """
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.path:
+            flow_location = self.path
+        else:
+            raise ValueError("No flow location provided")
+
         if self.stored_as_script:
             return extract_flow_from_file(file_path=flow_location)
 

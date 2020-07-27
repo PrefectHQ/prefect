@@ -59,8 +59,17 @@ class GitHub(Storage):
             - Flow: the requested Flow
 
         Raises:
-            - UnknownObjectException: if the Flow file is unable to be retrieved
+            - ValueError: if the flow is not contained in this storage
+            - UnknownObjectException: if the flow file is unable to be retrieved
         """
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.path:
+            flow_location = self.path
+        else:
+            raise ValueError("No flow location provided")
+
         from github import UnknownObjectException
 
         repo = self._github_client.get_repo(self.repo)

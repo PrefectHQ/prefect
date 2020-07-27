@@ -75,8 +75,13 @@ class GCS(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if flow_location not in self.flows.values():
-            raise ValueError("Flow is not contained in this Storage")
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.key:
+            flow_location = self.key
+        else:
+            raise ValueError("No flow location provided")
 
         bucket = self._gcs_client.get_bucket(self.bucket)
 

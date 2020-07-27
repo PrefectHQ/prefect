@@ -78,8 +78,13 @@ class Azure(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if flow_location not in self.flows.values():
-            raise ValueError("Flow is not contained in this Storage")
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.blob_name:
+            flow_location = self.blob_name
+        else:
+            raise ValueError("No flow location provided")
 
         client = self._azure_block_blob_service.get_blob_client(
             container=self.container, blob=flow_location
