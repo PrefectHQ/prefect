@@ -463,7 +463,9 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
             ), output
             assert (
                 "COPY {} /opt/prefect/healthcheck.py".format(
-                    os.path.join(directory, "healthcheck.py")
+                    os.path.relpath(os.path.join(directory, "healthcheck.py")).replace(
+                        "\\", "/"
+                    )
                 )
                 in output
             )
