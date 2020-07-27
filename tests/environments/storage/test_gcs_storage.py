@@ -96,6 +96,10 @@ class TestGCSStorage:
         bucket_mock = MagicMock(get_blob=MagicMock(return_value=blob_mock))
         google_client.return_value.get_bucket = MagicMock(return_value=bucket_mock)
 
+        with pytest.raises(ValueError):
+            storage = GCS(bucket="test")
+            storage.get_flow()
+
         storage = GCS(bucket="awesome-bucket", key="a-place")
         storage.add_flow(f)
 
