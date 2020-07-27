@@ -135,6 +135,7 @@ class Client:
         headers: dict = None,
         params: Dict[str, JSONLike] = None,
         token: str = None,
+        retry_on_api_error: bool = True,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and GET request
@@ -147,6 +148,8 @@ class Client:
             - headers (dict, optional): Headers to pass with the request
             - params (dict): GET parameters
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - dict: Dictionary representation of the request made
@@ -158,6 +161,7 @@ class Client:
             server=server,
             headers=headers,
             token=token,
+            retry_on_api_error=retry_on_api_error,
         )
         if response.text:
             return response.json()
@@ -171,6 +175,7 @@ class Client:
         headers: dict = None,
         params: Dict[str, JSONLike] = None,
         token: str = None,
+        retry_on_api_error: bool = True,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
@@ -183,6 +188,8 @@ class Client:
             - headers(dict): headers to pass with the request
             - params (dict): POST parameters
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - dict: Dictionary representation of the request made
@@ -194,6 +201,7 @@ class Client:
             server=server,
             headers=headers,
             token=token,
+            retry_on_api_error=retry_on_api_error,
         )
         if response.text:
             return response.json()
@@ -207,6 +215,7 @@ class Client:
         headers: Dict[str, str] = None,
         variables: Dict[str, JSONLike] = None,
         token: str = None,
+        retry_on_api_error: bool = True,
     ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
@@ -221,6 +230,8 @@ class Client:
             - variables (dict): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -234,6 +245,7 @@ class Client:
             headers=headers,
             params=dict(query=parse_graphql(query), variables=json.dumps(variables)),
             token=token,
+            retry_on_api_error=retry_on_api_error,
         )
 
         if raise_on_error and "errors" in result:
@@ -291,6 +303,7 @@ class Client:
         server: str = None,
         headers: dict = None,
         token: str = None,
+        retry_on_api_error: bool = True,
     ) -> "requests.models.Response":
         """
         Runs any specified request (GET, POST, DELETE) against the server
@@ -303,6 +316,8 @@ class Client:
                 server is used if not specified
             - headers (dict, optional): Headers to pass with the request
             - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - retry_on_api_error (bool): whether the operation should be retried if the API returns
+                an API_ERROR code
 
         Returns:
             - requests.models.Response: The response returned from the request
@@ -360,7 +375,7 @@ class Client:
                 raise ClientError("Malformed response received from API.")
 
         # check if there was an API_ERROR code in the response
-        if "API_ERROR" in str(json_resp.get("errors")):
+        if "API_ERROR" in str(json_resp.get("errors")) and retry_on_api_error:
             success, retry_count = False, 0
             # retry up to six times
             while success is False and retry_count < 6:
@@ -713,6 +728,7 @@ class Client:
                     version_group_id=version_group_id,
                 )
             ),
+            retry_on_api_error=False,
         )  # type: Any
 
         flow_id = (

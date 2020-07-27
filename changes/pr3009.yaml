@@ -1,2 +1,0 @@
-fix:
-  - "Fix bug in `DaskExecutor` when running with external cluster where dask clients could potentially be leaked - [#3009](https://github.com/PrefectHQ/prefect/pull/3009)"

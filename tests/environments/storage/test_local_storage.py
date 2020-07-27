@@ -98,6 +98,7 @@ def test_get_env_runner_raises():
 def test_get_flow_raises_if_flow_not_present():
     s = Local()
     with pytest.raises(ValueError):
+        s.get_flow()
         s.get_flow("test")
 
 

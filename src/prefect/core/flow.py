@@ -32,18 +32,17 @@ from slugify import slugify
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
-from prefect.core.task import Task
 from prefect.core.parameter import Parameter
+from prefect.core.task import Task
 from prefect.engine.result import NoResult, Result
-from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.results import ResultHandlerResult
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
-from prefect.utilities import diagnostics
-from prefect.utilities import logging
+from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
-from prefect.utilities.tasks import as_task, unmapped
+from prefect.utilities.tasks import as_task
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -192,6 +191,7 @@ class Flow:
                 downstream_task=e.downstream_task,
                 key=e.key,
                 mapped=e.mapped,
+                flattened=e.flattened,
                 validate=validate,
             )
 
@@ -313,6 +313,7 @@ class Flow:
                 downstream_task=downstream,
                 key=edge.key,
                 mapped=edge.mapped,
+                flattened=edge.flattened,
                 validate=False,
             )
 
@@ -531,10 +532,11 @@ class Flow:
 
     def add_edge(
         self,
-        upstream_task: Task,
-        downstream_task: Task,
+        upstream_task: Any,
+        downstream_task: Any,
         key: str = None,
         mapped: bool = False,
+        flattened: bool = False,
         validate: bool = None,
     ) -> Edge:
         """
@@ -542,13 +544,16 @@ class Flow:
         an upstream task and ending with a downstream task.
 
         Args:
-            - upstream_task (Task): The task that the edge should start from
-            - downstream_task (Task): The task that the edge should end with
+            - upstream_task (Any): The task that the edge should start from. If
+                it is not a `Task`, it will be converted into one.
+            - downstream_task (Any): The task that the edge should end with. If
+                it is not a `Task`, it will be converted into one.
             - key (str, optional): The key to be set for the new edge; the result of the
                 upstream task will be passed to the downstream task's `run()` method under this
                 keyword argument
             - mapped (bool, optional): Whether this edge represents a call to `Task.map()`;
                 defaults to `False`
+            - flattened (bool, optional): Whether the upstream task result is flattened
             - validate (bool, optional): Whether or not to check the validity of the flow
                 (e.g., presence of cycles and illegal keys). Defaults to the value of
                 `eager_edge_validation` in your prefect configuration file.
@@ -573,26 +578,50 @@ class Flow:
                 "Parameters must be root tasks and can not have upstream dependencies."
             )
 
-        self.add_task(upstream_task)
-        self.add_task(downstream_task)
+        edge = Edge(
+            upstream_task=upstream_task,
+            downstream_task=downstream_task,
+            key=key,
+            mapped=mapped,
+            flattened=flattened,
+            flow=self,
+        )
+
+        # if the edge represents a keyed, unmapped constant, then we can optimize it
+        # out of the graph and into the special `constants` dict. We still return the edge
+        # object as a description of the relationship.
+        if (
+            isinstance(edge.upstream_task, prefect.tasks.core.constants.Constant)
+            and edge.key
+            and not edge.mapped
+            and not edge.flattened
+        ):
+            self.constants[edge.downstream_task].update(
+                {edge.key: edge.upstream_task.value}
+            )
+            return edge
+
+        # add the edge
+        self.edges.add(edge)
+
+        # add the tasks from the edge (note they may be different than the passed tasks)
+        # due to calling `as_task()` inside the Edge constructor
+        self.add_task(edge.upstream_task)
+        self.add_task(edge.downstream_task)
 
         # we can only check the downstream task's edges once it has been added to the
         # flow, so we need to perform this check here and not earlier.
-        if validate and key and key in {e.key for e in self.edges_to(downstream_task)}:
+        if (
+            validate
+            and key is not None
+            and key in {e.key for e in self.edges_to(downstream_task) if e is not edge}
+        ):
             raise ValueError(
                 'Argument "{a}" for task {t} has already been assigned in '
                 "this flow. If you are trying to call the task again with "
                 "new arguments, call Task.copy() before adding the result "
                 "to this flow.".format(a=key, t=downstream_task)
             )
-
-        edge = Edge(
-            upstream_task=upstream_task,
-            downstream_task=downstream_task,
-            key=key,
-            mapped=mapped,
-        )
-        self.edges.add(edge)
 
         # check that the edges are valid keywords by binding them
         if validate and key is not None:
@@ -668,6 +697,7 @@ class Flow:
                     downstream_task=edge.downstream_task,
                     key=edge.key,
                     mapped=edge.mapped,
+                    flattened=edge.flattened,
                     validate=validate,
                 )
 
@@ -865,10 +895,10 @@ class Flow:
 
     def set_dependencies(
         self,
-        task: object,
-        upstream_tasks: Iterable[object] = None,
-        downstream_tasks: Iterable[object] = None,
-        keyword_tasks: Mapping[str, object] = None,
+        task: Any,
+        upstream_tasks: Iterable[Any] = None,
+        downstream_tasks: Iterable[Any] = None,
+        keyword_tasks: Mapping[str, Any] = None,
         mapped: bool = False,
         validate: bool = None,
     ) -> None:
@@ -876,19 +906,19 @@ class Flow:
         Convenience function for adding task dependencies.
 
         Args:
-            - task (object): a Task that will become part of the Flow. If the task is not a
+            - task (Any): a Task that will become part of the Flow. If the task is not a
                 Task subclass, Prefect will attempt to convert it to one.
-            - upstream_tasks ([object], optional): Tasks that will run before the task runs. If
+            - upstream_tasks ([Any], optional): Tasks that will run before the task runs. If
                 any task is not a Task subclass, Prefect will attempt to convert it to one.
-            - downstream_tasks ([object], optional): Tasks that will run after the task runs.
+            - downstream_tasks ([Any], optional): Tasks that will run after the task runs.
                 If any task is not a Task subclass, Prefect will attempt to convert it to one.
-            - keyword_tasks ({key: object}, optional): The results of these tasks
+            - keyword_tasks ({key: Any}, optional): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
             - mapped (bool, optional): Whether the upstream tasks (both keyed
                 and non-keyed) should be mapped over; defaults to `False`. If `True`, any
-                tasks wrapped in the `prefect.utilities.tasks.unmapped` container will
+                tasks wrapped in the `prefect.utilities.edges.unmapped` container will
                 _not_ be mapped over.
             - validate (bool, optional): Whether or not to check the validity of the flow
                 (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
@@ -910,39 +940,23 @@ class Flow:
 
         # add upstream tasks
         for t in upstream_tasks or []:
-            is_mapped = mapped and not isinstance(t, unmapped)
-            t = as_task(t, flow=self)
-            assert isinstance(t, Task)  # mypy assert
             self.add_edge(
-                upstream_task=t,
-                downstream_task=task,
-                validate=validate,
-                mapped=is_mapped,
+                upstream_task=t, downstream_task=task, mapped=mapped, validate=validate
             )
 
         # add downstream tasks
         for t in downstream_tasks or []:
-            t = as_task(t, flow=self)
-            assert isinstance(t, Task)  # mypy assert
             self.add_edge(upstream_task=task, downstream_task=t, validate=validate)
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
-            is_mapped = mapped and not isinstance(t, unmapped)
-            t = as_task(t, flow=self)
-
-            # if the task can be represented as a constant and we don't need to map over it
-            # then we can optimize it out of the graph and into the special `constants` dict
-            if isinstance(t, prefect.tasks.core.constants.Constant) and not is_mapped:
-                self.constants[task].update({key: t.value})
-            else:
-                self.add_edge(
-                    upstream_task=t,
-                    downstream_task=task,
-                    key=key,
-                    validate=validate,
-                    mapped=is_mapped,
-                )
+            self.add_edge(
+                upstream_task=t,
+                downstream_task=task,
+                key=key,
+                mapped=mapped,
+                validate=validate,
+            )
 
     # Execution  ---------------------------------------------------------------
 
@@ -1227,7 +1241,7 @@ class Flow:
         flow_state: "prefect.engine.state.State" = None,
         filename: str = None,
         format: str = None,
-    ) -> object:
+    ) -> Any:
         """
         Creates graphviz object for representing the current flow; this graphviz
         object will be rendered inline if called from an IPython notebook, otherwise

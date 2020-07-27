@@ -249,17 +249,29 @@ class Docker(Storage):
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
 
-    def get_flow(self, flow_location: str) -> "prefect.core.flow.Flow":
+    def get_flow(self, flow_location: str = None) -> "prefect.core.flow.Flow":
         """
         Given a file path within this Docker container, returns the underlying Flow.
         Note that this method should only be run _within_ the container itself.
 
         Args:
-            - flow_location (str): the file path of a flow within this container
+            - flow_location (str, optional): the file path of a flow within this container. Will use
+                `path` if not provided.
 
         Returns:
             - Flow: the requested flow
+
+        Raises:
+            - ValueError: if the flow is not contained in this storage
         """
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.path:
+            flow_location = self.path
+        else:
+            raise ValueError("No flow location provided")
+
         if self.stored_as_script:
             return extract_flow_from_file(file_path=flow_location)
 
@@ -375,7 +387,7 @@ class Docker(Storage):
             )
             self._parse_generator_output(output)
 
-            if len(client.images(name=full_name)) == 0:
+            if len(client.images(name="{}:{}".format(full_name, self.image_tag))) == 0:
                 raise ValueError(
                     "Your docker image failed to build!  Your flow might have "
                     "failed one of its deployment health checks - please ensure "
