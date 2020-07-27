@@ -435,6 +435,7 @@ class Docker(Storage):
             for src, dest in self.files.items():
                 fname = os.path.basename(src)
                 full_fname = os.path.join(directory, fname)
+                relative_fname = os.path.relpath(full_fname, os.getcwd()).replace('\\', '/')
                 if os.path.exists(full_fname) and filecmp.cmp(src, full_fname) is False:
                     raise ValueError(
                         "File {fname} already exists in {directory}".format(
@@ -444,7 +445,7 @@ class Docker(Storage):
                 else:
                     shutil.copy2(src, full_fname)
                 copy_files += "COPY {fname} {dest}\n".format(
-                    fname=full_fname if self.dockerfile else fname, dest=dest
+                    fname=relative_fname if self.dockerfile else fname, dest=dest
                 )
 
         # Write all flows to file and load into the image
@@ -453,10 +454,11 @@ class Docker(Storage):
             for flow_name, flow_location in self.flows.items():
                 clean_name = slugify(flow_name)
                 flow_path = os.path.join(directory, "{}.flow".format(clean_name))
+                flow_path_relative = os.path.relpath(flow_path, os.getcwd()).replace('\\', '/')
                 with open(flow_path, "wb") as f:
                     cloudpickle.dump(self._flows[flow_name], f)
                 copy_flows += "COPY {source} {dest}\n".format(
-                    source=flow_path
+                    source=flow_path_relative
                     if self.dockerfile
                     else "{}.flow".format(clean_name),
                     dest=flow_location,
@@ -479,6 +481,7 @@ class Docker(Storage):
             healthcheck = healthscript.read()
 
         healthcheck_loc = os.path.join(directory, "healthcheck.py")
+        healthcheck_loc_relative = os.path.relpath(healthcheck_loc, os.getcwd()).replace('\\', '/')
         with open(healthcheck_loc, "w") as health_file:
             health_file.write(healthcheck)
 
@@ -498,7 +501,7 @@ class Docker(Storage):
 
             RUN mkdir -p {prefect_dir}/
             {copy_flows}
-            COPY {healthcheck_loc} {prefect_dir}/healthcheck.py
+            COPY {healthcheck_loc_relative} {prefect_dir}/healthcheck.py
             {copy_files}
 
             {env_vars}
@@ -507,7 +510,7 @@ class Docker(Storage):
                 extra_commands=extra_commands,
                 pip_installs=pip_installs,
                 copy_flows=copy_flows,
-                healthcheck_loc=healthcheck_loc
+                healthcheck_loc_relative=healthcheck_loc_relative
                 if self.dockerfile
                 else "healthcheck.py",
                 copy_files=copy_files,
