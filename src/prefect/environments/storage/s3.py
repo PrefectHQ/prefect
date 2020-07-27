@@ -59,18 +59,19 @@ class S3(Storage):
 
     def get_flow(self, flow_location: str = None) -> "Flow":
         """
-        Given a flow_location within this Storage object or S3, returns the underlying Flow (if possible).
+        Given a flow_location within this Storage object or S3, returns the underlying Flow.
         If the Flow cannot be found or properly downloaded an exception will be raised.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage; in this case,
+            - flow_location (str, optional): the location of a flow within this Storage; in this case
                 an S3 object key where a Flow has been serialized to.
 
         Returns:
             - Flow: the requested Flow
 
         Raises:
-            - ValueError: If the Flow location cannot be found, ie. obtained from `flow_location` or `self.key`
+            - ValueError: If the Flow location cannot be found, ie. obtained from `flow_location`
+              or `self.key`
             - botocore.ClientError: if there is an issue downloading the Flow from S3
         """
         if flow_location:
