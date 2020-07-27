@@ -399,5 +399,5 @@ def test_get_flow_s3_no_location_set(monkeypatch):
 
     storage = S3(bucket="bucket")
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         storage.get_flow()
