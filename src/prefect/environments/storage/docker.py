@@ -435,7 +435,9 @@ class Docker(Storage):
             for src, dest in self.files.items():
                 fname = os.path.basename(src)
                 full_fname = os.path.join(directory, fname)
-                relative_fname = os.path.relpath(full_fname, os.getcwd()).replace('\\', '/')
+                relative_fname = os.path.relpath(full_fname, os.getcwd()).replace(
+                    "\\", "/"
+                )
                 if os.path.exists(full_fname) and filecmp.cmp(src, full_fname) is False:
                     raise ValueError(
                         "File {fname} already exists in {directory}".format(
@@ -454,7 +456,9 @@ class Docker(Storage):
             for flow_name, flow_location in self.flows.items():
                 clean_name = slugify(flow_name)
                 flow_path = os.path.join(directory, "{}.flow".format(clean_name))
-                flow_path_relative = os.path.relpath(flow_path, os.getcwd()).replace('\\', '/')
+                flow_path_relative = os.path.relpath(flow_path, os.getcwd()).replace(
+                    "\\", "/"
+                )
                 with open(flow_path, "wb") as f:
                     cloudpickle.dump(self._flows[flow_name], f)
                 copy_flows += "COPY {source} {dest}\n".format(
@@ -481,7 +485,9 @@ class Docker(Storage):
             healthcheck = healthscript.read()
 
         healthcheck_loc = os.path.join(directory, "healthcheck.py")
-        healthcheck_loc_relative = os.path.relpath(healthcheck_loc, os.getcwd()).replace('\\', '/')
+        healthcheck_loc_relative = os.path.relpath(
+            healthcheck_loc, os.getcwd()
+        ).replace("\\", "/")
         with open(healthcheck_loc, "w") as health_file:
             health_file.write(healthcheck)
 
