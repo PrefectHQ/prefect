@@ -806,4 +806,3 @@ def test_add_flow_with_weird_name_is_cleaned():
     assert "!" not in loc
     assert " " not in loc
     assert "~" not in loc
-
