@@ -63,7 +63,7 @@ class S3(Storage):
         If the Flow cannot be found or properly downloaded an exception will be raised.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage or ; in this case,
+            - flow_location (str, optional): the location of a flow within this Storage; in this case,
                 an S3 object key where a Flow has been serialized to.
 
         Returns:
