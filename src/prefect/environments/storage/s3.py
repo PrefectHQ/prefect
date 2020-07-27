@@ -70,8 +70,7 @@ class S3(Storage):
             - Flow: the requested Flow
 
         Raises:
-            - ValueError: if the Flow is not contained in this storage
-            - Exception: if the Flow location cannot be obtained from `flow_location` or `self.key`
+            - ValueError: If the Flow location cannot be found, ie. obtained from `flow_location` or `self.key`
             - botocore.ClientError: if there is an issue downloading the Flow from S3
         """
         if flow_location:
@@ -82,7 +81,7 @@ class S3(Storage):
             flow_location = self.key
 
         else:
-            raise Exception("No Flow location provided")
+            raise ValueError("No Flow location provided")
 
         stream = io.BytesIO()
 
