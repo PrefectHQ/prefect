@@ -12,6 +12,7 @@ from requests.packages.urllib3.util.retry import Retry
 
 from prefect.client import Secret
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -54,6 +55,18 @@ class WebHook(Storage):
             as well. Pass a value to this argument only if you want to use a
             different config for `.get_flow()` than the one used for
             `.build()`.
+        - stored_as_script (bool, optional): boolean for specifying if the
+            flow has been stored as a `.py` file. Defaults to `False`.
+        - flow_script_path (str, optional): path to a local `.py` file that
+            defines the flow. You must pass a value to this argument if
+            `stored_as_script` is `True`. This script's content will be read
+            into a string and attached to the request in `build()` as UTF-8
+            encoded binary data. Similarly, `.get_flow()` expects that the
+            script's contents will be returned as binary data. This path will
+            not be sent to Prefect Cloud and is only needed when running
+            `.build()`.
+        - **kwargs (Any, optional): any additional `Storage` initialization
+            options
 
     Passing sensitive data in headers
     ---------------------------------
@@ -99,6 +112,8 @@ class WebHook(Storage):
         get_flow_http_method: str,
         build_secret_config: Optional[Dict[str, Any]] = None,
         get_flow_secret_config: Optional[Dict[str, Any]] = None,
+        stored_as_script: bool = False,
+        flow_script_path: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
@@ -127,6 +142,9 @@ class WebHook(Storage):
             self.logger.fatal(msg)
             raise RuntimeError(msg)
 
+        self.stored_as_script = stored_as_script
+        self.flow_script_path = flow_script_path
+
         self.build_kwargs = build_kwargs
         self.build_http_method = build_http_method
         self.build_secret_config = build_secret_config or {}
@@ -137,7 +155,7 @@ class WebHook(Storage):
 
         self._build_responses: Optional[Dict[str, Response]] = None
 
-        super().__init__(**kwargs)
+        super().__init__(stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -171,6 +189,10 @@ class WebHook(Storage):
         response = req_function(**get_flow_kwargs)  # type: ignore
         response.raise_for_status()
 
+        if self.stored_as_script:
+            flow_script_content = response.content.decode("utf-8")
+            return extract_flow_from_file(file_contents=flow_script_content)  # type: ignore
+
         return cloudpickle.loads(response.content)
 
     def add_flow(self, flow: "Flow") -> str:
@@ -196,6 +218,10 @@ class WebHook(Storage):
         """
         Build the WebHook storage object by issuing an HTTP request
         to store the flow.
+
+        If `self.stored_as_script` is `True`, this method
+        will read in the contents of `self.flow_script_path`, convert it to
+        byes, and attach it to the request as `data`.
 
         The response from this request is stored in `._build_responses`,
         a dictionary keyed by flow name. If you are using a service where
@@ -255,6 +281,24 @@ class WebHook(Storage):
             self.logger.info("Uploading flow '{}'".format(flow_name))
 
             data = cloudpickle.dumps(flow)
+            if self.stored_as_script:
+
+                # these checks are here in build() instead of the constructor
+                # so that serialization and deserialization of flows does not fail
+                if not self.flow_script_path:
+                    msg = "flow_script_path must be provided if stored_as_script=True"
+                    self.logger.fatal(msg)
+                    raise RuntimeError(msg)
+
+                if not os.path.isfile(self.flow_script_path):
+                    msg = "file '{}' passed to flow_script_path does not exist".format(
+                        self.flow_script_path
+                    )
+                    self.logger.fatal(msg)
+                    raise RuntimeError(msg)
+
+                with open(self.flow_script_path, "r") as f:
+                    data = f.read().encode("utf-8")
 
             req_function = self._method_to_function[self.build_http_method]
 

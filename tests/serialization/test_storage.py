@@ -359,6 +359,7 @@ def test_webhook_full_serialize():
         "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
     }
     assert serialized["build_secret_config"] == serialized["get_flow_secret_config"]
+    assert serialized["stored_as_script"] is False
 
 
 def test_webhook_different_secret_configs():

@@ -145,6 +145,7 @@ class WebHookSchema(ObjectSchema):
     get_flow_http_method = fields.String(allow_none=False)
     build_secret_config = fields.Dict(key=fields.Str, allow_none=False)
     get_flow_secret_config = fields.Dict(key=fields.Str, allow_none=False)
+    stored_as_script = fields.Bool(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
 

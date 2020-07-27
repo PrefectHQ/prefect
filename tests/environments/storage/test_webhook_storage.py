@@ -1,4 +1,5 @@
 import cloudpickle
+import os
 import pytest
 import random
 import uuid
@@ -66,6 +67,7 @@ def test_create_webhook_storage():
     assert storage.get_flow_secret_config == {}
     assert storage.secrets == []
     assert storage.default_labels == ["webhook-flow-storage"]
+    assert storage.stored_as_script is False
 
 
 def test_all_valid_http_verb_combinations_work():
@@ -293,3 +295,100 @@ def test_render_headers_raises_expected_exception_on_missing_secret(monkeypatch)
         webhook._render_headers(
             headers=initial_headers, secret_config=webhook.build_secret_config
         )
+
+
+def test_webhook_works_with_file_storage(sample_flow, tmpdir):
+
+    script_file = os.path.join(tmpdir, "{}.py".format(str(uuid.uuid4())))
+    script_contents = """from prefect import Flow\nf=Flow('test-flow')"""
+    with open(script_file, "w") as f:
+        f.write(script_contents)
+
+    webhook = WebHook(
+        build_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {"Content-Type": "application/octet-stream"},
+        },
+        build_http_method="POST",
+        get_flow_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {"Accept": "application/octet-stream"},
+        },
+        get_flow_http_method="GET",
+        stored_as_script=True,
+        flow_script_path=script_file,
+    )
+
+    def _mock_successful_get(*args, **kwargs):
+        file_contents = """from prefect import Flow\nf=Flow('test-flow')"""
+        return _MockResponse(
+            status_code=200, json={}, content=file_contents.encode("utf-8")
+        )
+
+    def _mock_successful_post(*args, **kwargs):
+        return _MockResponse(status_code=200, json={"id": "abc"})
+
+    webhook._method_to_function = {
+        "GET": _mock_successful_get,
+        "POST": _mock_successful_post,
+    }
+    webhook.add_flow(sample_flow)
+
+    res = webhook.build()
+    assert isinstance(res, WebHook)
+
+    res = webhook.get_flow()
+    assert isinstance(res, Flow)
+    assert res.name == "test-flow"
+
+
+def test_webhook_throws_informative_error_if_flow_script_path_not_set(sample_flow):
+
+    webhook = WebHook(
+        build_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {"Content-Type": "application/octet-stream"},
+        },
+        build_http_method="POST",
+        get_flow_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {"Accept": "application/octet-stream"},
+        },
+        get_flow_http_method="GET",
+        stored_as_script=True,
+    )
+
+    webhook.add_flow(sample_flow)
+
+    error_msg = "flow_script_path must be provided if stored_as_script=True"
+    with pytest.raises(RuntimeError, match=error_msg):
+        res = webhook.build()
+        assert isinstance(res, WebHook)
+
+
+def test_webhook_throws_informative_error_if_flow_script_file_does_not_exist(
+    sample_flow,
+):
+
+    nonexistent_file = "{}.py".format(str(uuid.uuid4()))
+    webhook = WebHook(
+        build_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {"Content-Type": "application/octet-stream"},
+        },
+        build_http_method="POST",
+        get_flow_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {"Accept": "application/octet-stream"},
+        },
+        get_flow_http_method="GET",
+        stored_as_script=True,
+        flow_script_path=nonexistent_file,
+    )
+
+    webhook.add_flow(sample_flow)
+
+    error_msg = "passed to flow_script_path does not exist"
+    with pytest.raises(RuntimeError, match=error_msg):
+        res = webhook.build()
+        assert isinstance(res, WebHook)
