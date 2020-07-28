@@ -6,7 +6,7 @@ Released on July 28, 2020.
 
 ### Features
 
-- Add `flat` operator for unnesting and flat-maps - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)
+- Add `flatten` operator for unnesting and flat-maps - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)
 
 ### Enhancements
 
