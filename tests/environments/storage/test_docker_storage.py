@@ -764,21 +764,28 @@ def test_docker_storage_name_registry_url_none():
 
 
 def test_docker_storage_get_flow_method():
-    storage = Docker(base_image="python:3.6")
     with tempfile.TemporaryDirectory() as directory:
+        storage = Docker(base_image="python:3.6", prefect_directory=directory)
+
+        with pytest.raises(ValueError):
+            storage.get_flow()
 
         @prefect.task
         def add_to_dict():
             with open(os.path.join(directory, "output"), "w") as tmp:
                 tmp.write("success")
 
-        with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
+        flow_dir = os.path.join(directory, "flows")
+        os.makedirs(flow_dir, exist_ok=True)
+
+        with open(os.path.join(flow_dir, "test.prefect"), "w+") as env:
             flow = Flow("test", tasks=[add_to_dict])
-            flow_path = os.path.join(directory, "flow_env.prefect")
+            flow_path = os.path.join(flow_dir, "test.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
+            out = storage.add_flow(flow)
 
-        f = storage.get_flow(flow_path)
+        f = storage.get_flow(out)
         assert isinstance(f, Flow)
         assert f.name == "test"
         assert len(f.tasks) == 1

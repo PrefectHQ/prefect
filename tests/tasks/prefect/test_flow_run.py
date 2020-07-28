@@ -29,12 +29,14 @@ class TestFlowRunTaskCloud:
             checkpoint=False,
             project_name="Test Project",
             flow_name="Test Flow",
+            new_flow_context={"foo": "bar"},
             parameters={"test": "ing"},
         )
         assert task.name == "My Flow Run Task"
         assert task.checkpoint is False
         assert task.project_name == "Test Project"
         assert task.flow_name == "Test Flow"
+        assert task.new_flow_context == {"foo": "bar"}
         assert task.parameters == {"test": "ing"}
 
     def test_flow_run_task(self, client, cloud_api):
@@ -53,7 +55,10 @@ class TestFlowRunTaskCloud:
 
         # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
-            flow_id="abc123", parameters={"test": "ing"}, idempotency_key=None
+            flow_id="abc123",
+            parameters={"test": "ing"},
+            idempotency_key=None,
+            context=None,
         )
 
     def test_flow_run_task_with_flow_run_id(self, client, cloud_api):
@@ -70,7 +75,26 @@ class TestFlowRunTaskCloud:
 
         # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
-            flow_id="abc123", parameters={"test": "ing"}, idempotency_key="test-id"
+            flow_id="abc123",
+            parameters={"test": "ing"},
+            idempotency_key="test-id",
+            context=None,
+        )
+
+    def test_idempotency_key_uses_map_index_if_present(self, client, cloud_api):
+        # verify that create_flow_run was called
+        task = FlowRunTask(project_name="Test Project", flow_name="Test Flow",)
+
+        # verify that run returns the new flow run ID
+        with prefect.context(flow_run_id="test-id", map_index=4):
+            assert task.run() == "xyz890"
+
+        # verify create_flow_run was called with the correct arguments
+        client.create_flow_run.assert_called_once_with(
+            flow_id="abc123",
+            idempotency_key="test-id-4",
+            parameters=None,
+            context=None,
         )
 
     def test_flow_run_task_without_flow_name(self, cloud_api):
@@ -100,11 +124,13 @@ class TestFlowRunTaskCoreServer:
             name="My Flow Run Task",
             checkpoint=False,
             flow_name="Test Flow",
+            new_flow_context={"foo": "bar"},
             parameters={"test": "ing"},
         )
         assert task.name == "My Flow Run Task"
         assert task.checkpoint is False
         assert task.flow_name == "Test Flow"
+        assert task.new_flow_context == {"foo": "bar"}
         assert task.parameters == {"test": "ing"}
 
     def test_flow_run_task(self, client, server_api):
@@ -118,7 +144,10 @@ class TestFlowRunTaskCoreServer:
 
         # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
-            flow_id="abc123", parameters={"test": "ing"}, idempotency_key=None
+            flow_id="abc123",
+            parameters={"test": "ing"},
+            idempotency_key=None,
+            context=None,
         )
 
     def test_flow_run_task_without_flow_name(self, server_api):
@@ -133,3 +162,23 @@ class TestFlowRunTaskCoreServer:
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
+
+    def test_flow_run_task_with_flow_run_id(self, client, server_api):
+        # verify that create_flow_run was called
+        task = FlowRunTask(
+            project_name="Test Project",
+            flow_name="Test Flow",
+            parameters={"test": "ing"},
+        )
+
+        # verify that run returns the new flow run ID
+        with prefect.context(flow_run_id="test-id"):
+            assert task.run() == "xyz890"
+
+        # verify create_flow_run was called with the correct arguments
+        client.create_flow_run.assert_called_once_with(
+            flow_id="abc123",
+            parameters={"test": "ing"},
+            idempotency_key=None,
+            context=None,
+        )

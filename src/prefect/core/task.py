@@ -21,7 +21,7 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
-from prefect.utilities.tasks import unmapped
+from prefect.utilities.edges import EdgeAnnotation
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -453,7 +453,7 @@ class Task(metaclass=SignatureValidator):
             - **kwargs: keyword arguments to bind to the new Task's `run` method
             - mapped (bool, optional): Whether the results of these tasks should be mapped over
                 with the specified keyword arguments; defaults to `False`.
-                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                If `True`, any arguments contained within a `prefect.utilities.edges.unmapped`
                 container will _not_ be mapped over.
             - task_args (dict, optional): a dictionary of task attribute keyword arguments,
                 these attributes will be set on the new copy
@@ -494,7 +494,7 @@ class Task(metaclass=SignatureValidator):
             - *args: arguments to bind to the current Task's `run` method
             - mapped (bool, optional): Whether the results of these tasks should be mapped over
                 with the specified keyword arguments; defaults to `False`.
-                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                If `True`, any arguments contained within a `prefect.utilities.edges.unmapped`
                 container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies for the
                 current task.
@@ -544,7 +544,7 @@ class Task(metaclass=SignatureValidator):
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments that should _not_ be
-        mapped over should be placed in the `prefect.utilities.tasks.unmapped` container.
+        mapped over should be placed in the `prefect.utilities.edges.unmapped` container.
 
         For example:
             ```
@@ -572,7 +572,7 @@ class Task(metaclass=SignatureValidator):
             - Task: a new Task instance
         """
         for arg in args:
-            if not hasattr(arg, "__getitem__") and not isinstance(arg, unmapped):
+            if not hasattr(arg, "__getitem__") and not isinstance(arg, EdgeAnnotation):
                 raise TypeError(
                     "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
                         t=type(arg), preview=repr(arg)[:10]
@@ -630,7 +630,7 @@ class Task(metaclass=SignatureValidator):
         )
 
     def set_upstream(
-        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
+        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False,
     ) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
@@ -645,6 +645,9 @@ class Task(metaclass=SignatureValidator):
                 argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
+        Returns:
+            - None
+
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
@@ -655,7 +658,7 @@ class Task(metaclass=SignatureValidator):
             self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
     def set_downstream(
-        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
+        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False,
     ) -> None:
         """
         Sets the provided task as a downstream dependency of this task.

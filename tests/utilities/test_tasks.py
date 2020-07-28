@@ -3,7 +3,7 @@ import pytest
 from prefect import Flow, Task, case
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.state import Paused, Resume
-from prefect.utilities import tasks
+from prefect.utilities import tasks, edges
 from prefect.utilities.tasks import apply_map
 from prefect.tasks.control_flow import merge
 from prefect.tasks.core.constants import Constant
@@ -181,7 +181,7 @@ class TestApplyMap:
 
             with Flow("test") as flow:
                 y = ranged(3)
-                z = tasks.unmapped(1)
+                z = edges.unmapped(1)
                 res = apply_map(func, range(3, 6), y=y, z=z)
         else:
 
@@ -193,7 +193,7 @@ class TestApplyMap:
 
             flow = Flow("test")
             y = ranged.copy().bind(3, flow=flow)
-            z = tasks.unmapped(tasks.as_task(1, flow=flow))
+            z = edges.unmapped(tasks.as_task(1, flow=flow))
             res = apply_map(func, range(3, 6), y=y, z=z, flow=flow)
 
         consts = {t.name: c for t, c in flow.constants.items()}
@@ -272,7 +272,7 @@ class TestApplyMap:
             c = Constant(1, name="c")
             d = Constant(range(3), name="d")
             m, n, o, p, q, r = apply_map(
-                func, a, tasks.unmapped(b), c=tasks.unmapped(c), d=d
+                func, a, edges.unmapped(b), c=edges.unmapped(c), d=d
             )
 
         def edge_info(task):
@@ -443,23 +443,6 @@ def test_context_manager_for_setting_tags():
 
             t3 = Task(tags=["5"])
             assert t3.tags == set(["1", "2", "3", "4", "5"])
-
-
-class TestUnmappedContainer:
-    def test_unmapped_initializes_with_task(self):
-        t1 = Task()
-        unmapped_t1 = tasks.unmapped(t1)
-        assert unmapped_t1.task is t1
-
-    def test_unmapped_converts_its_argument_to_task(self):
-        unmapped_t1 = tasks.unmapped(5)
-        assert isinstance(unmapped_t1.task, Task)
-
-    def test_as_task_unpacks_unmapped_objects(self):
-        t1 = Task()
-        unmapped_t1 = tasks.unmapped(t1)
-        assert tasks.as_task(t1) is t1
-        assert tasks.as_task(t1).auto_generated is False
 
 
 class TestPauseTask:

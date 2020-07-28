@@ -437,7 +437,7 @@ class TaskRunner(Runner):
                 if state.is_successful() and not state.is_mapped() and edge.mapped
             ]
         ):
-            new_state = Failed("No upstream states can be mapped over.")
+            new_state = Failed("At least one upstream state has an unmappable result.")
             raise ENDRUN(new_state)
         else:
             new_state = Mapped("Ready to proceed with mapping.")

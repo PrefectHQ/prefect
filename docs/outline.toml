@@ -520,5 +520,11 @@ functions = ["to_qualified_name", "from_qualified_name"]
 [pages.utilities.tasks]
 title = "Task Utilities"
 module = "prefect.utilities.tasks"
-classes = ["unmapped"]
+classes = []
 functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs", "apply_map"]
+
+[pages.utilities.edges]
+title = "Edge Utilities"
+module = "prefect.utilities.edges"
+classes = ["unmapped", "mapped", "flatten"]
+functions = []
