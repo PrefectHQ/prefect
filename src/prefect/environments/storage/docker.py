@@ -352,10 +352,6 @@ class Docker(Storage):
             dir="." if self.dockerfile else None
         ) as tempdir:
 
-            if sys.platform == "win32":
-                # problem with docker and relative paths only on windows
-                tempdir = os.path.abspath(tempdir)
-
             # Build the dockerfile
             if self.base_image and not self.local_image:
                 self.pull_image()
@@ -378,6 +374,11 @@ class Docker(Storage):
 
             # Use the docker client to build the image
             self.logger.info("Building the flow's Docker storage...")
+
+            if sys.platform == "win32":
+                # problem with docker and relative paths only on windows
+                dockerfile_path = os.path.abspath(dockerfile_path)
+
             output = client.build(
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
