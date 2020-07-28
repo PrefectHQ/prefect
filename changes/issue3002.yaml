@@ -1,2 +1,0 @@
-fix:
-    - Cleanup to ShellTask to close open stdout file which was observable in some cases - [#3002](https://github.com/PrefectHQ/prefect/issues/3002)

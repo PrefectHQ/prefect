@@ -1,2 +1,0 @@
-enhancement:
-  - 'Add retry_on_api_error flag to client methods - [#3012](https://github.com/PrefectHQ/prefect/pull/3012)'
