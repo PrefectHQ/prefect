@@ -785,7 +785,7 @@ def test_docker_storage_get_flow_method():
                 cloudpickle.dump(flow, f)
             out = storage.add_flow(flow)
 
-        f = storage.get_flow(flow_path)
+        f = storage.get_flow(out)
         assert isinstance(f, Flow)
         assert f.name == "test"
         assert len(f.tasks) == 1
