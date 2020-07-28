@@ -35,6 +35,7 @@ def test_local_agent_deduplicates_labels(runner_token):
         "s3-flow-storage",
         "gcs-flow-storage",
         "github-flow-storage",
+        "webhook-flow-storage",
     }
     assert len(agent.labels) == len(set(agent.labels))
 
