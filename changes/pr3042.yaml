@@ -1,0 +1,5 @@
+fix:
+  - 'Prevent duplicated agent labels - [#3029](https://github.com/PrefectHQ/prefect/pull/3042)'
+
+contributor:
+  - "[James Lamb](https://github.com/jameslamb)"
