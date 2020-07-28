@@ -457,7 +457,8 @@ class Docker(Storage):
                 else:
                     shutil.copy2(src, full_fname)
                 copy_files += "COPY {fname} {dest}\n".format(
-                    fname=full_fname if self.dockerfile else fname, dest=dest
+                    fname=full_fname.replace("\\", "/") if self.dockerfile else fname,
+                    dest=dest,
                 )
 
         # Write all flows to file and load into the image
@@ -469,7 +470,7 @@ class Docker(Storage):
                 with open(flow_path, "wb") as f:
                     cloudpickle.dump(self._flows[flow_name], f)
                 copy_flows += "COPY {source} {dest}\n".format(
-                    source=flow_path
+                    source=flow_path.replace("\\", "/")
                     if self.dockerfile
                     else "{}.flow".format(clean_name),
                     dest=flow_location,
@@ -520,7 +521,7 @@ class Docker(Storage):
                 extra_commands=extra_commands,
                 pip_installs=pip_installs,
                 copy_flows=copy_flows,
-                healthcheck_loc=healthcheck_loc
+                healthcheck_loc=healthcheck_loc.replace("\\", "/")
                 if self.dockerfile
                 else "healthcheck.py",
                 copy_files=copy_files,
