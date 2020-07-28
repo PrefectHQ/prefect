@@ -26,6 +26,19 @@ def test_local_agent_init(runner_token):
     assert agent.name == "agent"
 
 
+def test_local_agent_deduplicates_labels(runner_token):
+    agent = LocalAgent(labels=["azure-flow-storage"])
+    assert agent
+    assert set(agent.labels) == {
+        socket.gethostname(),
+        "azure-flow-storage",
+        "s3-flow-storage",
+        "gcs-flow-storage",
+        "github-flow-storage",
+    }
+    assert len(agent.labels) == len(set(agent.labels))
+
+
 def test_local_agent_config_options(runner_token):
     with set_temporary_config(
         {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
