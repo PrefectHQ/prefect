@@ -173,6 +173,9 @@ def test_get_flow_azure(monkeypatch):
 
     storage = Azure(container="container")
 
+    with pytest.raises(ValueError):
+        storage.get_flow()
+
     assert f.name not in storage
     flow_location = storage.add_flow(f)
 

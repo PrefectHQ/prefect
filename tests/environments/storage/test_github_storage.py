@@ -78,6 +78,10 @@ def test_get_flow_github(monkeypatch):
         MagicMock(return_value=f),
     )
 
+    with pytest.raises(ValueError):
+        storage = GitHub(repo="test/repo")
+        storage.get_flow()
+
     storage = GitHub(repo="test/repo", path="flow")
 
     assert f.name not in storage

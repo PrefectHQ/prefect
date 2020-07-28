@@ -64,13 +64,13 @@ class Azure(Storage):
     def default_labels(self) -> List[str]:
         return ["azure-flow-storage"]
 
-    def get_flow(self, flow_location: str) -> "Flow":
+    def get_flow(self, flow_location: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to
+            - flow_location (str, optional): the location of a flow within this Storage; in this case,
+                a file path where a Flow has been serialized to. Will use `blob_name` if not provided.
 
         Returns:
             - Flow: the requested flow
@@ -78,8 +78,13 @@ class Azure(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if flow_location not in self.flows.values():
-            raise ValueError("Flow is not contained in this Storage")
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.blob_name:
+            flow_location = self.blob_name
+        else:
+            raise ValueError("No flow location provided")
 
         client = self._azure_block_blob_service.get_blob_client(
             container=self.container, blob=flow_location
