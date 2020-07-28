@@ -1,5 +1,0 @@
-enhancement:
-  - 'Add `reg_allow_list` option for Docker Agent - [#3026](https://github.com/PrefectHQ/prefect/pull/3026#issuecomment-663078217)'
-
-contributor:
-  - "[Thomas Frederik Hoeck](https://github.com/thomasfrederikhoeck)"
