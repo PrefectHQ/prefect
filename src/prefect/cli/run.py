@@ -19,17 +19,16 @@ def run():
 
     \b
     Arguments:
-        cloud   Run flows with Prefect Cloud
-        server  Run flows with Prefect Server
+        flow    Run a flow with a backend API
 
     \b
     Examples:
-        $ prefect run cloud --name Test-Flow --project My-Project
+        $ prefect run flow --name Test-Flow --project My-Project
         Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
 
     \b
-        $ prefect run cloud --name Test-Flow --project My-Project --watch
-        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
+        $ prefect run flow --name Test-Flow --project My-Project --watch
+        Flow Run: https://localhost:8080/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
         Scheduled -> Submitted -> Running -> Success
     """
 
