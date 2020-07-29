@@ -33,13 +33,8 @@ This Local Agent will use the _RUNNER_ token stored in your environment but if y
 Now you have a local agent running which can execute multiple flows that you register with the Prefect API:
 
 ```bash
-# Using Prefect Core's server
-prefect run server --name hello-flow --project 'Hello, World!'
-prefect run server --name second-flow --project 'Hello, World!'
-
-# Using Prefect Cloud
-prefect run cloud --name hello-flow --project 'Hello, World!'
-prefect run cloud --name second-flow --project 'Hello, World!'
+prefect run flow --name hello-flow --project 'Hello, World!'
+prefect run flow --name second-flow --project 'Hello, World!'
 ```
 
 ## Install a Supervised Agent

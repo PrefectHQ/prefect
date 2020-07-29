@@ -57,13 +57,7 @@ Lastly, we need to indicate to the API to schedule a flow run; there are a few o
 ::: tab CLI
 
 ```bash
-# Using Prefect Core's server
-prefect run server --name hello-flow --project 'Hello, World!'
-```
-
-```bash
-# Using Prefect Cloud
-prefect run cloud --name hello-flow --project 'Hello, World!'
+prefect run flow --name hello-flow --project 'Hello, World!'
 ```
 
 :::
