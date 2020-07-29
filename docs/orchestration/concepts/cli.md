@@ -324,7 +324,7 @@ Hello World! created
 
 ### execute
 
-#### execute cloud-flow
+#### execute flow-run
 
 ::: warning Not Useful for Local Execution
 This command executes a flow's environment in the context of Prefect Cloud and runs during Cloud execution so it is not meant for local use. Other `execute` commands may be added in the future.

@@ -275,7 +275,7 @@ def test_docker_agent_deploy_flow(monkeypatch, runner_token):
     assert api.start.called
 
     assert api.create_host_config.call_args[1]["auto_remove"] is True
-    assert api.create_container.call_args[1]["command"] == "prefect execute cloud-flow"
+    assert api.create_container.call_args[1]["command"] == "prefect execute flow-run"
     assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
     assert api.start.call_args[1]["container"] == "container_id"
 
@@ -314,7 +314,7 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(monkeypatch, runner_
     assert api.start.called
 
     assert api.create_host_config.call_args[1]["auto_remove"] is True
-    assert api.create_container.call_args[1]["command"] == "prefect execute cloud-flow"
+    assert api.create_container.call_args[1]["command"] == "prefect execute flow-run"
     assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
     assert api.start.call_args[1]["container"] == "container_id"
 
