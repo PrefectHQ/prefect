@@ -1,5 +1,7 @@
 import datetime
+import itertools
 import time
+import threading
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -20,6 +22,7 @@ from prefect.engine.results import PrefectResult, SecretResult
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
     Cancelled,
+    Cancelling,
     Failed,
     Finished,
     Pending,
@@ -78,13 +81,13 @@ def test_task_runner_cls_is_cloud_task_runner():
     assert fr.task_runner_cls is CloudTaskRunner
 
 
-def test_flow_runner_calls_client_the_approriate_number_of_times(client):
+def test_flow_runner_calls_client_the_appropriate_number_of_times(client):
     flow = prefect.Flow(name="test")
 
     res = CloudFlowRunner(flow=flow).run()
 
     ## assertions
-    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.get_flow_run_info.call_count == 2  # initial state & cancel check
     assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in client.set_flow_run_state.call_args_list]
@@ -100,7 +103,7 @@ def test_flow_runner_doesnt_set_running_states_twice(client):
     )
 
     ## assertions
-    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.get_flow_run_info.call_count == 2  # initial state & cancel check
     assert client.set_flow_run_state.call_count == 1  # Pending -> Running
 
 
@@ -169,7 +172,7 @@ def test_client_is_always_called_even_during_state_handler_failures(client):
     res = flow.run(state=Pending())
 
     ## assertions
-    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.get_flow_run_info.call_count == 1  # initial state, no cancel check
     assert client.set_flow_run_state.call_count == 1  # Failed
 
     flow_states = [
@@ -218,7 +221,7 @@ def test_flow_runner_respects_the_db_state(monkeypatch, state):
     res = CloudFlowRunner(flow=flow).run()
 
     ## assertions
-    assert get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert get_flow_run_info.call_count == 1  # initial state, no cancel check
     assert set_flow_run_state.call_count == 0  # never needs to update state
     assert res == db_state
 
@@ -240,7 +243,7 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(
     res = CloudFlowRunner(flow=flow).run(state=Pending("let's do this"))
 
     ## assertions
-    assert get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert get_flow_run_info.call_count == 2  # initial state & cancel check
     assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in client.set_flow_run_state.call_args_list]
@@ -357,7 +360,7 @@ def test_client_is_always_called_even_during_failures(client):
     res = flow.run(state=Pending())
 
     ## assertions
-    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.get_flow_run_info.call_count == 2  # initial state & cancel check
     assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
 
     flow_states = [
@@ -550,42 +553,161 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     assert set(task_run_ids) == {"TESTME"}
 
 
-@pytest.mark.parametrize("num_attempts", [5, 10, 15])
-def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_attempts):
+class TestCloudFlowRunnerQueuedState:
+    queue_time = 55
+    check_cancellation_interval = 8
 
-    mock_sleep = MagicMock()
-    monkeypatch.setattr("prefect.engine.cloud.flow_runner.time.sleep", mock_sleep)
+    def do_mocked_run(
+        self, client, monkeypatch, n_attempts=None, n_queries=None, query_end_state=None
+    ):
+        """Mock out a cloud flow run that starts in a queued state and either
+        succeeds or exits early due to a state change."""
+        mock_sleep = MagicMock()
 
-    run_states = [
-        Queued(start_time=pendulum.now("UTC").add(seconds=i))
-        for i in range(num_attempts - 1)
-    ]
-    run_states.append(Success())
+        def run(*args, **kwargs):
+            if n_attempts is None or mock_run.call_count < n_attempts:
+                info = get_flow_run_info()
+                if info.state.is_queued():
+                    return Queued(
+                        start_time=pendulum.now("UTC").add(seconds=self.queue_time)
+                    )
+                return info.state
+            return Success()
 
-    mock_run = MagicMock(side_effect=run_states)
+        mock_run = MagicMock(side_effect=run)
 
-    client.get_flow_run_info = MagicMock(
-        side_effect=[MagicMock(version=i) for i in range(num_attempts)]
-    )
+        def get_flow_run_info(*args, **kwargs):
+            if n_queries is None or mock_get_flow_run_info.call_count < n_queries:
+                state = Queued()
+            else:
+                state = query_end_state
+            return MagicMock(version=mock_get_flow_run_info.call_count, state=state)
 
-    # Mock out the actual flow execution
-    monkeypatch.setattr("prefect.engine.cloud.flow_runner.FlowRunner.run", mock_run)
+        mock_get_flow_run_info = MagicMock(side_effect=get_flow_run_info)
 
-    @prefect.task
-    def return_one():
-        return 1
+        client.get_flow_run_info = mock_get_flow_run_info
+        monkeypatch.setattr("prefect.engine.cloud.flow_runner.FlowRunner.run", mock_run)
+        monkeypatch.setattr("prefect.engine.cloud.flow_runner.time_sleep", mock_sleep)
 
-    with prefect.Flow("test-cloud-flow-runner-with-queues") as flow:
-        one = return_one()
+        @prefect.task
+        def return_one():
+            return 1
 
-    # Without these (actual, not mocked) sleep calls, when running full test suite this
-    # test can fail for no reason.
-    final_state = CloudFlowRunner(flow=flow).run()
-    assert final_state.is_successful()
+        with prefect.Flow("test-cloud-flow-runner-with-queues") as flow:
+            return_one()
 
-    assert mock_run.call_count == num_attempts
-    # Not called on the initial run attempt
-    assert client.get_flow_run_info.call_count == num_attempts - 1
-    # Not checking the value of the `time.sleep` mock, since it appears to
-    # be getting called thousands of times, likely due to a pytest
-    # plugin or something of the like.
+        with set_temporary_config(
+            {"cloud.check_cancellation_interval": self.check_cancellation_interval}
+        ):
+            state = CloudFlowRunner(flow=flow).run()
+        return state, mock_sleep, mock_run
+
+    @pytest.mark.parametrize("n_attempts", [5, 10])
+    def test_rety_queued_state_until_success(self, client, monkeypatch, n_attempts):
+        state, mock_sleep, mock_run = self.do_mocked_run(
+            client, monkeypatch, n_attempts=n_attempts
+        )
+
+        assert state.is_successful()
+        assert mock_run.call_count == n_attempts
+        sleep_times = [i[0][0] for i in mock_sleep.call_args_list]
+        assert max(sleep_times) == self.check_cancellation_interval
+        total_sleep_time = sum(sleep_times)
+        expected_sleep_time = (n_attempts - 1) * self.queue_time
+        # Slept for approximately the right amount of time. Due to processing time,
+        # the amount of time spent in sleep may be slightly less.
+        assert expected_sleep_time - 2 < total_sleep_time < expected_sleep_time + 2
+
+    @pytest.mark.parametrize("n_queries", [5, 10])
+    @pytest.mark.parametrize("final_state", [Cancelled(), Success()])
+    def test_exit_queued_loop_early_if_no_longer_queued(
+        self, client, monkeypatch, n_queries, final_state
+    ):
+        state, mock_sleep, mock_run = self.do_mocked_run(
+            client, monkeypatch, n_queries=n_queries, query_end_state=final_state
+        )
+
+        assert type(state) == type(final_state)
+        sleep_times = [i[0][0] for i in mock_sleep.call_args_list]
+        assert max(sleep_times) == self.check_cancellation_interval
+        total_sleep_time = sum(sleep_times)
+        expected_sleep_time = n_queries * self.check_cancellation_interval
+        # Slept for approximately the right amount of time. Due to processing time,
+        # the amount of time spent in sleep may be slightly less.
+        assert expected_sleep_time - 2 < total_sleep_time < expected_sleep_time + 2
+
+
+class TestCloudFlowRunnerCancellation:
+    def test_cancelling_mid_flow_run_exits_early(self, client, monkeypatch):
+        trigger = threading.Event()
+
+        def get_flow_run_info(*args, _version=itertools.count(), **kwargs):
+            state = Cancelling() if trigger.is_set() else Running()
+            return MagicMock(version=next(_version), state=state)
+
+        client.get_flow_run_info = get_flow_run_info
+
+        @prefect.task
+        def inc(x):
+            time.sleep(0.5)
+            return x + 1
+
+        ran_longer_than_expected = False
+
+        @prefect.task
+        def set_trigger(x):
+            trigger.set()
+            time.sleep(10)
+            nonlocal ran_longer_than_expected
+            ran_longer_than_expected = True
+            return x + 1
+
+        with prefect.Flow("test") as flow:
+            a = inc(1)
+            b = set_trigger(a)
+            c = inc(b)
+
+        with set_temporary_config({"cloud.check_cancellation_interval": 0.1}):
+            res = CloudFlowRunner(flow=flow).run()
+
+        assert isinstance(res, Cancelled)
+        assert not ran_longer_than_expected
+
+    def test_check_interrupt_loop_robust_to_api_errors(self, client, monkeypatch):
+        trigger = threading.Event()
+
+        error_was_raised = False
+
+        def get_flow_run_info(*args, _call_count=itertools.count(), **kwargs):
+            call_count = next(_call_count)
+            import inspect
+
+            caller_name = inspect.currentframe().f_back.f_code.co_name
+            if caller_name == "interrupt_if_cancelling" and call_count % 2:
+                nonlocal error_was_raised
+                error_was_raised = True
+                raise ValueError("Woops!")
+            state = Cancelling() if trigger.is_set() else Running()
+            return MagicMock(version=call_count, state=state)
+
+        client.get_flow_run_info = get_flow_run_info
+
+        ran_longer_than_expected = False
+
+        @prefect.task
+        def set_trigger(x):
+            trigger.set()
+            time.sleep(10)
+            nonlocal ran_longer_than_expected
+            ran_longer_than_expected = True
+            return x + 1
+
+        with prefect.Flow("test") as flow:
+            set_trigger(1)
+
+        with set_temporary_config({"cloud.check_cancellation_interval": 0.1}):
+            res = CloudFlowRunner(flow=flow).run()
+
+        assert isinstance(res, Cancelled)
+        assert error_was_raised
+        assert not ran_longer_than_expected
