@@ -232,7 +232,7 @@ module.exports = {
         {
           title: 'Server',
           collapsable: true,
-          children: ['server/telemetry']
+          children: ['server/telemetry', 'server/deploy']
         },
         {
           title: 'FAQ',
