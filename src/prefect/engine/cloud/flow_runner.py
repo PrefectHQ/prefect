@@ -145,53 +145,59 @@ class CloudFlowRunner(FlowRunner):
         cancelling = False
         done = threading.Event()
         flow_run_version = None
-        flow_run_id = prefect.context.get("flow_run_id")
+        context = prefect.context.to_dict()
 
         def interrupt_if_cancelling() -> None:
-            while True:
-                exiting_context = done.wait(
-                    prefect.config.cloud.check_cancellation_interval
-                )
-                try:
-                    self.logger.debug("Checking flow run state...")
-                    flow_run_info = self.client.get_flow_run_info(flow_run_id)
-                except Exception:
-                    self.logger.warning("Error getting flow run info", exc_info=True)
-                    continue
-                else:
-                    self.logger.debug(
-                        "Successfully queried server for flow run state: %r",
-                        flow_run_info.state,
+            # We need to copy the context into this thread, since context is a
+            # thread local.
+            with prefect.context(context):
+                flow_run_id = prefect.context["flow_run_id"]
+                while True:
+                    exiting_context = done.wait(
+                        prefect.config.cloud.check_cancellation_interval
                     )
-                if isinstance(flow_run_info.state, Cancelling):
-                    self.logger.info(
-                        "Flow run has been cancelled, cancelling active tasks"
-                    )
-                    nonlocal cancelling
-                    nonlocal flow_run_version
-                    cancelling = True
-                    flow_run_version = flow_run_info.version
-                    # If not already leaving context, raise KeyboardInterrupt in the main thread
-                    if not exiting_context:
-                        if hasattr(signal, "raise_signal"):
-                            # New in python 3.8
-                            signal.raise_signal(signal.SIGINT)  # type: ignore
-                        else:
-                            if os.name == "nt":
-                                # This doesn't actually send a signal, so it will only
-                                # interrupt the next Python bytecode instruction - if the
-                                # main thread is blocked in a c extension the interrupt
-                                # won't be seen until that returns.
-                                from _thread import interrupt_main
-
-                                interrupt_main()
+                    try:
+                        self.logger.debug("Checking flow run state...")
+                        flow_run_info = self.client.get_flow_run_info(flow_run_id)
+                    except Exception:
+                        self.logger.warning(
+                            "Error getting flow run info", exc_info=True
+                        )
+                        continue
+                    else:
+                        self.logger.debug(
+                            "Successfully queried server for flow run state: %r",
+                            flow_run_info.state,
+                        )
+                    if isinstance(flow_run_info.state, Cancelling):
+                        self.logger.info(
+                            "Flow run has been cancelled, cancelling active tasks"
+                        )
+                        nonlocal cancelling
+                        nonlocal flow_run_version
+                        cancelling = True
+                        flow_run_version = flow_run_info.version
+                        # If not already leaving context, raise KeyboardInterrupt in the main thread
+                        if not exiting_context:
+                            if hasattr(signal, "raise_signal"):
+                                # New in python 3.8
+                                signal.raise_signal(signal.SIGINT)  # type: ignore
                             else:
-                                signal.pthread_kill(
-                                    threading.main_thread().ident, signal.SIGINT  # type: ignore
-                                )
-                    break
-                elif exiting_context:
-                    break
+                                if os.name == "nt":
+                                    # This doesn't actually send a signal, so it will only
+                                    # interrupt the next Python bytecode instruction - if the
+                                    # main thread is blocked in a c extension the interrupt
+                                    # won't be seen until that returns.
+                                    from _thread import interrupt_main
+
+                                    interrupt_main()
+                                else:
+                                    signal.pthread_kill(
+                                        threading.main_thread().ident, signal.SIGINT  # type: ignore
+                                    )
+                        break
+                    elif exiting_context:
+                        break
 
         thread = threading.Thread(target=interrupt_if_cancelling, daemon=True)
         thread.start()

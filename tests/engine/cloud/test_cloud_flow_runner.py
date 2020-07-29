@@ -711,3 +711,36 @@ class TestCloudFlowRunnerCancellation:
         assert isinstance(res, Cancelled)
         assert error_was_raised
         assert not ran_longer_than_expected
+
+    def test_check_interrupt_loop_logging_calls_have_orig_prefect_context(
+        self, client, monkeypatch
+    ):
+        """Cloud logging relies on many things stored in the context, we need
+        to ensure the background thread has the context loaded so that logging
+        works properly"""
+        calls = []
+
+        def emit(*args, **kwargs):
+            calls.append(prefect.context.config.get("special_key") == 42)
+
+        @prefect.task
+        def inc(x):
+            time.sleep(1)
+            return x + 1
+
+        with prefect.Flow("test") as flow:
+            inc(1)
+
+        with set_temporary_config(
+            {
+                "cloud.check_cancellation_interval": 0.1,
+                "logging.log_to_cloud": True,
+                "special_key": 42,
+            }
+        ):
+            monkeypatch.setattr("prefect.utilities.logging.CloudHandler.emit", emit)
+            CloudFlowRunner(flow=flow).run()
+
+        # The logging was called, and all logging calls were successful
+        assert calls
+        assert all(calls)
