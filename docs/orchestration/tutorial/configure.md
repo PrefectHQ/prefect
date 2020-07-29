@@ -1,64 +1,81 @@
 # Configure Your Environment  
 
-## Spin up Prefect Core's server
+## Select an Orchestration Backend
 
-Spinning up the Prefect Core server requires:
+Prefect supports two different orchestration backends:
 
-- [successfully installing Prefect Core 0.10.0+](/core/getting_started/installation.html)
-- a running installation of both [Docker](https://docs.docker.com/install/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- `cloud` - our [hosted service](https://cloud.prefect.io)
+- `server` - the open source backend, deployed on your infrastructure
 
-Once installed, we first need to ensure that Prefect is configured to look for a local backend:
+To use Prefect with either backend, you must first select that backend via
+the CLI:
+
+:::: tabs
+::: tab Cloud
+```bash
+$ prefect backend cloud
 ```
-prefect backend server
-```
-
-Next, we can spin up all the necessary infrastructure, including a PostgreSQL database and the Prefect UI with:
-```
-prefect server start
-```
-
-To confirm everything is working, navigate to `http://localhost:8080` and you should see the UI!
-
-::: tip Switch between a local server and Cloud
-You can use the `prefect backend` CLI command to toggle between a local server and Prefect Cloud.
 :::
 
+::: tab Server
+```bash
+$ prefect backend server
+```
+:::
+::::
+
+Note that you can change backends at any time by rerunning the `prefect backend
+...` command.
 
 ## Authenticating with Prefect Cloud <Badge text="Cloud"/>
 
-If you plan to use Prefect Cloud, make sure that Prefect is configured to look for a cloud backend:
-```
-prefect backend cloud
-```
+If you're using Prefect Cloud, you'll also need to authenticate with the
+backend before you can proceed further.
 
-Interacting with the Prefect Cloud API requires the use of JWT tokens for secure authentication.
+### Create a Personal Access Token
 
-### Log in to Prefect Cloud
+To authenticate, you'll need to create a [Personal Access
+Token](/orchestration/concepts/tokens.html#user) and configure it with the
+[Prefect Command Line Interface](/orchestration/concepts/cli.html#cli).
 
-Before you are able to use the many features of Prefect Cloud, you'll need to authenticate your local machine. This is achievable by retrieving a [Personal Access Token](/orchestration/concepts/tokens.html#user) from the UI and providing it to the [Prefect Command Line Interface](/orchestration/concepts/cli.html#cli).
-
-To obtain a Personal Access Token, navigate to [https://cloud.prefect.io](https://cloud.prefect.io) and through the hamburger menu in the top left corner go **User** -> **Personal Access Tokens** -> **Create A Token**.
-
-Lastly, authenticate your machine with Prefect Cloud:
+- Login to [https://cloud.prefect.io](https://cloud.prefect.io) 
+- In the hamburger menu in the top left corner go to **User** -> **Personal
+  Access Tokens** -> **Create A Token**.
+- Copy the created token
+- Configure the CLI to use the access token by running
 
 ```bash
-prefect auth login -t <COPIED_USER_TOKEN>
+prefect auth login -t <COPIED_TOKEN>
 ```
-
-::: warning CLI not installed
-If the `prefect` command is not found then Prefect may not be installed. Go [here](/core/getting_started/installation.html) for instructions on how to install Prefect.
-:::
 
 ### Create a Runner Token
 
-Running deployed Flows requires an Agent being authenticated against Prefect Cloud. To do this, let's generate a `RUNNER`-scoped API token:
+Running deployed Flows with an [Agent](/orchestration/agents/overview.html)
+also requires a `RUNNER`-scoped API token for the Agent. You can create one
+using the CLI:
 
 ```bash
 prefect auth create-token -n my-runner-token -s RUNNER
 ```
 
-Keep this runner token handy for future steps, or store it as an environment variable:
+You'll need this token later in the tutorial. You can save it in your local
+configuration either as an environment variable or by storing it in
+`~/.prefect/config.toml`:
+
+:::: tabs
+::: tab "Environment Variable"
 
 ```bash
 export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<COPIED_RUNNER_TOKEN>
 ```
+:::
+
+::: tab config.toml
+
+```toml
+# ~/.prefect/config.toml
+[cloud.agent]
+auth_token = <COPIED_RUNNER_TOKEN>
+```
+:::
+::::
