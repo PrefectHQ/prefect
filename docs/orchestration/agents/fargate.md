@@ -74,7 +74,7 @@ You are now ready to run some flows!
 
 ### Process
 
-The Fargate Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud the agent checks to make sure that the flow was registered with a Docker storage option. If so, the agent then creates a Task using the `storage` attribute of that flow, and runs `prefect execute cloud-flow`.
+The Fargate Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud the agent checks to make sure that the flow was registered with a Docker storage option. If so, the agent then creates a Task using the `storage` attribute of that flow, and runs `prefect execute flow-run`.
 
 If it is the first run of a particular flow then a Task Definition will be registered. Each new run of that flow will run using that same Task Definition and it will override some of the environment variables in order to specify which flow run is occurring.
 

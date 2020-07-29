@@ -169,7 +169,7 @@ This will update the `PREFECT__CLOUD__AGENT__LABELS` environment variable on the
 
 ### Process
 
-The Kubernetes Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud the agent checks to make sure that the flow was deployed with a Docker storage option. If so, the agent then creates a Kubernetes job using the `storage` attribute of that flow, and runs `prefect execute cloud-flow`.
+The Kubernetes Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud the agent checks to make sure that the flow was deployed with a Docker storage option. If so, the agent then creates a Kubernetes job using the `storage` attribute of that flow, and runs `prefect execute flow-run`.
 
 When the job is found and submitted the logs of the agent should reflect that:
 

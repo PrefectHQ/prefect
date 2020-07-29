@@ -427,7 +427,7 @@ def test_local_agent_heartbeat(
     popen = MockPopen()
     # expect a process to be called with the following command (with specified behavior)
     popen.set_command(
-        "prefect execute cloud-flow",
+        "prefect execute flow-run",
         stdout=b"awesome output!",
         stderr=b"blerg, eRroR!",
         returncode=returncode,

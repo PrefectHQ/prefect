@@ -415,6 +415,9 @@ def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
+    c = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Client", c)
+
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml()
 
