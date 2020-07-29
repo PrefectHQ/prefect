@@ -73,7 +73,7 @@ def run():
     help="Only output flow run id instead of link.",
     hidden=True,
 )
-def cloud(
+def flow(
     name,
     project,
     version,
@@ -85,7 +85,7 @@ def cloud(
     no_url,
 ):
     """
-    Run a registered flow with Prefect Cloud
+    Run a flow that is registered to the Prefect API
 
     \b
     Options:
@@ -110,10 +110,98 @@ def cloud(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
+    """
+    return _run_flow(
+        name=name,
+        project=project,
+        version=version,
+        parameters_file=parameters_file,
+        parameters_string=parameters_string,
+        run_name=run_name,
+        watch=watch,
+        logs=logs,
+        no_url=no_url,
+    )
 
-    Returns:
-        - flow_run_id (str): the flow run ID if the flow run completes
-        - None: if flow or flow run canot be found
+
+@run.command(hidden=True)
+@click.option(
+    "--name", "-n", required=True, help="The name of a flow to run.", hidden=True
+)
+@click.option(
+    "--project",
+    "-p",
+    required=True,
+    help="The project that contains the flow.",
+    hidden=True,
+)
+@click.option("--version", "-v", type=int, help="A flow version to run.", hidden=True)
+@click.option(
+    "--parameters-file",
+    "-pf",
+    help="A parameters JSON file.",
+    hidden=True,
+    type=click.Path(exists=True),
+)
+@click.option(
+    "--parameters-string", "-ps", help="A parameters JSON string.", hidden=True
+)
+@click.option("--run-name", "-rn", help="A name to assign for this run.", hidden=True)
+@click.option(
+    "--watch",
+    "-w",
+    is_flag=True,
+    help="Watch current state of the flow run.",
+    hidden=True,
+)
+@click.option(
+    "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
+)
+@click.option(
+    "--no-url",
+    is_flag=True,
+    help="Only output flow run id instead of link.",
+    hidden=True,
+)
+def cloud(
+    name,
+    project,
+    version,
+    parameters_file,
+    parameters_string,
+    run_name,
+    watch,
+    logs,
+    no_url,
+):
+    """
+    Run a registered flow with Prefect Cloud
+
+    DEPRECATED: This command is deprecated, please use `prefect run flow` instead.
+
+    \b
+    Options:
+        --name, -n                  TEXT        The name of a flow to run [required]
+        --project, -p               TEXT        The name of a project that contains
+                                                the flow [required]
+        --version, -v               INTEGER     A flow version to run
+        --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
+        --parameters-string, -ps    TEXT        A string of JSON parameters
+        --run-name, -rn             TEXT        A name to assign for this run
+        --watch, -w                             Watch current state of the flow run, stream
+                                                output to stdout
+        --logs, -l                              Get logs of the flow run, stream output to stdout
+        --no-url                                Only output the flow run id instead of a link
+
+    \b
+    If both `--parameters-file` and `--parameters-string` are provided then the values passed
+    in through the string will override the values provided from the file.
+
+    \b
+    e.g.
+    File contains:  {"a": 1, "b": 2}
+    String:         '{"a": 3}'
+    Parameters passed to the flow run: {"a": 3, "b": 2}
     """
     return _run_flow(
         name=name,
@@ -181,6 +269,8 @@ def server(
     """
     Run a registered flow with Prefect Server
 
+    DEPRECATED: This command is deprecated, please use `prefect run flow` instead.
+
     \b
     Options:
         --name, -n                  TEXT        The name of a flow to run [required]
@@ -204,10 +294,6 @@ def server(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
-
-    Returns:
-        - flow_run_id (str): the flow run ID if the flow run completes
-        - None: if flow or flow run canot be found
     """
     return _run_flow(
         name=name,
@@ -239,10 +325,13 @@ def _run_flow(
         )
         return
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}}}
-
-    if project:
-        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+    where_clause = {
+        "_and": {
+            "name": {"_eq": name},
+            "version": {"_eq": version},
+            "project": {"name": {"_eq": project}},
+        }
+    }
 
     query = {
         "query": {
