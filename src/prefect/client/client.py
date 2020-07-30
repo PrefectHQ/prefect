@@ -107,23 +107,40 @@ class Client:
                     # be cleared
                     self.logout_from_tenant()
 
-        if prefect.config.backend == "server":
-            if not self._active_tenant_id:
-                tenant_info = self.graphql({"query": {"tenant": {"id"}}},)
+    def create_default_tenant(self, name: str = "default") -> str:
+        """
+        Creates a default tenant if one doesn't already exist.  Note this route only works when run
+        against Prefect Server.
 
-                # TODO: Move into separate server tenant initialization function
-                if not tenant_info.data.tenant:
-                    tenant_info = self.graphql(
-                        {
-                            "mutation($input: create_tenant_input!)": {
-                                "create_tenant(input: $input)": {"id"}
-                            }
-                        },
-                        variables=dict(input=dict(name="default", slug="default")),
-                    )
-                    self._active_tenant_id = tenant_info.data.create_tenant.id
-                else:
-                    self._active_tenant_id = tenant_info.data.tenant[0].id
+        Args:
+            - name (str, optional): the name of the default tenant to create; defaults to "default"
+
+        Returns:
+            - str: the ID of the newly created tenant, or the ID of the currently active tenant
+
+        Raises:
+            - ValueError: if run against Prefect Cloud
+        """
+        if prefect.config.backend != "server":
+            msg = "To create a tenant with Prefect Cloud, please signup at https://cloud.prefect.io/"
+            raise ValueError(msg)
+
+        tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+
+        if not tenant_info.data.tenant:
+            tenant_info = self.graphql(
+                {
+                    "mutation($input: create_tenant_input!)": {
+                        "create_tenant(input: $input)": {"id"}
+                    }
+                },
+                variables=dict(input=dict(name=name, slug=slugify(slug))),
+            )
+            self._active_tenant_id = tenant_info.data.create_tenant.id
+        else:
+            self._active_tenant_id = tenant_info.data.tenant[0].id
+
+        return self._active_tenant_id
 
     # -------------------------------------------------------------------------
     # Utilities
