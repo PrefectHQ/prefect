@@ -106,8 +106,12 @@ class Client:
                     # if an authorization error is raised, then the token is invalid and should
                     # be cleared
                     self.logout_from_tenant()
+        if not self._active_tenant_id and prefect.config.backend == "server":
+            tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+            if tenant_info.data.tenant:
+                self._active_tenant_id = tenant_info.data.tenant[0].id
 
-    def create_default_tenant(self, name: str = "default") -> str:
+    def create_default_tenant(self, name: str = "default", slug: str = "default") -> str:
         """
         Creates a default tenant if one doesn't already exist.  Note this route only works when run
         against Prefect Server.
