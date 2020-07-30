@@ -92,26 +92,32 @@ class Client:
             "auth_token", None
         )
 
-        # if no api token was passed, attempt to load state from local storage
-        if not self._api_token and prefect.config.backend == "cloud":
+        if prefect.config.backend == "cloud":
+            if not self._api_token:
+                # if no api token was passed, attempt to load state from local storage
+                settings = self._load_local_settings()
+                self._api_token = settings.get("api_token")
+
+                if self._api_token:
+                    self._active_tenant_id = settings.get("active_tenant_id")
+                if self._active_tenant_id:
+                    try:
+                        self.login_to_tenant(tenant_id=self._active_tenant_id)
+                    except AuthorizationError:
+                        # if an authorization error is raised, then the token is invalid and should
+                        # be cleared
+                        self.logout_from_tenant()
+        else:
             settings = self._load_local_settings()
-            self._api_token = settings.get("api_token")
+            self._active_tenant_id = settings.get("active_tenant_id")
+            if not self._active_tenant_id:
+                tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+                if tenant_info.data.tenant:
+                    self._active_tenant_id = tenant_info.data.tenant[0].id
 
-            if self._api_token:
-                self._active_tenant_id = settings.get("active_tenant_id")
-            if self._active_tenant_id:
-                try:
-                    self.login_to_tenant(tenant_id=self._active_tenant_id)
-                except AuthorizationError:
-                    # if an authorization error is raised, then the token is invalid and should
-                    # be cleared
-                    self.logout_from_tenant()
-        if not self._active_tenant_id and prefect.config.backend == "server":
-            tenant_info = self.graphql({"query": {"tenant": {"id"}}})
-            if tenant_info.data.tenant:
-                self._active_tenant_id = tenant_info.data.tenant[0].id
-
-    def create_default_tenant(self, name: str = "default", slug: str = "default") -> str:
+    def create_default_tenant(
+        self, name: str = "default", slug: str = "default"
+    ) -> str:
         """
         Creates a default tenant if one doesn't already exist.  Note this route only works when run
         against Prefect Server.
@@ -549,25 +555,27 @@ class Client:
 
         tenant_id = tenant.data.tenant[0].id  # type: ignore
 
-        payload = self.graphql(
-            {
-                "mutation($input: switch_tenant_input!)": {
-                    "switch_tenant(input: $input)": {
-                        "access_token",
-                        "expires_at",
-                        "refresh_token",
+        if prefect.config.backend == "cloud":
+            payload = self.graphql(
+                {
+                    "mutation($input: switch_tenant_input!)": {
+                        "switch_tenant(input: $input)": {
+                            "access_token",
+                            "expires_at",
+                            "refresh_token",
+                        }
                     }
-                }
-            },
-            variables=dict(input=dict(tenant_id=tenant_id)),
-            # Use the API token to switch tenants
-            token=self._api_token,
-        )  # type: ignore
-        self._access_token = payload.data.switch_tenant.access_token  # type: ignore
-        self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.switch_tenant.expires_at  # type: ignore
-        )  # type: ignore
-        self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
+                },
+                variables=dict(input=dict(tenant_id=tenant_id)),
+                # Use the API token to switch tenants
+                token=self._api_token,
+            )  # type: ignore
+            self._access_token = payload.data.switch_tenant.access_token  # type: ignore
+            self._access_token_expires_at = pendulum.parse(  # type: ignore
+                payload.data.switch_tenant.expires_at  # type: ignore
+            )  # type: ignore
+            self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
+
         self._active_tenant_id = tenant_id
 
         # save the tenant setting
