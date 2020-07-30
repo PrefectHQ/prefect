@@ -354,6 +354,7 @@ def start(
         raise
 
 
+@server.command(hidden=True)
 @click.option(
     "--name",
     "-n",
