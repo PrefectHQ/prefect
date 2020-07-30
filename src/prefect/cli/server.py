@@ -321,8 +321,25 @@ def start(
         if no_ui:
             cmd += ["--scale", "ui=0"]
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
-        while True:
-            time.sleep(0.5)
+        started = False
+        with prefect.utilities.configuration.set_temporary_config(
+            {"cloud.api": "https://localhost:4200", "cloud.graphql": "https://localhost:4200/graphql", "backend": "server"}
+        ):
+            client = prefect.Client()
+            from IPython import embed; embed()
+            while not started:
+                try:
+                    print('attempting to call graphql')
+                    client.graphql("query{hello}", retry_on_api_error=False)
+                    started = True
+                    print('=' * 500)
+                    print('WELCOME YALL')
+                    print('=' * 500)
+                except Exception as exc:
+                    print(exc)
+                    pass
+            while True:
+                time.sleep(0.5)
     except BaseException:
         click.secho(
             "Exception caught; killing services (press ctrl-C to force)",
