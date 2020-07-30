@@ -323,20 +323,20 @@ def start(
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         started = False
         with prefect.utilities.configuration.set_temporary_config(
-            {"cloud.api": "https://localhost:4200", "cloud.graphql": "https://localhost:4200/graphql", "backend": "server"}
+            {
+                "cloud.api": "https://localhost:4200",
+                "cloud.graphql": "https://localhost:4200/graphql",
+                "backend": "server",
+            }
         ):
             client = prefect.Client()
-            from IPython import embed; embed()
             while not started:
                 try:
-                    print('attempting to call graphql')
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True
-                    print('=' * 500)
-                    print('WELCOME YALL')
-                    print('=' * 500)
+                    client.create_default_tenant()
                 except Exception as exc:
-                    print(exc)
+                    time.sleep(0.5)
                     pass
             while True:
                 time.sleep(0.5)
@@ -352,3 +352,24 @@ def start(
         if proc:
             proc.kill()
         raise
+
+
+@click.option(
+    "--name",
+    "-n",
+    required=False,
+    help="The name of the default tenant to create",
+    default=None,
+    type=str,
+    hidden=True,
+)
+def create_default_tenant(name):
+    """
+    This command creates a default tenant for use with Prefect Server.
+
+    \b
+    Options:
+        --name, -n       TEXT    The name of the default tenant to create
+    """
+    client = prefect.Client()
+    client.create_default_tenant(name=name)
