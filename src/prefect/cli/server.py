@@ -324,8 +324,8 @@ def start(
         started = False
         with prefect.utilities.configuration.set_temporary_config(
             {
-                "cloud.api": "https://localhost:4200",
-                "cloud.graphql": "https://localhost:4200/graphql",
+                "cloud.api": "http://localhost:4200",
+                "cloud.graphql": "http://localhost:4200/graphql",
                 "backend": "server",
             }
         ):
@@ -335,6 +335,7 @@ def start(
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True
                     client.create_default_tenant()
+                    print(ascii_name)
                 except Exception as exc:
                     time.sleep(0.5)
                     pass
@@ -374,3 +375,13 @@ def create_default_tenant(name):
     """
     client = prefect.Client()
     client.create_default_tenant(name=name)
+
+
+ascii_name = r"""
+  _____           __          _      _____
+ |  __ \         / _|        | |    / ____|
+ | |__) | __ ___| |_ ___  ___| |_  | (___   ___ _ ____   _____ _ __
+ |  ___/ '__/ _ \  _/ _ \/ __| __|  \___ \ / _ \ '__\ \ / / _ \ '__|
+ | |   | | |  __/ ||  __/ (__| |_   ____) |  __/ |   \ V /  __/ |
+ |_|   |_|  \___|_| \___|\___|\__| |_____/ \___|_|    \_/ \___|_|
+"""
