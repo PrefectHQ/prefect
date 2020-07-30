@@ -134,7 +134,7 @@ class Client:
                         "create_tenant(input: $input)": {"id"}
                     }
                 },
-                variables=dict(input=dict(name=name, slug=slugify(slug))),
+                variables=dict(input=dict(name=name, slug=slugify(name))),
             )
             self._active_tenant_id = tenant_info.data.create_tenant.id
         else:
