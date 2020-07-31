@@ -14,7 +14,11 @@ import toml
 from slugify import slugify
 
 import prefect
-from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.utilities.exceptions import (
+    AuthorizationError,
+    ClientError,
+    VersionLockError,
+)
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
@@ -235,6 +239,11 @@ class Client:
                 raise AuthorizationError(result["errors"])
             elif "Malformed Authorization header" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
+            elif (
+                result["errors"][0].get("extensions", {}).get("code")
+                == "VERSION_LOCKING_ERROR"
+            ):
+                raise VersionLockError(result["errors"])
             raise ClientError(result["errors"])
         else:
             return GraphQLResult(result)  # type: ignore
@@ -998,16 +1007,42 @@ class Client:
         }
         self.graphql(mutation, raise_on_error=True)
 
+    def get_flow_run_state(self, flow_run_id: str) -> "prefect.engine.state.State":
+        """
+        Retrieves the current state for a flow run.
+
+        Args:
+            - flow_run_id (str): the id for this flow run
+
+        Returns:
+            - State: a Prefect State object
+        """
+        query = {
+            "query": {
+                with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                    "serialized_state": True,
+                }
+            }
+        }
+
+        flow_run = self.graphql(query).data.flow_run_by_pk
+
+        return prefect.engine.state.State.deserialize(flow_run.serialized_state)
+
     def set_flow_run_state(
-        self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
+        self,
+        flow_run_id: str,
+        state: "prefect.engine.state.State",
+        version: int = None,
     ) -> "prefect.engine.state.State":
         """
         Sets new state for a flow run in the database.
 
         Args:
             - flow_run_id (str): the id of the flow run to set state for
-            - version (int): the current version of the flow run state
             - state (State): the new state for this flow run
+            - version (int, optional): the current version of the flow run state. This is optional
+                but it can be supplied to enforce version-locking.
 
         Returns:
             - State: the state the current flow run should be considered in
@@ -1157,11 +1192,33 @@ class Client:
             state=state,
         )
 
+    def get_task_run_state(self, task_run_id: str) -> "prefect.engine.state.State":
+        """
+        Retrieves the current state for a task run.
+
+        Args:
+            - task_run_id (str): the id for this task run
+
+        Returns:
+            - State: a Prefect State object
+        """
+        query = {
+            "query": {
+                with_args("task_run_by_pk", {"id": task_run_id}): {
+                    "serialized_state": True,
+                }
+            }
+        }
+
+        task_run = self.graphql(query).data.task_run_by_pk
+
+        return prefect.engine.state.State.deserialize(task_run.serialized_state)
+
     def set_task_run_state(
         self,
         task_run_id: str,
-        version: int,
         state: "prefect.engine.state.State",
+        version: int = None,
         cache_for: datetime.timedelta = None,
     ) -> "prefect.engine.state.State":
         """
@@ -1169,8 +1226,9 @@ class Client:
 
         Args:
             - task_run_id (str): the id of the task run to set state for
-            - version (int): the current version of the task run state
             - state (State): the new state for this task run
+            - version (int, optional): the current version of the task run state. This is optional
+                but it can be supplied to enforce version-locking.
             - cache_for (timedelta, optional): how long to store the result of this task for,
                 using the serializer set in config; if not provided, no caching occurs
 

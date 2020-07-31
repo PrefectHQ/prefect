@@ -19,6 +19,7 @@ from prefect.engine.result_handlers import (
     SecretResultHandler,
 )
 from prefect.engine.results import PrefectResult, SecretResult
+from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
     Cancelled,
@@ -37,6 +38,7 @@ from prefect.engine.state import (
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import VersionLockError
 
 
 @pytest.fixture(autouse=True)
@@ -635,6 +637,27 @@ class TestCloudFlowRunnerQueuedState:
         # Slept for approximately the right amount of time. Due to processing time,
         # the amount of time spent in sleep may be slightly less.
         assert expected_sleep_time - 2 < total_sleep_time < expected_sleep_time + 2
+
+
+def test_flowrunner_handles_version_lock_error(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
+    )
+    client.set_flow_run_state.side_effect = VersionLockError()
+
+    flow = prefect.Flow(name="test")
+    runner = CloudFlowRunner(flow=flow)
+
+    # successful state
+    client.get_flow_run_state.return_value = Success()
+    res = runner.call_runner_target_handlers(Pending(), Running())
+    assert res.is_successful()
+
+    # currently running
+    client.get_flow_run_state.return_value = Running()
+    with pytest.raises(ENDRUN):
+        runner.call_runner_target_handlers(Pending(), Running())
 
 
 class TestCloudFlowRunnerCancellation:

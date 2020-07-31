@@ -45,7 +45,7 @@ def test_auth_login(patch_post, monkeypatch):
 
 
 def test_auth_login_client_error(patch_post):
-    patch_post(dict(errors=dict(error="bad")))
+    patch_post(dict(errors=[dict(error={})]))
 
     with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
         runner = CliRunner()
