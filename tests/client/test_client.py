@@ -91,7 +91,7 @@ def test_client_posts_graphql_to_api_server(patch_post):
 
 ## test actual mutation and query handling
 def test_graphql_errors_get_raised(patch_post):
-    patch_post(dict(data="42", errors="GraphQL issue!"))
+    patch_post(dict(data="42", errors=[{"GraphQL issue!": {}}]))
 
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
