@@ -423,6 +423,81 @@ def test_docker_agent_deploy_flow_no_pull_using_environment_metadata(
     assert api.start.called
 
 
+def test_docker_agent_deploy_flow_reg_allow_list_allowed(monkeypatch, runner_token):
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent(reg_allow_list=["test1"])
+
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "storage": Docker(
+                            registry_url="test1", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "environment": LocalEnvironment().serialize(),
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert api.pull.called
+    assert api.create_container.called
+    assert api.start.called
+
+
+def test_docker_agent_deploy_flow_reg_allow_list_not_allowed(monkeypatch, runner_token):
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent(reg_allow_list=["test1"])
+
+    with pytest.raises(ValueError) as error:
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "id": "foo",
+                            "storage": Docker(
+                                registry_url="test2", image_name="name", image_tag="tag"
+                            ).serialize(),
+                            "environment": LocalEnvironment().serialize(),
+                        }
+                    ),
+                    "id": "id",
+                    "name": "name",
+                }
+            )
+        )
+
+    expected_error = (
+        "Trying to pull image from a Docker registry 'test2'"
+        " which is not in the reg_allow_list"
+    )
+
+    assert not api.pull.called
+    assert not api.create_container.called
+    assert not api.start.called
+    assert str(error.value) == expected_error
+
+
 def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, runner_token):
 
     process = MagicMock()

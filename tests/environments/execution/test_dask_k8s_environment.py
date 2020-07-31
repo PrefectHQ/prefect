@@ -22,7 +22,7 @@ def test_create_dask_environment():
     assert environment
     assert environment.min_workers == 1
     assert environment.max_workers == 2
-    assert environment.work_stealing is False
+    assert environment.work_stealing is True
     assert environment.scheduler_logs is False
     assert environment.private_registry is False
     assert environment.docker_secret is None
@@ -38,7 +38,7 @@ def test_create_dask_environment_args():
     environment = DaskKubernetesEnvironment(
         min_workers=5,
         max_workers=6,
-        work_stealing=True,
+        work_stealing=False,
         scheduler_logs=True,
         private_registry=True,
         docker_secret="docker",
@@ -48,7 +48,7 @@ def test_create_dask_environment_args():
     assert environment
     assert environment.min_workers == 5
     assert environment.max_workers == 6
-    assert environment.work_stealing is True
+    assert environment.work_stealing is False
     assert environment.scheduler_logs is True
     assert environment.private_registry is True
     assert environment.docker_secret == "docker"
@@ -273,7 +273,7 @@ def test_populate_job_yaml():
     assert env[4]["value"] == "test1/test2:test3"
     assert env[12]["value"] == "True"
     assert (
-        env[14]["value"]
+        env[13]["value"]
         == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes', 'distributed.scheduler']"
     )
 
@@ -313,7 +313,7 @@ def test_populate_worker_pod_yaml():
     assert env[1]["value"] == "auth_test"
     assert env[2]["value"] == "id_test"
     assert (
-        env[11]["value"]
+        env[10]["value"]
         == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes']"
     )
 

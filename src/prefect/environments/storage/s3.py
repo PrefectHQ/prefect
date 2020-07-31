@@ -7,6 +7,7 @@ from slugify import slugify
 
 from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -28,12 +29,19 @@ class S3(Storage):
         - bucket (str): the name of the S3 Bucket to store Flows
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - client_options (dict, optional): Additional options for the `boto3` client.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self, bucket: str, client_options: dict = None, key: str = None, **kwargs: Any
+        self,
+        bucket: str,
+        key: str = None,
+        stored_as_script: bool = False,
+        client_options: dict = None,
+        **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -43,30 +51,35 @@ class S3(Storage):
         self.client_options = client_options
 
         result = S3Result(bucket=bucket)
-        super().__init__(result=result, **kwargs)
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
         return ["s3-flow-storage"]
 
-    def get_flow(self, flow_location: str) -> "Flow":
+    def get_flow(self, flow_location: str = None) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
-        If the Flow is not found an error will be logged and `None` will be returned.
+        Given a flow_location within this Storage object or S3, returns the underlying Flow
+        (if possible).
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to
+            - flow_location (str, optional): the location of a flow within this Storage; in this case
+                an S3 object key where a Flow has been serialized to. Will use `key` if not provided.
 
         Returns:
             - Flow: the requested Flow
 
         Raises:
-            - ValueError: if the Flow is not contained in this storage
+            - ValueError: if the flow is not contained in this storage
             - botocore.ClientError: if there is an issue downloading the Flow from S3
         """
-        if flow_location not in self.flows.values():
-            raise ValueError("Flow is not contained in this Storage")
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.key:
+            flow_location = self.key
+        else:
+            raise ValueError("No flow location provided")
 
         stream = io.BytesIO()
 
@@ -86,6 +99,9 @@ class S3(Storage):
         # prepare data and return
         stream.seek(0)
         output = stream.read()
+
+        if self.stored_as_script:
+            return extract_flow_from_file(file_contents=output)  # type: ignore
 
         return cloudpickle.loads(output)
 
@@ -132,6 +148,13 @@ class S3(Storage):
             - botocore.ClientError: if there is an issue uploading a Flow to S3
         """
         self.run_basic_healthchecks()
+
+        if self.stored_as_script:
+            if not self.key:
+                raise ValueError(
+                    "A `key` must be provided to show where flow `.py` file is stored in S3."
+                )
+            return self
 
         for flow_name, flow in self._flows.items():
             # Pickle Flow

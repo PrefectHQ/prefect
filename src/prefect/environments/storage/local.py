@@ -7,6 +7,7 @@ from slugify import slugify
 import prefect
 from prefect.engine.results import LocalResult
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -29,15 +30,27 @@ class Local(Storage):
         - validate (bool, optional): a boolean specifying whether to validate the
             provided directory path; if `True`, the directory will be converted to an
             absolute path and created.  Defaults to `True`
+        - path (str, optional): a direct path to the location of the flow file if
+            `stored_as_script=True`, otherwise this path will be used when storing the serialized,
+            pickled flow.
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self, directory: str = None, validate: bool = True, **kwargs: Any
+        self,
+        directory: str = None,
+        validate: bool = True,
+        path: str = None,
+        stored_as_script: bool = False,
+        **kwargs: Any
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
+
+        self.path = path
 
         if validate:
             abs_directory = os.path.abspath(os.path.expanduser(directory))
@@ -48,7 +61,7 @@ class Local(Storage):
 
         self.directory = abs_directory
         result = LocalResult(self.directory, validate_dir=validate)
-        super().__init__(result=result, **kwargs)
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
@@ -57,13 +70,13 @@ class Local(Storage):
         else:
             return []
 
-    def get_flow(self, flow_location: str) -> "Flow":
+    def get_flow(self, flow_location: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to
+            - flow_location (str, optional): the location of a flow within this Storage; in this case,
+                a file path where a Flow has been serialized to. Will use `path` if not provided.
 
         Returns:
             - Flow: the requested flow
@@ -71,10 +84,18 @@ class Local(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if flow_location not in self.flows.values():
-            raise ValueError("Flow is not contained in this Storage")
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.path:
+            flow_location = self.path
+        else:
+            raise ValueError("No flow location provided")
 
-        return prefect.core.flow.Flow.load(flow_location)
+        if self.stored_as_script:
+            return extract_flow_from_file(file_path=flow_location)
+        else:
+            return prefect.core.flow.Flow.load(flow_location)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -96,10 +117,21 @@ class Local(Storage):
                 )
             )
 
-        flow_location = os.path.join(
-            self.directory, "{}.prefect".format(slugify(flow.name))
-        )
-        flow_location = flow.save(flow_location)
+        if self.stored_as_script:
+            if not self.path:
+                raise ValueError(
+                    "A `path` must be provided to show where flow `.py` file is stored."
+                )
+            flow_location = self.path
+        else:
+            if self.path:
+                flow_location = self.path
+            else:
+                flow_location = os.path.join(
+                    self.directory, "{}.prefect".format(slugify(flow.name))
+                )
+            flow_location = flow.save(flow_location)
+
         self.flows[flow.name] = flow_location
         self._flows[flow.name] = flow
         return flow_location

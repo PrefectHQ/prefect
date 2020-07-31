@@ -3,10 +3,12 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     NamedTuple,
     Optional,
     Set,
 )
+from contextlib import contextmanager
 
 import pendulum
 import prefect
@@ -15,7 +17,6 @@ from prefect.engine.result import Result
 from prefect.engine.results import ConstantResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
-    Cancelled,
     Failed,
     Mapped,
     Pending,
@@ -24,11 +25,8 @@ from prefect.engine.state import (
     State,
     Success,
 )
+from prefect.utilities import executors
 from prefect.utilities.collections import flatten_seq
-from prefect.utilities.executors import (
-    run_with_heartbeat,
-    prepare_upstream_states_for_mapping,
-)
 
 FlowRunnerInitializeResult = NamedTuple(
     "FlowRunnerInitializeResult",
@@ -223,7 +221,6 @@ class FlowRunner(Runner):
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
-
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
 
         # make copies to avoid modifying user inputs
@@ -259,10 +256,6 @@ class FlowRunner(Runner):
         except ENDRUN as exc:
             state = exc.state
 
-        except KeyboardInterrupt:
-            self.logger.debug("Interrupt signal raised, cancelling Flow run.")
-            state = Cancelled(message="Interrupt signal raised, cancelling flow run.")
-
         # All other exceptions are trapped and turned into Failed states
         except Exception as exc:
             self.logger.exception(
@@ -277,6 +270,14 @@ class FlowRunner(Runner):
             state = self.handle_state_change(state or Pending(), new_state)
 
         return state
+
+    @contextmanager
+    def check_for_cancellation(self) -> Iterator:
+        """Contextmanager used to wrap a cancellable section of a flow run.
+
+        No-op for the default `FlowRunner` class.
+        """
+        yield
 
     @call_state_handlers
     def check_flow_reached_start_time(self, state: State) -> State:
@@ -353,7 +354,7 @@ class FlowRunner(Runner):
         else:
             raise ENDRUN(state)
 
-    @run_with_heartbeat
+    @executors.run_with_heartbeat
     @call_state_handlers
     def get_flow_run_state(
         self,
@@ -410,7 +411,7 @@ class FlowRunner(Runner):
 
         # -- process each task in order
 
-        with executor.start():
+        with self.check_for_cancellation(), executor.start():
 
             for task in self.flow.sorted_tasks():
                 task_state = task_states.get(task)
@@ -438,21 +439,41 @@ class FlowRunner(Runner):
 
                 # this dictionary is used exclusively for "reduce" tasks in particular we store
                 # the states / futures corresponding to the upstream children, and if running
-                # on Dask, let Dask resolve them at the appropriate time
+                # on Dask, let Dask resolve them at the appropriate time.
+                # Note: this is an optimization that allows Dask to resolve the mapped
+                # dependencies by "elevating" them to a function argument.
                 upstream_mapped_states = {}  # type: Dict[Edge, list]
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
+
+                    # load the upstream task states (supplying Pending as a default)
                     upstream_states[edge] = task_states.get(
                         edge.upstream_task, Pending(message="Task state not available.")
                     )
 
+                    # if the edge is flattened and not the result of a map, then we
+                    # preprocess the upstream states. If it IS the result of a
+                    # map, it will be handled in `prepare_upstream_states_for_mapping`
+                    if edge.flattened:
+                        if not isinstance(upstream_states[edge], Mapped):
+                            upstream_states[edge] = executor.submit(
+                                executors.flatten_upstream_state, upstream_states[edge]
+                            )
+
                     # this checks whether the task is a "reduce" task for a mapped pipeline
                     # and if so, collects the appropriate upstream children
                     if not edge.mapped and isinstance(upstream_states[edge], Mapped):
-                        upstream_mapped_states[edge] = mapped_children.get(
-                            edge.upstream_task, []
-                        )
+                        children = mapped_children.get(edge.upstream_task, [])
+
+                        # if the edge is flattened, then we need to wait for the mapped children
+                        # to complete and then flatten them
+                        if edge.flattened:
+                            children = executors.flatten_mapped_children(
+                                mapped_children=children, executor=executor,
+                            )
+
+                        upstream_mapped_states[edge] = children
 
                 # augment edges with upstream constants
                 for key, val in self.flow.constants[task].items():
@@ -497,8 +518,11 @@ class FlowRunner(Runner):
 
                     # either way, we should now have enough resolved states to restructure
                     # the upstream states into a list of upstream state dictionaries to iterate over
-                    list_of_upstream_states = prepare_upstream_states_for_mapping(
-                        task_states[task], upstream_states, mapped_children
+                    list_of_upstream_states = executors.prepare_upstream_states_for_mapping(
+                        task_states[task],
+                        upstream_states,
+                        mapped_children,
+                        executor=executor,
                     )
 
                     submitted_states = []

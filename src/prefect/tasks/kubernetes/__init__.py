@@ -21,6 +21,7 @@ try:
         PatchNamespacedJob,
         ReadNamespacedJob,
         ReplaceNamespacedJob,
+        RunNamespacedJob,
     )
     from prefect.tasks.kubernetes.pod import (
         CreateNamespacedPod,

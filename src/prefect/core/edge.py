@@ -1,5 +1,5 @@
 import keyword
-from typing import Set
+from typing import Set, Any
 
 import prefect
 from prefect.core.task import Task
@@ -44,16 +44,25 @@ class Edge:
     are passed to the downstream task.
 
     Args:
-        - upstream_task (Task): the task that must run before the `downstream_task`
-        - downstream_task (Task): the task that will be run after the
+        - upstream_task (Any): the task that must run before the
+            `downstream_task`. It will be converted to as task with
+            `prefect.utilities.tasks.as_task()`
+        - downstream_task (Any): the task that will be run after the
             `upstream_task`. The upstream task state is passed to the
             downstream task's trigger function to determine whether the
-            downstream task should run.
+            downstream task should run. It will be converted to as task with
+            `prefect.utilities.tasks.as_task()`
         - key (str, optional): Passing a key indicates
             that the upstream result should be passed to the downstream
             task as a keyword argument given by `key`.
         - mapped (bool, optional): boolean indicating whether this edge
-            represents a mapped task; defaults to `False`
+            represents a downstream mapped task; defaults to `False`
+        - flattened (bool, optional): boolean indicating whether this edge
+            represents an upstream flattened task; defaults to `False
+        - flow (prefect.Flow, optional): a flow object that will be used
+            if either the `upstream_task` or `downstream_task` is a
+            collection that needs to be bound to a flow. If not provided,
+            the context flow will be used instead.
 
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
@@ -81,24 +90,35 @@ class Edge:
 
     def __init__(
         self,
-        upstream_task: Task,
-        downstream_task: Task,
+        upstream_task: Any,
+        downstream_task: Any,
         key: str = None,
-        mapped: bool = False,
+        mapped: bool = None,
+        flattened: bool = None,
+        flow: "prefect.core.flow.Flow" = None,
     ):
         if upstream_task is downstream_task:
             raise ValueError("Edges can not connect a task to itself.")
-
-        self.upstream_task = upstream_task
-        self.downstream_task = downstream_task
-        self.mapped = mapped
 
         if key is not None:
             if not (isinstance(key, str) and is_valid_identifier(key)):
                 raise ValueError(
                     'Key must be a valid identifier (received "{}")'.format(key)
                 )
+
+        annotations = {}
+        if isinstance(upstream_task, prefect.utilities.edges.EdgeAnnotation):
+            annotations.update(upstream_task.annotations)
+        if isinstance(downstream_task, prefect.utilities.edges.EdgeAnnotation):
+            annotations.update(downstream_task.annotations)
+        upstream_task = prefect.utilities.tasks.as_task(upstream_task, flow=flow)
+        downstream_task = prefect.utilities.tasks.as_task(downstream_task, flow=flow)
+
         self.key = key
+        self.upstream_task = upstream_task
+        self.downstream_task = downstream_task
+        self.mapped = annotations.get("mapped", mapped or False)
+        self.flattened = annotations.get("flattened", flattened or False)
 
     # Comparison --------------------------------------------------------------
 
@@ -110,20 +130,25 @@ class Edge:
         return {self.upstream_task, self.downstream_task}
 
     def __repr__(self) -> str:
-        return "<Edge{k}: {u} to {d}>".format(
-            u=self.upstream_task.name,
-            d=self.downstream_task.name,
-            k=" (key={})".format(self.key) if self.key else "",
-        )
+        desc = f"Edge(key={self.key}, mapped={self.mapped}, flattened={self.flattened})"
+        return f"<{desc}: {self.upstream_task.name} to {self.downstream_task.name}>"
 
     def __eq__(self, other: "Edge") -> bool:  # type: ignore
         if type(self) == type(other):
-            attrs = ["upstream_task", "downstream_task", "key", "mapped"]
+            attrs = ["upstream_task", "downstream_task", "key", "mapped", "flattened"]
             return all(getattr(self, a) == getattr(other, a) for a in attrs)
         return False
 
     def __hash__(self) -> int:
-        return hash((self.upstream_task, self.downstream_task, self.key))
+        return hash(
+            (
+                self.upstream_task,
+                self.downstream_task,
+                self.key,
+                self.mapped,
+                self.flattened,
+            )
+        )
 
     def serialize(self) -> dict:
         """

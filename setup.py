@@ -85,6 +85,7 @@ setup(
     scripts=[],
     packages=find_packages(where="src"),
     package_dir={"": "src"},
+    package_data={"prefect": ["py.typed"]},
     include_package_data=True,
     entry_points={"console_scripts": ["prefect=prefect.cli:cli"]},
     python_requires=">=3.6",

@@ -109,6 +109,7 @@ classes = [
             "Queued",
             "ClientFailed",
             "Running",
+            "Cancelling",
             "Finished",
             "Success",
             "Cached",
@@ -200,12 +201,12 @@ functions = ["switch", "ifelse", "merge"]
 [pages.tasks.airtable]
 title = "Airtable Tasks"
 module = "prefect.tasks.airtable"
-classes = ["WriteAirtableRow"]
+classes = ["WriteAirtableRow", "ReadAirtableRow"]
 
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
-classes = ["S3Download", "S3Upload", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate"]
+classes = ["S3Download", "S3Upload", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate", "AWSSecretsManager"]
 
 [pages.tasks.azure]
 title = "Azure Tasks"
@@ -253,6 +254,7 @@ classes = [
         "PatchNamespacedJob",
         "ReadNamespacedJob",
         "ReplaceNamespacedJob",
+        "RunNamespacedJob",
         "CreateNamespacedPod",
         "DeleteNamespacedPod",
         "ListNamespacedPod",
@@ -411,6 +413,12 @@ title = "Constant Tasks"
 module = "prefect.tasks.core.constants"
 classes = ["Constant"]
 
+[pages.tasks.resources]
+title = "ResourceManager Tasks"
+module = "prefect.tasks.core.resource_manager"
+classes = ["ResourceManager"]
+functions = ["resource_manager"]
+
 [pages.tasks.shell]
 title = "Shell Tasks"
 module = "prefect.tasks.shell"
@@ -512,5 +520,11 @@ functions = ["to_qualified_name", "from_qualified_name"]
 [pages.utilities.tasks]
 title = "Task Utilities"
 module = "prefect.utilities.tasks"
-classes = ["unmapped"]
+classes = []
 functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs", "apply_map"]
+
+[pages.utilities.edges]
+title = "Edge Utilities"
+module = "prefect.utilities.edges"
+classes = ["unmapped", "mapped", "flatten"]
+functions = []

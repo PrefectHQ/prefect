@@ -7,6 +7,7 @@ from slugify import slugify
 from prefect.engine.results import GCSResult
 from prefect.environments.storage import Storage
 from prefect.utilities.exceptions import StorageError
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -33,11 +34,18 @@ class GCS(Storage):
             is only useful when storing a single Flow using this storage object.
         - project (str, optional): the google project where any GCS API requests are billed to;
             if not provided, the project will be inferred from your Google Cloud credentials.
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self, bucket: str, key: str = None, project: str = None, **kwargs: Any
+        self,
+        bucket: str,
+        key: str = None,
+        project: str = None,
+        stored_as_script: bool = False,
+        **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -47,19 +55,19 @@ class GCS(Storage):
         self.project = project
 
         result = GCSResult(bucket=bucket)
-        super().__init__(result=result, **kwargs)
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
         return ["gcs-flow-storage"]
 
-    def get_flow(self, flow_location: str) -> "Flow":
+    def get_flow(self, flow_location: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to
+            - flow_location (str, optional): the location of a flow within this Storage; in this case,
+                a file path where a Flow has been serialized to. Will use `key` if not provided.
 
         Returns:
             - Flow: the requested flow
@@ -67,8 +75,13 @@ class GCS(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if flow_location not in self.flows.values():
-            raise ValueError("Flow is not contained in this Storage")
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.key:
+            flow_location = self.key
+        else:
+            raise ValueError("No flow location provided")
 
         bucket = self._gcs_client.get_bucket(self.bucket)
 
@@ -82,6 +95,10 @@ class GCS(Storage):
                 )
             )
         content = blob.download_as_string()
+
+        if self.stored_as_script:
+            return extract_flow_from_file(file_contents=content)
+
         return cloudpickle.loads(content)
 
     def add_flow(self, flow: "Flow") -> str:
@@ -132,6 +149,13 @@ class GCS(Storage):
                 each flow is stored
         """
         self.run_basic_healthchecks()
+
+        if self.stored_as_script:
+            if not self.key:
+                raise ValueError(
+                    "A `key` must be provided to show where flow `.py` file is stored in GCS."
+                )
+            return self
 
         for flow_name, flow in self._flows.items():
             content = cloudpickle.dumps(flow)

@@ -542,3 +542,59 @@ def test_agent_health_check(runner_token, cloud_api):
 
     agent.cleanup()
     assert not agent._api_server_thread.is_alive()
+
+
+def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
+    import threading
+
+    requests = pytest.importorskip("requests")
+
+    def _poke_agent(agent_address):
+        # May take a sec for the api server to startup
+        for attempt in range(5):
+            try:
+                resp = requests.get(f"{agent_address}/api/health")
+                break
+            except Exception:
+                time.sleep(0.1)
+        else:
+            assert False, "Failed to connect to health check"
+
+        assert resp.status_code == 200
+        # Agent API is now available. Poke agent to start processing.
+        requests.get(f"{agent_address}/api/poke")
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.heartbeat", heartbeat)
+
+    with socket.socket() as sock:
+        sock.bind(("", 0))
+        port = sock.getsockname()[1]
+
+    agent_address = f"http://127.0.0.1:{port}"
+
+    # Poke agent in separate thread as main thread is blocked by main agent
+    # process waiting for loop interval to complete.
+    poke_agent_thread = threading.Thread(target=_poke_agent, args=(agent_address,))
+    poke_agent_thread.start()
+
+    agent_start_time = time.time()
+    agent = Agent(agent_address=agent_address, max_polls=1)
+    # Override loop interval to 5 seconds.
+    agent.start(_loop_intervals={0: 5.0})
+    agent_stop_time = time.time()
+
+    agent.cleanup()
+
+    assert agent_stop_time - agent_start_time < 5.0
+
+    assert not agent._api_server_thread.is_alive()
+    assert heartbeat.call_count == 1
+    assert agent_process.call_count == 1
+    assert agent_connect.call_count == 1

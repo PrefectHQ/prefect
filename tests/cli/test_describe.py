@@ -1,6 +1,8 @@
 import json
+import yaml
 from unittest.mock import MagicMock
 
+import pytest
 from click.testing import CliRunner
 
 from prefect.cli.describe import describe
@@ -11,20 +13,14 @@ def test_describe_init():
     runner = CliRunner()
     result = runner.invoke(describe)
     assert result.exit_code == 0
-    assert (
-        "Describe commands that render JSON output of Prefect object metadata."
-        in result.output
-    )
+    assert "Output information about different Prefect objects." in result.output
 
 
 def test_describe_help():
     runner = CliRunner()
     result = runner.invoke(describe, ["--help"])
     assert result.exit_code == 0
-    assert (
-        "Describe commands that render JSON output of Prefect object metadata."
-        in result.output
-    )
+    assert "Output information about different Prefect objects." in result.output
 
 
 def test_describe_flows(monkeypatch):
@@ -128,7 +124,8 @@ def test_describe_flows_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-def test_describe_flows_json_output(monkeypatch):
+@pytest.mark.parametrize("output", ["json", "yaml"])
+def test_describe_flows_output(monkeypatch, output):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"name": "flow"}])))
@@ -144,11 +141,15 @@ def test_describe_flows_json_output(monkeypatch):
         runner = CliRunner()
         result = runner.invoke(
             describe,
-            ["flows", "--name", "flow", "--project", "proj", "--output", "json"],
+            ["flows", "--name", "flow", "--project", "proj", "--output", output],
         )
         assert result.exit_code == 0
 
-        assert json.loads(result.output) == {"name": "flow"}
+        if output == "json":
+            res = json.loads(result.output)
+        elif output == "yaml":
+            res = yaml.safe_load(result.output)
+        assert res == {"name": "flow"}
 
 
 def test_describe_tasks(monkeypatch):
@@ -230,7 +231,8 @@ def test_describe_tasks_not_found(monkeypatch):
         assert "No tasks found for flow flow" in result.output
 
 
-def test_describe_tasks_json_output(monkeypatch):
+@pytest.mark.parametrize("output", ["json", "yaml"])
+def test_describe_tasks_output(monkeypatch, output):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -248,11 +250,15 @@ def test_describe_tasks_json_output(monkeypatch):
         runner = CliRunner()
         result = runner.invoke(
             describe,
-            ["tasks", "--name", "flow", "--project", "proj", "--output", "json"],
+            ["tasks", "--name", "flow", "--project", "proj", "--output", output],
         )
         assert result.exit_code == 0
 
-        assert json.loads(result.output) == {"name": "task"}
+        if output == "json":
+            res = json.loads(result.output)
+        elif output == "yaml":
+            res = yaml.safe_load(result.output)
+        assert res == [{"name": "task"}]
 
 
 def test_describe_flow_runs(monkeypatch):
@@ -363,7 +369,8 @@ def test_describe_flow_runs_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-def test_describe_flow_runs_json_output(monkeypatch):
+@pytest.mark.parametrize("output", ["json", "yaml"])
+def test_describe_flow_runs_output(monkeypatch, output):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -380,8 +387,12 @@ def test_describe_flow_runs_json_output(monkeypatch):
     ):
         runner = CliRunner()
         result = runner.invoke(
-            describe, ["flow-runs", "--name", "flow-run", "--output", "json"]
+            describe, ["flow-runs", "--name", "flow-run", "--output", output]
         )
         assert result.exit_code == 0
 
-        assert json.loads(result.output) == {"name": "flow-run"}
+        if output == "json":
+            res = json.loads(result.output)
+        elif output == "yaml":
+            res = yaml.safe_load(result.output)
+        assert res == {"name": "flow-run"}

@@ -34,6 +34,9 @@ class DbtShellTask(ShellTask):
         - shell (string, optional): shell to run the command with; defaults to "bash"
         - return_all (bool, optional): boolean specifying whether this task should return all
             lines of stdout as a list, or just the last line as a string; defaults to `False`
+        - log_stderr (bool, optional): boolean specifying whether this task
+            should log the output from stderr in the case of a non-zero exit code;
+            defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -71,6 +74,7 @@ class DbtShellTask(ShellTask):
         helper_script: str = None,
         shell: str = "bash",
         return_all: bool = False,
+        log_stderr: bool = False,
         **kwargs: Any
     ):
         self.command = command
@@ -81,7 +85,13 @@ class DbtShellTask(ShellTask):
         self.set_profiles_envar = set_profiles_envar
         self.dbt_kwargs = dbt_kwargs
         super().__init__(
-            **kwargs, shell=shell, return_all=return_all, helper_script=helper_script
+            **kwargs,
+            command=command,
+            env=env,
+            helper_script=helper_script,
+            shell=shell,
+            return_all=return_all,
+            log_stderr=log_stderr
         )
 
     @defaults_from_attrs("command", "env", "dbt_kwargs")
@@ -141,6 +151,4 @@ class DbtShellTask(ShellTask):
         if self.set_profiles_envar:
             os.environ["DBT_PROFILES_DIR"] = self.profiles_dir
 
-        super(DbtShellTask, self).run(
-            command=command, env=env,
-        )
+        return super(DbtShellTask, self).run(command=command, env=env,)

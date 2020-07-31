@@ -447,16 +447,19 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
 
             assert (
                 "COPY {} /opt/prefect/flows/foo.prefect".format(
-                    os.path.join(directory, "foo.flow")
+                    os.path.join(directory, "foo.flow").replace("\\", "/")
                 )
                 in output
             ), output
             assert (
-                "COPY {} ./test2".format(os.path.join(directory, "test")) in output
+                "COPY {} ./test2".format(
+                    os.path.join(directory, "test").replace("\\", "/")
+                )
+                in output
             ), output
             assert (
                 "COPY {} /opt/prefect/healthcheck.py".format(
-                    os.path.join(directory, "healthcheck.py")
+                    os.path.join(directory, "healthcheck.py").replace("\\", "/")
                 )
                 in output
             )
@@ -595,6 +598,40 @@ def test_create_dockerfile_from_everything(no_docker_host_var):
             assert "COPY other.flow /opt/prefect/flows/other.prefect" in output
 
 
+def test_create_dockerfile_with_flow_file(no_docker_host_var, tmpdir):
+
+    contents = """from prefect import Flow\nf=Flow('test-flow')"""
+
+    full_path = os.path.join(tmpdir, "flow.py")
+
+    with open(full_path, "w") as f:
+        f.write(contents)
+
+    with open(os.path.join(tmpdir, "test"), "w+") as t:
+        t.write("asdf")
+
+    with tempfile.TemporaryDirectory() as tempdir_inside:
+
+        storage = Docker(
+            files={full_path: "flow.py"}, stored_as_script=True, path="flow.py",
+        )
+        f = Flow("test-flow")
+        storage.add_flow(f)
+        dpath = storage.create_dockerfile_object(directory=tempdir_inside)
+
+        with open(dpath, "r") as dockerfile:
+            output = dockerfile.read()
+
+        assert "COPY flow.py flow.py" in output
+
+        storage = Docker(files={full_path: "flow.py"}, stored_as_script=True,)
+        f = Flow("test-flow")
+        storage.add_flow(f)
+
+        with pytest.raises(ValueError):
+            storage.create_dockerfile_object(directory=tempdir_inside)
+
+
 @pytest.mark.parametrize("ignore_healthchecks", [True, False])
 def test_run_healthchecks_arg(ignore_healthchecks):
 
@@ -730,21 +767,28 @@ def test_docker_storage_name_registry_url_none():
 
 
 def test_docker_storage_get_flow_method():
-    storage = Docker(base_image="python:3.6")
     with tempfile.TemporaryDirectory() as directory:
+        storage = Docker(base_image="python:3.6", prefect_directory=directory)
+
+        with pytest.raises(ValueError):
+            storage.get_flow()
 
         @prefect.task
         def add_to_dict():
             with open(os.path.join(directory, "output"), "w") as tmp:
                 tmp.write("success")
 
-        with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
+        flow_dir = os.path.join(directory, "flows")
+        os.makedirs(flow_dir, exist_ok=True)
+
+        with open(os.path.join(flow_dir, "test.prefect"), "w+") as env:
             flow = Flow("test", tasks=[add_to_dict])
-            flow_path = os.path.join(directory, "flow_env.prefect")
+            flow_path = os.path.join(flow_dir, "test.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
+            out = storage.add_flow(flow)
 
-        f = storage.get_flow(flow_path)
+        f = storage.get_flow(out)
         assert isinstance(f, Flow)
         assert f.name == "test"
         assert len(f.tasks) == 1

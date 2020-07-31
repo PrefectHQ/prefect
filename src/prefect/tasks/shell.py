@@ -24,6 +24,9 @@ class ShellTask(prefect.Task):
         - return_all (bool, optional): boolean specifying whether this task
             should return all lines of stdout as a list, or just the last line
             as a string; defaults to `False`
+        - log_stderr (bool, optional): boolean specifying whether this task
+            should log the output from stderr in the case of a non-zero exit code;
+            defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -48,6 +51,7 @@ class ShellTask(prefect.Task):
         helper_script: str = None,
         shell: str = "bash",
         return_all: bool = False,
+        log_stderr: bool = False,
         **kwargs: Any
     ):
         self.command = command
@@ -55,6 +59,7 @@ class ShellTask(prefect.Task):
         self.helper_script = helper_script
         self.shell = shell
         self.return_all = return_all
+        self.log_stderr = log_stderr
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env")
@@ -92,25 +97,29 @@ class ShellTask(prefect.Task):
                 tmp.write("\n".encode())
             tmp.write(command.encode())
             tmp.flush()
-            sub_process = Popen(
+            with Popen(
                 [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
-            )
-            lines = []
-            line = None
-            for raw_line in iter(sub_process.stdout.readline, b""):
-                line = raw_line.decode("utf-8").rstrip()
-                if self.return_all:
-                    lines.append(line)
-                else:
-                    # if we're returning all, we don't log every line
-                    self.logger.debug(line)
-            sub_process.wait()
-            if sub_process.returncode:
-                msg = "Command failed with exit code {0}: {1}".format(
-                    sub_process.returncode, line
-                )
-                self.logger.error(msg)
-                raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
+            ) as sub_process:
+                lines = []
+                line = None
+                for raw_line in iter(sub_process.stdout.readline, b""):
+                    line = raw_line.decode("utf-8").rstrip()
+                    if self.return_all:
+                        lines.append(line)
+                    else:
+                        # if we're returning all, we don't log every line
+                        self.logger.debug(line)
+                sub_process.wait()
+                if sub_process.returncode:
+                    msg = "Command failed with exit code {}".format(
+                        sub_process.returncode,
+                    )
+                    self.logger.error(msg)
+
+                    if self.log_stderr:
+                        self.logger.error("\n".join(lines))
+
+                    raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
         if self.return_all:
             return lines
         else:

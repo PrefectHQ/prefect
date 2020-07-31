@@ -17,6 +17,7 @@ from slugify import slugify
 
 import prefect
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     import docker
@@ -75,6 +76,10 @@ class Docker(Storage):
             api.html#docker.api.build.BuildApiMixin.build)
         - prefect_directory (str, optional): Path to the directory where prefect configuration/flows
              should be stored inside the Docker image. Defaults to `/opt/prefect`.
+        - path (str, optional): a direct path to the location of the flow file in the Docker image
+            if `stored_as_script=True`.
+        - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
+            as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
@@ -99,6 +104,8 @@ class Docker(Storage):
         tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
         build_kwargs: dict = None,
         prefect_directory: str = "/opt/prefect",
+        path: str = None,
+        stored_as_script: bool = False,
         **kwargs: Any,
     ) -> None:
         self.registry_url = registry_url
@@ -112,6 +119,7 @@ class Docker(Storage):
         self.python_dependencies.append("wheel")
 
         self.prefect_directory = prefect_directory
+        self.path = path
 
         self.env_vars = env_vars or {}
         self.env_vars.setdefault(
@@ -175,7 +183,7 @@ class Docker(Storage):
                     "absolute paths only."
                 ).format(", ".join(not_absolute))
             )
-        super().__init__(**kwargs)
+        super().__init__(stored_as_script=stored_as_script, **kwargs)
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """
@@ -234,24 +242,39 @@ class Docker(Storage):
                     flow.name
                 )
             )
-        flow_path = "{}/flows/{}.prefect".format(
+        flow_path = self.path or "{}/flows/{}.prefect".format(
             self.prefect_directory, slugify(flow.name)
         )
         self.flows[flow.name] = flow_path
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
 
-    def get_flow(self, flow_location: str) -> "prefect.core.flow.Flow":
+    def get_flow(self, flow_location: str = None) -> "prefect.core.flow.Flow":
         """
         Given a file path within this Docker container, returns the underlying Flow.
         Note that this method should only be run _within_ the container itself.
 
         Args:
-            - flow_location (str): the file path of a flow within this container
+            - flow_location (str, optional): the file path of a flow within this container. Will use
+                `path` if not provided.
 
         Returns:
             - Flow: the requested flow
+
+        Raises:
+            - ValueError: if the flow is not contained in this storage
         """
+        if flow_location:
+            if flow_location not in self.flows.values():
+                raise ValueError("Flow is not contained in this Storage")
+        elif self.path:
+            flow_location = self.path
+        else:
+            raise ValueError("No flow location provided")
+
+        if self.stored_as_script:
+            return extract_flow_from_file(file_path=flow_location)
+
         with open(flow_location, "rb") as f:
             return cloudpickle.load(f)
 
@@ -329,10 +352,6 @@ class Docker(Storage):
             dir="." if self.dockerfile else None
         ) as tempdir:
 
-            if sys.platform == "win32":
-                # problem with docker and relative paths only on windows
-                tempdir = os.path.abspath(tempdir)
-
             # Build the dockerfile
             if self.base_image and not self.local_image:
                 self.pull_image()
@@ -355,6 +374,11 @@ class Docker(Storage):
 
             # Use the docker client to build the image
             self.logger.info("Building the flow's Docker storage...")
+
+            if sys.platform == "win32":
+                # problem with docker and relative paths only on windows
+                dockerfile_path = os.path.abspath(dockerfile_path)
+
             output = client.build(
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
@@ -364,7 +388,7 @@ class Docker(Storage):
             )
             self._parse_generator_output(output)
 
-            if len(client.images(name=full_name)) == 0:
+            if len(client.images(name="{}:{}".format(full_name, self.image_tag))) == 0:
                 raise ValueError(
                     "Your docker image failed to build!  Your flow might have "
                     "failed one of its deployment health checks - please ensure "
@@ -433,20 +457,29 @@ class Docker(Storage):
                 else:
                     shutil.copy2(src, full_fname)
                 copy_files += "COPY {fname} {dest}\n".format(
-                    fname=full_fname if self.dockerfile else fname, dest=dest
+                    fname=full_fname.replace("\\", "/") if self.dockerfile else fname,
+                    dest=dest,
                 )
 
         # Write all flows to file and load into the image
         copy_flows = ""
-        for flow_name, flow_location in self.flows.items():
-            clean_name = slugify(flow_name)
-            flow_path = os.path.join(directory, "{}.flow".format(clean_name))
-            with open(flow_path, "wb") as f:
-                cloudpickle.dump(self._flows[flow_name], f)
-            copy_flows += "COPY {source} {dest}\n".format(
-                source=flow_path if self.dockerfile else "{}.flow".format(clean_name),
-                dest=flow_location,
-            )
+        if not self.stored_as_script:
+            for flow_name, flow_location in self.flows.items():
+                clean_name = slugify(flow_name)
+                flow_path = os.path.join(directory, "{}.flow".format(clean_name))
+                with open(flow_path, "wb") as f:
+                    cloudpickle.dump(self._flows[flow_name], f)
+                copy_flows += "COPY {source} {dest}\n".format(
+                    source=flow_path.replace("\\", "/")
+                    if self.dockerfile
+                    else "{}.flow".format(clean_name),
+                    dest=flow_location,
+                )
+        else:
+            if not self.path:
+                raise ValueError(
+                    "A `path` must be provided to show where flow `.py` file is stored in the image."
+                )
 
         # Write all extra commands that should be run in the image
         extra_commands = ""
@@ -488,7 +521,7 @@ class Docker(Storage):
                 extra_commands=extra_commands,
                 pip_installs=pip_installs,
                 copy_flows=copy_flows,
-                healthcheck_loc=healthcheck_loc
+                healthcheck_loc=healthcheck_loc.replace("\\", "/")
                 if self.dockerfile
                 else "healthcheck.py",
                 copy_files=copy_files,
@@ -498,6 +531,7 @@ class Docker(Storage):
         )
 
         # append the line that runs the healthchecks
+        # skip over for now if storing flow as file
         if not self.ignore_healthchecks:
             file_contents += textwrap.dedent(
                 """

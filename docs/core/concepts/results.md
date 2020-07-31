@@ -89,12 +89,16 @@ def my_task():
 
 If checkpointing is turned on, the Prefect pipeline will persist the return value of tasks using the `write` method of the task's configured `Result` subclass. Consider the following example task configured to store its return value as a `LocalResult` into the `~/Desktop/HelloWorld/results` directory.
 
+::: tip Enabling Checkpointing During Local Testing
+Checkpointing is only turned on by default when running on Prefect Cloud or Server. To enable checkpointing for local testing, set the `PREFECT__FLOWS__CHECKPOINTING` environment variable to `true`.
+:::
+
 ```python
 from prefect import Flow, task
 from prefect.engine.results import LocalResult
 
 @task
-def my_task(checkpointing=True, result=LocalResult(dir='~/Desktop/HelloWorld/results')):
+def my_task(result=LocalResult(dir='~/Desktop/HelloWorld/results')):
     return 3
 ```
 

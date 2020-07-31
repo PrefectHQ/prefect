@@ -10,6 +10,24 @@ from prefect.utilities.storage import get_flow_image
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
+_DEFINITION_KWARG_LIST = [
+    "family",
+    "taskRoleArn",
+    "executionRoleArn",
+    "networkMode",
+    "containerDefinitions",
+    "volumes",
+    "placementConstraints",
+    "requiresCompatibilities",
+    "cpu",
+    "memory",
+    "tags",
+    "pidMode",
+    "ipcMode",
+    "proxyConfiguration",
+    "inferenceAccelerators",
+]
+
 
 class FargateTaskEnvironment(Environment, _RunMixin):
     """
@@ -135,23 +153,6 @@ class FargateTaskEnvironment(Environment, _RunMixin):
         Returns:
             tuple: a tuple of two dictionaries (task_definition_kwargs, task_run_kwargs)
         """
-        definition_kwarg_list = [
-            "family",
-            "taskRoleArn",
-            "executionRoleArn",
-            "networkMode",
-            "containerDefinitions",
-            "volumes",
-            "placementConstraints",
-            "requiresCompatibilities",
-            "cpu",
-            "memory",
-            "tags",
-            "pidMode",
-            "ipcMode",
-            "proxyConfiguration",
-            "inferenceAccelerators",
-        ]
 
         run_kwarg_list = [
             "cluster",
@@ -170,7 +171,7 @@ class FargateTaskEnvironment(Environment, _RunMixin):
 
         task_definition_kwargs = {}
         for key, item in user_kwargs.items():
-            if key in definition_kwarg_list:
+            if key in _DEFINITION_KWARG_LIST:
                 task_definition_kwargs.update({key: item})
 
         task_run_kwargs = {}
@@ -183,6 +184,115 @@ class FargateTaskEnvironment(Environment, _RunMixin):
     @property
     def dependencies(self) -> list:
         return ["boto3", "botocore"]
+
+    def _render_task_definition_kwargs(self, flow: "Flow") -> dict:
+        task_definition_kwargs = self.task_definition_kwargs.copy()
+
+        env_values = [
+            {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
+            {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+            {
+                "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                "value": "prefect.engine.cloud.CloudFlowRunner",
+            },
+            {
+                "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                "value": "prefect.engine.cloud.CloudTaskRunner",
+            },
+            {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+            {
+                "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                "value": str(config.logging.extra_loggers),
+            },
+        ]
+
+        # create containerDefinitions if they do not exist
+        if not task_definition_kwargs.get("containerDefinitions"):
+            task_definition_kwargs["containerDefinitions"] = []
+            task_definition_kwargs["containerDefinitions"].append({})
+
+        # set environment variables for all containers
+        for definition in task_definition_kwargs["containerDefinitions"]:
+            if not definition.get("environment"):
+                definition["environment"] = []
+            definition["environment"].extend(env_values)
+
+        # set name on first container
+        if not task_definition_kwargs["containerDefinitions"][0].get("name"):
+            task_definition_kwargs["containerDefinitions"][0]["name"] = ""
+
+        task_definition_kwargs.get("containerDefinitions")[0]["name"] = "flow-container"
+
+        # set image on first container
+        if not task_definition_kwargs["containerDefinitions"][0].get("image"):
+            task_definition_kwargs["containerDefinitions"][0]["image"] = ""
+
+        task_definition_kwargs.get("containerDefinitions")[0]["image"] = get_flow_image(
+            flow
+        )
+
+        # set command on first container
+        if not task_definition_kwargs["containerDefinitions"][0].get("command"):
+            task_definition_kwargs["containerDefinitions"][0]["command"] = []
+
+        task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
+            "/bin/sh",
+            "-c",
+            "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'",
+        ]
+
+        return task_definition_kwargs
+
+    def _validate_task_definition(
+        self, existing_task_definition: dict, task_definition_kwargs: dict
+    ) -> None:
+        containerDifferences = [
+            "containerDefinition.{idx}.{key} -> Given: {given}, Expected: {expected}".format(
+                idx=idx,
+                key=key,
+                given=value,
+                expected=existing_container_definition.get(key),
+            )
+            for idx, (
+                container_definition,
+                existing_container_definition,
+            ) in enumerate(
+                zip(
+                    task_definition_kwargs["containerDefinitions"],
+                    existing_task_definition["containerDefinitions"],
+                )
+            )
+            for key, value in container_definition.items()
+            if value != existing_container_definition.get(key)
+        ]
+
+        otherDifferences = [
+            "{key} -> Given: {given}, Expected: {expected}".format(
+                key=key,
+                given=task_definition_kwargs[key],
+                expected=existing_task_definition.get(key),
+            )
+            for key in _DEFINITION_KWARG_LIST
+            if key != "containerDefinitions"
+            and key in task_definition_kwargs
+            and existing_task_definition.get(key) != task_definition_kwargs[key]
+        ]
+
+        differences = containerDifferences + otherDifferences
+
+        if differences:
+            raise ValueError(
+                (
+                    "The given taskDefinition does not match the existing taskDefinition {}.\n"
+                    "Detail: \n\t{}\n\n"
+                    "If the given configuration is desired, deregister the existing\n"
+                    "taskDefinition and re-run the flow. Alternatively, you can\n"
+                    "change the family/taskDefinition name in the FargateTaskEnvironment\n"
+                    "for this flow."
+                ).format(
+                    self.task_definition_kwargs.get("family"), "\n\t".join(differences),
+                )
+            )
 
     def setup(self, flow: "Flow") -> None:  # type: ignore
         """
@@ -202,73 +312,17 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             region_name=self.region_name,
         )
 
-        definition_exists = True
+        task_definition_kwargs = self._render_task_definition_kwargs(flow)
         try:
-            boto3_c.describe_task_definition(
+            existing_task_definition = boto3_c.describe_task_definition(
                 taskDefinition=self.task_definition_kwargs.get("family")
+            )["taskDefinition"]
+
+            self._validate_task_definition(
+                existing_task_definition, task_definition_kwargs
             )
         except ClientError:
-            definition_exists = False
-
-        if not definition_exists:
-            env_values = [
-                {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {
-                    "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
-                    "value": "prefect.engine.cloud.CloudFlowRunner",
-                },
-                {
-                    "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
-                    "value": "prefect.engine.cloud.CloudTaskRunner",
-                },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                {
-                    "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
-                    "value": str(config.logging.extra_loggers),
-                },
-            ]
-
-            # create containerDefinitions if they do not exist
-            if not self.task_definition_kwargs.get("containerDefinitions"):
-                self.task_definition_kwargs["containerDefinitions"] = []
-                self.task_definition_kwargs["containerDefinitions"].append({})
-
-            # set environment variables for all containers
-            for definition in self.task_definition_kwargs["containerDefinitions"]:
-                if not definition.get("environment"):
-                    definition["environment"] = []
-                definition["environment"].extend(env_values)
-
-            # set name on first container
-            if not self.task_definition_kwargs["containerDefinitions"][0].get("name"):
-                self.task_definition_kwargs["containerDefinitions"][0]["name"] = ""
-
-            self.task_definition_kwargs.get("containerDefinitions")[0][
-                "name"
-            ] = "flow-container"
-
-            # set image on first container
-            if not self.task_definition_kwargs["containerDefinitions"][0].get("image"):
-                self.task_definition_kwargs["containerDefinitions"][0]["image"] = ""
-
-            self.task_definition_kwargs.get("containerDefinitions")[0][
-                "image"
-            ] = get_flow_image(flow)
-
-            # set command on first container
-            if not self.task_definition_kwargs["containerDefinitions"][0].get(
-                "command"
-            ):
-                self.task_definition_kwargs["containerDefinitions"][0]["command"] = []
-
-            self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
-                "/bin/sh",
-                "-c",
-                "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'",
-            ]
-
-            boto3_c.register_task_definition(**self.task_definition_kwargs)
+            boto3_c.register_task_definition(**task_definition_kwargs)
 
     def execute(self, flow: "Flow") -> None:  # type: ignore
         """
@@ -286,8 +340,8 @@ class FargateTaskEnvironment(Environment, _RunMixin):
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                        "value": config.cloud.agent.auth_token
-                        or config.cloud.auth_token,
+                        "value": config.cloud.agent.get("auth_token", "")
+                        or config.cloud.get("auth_token", ""),
                     },
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
                     {"name": "PREFECT__CONTEXT__IMAGE", "value": get_flow_image(flow)},
