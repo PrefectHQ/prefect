@@ -13,12 +13,8 @@ from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
-<<<<<<< HEAD
-from prefect.engine.state import Failed, Queued, State
-from prefect.utilities.exceptions import VersionLockError
-=======
 from prefect.engine.state import Failed, Queued, State, Cancelling, Cancelled
->>>>>>> master
+from prefect.utilities.exceptions import VersionLockError
 from prefect.utilities.graphql import with_args
 
 

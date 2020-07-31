@@ -638,6 +638,7 @@ class TestCloudFlowRunnerQueuedState:
         # the amount of time spent in sleep may be slightly less.
         assert expected_sleep_time - 2 < total_sleep_time < expected_sleep_time + 2
 
+
 def test_flowrunner_handles_version_lock_error(monkeypatch):
     client = MagicMock()
     monkeypatch.setattr(
@@ -657,6 +658,7 @@ def test_flowrunner_handles_version_lock_error(monkeypatch):
     client.get_flow_run_state.return_value = Running()
     with pytest.raises(ENDRUN):
         runner.call_runner_target_handlers(Pending(), Running())
+
 
 class TestCloudFlowRunnerCancellation:
     def test_cancelling_mid_flow_run_exits_early(self, client, monkeypatch):
