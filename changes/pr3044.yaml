@@ -1,0 +1,6 @@
+
+fix:
+  - "Fix use of absolute path in Docker storage on Windows - [#3044](https://github.com/PrefectHQ/prefect/pull/3044)"
+
+contributor:
+  - "[Pravin Dahal](https://github.com/pravindahal)"
