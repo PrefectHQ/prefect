@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.12.6 <Badge text="beta" type="success" />
+
+Released on July 28, 2020.
+
+### Features
+
+- Add `flatten` operator for unnesting and flat-maps - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)
+
+### Enhancements
+
+- Add retry_on_api_error flag to client methods - [#3012](https://github.com/PrefectHQ/prefect/pull/3012)
+- Add `reg_allow_list` option for Docker Agent - [#3026](https://github.com/PrefectHQ/prefect/pull/3026#issuecomment-663078217)
+- Update FargateTaskEnvironment to throw if task definition is inconsistent with existing task definition - [#3031](https://github.com/PrefectHQ/prefect/pull/3031)
+
+### Fixes
+
+- Cleanup to ShellTask to close open stdout file which was observable in some cases - [#3002](https://github.com/PrefectHQ/prefect/issues/3002)
+- Fix check of flow existence in storage object `get_flow` to only occur when provided - [#3027](https://github.com/PrefectHQ/prefect/issues/3027)
+- Use fullname and tag when Docker Storage determines if build was successful - [#3029](https://github.com/PrefectHQ/prefect/pull/3029)
+- Prevent duplicated agent labels - [#3029](https://github.com/PrefectHQ/prefect/pull/3042)
+
+### Deprecations
+
+- `prefect.utilities.tasks.unmapped` moved to `prefect.utilities.edges.unmapped` - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)
+
+### Breaking Changes
+
+- Remove `dbt` extra from dependencies - [#3018](https://github.com/PrefectHQ/prefect/pull/3018)
+
+### Contributors
+
+- [James Lamb](https://github.com/jameslamb)
+- [Spencer Ellinor](https://github.com/zpencerq)
+- [Thomas Frederik Hoeck](https://github.com/thomasfrederikhoeck)
+- [berosen](https://github.com/berosen)
+
 ## version=0.12.5 <Badge text="beta" type="success" />
 
 Released on July 21, 2020.

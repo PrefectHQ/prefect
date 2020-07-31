@@ -778,16 +778,17 @@ def test_docker_storage_get_flow_method():
             with open(os.path.join(directory, "output"), "w") as tmp:
                 tmp.write("success")
 
-        os.makedirs(directory + "/flows", exist_ok=True)
+        flow_dir = os.path.join(directory, "flows")
+        os.makedirs(flow_dir, exist_ok=True)
 
-        with open(os.path.join(directory + "/flows", "test.prefect"), "w+") as env:
+        with open(os.path.join(flow_dir, "test.prefect"), "w+") as env:
             flow = Flow("test", tasks=[add_to_dict])
-            flow_path = os.path.join(directory + "/flows", "test.prefect")
+            flow_path = os.path.join(flow_dir, "test.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
             out = storage.add_flow(flow)
 
-        f = storage.get_flow(flow_path)
+        f = storage.get_flow(out)
         assert isinstance(f, Flow)
         assert f.name == "test"
         assert len(f.tasks) == 1
