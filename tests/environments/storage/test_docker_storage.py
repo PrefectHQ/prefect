@@ -447,16 +447,19 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
 
             assert (
                 "COPY {} /opt/prefect/flows/foo.prefect".format(
-                    os.path.join(directory, "foo.flow")
+                    os.path.join(directory, "foo.flow").replace("\\", "/")
                 )
                 in output
             ), output
             assert (
-                "COPY {} ./test2".format(os.path.join(directory, "test")) in output
+                "COPY {} ./test2".format(
+                    os.path.join(directory, "test").replace("\\", "/")
+                )
+                in output
             ), output
             assert (
                 "COPY {} /opt/prefect/healthcheck.py".format(
-                    os.path.join(directory, "healthcheck.py")
+                    os.path.join(directory, "healthcheck.py").replace("\\", "/")
                 )
                 in output
             )
