@@ -6,6 +6,9 @@ home_dir = "~/.prefect"
 
 backend = "cloud"
 
+# a list of modules to import on startup
+import_on_start = "[]"
+
 [server]
 host = "http://localhost"
 port = "4200"

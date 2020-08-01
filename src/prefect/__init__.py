@@ -2,6 +2,7 @@ import prefect.utilities
 from prefect.configuration import config
 
 from prefect.utilities.context import context
+from prefect.utilities.plugins import API as api, PLUGINS as plugins, MODELS as models
 
 from prefect.client import Client
 import prefect.schedules
@@ -19,6 +20,10 @@ from prefect.utilities.edges import mapped, unmapped, flatten
 
 import prefect.serialization
 import prefect.agent
+
+
+# import any specified on-start modules
+prefect_server.utilities.plugins.import_on_start_modules()
 
 
 from ._version import get_versions
