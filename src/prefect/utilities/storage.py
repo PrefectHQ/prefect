@@ -82,7 +82,7 @@ def extract_flow_from_file(
                     item.context_expr.func.id
                     for item in node.items
                     if isinstance(item.context_expr, ast.Call)
-                       and item.context_expr.func.id == "Flow"
+                    and item.context_expr.func.id == "Flow"
                 }
             )
             return node
@@ -98,9 +98,9 @@ def extract_flow_from_file(
             """Detects "flow.register()" statement and removes it.
             """
             if (
-                    isinstance(node.value, ast.Call)
-                    and node.value.func.attr == "register"
-                    and node.value.func.value.id in self.flow_ids
+                isinstance(node.value, ast.Call)
+                and node.value.func.attr == "register"
+                and node.value.func.value.id in self.flow_ids
             ):
                 return None
             return node
