@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING
+import ast
+from typing import TYPE_CHECKING, Any
 
 import prefect
 
@@ -69,9 +70,41 @@ def extract_flow_from_file(
     if file_contents:
         contents = file_contents
 
+    # Ignore flow.register call if exists.
+    class IgnoreRegisterTransformer(ast.NodeTransformer):
+        flow_ids: set = set()
+
+        def visit_With(self, node: ast.With) -> Any:
+            """Detects "with Flow('test') as flow:" and adds IDs to self.flow_ids.
+            """
+            self.flow_ids.update({
+                item.context_expr.func.id for item in node.items if
+                isinstance(item.context_expr, ast.Call) and item.context_expr.func.id == "Flow"
+            })
+            return node
+
+        def visit_Assign(self, node: ast.Assign) -> Any:
+            """Detects "flow = Flow('test')" and adds id to self.flow_ids.
+            """
+            if isinstance(node.value, ast.Call) and node.value.func.id == "Flow":
+                self.flow_ids.add(node.targets[0].id)
+            return node
+
+        def visit_Expr(self, node: ast.Expr) -> Any:
+            """Detects "flow.register()" statement and removes it.
+            """
+            if isinstance(node.value, ast.Call) and node.value.func.attr == 'register' \
+                    and node.value.func.value.id in self.flow_ids:
+                return None
+            return node
+
+    tree = ast.parse(contents)
+    IgnoreRegisterTransformer().visit(tree)
+    tree = ast.fix_missing_locations(tree)
+
     # Load objects from file into dict
     exec_vals = {}  # type: ignore
-    exec(contents, exec_vals)
+    exec(compile(tree, filename="<tree>", mode="exec"), exec_vals)
 
     # Grab flow name from values loaded via exec
     for var in exec_vals:
