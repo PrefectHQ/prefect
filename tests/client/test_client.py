@@ -91,7 +91,7 @@ def test_client_posts_graphql_to_api_server(patch_post):
 
 ## test actual mutation and query handling
 def test_graphql_errors_get_raised(patch_post):
-    patch_post(dict(data="42", errors="GraphQL issue!"))
+    patch_post(dict(data="42", errors=[{"GraphQL issue!": {}}]))
 
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -759,6 +759,32 @@ def test_get_flow_run_info_raises_informative_error(patch_post):
         client.get_flow_run_info(flow_run_id="74-salt")
 
 
+def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
+    query_resp = {
+        "flow_run_by_pk": {
+            "serialized_state": {
+                "type": "Pending",
+                "_result": {
+                    "type": "SafeResult",
+                    "value": "42",
+                    "result_handler": {"type": "JSONResultHandler"},
+                },
+                "message": None,
+                "__version__": "0.3.3+310.gd19b9b7.dirty",
+                "cached_inputs": None,
+            },
+        }
+    }
+
+    post = patch_posts([dict(data=query_resp)])
+
+    client = Client()
+    state = client.get_flow_run_state(flow_run_id="72-salt")
+    assert isinstance(state, Pending)
+    assert state.result == "42"
+    assert state.message is None
+
+
 def test_set_flow_run_state(patch_post):
     response = {
         "data": {
@@ -905,6 +931,32 @@ def test_get_task_run_info_with_error(patch_post):
         client.get_task_run_info(
             flow_run_id="74-salt", task_id="72-salt", map_index=None
         )
+
+
+def test_get_task_run_state(patch_posts, cloud_api, runner_token):
+    query_resp = {
+        "task_run_by_pk": {
+            "serialized_state": {
+                "type": "Pending",
+                "_result": {
+                    "type": "SafeResult",
+                    "value": "42",
+                    "result_handler": {"type": "JSONResultHandler"},
+                },
+                "message": None,
+                "__version__": "0.3.3+310.gd19b9b7.dirty",
+                "cached_inputs": None,
+            },
+        }
+    }
+
+    post = patch_posts([dict(data=query_resp)])
+
+    client = Client()
+    state = client.get_task_run_state(task_run_id="72-salt")
+    assert isinstance(state, Pending)
+    assert state.result == "42"
+    assert state.message is None
 
 
 def test_set_task_run_state(patch_post):

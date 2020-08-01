@@ -1,5 +1,9 @@
-import time
-from typing import Any, Callable, Dict, Iterable, Optional
+import os
+import signal
+import threading
+from time import sleep as time_sleep
+from typing import Any, Callable, Dict, Iterable, Optional, Iterator
+from contextlib import contextmanager
 
 import pendulum
 
@@ -9,7 +13,8 @@ from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
-from prefect.engine.state import Failed, Queued, State
+from prefect.engine.state import Failed, Queued, State, Cancelling, Cancelled
+from prefect.utilities.exceptions import VersionLockError
 from prefect.utilities.graphql import with_args
 
 
@@ -118,8 +123,25 @@ class CloudFlowRunner(FlowRunner):
         try:
             cloud_state = new_state
             state = self.client.set_flow_run_state(
-                flow_run_id=flow_run_id, version=version, state=cloud_state
+                flow_run_id=flow_run_id,
+                version=version if cloud_state.is_running() else None,
+                state=cloud_state,
             )
+        except VersionLockError:
+            state = self.client.get_flow_run_state(flow_run_id=flow_run_id)
+
+            if state.is_running():
+                self.logger.debug(
+                    "Version lock encountered and flow is already in a running state."
+                )
+                raise ENDRUN(state=state)
+
+            self.logger.debug(
+                "Version lock encountered, proceeding with state {}...".format(
+                    type(state).__name__
+                )
+            )
+            new_state = state
         except Exception as exc:
             self.logger.debug(
                 "Failed to set flow state with error: {}".format(repr(exc))
@@ -130,9 +152,84 @@ class CloudFlowRunner(FlowRunner):
             state.state = old_state  # type: ignore
             raise ENDRUN(state=state)
 
-        prefect.context.update(flow_run_version=version + 1)
+        prefect.context.update(flow_run_version=(version or 0) + 1)
 
         return new_state
+
+    @contextmanager
+    def check_for_cancellation(self) -> Iterator:
+        """Contextmanager used to wrap a cancellable section of a flow run."""
+
+        cancelling = False
+        done = threading.Event()
+        flow_run_version = None
+        context = prefect.context.to_dict()
+
+        def interrupt_if_cancelling() -> None:
+            # We need to copy the context into this thread, since context is a
+            # thread local.
+            with prefect.context(context):
+                flow_run_id = prefect.context["flow_run_id"]
+                while True:
+                    exiting_context = done.wait(
+                        prefect.config.cloud.check_cancellation_interval
+                    )
+                    try:
+                        self.logger.debug("Checking flow run state...")
+                        flow_run_info = self.client.get_flow_run_info(flow_run_id)
+                    except Exception:
+                        self.logger.warning(
+                            "Error getting flow run info", exc_info=True
+                        )
+                        continue
+                    else:
+                        self.logger.debug(
+                            "Successfully queried server for flow run state: %r",
+                            flow_run_info.state,
+                        )
+                    if isinstance(flow_run_info.state, Cancelling):
+                        self.logger.info(
+                            "Flow run has been cancelled, cancelling active tasks"
+                        )
+                        nonlocal cancelling
+                        nonlocal flow_run_version
+                        cancelling = True
+                        flow_run_version = flow_run_info.version
+                        # If not already leaving context, raise KeyboardInterrupt in the main thread
+                        if not exiting_context:
+                            if hasattr(signal, "raise_signal"):
+                                # New in python 3.8
+                                signal.raise_signal(signal.SIGINT)  # type: ignore
+                            else:
+                                if os.name == "nt":
+                                    # This doesn't actually send a signal, so it will only
+                                    # interrupt the next Python bytecode instruction - if the
+                                    # main thread is blocked in a c extension the interrupt
+                                    # won't be seen until that returns.
+                                    from _thread import interrupt_main
+
+                                    interrupt_main()
+                                else:
+                                    signal.pthread_kill(
+                                        threading.main_thread().ident, signal.SIGINT  # type: ignore
+                                    )
+                        break
+                    elif exiting_context:
+                        break
+
+        thread = threading.Thread(target=interrupt_if_cancelling, daemon=True)
+        thread.start()
+        try:
+            yield
+        except KeyboardInterrupt:
+            if not cancelling:
+                raise
+        finally:
+            done.set()
+            thread.join()
+            if cancelling:
+                prefect.context.update(flow_run_version=flow_run_version)
+                raise ENDRUN(state=Cancelled("Flow run is cancelled"))
 
     def run(
         self,
@@ -190,21 +287,30 @@ class CloudFlowRunner(FlowRunner):
             end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
         ):
             assert isinstance(end_state, Queued)
-            naptime = max(
+            time_remaining = max(
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
             self.logger.info(
                 (
-                    "Flow run is in a Queued state."
-                    f" Sleeping for {naptime:.2f} seconds and attempting to run again."
+                    f"Flow run is in a Queued state. Sleeping for at most {time_remaining:.2f} "
+                    f"seconds and attempting to run again."
                 )
             )
-            time.sleep(naptime)
+            # Sleep until not in a queued state, then attempt to re-run
+            while time_remaining > 0:
+                delay = min(
+                    prefect.config.cloud.check_cancellation_interval, time_remaining
+                )
+                time_remaining -= delay
+                # Imported `time.sleep` as `time_sleep` to allow monkeypatching in tests
+                time_sleep(delay)
 
-            flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id")
-            )
-            context.update(flow_run_version=flow_run_info.version)
+                flow_run_info = self.client.get_flow_run_info(
+                    flow_run_id=prefect.context.get("flow_run_id")
+                )
+                context.update(flow_run_version=flow_run_info.version)
+                if not isinstance(flow_run_info.state, Queued):
+                    break
 
             # When concurrency slots become free, this will eventually result
             # in a non queued state, but will result in more or less just waiting
