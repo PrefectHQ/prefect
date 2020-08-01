@@ -1,5 +1,0 @@
-enhancement:
-  - "Update FargateTaskEnvironment to throw if task definition is inconsistent with existing task definition - [#3031](https://github.com/PrefectHQ/prefect/pull/3031)"
-
-contributor:
-  - "[Spencer Ellinor](https://github.com/zpencerq)"

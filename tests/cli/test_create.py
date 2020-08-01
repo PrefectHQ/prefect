@@ -33,8 +33,8 @@ def test_create_project(patch_post, cloud_api):
     assert "test created" in result.output
 
 
-def test_create_project_error(patch_post, cloud_api):
-    patch_post(dict(errors=dict(error="bad")))
+def test_create_project_error(patch_post):
+    patch_post(dict(errors=[dict(error={})]))
 
     runner = CliRunner()
     result = runner.invoke(create, ["project", "test"])
