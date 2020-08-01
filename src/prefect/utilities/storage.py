@@ -77,10 +77,14 @@ def extract_flow_from_file(
         def visit_With(self, node: ast.With) -> Any:
             """Detects "with Flow('test') as flow:" and adds IDs to self.flow_ids.
             """
-            self.flow_ids.update({
-                item.context_expr.func.id for item in node.items if
-                isinstance(item.context_expr, ast.Call) and item.context_expr.func.id == "Flow"
-            })
+            self.flow_ids.update(
+                {
+                    item.context_expr.func.id
+                    for item in node.items
+                    if isinstance(item.context_expr, ast.Call)
+                       and item.context_expr.func.id == "Flow"
+                }
+            )
             return node
 
         def visit_Assign(self, node: ast.Assign) -> Any:
@@ -93,8 +97,11 @@ def extract_flow_from_file(
         def visit_Expr(self, node: ast.Expr) -> Any:
             """Detects "flow.register()" statement and removes it.
             """
-            if isinstance(node.value, ast.Call) and node.value.func.attr == 'register' \
-                    and node.value.func.value.id in self.flow_ids:
+            if (
+                    isinstance(node.value, ast.Call)
+                    and node.value.func.attr == "register"
+                    and node.value.func.value.id in self.flow_ids
+            ):
                 return None
             return node
 

@@ -41,7 +41,7 @@ def test_register_flow_kwargs(monkeypatch, tmpdir):
     runner = CliRunner()
     result = runner.invoke(
         register,
-        ["flow", "--file", full_path, "--name", "test-flow", "--project", "project",],
+        ["flow", "--file", full_path, "--name", "test-flow", "--project", "project", ],
     )
     assert result.exit_code == 0
 
@@ -54,8 +54,5 @@ def test_ignore_register_method_call(monkeypatch, tmpdir):
     with open(full_path, "w") as f:
         f.write(contents)
     runner = CliRunner()
-    result = runner.invoke(
-        register,
-        ["flow", "--file", full_path],
-    )
+    result = runner.invoke(register, ["flow", "--file", full_path])
     assert result.exit_code == 0
