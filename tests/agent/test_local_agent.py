@@ -304,10 +304,10 @@ def test_local_agent_deploy_processes_webhook_storage(monkeypatch, runner_token)
 
     agent = LocalAgent()
     webhook = Webhook(
-        build_kwargs={"url": "test-service/upload"},
-        build_http_method="POST",
-        get_flow_kwargs={"url": "test-service/download"},
-        get_flow_http_method="GET",
+        build_request_kwargs={"url": "test-service/upload"},
+        build_request_http_method="POST",
+        get_flow_request_kwargs={"url": "test-service/download"},
+        get_flow_request_http_method="GET",
     )
     agent.deploy_flow(
         flow_run=GraphQLResult(

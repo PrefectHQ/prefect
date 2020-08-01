@@ -49,21 +49,21 @@ class _MockResponse:
 
 
 def test_create_webhook_storage():
-    build_kwargs = {"url": "https://content.dropboxapi.com/2/files/upload"}
-    get_flow_kwargs = {"url": "https://content.dropboxapi.com/2/files/download"}
+    build_request_kwargs = {"url": "https://content.dropboxapi.com/2/files/upload"}
+    get_flow_request_kwargs = {"url": "https://content.dropboxapi.com/2/files/download"}
     storage = Webhook(
-        build_kwargs=build_kwargs,
-        build_http_method="PATCH",
-        get_flow_kwargs=get_flow_kwargs,
-        get_flow_http_method="GET",
+        build_request_kwargs=build_request_kwargs,
+        build_request_http_method="PATCH",
+        get_flow_request_kwargs=get_flow_request_kwargs,
+        get_flow_request_http_method="GET",
     )
     assert storage
     assert storage.logger
-    assert storage.build_kwargs == build_kwargs
-    assert storage.build_http_method == "PATCH"
+    assert storage.build_request_kwargs == build_request_kwargs
+    assert storage.build_request_http_method == "PATCH"
     assert storage.build_secret_config == {}
-    assert storage.get_flow_kwargs == get_flow_kwargs
-    assert storage.get_flow_http_method == "GET"
+    assert storage.get_flow_request_kwargs == get_flow_request_kwargs
+    assert storage.get_flow_request_http_method == "GET"
     assert storage.get_flow_secret_config == {}
     assert storage.secrets == []
     assert storage.default_labels == ["webhook-flow-storage"]
@@ -75,41 +75,41 @@ def test_all_valid_http_verb_combinations_work():
     for build_verb in possible_verbs:
         for get_verb in possible_verbs:
             storage = Webhook(
-                build_kwargs={"url": "whatever"},
-                build_http_method=build_verb,
-                get_flow_kwargs={"url": "whatever"},
-                get_flow_http_method=get_verb,
+                build_request_kwargs={"url": "whatever"},
+                build_request_http_method=build_verb,
+                get_flow_request_kwargs={"url": "whatever"},
+                get_flow_request_http_method=get_verb,
             )
-            assert storage.build_http_method == build_verb
-            assert storage.get_flow_http_method == get_verb
+            assert storage.build_request_http_method == build_verb
+            assert storage.get_flow_request_http_method == get_verb
 
 
-def test_webhook_fails_for_bad_build_http_method():
+def test_webhook_fails_for_bad_build_request_http_method():
     with pytest.raises(RuntimeError, match="HTTP method 'PASTA' not recognized"):
         Webhook(
-            build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-            build_http_method="PASTA",
-            get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-            get_flow_http_method="POST",
+            build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+            build_request_http_method="PASTA",
+            get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+            get_flow_request_http_method="POST",
         )
 
 
-def test_webhook_fails_for_bad_get_flow_http_method():
+def test_webhook_fails_for_bad_get_flow_request_http_method():
     with pytest.raises(RuntimeError, match="HTTP method 'BET' not recognized"):
         Webhook(
-            build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-            build_http_method="POST",
-            get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-            get_flow_http_method="BET",
+            build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+            build_request_http_method="POST",
+            get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+            get_flow_request_http_method="BET",
         )
 
 
 def test_add_flow_and_contains_work_as_expected(sample_flow):
     webhook = Webhook(
-        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_http_method="POST",
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_request_http_method="POST",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
     assert sample_flow.name not in webhook
     out = webhook.add_flow(sample_flow)
@@ -123,10 +123,10 @@ def test_add_flow_and_contains_work_as_expected(sample_flow):
 
 def test_webhook_build_works_with_no_arguments(sample_flow):
     webhook = Webhook(
-        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_http_method="POST",
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_request_http_method="POST",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
 
     def _mock_successful_get(*args, **kwargs):
@@ -150,15 +150,15 @@ def test_webhook_build_works_with_no_arguments(sample_flow):
     assert isinstance(res, Flow)
 
 
-def test_webhook_raises_warning_if_data_in_build_kwargs(sample_flow):
+def test_webhook_raises_warning_if_data_in_build_request_kwargs(sample_flow):
     webhook = Webhook(
-        build_kwargs={
+        build_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "data": cloudpickle.dumps(sample_flow),
         },
-        build_http_method="POST",
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        build_request_http_method="POST",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
 
     def _mock_successful_get(*args, **kwargs):
@@ -184,10 +184,10 @@ def test_webhook_raises_warning_if_data_in_build_kwargs(sample_flow):
 
 def test_webhook_raises_error_on_build_failure(sample_flow):
     webhook = Webhook(
-        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_http_method="POST",
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_request_http_method="POST",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
 
     def _mock_failed_post(*args, **kwargs):
@@ -204,10 +204,10 @@ def test_webhook_raises_error_on_build_failure(sample_flow):
 
 def test_webhook_raises_error_on_get_flow_failure(sample_flow):
     webhook = Webhook(
-        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_http_method="POST",
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_request_http_method="POST",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
 
     def _mock_failed_get(*args, **kwargs):
@@ -232,14 +232,14 @@ def test_render_headers_gets_env_variables(monkeypatch):
     another_secret = str(uuid.uuid4())
     monkeypatch.setenv("SOME_CRED", some_cred)
     webhook = Webhook(
-        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_http_method="POST",
+        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_request_http_method="POST",
         build_secret_config={
             "X-Api-Key": {"name": "SOME_CRED", "type": "environment"},
             "X-Custom-Key": {"name": "ANOTHER_SECRET", "type": "secret"},
         },
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
 
     # set a local secret
@@ -262,13 +262,13 @@ def test_render_headers_gets_env_variables(monkeypatch):
 def test_render_headers_raises_expected_exception_on_missing_env_var(monkeypatch):
     monkeypatch.delenv("SOME_CRED", raising=False)
     webhook = Webhook(
-        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_http_method="POST",
+        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_request_http_method="POST",
         build_secret_config={
             "X-Api-Key": {"name": "SOME_CRED", "type": "environment"},
         },
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
 
     with pytest.raises(KeyError, match="SOME_CRED"):
@@ -281,13 +281,13 @@ def test_render_headers_raises_expected_exception_on_missing_env_var(monkeypatch
 def test_render_headers_raises_expected_exception_on_missing_secret(monkeypatch):
     monkeypatch.delenv("ANOTHER_SECRET", raising=False)
     webhook = Webhook(
-        build_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_http_method="POST",
+        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        build_request_http_method="POST",
         build_secret_config={
             "X-Custom-Key": {"name": "ANOTHER_SECRET", "type": "secret"},
         },
-        get_flow_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        get_flow_http_method="GET",
+        get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
+        get_flow_request_http_method="GET",
     )
 
     with pytest.raises(ValueError, match='Local Secret "ANOTHER_SECRET" was not found'):
@@ -305,16 +305,16 @@ def test_webhook_works_with_file_storage(sample_flow, tmpdir):
         f.write(script_contents)
 
     webhook = Webhook(
-        build_kwargs={
+        build_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Content-Type": "application/octet-stream"},
         },
-        build_http_method="POST",
-        get_flow_kwargs={
+        build_request_http_method="POST",
+        get_flow_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Accept": "application/octet-stream"},
         },
-        get_flow_http_method="GET",
+        get_flow_request_http_method="GET",
         stored_as_script=True,
         flow_script_path=script_file,
     )
@@ -345,16 +345,16 @@ def test_webhook_works_with_file_storage(sample_flow, tmpdir):
 def test_webhook_throws_informative_error_if_flow_script_path_not_set(sample_flow):
 
     webhook = Webhook(
-        build_kwargs={
+        build_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Content-Type": "application/octet-stream"},
         },
-        build_http_method="POST",
-        get_flow_kwargs={
+        build_request_http_method="POST",
+        get_flow_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Accept": "application/octet-stream"},
         },
-        get_flow_http_method="GET",
+        get_flow_request_http_method="GET",
         stored_as_script=True,
     )
 
@@ -372,16 +372,16 @@ def test_webhook_throws_informative_error_if_flow_script_file_does_not_exist(
 
     nonexistent_file = "{}.py".format(str(uuid.uuid4()))
     webhook = Webhook(
-        build_kwargs={
+        build_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Content-Type": "application/octet-stream"},
         },
-        build_http_method="POST",
-        get_flow_kwargs={
+        build_request_http_method="POST",
+        get_flow_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files",
             "headers": {"Accept": "application/octet-stream"},
         },
-        get_flow_http_method="GET",
+        get_flow_request_http_method="GET",
         stored_as_script=True,
         flow_script_path=nonexistent_file,
     )

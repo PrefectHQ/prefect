@@ -31,11 +31,11 @@ class Webhook(Storage):
      labeled with `webhook-flow-storage`.
 
     Args:
-        - build_kwargs (dict): Dictionary of keyword arguments to the
+        - build_request_kwargs (dict): Dictionary of keyword arguments to the
             function from `requests` used to store the flow. Do not supply
             `"data"` to this argument, as it will be overwritten with the
             flow's content when `.build()` is run.
-        - build_http_method (str): HTTP method identifying the type of request
+        - build_request_http_method (str): HTTP method identifying the type of request
             to execute when storing the flow. For example, `"POST"` for
             `requests.post()`.
         - build_secret_config (dict): A dictionary describing how to set
@@ -44,9 +44,9 @@ class Webhook(Storage):
             applies to the request issued by `.build()`, and  will also be
             used for `.get_flow()` unless you explicitly set
             `get_flow_secret_config`.
-        - get_flow_kwargs (dict): Dictionary of keyword arguments to the
+        - get_flow_request_kwargs (dict): Dictionary of keyword arguments to the
             function from `requests` used to retrieve the flow.
-        - get_flow_http_method (str): HTTP method identifying the type of
+        - get_flow_request_http_method (str): HTTP method identifying the type of
             request to execute when storing the flow. For example, `"GET"`
             for `requests.post()`.
         - get_flow_secret_config (dict): Similar to `build_secret_config`, but
@@ -85,13 +85,13 @@ class Webhook(Storage):
 
     ```python
     storage = Webhook(
-        build_kwargs={
+        build_request_kwargs={
             "url": "some-service",
             "headers" = {
                 "Content-Type" = "application/octet-stream"
             }
         },
-        build_http_method="POST",
+        build_request_http_method="POST",
         ...
         ...
         build_secret_config={
@@ -106,10 +106,10 @@ class Webhook(Storage):
 
     def __init__(
         self,
-        build_kwargs: Dict[str, Any],
-        build_http_method: str,
-        get_flow_kwargs: Dict[str, Any],
-        get_flow_http_method: str,
+        build_request_kwargs: Dict[str, Any],
+        build_request_http_method: str,
+        get_flow_request_kwargs: Dict[str, Any],
+        get_flow_request_http_method: str,
         build_secret_config: Optional[Dict[str, Any]] = None,
         get_flow_secret_config: Optional[Dict[str, Any]] = None,
         stored_as_script: bool = False,
@@ -132,25 +132,25 @@ class Webhook(Storage):
             "PUT": self._session.put,
         }
 
-        if build_http_method not in self._method_to_function.keys():
-            msg = "HTTP method '{}' not recognized".format(build_http_method)
+        if build_request_http_method not in self._method_to_function.keys():
+            msg = "HTTP method '{}' not recognized".format(build_request_http_method)
             self.logger.fatal(msg)
             raise RuntimeError(msg)
 
-        if get_flow_http_method not in self._method_to_function.keys():
-            msg = "HTTP method '{}' not recognized".format(get_flow_http_method)
+        if get_flow_request_http_method not in self._method_to_function.keys():
+            msg = "HTTP method '{}' not recognized".format(get_flow_request_http_method)
             self.logger.fatal(msg)
             raise RuntimeError(msg)
 
         self.stored_as_script = stored_as_script
         self.flow_script_path = flow_script_path
 
-        self.build_kwargs = build_kwargs
-        self.build_http_method = build_http_method
+        self.build_request_kwargs = build_request_kwargs
+        self.build_request_http_method = build_request_http_method
         self.build_secret_config = build_secret_config or {}
 
-        self.get_flow_kwargs = get_flow_kwargs
-        self.get_flow_http_method = get_flow_http_method
+        self.get_flow_request_kwargs = get_flow_request_kwargs
+        self.get_flow_request_http_method = get_flow_request_http_method
         self.get_flow_secret_config = get_flow_secret_config or self.build_secret_config
 
         self._build_responses: Optional[Dict[str, Response]] = None
@@ -178,15 +178,15 @@ class Webhook(Storage):
             - requests.exceptions.HTTPError if getting the flow fails
         """
         self.logger.info("Retrieving flow")
-        req_function = self._method_to_function[self.get_flow_http_method]
+        req_function = self._method_to_function[self.get_flow_request_http_method]
 
-        get_flow_kwargs = deepcopy(self.get_flow_kwargs)
-        get_flow_kwargs["headers"] = self._render_headers(
-            headers=get_flow_kwargs.get("headers", {}),
+        get_flow_request_kwargs = deepcopy(self.get_flow_request_kwargs)
+        get_flow_request_kwargs["headers"] = self._render_headers(
+            headers=get_flow_request_kwargs.get("headers", {}),
             secret_config=self.get_flow_secret_config,
         )
 
-        response = req_function(**get_flow_kwargs)  # type: ignore
+        response = req_function(**get_flow_request_kwargs)  # type: ignore
         response.raise_for_status()
 
         if self.stored_as_script:
@@ -246,16 +246,16 @@ class Webhook(Storage):
 
 
         flow.storage = Webhook(
-            build_kwargs={
+            build_request_kwargs={
                 "url": "some-service/upload",
                 "headers": {"Content-Type": "application/octet-stream"},
             },
-            build_http_method="POST",
-            get_flow_kwargs={
+            build_request_http_method="POST",
+            get_flow_request_kwargs={
                 "url": "some-service/download",
                 "headers": {"Accept": "application/octet-stream"},
             },
-            get_flow_http_method="GET",
+            get_flow_request_http_method="GET",
         )
 
         flow.storage.add_flow(flow)
@@ -265,7 +265,7 @@ class Webhook(Storage):
         flow_id = res._build_responses[flow.name].json()["id"]
 
         #  update storage
-        flow.storage.get_flow_kwargs["url"] = f"{GET_ROUTE}/{flow_id}"
+        flow.storage.get_flow_request_kwargs["url"] = f"{GET_ROUTE}/{flow_id}"
         ```
 
         Returns:
@@ -300,24 +300,24 @@ class Webhook(Storage):
                 with open(self.flow_script_path, "r") as f:
                     data = f.read().encode("utf-8")
 
-            req_function = self._method_to_function[self.build_http_method]
+            req_function = self._method_to_function[self.build_request_http_method]
 
-            build_kwargs = deepcopy(self.build_kwargs)
-            build_kwargs["headers"] = self._render_headers(
-                headers=build_kwargs.get("headers", {}),
+            build_request_kwargs = deepcopy(self.build_request_kwargs)
+            build_request_kwargs["headers"] = self._render_headers(
+                headers=build_request_kwargs.get("headers", {}),
                 secret_config=self.build_secret_config,
             )
 
-            if "data" in build_kwargs.keys():
+            if "data" in build_request_kwargs.keys():
                 msg = (
-                    "'data' found in build_kwargs. This value is overwritten "
+                    "'data' found in build_request_kwargs. This value is overwritten "
                     "with the flow content and should not be set directly"
                 )
                 self.logger.warning(msg)
                 warnings.warn(msg, RuntimeWarning)
-            build_kwargs["data"] = data
+            build_request_kwargs["data"] = data
 
-            response = req_function(**build_kwargs)  # type: ignore
+            response = req_function(**build_request_kwargs)  # type: ignore
             response.raise_for_status()
 
             self._build_responses[flow_name] = response

@@ -139,10 +139,10 @@ class WebhookSchema(ObjectSchema):
     class Meta:
         object_class = Webhook
 
-    build_kwargs = fields.Dict(key=fields.Str, allow_none=False)
-    build_http_method = fields.String(allow_none=False)
-    get_flow_kwargs = fields.Dict(key=fields.Str, allow_none=False)
-    get_flow_http_method = fields.String(allow_none=False)
+    build_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    build_request_http_method = fields.String(allow_none=False)
+    get_flow_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    get_flow_request_http_method = fields.String(allow_none=False)
     build_secret_config = fields.Dict(key=fields.Str, allow_none=False)
     get_flow_secret_config = fields.Dict(key=fields.Str, allow_none=False)
     stored_as_script = fields.Bool(allow_none=True)

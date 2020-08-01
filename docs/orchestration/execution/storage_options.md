@@ -153,7 +153,7 @@ from prefect.environments.storage import Webhook
 flow = Flow(
     "dropbox-flow",
     storage=Webhook(
-        build_kwargs={
+        build_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files/upload",
             "headers": {
                 "Content-Type": "application/octet-stream",
@@ -167,8 +167,8 @@ flow = Flow(
                 ),
             },
         },
-        build_http_method="POST",
-        get_flow_kwargs={
+        build_request_http_method="POST",
+        get_flow_request_kwargs={
             "url": "https://content.dropboxapi.com/2/files/download",
             "headers": {
                 "Accept": "application/octet-stream",
@@ -177,7 +177,7 @@ flow = Flow(
                 ),
             },
         },
-        get_flow_http_method="POST",
+        get_flow_request_http_method="POST",
         build_secret_config={
             "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
         },

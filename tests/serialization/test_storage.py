@@ -310,22 +310,22 @@ def test_webhook_full_serialize():
     get_url = f"{base_url}/download"
 
     webhook = storage.Webhook(
-        build_kwargs={
+        build_request_kwargs={
             "url": build_url,
             "headers": {
                 "Content-Type": content_type,
                 "Dropbox-API-Arg": json.dumps({"path": test_file}),
             },
         },
-        build_http_method="POST",
-        get_flow_kwargs={
+        build_request_http_method="POST",
+        get_flow_request_kwargs={
             "url": get_url,
             "headers": {
                 "Accept": content_type,
                 "Dropbox-API-Arg": json.dumps({"path": test_file}),
             },
         },
-        get_flow_http_method="POST",
+        get_flow_request_http_method="POST",
         build_secret_config={
             "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
         },
@@ -339,22 +339,22 @@ def test_webhook_full_serialize():
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["secrets"] == ["CREDS"]
-    assert serialized["build_kwargs"] == {
+    assert serialized["build_request_kwargs"] == {
         "url": build_url,
         "headers": {
             "Content-Type": content_type,
             "Dropbox-API-Arg": json.dumps({"path": test_file}),
         },
     }
-    assert serialized["build_http_method"] == "POST"
-    assert serialized["get_flow_kwargs"] == {
+    assert serialized["build_request_http_method"] == "POST"
+    assert serialized["get_flow_request_kwargs"] == {
         "url": get_url,
         "headers": {
             "Accept": content_type,
             "Dropbox-API-Arg": json.dumps({"path": test_file}),
         },
     }
-    assert serialized["get_flow_http_method"] == "POST"
+    assert serialized["get_flow_request_http_method"] == "POST"
     assert serialized["build_secret_config"] == {
         "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
     }
@@ -368,10 +368,10 @@ def test_webhook_different_secret_configs():
     }
     get_flow_config = {"Authorization": {"value": "READ_ONLY_TOKEN", "type": "secret"}}
     webhook = storage.Webhook(
-        build_kwargs={},
-        build_http_method="POST",
-        get_flow_kwargs={},
-        get_flow_http_method="POST",
+        build_request_kwargs={},
+        build_request_http_method="POST",
+        get_flow_request_kwargs={},
+        get_flow_request_http_method="POST",
         build_secret_config=build_config,
         get_flow_secret_config=get_flow_config,
     )
