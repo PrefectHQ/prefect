@@ -1,0 +1,5 @@
+enhancement:
+  - "Ignore calls to flow.register when parsing a flow using file based storage` - [#3051](https://github.com/PrefectHQ/prefect/issues/3051)"
+
+contributor:
+  - "[Panagiotis Simakis](https://github.com/sp1thas)"
