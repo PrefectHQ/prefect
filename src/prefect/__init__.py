@@ -23,7 +23,7 @@ import prefect.agent
 
 
 # import any specified on-start modules
-prefect_server.utilities.plugins.import_on_start_modules()
+prefect.utilities.plugins.import_on_start_modules()
 
 
 from ._version import get_versions
