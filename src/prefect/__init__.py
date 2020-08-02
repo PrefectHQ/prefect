@@ -21,11 +21,6 @@ from prefect.utilities.edges import mapped, unmapped, flatten
 import prefect.serialization
 import prefect.agent
 
-
-# import any specified on-start modules
-prefect.utilities.plugins.import_on_start_modules()
-
-
 from ._version import get_versions
 
 __version__ = get_versions()["version"]  # type: ignore

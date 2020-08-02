@@ -5,18 +5,6 @@ import prefect
 from prefect.utilities import plugins
 
 
-def test_on_start_modules_is_list():
-    assert isinstance(prefect.config.import_on_start, list)
-
-
-def test_import_modules():
-    with prefect.utilities.configuration.set_temporary_config(
-        {"import_on_start": ["x"]}
-    ):
-        with pytest.raises(ModuleNotFoundError, match="No module named 'x'"):
-            plugins.import_on_start_modules()
-
-
 class TestAPIRegistry:
     def test_register_function(self):
         @plugins.register_api("tests.my_fn")

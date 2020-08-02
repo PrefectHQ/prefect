@@ -128,6 +128,7 @@ class Client:
 
         Args:
             - name (str, optional): the name of the default tenant to create; defaults to "default"
+            - slug (str, optional): the slug of the default tenant to create; defaults to name
 
         Returns:
             - str: the ID of the newly created tenant, or the ID of the currently active tenant

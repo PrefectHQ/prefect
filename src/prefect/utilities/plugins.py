@@ -10,14 +10,6 @@ MODELS = REGISTRY.models
 PLUGINS = REGISTRY.plugins
 
 
-def import_on_start_modules():
-    """
-    Imports on-start modules from config
-    """
-    for module in prefect.config.import_on_start:
-        importlib.import_module(module)
-
-
 def _register(name: str, registry: dict):
     """
     A decorator for registering an object to a registry.
