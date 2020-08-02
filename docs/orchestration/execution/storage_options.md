@@ -165,6 +165,7 @@ flow = Flow(
                         "strict_conflict": True,
                     }
                 ),
+                "Authorization": "Bearer ${DBOX_OAUTH2_TOKEN}"
             },
         },
         build_request_http_method="POST",
@@ -175,19 +176,17 @@ flow = Flow(
                 "Dropbox-API-Arg": json.dumps(
                     {"path": "/Apps/prefect-test-app/dropbox-flow.flow"}
                 ),
+                "Authorization": "Bearer ${DBOX_OAUTH2_TOKEN}"
             },
         },
         get_flow_request_http_method="POST",
-        build_secret_config={
-            "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
-        },
     )
 )
 
 flow.storage.build()
 ```
 
-The `build_secret_config` is used to resolve environment variables to fill in request headers with sensitive information. Because this resolution is at runtime, this storage option never has your sensitive information stored in it and that sensitive information is never sent to Prefect Cloud. That config supports environment variables and [Prefect secrets](/core/concepts/secrets.html).
+Template strings in `${}` are used to reference sensitive information. Given `${SOME_TOKEN}`, this storage object will first look in environment variable `SOME_TOKEN` and then fall back to [Prefect secrets](/core/concepts/secrets.html) `SOME_TOKEN`. Because this resolution is at runtime, this storage option never has your sensitive information stored in it and that sensitive information is never sent to Prefect Cloud.
 
 ::: tip Sensible Defaults
 Flows registered with this storage option will automatically be labeled with `"webhook-flow-storage"`. Add that label to an agent to tell Prefect Cloud that that agent should run flows with `Webhook` storage.

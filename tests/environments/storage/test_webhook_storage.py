@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 from prefect import context
 from prefect import task, Flow
 from prefect.environments.storage import Webhook
+from prefect.environments.storage.webhook import _render_dict
 
 
 @pytest.fixture
@@ -61,10 +62,8 @@ def test_create_webhook_storage():
     assert storage.logger
     assert storage.build_request_kwargs == build_request_kwargs
     assert storage.build_request_http_method == "PATCH"
-    assert storage.build_secret_config == {}
     assert storage.get_flow_request_kwargs == get_flow_request_kwargs
     assert storage.get_flow_request_http_method == "GET"
-    assert storage.get_flow_secret_config == {}
     assert storage.secrets == []
     assert storage.default_labels == ["webhook-flow-storage"]
     assert storage.stored_as_script is False
@@ -227,17 +226,19 @@ def test_webhook_raises_error_on_get_flow_failure(sample_flow):
         webhook.get_flow()
 
 
-def test_render_headers_gets_env_variables(monkeypatch):
+def test_render_dict_gets_env_variables(monkeypatch):
     some_cred = str(uuid.uuid4())
     another_secret = str(uuid.uuid4())
     monkeypatch.setenv("SOME_CRED", some_cred)
     webhook = Webhook(
-        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_request_http_method="POST",
-        build_secret_config={
-            "X-Api-Key": {"name": "SOME_CRED", "type": "environment"},
-            "X-Custom-Key": {"name": "ANOTHER_SECRET", "type": "secret"},
+        build_request_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {
+                "X-Api-Key": "${SOME_CRED}",
+                "X-Custom-Key": "${ANOTHER_SECRET}",
+            },
         },
+        build_request_http_method="POST",
         get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         get_flow_request_http_method="GET",
     )
@@ -246,55 +247,79 @@ def test_render_headers_gets_env_variables(monkeypatch):
     context.setdefault("secrets", {})
     context.secrets["ANOTHER_SECRET"] = another_secret
 
-    initial_headers = {"X-Api-Key": "abc"}
-    new_headers = webhook._render_headers(
-        headers=initial_headers, secret_config=webhook.build_secret_config
-    )
+    new_kwargs = _render_dict(webhook.build_request_kwargs)
 
-    # _render_headers should not have side effects
-    assert initial_headers == {"X-Api-Key": "abc"}
+    # _render_dict should not have side effects
+    assert webhook.build_request_kwargs == {
+        "url": "https://content.dropboxapi.com/2/files",
+        "headers": {"X-Api-Key": "${SOME_CRED}", "X-Custom-Key": "${ANOTHER_SECRET}"},
+    }
 
     # env variables and secrets should have been filled in
-    assert new_headers["X-Api-Key"] == some_cred
-    assert new_headers["X-Custom-Key"] == another_secret
+    assert new_kwargs["headers"]["X-Api-Key"] == some_cred
+    assert new_kwargs["headers"]["X-Custom-Key"] == another_secret
 
 
-def test_render_headers_raises_expected_exception_on_missing_env_var(monkeypatch):
+def test_render_dict_raises_expected_exception_on_missing_env_var(monkeypatch):
     monkeypatch.delenv("SOME_CRED", raising=False)
     webhook = Webhook(
-        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_request_http_method="POST",
-        build_secret_config={
-            "X-Api-Key": {"name": "SOME_CRED", "type": "environment"},
+        build_request_kwargs={
+            "url": "https://content.dropboxapi.com/2/files",
+            "headers": {"X-Api-Key": "Token ${SOME_CRED}"},
         },
+        build_request_http_method="POST",
         get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         get_flow_request_http_method="GET",
     )
 
-    with pytest.raises(KeyError, match="SOME_CRED"):
-        initial_headers = {"X-Api-Key": "abc"}
-        webhook._render_headers(
-            headers=initial_headers, secret_config=webhook.build_secret_config
-        )
+    with pytest.raises(RuntimeError, match="SOME_CRED"):
+        _render_dict(webhook.build_request_kwargs)
 
 
-def test_render_headers_raises_expected_exception_on_missing_secret(monkeypatch):
+def test_render_dict_raises_expected_exception_on_missing_secret(monkeypatch):
     monkeypatch.delenv("ANOTHER_SECRET", raising=False)
     webhook = Webhook(
-        build_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
-        build_request_http_method="POST",
-        build_secret_config={
-            "X-Custom-Key": {"name": "ANOTHER_SECRET", "type": "secret"},
+        build_request_kwargs={
+            "url": "https://content.dropboxapi.com/2/files?key=${ANOTHER_SECRET}"
         },
+        build_request_http_method="POST",
         get_flow_request_kwargs={"url": "https://content.dropboxapi.com/2/files"},
         get_flow_request_http_method="GET",
     )
 
-    with pytest.raises(ValueError, match='Local Secret "ANOTHER_SECRET" was not found'):
-        initial_headers = {"X-Api-Key": "abc"}
-        webhook._render_headers(
-            headers=initial_headers, secret_config=webhook.build_secret_config
-        )
+    with pytest.raises(
+        RuntimeError, match="does not refer to an environment variable or"
+    ):
+        _render_dict(webhook.build_request_kwargs)
+
+
+def test_templating_works_with_env_variable_top_level(monkeypatch):
+    monkeypatch.setenv("JAVA_HOME", "abc")
+    x = {"a": "coffee_place: ${JAVA_HOME}"}
+    out = _render_dict(x)
+    assert out == {"a": "coffee_place: abc"}
+    assert x == {"a": "coffee_place: ${JAVA_HOME}"}
+
+
+def test_templating_works_with_env_variable_recursively(monkeypatch):
+    monkeypatch.setenv("USER", "leia")
+    x = {"a": {"b": {"c": "Bearer: ${USER}"}}}
+    out = _render_dict(x)
+    assert out == {"a": {"b": {"c": "Bearer: leia"}}}
+    assert x == {"a": {"b": {"c": "Bearer: ${USER}"}}}
+
+
+def templating_works_if_nothing_to_template():
+    x = {"thing": 4, "stuff": [5, 6, 7], "big": {"if": True}}
+    out = _render_dict(x)
+    assert out == x
+    assert x == {"thing": 4, "stuff": [5, 6, 7], "big": {"if": True}}
+
+
+def templating_works_with_embedded_json_strings():
+    x = {"headers": {"dropbox-args": '{"USER"}'}}
+    out = _render_dict(x)
+    assert out == x
 
 
 def test_webhook_works_with_file_storage(sample_flow, tmpdir):

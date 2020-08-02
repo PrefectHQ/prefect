@@ -326,9 +326,6 @@ def test_webhook_full_serialize():
             },
         },
         get_flow_request_http_method="POST",
-        build_secret_config={
-            "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
-        },
         secrets=["CREDS"],
     )
     f = prefect.Flow("test")
@@ -355,30 +352,4 @@ def test_webhook_full_serialize():
         },
     }
     assert serialized["get_flow_request_http_method"] == "POST"
-    assert serialized["build_secret_config"] == {
-        "Authorization": {"value": "DBOX_OAUTH2_TOKEN", "type": "environment"}
-    }
-    assert serialized["build_secret_config"] == serialized["get_flow_secret_config"]
     assert serialized["stored_as_script"] is False
-
-
-def test_webhook_different_secret_configs():
-    build_config = {
-        "Authorization": {"value": "WRITE_ONLY_TOKEN", "type": "environment"}
-    }
-    get_flow_config = {"Authorization": {"value": "READ_ONLY_TOKEN", "type": "secret"}}
-    webhook = storage.Webhook(
-        build_request_kwargs={},
-        build_request_http_method="POST",
-        get_flow_request_kwargs={},
-        get_flow_request_http_method="POST",
-        build_secret_config=build_config,
-        get_flow_secret_config=get_flow_config,
-    )
-    f = prefect.Flow("test")
-    webhook.flows["test"] = "key"
-
-    serialized = WebhookSchema().dump(webhook)
-    assert serialized["build_secret_config"] == build_config
-    assert serialized["get_flow_secret_config"] == get_flow_config
-    assert serialized["build_secret_config"] != serialized["get_flow_secret_config"]
