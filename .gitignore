@@ -7,7 +7,15 @@ __pycache__/
 .import-time.txt
 
 # C extensions
+*.a
+*.dll
+*.dylib
+*.o
 *.so
+
+# executables for Windows
+*.exe
+*.msi
 
 # vim noise
 *.swp
@@ -80,6 +88,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
+*.ipynb
 .ipynb_checkpoints
 
 # pyenv
