@@ -5,7 +5,7 @@ import warnings
 
 from collections.abc import Mapping
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -32,7 +32,7 @@ class _SecretMapping(Mapping):
     """
 
     def __getitem__(self, key: str) -> str:
-        out = os.getenv(key, None)
+        out = os.getenv(key, None)  # type: ignore
         if out is None:
             try:
                 out = Secret(key).get()
@@ -42,9 +42,9 @@ class _SecretMapping(Mapping):
                     "environment variable or Prefect secret."
                 )
                 raise RuntimeError(msg.format(key))
-        return out
+        return out  # type: ignore
 
-    def __iter__(self) -> Iterable:
+    def __iter__(self) -> Iterator[Any]:
         return iter([])
 
     def __len__(self) -> int:
@@ -86,7 +86,7 @@ def _render_dict(input_dict: Dict[str, Any]) -> Dict[str, Any]:
             new_value = string.Template(value).substitute(_mapping)
             output_dict[key] = new_value
         elif isinstance(value, dict):
-            output_dict[key] = _render_dict(value)
+            output_dict[key] = _render_dict(value)  # type: ignore
         else:
             output_dict[key] = value
 
