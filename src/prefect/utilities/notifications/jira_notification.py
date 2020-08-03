@@ -2,7 +2,7 @@
 A state-handler that will create and assign a Jira ticket.
 """
 
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, Union, cast, Optional
 from datetime import datetime
 from toolz import curry
 
@@ -40,7 +40,7 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     server_URL: str = None,
-    options: dict = {},
+    options: Optional[dict] = None,
     assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
@@ -111,6 +111,7 @@ def jira_notifier(
         ```
     """
 
+    options = options or dict()
     jira_credentials = cast(dict, prefect.client.Secret("JIRASECRETS").get())
     username = jira_credentials["JIRAUSER"]
     password = jira_credentials["JIRATOKEN"]

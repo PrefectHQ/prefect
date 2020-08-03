@@ -321,8 +321,26 @@ def start(
         if no_ui:
             cmd += ["--scale", "ui=0"]
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
-        while True:
-            time.sleep(0.5)
+        started = False
+        with prefect.utilities.configuration.set_temporary_config(
+            {
+                "cloud.api": "http://localhost:4200",
+                "cloud.graphql": "http://localhost:4200/graphql",
+                "backend": "server",
+            }
+        ):
+            client = prefect.Client()
+            while not started:
+                try:
+                    client.graphql("query{hello}", retry_on_api_error=False)
+                    started = True
+                    client.create_default_tenant()
+                    print(ascii_name)
+                except Exception as exc:
+                    time.sleep(0.5)
+                    pass
+            while True:
+                time.sleep(0.5)
     except BaseException:
         click.secho(
             "Exception caught; killing services (press ctrl-C to force)",
@@ -335,3 +353,35 @@ def start(
         if proc:
             proc.kill()
         raise
+
+
+@server.command(hidden=True)
+@click.option(
+    "--name",
+    "-n",
+    required=False,
+    help="The name of the default tenant to create",
+    default=None,
+    type=str,
+    hidden=True,
+)
+def create_default_tenant(name):
+    """
+    This command creates a default tenant for use with Prefect Server.
+
+    \b
+    Options:
+        --name, -n       TEXT    The name of the default tenant to create
+    """
+    client = prefect.Client()
+    client.create_default_tenant(name=name)
+
+
+ascii_name = r"""
+  _____           __          _      _____
+ |  __ \         / _|        | |    / ____|
+ | |__) | __ ___| |_ ___  ___| |_  | (___   ___ _ ____   _____ _ __
+ |  ___/ '__/ _ \  _/ _ \/ __| __|  \___ \ / _ \ '__\ \ / / _ \ '__|
+ | |   | | |  __/ ||  __/ (__| |_   ____) |  __/ |   \ V /  __/ |
+ |_|   |_|  \___|_| \___|\___|\__| |_____/ \___|_|    \_/ \___|_|
+"""

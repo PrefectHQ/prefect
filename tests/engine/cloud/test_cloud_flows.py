@@ -199,7 +199,7 @@ class MockedCloudClient(MagicMock):
         self.call_count[flow_run_id] += 1
 
         fr = self.flow_runs[flow_run_id]
-        if fr.version == version:
+        if fr.version == version or version is None:
             fr.state = state
             fr.version += 1
         else:
@@ -211,7 +211,7 @@ class MockedCloudClient(MagicMock):
         self.call_count[task_run_id] += 1
 
         tr = self.task_runs[task_run_id]
-        if tr.version == version:
+        if tr.version == version or version is None:
             tr.state = state
             tr.version += 1
         else:
@@ -256,7 +256,7 @@ class QueueingMockCloudClient(MockedCloudClient):
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
-def test_simple_two_task_flow(monkeypatch, executor):
+def test_simple_two_task_flow2(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
     task_run_id_2 = str(uuid.uuid4())
@@ -1001,15 +1001,14 @@ def test_slug_mismatch_raises_informative_error(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        with pytest.raises(prefect.engine.signals.ENDRUN) as exc:
-            state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
 
-    assert exc.value.state.is_failed()
+    assert state.is_failed()
 
     ## assert informative message; can't use `match` because the real exception is one layer depeer than the ENDRUN
-    assert "KeyError" in repr(exc.value.state.result)
-    assert "not found" in repr(exc.value.state.result)
-    assert "changing the Flow" in repr(exc.value.state.result)
+    assert "KeyError" in repr(state.result)
+    assert "not found" in repr(state.result)
+    assert "changing the Flow" in repr(state.result)
 
 
 def test_can_queue_successfully_and_run(monkeypatch):

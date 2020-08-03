@@ -1,0 +1,2 @@
+feature:
+  - "Support cancellation of active flow runs - [#2942](https://github.com/PrefectHQ/prefect/pull/2942)"
