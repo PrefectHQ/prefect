@@ -1,27 +1,26 @@
 ---
 home: true
-heroImage: /assets/wordmark-color-vertical.svg
+
 heroText: ' '
+tagline: ' '
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
 <div class="hero">
+   <img src="https://images.ctfassets.net/gm98wzqotmnx/3Ufcb7yYqcXBDlAhJ30gce/c237bb3254190795b30bf734f3cbc1d4/prefect-logo-full-gradient.svg" width="500" style="max-width: 500px;">
+   <p class="description">Don't Panic.</p>
     <div class="action">
         <button class="action-button">
             <router-link to="core/">
-                Prefect Core
+                Core Workflow Engine
             </router-link>
         </button>
         <button class="action-button">
             <router-link to="orchestration/">
-                Orchestration
+                Orchestration & API
             </router-link>
         </button>
     </div>
-</div>
-
-<div style="text-align: center;">
-  Have a few minutes to help make Prefect even better? Take our <a target="_blank" href="https://forms.gle/uLL9qW1hjEQkMp567">Prefect Server survey</a>!
 </div>
 
 <div class="features">

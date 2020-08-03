@@ -379,7 +379,7 @@ if __name__ == "__main__":
                 """
 
                 <div align="center" style="margin-bottom:40px;">
-                <img src="/assets/prefect-logo-full-gradient.svg"  width=600 >
+                <img src="/assets/prefect-logo-full-gradient.svg"  width=500 >
                 </div>
 
                 # API Reference
