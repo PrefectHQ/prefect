@@ -2,10 +2,12 @@
 
 Prefect Server sends usage telemetry and statistics to Prefect Technologies, Inc. All information collected is anonymous. We use this information to better understand how Prefect Server is used and to ensure that we're supporting active versions.
 
-To opt-out of telemetry, add the following to a user configuration file on the same machine as your Prefect Server instance (wherever you're calling `prefect server start`). See [user configuration](/core/concepts/configuration.md#user-configuration) for more details.
+To opt-out of telemetry, add the following to a prefect server configuration file on the same machine as your Prefect Server instance (wherever you're calling `prefect server start`).
 
 ```toml
-[server.telemetry]
+# ~/.prefect_server/config.toml
+
+[telemetry]
 enabled = false
 ```
 
