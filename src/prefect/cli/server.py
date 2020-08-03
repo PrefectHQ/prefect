@@ -249,6 +249,7 @@ def start(
         or no_ui_port
         or no_server_port
         or not use_volume
+        or no_ui
     ):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, "docker-compose.yml")
@@ -274,6 +275,9 @@ def start(
 
             if not use_volume:
                 del y["services"]["postgres"]["volumes"]
+
+            if no_ui:
+                del y["services"]["ui"]
 
         with open(temp_path, "w") as f:
             y = yaml.safe_dump(y, f)
@@ -318,8 +322,6 @@ def start(
             )
 
         cmd = ["docker-compose", "up"]
-        if no_ui:
-            cmd += ["--scale", "ui=0"]
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         started = False
         with prefect.utilities.configuration.set_temporary_config(
@@ -329,9 +331,9 @@ def start(
                 "backend": "server",
             }
         ):
-            client = prefect.Client()
             while not started:
                 try:
+                    client = prefect.Client()
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True
                     client.create_default_tenant()

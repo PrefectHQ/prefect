@@ -49,9 +49,9 @@ services:
     restart: "always"
     depends_on:
       - hasura
-  scheduler:
+  towel:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
-    command: "python src/prefect_server/services/scheduler/scheduler.py"
+    command: "python src/prefect_server/services/towel/__main__.py"
     environment:
       PREFECT_SERVER__HASURA__ADMIN_SECRET: ${PREFECT_SERVER__HASURA__ADMIN_SECRET:-hasura-secret-admin-secret}
       PREFECT_SERVER__HASURA__HOST: hasura

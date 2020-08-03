@@ -112,8 +112,7 @@ class Client:
                         # be cleared
                         self.logout_from_tenant()
         else:
-            settings = self._load_local_settings()
-            self._active_tenant_id = settings.get("active_tenant_id")
+            # TODO: Separate put this functionality and clean up initial tenant access handling
             if not self._active_tenant_id:
                 tenant_info = self.graphql({"query": {"tenant": {"id"}}})
                 if tenant_info.data.tenant:
