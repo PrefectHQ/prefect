@@ -18,6 +18,10 @@ class ClientError(PrefectError):
     pass
 
 
+class VersionLockError(PrefectError):
+    pass
+
+
 class AuthorizationError(ClientError):
     pass
 

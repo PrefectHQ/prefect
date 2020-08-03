@@ -73,12 +73,16 @@ Other Prefect terms, like "flow" or "task", should generally not be capitalized 
 
 Documentation (including both concepts and API references) is built and deployed with every merge to Prefect's master branch. Prior to merge, a GitHub check will allow you to see a hosted version of the documentation associated with every PR.
 
-To preview docs locally, you'll first need to install [VuePress](https://vuepress.vuejs.org/) and its dependencies. This requires the [yarn](https://yarnpkg.com/) package manager. You will also need to install the rest of Prefect's dependencies for generating docs. You only need to do this once:
+To preview docs locally, you'll first need to install
+[VuePress](https://vuepress.vuejs.org/) and its dependencies. This requires
+[Node.js](https://nodejs.org/en/) and `npm` (which is installed with Node.js).
+You will also need to install the rest of Prefect's dependencies for generating
+docs. You only need to do this once:
 
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
-yarn install
+npm install
 pip install ".[all_extras]"
 ```
 
@@ -86,7 +90,7 @@ To launch a documentation preview:
 
 ```bash
 cd prefect
-yarn docs:dev
+npm run docs:dev
 ```
 
 You'll see a status update as the docs build, and then an announcement that they are available on `http://localhost:8080`.

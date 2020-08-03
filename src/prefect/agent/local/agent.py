@@ -85,14 +85,16 @@ class LocalAgent(Agent):
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
-        self.labels.extend(
-            [
-                "azure-flow-storage",
-                "gcs-flow-storage",
-                "s3-flow-storage",
-                "github-flow-storage",
-            ]
-        )
+
+        all_storage_labels = [
+            "azure-flow-storage",
+            "gcs-flow-storage",
+            "s3-flow-storage",
+            "github-flow-storage",
+        ]
+        for label in all_storage_labels:
+            if label not in self.labels:
+                self.labels.append(label)
 
         self.logger.debug(f"Import paths: {self.import_paths}")
         self.logger.debug(f"Show flow logs: {self.show_flow_logs}")

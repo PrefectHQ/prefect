@@ -246,10 +246,12 @@ def start(
             k, v = env_var.split("=")
             env_vars[k] = v
 
+        labels = list(set(label))
+
         if agent_option == "local":
             from_qualified_name(retrieved_agent)(
                 name=name,
-                labels=list(label),
+                labels=labels,
                 env_vars=env_vars,
                 max_polls=max_polls,
                 agent_address=agent_address,
@@ -260,7 +262,7 @@ def start(
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
                 name=name,
-                labels=list(label),
+                labels=labels,
                 env_vars=env_vars,
                 max_polls=max_polls,
                 agent_address=agent_address,
@@ -274,7 +276,7 @@ def start(
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
                 name=name,
-                labels=list(label),
+                labels=labels,
                 env_vars=env_vars,
                 max_polls=max_polls,
                 agent_address=agent_address,
@@ -284,7 +286,7 @@ def start(
             from_qualified_name(retrieved_agent)(
                 namespace=namespace,
                 name=name,
-                labels=list(label),
+                labels=labels,
                 env_vars=env_vars,
                 max_polls=max_polls,
                 agent_address=agent_address,
@@ -292,7 +294,7 @@ def start(
         else:
             from_qualified_name(retrieved_agent)(
                 name=name,
-                labels=list(label),
+                labels=labels,
                 env_vars=env_vars,
                 max_polls=max_polls,
                 agent_address=agent_address,
@@ -476,6 +478,7 @@ def install(
         k, v = env_var.split("=")
         env_vars[k] = v
 
+    labels = list(set(label))
     if name == "kubernetes":
         deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
             token=token,
@@ -491,7 +494,7 @@ def install(
             cpu_limit=cpu_limit,
             image_pull_policy=image_pull_policy,
             service_account_name=service_account_name,
-            labels=list(label),
+            labels=labels,
             env_vars=env_vars,
             backend=backend,
         )
@@ -499,7 +502,7 @@ def install(
     elif name == "local":
         conf = from_qualified_name(retrieved_agent).generate_supervisor_conf(
             token=token,
-            labels=list(label),
+            labels=labels,
             import_paths=list(import_path),
             show_flow_logs=show_flow_logs,
         )

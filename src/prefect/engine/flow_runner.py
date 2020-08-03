@@ -3,10 +3,12 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     NamedTuple,
     Optional,
     Set,
 )
+from contextlib import contextmanager
 
 import pendulum
 import prefect
@@ -15,7 +17,6 @@ from prefect.engine.result import Result
 from prefect.engine.results import ConstantResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
-    Cancelled,
     Failed,
     Mapped,
     Pending,
@@ -220,7 +221,6 @@ class FlowRunner(Runner):
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
-
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
 
         # make copies to avoid modifying user inputs
@@ -256,10 +256,6 @@ class FlowRunner(Runner):
         except ENDRUN as exc:
             state = exc.state
 
-        except KeyboardInterrupt:
-            self.logger.debug("Interrupt signal raised, cancelling Flow run.")
-            state = Cancelled(message="Interrupt signal raised, cancelling flow run.")
-
         # All other exceptions are trapped and turned into Failed states
         except Exception as exc:
             self.logger.exception(
@@ -274,6 +270,14 @@ class FlowRunner(Runner):
             state = self.handle_state_change(state or Pending(), new_state)
 
         return state
+
+    @contextmanager
+    def check_for_cancellation(self) -> Iterator:
+        """Contextmanager used to wrap a cancellable section of a flow run.
+
+        No-op for the default `FlowRunner` class.
+        """
+        yield
 
     @call_state_handlers
     def check_flow_reached_start_time(self, state: State) -> State:
@@ -407,7 +411,7 @@ class FlowRunner(Runner):
 
         # -- process each task in order
 
-        with executor.start():
+        with self.check_for_cancellation(), executor.start():
 
             for task in self.flow.sorted_tasks():
                 task_state = task_states.get(task)

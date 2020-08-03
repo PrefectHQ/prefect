@@ -43,8 +43,8 @@ def test_auth_login(patch_post, monkeypatch, cloud_api):
     assert result.exit_code == 0
 
 
-def test_auth_login_client_error(patch_post, cloud_api):
-    patch_post(dict(errors=dict(error="bad")))
+def test_auth_login_client_error(patch_post):
+    patch_post(dict(errors=[dict(error={})]))
 
     runner = CliRunner()
     result = runner.invoke(auth, ["login", "--token", "test"])

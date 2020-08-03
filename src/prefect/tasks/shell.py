@@ -97,27 +97,29 @@ class ShellTask(prefect.Task):
                 tmp.write("\n".encode())
             tmp.write(command.encode())
             tmp.flush()
-            sub_process = Popen(
+            with Popen(
                 [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
-            )
-            lines = []
-            line = None
-            for raw_line in iter(sub_process.stdout.readline, b""):
-                line = raw_line.decode("utf-8").rstrip()
-                if self.return_all:
-                    lines.append(line)
-                else:
-                    # if we're returning all, we don't log every line
-                    self.logger.debug(line)
-            sub_process.wait()
-            if sub_process.returncode:
-                msg = "Command failed with exit code {}".format(sub_process.returncode,)
-                self.logger.error(msg)
+            ) as sub_process:
+                lines = []
+                line = None
+                for raw_line in iter(sub_process.stdout.readline, b""):
+                    line = raw_line.decode("utf-8").rstrip()
+                    if self.return_all:
+                        lines.append(line)
+                    else:
+                        # if we're returning all, we don't log every line
+                        self.logger.debug(line)
+                sub_process.wait()
+                if sub_process.returncode:
+                    msg = "Command failed with exit code {}".format(
+                        sub_process.returncode,
+                    )
+                    self.logger.error(msg)
 
-                if self.log_stderr:
-                    self.logger.error("\n".join(lines))
+                    if self.log_stderr:
+                        self.logger.error("\n".join(lines))
 
-                raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
+                    raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
         if self.return_all:
             return lines
         else:

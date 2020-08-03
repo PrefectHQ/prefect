@@ -18,6 +18,7 @@ from prefect.engine.state import (
     State,
 )
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
+from prefect.utilities.exceptions import VersionLockError
 from prefect.utilities.executors import tail_recursive
 from prefect.utilities.graphql import with_args
 
@@ -110,10 +111,37 @@ class CloudTaskRunner(TaskRunner):
             cloud_state = new_state
             state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
-                version=version,
+                version=version if cloud_state.is_running() else None,
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
+        except VersionLockError:
+            state = self.client.get_task_run_state(task_run_id=task_run_id)
+
+            if state.is_running():
+                self.logger.debug(
+                    "Version lock encountered and task {} is already in a running state.".format(
+                        self.task.name
+                    )
+                )
+                raise ENDRUN(state=state)
+
+            self.logger.debug(
+                "Version lock encountered for task {}, proceeding with state {}...".format(
+                    self.task.name, type(state).__name__
+                )
+            )
+
+            try:
+                new_state = state.load_result(self.result)
+            except Exception as exc:
+                self.logger.debug(
+                    "Error encountered attempting to load result for state of {} task...".format(
+                        self.task.name
+                    )
+                )
+                self.logger.error(repr(exc))
+                raise ENDRUN(state=state)
         except Exception as exc:
             self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))
@@ -124,8 +152,7 @@ class CloudTaskRunner(TaskRunner):
             state.state = old_state  # type: ignore
             raise ENDRUN(state=state)
 
-        if version is not None:
-            prefect.context.update(task_run_version=version + 1)  # type: ignore
+        prefect.context.update(task_run_version=(version or 0) + 1)
 
         return new_state
 

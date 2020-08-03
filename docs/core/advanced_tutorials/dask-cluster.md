@@ -28,7 +28,7 @@ If you'd like to kick the tires on Dask locally, you can [install Dask distribut
 > dask-worker tcp://10.0.0.41:8786
 ```
 
-Once you have a cluster up and running, let's deploy a very basic flow that runs on this cluster. This example was repurposed from the [distributed documentation](https://distributed.readthedocs.io/en/latest/web.html#example-computation):
+Once you have a cluster up and running, let's deploy a very basic flow that runs on this cluster. This example makes the classic "diamond shape" of a flow, where many tasks run in parallel and are bottlenecked by a final task that depends on their upstream states. This type of flow benefits greatly from the parallelism supported by an executor like Dask. 
 
 ```python
 from prefect import task, Flow
@@ -147,4 +147,13 @@ This flow will now run every minute on your local Dask cluster until you kill th
 
 ## Further steps
 
-Take this example to the next level by storing your flow in a Docker container and deploying it with Dask on Kubernetes using the excellent [dask-kubernetes](http://kubernetes.dask.org/en/latest/) project!
+Dask is a fully featured tool all on its own, including many different ways to deploy it. For the latest in how to deploy Dask, check out the [Dask setup docs](https://docs.dask.org/en/latest/setup.html). There is also [this great blog post on the Dask blog](https://blog.dask.org/2020/07/23/current-state-of-distributed-dask-clusters) describing the current state of all the ways to deploy distributed Dask clusters.
+
+Often at some point users become interested in optimizing their Dask cluster for their workload. Usually this comes down to a tweaking the resource utilization of your dask cluster through settings such as
+- how many workers
+- the machine type / size the workers are on
+- how many threads each worker uses to schedule work
+
+There are also some best practices in terms of splitting up your work to make the dask scheduler as efficient as possible, particularly when it comes to data transfer. Another common gotcha when deploying to a distributed Dask cluster is making sure dependencies match across all of your Dask workers.
+
+For more details on what to look out for while optimizing these aspects of your Dask cluster and workload, check out [this blog co-written by Prefect and Saturn Cloud](https://blog.dask.org/2020/07/30/beginners-config).
