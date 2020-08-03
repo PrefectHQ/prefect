@@ -1,6 +1,5 @@
 ---
 home: true
-
 heroText: ' '
 tagline: ' '
 footer: Copyright © 2018-present Prefect Technologies, Inc.
