@@ -343,7 +343,7 @@ def start(
                     started = True
                     client.create_default_tenant()
                     print(ascii_name)
-                except Exception as exc:
+                except Exception:
                     time.sleep(0.5)
                     pass
             while True:

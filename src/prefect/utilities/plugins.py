@@ -1,8 +1,6 @@
-import prefect
-from typing import Callable
+from typing import Any, Callable
 
 from box import Box
-import importlib
 
 REGISTRY = Box(api=Box(), models=Box(), plugins=Box())
 API = REGISTRY.api
@@ -10,12 +8,12 @@ MODELS = REGISTRY.models
 PLUGINS = REGISTRY.plugins
 
 
-def _register(name: str, registry: dict):
+def _register(name: str, registry: dict) -> Callable:
     """
     A decorator for registering an object to a registry.
     """
 
-    def _register(obj):
+    def _register(obj: Any) -> Any:
         nonlocal registry
         keys = name.split(".")
         for key in keys[:-1]:
