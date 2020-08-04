@@ -900,7 +900,7 @@ def test_cloud_task_runner_sends_heartbeat_on_queued_retries(client):
 
 
 class TestLoadResults:
-    def test_load_results_from_upstream_reads_results(self):
+    def test_load_results_from_upstream_reads_results(self, cloud_api):
         result = PrefectResult(location="1")
         state = Success(result=result)
 
@@ -913,7 +913,9 @@ class TestLoadResults:
         )
         assert upstreams[edge].result == 1
 
-    def test_load_results_from_upstream_reads_results_using_upstream_handlers(self):
+    def test_load_results_from_upstream_reads_results_using_upstream_handlers(
+        self, cloud_api
+    ):
         class CustomResult(Result):
             def read(self, *args, **kwargs):
                 return "foo-bar-baz".split("-")
@@ -925,7 +927,7 @@ class TestLoadResults:
         )
         assert upstreams[edge].result == ["foo", "bar", "baz"]
 
-    def test_load_results_from_upstream_reads_secret_results(self):
+    def test_load_results_from_upstream_reads_secret_results(self, cloud_api):
         secret_result = SecretResult(prefect.tasks.secrets.PrefectSecret(name="foo"))
 
         state = Success(result=PrefectResult(location="foo"))

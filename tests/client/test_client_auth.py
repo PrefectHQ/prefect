@@ -44,7 +44,7 @@ class TestClientConfig:
         assert client.api_server == "my-graphql"
         assert client._api_token == "token"
 
-    def test_client_settings_path_is_path_object(self):
+    def test_client_settings_path_is_path_object(self, cloud_api):
         assert isinstance(Client()._local_settings_path, Path)
 
     def test_client_settings_path_depends_on_api_server(
@@ -95,7 +95,7 @@ class TestClientConfig:
                 client = Client()
         assert client._api_token == "CONFIG_TOKEN"
 
-    def test_client_token_priotizes_arg_over_config(self):
+    def test_client_token_priotizes_arg_over_config(self, cloud_api):
         with set_temporary_config({"cloud.auth_token": "CONFIG_TOKEN"}):
             client = Client(api_token="ARG_TOKEN")
         assert client._api_token == "ARG_TOKEN"
