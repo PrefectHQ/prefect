@@ -159,7 +159,12 @@ class TaskRunner(Runner):
             task_name=self.task.name,
             task_tags=self.task.tags,
         )
-        context.setdefault("checkpointing", config.flows.checkpointing)
+        # Use the config stored in context if possible (should always be present)
+        try:
+            checkpointing = context["config"]["flows"]["checkpointing"]
+        except KeyError:
+            checkpointing = config.flows.checkpointing
+        context.setdefault("checkpointing", checkpointing)
 
         map_index = context.get("map_index", None)
         if isinstance(map_index, int) and context.get("task_full_name"):
