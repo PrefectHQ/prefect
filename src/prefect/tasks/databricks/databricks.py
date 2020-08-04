@@ -15,24 +15,23 @@ class DatabricksRunSubmit(Task):
     Submit a Databricks one-time run
 
     Args:
-        databricks_token: Databricks secret token
-        databricks_host: Databricks shard host
-        spark_jar_task: Indicates that this job should run a JAR.
-        notebook_task: Indicates that this job should run a notebook.
-                       This field may not be specified in conjunction with spark_jar_task.
-        spark_python_task: Indicates that this job should run a Python file.
-        spark_submit_task: Indicates that this job should run spark submit script
-        new_cluster: A description of a cluster that will be created for each run.
-        existing_cluster_id: The ID of an existing cluster that will be used for all runs of this job
-        libraries: An optional list of libraries to be installed on the cluster
-        timeout_seconds: An optional timeout applied to each run of this job, default is no timeout
-        databricks_retry_limit: Limit the number of retry to call the submit endpoint
-        databricks_retry_delay: Delay in seconds between two retries
-        polling_period: Delay in seconds between two consecutive call
-                        of the GET jobs/runs/get?run_id=<...> endpoint
-        polling_timeout: Timeout when unable to fetch a run state in the imparted time frame,
-                         must be extended for long running task
-        **kwargs:
+        - databricks_token: Databricks secret token
+        - databricks_host: Databricks shard host
+        - spark_jar_task: Indicates that this job should run a JAR.
+        - notebook_task: Indicates that this job should run a notebook.
+                         This field may not be specified in conjunction with spark_jar_task.
+        - spark_python_task: Indicates that this job should run a Python file.
+        - spark_submit_task: Indicates that this job should run spark submit script
+        - new_cluster: A description of a cluster that will be created for each run.
+        - existing_cluster_id: The ID of an existing cluster that will be used for all runs of this job
+        - libraries: An optional list of libraries to be installed on the cluster
+        - timeout_seconds: An optional timeout applied to each run of this job, default is no timeout
+        - databricks_retry_limit: Limit the number of retry to call the submit endpoint
+        - databricks_retry_delay: Delay in seconds between two retries
+        - polling_period: Delay in seconds between two consecutive GET call
+        - polling_timeout: Timeout when unable to fetch a run state in the imparted time frame,
+                           must be extended for long running task
+        - **kwargs: additional arguments
     """
 
     def __init__(
@@ -126,9 +125,10 @@ class DatabricksRunSubmit(Task):
         """
         Utility function to get a cluster id from cluster name
         Args:
-            name: cluster name
+            - name: cluster name
 
-        Returns: cluster id
+        Returns:
+            - The cluster id
         """
         self.logger.info("Fetching existing clusters information ...")
         query = f"{self._end_point}/clusters/list"
@@ -156,19 +156,16 @@ class DatabricksRunSubmit(Task):
     def _wait_for_run_to_complete(self, run_id, polling_period, timeout=3600):
         """
         Fetch Databricks run status via api/../jobs/run/get?run_id=<RUN_ID> until run state
-        is terminated. A run is terminated when matching one of the following status:
-            - SUCCESS
-            - FAILED
-            - TIMEDOUT
-            - CANCELED
+        is terminated. A run is terminated when matching either SUCCESS, FAILED, TIMEDOUT or CANCELED
 
         Args:
-            run_id: Databricks run Id
-            polling_period: Delay in seconds between each API call
-            timeout: Timeout
-            
-        Returns: Run response payload as python dict,
-                 see https://docs.databricks.com/dev-tools/api/latest/jobs.html#runs-get
+            - run_id: Databricks run Id
+            - polling_period: Delay in seconds between each API call
+            - timeout: Timeout
+
+        Returns:
+            - Run response payload as python dict,
+              see https://docs.databricks.com/dev-tools/api/latest/jobs.html#runs-get
         """
         query = f"{self._end_point}/jobs/runs/get?run_id={run_id}"
         start_time = time()
@@ -210,8 +207,9 @@ class DatabricksRunSubmit(Task):
         """
         Task run method.
 
-        Returns: Run response payload as python dict,
-                 see https://docs.databricks.com/dev-tools/api/latest/jobs.html#runs-get
+        Returns:
+            - Run response payload as python dict,
+              see https://docs.databricks.com/dev-tools/api/latest/jobs.html#runs-get
         """
         attempt_num = 1
         while attempt_num < self._databricks_retry_limit:
