@@ -384,7 +384,7 @@ class DockerAgent(Agent):
 
         container = self.docker_client.create_container(
             image,
-            command="prefect execute cloud-flow",
+            command="prefect execute flow-run",
             environment=env_vars,
             volumes=container_mount_paths,
             host_config=self.docker_client.create_host_config(**host_config),

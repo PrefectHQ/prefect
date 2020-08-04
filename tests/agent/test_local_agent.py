@@ -12,7 +12,7 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_local_agent_init(runner_token):
+def test_local_agent_init(cloud_api):
     agent = LocalAgent()
     assert agent
     assert set(agent.labels) == {
@@ -26,7 +26,7 @@ def test_local_agent_init(runner_token):
     assert agent.name == "agent"
 
 
-def test_local_agent_deduplicates_labels(runner_token):
+def test_local_agent_deduplicates_labels(cloud_api):
     agent = LocalAgent(labels=["azure-flow-storage"])
     assert agent
     assert set(agent.labels) == {
@@ -40,7 +40,7 @@ def test_local_agent_deduplicates_labels(runner_token):
     assert len(agent.labels) == len(set(agent.labels))
 
 
-def test_local_agent_config_options(runner_token):
+def test_local_agent_config_options(cloud_api):
     with set_temporary_config(
         {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
     ):
@@ -67,7 +67,7 @@ def test_local_agent_config_options(runner_token):
 
 
 @pytest.mark.parametrize("flag", [True, False])
-def test_local_agent_responds_to_logging_config(runner_token, flag):
+def test_local_agent_responds_to_logging_config(cloud_api, flag):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = LocalAgent(no_cloud_logs=flag)
         assert agent.log_to_cloud is not flag
@@ -77,7 +77,7 @@ def test_local_agent_responds_to_logging_config(runner_token, flag):
         assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
 
-def test_local_agent_config_options_hostname(runner_token):
+def test_local_agent_config_options_hostname(cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = LocalAgent(labels=["test_label"])
         assert set(agent.labels) == {
@@ -91,7 +91,7 @@ def test_local_agent_config_options_hostname(runner_token):
         }
 
 
-def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch, runner_token):
+def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch, cloud_api):
     monkeypatch.setattr("socket.gethostname", MagicMock(return_value="docker-desktop"))
     monkeypatch.setattr("socket.gethostbyname", MagicMock(return_value="IP"))
 
@@ -99,7 +99,7 @@ def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch, runner_token
     assert "IP" in agent.labels
 
 
-def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
+def test_populate_env_vars_uses_user_provided_env_vars(cloud_api):
     with set_temporary_config(
         {
             "cloud.api": "api",
@@ -116,7 +116,7 @@ def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
     assert env_vars["AUTH_THING"] == "foo"
 
 
-def test_populate_env_vars_uses_user_provided_env_vars_removes_nones(runner_token):
+def test_populate_env_vars_uses_user_provided_env_vars_removes_nones(cloud_api):
     with set_temporary_config(
         {
             "cloud.api": "api",
@@ -133,7 +133,7 @@ def test_populate_env_vars_uses_user_provided_env_vars_removes_nones(runner_toke
     assert "MISSING_VAR" not in env_vars
 
 
-def test_populate_env_vars(runner_token):
+def test_populate_env_vars(cloud_api):
     with set_temporary_config(
         {
             "cloud.api": "api",
@@ -172,7 +172,7 @@ def test_populate_env_vars(runner_token):
         assert env_vars == expected_vars
 
 
-def test_populate_env_vars_includes_agent_labels(runner_token):
+def test_populate_env_vars_includes_agent_labels(cloud_api):
     with set_temporary_config(
         {
             "cloud.api": "api",
@@ -213,7 +213,7 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
         assert env_vars == expected_vars
 
 
-def test_local_agent_deploy_processes_local_storage(monkeypatch, runner_token):
+def test_local_agent_deploy_processes_local_storage(monkeypatch, cloud_api):
 
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
@@ -234,7 +234,7 @@ def test_local_agent_deploy_processes_local_storage(monkeypatch, runner_token):
     assert len(agent.processes) == 1
 
 
-def test_local_agent_deploy_processes_gcs_storage(monkeypatch, runner_token):
+def test_local_agent_deploy_processes_gcs_storage(monkeypatch, cloud_api):
 
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
@@ -255,7 +255,7 @@ def test_local_agent_deploy_processes_gcs_storage(monkeypatch, runner_token):
     assert len(agent.processes) == 1
 
 
-def test_local_agent_deploy_processes_s3_storage(monkeypatch, runner_token):
+def test_local_agent_deploy_processes_s3_storage(monkeypatch, cloud_api):
 
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
@@ -276,7 +276,7 @@ def test_local_agent_deploy_processes_s3_storage(monkeypatch, runner_token):
     assert len(agent.processes) == 1
 
 
-def test_local_agent_deploy_processes_azure_storage(monkeypatch, runner_token):
+def test_local_agent_deploy_processes_azure_storage(monkeypatch, cloud_api):
 
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
@@ -323,7 +323,7 @@ def test_local_agent_deploy_processes_webhook_storage(monkeypatch, runner_token)
 
 
 def test_local_agent_deploy_storage_raises_not_supported_storage(
-    monkeypatch, runner_token
+    monkeypatch, cloud_api
 ):
 
     popen = MagicMock()
@@ -342,7 +342,7 @@ def test_local_agent_deploy_storage_raises_not_supported_storage(
     assert len(agent.processes) == 0
 
 
-def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
+def test_local_agent_deploy_storage_fails_none(monkeypatch, cloud_api):
 
     client = MagicMock()
     set_state = MagicMock()
@@ -371,7 +371,7 @@ def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
     assert client.called
 
 
-def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
+def test_local_agent_deploy_import_paths(monkeypatch, cloud_api):
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
@@ -392,7 +392,7 @@ def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
     assert "paths" in popen.call_args[1]["env"]["PYTHONPATH"]
 
 
-def test_local_agent_deploy_keep_existing_python_path(monkeypatch, runner_token):
+def test_local_agent_deploy_keep_existing_python_path(monkeypatch, cloud_api):
     monkeypatch.setenv("PYTHONPATH", "cool:python:path")
 
     popen = MagicMock()
@@ -418,7 +418,7 @@ def test_local_agent_deploy_keep_existing_python_path(monkeypatch, runner_token)
     assert "paths" in python_path
 
 
-def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
+def test_local_agent_deploy_no_existing_python_path(monkeypatch, cloud_api):
     monkeypatch.delenv("PYTHONPATH", raising=False)
 
     popen = MagicMock()
@@ -441,7 +441,7 @@ def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
     assert "paths" in popen.call_args[1]["env"]["PYTHONPATH"]
 
 
-def test_generate_supervisor_conf(runner_token):
+def test_generate_supervisor_conf(cloud_api):
     agent = LocalAgent()
 
     conf = agent.generate_supervisor_conf(
@@ -466,12 +466,12 @@ def test_generate_supervisor_conf(runner_token):
     ),
 )
 def test_local_agent_heartbeat(
-    monkeypatch, runner_token, returncode, show_flow_logs, logs
+    monkeypatch, cloud_api, returncode, show_flow_logs, logs
 ):
     popen = MockPopen()
     # expect a process to be called with the following command (with specified behavior)
     popen.set_command(
-        "prefect execute cloud-flow",
+        "prefect execute flow-run",
         stdout=b"awesome output!",
         stderr=b"blerg, eRroR!",
         returncode=returncode,
@@ -521,7 +521,7 @@ def test_local_agent_heartbeat(
     assert len(agent.processes) == 0
 
 
-def test_local_agent_start_max_polls(monkeypatch, runner_token):
+def test_local_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
     on_shutdown = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
 
@@ -541,7 +541,7 @@ def test_local_agent_start_max_polls(monkeypatch, runner_token):
     assert heartbeat.called
 
 
-def test_local_gent_start_max_polls_count(monkeypatch, runner_token):
+def test_local_gent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
     on_shutdown = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
 
@@ -562,7 +562,7 @@ def test_local_gent_start_max_polls_count(monkeypatch, runner_token):
     assert heartbeat.call_count == 2
 
 
-def test_local_agent_start_max_polls_zero(monkeypatch, runner_token):
+def test_local_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
     on_shutdown = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
 

@@ -24,37 +24,28 @@ def test_create_help():
     )
 
 
-def test_create_project(patch_post):
+def test_create_project(patch_post, cloud_api):
     patch_post(dict(data=dict(create_project=dict(id="id"))))
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        runner = CliRunner()
-        result = runner.invoke(create, ["project", "test"])
-        assert result.exit_code == 0
-        assert "test created" in result.output
+    runner = CliRunner()
+    result = runner.invoke(create, ["project", "test"])
+    assert result.exit_code == 0
+    assert "test created" in result.output
 
 
 def test_create_project_error(patch_post):
     patch_post(dict(errors=[dict(error={})]))
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        runner = CliRunner()
-        result = runner.invoke(create, ["project", "test"])
-        assert result.exit_code == 0
-        assert "Error creating project" in result.output
+    runner = CliRunner()
+    result = runner.invoke(create, ["project", "test"])
+    assert result.exit_code == 0
+    assert "Error creating project" in result.output
 
 
-def test_create_project_description(patch_post):
+def test_create_project_description(patch_post, cloud_api):
     patch_post(dict(data=dict(create_project=dict(id="id"))))
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        runner = CliRunner()
-        result = runner.invoke(create, ["project", "test", "-d", "description"])
-        assert result.exit_code == 0
-        assert "test created" in result.output
+    runner = CliRunner()
+    result = runner.invoke(create, ["project", "test", "-d", "description"])
+    assert result.exit_code == 0
+    assert "test created" in result.output

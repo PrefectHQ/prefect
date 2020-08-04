@@ -10,7 +10,6 @@ SKIPLINES = 1
 SECTIONS = [
     ("feature", "Features"),
     ("enhancement", "Enhancements"),
-    ("server", "Server"),
     ("task", "Task Library"),
     ("fix", "Fixes"),
     ("deprecation", "Deprecations"),

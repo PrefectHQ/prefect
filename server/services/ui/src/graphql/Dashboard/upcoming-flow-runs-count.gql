@@ -1,7 +1,0 @@
-query UpcomingFlowRunsCount {
-  flow_run_aggregate(where: { state: { _eq: "Scheduled" } }) {
-    aggregate {
-      count
-    }
-  }
-}

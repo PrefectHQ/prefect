@@ -1,7 +1,0 @@
-query TeamSettingsFlowVersionGroups {
-  versionGroup: flow(distinct_on: [version_group_id]) {
-    version_group_id
-    id
-    name
-  }
-}

@@ -88,10 +88,17 @@ def flows(name, version, project, output):
                                 Defaults to json.
     """
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}}}
+    where_clause = {
+        "_and": {
+            "name": {"_eq": name},
+            "version": {"_eq": version},
+            "project": {"name": {"_eq": project}},
+        }
+    }
     query_results = {
         "name": True,
         "version": True,
+        "project": {"name": True},
         "created": True,
         "description": True,
         "parameters": True,
@@ -99,10 +106,6 @@ def flows(name, version, project, output):
         "storage": True,
         "environment": True,
     }
-
-    if project:
-        where_clause["_and"]["project"] = {"name": {"_eq": project}}
-        query_results["project"] = {"name": True}
 
     query = {
         "query": {
@@ -148,10 +151,13 @@ def tasks(name, version, project, output):
                                 Defaults to json.
     """
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}}}
-
-    if project:
-        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+    where_clause = {
+        "_and": {
+            "name": {"_eq": name},
+            "version": {"_eq": version},
+            "project": {"name": {"_eq": project}},
+        }
+    }
 
     query = {
         "query": {

@@ -453,7 +453,11 @@ class Agent:
         result = self.client.graphql(
             mutation,
             variables={
-                "input": {"before": now.isoformat(), "labels": list(self.labels)}
+                "input": {
+                    "before": now.isoformat(),
+                    "labels": list(self.labels),
+                    "tenant_id": self.client._active_tenant_id,
+                }
             },
         )
 

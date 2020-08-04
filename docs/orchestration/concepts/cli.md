@@ -324,7 +324,7 @@ Hello World! created
 
 ### execute
 
-#### execute cloud-flow
+#### execute flow-run
 
 ::: warning Not Useful for Local Execution
 This command executes a flow's environment in the context of Prefect Cloud and runs during Cloud execution so it is not meant for local use. Other `execute` commands may be added in the future.
@@ -332,12 +332,12 @@ This command executes a flow's environment in the context of Prefect Cloud and r
 
 ### run
 
-#### run cloud
+#### run flow
 
 Running this command requires that a flow name (`--name`) and project (`--project`) is specified in order to create a flow run for that particular flow in Prefect Cloud.
 
 ```
-$ prefect run cloud --name my-flow --project Demo
+$ prefect run flow --name my-flow --project Demo
 Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
 ```
 
@@ -348,7 +348,7 @@ This command also supports two live output options, `--watch` and `--logs`. Usin
 Live updating output with `--watch`:
 
 ```
-$ prefect run cloud --name my-flow --project Demo --watch
+$ prefect run flow --name my-flow --project Demo --watch
 Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
 Scheduled -> Submitted -> Running -> Success
 ```
@@ -356,7 +356,7 @@ Scheduled -> Submitted -> Running -> Success
 Live updating output with `--logs`:
 
 ```
-$ prefect run cloud --name my-flow --project Demo --logs
+$ prefect run flow --name my-flow --project Demo --logs
 Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
 TIMESTAMP                         LEVEL    MESSAGE
 2019-07-17T23:37:22.816988+00:00  INFO     Beginning Flow run for 'my-flow'

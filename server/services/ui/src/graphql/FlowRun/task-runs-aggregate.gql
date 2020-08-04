@@ -1,7 +1,0 @@
-query TaskRunsCount($where: task_run_bool_exp) {
-  task_run_aggregate(where: $where) {
-    aggregate {
-      count
-    }
-  }
-}

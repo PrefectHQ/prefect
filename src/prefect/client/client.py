@@ -96,20 +96,60 @@ class Client:
             "auth_token", None
         )
 
-        # if no api token was passed, attempt to load state from local storage
-        if not self._api_token and prefect.config.backend == "cloud":
-            settings = self._load_local_settings()
-            self._api_token = settings.get("api_token")
+        if prefect.config.backend == "cloud":
+            if not self._api_token:
+                # if no api token was passed, attempt to load state from local storage
+                settings = self._load_local_settings()
+                self._api_token = settings.get("api_token")
 
-            if self._api_token:
-                self._active_tenant_id = settings.get("active_tenant_id")
-            if self._active_tenant_id:
-                try:
-                    self.login_to_tenant(tenant_id=self._active_tenant_id)
-                except AuthorizationError:
-                    # if an authorization error is raised, then the token is invalid and should
-                    # be cleared
-                    self.logout_from_tenant()
+                if self._api_token:
+                    self._active_tenant_id = settings.get("active_tenant_id")
+                if self._active_tenant_id:
+                    try:
+                        self.login_to_tenant(tenant_id=self._active_tenant_id)
+                    except AuthorizationError:
+                        # if an authorization error is raised, then the token is invalid and should
+                        # be cleared
+                        self.logout_from_tenant()
+        else:
+            # TODO: Separate put this functionality and clean up initial tenant access handling
+            if not self._active_tenant_id:
+                tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+                if tenant_info.data.tenant:
+                    self._active_tenant_id = tenant_info.data.tenant[0].id
+
+    def create_tenant(self, name: str, slug: str = None) -> str:
+        """
+        Creates a new tenant.
+
+        Note this route only works when run against Prefect Server.
+
+        Args:
+            - name (str): the name of the tenant to create
+            - slug (str, optional): the slug of the tenant to create; defaults to name
+
+        Returns:
+            - str: the ID of the newly created tenant, or the ID of the currently active tenant
+
+        Raises:
+            - ValueError: if run against Prefect Cloud
+        """
+        if prefect.config.backend != "server":
+            msg = "To create a tenant with Prefect Cloud, please signup at https://cloud.prefect.io/"
+            raise ValueError(msg)
+
+        if slug is None:
+            slug = slugify(name)
+
+        tenant_info = self.graphql(
+            {
+                "mutation($input: create_tenant_input!)": {
+                    "create_tenant(input: $input)": {"id"}
+                }
+            },
+            variables=dict(input=dict(name=name, slug=slug)),
+        )
+        return tenant_info.data.create_tenant.id
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -342,8 +382,9 @@ class Client:
             headers.update(self._attached_headers)
 
         session = requests.Session()
+        retry_total = 6 if prefect.config.backend == "cloud" else 1
         retries = requests.packages.urllib3.util.retry.Retry(
-            total=6,
+            total=retry_total,
             backoff_factor=1,
             status_forcelist=[500, 502, 503, 504],
             method_whitelist=["DELETE", "GET", "POST"],
@@ -518,25 +559,27 @@ class Client:
 
         tenant_id = tenant.data.tenant[0].id  # type: ignore
 
-        payload = self.graphql(
-            {
-                "mutation($input: switch_tenant_input!)": {
-                    "switch_tenant(input: $input)": {
-                        "access_token",
-                        "expires_at",
-                        "refresh_token",
+        if prefect.config.backend == "cloud":
+            payload = self.graphql(
+                {
+                    "mutation($input: switch_tenant_input!)": {
+                        "switch_tenant(input: $input)": {
+                            "access_token",
+                            "expires_at",
+                            "refresh_token",
+                        }
                     }
-                }
-            },
-            variables=dict(input=dict(tenant_id=tenant_id)),
-            # Use the API token to switch tenants
-            token=self._api_token,
-        )  # type: ignore
-        self._access_token = payload.data.switch_tenant.access_token  # type: ignore
-        self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.switch_tenant.expires_at  # type: ignore
-        )  # type: ignore
-        self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
+                },
+                variables=dict(input=dict(tenant_id=tenant_id)),
+                # Use the API token to switch tenants
+                token=self._api_token,
+            )  # type: ignore
+            self._access_token = payload.data.switch_tenant.access_token  # type: ignore
+            self._access_token_expires_at = pendulum.parse(  # type: ignore
+                payload.data.switch_tenant.expires_at  # type: ignore
+            )  # type: ignore
+            self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
+
         self._active_tenant_id = tenant_id
 
         # save the tenant setting
@@ -658,30 +701,27 @@ class Client:
 
         project = None
 
-        if prefect.config.backend == "cloud":
-            if project_name is None:
-                raise TypeError(
-                    "'project_name' is a required field when registering a flow with Cloud. "
-                    "If you are attempting to register a Flow with a local Prefect server "
-                    "you may need to run `prefect backend server` first."
-                )
+        if project_name is None:
+            raise TypeError(
+                "'project_name' is a required field when registering a flow."
+            )
 
-            query_project = {
-                "query": {
-                    with_args("project", {"where": {"name": {"_eq": project_name}}}): {
-                        "id": True
-                    }
+        query_project = {
+            "query": {
+                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                    "id": True
                 }
             }
+        }
 
-            project = self.graphql(query_project).data.project  # type: ignore
+        project = self.graphql(query_project).data.project  # type: ignore
 
-            if not project:
-                raise ValueError(
-                    'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
-                        project_name, project_name
-                    )
+        if not project:
+            raise ValueError(
+                'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
+                    project_name, project_name
                 )
+            )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
@@ -831,7 +871,11 @@ class Client:
         res = self.graphql(
             project_mutation,
             variables=dict(
-                input=dict(name=project_name, description=project_description)
+                input=dict(
+                    name=project_name,
+                    description=project_description,
+                    tenant_id=self._active_tenant_id,
+                )
             ),
         )  # type: Any
 
