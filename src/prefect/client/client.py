@@ -703,7 +703,7 @@ class Client:
 
         if project_name is None:
             raise TypeError(
-                "'project_name' is a required field when registering a flow"
+                "'project_name' is a required field when registering a flow."
             )
 
         query_project = {
