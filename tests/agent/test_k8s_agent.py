@@ -14,7 +14,7 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_k8s_agent_init(monkeypatch, runner_token):
+def test_k8s_agent_init(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -25,7 +25,7 @@ def test_k8s_agent_init(monkeypatch, runner_token):
     assert agent.batch_client
 
 
-def test_k8s_agent_config_options(monkeypatch, runner_token):
+def test_k8s_agent_config_options(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -40,7 +40,7 @@ def test_k8s_agent_config_options(monkeypatch, runner_token):
         assert agent.batch_client
 
 
-def test_k8s_agent_deploy_flow(monkeypatch, runner_token):
+def test_k8s_agent_deploy_flow(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -78,7 +78,7 @@ def test_k8s_agent_deploy_flow(monkeypatch, runner_token):
     )
 
 
-def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, runner_token):
+def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -115,7 +115,7 @@ def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, runner_tok
     )
 
 
-def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
+def test_k8s_agent_deploy_flow_raises(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -145,9 +145,7 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
     assert not agent.batch_client.create_namespaced_job.called
 
 
-def test_k8s_agent_replace_yaml_uses_user_env_vars(
-    monkeypatch, runner_token, cloud_api
-):
+def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -214,7 +212,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         assert job["spec"]["template"]["spec"]["serviceAccountName"] == "svc_name"
 
 
-def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
+def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -285,7 +283,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_k8s_agent_replace_yaml_responds_to_logging_config(
-    monkeypatch, runner_token, flag
+    monkeypatch, cloud_api, flag
 ):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
@@ -312,7 +310,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
     assert env[6]["value"] == str(not flag).lower()
 
 
-def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
+def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -337,7 +335,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
     assert not job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
 
 
-def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
+def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -362,7 +360,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
     assert env[5]["value"] == "['foo', 'bar']"
 
 
-def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
+def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -392,7 +390,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert resource_manager_env[3]["value"] == "test_namespace"
 
 
-def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, runner_token):
+def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -437,7 +435,7 @@ def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_
     ],
 )
 def test_k8s_agent_generate_deployment_yaml_local_version(
-    monkeypatch, version, runner_token
+    monkeypatch, version, cloud_api
 ):
     monkeypatch.setattr(prefect, "__version__", version[0])
 
@@ -461,7 +459,7 @@ def test_k8s_agent_generate_deployment_yaml_local_version(
     assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
 
 
-def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, runner_token):
+def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -483,9 +481,7 @@ def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, runner_token):
     assert resource_manager_yaml["image"] == "prefecthq/prefect:latest"
 
 
-def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
-    monkeypatch, runner_token
-):
+def test_k8s_agent_generate_deployment_yaml_no_resource_manager(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -505,7 +501,7 @@ def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
     assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
 
 
-def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, runner_token):
+def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -530,7 +526,7 @@ def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, runner_token):
 
 
 def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
-    monkeypatch, runner_token
+    monkeypatch, cloud_api
 ):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
@@ -548,7 +544,7 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
 
 
 def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
-    monkeypatch, runner_token
+    monkeypatch, cloud_api
 ):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
@@ -571,9 +567,7 @@ def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
     assert agent_env[3]["value"] == "secrets"
 
 
-def test_k8s_agent_generate_deployment_yaml_contains_resources(
-    monkeypatch, runner_token
-):
+def test_k8s_agent_generate_deployment_yaml_contains_resources(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -602,7 +596,7 @@ def test_k8s_agent_generate_deployment_yaml_contains_resources(
     assert env[10]["value"] == "svc"
 
 
-def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):
+def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -620,7 +614,7 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):
             assert document["metadata"]["name"] == "prefect-agent-rbac"
 
 
-def test_k8s_agent_start_max_polls(monkeypatch, runner_token):
+def test_k8s_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -647,7 +641,7 @@ def test_k8s_agent_start_max_polls(monkeypatch, runner_token):
     assert heartbeat.called
 
 
-def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token):
+def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -675,7 +669,7 @@ def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token):
     assert heartbeat.call_count == 2
 
 
-def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token):
+def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 

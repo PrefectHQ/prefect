@@ -319,28 +319,28 @@ def test_agent_start_fails(monkeypatch, cloud_api):
     assert "TEST is not a valid agent" in result.output
 
 
-def test_agent_install_local():
+def test_agent_install_local(cloud_api):
     runner = CliRunner()
     result = runner.invoke(agent, ["install", "local"])
     assert result.exit_code == 0
     assert "supervisord" in result.output
 
 
-def test_agent_install_kubernetes():
+def test_agent_install_kubernetes(cloud_api):
     runner = CliRunner()
     result = runner.invoke(agent, ["install", "kubernetes"])
     assert result.exit_code == 0
     assert "apiVersion" in result.output
 
 
-def test_agent_install_fails_non_valid_agent():
+def test_agent_install_fails_non_valid_agent(cloud_api):
     runner = CliRunner()
     result = runner.invoke(agent, ["install", "fake_agent"])
     assert result.exit_code == 0
     assert "fake_agent is not a supported agent for `install`" in result.output
 
 
-def test_agent_install_k8s_asses_args():
+def test_agent_install_k8s_asses_args(cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         agent,
@@ -407,7 +407,7 @@ def test_agent_install_k8s_asses_args():
     assert "TESTENV2" in result.output
 
 
-def test_agent_install_k8s_no_resource_manager():
+def test_agent_install_k8s_no_resource_manager(cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         agent,
@@ -434,7 +434,7 @@ def test_agent_install_k8s_no_resource_manager():
     assert "secret-test" in result.output
 
 
-def test_agent_install_local_asses_args():
+def test_agent_install_local_asses_args(cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         agent,
