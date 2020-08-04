@@ -118,16 +118,15 @@ class Client:
                 if tenant_info.data.tenant:
                     self._active_tenant_id = tenant_info.data.tenant[0].id
 
-    def create_default_tenant(
-        self, name: str = "default", slug: str = "default"
-    ) -> str:
+    def create_tenant(self, name: str, slug: str = None) -> str:
         """
-        Creates a default tenant if one doesn't already exist.  Note this route only works when run
-        against Prefect Server.
+        Creates a new tenant.
+
+        Note this route only works when run against Prefect Server.
 
         Args:
-            - name (str, optional): the name of the default tenant to create; defaults to "default"
-            - slug (str, optional): the slug of the default tenant to create; defaults to name
+            - name (str): the name of the tenant to create
+            - slug (str, optional): the slug of the tenant to create; defaults to name
 
         Returns:
             - str: the ID of the newly created tenant, or the ID of the currently active tenant
@@ -139,22 +138,18 @@ class Client:
             msg = "To create a tenant with Prefect Cloud, please signup at https://cloud.prefect.io/"
             raise ValueError(msg)
 
-        tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+        if slug is None:
+            slug = slugify(name)
 
-        if not tenant_info.data.tenant:
-            tenant_info = self.graphql(
-                {
-                    "mutation($input: create_tenant_input!)": {
-                        "create_tenant(input: $input)": {"id"}
-                    }
-                },
-                variables=dict(input=dict(name=name, slug=slugify(name))),
-            )
-            self._active_tenant_id = tenant_info.data.create_tenant.id
-        else:
-            self._active_tenant_id = tenant_info.data.tenant[0].id
-
-        return self._active_tenant_id
+        tenant_info = self.graphql(
+            {
+                "mutation($input: create_tenant_input!)": {
+                    "create_tenant(input: $input)": {"id"}
+                }
+            },
+            variables=dict(input=dict(name=name, slug=slug)),
+        )
+        return tenant_info.data.create_tenant.id
 
     # -------------------------------------------------------------------------
     # Utilities

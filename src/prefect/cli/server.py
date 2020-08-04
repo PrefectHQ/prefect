@@ -341,7 +341,9 @@ def start(
                     client = prefect.Client()
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True
-                    client.create_default_tenant()
+                    # Create a default tenant if no tenant exists
+                    if not client.get_available_tenants():
+                        client.create_tenant(name="default")
                     print(ascii_name)
                 except Exception:
                     time.sleep(0.5)
@@ -360,28 +362,6 @@ def start(
         if proc:
             proc.kill()
         raise
-
-
-@server.command(hidden=True)
-@click.option(
-    "--name",
-    "-n",
-    required=False,
-    help="The name of the default tenant to create",
-    default=None,
-    type=str,
-    hidden=True,
-)
-def create_default_tenant(name):
-    """
-    This command creates a default tenant for use with Prefect Server.
-
-    \b
-    Options:
-        --name, -n       TEXT    The name of the default tenant to create
-    """
-    client = prefect.Client()
-    client.create_default_tenant(name=name)
 
 
 ascii_name = r"""
