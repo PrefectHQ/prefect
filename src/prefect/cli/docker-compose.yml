@@ -76,7 +76,7 @@ services:
     depends_on:
       - graphql
   ui:
-    image: "prefecthq/ui:${PREFECT_SERVER_TAG:-latest}"
+    image: "prefecthq/ui:${PREFECT_UI_TAG:-latest}"
     ports:
       - "${UI_HOST_PORT:-8080}:8080"
     command: "/intercept.sh"
