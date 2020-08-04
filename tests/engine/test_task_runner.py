@@ -435,6 +435,13 @@ class TestInitializeRun:
         with prefect.context() as ctx:
             assert "checkpointing" not in ctx
             with set_temporary_config({"flows.checkpointing": "FOO"}):
+                # Pull from context.config if present
+                prefect.config.flows.checkpointing = False
+                result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
+                assert result.context.checkpointing == "FOO"
+                # Otherwise fallback to local config
+                prefect.config.flows.checkpointing = "FOO"
+                del prefect.context.config.flows.checkpointing
                 result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
                 assert result.context.checkpointing == "FOO"
 
