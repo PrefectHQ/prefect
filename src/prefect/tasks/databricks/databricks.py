@@ -13,28 +13,32 @@ DATABRICKS_JOB_STATUS = {"SUCCESS", "FAILED", "TIMEDOUT", "CANCELED"}
 class DatabricksRunSubmit(Task):
     """
     Submit a Databricks one-time run. This method doesn’t require a Databricks job to be created.
-    You can directly submit your workload. Runs submitted via this endpoint don’t display in the Databricks UI.
-    Once the run is submitted, use the jobs/runs/get API to check the run state.
+    You can directly submit your workload. Runs submitted via this endpoint don’t display in the
+    Databricks UI. Once the run is submitted, use the jobs/runs/get API to check the run state.
     Args:
         databricks_token: Databricks secret token
         databricks_host: Databricks shard host
         spark_jar_task: If spark_jar_task, indicates that this job should run a JAR.
-        notebook_task: If notebook_task, indicates that this job should run a notebook. This field may not be specified
-                       in conjunction with spark_jar_task.
+        notebook_task: If notebook_task, indicates that this job should run a notebook.
+        This field may not be specified in conjunction with spark_jar_task.
         spark_python_task: If spark_python_task, indicates that this job should run a Python file.
-        spark_submit_task: If spark_submit_task, indicates that this job should run spark submit script.
-        new_cluster: If existing_cluster_id, the ID of an existing cluster that will be used for all runs of this job.
-                     When running jobs on an existing cluster, you may need to manually restart the cluster if it stops
-                     responding. We suggest running jobs on new clusters for greater reliability.
-        existing_cluster_id: If new_cluster, a description of a cluster that will be created for each run.
-        libraries: An optional list of libraries to be installed on the cluster that will execute the job.
-                   The default value is an empty list.
-        timeout_seconds: An optional timeout applied to each run of this job. The default behavior is to have no timeout
+        spark_submit_task: If spark_submit_task, indicates that this job should run spark submit script
+        new_cluster: If existing_cluster_id, the ID of an existing cluster that will be used for all
+        runs of this job. When running jobs on an existing cluster, you may need to manually restart
+        the cluster if it stops responding. We suggest running jobs on new clusters for greater
+        reliability.
+        existing_cluster_id: If new_cluster, a description of a cluster that will be created
+        for each run.
+        libraries: An optional list of libraries to be installed on the cluster that
+        will execute the job. The default value is an empty list.
+        timeout_seconds: An optional timeout applied to each run of this job.
+        The default behavior is to have no timeout
         databricks_retry_limit: Limit the number of retry to call the submit endpoint
         databricks_retry_delay: Delay in seconds between two retries
-        polling_period: Delay in seconds between two consecutive call of the GET jobs/runs/get?run_id=<...> endpoint
+        polling_period: Delay in seconds between two consecutive call
+        of the GET jobs/runs/get?run_id=<...> endpoint
         polling_timeout: Timeout when unable to fetch a run state in the imparted time frame,
-                         must be extended for long running task
+        must be extended for long running task
         **kwargs:
     """
 
@@ -158,8 +162,8 @@ class DatabricksRunSubmit(Task):
 
     def _wait_for_run_to_complete(self, run_id, polling_period, timeout=3600):
         """
-        Fetch Databricks run status via api/../jobs/run/get?run_id=<RUN_ID> until run state is terminated.
-        A run is terminated when matching one of the following status
+        Fetch Databricks run status via api/../jobs/run/get?run_id=<RUN_ID> until run state
+        is terminated. A run is terminated when matching one of the following status:
             - SUCCESS
             - FAILED
             - TIMEDOUT
@@ -245,7 +249,7 @@ class DatabricksRunSubmit(Task):
 
                 if result_status != "SUCCESS":
                     raise Exception(
-                        f"Task failed with status {result_status}... "
+                        f"Task {run_name} failed with status {result_status}... "
                         f"For more info please visit {run_page}"
                     )
                 return result_data
