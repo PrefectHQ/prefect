@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import tempfile
@@ -13,6 +14,7 @@ from prefect.serialization.storage import (
     GCSSchema,
     LocalSchema,
     S3Schema,
+    WebhookSchema,
 )
 
 
@@ -298,3 +300,56 @@ def test_gcs_serialize_with_flows():
     deserialized = GCSSchema().load(serialized)
     assert f.name in deserialized
     assert deserialized.secrets == ["CREDS"]
+
+
+def test_webhook_full_serialize():
+    test_file = "/Apps/test-app.flow"
+    content_type = "application/octet-stream"
+    base_url = "https://content.dropboxapi.com/2/files"
+    build_url = f"{base_url}/upload"
+    get_url = f"{base_url}/download"
+
+    webhook = storage.Webhook(
+        build_request_kwargs={
+            "url": build_url,
+            "headers": {
+                "Content-Type": content_type,
+                "Dropbox-API-Arg": json.dumps({"path": test_file}),
+            },
+        },
+        build_request_http_method="POST",
+        get_flow_request_kwargs={
+            "url": get_url,
+            "headers": {
+                "Accept": content_type,
+                "Dropbox-API-Arg": json.dumps({"path": test_file}),
+            },
+        },
+        get_flow_request_http_method="POST",
+        secrets=["CREDS"],
+    )
+    f = prefect.Flow("test")
+    webhook.flows["test"] = "key"
+
+    serialized = WebhookSchema().dump(webhook)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["secrets"] == ["CREDS"]
+    assert serialized["build_request_kwargs"] == {
+        "url": build_url,
+        "headers": {
+            "Content-Type": content_type,
+            "Dropbox-API-Arg": json.dumps({"path": test_file}),
+        },
+    }
+    assert serialized["build_request_http_method"] == "POST"
+    assert serialized["get_flow_request_kwargs"] == {
+        "url": get_url,
+        "headers": {
+            "Accept": content_type,
+            "Dropbox-API-Arg": json.dumps({"path": test_file}),
+        },
+    }
+    assert serialized["get_flow_request_http_method"] == "POST"
+    assert serialized["stored_as_script"] is False

@@ -7,7 +7,7 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import Docker, Local, Azure, GCS, S3
+from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -21,6 +21,7 @@ def test_local_agent_init(cloud_api):
         "s3-flow-storage",
         "gcs-flow-storage",
         "github-flow-storage",
+        "webhook-flow-storage",
     }
     assert agent.name == "agent"
 
@@ -34,6 +35,7 @@ def test_local_agent_deduplicates_labels(cloud_api):
         "s3-flow-storage",
         "gcs-flow-storage",
         "github-flow-storage",
+        "webhook-flow-storage",
     }
     assert len(agent.labels) == len(set(agent.labels))
 
@@ -59,6 +61,7 @@ def test_local_agent_config_options(cloud_api):
             "s3-flow-storage",
             "gcs-flow-storage",
             "github-flow-storage",
+            "webhook-flow-storage",
             "test_label",
         }
 
@@ -84,6 +87,7 @@ def test_local_agent_config_options_hostname(cloud_api):
             "s3-flow-storage",
             "gcs-flow-storage",
             "github-flow-storage",
+            "webhook-flow-storage",
         }
 
 
@@ -153,6 +157,7 @@ def test_populate_env_vars(cloud_api):
                     "gcs-flow-storage",
                     "s3-flow-storage",
                     "github-flow-storage",
+                    "webhook-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
@@ -193,6 +198,7 @@ def test_populate_env_vars_includes_agent_labels(cloud_api):
                     "gcs-flow-storage",
                     "s3-flow-storage",
                     "github-flow-storage",
+                    "webhook-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
@@ -282,6 +288,31 @@ def test_local_agent_deploy_processes_azure_storage(monkeypatch, cloud_api):
                 "flow": GraphQLResult(
                     {"storage": GCS(bucket="test").serialize(), "id": "foo"}
                 ),
+                "id": "id",
+            }
+        )
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
+
+
+def test_local_agent_deploy_processes_webhook_storage(monkeypatch, runner_token):
+
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+    webhook = Webhook(
+        build_request_kwargs={"url": "test-service/upload"},
+        build_request_http_method="POST",
+        get_flow_request_kwargs={"url": "test-service/download"},
+        get_flow_request_http_method="GET",
+    )
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": webhook.serialize(), "id": "foo"}),
                 "id": "id",
             }
         )

@@ -6,7 +6,7 @@ from typing import Iterable, List
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import GCS, S3, Azure, Local, GitHub
+from prefect.environments.storage import GCS, S3, Azure, Local, GitHub, Webhook
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
@@ -91,6 +91,7 @@ class LocalAgent(Agent):
             "gcs-flow-storage",
             "s3-flow-storage",
             "github-flow-storage",
+            "webhook-flow-storage",
         ]
         for label in all_storage_labels:
             if label not in self.labels:
@@ -127,7 +128,8 @@ class LocalAgent(Agent):
         )
 
         if not isinstance(
-            StorageSchema().load(flow_run.flow.storage), (Local, Azure, GCS, S3, GitHub)
+            StorageSchema().load(flow_run.flow.storage),
+            (Local, Azure, GCS, S3, GitHub, Webhook),
         ):
             self.logger.error(
                 "Storage for flow run {} is not a supported type.".format(flow_run.id)

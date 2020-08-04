@@ -22,6 +22,7 @@ from typing import (
     Set,
     Tuple,
     cast,
+    Union,
 )
 
 import cloudpickle
@@ -1129,7 +1130,7 @@ class Flow:
         run_on_schedule: bool = None,
         runner_cls: type = None,
         **kwargs: Any,
-    ) -> "prefect.engine.state.State":
+    ) -> Union["prefect.engine.state.State", None]:
         """
         Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no
         schedule, a single stateful run will occur (including retries).
@@ -1156,10 +1157,11 @@ class Flow:
             - State: the state of the flow after its final run
         """
         if prefect.context.get("loading_flow", False):
-            raise RuntimeError(
+            warnings.warn(
                 "Attempting to call `flow.run` during execution of flow file will lead to "
                 "unexpected results."
             )
+            return None
 
         # protect against old behavior
         if "return_tasks" in kwargs:
@@ -1525,7 +1527,7 @@ class Flow:
         version_group_id: str = None,
         no_url: bool = False,
         **kwargs: Any,
-    ) -> str:
+    ) -> Union[str, None]:
         """
         Register the flow with Prefect Cloud; if no storage is present on the Flow, the default
         value from your config will be used and initialized with `**kwargs`.
@@ -1553,10 +1555,11 @@ class Flow:
             - str: the ID of the flow that was registered
         """
         if prefect.context.get("loading_flow", False):
-            raise RuntimeError(
+            warnings.warn(
                 "Attempting to call `flow.register` during execution of flow file will lead "
                 "to unexpected results."
             )
+            return None
 
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)

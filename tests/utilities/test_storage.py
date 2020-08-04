@@ -72,7 +72,7 @@ def test_extract_flow_from_file_raises_on_run_register(tmpdir):
         f.write(contents)
 
     with prefect.context({"loading_flow": True}):
-        with pytest.raises(RuntimeError):
+        with pytest.warns(Warning):
             extract_flow_from_file(file_path=full_path)
 
     contents = """from prefect import Flow\nf=Flow('test-flow')\nf.register()"""
@@ -83,5 +83,5 @@ def test_extract_flow_from_file_raises_on_run_register(tmpdir):
         f.write(contents)
 
     with prefect.context({"loading_flow": True}):
-        with pytest.raises(RuntimeError):
+        with pytest.warns(Warning):
             extract_flow_from_file(file_path=full_path)
