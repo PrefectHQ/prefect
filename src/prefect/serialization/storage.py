@@ -2,7 +2,16 @@ from typing import Any
 
 from marshmallow import fields, post_load
 
-from prefect.environments.storage import GCS, S3, Azure, Docker, Local, Storage, GitHub
+from prefect.environments.storage import (
+    GCS,
+    S3,
+    Azure,
+    Docker,
+    Local,
+    Storage,
+    GitHub,
+    Webhook,
+)
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
 
@@ -126,6 +135,26 @@ class GitHubSchema(ObjectSchema):
         return base_obj
 
 
+class WebhookSchema(ObjectSchema):
+    class Meta:
+        object_class = Webhook
+
+    build_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    build_request_http_method = fields.String(allow_none=False)
+    get_flow_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    get_flow_request_http_method = fields.String(allow_none=False)
+    stored_as_script = fields.Bool(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> Webhook:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
 class StorageSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -140,4 +169,5 @@ class StorageSchema(OneOfSchema):
         "Storage": BaseStorageSchema,
         "S3": S3Schema,
         "GitHub": GitHubSchema,
+        "Webhook": WebhookSchema,
     }
