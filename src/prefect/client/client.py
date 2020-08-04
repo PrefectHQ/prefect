@@ -703,9 +703,7 @@ class Client:
 
         if project_name is None:
             raise TypeError(
-                "'project_name' is a required field when registering a flow with Cloud. "
-                "If you are attempting to register a Flow with a local Prefect server "
-                "you may need to run `prefect backend server` first."
+                "'project_name' is a required field when registering a flow"
             )
 
         query_project = {
