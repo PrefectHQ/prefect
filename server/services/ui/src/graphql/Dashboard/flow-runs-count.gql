@@ -1,9 +1,0 @@
-query FlowRunsCount($heartbeat: timestamptz) {
-  flow_run_aggregate(
-    where: { heartbeat: { _gte: $heartbeat }, state: { _neq: "Scheduled" } }
-  ) {
-    aggregate {
-      count
-    }
-  }
-}

@@ -43,7 +43,7 @@ def test_auth_login(patch_post, monkeypatch, cloud_api):
     assert result.exit_code == 0
 
 
-def test_auth_login_client_error(patch_post):
+def test_auth_login_client_error(patch_post, cloud_api):
     patch_post(dict(errors=[dict(error={})]))
 
     runner = CliRunner()
@@ -195,7 +195,7 @@ def test_check_override_function():
             prefect.cli.auth.check_override_auth_token()
 
 
-def test_override_functions_on_commands():
+def test_override_functions_on_commands(cloud_api):
     with set_temporary_config({"cloud.auth_token": "TOKEN"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["revoke-token", "--id", "id"])

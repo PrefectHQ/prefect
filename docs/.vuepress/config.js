@@ -65,11 +65,11 @@ module.exports = {
     logo: '/assets/logomark-color.png',
     nav: [
       {
-        text: 'Core',
+        text: 'Core Engine',
         link: '/core/'
       },
       {
-        text: 'Orchestration',
+        text: 'Orchestration & API',
         link: '/orchestration/'
       },
       {

@@ -1,0 +1,5 @@
+enhancement:
+  - "Add Webhook storage - [#3000](https://github.com/PrefectHQ/prefect/pull/3000)"
+
+contributor:
+ - "[James Lamb](https://github.com/jameslamb)"

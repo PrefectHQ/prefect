@@ -18,7 +18,6 @@ To create a new change file:
 - Choose one (or more if a PR encompasses multiple changes) of the following headers:
     - `feature`
     - `enhancement`
-    - `server`
     - `task`
     - `fix`
     - `deprecation`

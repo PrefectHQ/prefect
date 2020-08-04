@@ -1,5 +1,5 @@
-<p align="center" style="margin-bottom:40px;">
-    <img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5c942c9ca934ec5c88588297_primary-color-vertical.svg"  height=350 style="max-height: 350px;">
+<p align="center" >
+   <img src="https://images.ctfassets.net/gm98wzqotmnx/3Ufcb7yYqcXBDlAhJ30gce/c237bb3254190795b30bf734f3cbc1d4/prefect-logo-full-gradient.svg" width="500" style="max-width: 500px;">
 </p>
 
 <p align="center">
@@ -23,7 +23,6 @@
     </a>
 </p>
 
-
 <div class="hero">
     <div class="action">
         <button class="action-button">
@@ -38,10 +37,6 @@
         </a>
     </div>
 </div>
-
-
-
-
 
 <div class="features">
 <div class="feature">
@@ -93,6 +88,6 @@ with Flow("My First Flow") as flow:
     say_hello(name)
 
 
-flow.run(name='world') # "Hello, world!" 
-flow.run(name='Marvin') # "Hello, Marvin!" 
+flow.run(name='world') # "Hello, world!"
+flow.run(name='Marvin') # "Hello, Marvin!"
 ```

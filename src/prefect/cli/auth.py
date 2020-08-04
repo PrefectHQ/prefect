@@ -53,6 +53,8 @@ def auth():
         $ prefect auth create-token -n MyToken -r RUNNER
         ...token output...
     """
+    if config.backend == "server":
+        raise click.UsageError("Auth commands with server are not currently supported.")
 
 
 @auth.command(hidden=True)

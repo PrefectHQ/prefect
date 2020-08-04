@@ -73,11 +73,12 @@ def server():
 
     \b
     Usage:
-        $ prefect server ...
+        $ prefect server [COMMAND]
 
     \b
     Arguments:
-        start   ...
+        start                   Start the Prefect Core server using docker-compose
+        create-default-tenant   Create a default tenant
 
     \b
     Examples:
@@ -90,7 +91,13 @@ def server():
 @click.option(
     "--version",
     "-v",
-    help="The server image versions to use (for example, '0.10.0' or 'master')",
+    help="The server image versions to use (for example, '0.1.0' or 'master')",
+    hidden=True,
+)
+@click.option(
+    "--ui-version",
+    "-uv",
+    help="The UI image version to use (for example, '0.1.0' or 'master')",
     hidden=True,
 )
 @click.option(
@@ -190,6 +197,7 @@ def server():
 )
 def start(
     version,
+    ui_version,
     skip_pull,
     no_upgrade,
     no_ui,
@@ -211,8 +219,10 @@ def start(
 
     \b
     Options:
-        --version, -v       TEXT    The server image versions to use (for example, '0.10.0' or
-                                    'master'). Defaults to the current installed Prefect version.
+        --version, -v       TEXT    The server image versions to use (for example, '0.1.0' or
+                                    'master'). Defaults to `latest`.
+        --ui-version, -uv   TEXT    The UI image version to use (for example, '0.1.0' or
+                                    'master'). Defaults to `latest`.
         --skip-pull                 Flag to skip pulling new images (if available)
         --no-upgrade, -n            Flag to avoid running a database upgrade when the database
                                     spins up
@@ -249,6 +259,7 @@ def start(
         or no_ui_port
         or no_server_port
         or not use_volume
+        or no_ui
     ):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, "docker-compose.yml")
@@ -275,6 +286,9 @@ def start(
             if not use_volume:
                 del y["services"]["postgres"]["volumes"]
 
+            if no_ui:
+                del y["services"]["ui"]
+
         with open(temp_path, "w") as f:
             y = yaml.safe_dump(y, f)
 
@@ -294,14 +308,9 @@ def start(
         env = make_env()
 
     if "PREFECT_SERVER_TAG" not in env:
-        env.update(
-            PREFECT_SERVER_TAG=version
-            or (
-                "master"
-                if len(prefect.__version__.split("+")) > 1
-                else prefect.__version__
-            )
-        )
+        env.update(PREFECT_SERVER_TAG=version or "latest")
+    if "PREFECT_UI_TAG" not in env:
+        env.update(PREFECT_UI_TAG=ui_version or "latest")
     if "PREFECT_SERVER_DB_CMD" not in env:
         cmd = (
             "prefect-server database upgrade -y"
@@ -318,8 +327,6 @@ def start(
             )
 
         cmd = ["docker-compose", "up"]
-        if no_ui:
-            cmd += ["--scale", "ui=0"]
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         started = False
         with prefect.utilities.configuration.set_temporary_config(
@@ -329,14 +336,16 @@ def start(
                 "backend": "server",
             }
         ):
-            client = prefect.Client()
             while not started:
                 try:
+                    client = prefect.Client()
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True
-                    client.create_default_tenant()
+                    # Create a default tenant if no tenant exists
+                    if not client.get_available_tenants():
+                        client.create_tenant(name="default")
                     print(ascii_name)
-                except Exception as exc:
+                except Exception:
                     time.sleep(0.5)
                     pass
             while True:
@@ -353,28 +362,6 @@ def start(
         if proc:
             proc.kill()
         raise
-
-
-@server.command(hidden=True)
-@click.option(
-    "--name",
-    "-n",
-    required=False,
-    help="The name of the default tenant to create",
-    default=None,
-    type=str,
-    hidden=True,
-)
-def create_default_tenant(name):
-    """
-    This command creates a default tenant for use with Prefect Server.
-
-    \b
-    Options:
-        --name, -n       TEXT    The name of the default tenant to create
-    """
-    client = prefect.Client()
-    client.create_default_tenant(name=name)
 
 
 ascii_name = r"""
