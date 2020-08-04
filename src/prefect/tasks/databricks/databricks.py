@@ -24,6 +24,7 @@ class DatabricksRunSubmit(Task):
         - spark_submit_task: Indicates that this job should run spark submit script
         - new_cluster: A description of a cluster that will be created for each run.
         - existing_cluster_id: The ID of an existing cluster that will be used for all runs of this job
+        - existing_cluster_name: The name of the cluster, will trigger an extra API call
         - libraries: An optional list of libraries to be installed on the cluster
         - timeout_seconds: An optional timeout applied to each run of this job, default is no timeout
         - databricks_retry_limit: Limit the number of retry to call the submit endpoint
