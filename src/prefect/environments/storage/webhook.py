@@ -4,7 +4,6 @@ import string
 import warnings
 
 from collections.abc import Mapping
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 
 from requests import Session
@@ -78,7 +77,6 @@ def _render_dict(input_dict: Dict[str, Any]) -> Dict[str, Any]:
         - RuntimeError if any template value cannot be found in the environment
             or `prefect` secrets
     """
-    input_dict = deepcopy(input_dict)
     output_dict = {}
 
     for key, value in input_dict.items():
