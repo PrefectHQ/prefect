@@ -1,0 +1,15 @@
+
+breaking:
+  - "Move server and UI code out into separate repositories - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)"
+  - "Project names are now required when managing flows with the core server - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)"
+
+deprecation:
+  - "Deprecate `execute cloud-flow` CLI command in favor of `execute flow-run` - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)"
+  - "Deprecate `run server/cloud` CLI commands in favor of `run flow` - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)"
+
+fix:
+  - "Fix `--no-ui` server start CLI option still attempting to pull UI image - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)"
+
+enhancement:
+  - "Add `--ui-version` server start CLI option to run a specific UI image - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)"
+  - "Agent querying of flow runs now passes active tenant ID - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)"
