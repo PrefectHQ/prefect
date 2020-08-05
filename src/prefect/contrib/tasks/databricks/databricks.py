@@ -155,7 +155,9 @@ class DatabricksRunSubmit(Task):
             raise Exception(f"Cluster {cluster_name} does not exist !")
         return clusters[cluster_name]
 
-    def _wait_for_run_to_complete(self, run_id: str, polling_period: int, timeout: int = 3600) -> dict:
+    def _wait_for_run_to_complete(
+        self, run_id: str, polling_period: int, timeout: int = 3600
+    ) -> dict:
         """
         Fetch Databricks run status via api/../jobs/run/get?run_id=<RUN_ID> until run state
         is terminated. A run is terminated when matching either SUCCESS, FAILED, TIMEDOUT or CANCELED
