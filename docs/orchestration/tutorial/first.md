@@ -22,20 +22,16 @@ Note that this Flow can be run locally by calling `flow.run()`, however, it curr
 
 In order to take advantage of the Prefect API for your flow, that flow must first be _registered_. Registration of a flow sends a flow's metadata to the Prefect API in order to support its orchestration.
 
+:::warning Projects
+Registering a flow with a backend requires users to organize flows into projects. In this case we are
+using the `Hello, World!` Project created in [the "creating a project" tutorial](../concepts/projects.html#creating-a-project).
+:::
+
 Add the following line to the bottom of the example flow to register the flow with the Prefect API:
-
-```python
-flow.register()
-```
-
-:::warning Projects <Badge text="Cloud"/>
-Prefect Cloud requires users to organize flows into projects. In this case we are using the `Hello, World!` Project created in [the "creating a project" tutorial](../concepts/projects.html#creating-a-project).
 
 ```python
 flow.register(project_name="Hello, World!")
 ```
-
-:::
 
 ::: tip Flow Code
 Registration only sends data about the existence and format of your flow; **no actual code from the flow is sent to the Prefect API**. Your code remains safe, secure, and private in your own infrastructure!
@@ -61,13 +57,7 @@ Lastly, we need to indicate to the API to schedule a flow run; there are a few o
 ::: tab CLI
 
 ```bash
-# Using Prefect Core's server
-prefect run server --name hello-flow
-```
-
-```bash
-# Using Prefect Cloud
-prefect run cloud --name hello-flow --project 'Hello, World!'
+prefect run flow --name hello-flow --project 'Hello, World!'
 ```
 
 :::

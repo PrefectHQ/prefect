@@ -17,17 +17,8 @@ def another_task():
 
 flow = Flow("second-flow", tasks=[another_task])
 
-flow.register()
-```
-
-:::warning Projects <Badge text="Cloud"/>
-Prefect Cloud requires users to organize flows into projects. In this case we are using the `Hello, World!` Project created in [the "creating a project" tutorial](projects.html#creating-a-project).
-
-```python
 flow.register(project_name="Hello, World!")
 ```
-
-:::
 
 In another terminal, start the local agent:
 
@@ -42,13 +33,8 @@ This Local Agent will use the _RUNNER_ token stored in your environment but if y
 Now you have a local agent running which can execute multiple flows that you register with the Prefect API:
 
 ```bash
-# Using Prefect Core's server
-prefect run server --name hello-flow
-prefect run server --name second-flow
-
-# Using Prefect Cloud
-prefect run cloud --name hello-flow --project 'Hello, World!'
-prefect run cloud --name second-flow --project 'Hello, World!'
+prefect run flow --name hello-flow --project 'Hello, World!'
+prefect run flow --name second-flow --project 'Hello, World!'
 ```
 
 ## Install a Supervised Agent
