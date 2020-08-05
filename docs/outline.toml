@@ -368,7 +368,7 @@ classes = ["SnowflakeQuery"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
-module = "prefect.tasks.databricks"
+module = "prefect.contrib.tasks.databricks"
 classes = ["DatabricksRunSubmit"]
 
 [pages.tasks.spacy]

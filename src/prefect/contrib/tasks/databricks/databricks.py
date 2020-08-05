@@ -1,4 +1,5 @@
 import requests
+from typing import Optional, Any, Dict
 from time import sleep, time
 from prefect import Task, __version__
 
@@ -37,26 +38,26 @@ class DatabricksRunSubmit(Task):
 
     def __init__(
         self,
-        databricks_token=None,
-        databricks_host=None,
-        spark_jar_task=None,
-        notebook_task=None,
-        spark_python_task=None,
-        spark_submit_task=None,
-        new_cluster=None,
-        existing_cluster_id=None,
-        existing_cluster_name=None,
-        libraries=None,
-        timeout_seconds=10,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
-        polling_period=5,
-        polling_timeout=3600,
-        **kwargs,
+        databricks_token: Optional[str] = None,
+        databricks_host: Optional[str] = None,
+        spark_jar_task: Optional[dict] = None,
+        notebook_task: Optional[dict] = None,
+        spark_python_task: Optional[dict] = None,
+        spark_submit_task: Optional[dict] = None,
+        new_cluster: Optional[dict] = None,
+        existing_cluster_id: Optional[str] = None,
+        existing_cluster_name: str = None,
+        libraries: Optional[dict] = None,
+        timeout_seconds: int = 10,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        polling_period: int = 5,
+        polling_timeout: int = 3600,
+        **kwargs: Any,
     ):
 
         super().__init__(**kwargs)
-        self._json = {}
+        self._json: Dict[Any, Any] = {}
         self._databricks_token = databricks_token
         self._databricks_host = databricks_host
         self._timeout_seconds = timeout_seconds
@@ -95,34 +96,34 @@ class DatabricksRunSubmit(Task):
                 )
 
     @property
-    def databricks_host(self):
+    def databricks_host(self) -> Optional[str]:
         return self._databricks_host
 
     @property
-    def timeout_seconds(self):
+    def timeout_seconds(self) -> int:
         return self._timeout_seconds
 
     @property
-    def databricks_retry_limit(self):
+    def databricks_retry_limit(self) -> int:
         return self._databricks_retry_limit
 
     @property
-    def databricks_retry_delay(self):
+    def databricks_retry_delay(self) -> int:
         return self._databricks_retry_delay
 
     @property
-    def polling_period(self):
+    def polling_period(self) -> int:
         return self._polling_period
 
     @property
-    def polling_timeout(self):
+    def polling_timeout(self) -> int:
         return self._polling_timeout
 
     @property
-    def json(self):
+    def json(self) -> dict:
         return self._json
 
-    def _get_cluster_id(self, cluster_name):
+    def _get_cluster_id(self, cluster_name: str) -> str:
         """
         Utility function to get a cluster id from cluster name
         Args:
@@ -154,7 +155,7 @@ class DatabricksRunSubmit(Task):
             raise Exception(f"Cluster {cluster_name} does not exist !")
         return clusters[cluster_name]
 
-    def _wait_for_run_to_complete(self, run_id, polling_period, timeout=3600):
+    def _wait_for_run_to_complete(self, run_id: str, polling_period: int, timeout: int = 3600) -> dict:
         """
         Fetch Databricks run status via api/../jobs/run/get?run_id=<RUN_ID> until run state
         is terminated. A run is terminated when matching either SUCCESS, FAILED, TIMEDOUT or CANCELED
@@ -204,13 +205,10 @@ class DatabricksRunSubmit(Task):
             f"DatabricksRunSubmit timeout ! Unable to fetch {query} in the time imparted"
         )
 
-    def run(self):
+    def run(self) -> None:
         """
-        Task run method.
+        Task run method
 
-        Returns:
-            - Run response payload as python dict,
-              see https://docs.databricks.com/dev-tools/api/latest/jobs.html#runs-get
         """
         attempt_num = 1
         while attempt_num < self._databricks_retry_limit:
@@ -248,7 +246,7 @@ class DatabricksRunSubmit(Task):
                         f"Task {run_name} failed with status {result_status}... "
                         f"For more info please visit {run_page}"
                     )
-                return result_data
+                return
 
             except requests.exceptions.RequestException as error:
                 self.logger.error(error)
