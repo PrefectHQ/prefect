@@ -2,7 +2,7 @@
 A collection of tasks for interacting with Databricks.
 """
 try:
-    from prefect.tasks.databricks.databricks import (
+    from prefect.contrib.tasks.databricks.databricks import (
         DatabricksRunSubmit,
         DATABRICKS_API_VERSION,
     )

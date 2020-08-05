@@ -1,5 +1,5 @@
 import pytest
-from prefect.tasks.databricks import DatabricksRunSubmit
+from prefect.contrib.tasks.databricks import DatabricksRunSubmit
 
 
 class TestDatabricksRunSubmit:
