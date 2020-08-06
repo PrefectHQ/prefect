@@ -1,5 +1,3 @@
-const sidebar81 = require('../api/0.8.1/sidebar')
-const sidebar98 = require('../api/0.9.8/sidebar')
 const sidebar107 = require('../api/0.10.7/sidebar')
 const sidebar115 = require('../api/0.11.5/sidebar')
 const sidebar126 = require('../api/0.12.6/sidebar')
@@ -80,8 +78,6 @@ module.exports = {
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
-          { text: '0.9.8', link: '/api/0.9.8/' },
-          { text: '0.8.1', link: '/api/0.8.1/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
@@ -91,8 +87,6 @@ module.exports = {
       }
     ],
     sidebar: {
-      '/api/0.8.1/': sidebar81.sidebar,
-      '/api/0.9.8/': sidebar98.sidebar,
       '/api/0.10.7/': sidebar107.sidebar,
       '/api/0.11.5/': sidebar115.sidebar,
       '/api/0.12.6/': sidebar126.sidebar,
