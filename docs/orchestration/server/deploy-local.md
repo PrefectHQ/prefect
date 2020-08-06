@@ -60,9 +60,9 @@ options you can set to automatically use of a volume for Postgres:
 - `--use-volume`: enable the use of a volume for the Postgres database
 - `--volume-path`: a path to use for the volume, defaults to `~/.prefect/pg_data` if not provided
 
-Every time you run the `prefect server start` command a set of alembic migrations are automatically
+Every time you run the `prefect server start` command [a set of alembic migrations](https://github.com/PrefectHQ/server/tree/master/services/postgres/alembic/versions) are automatically
 applied against the database to ensure the schema is consistent. To run the migrations directly please
-see the documentation on [prefect server migrations](link-to-how-to-use-server-package-migrations).
+see the documentation on [prefect server migrations](https://github.com/PrefectHQ/server#running-the-system).
 
 ## How to upgrade your server instance
 

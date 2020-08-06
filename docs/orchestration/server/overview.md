@@ -75,6 +75,7 @@ In addition to user roles and authorization, Prefect Cloud ships with many addit
 - an audit trail of all tenant activity
 - Prefect Cloud takes availability very seriously and can be considered a highly available service
 - [Enterprise Support](#support) (see below)
+- secure runtime secrets
 
 ### Scale & Performance
 
