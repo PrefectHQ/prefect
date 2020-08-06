@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.13.0 <Badge text="beta" type="success" />
+
+Released on August 6, 2020.
+
+### Features
+
+- Support cancellation of active flow runs - [#2942](https://github.com/PrefectHQ/prefect/pull/2942)
+- Add Webhook storage - [#3000](https://github.com/PrefectHQ/prefect/pull/3000)
+
+### Enhancements
+
+- Only supply versions when setting `SUBMITTED` and `RUNNING` states - [#2730](https://github.com/PrefectHQ/prefect/issues/2730
+- Gracefully recover from version lock errors - [#2731](https://github.com/PrefectHQ/prefect/issues/2731
+- Add `--ui-version` server start CLI option to run a specific UI image - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+- Agent querying of flow runs now passes active tenant ID - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+
+### Task Library
+
+- Allow idempotency keys in `FlowRunTask` when using server backend - [#3006](https://github.com/PrefectHQ/prefect/issues/3006)
+- Require project name in `FlowRunTask` when using server backend - [#3006](https://github.com/PrefectHQ/prefect/issues/3006)
+
+### Fixes
+
+- Fix use of absolute path in Docker storage on Windows - [#3044](https://github.com/PrefectHQ/prefect/pull/3044)
+- Determine if checkpointing is enabled from config set in the flow-runner process - [#3085](https://github.com/PrefectHQ/prefect/pull/3085)
+- Fix `--no-ui` server start CLI option still attempting to pull UI image - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+
+### Deprecations
+
+- Deprecate `execute cloud-flow` CLI command in favor of `execute flow-run` - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+- Deprecate `run server/cloud` CLI commands in favor of `run flow` - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+
+### Breaking Changes
+
+- Move server and UI code out into separate repositories - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+- Project names are now required when managing flows with the core server - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+
+### Contributors
+
+- [James Lamb](https://github.com/jameslamb)
+- [Pravin Dahal](https://github.com/pravindahal)
+
 ## 0.12.6 <Badge text="beta" type="success" />
 
 Released on July 28, 2020.

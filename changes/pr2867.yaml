@@ -1,3 +1,0 @@
-enhancement:
-  - "Only supply versions when setting `SUBMITTED` and `RUNNING` states - [#2730](https://github.com/PrefectHQ/prefect/issues/2730"
-  - "Gracefully recover from version lock errors - [#2731](https://github.com/PrefectHQ/prefect/issues/2731"
