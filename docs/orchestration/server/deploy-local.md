@@ -2,14 +2,14 @@
 
 Prefect Server can be deployed on a single node using a
 [docker-compose](https://docs.docker.com/compose/) setup. One way to accomplish this is to use the
-builtin command in the Prefect CLI. Note that this requires `docker-compose` and `docker` are both installed.
+builtin command in the Prefect CLI. Note that this requires both `docker-compose` and `docker` to be installed.
 
 ```bash
 prefect server start
 ```
 
 Note that this command may take a bit to complete, as the various docker images are pulled. Once running,
-you should see logs output from each service, and the UI should be available at
+you should see some "Prefect Server" ASCII art along with the logs output from each service, and the UI should be available at
 [http://localhost:8080](http://localhost:8080).
 
 For more information on running the server in development mode without Docker see the
@@ -42,6 +42,15 @@ export PREFECT_SERVER__UI__GRAPHQL_PORT=<YOUR_APOLLO_URL>
 :::
 ::::
 
+::: tip You don't need to host the UI yourself!
+Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!  
+
+To achieve this:
+- [sign up for a free Developer account](https://cloud.prefect.io/)
+- login; if you click the Prefect Cloud logo at the bottom of the left menu bar, the UI will switch the endpoint that it talks to
+- you can further configure the location of this endpoint on the Home page
+:::
+
 ## Database persistence and migrations
 
 If you want Prefect Server to persist data across restarts, then you'll want to run the Postgres service
@@ -55,7 +64,7 @@ Every time you run the `prefect server start` command a set of alembic migration
 applied against the database to ensure the schema is consistent. To run the migrations directly please
 see the documentation on [prefect server migrations](link-to-how-to-use-server-package-migrations).
 
-## How to upgrade server instance
+## How to upgrade your server instance
 
 When new versions of the server are released you will want to upgrade in order to stay on top of fixes,
 enhancements, and new features. When running the server in containers using Docker compose an upgrade
