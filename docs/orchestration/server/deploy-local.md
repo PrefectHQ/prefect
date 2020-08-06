@@ -19,10 +19,14 @@ For more information on running the server in development mode without Docker se
 
 By default the UI will attempt to communicate with the Apollo endpoint at
 [http://localhost:4200/graphql](http://localhost:4200/graphql). If users should access Apollo at a
-different location (e.g. if you're running Prefect Server behind a proxy), you'll need to configure the
-proper URL before running `prefect server start`.
+different location (e.g. if you're running Prefect Server behind a proxy), you'll need to configure the UI
+to look at a different URL.
 
-You can do this via the [Prefect configutation](/core/concepts/configuration.html#user-configuration),
+You can set this directly in the UI on the Home page:
+
+![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
+
+or via the [Prefect configutation](/core/concepts/configuration.html#user-configuration),
 using either an environment variable or the `~/.prefect/config.toml` file:
 
 :::: tabs
@@ -43,7 +47,7 @@ export PREFECT_SERVER__UI__GRAPHQL_PORT=<YOUR_APOLLO_URL>
 ::::
 
 ::: tip You don't need to host the UI yourself!
-Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!  
+Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!
 
 To achieve this:
 - [sign up for a free Developer account](https://cloud.prefect.io/)
