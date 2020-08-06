@@ -88,21 +88,18 @@ class FlowRunTask(Task):
             ```
 
         """
-        is_hosted_backend = "prefect.io" in urlparse(config.cloud.api).netloc
 
         # verify that flow and project names were passed where necessary
         if flow_name is None:
             raise ValueError("Must provide a flow name.")
-        if project_name is None and is_hosted_backend:
+        if project_name is None:
             raise ValueError("Must provide a project name.")
 
         where_clause = {
             "name": {"_eq": flow_name},
             "archived": {"_eq": False},
+            "project": {"name": {"_eq": project_name}},
         }
-
-        if project_name:
-            where_clause["project"] = {"name": {"_eq": project_name}}
 
         # find the flow ID to schedule
         query = {
@@ -128,21 +125,20 @@ class FlowRunTask(Task):
         # grab the ID for the most recent version
         flow_id = flow[0].id
 
-        if is_hosted_backend and context.get("flow_run_id"):
+        idem_key = None
+        if context.get("flow_run_id"):
             map_index = context.get("map_index")
             default = context.get("flow_run_id") + (
                 f"-{map_index}" if map_index else ""
             )
             idem_key = idempotency_key or default
-        else:
-            idem_key = None
 
         # providing an idempotency key ensures that retries for this task
         # will not create additional flow runs
         flow_run_id = client.create_flow_run(
             flow_id=flow_id,
             parameters=parameters,
-            idempotency_key=idem_key,
+            idempotency_key=idem_key or idempotency_key,
             context=new_flow_context,
         )
 
