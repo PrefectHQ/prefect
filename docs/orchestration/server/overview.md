@@ -14,23 +14,22 @@ Prefect Server is an open source backend that makes it easy to monitor and execu
 Under the hood, Prefect Server is actually [a diverse collection of services](architecture.html) that provide a persistent record of your runs, current state, and allow for asynchronous scheduling and notifications.
 It was designed to expose many of the popular developer features of Prefect Cloud in a way that allows for community contributions, collaborations and customizations.  In particular, Prefect Server ships out-of-the-box with:
 
-- a persistent metadata database
-- a highly scalable scheduler 
-- an expressive GraphQL API for making queries and triggering actions (e.g., event-driven flow runs)
-- a unique design that separates the host processes from execution processes so that you can schedule and orchestrate Flows with diverse execution environments
-- services that ensure your Flows succeed or at least [fail successfully](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d)
-- a fully featured User Interface (UI) 
+- A persistent metadata database
+- A highly scalable scheduler 
+- An expressive GraphQL API for making queries and triggering actions (e.g., event-driven flow runs)
+- A unique design that separates the host processes from execution processes so that you can schedule and orchestrate Flows with diverse execution environments
+- Services that ensure your Flows succeed or at least [fail successfully](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d)
+- A fully featured User Interface (UI) 
 
-Currently, the various pieces of Prefect Server that are worth knowing about are:
+Development of Prefect Server is fully open-source, the code exists across two repositories:
 
-- `prefect server start`: a [Prefect Core](https://github.com/PrefectHQ/prefect) CLI command that spins up all Server services automatically using Docker with no additional dependencies required
-- the [docker-compose file](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/cli/docker-compose.yml) that describes the Server network architecture
-- the full [Prefect Server repository](https://github.com/PrefectHQ/Server) that includes all service code, database migrations and is where you can open issues and feature requests
-- the full [Prefect UI](https://github.com/PrefectHQ/ui) repository which includes all the code necessary for hosting the Prefect UI, _including_ the Cloud version; this is where you can open issues and file feature requests specific to the UI
+- [Prefect Server](https://github.com/PrefectHQ/Server): code for all services running in
+  Prefect Server
+- [Prefect UI](https://github.com/PrefectHQ/ui) code for the UI running in both Prefect Server
+  _and_ Prefect Cloud
 
-::: warning Migrating off of Prefect Server 0.12.6+
-The initial release of Prefect Server with Prefect Core 0.12.6 is no longer supported; unfortunately, because of the large number of features and changes in the new [Server codebase](https://github.com/PrefectHQ/server) there is no route to migrating your run and state history to a new Server installation.
-:::
+If you have feature requests or run into problems, please file an issue in the appropriate
+repository.
 
 ## Deploying Prefect Server
 
@@ -40,6 +39,10 @@ deployment, but there are plans to expand to other deployment models (e.g. Kuber
 interested in supporting such efforts, please [feel free to reach out](mailto:hello@prefect.io).
 
 In the meantime, please read our guide to [Single-Node Deployment](/orchestration/Server/deploy-local.html).
+
+::: warning Migrating off of Prefect Server <= 0.12.6
+The initial release of Prefect Server with Prefect Core 0.12.6 is no longer supported. Due to the large number of features and changes in the new [Server codebase](https://github.com/PrefectHQ/server) there is unfortunately no route to migrating your run and state history to a new Server installation.
+:::
 
 ::: warning Docker and Docker Compose required
 Because of [the diverse collection of services required](architecture.html) to run the full backend, Prefect Server ships as a docker-compose file that allows each of these services to run inside a custom configured Docker image within an appropriately configured Docker network.  This allows users to get up and running with a single CLI command.
@@ -55,11 +58,11 @@ Because of [Prefect's innovative Hybrid Model](https://medium.com/the-prefect-bl
 
 ### Authorization and Permissions
 
-Prefect Cloud has a first-class concept of User that allows for:
-- permissioned access to the UI through [Auth0](https://auth0.com/)
-- different user types, including Admin and Read-only
-- a protected GraphQL API that can only be accessed via special authorization tokens
-- full team management experience
+Prefect Cloud supports users as a first-class concept, which allows for:
+- Permissioned access to the UI through [Auth0](https://auth0.com/)
+- Different user types, including Admin and Read-only
+- An authenticated GraphQL API that can only be accessed via special authorization tokens
+- A full team management experience
 
 ### API network accessibility and custom deployments
 
@@ -68,14 +71,14 @@ Because Prefect Cloud's API is accessible from any location with access to `api.
 ### Enterprise features
 
 In addition to user roles and authorization, Prefect Cloud ships with many additional features that are commonly required for business critical deployments:
-- an SLA service for configuring special alerts
-- Single Sign On (SSO) integrations
+- An SLA service for configuring special alerts
+- Single Sign-On (SSO) integrations
 - Agent monitoring
-- special types of Cloud Hooks for notifications
-- an audit trail of all tenant activity
-- Prefect Cloud takes availability very seriously and can be considered a highly available service
+- Special types of Cloud Hooks for notifications
+- An audit trail of all tenant activity
+- High Availability
 - [Enterprise Support](#support) (see below)
-- secure runtime secrets
+- Secure runtime secrets
 
 ### Scale & Performance
 
