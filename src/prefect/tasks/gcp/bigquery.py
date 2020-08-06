@@ -362,7 +362,7 @@ class BigQueryLoadGoogleCloudStorage(Task):
             - ValueError: if the load job results in an error
 
         Returns:
-            - the response from `load_table_from_uri`
+            - google.cloud.bigquery.job.LoadJob: the response from `load_table_from_uri`
         """
         # check for any argument inconsistencies
         if dataset_id is None or table is None:
@@ -381,6 +381,8 @@ class BigQueryLoadGoogleCloudStorage(Task):
             job_config.schema = schema
         load_job = client.load_table_from_uri(uri, table_ref, job_config=job_config)
         load_job.result()  # block until job is finished
+
+        return load_job
 
 
 class BigQueryLoadFile(Task):
@@ -490,7 +492,7 @@ class BigQueryLoadFile(Task):
             - ValueError: if the load job results in an error
 
         Returns:
-            - the response from `load_table_from_file`
+            - google.cloud.bigquery.job.LoadJob: the response from `load_table_from_file`
         """
         # check for any argument inconsistencies
         if dataset_id is None or table is None:
@@ -529,6 +531,8 @@ class BigQueryLoadFile(Task):
             raise IOError(f"Can't open and read from {path.as_posix()}.")
 
         load_job.result()  # block until job is finished
+
+        return load_job
 
 
 class CreateBigQueryTable(Task):
