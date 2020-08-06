@@ -154,7 +154,12 @@ module.exports = {
         {
           title: 'Server',
           collapsable: true,
-          children: ['server/architecture', 'server/deploy', 'server/telemetry']
+          children: [
+            'server/overview',
+            'server/architecture',
+            'server/deploy-local',
+            'server/telemetry'
+          ]
         },
         {
           title: 'UI',
