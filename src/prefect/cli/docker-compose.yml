@@ -20,7 +20,7 @@ services:
       - "-c"
       - "max_connections=150"
   hasura:
-    image: "hasura/graphql-engine:v1.1.0"
+    image: "hasura/graphql-engine:v1.3.0"
     ports:
       - "${HASURA_HOST_PORT:-3000}:3000"
     command: "graphql-engine serve"
