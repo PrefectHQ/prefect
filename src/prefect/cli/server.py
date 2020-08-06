@@ -78,7 +78,6 @@ def server():
     \b
     Arguments:
         start                   Start the Prefect Core server using docker-compose
-        create-default-tenant   Create a default tenant
 
     \b
     Examples:
