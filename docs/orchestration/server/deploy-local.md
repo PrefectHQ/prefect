@@ -12,9 +12,6 @@ Note that this command may take a bit to complete, as the various docker images 
 you should see some "Prefect Server" ASCII art along with the logs output from each service, and the UI should be available at
 [http://localhost:8080](http://localhost:8080).
 
-For more information on running the server in development mode without Docker see the
-[developer documentation](/orchestration/server/development.html).
-
 ## UI configuration
 
 By default the UI will attempt to communicate with the Apollo endpoint at
