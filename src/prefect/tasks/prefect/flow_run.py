@@ -1,8 +1,7 @@
 import time
 from typing import Any
-from urllib.parse import urlparse
 
-from prefect import config, context, Task
+from prefect import context, Task
 from prefect.client import Client
 from prefect.engine.signals import signal_from_state
 from prefect.utilities.graphql import EnumValue, with_args
