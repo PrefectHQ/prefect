@@ -152,6 +152,11 @@ module.exports = {
       '/orchestration/': [
         '/orchestration/',
         {
+          title: 'Server',
+          collapsable: true,
+          children: ['server/architecture', 'server/deploy', 'server/telemetry']
+        },
+        {
           title: 'UI',
           collapsable: true,
           children: [
@@ -228,11 +233,6 @@ module.exports = {
             'recipes/k8s_dask',
             'recipes/k8s_docker_sidecar'
           ]
-        },
-        {
-          title: 'Server',
-          collapsable: true,
-          children: ['server/architecture', 'server/deploy', 'server/telemetry']
         },
         {
           title: 'FAQ',
