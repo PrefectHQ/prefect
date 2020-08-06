@@ -1,82 +1,8 @@
+---
+sidebarDepth: 1
+editLink: false
+---
 # Changelog
-
-## 0.13.0 <Badge text="beta" type="success" />
-
-Released on August 6, 2020.
-
-### Features
-
-- Support cancellation of active flow runs - [#2942](https://github.com/PrefectHQ/prefect/pull/2942)
-- Add Webhook storage - [#3000](https://github.com/PrefectHQ/prefect/pull/3000)
-
-### Enhancements
-
-- Only supply versions when setting `SUBMITTED` and `RUNNING` states - [#2730](https://github.com/PrefectHQ/prefect/issues/2730
-- Gracefully recover from version lock errors - [#2731](https://github.com/PrefectHQ/prefect/issues/2731
-- Add `--ui-version` server start CLI option to run a specific UI image - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
-- Agent querying of flow runs now passes active tenant ID - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
-
-### Task Library
-
-- Allow idempotency keys in `FlowRunTask` when using server backend - [#3006](https://github.com/PrefectHQ/prefect/issues/3006)
-- Require project name in `FlowRunTask` when using server backend - [#3006](https://github.com/PrefectHQ/prefect/issues/3006)
-
-### Fixes
-
-- Fix use of absolute path in Docker storage on Windows - [#3044](https://github.com/PrefectHQ/prefect/pull/3044)
-- Determine if checkpointing is enabled from config set in the flow-runner process - [#3085](https://github.com/PrefectHQ/prefect/pull/3085)
-- Fix `--no-ui` server start CLI option still attempting to pull UI image - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
-
-### Deprecations
-
-- Deprecate `execute cloud-flow` CLI command in favor of `execute flow-run` - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
-- Deprecate `run server/cloud` CLI commands in favor of `run flow` - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
-
-### Breaking Changes
-
-- Move server and UI code out into separate repositories - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
-- Project names are now required when managing flows with the core server - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
-
-### Contributors
-
-- [James Lamb](https://github.com/jameslamb)
-- [Pravin Dahal](https://github.com/pravindahal)
-
-## 0.12.6 <Badge text="beta" type="success" />
-
-Released on July 28, 2020.
-
-### Features
-
-- Add `flatten` operator for unnesting and flat-maps - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)
-
-### Enhancements
-
-- Add retry_on_api_error flag to client methods - [#3012](https://github.com/PrefectHQ/prefect/pull/3012)
-- Add `reg_allow_list` option for Docker Agent - [#3026](https://github.com/PrefectHQ/prefect/pull/3026#issuecomment-663078217)
-- Update FargateTaskEnvironment to throw if task definition is inconsistent with existing task definition - [#3031](https://github.com/PrefectHQ/prefect/pull/3031)
-
-### Fixes
-
-- Cleanup to ShellTask to close open stdout file which was observable in some cases - [#3002](https://github.com/PrefectHQ/prefect/issues/3002)
-- Fix check of flow existence in storage object `get_flow` to only occur when provided - [#3027](https://github.com/PrefectHQ/prefect/issues/3027)
-- Use fullname and tag when Docker Storage determines if build was successful - [#3029](https://github.com/PrefectHQ/prefect/pull/3029)
-- Prevent duplicated agent labels - [#3029](https://github.com/PrefectHQ/prefect/pull/3042)
-
-### Deprecations
-
-- `prefect.utilities.tasks.unmapped` moved to `prefect.utilities.edges.unmapped` - [#2898](https://github.com/PrefectHQ/prefect/pull/2898)
-
-### Breaking Changes
-
-- Remove `dbt` extra from dependencies - [#3018](https://github.com/PrefectHQ/prefect/pull/3018)
-
-### Contributors
-
-- [James Lamb](https://github.com/jameslamb)
-- [Spencer Ellinor](https://github.com/zpencerq)
-- [Thomas Frederik Hoeck](https://github.com/thomasfrederikhoeck)
-- [berosen](https://github.com/berosen)
 
 ## version=0.12.5 <Badge text="beta" type="success" />
 
@@ -2308,3 +2234,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on August 6, 2020 at 13:56 UTC</p>

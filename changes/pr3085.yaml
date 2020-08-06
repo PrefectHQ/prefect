@@ -1,2 +1,0 @@
-fix:
-  - "Determine if checkpointing is enabled from config set in the flow-runner process - [#3085](https://github.com/PrefectHQ/prefect/pull/3085)"
