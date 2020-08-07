@@ -399,6 +399,8 @@ class BigQueryLoadFile(Task):
         - size (int, optional):  the number of bytes to read from the file handle. If size is
             None or large, resumable upload will be used. Otherwise, multipart upload will be
             used.
+        - num_retries (int, optional): the number of max retries for loading the bigquery table from
+            file. Defaults to `6`
         - dataset_id (str, optional): the id of a destination dataset to write the records to
         - table (str, optional): the name of a destination table to write the records to
         - project (str, optional): the project to initialize the BigQuery Client with; if not
@@ -470,6 +472,8 @@ class BigQueryLoadFile(Task):
             - size (int, optional):  the number of bytes to read from the file handle. If size
                 is None or large, resumable upload will be used. Otherwise, multipart upload
                 will be used.
+            - num_retries (int, optional): the number of max retries for loading the bigquery table from
+                file. Defaults to `6`
             - dataset_id (str, optional): the id of a destination dataset to write the records
                 to; if not provided here, will default to the one provided at initialization
             - table (str, optional): the name of a destination table to write the records to;
