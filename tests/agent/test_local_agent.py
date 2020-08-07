@@ -223,7 +223,11 @@ def test_local_agent_deploy_processes_local_storage(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                    {
+                        "storage": Local(directory="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
@@ -244,7 +248,11 @@ def test_local_agent_deploy_processes_gcs_storage(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": GCS(bucket="test").serialize(), "id": "foo"}
+                    {
+                        "storage": GCS(bucket="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
@@ -265,7 +273,11 @@ def test_local_agent_deploy_processes_s3_storage(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": GCS(bucket="test").serialize(), "id": "foo"}
+                    {
+                        "storage": GCS(bucket="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
@@ -286,7 +298,11 @@ def test_local_agent_deploy_processes_azure_storage(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": GCS(bucket="test").serialize(), "id": "foo"}
+                    {
+                        "storage": GCS(bucket="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
@@ -312,7 +328,13 @@ def test_local_agent_deploy_processes_webhook_storage(monkeypatch, runner_token)
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": webhook.serialize(), "id": "foo"}),
+                "flow": GraphQLResult(
+                    {
+                        "storage": webhook.serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
+                ),
                 "id": "id",
             }
         )
@@ -334,7 +356,14 @@ def test_local_agent_deploy_storage_raises_not_supported_storage(
     with pytest.raises(ValueError):
         agent.deploy_flow(
             flow_run=GraphQLResult(
-                {"id": "id", "flow": {"storage": Docker().serialize(), "id": "foo"}},
+                {
+                    "id": "id",
+                    "flow": {
+                        "storage": Docker().serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    },
+                },
             )
         )
 
@@ -358,7 +387,9 @@ def test_local_agent_deploy_storage_fails_none(monkeypatch, cloud_api):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
-                    "flow": GraphQLResult({"storage": None, "id": "foo"}),
+                    "flow": GraphQLResult(
+                        {"storage": None, "id": "foo", "core_version": "0.13.0"}
+                    ),
                     "id": "id",
                     "version": 1,
                 }
@@ -380,7 +411,11 @@ def test_local_agent_deploy_import_paths(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                    {
+                        "storage": Local(directory="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
@@ -403,7 +438,11 @@ def test_local_agent_deploy_keep_existing_python_path(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                    {
+                        "storage": Local(directory="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
@@ -429,7 +468,11 @@ def test_local_agent_deploy_no_existing_python_path(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                    {
+                        "storage": Local(directory="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
@@ -471,7 +514,7 @@ def test_local_agent_heartbeat(
     popen = MockPopen()
     # expect a process to be called with the following command (with specified behavior)
     popen.set_command(
-        "prefect execute cloud-flow",
+        "prefect execute flow-run",
         stdout=b"awesome output!",
         stderr=b"blerg, eRroR!",
         returncode=returncode,
@@ -484,7 +527,11 @@ def test_local_agent_heartbeat(
         flow_run=GraphQLResult(
             {
                 "flow": GraphQLResult(
-                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                    {
+                        "storage": Local(directory="test").serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    }
                 ),
                 "id": "id",
             }
