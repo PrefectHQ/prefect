@@ -17,7 +17,7 @@ spec:
           image: prefecthq/prefect:latest
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
-          args: ["prefect", "execute", "cloud-flow"]
+          args: ["prefect execute cloud-flow"]
           env:
             - name: PREFECT__CLOUD__API
               value: PREFECT__CLOUD__API
