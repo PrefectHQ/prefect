@@ -306,9 +306,10 @@ classes = [
         "GCSUpload",
         "GCSCopy",
         "BigQueryTask",
-        "BigQueryLoadGoogleCloudStorage",
         "BigQueryStreamingInsert",
-        "CreateBigQueryTable"
+        "CreateBigQueryTable",
+        "BigQueryLoadGoogleCloudStorage",
+        "BigQueryLoadFile"
         ]
 
 [pages.tasks.great_expectations]
