@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.1 <Badge text="beta" type="success" />
+
+Released on August 6, 2020.
+
+### Fixes
+
+- Fix issue with 0.13.0 agents not able to run Flows registered with older Core versions - [#3111](https://github.com/PrefectHQ/prefect/pull/3111)
+
+
 ## 0.13.0 <Badge text="beta" type="success" />
 
 Released on August 6, 2020.

@@ -585,7 +585,7 @@ class FargateAgent(Agent):
             {
                 "name": "flow",
                 "image": image,
-                "command": ["/bin/sh", "-c", "prefect execute flow-run"],
+                "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__API",

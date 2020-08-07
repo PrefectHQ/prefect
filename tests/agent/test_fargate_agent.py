@@ -1002,7 +1002,7 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, cloud_api):
         {
             "name": "flow",
             "image": "test/name:tag",
-            "command": ["/bin/sh", "-c", "prefect execute flow-run"],
+            "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
                 {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
                 {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
@@ -1136,7 +1136,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
         {
             "name": "flow",
             "image": "test/name:tag",
-            "command": ["/bin/sh", "-c", "prefect execute flow-run"],
+            "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
                 {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
                 {
@@ -1238,7 +1238,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
             {
                 "name": "flow",
                 "image": "test/name:tag",
-                "command": ["/bin/sh", "-c", "prefect execute flow-run"],
+                "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
@@ -1610,7 +1610,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
             {
                 "name": "flow",
                 "image": "test/name:tag",
-                "command": ["/bin/sh", "-c", "prefect execute flow-run"],
+                "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
                     {
