@@ -1,9 +1,17 @@
 contact_links:
 
-  - name: Ask a question or present an idea 💡
+  - name: Ask a question, get help, or present an idea 💡
     url: https://github.com/PrefectHQ/prefect/discussions/category_choices
     about: Life, the universe, and everything
 
+  - name: Visit the UI repo 🎨
+    url: https://github.com/PrefectHQ/ui
+    about: The Total Perspective Vortex
+
+  - name: Visit the Server repo 🛠
+    url: https://github.com/PrefectHQ/server
+    about: The Heart of Gold
+    
   - name: Chat in Slack 💬
     url: https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE
     about: Don't panic
