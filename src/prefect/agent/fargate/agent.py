@@ -489,7 +489,7 @@ class FargateAgent(Agent):
                 flow_task_definition_kwargs=flow_task_definition_kwargs,
                 container_definitions_kwargs=flow_container_definitions_kwargs,
                 task_definition_name=task_definition_dict["task_definition_name"],
-                flow_run_command=flow_run_command
+                flow_run_command=flow_run_command,
             )
 
         # run task

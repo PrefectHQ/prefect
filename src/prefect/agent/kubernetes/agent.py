@@ -177,7 +177,9 @@ class KubernetesAgent(Agent):
         self.logger.debug("Using image {} for job".format(image))
 
         # Datermine flow run command
-        job["spec"]["template"]["spec"]["containers"][0]["args"] = [get_flow_run_command(flow_run)]
+        job["spec"]["template"]["spec"]["containers"][0]["args"] = [
+            get_flow_run_command(flow_run)
+        ]
 
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]

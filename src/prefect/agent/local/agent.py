@@ -154,7 +154,6 @@ class LocalAgent(Agent):
 
         stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
-
         # note: we will allow these processes to be orphaned if the agent were to exit
         # before the flow runs have completed. The lifecycle of the agent should not
         # dictate the lifecycle of the flow run. However, if the user has elected to

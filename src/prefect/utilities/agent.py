@@ -40,6 +40,7 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
 
         return storage.name
 
+
 def get_flow_run_command(flow_run: GraphQLResult) -> str:
     """
     Determine the flow run command to use based on a flow's version. This is due to a command
