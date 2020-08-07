@@ -20,10 +20,11 @@ Released on August 6, 2020.
 
 ### Enhancements
 
-- Only supply versions when setting `SUBMITTED` and `RUNNING` states - [#2730](https://github.com/PrefectHQ/prefect/issues/2730
-- Gracefully recover from version lock errors - [#2731](https://github.com/PrefectHQ/prefect/issues/2731
+- Only supply versions when setting `SUBMITTED` and `RUNNING` states - [#2730](https://github.com/PrefectHQ/prefect/issues/2730)
+- Gracefully recover from version lock errors - [#2731](https://github.com/PrefectHQ/prefect/issues/2731)
 - Add `--ui-version` server start CLI option to run a specific UI image - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
 - Agent querying of flow runs now passes active tenant ID - [#3087](https://github.com/PrefectHQ/prefect/pull/3087)
+- Ignore calls to flow.register when parsing a flow using file based storage - [#3051](https://github.com/PrefectHQ/prefect/issues/3051)
 
 ### Task Library
 
@@ -50,6 +51,7 @@ Released on August 6, 2020.
 
 - [James Lamb](https://github.com/jameslamb)
 - [Pravin Dahal](https://github.com/pravindahal)
+- [Panagiotis Simakis](https://github.com/sp1thas)
 
 ## 0.12.6 <Badge text="beta" type="success" />
 
