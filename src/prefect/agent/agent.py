@@ -484,7 +484,7 @@ class Agent:
 
         self.logger.debug(msg)
 
-        # Query metadata fow flow runs found in queue
+        # Query metadata for flow runs found in queue
         query = {
             "query": {
                 with_args(
@@ -515,7 +515,7 @@ class Agent:
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,
-                    "flow": {"id", "name", "environment", "storage", "version"},
+                    "flow": {"id", "name", "environment", "storage", "version", "core_version"},
                     with_args(
                         "task_runs",
                         {

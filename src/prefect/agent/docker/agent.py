@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
-from prefect.utilities.agent import get_flow_image
+from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
 
@@ -384,7 +384,7 @@ class DockerAgent(Agent):
 
         container = self.docker_client.create_container(
             image,
-            command="prefect execute cloud-flow",
+            command=get_flow_run_command(flow_run),
             environment=env_vars,
             volumes=container_mount_paths,
             host_config=self.docker_client.create_host_config(**host_config),

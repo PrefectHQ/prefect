@@ -8,6 +8,7 @@ from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import GCS, S3, Azure, Local, GitHub, Webhook
 from prefect.serialization.storage import StorageSchema
+from prefect.utilities.agent import get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -153,13 +154,14 @@ class LocalAgent(Agent):
 
         stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
+
         # note: we will allow these processes to be orphaned if the agent were to exit
         # before the flow runs have completed. The lifecycle of the agent should not
         # dictate the lifecycle of the flow run. However, if the user has elected to
         # show flow logs, these log entries will continue to stream to the users terminal
         # until these child processes exit, even if the agent has already exited.
         p = Popen(
-            ["prefect", "execute", "cloud-flow"],
+            get_flow_run_command(flow_run).split(" "),
             stdout=stdout,
             stderr=STDOUT,
             env=current_env,
