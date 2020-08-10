@@ -535,4 +535,17 @@ class LocalDaskExecutor(Executor):
         # import dask here to reduce prefect import times
         import dask
 
-        return dask.compute(futures, scheduler=self.scheduler, pool=self._pool)[0]
+        # dask's multiprocessing scheduler hardcodes task fusion in a way
+        # that's not exposed via a `compute` kwarg. Until that's fixed, we
+        # disable fusion globally for the multiprocessing scheduler only.
+        # Since multiprocessing tasks execute in a remote process, this
+        # shouldn't affect user code.
+        if self.scheduler == "processes":
+            config = {"optimization.fuse.active": False}
+        else:
+            config = {}
+
+        with dask.config.set(config):
+            return dask.compute(
+                futures, scheduler=self.scheduler, pool=self._pool, optimize_graph=False
+            )[0]
