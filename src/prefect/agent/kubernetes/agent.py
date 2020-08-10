@@ -78,6 +78,7 @@ class KubernetesAgent(Agent):
             no_cloud_logs=no_cloud_logs,
         )
 
+        self.jobs = list()
         self.namespace = namespace
 
         from kubernetes import client, config
@@ -95,6 +96,52 @@ class KubernetesAgent(Agent):
         self.batch_client = client.BatchV1Api()
 
         self.logger.debug(f"Namespace: {self.namespace}")
+
+    def heartbeat(self) -> None:
+        # wee need a copy of the list before we can remove it, maybe go back to set stuff
+        for item in self.jobs:
+            print("STATUS:")
+            # "job.metadata.name"
+            print(item["id"])
+            print(item["job"].metadata.name)
+            # print(item["job"].status)
+            status = self.batch_client.read_namespaced_job_status(
+                namespace=self.namespace or os.getenv("NAMESPACE", "default"), name=item["job"].metadata.name
+            )
+            print(status)
+            print(status.status)
+        # for process in list(self.processes):
+        #     if process.poll() is not None:
+        #         self.processes.remove(process)
+        #         if process.returncode:
+        #             self.logger.info(
+        #                 "Process PID {} returned non-zero exit code".format(process.pid)
+        #             )
+        super().heartbeat()
+
+        # STATUS:
+        # 71e237c0-4a07-4ae9-9d52-e973ce557f77
+        # prefect-job-b548867c
+        # {'active': 1,
+        # 'completion_time': None,
+        # 'conditions': None,
+        # 'failed': None,
+        # 'start_time': datetime.datetime(2020, 8, 10, 20, 33, 4, tzinfo=tzutc()),
+        # 'succeeded': None}
+        # STATUS:
+        # 71e237c0-4a07-4ae9-9d52-e973ce557f77
+        # prefect-job-b548867c
+        # {'active': None,
+        # 'completion_time': datetime.datetime(2020, 8, 10, 20, 33, 26, tzinfo=tzutc()),
+        # 'conditions': [{'last_probe_time': datetime.datetime(2020, 8, 10, 20, 33, 26, tzinfo=tzutc()),
+        #                 'last_transition_time': datetime.datetime(2020, 8, 10, 20, 33, 26, tzinfo=tzutc()),
+        #                 'message': None,
+        #                 'reason': None,
+        #                 'status': 'True',
+        #                 'type': 'Complete'}],
+        # 'failed': None,
+        # 'start_time': datetime.datetime(2020, 8, 10, 20, 33, 4, tzinfo=tzutc()),
+        # 'succeeded': 1}
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -121,6 +168,7 @@ class KubernetesAgent(Agent):
             namespace=self.namespace or os.getenv("NAMESPACE", "default"), body=job_spec
         )
 
+        self.jobs.append({"id": flow_run.id, "job": job})
         self.logger.debug("Job {} created".format(job.metadata.name))
 
         return "Job {}".format(job.metadata.name)
