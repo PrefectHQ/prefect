@@ -107,27 +107,25 @@ class TestLocalDaskExecutor:
             assert f.key.startswith("inc-1-")
             assert res == 2
 
-    def test_only_compute_once(self):
-        e = LocalDaskExecutor()
-        count = 0
+    @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])
+    def test_only_compute_once(self, scheduler, tmpdir):
+        e = LocalDaskExecutor(scheduler)
 
-        def inc(x):
-            nonlocal count
-            count += 1
+        def inc(x, path):
+            if os.path.exists(path):
+                raise ValueError("Should only run once!")
+            with open(path, "wb"):
+                pass
             return x + 1
 
         with e.start():
-            f1 = e.submit(inc, 0)
-            f2 = e.submit(inc, f1)
-            f3 = e.submit(inc, f2)
+            f1 = e.submit(inc, 0, str(tmpdir.join("f1")))
+            f2 = e.submit(inc, f1, str(tmpdir.join("f2")))
+            f3 = e.submit(inc, f2, str(tmpdir.join("f3")))
             assert e.wait([f1]) == [1]
-            assert count == 1
             assert e.wait([f2]) == [2]
-            assert count == 2
             assert e.wait([f3]) == [3]
-            assert count == 3
             assert e.wait([f1, f2, f3]) == [1, 2, 3]
-            assert count == 3
 
     def test_is_pickleable(self):
         e = LocalDaskExecutor()
