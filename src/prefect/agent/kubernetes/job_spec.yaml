@@ -1,16 +1,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: prefect-job-UUID
-  labels:
-    app: prefect-job-UUID
-    identifier: UUID
+  name: prefect-job
+  labels: {}
 spec:
   template:
     metadata:
-      labels:
-        app: prefect-job-UUID
-        identifier: UUID
+      labels: {}
     spec:
       containers:
         - name: flow

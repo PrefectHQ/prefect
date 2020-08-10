@@ -1,0 +1,2 @@
+enhancement:
+  - "Clean up extra labels on jobs created by Kubernetes agent - [#3129](https://github.com/PrefectHQ/prefect/pull/3129)"
