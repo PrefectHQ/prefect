@@ -1,0 +1,6 @@
+fix:
+  - "changes the stated return value Dict  in Flow.edges_from() and Flow.edges_to() methods to match their actual return value Set - 
+  [#3032](https://github.com/PrefectHQ/prefect/issues/3032)"
+
+contributor:
+  - "[Andy Kawabata](https://github.com/andykawabata)"
