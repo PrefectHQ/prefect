@@ -1,3 +1,5 @@
+from distutils.version import LooseVersion
+
 import prefect
 from prefect.utilities.graphql import GraphQLResult
 
@@ -37,3 +39,22 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
             )
 
         return storage.name
+
+
+def get_flow_run_command(flow_run: GraphQLResult) -> str:
+    """
+    Determine the flow run command to use based on a flow's version. This is due to a command
+    deprecation in `0.13.0` where `execute cloud-flow` was changes to `execute flow-run`
+
+    Args:
+        - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+    Returns:
+        - str: a prefect CLI command to execute a flow run
+    """
+    core_version = flow_run.flow.core_version or "0.0.0"
+
+    if LooseVersion(core_version) < LooseVersion("0.13.0"):
+        return "prefect execute cloud-flow"
+
+    return "prefect execute flow-run"
