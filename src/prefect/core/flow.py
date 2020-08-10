@@ -740,8 +740,7 @@ class Flow:
             - task (Task): The task that we want to find edges leading to
 
         Returns:
-            - dict with the key as the task passed in and the value as a set of all edges
-            leading to that task
+            - Set: set of all edges leading from that task
 
         Raises:
             - ValueError: if `task` is not found in this flow
@@ -760,8 +759,7 @@ class Flow:
             - task (Task): The task that we want to find edges leading from
 
         Returns:
-            - dict with the key as the task passed in and the value as a set of all edges
-            leading from that task
+            - Set: set of all edges leading from that task
 
         Raises:
             - ValueError: if `task` is not found in this flow
