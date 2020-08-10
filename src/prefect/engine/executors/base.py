@@ -16,7 +16,7 @@ class Executor:
         return "<Executor: {}>".format(type(self).__name__)
 
     @contextmanager
-    def start(self) -> Iterator[None]:
+    def start(self, on_setup=None, on_cleanup=None) -> Iterator[None]:
         """
         Context manager for initializing execution.
 

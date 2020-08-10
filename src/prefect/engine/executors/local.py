@@ -1,4 +1,5 @@
-from typing import Any, Callable
+from contextlib import contextmanager
+from typing import Any, Callable, Iterator
 
 from prefect.engine.executors.base import Executor
 
@@ -8,6 +9,16 @@ class LocalExecutor(Executor):
     An executor that runs all functions synchronously and immediately in
     the main thread.  To be used mainly for debugging purposes.
     """
+
+    @contextmanager
+    def start(self, on_setup=None, on_cleanup=None) -> Iterator[None]:
+        if on_setup is not None:
+            on_setup()
+        try:
+            yield
+        finally:
+            if on_cleanup is not None:
+                on_cleanup()
 
     def submit(
         self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any

@@ -27,6 +27,7 @@ from prefect.engine.state import (
 )
 from prefect.utilities import executors
 from prefect.utilities.collections import flatten_seq
+from prefect.utilities.local_cache import clear_local_cache
 
 FlowRunnerInitializeResult = NamedTuple(
     "FlowRunnerInitializeResult",
@@ -411,7 +412,9 @@ class FlowRunner(Runner):
 
         # -- process each task in order
 
-        with self.check_for_cancellation(), executor.start():
+        with self.check_for_cancellation(), executor.start(
+            on_cleanup=clear_local_cache
+        ):
 
             for task in self.flow.sorted_tasks():
                 task_state = task_states.get(task)
