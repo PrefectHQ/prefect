@@ -343,7 +343,7 @@ def start(
                     # Create a default tenant if no tenant exists
                     if not client.get_available_tenants():
                         client.create_tenant(name="default")
-                    print(ascii_name)
+                    print(get_ascii_name())
                 except Exception:
                     time.sleep(0.5)
                     pass
@@ -363,11 +363,23 @@ def start(
         raise
 
 
-ascii_name = r"""
-  _____           __          _      _____
- |  __ \         / _|        | |    / ____|
- | |__) | __ ___| |_ ___  ___| |_  | (___   ___ _ ____   _____ _ __
- |  ___/ '__/ _ \  _/ _ \/ __| __|  \___ \ / _ \ '__\ \ / / _ \ '__|
- | |   | | |  __/ ||  __/ (__| |_   ____) |  __/ |   \ V /  __/ |
- |_|   |_|  \___|_| \___|\___|\__| |_____/ \___|_|    \_/ \___|_|
-"""
+def get_ascii_name(url_port="8080"):
+    return r"""
+
+  WELCOME TO
+
+   _____  _____  ______ ______ ______ _____ _______    _____ ______ _______      ________ _____  
+  |  __ \|  __ \|  ____|  ____|  ____/ ____|__   __|  / ____|  ____|  __ \ \    / /  ____|  __ \ 
+  | |__) | |__) | |__  | |__  | |__ | |       | |    | (___ | |__  | |__) \ \  / /| |__  | |__) |
+  |  ___/|  _  /|  __| |  __| |  __|| |       | |     \___ \|  __| |  _  / \ \/ / |  __| |  _  / 
+  | |    | | \ \| |____| |    | |___| |____   | |     ____) | |____| | \ \  \  /  | |____| | \ \ 
+  |_|    |_|  \_\______|_|    |______\_____|  |_|    |_____/|______|_|  \_\  \/   |______|_|  \_\
+
+
+  Visit https://localhost:{url_port} to get started, or check out the docs at https://docs.prefect.io
+  
+                                                                                                
+    """.format(
+        url_port=url_port
+    )
+
