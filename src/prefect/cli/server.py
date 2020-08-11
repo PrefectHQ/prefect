@@ -343,7 +343,7 @@ def start(
                     # Create a default tenant if no tenant exists
                     if not client.get_available_tenants():
                         client.create_tenant(name="default")
-                    print(get_ascii_name())
+                    print(ascii_welcome(ui_port=str(ui_port)))
                 except Exception:
                     time.sleep(0.5)
                     pass
@@ -363,11 +363,11 @@ def start(
         raise
 
 
-def get_ascii_name(url_port="8080"):
-    return r"""
+def ascii_welcome(ui_port="8080"):
+    ui_url = click.style(f"https://localhost:{ui_port}", bg="blue", bold=True)
+    docs_url = click.style("https://docs.prefect.io", bg="blue", bold=True)
 
-  WELCOME TO
-
+    title = r"""
    _____  _____  ______ ______ ______ _____ _______    _____ ______ _______      ________ _____  
   |  __ \|  __ \|  ____|  ____|  ____/ ____|__   __|  / ____|  ____|  __ \ \    / /  ____|  __ \ 
   | |__) | |__) | |__  | |__  | |__ | |       | |    | (___ | |__  | |__) \ \  / /| |__  | |__) |
@@ -375,11 +375,14 @@ def get_ascii_name(url_port="8080"):
   | |    | | \ \| |____| |    | |___| |____   | |     ____) | |____| | \ \  \  /  | |____| | \ \ 
   |_|    |_|  \_\______|_|    |______\_____|  |_|    |_____/|______|_|  \_\  \/   |______|_|  \_\
 
+    """
 
-  Visit https://localhost:{url_port} to get started, or check out the docs at https://docs.prefect.io
-  
-                                                                                                
-    """.format(
-        url_port=url_port
-    )
+    message = f"""
+                                            {click.style('WELCOME TO', fg='blue', bold=True)}
+  {click.style(title, bold=True)}
+   Visit {ui_url} to get started, or check out the docs at {docs_url}
+    """
+
+    return message
+
 
