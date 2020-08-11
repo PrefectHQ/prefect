@@ -1,2 +1,0 @@
-enhancement:
-  - "Agents set flow run execution command based on flow's core version - [#3113](https://github.com/PrefectHQ/prefect/pull/3113)"

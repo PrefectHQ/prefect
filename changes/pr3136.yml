@@ -1,5 +1,0 @@
-fix:
-  - "Add toggle to bypass bug in slack_notifier that attempted to connect to backend even if the backend didn't exist - [#3136](https://github.com/PrefectHQ/prefect/pull/3136)"
-
-contributor:
-  - "[Fraznist](https://github.com/Fraznist)"

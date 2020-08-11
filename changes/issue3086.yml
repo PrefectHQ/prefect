@@ -1,5 +1,0 @@
-task:
-  - "Return `LoadJob` object in `BigQueryLoad` tasks - [#3086](https://github.com/PrefectHQ/prefect/issues/3086)"
-
-contributor:
-  - "[Franklin Winokur](https://github.com/fwinokur)"
