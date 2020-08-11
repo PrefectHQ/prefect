@@ -364,8 +364,10 @@ def start(
 
 
 def ascii_welcome(ui_port="8080"):
-    ui_url = click.style(f"https://localhost:{ui_port}", bg="blue", bold=True)
-    docs_url = click.style("https://docs.prefect.io", bg="blue", bold=True)
+    ui_url = click.style(
+        f"https://localhost:{ui_port}", fg="white", bg="blue", bold=True
+    )
+    docs_url = click.style("https://docs.prefect.io", fg="white", bg="blue", bold=True)
 
     title = r"""
    _____  _____  ______ ______ ______ _____ _______    _____ ______ _______      ________ _____  
@@ -384,5 +386,4 @@ def ascii_welcome(ui_port="8080"):
     """
 
     return message
-
 
