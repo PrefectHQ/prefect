@@ -11,9 +11,13 @@ class LocalExecutor(Executor):
     """
 
     @contextmanager
-    def start(self, on_setup=None, on_cleanup=None) -> Iterator[None]:
-        if on_setup is not None:
-            on_setup()
+    def start(self, on_cleanup: Callable = None) -> Iterator[None]:
+        """
+        Context manager for initializing execution.
+
+        Args:
+            - on_cleanup (Callable, optional): callback to call upon completion of a flow run.
+        """
         try:
             yield
         finally:

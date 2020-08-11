@@ -16,12 +16,17 @@ class Executor:
         return "<Executor: {}>".format(type(self).__name__)
 
     @contextmanager
-    def start(self, on_setup=None, on_cleanup=None) -> Iterator[None]:
+    def start(self, on_cleanup: Callable = None) -> Iterator[None]:
         """
         Context manager for initializing execution.
 
         Any initialization this executor needs to perform should be done in this
         context manager, and torn down after yielding.
+
+        Args:
+            - on_cleanup (Callable, optional): callback to call in every executor process
+                upon completion of a flow run. The callback execution is best-effort, and
+                may be skipped in certain cases (e.g. a worker process dies).
         """
         yield
 

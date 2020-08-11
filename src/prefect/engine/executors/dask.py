@@ -1,9 +1,12 @@
+import atexit
 import logging
 import uuid
 import warnings
 import weakref
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
+
+import cloudpickle
 
 from prefect import context
 from prefect.engine.executors.base import Executor
@@ -226,11 +229,14 @@ class DaskExecutor(Executor):
         super().__init__()
 
     @contextmanager
-    def start(self) -> Iterator[None]:
+    def start(self, on_cleanup: Callable = None) -> Iterator[None]:
         """
         Context manager for initializing execution.
 
-        Creates a `dask.distributed.Client` and yields it.
+        Args:
+            - on_cleanup (Callable, optional): callback to call in every executor process
+                upon completion of a flow run. The callback execution is best-effort, and
+                may be skipped in certain cases (e.g. a worker process dies).
         """
         from distributed import Client
 
@@ -242,7 +248,7 @@ class DaskExecutor(Executor):
                         self._pre_start_yield()
                         yield
                     finally:
-                        self._post_start_yield()
+                        self._post_start_yield(on_cleanup=on_cleanup)
             else:
                 with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
                     if self.adapt_kwargs:
@@ -253,7 +259,7 @@ class DaskExecutor(Executor):
                             self._pre_start_yield()
                             yield
                         finally:
-                            self._post_start_yield()
+                            self._post_start_yield(on_cleanup=on_cleanup)
         finally:
             self.client = None
 
@@ -268,7 +274,7 @@ class DaskExecutor(Executor):
             )
             self._should_run_var.set(True)
 
-    def _post_start_yield(self) -> None:
+    def _post_start_yield(self, on_cleanup: Callable = None) -> None:
         from distributed import wait
 
         if self._should_run_var is not None:
@@ -294,6 +300,14 @@ class DaskExecutor(Executor):
                 self._should_run_var.delete()
             except Exception:
                 pass
+
+        # Execute on_cleanup hook if present
+        if on_cleanup is not None:
+            try:
+                self.client.run(on_cleanup)  # type: ignore
+            except Exception:
+                pass
+
         self._should_run_var = None
         self._futures = None
 
@@ -375,6 +389,12 @@ class DaskExecutor(Executor):
         return self.client.gather(futures)
 
 
+def _init_process(on_cleanup_pickled: bytes) -> None:
+    on_cleanup = cloudpickle.loads(on_cleanup_pickled)
+    if on_cleanup is not None:
+        atexit.register(on_cleanup)
+
+
 class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable
@@ -448,8 +468,15 @@ class LocalDaskExecutor(Executor):
                 )
 
     @contextmanager
-    def start(self) -> Iterator:
-        """Context manager for initializing execution."""
+    def start(self, on_cleanup: Callable = None) -> Iterator:
+        """
+        Context manager for initializing execution.
+
+        Args:
+            - on_cleanup (Callable, optional): callback to call in every executor process
+                upon completion of a flow run. The callback execution is best-effort, and
+                may be skipped in certain cases (e.g. a worker process dies).
+        """
         # import dask here to reduce prefect import times
         import dask.config
         from dask.callbacks import Callback
@@ -480,7 +507,11 @@ class LocalDaskExecutor(Executor):
                     from dask.multiprocessing import get_context
 
                     context = get_context()
-                    self._pool = context.Pool(num_workers)
+                    on_cleanup_pickled = cloudpickle.dumps(on_cleanup)
+                    self._pool = context.Pool(
+                        num_workers, _init_process, (on_cleanup_pickled,)
+                    )
+
             try:
                 exiting_early = False
                 yield
@@ -494,6 +525,8 @@ class LocalDaskExecutor(Executor):
                         self._interrupt_pool()
                     self._pool.join()
                     self._pool = None
+            if self.scheduler != "processes" and on_cleanup is not None:
+                on_cleanup()
 
     def submit(
         self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any

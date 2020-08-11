@@ -9,6 +9,7 @@ from typing import (
     Set,
 )
 from contextlib import contextmanager
+from functools import partial
 
 import pendulum
 import prefect
@@ -412,8 +413,10 @@ class FlowRunner(Runner):
 
         # -- process each task in order
 
+        flow_run_id = prefect.context["flow_run_id"]
+
         with self.check_for_cancellation(), executor.start(
-            on_cleanup=clear_local_cache
+            on_cleanup=partial(clear_local_cache, flow_run_id=flow_run_id)
         ):
 
             for task in self.flow.sorted_tasks():
