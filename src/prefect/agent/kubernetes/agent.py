@@ -94,22 +94,48 @@ class KubernetesAgent(Agent):
             config.load_kube_config()
 
         self.batch_client = client.BatchV1Api()
+        self.core_client = client.CoreV1Api()
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
     def heartbeat(self) -> None:
-        # wee need a copy of the list before we can remove it, maybe go back to set stuff
+
+        # possibly rename this function
+        # move all of the os.getenv calls to init for namespace
+        # this could wholesale replace the resource manager, need to test RBAC
+        # not sure what to do with list of current jobs. Maybe at startup the agents
+        #   should query for all jobs with a matching prefect.io label
+        #   local / docker are weird though. Maybe docker and local don't even need
+        #   to delete them
+        # test creating Docker and Fargate jobs with bad images
+        # rearrange agent base class code
+        # resource manager will be deprecated, not removed. tbd if this should now be default
+
+        # we need a copy of the list before we can remove it, maybe go back to set stuff
         for item in self.jobs:
-            print("STATUS:")
-            # "job.metadata.name"
-            print(item["id"])
-            print(item["job"].metadata.name)
-            # print(item["job"].status)
-            status = self.batch_client.read_namespaced_job_status(
-                namespace=self.namespace or os.getenv("NAMESPACE", "default"), name=item["job"].metadata.name
+            print(item)
+            # print("STATUS:")
+            # # "job.metadata.name"
+            # print(item["id"])
+            # print(item["job"].metadata.name)
+            # # print(item["job"].status)
+            job_status = self.batch_client.read_namespaced_job_status(
+                namespace=self.namespace or os.getenv("NAMESPACE", "default"),
+                name=item["job_name"],
             )
-            print(status)
-            print(status.status)
+            # print(status)
+            print("Job Status::::::")
+            print(job_status.status)
+
+            # We only do this if the job is _not_ a success
+            for pod_name in item["pod_names"]:
+                pod_status = self.core_client.read_namespaced_pod_status(
+                    namespace=self.namespace or os.getenv("NAMESPACE", "default"),
+                    name=pod_name,
+                )
+
+                print("Pod status::::::::")
+                print(pod_status.status)
         # for process in list(self.processes):
         #     if process.poll() is not None:
         #         self.processes.remove(process)
@@ -119,29 +145,62 @@ class KubernetesAgent(Agent):
         #             )
         super().heartbeat()
 
-        # STATUS:
-        # 71e237c0-4a07-4ae9-9d52-e973ce557f77
-        # prefect-job-b548867c
+        # Job Status::::::
         # {'active': 1,
         # 'completion_time': None,
         # 'conditions': None,
         # 'failed': None,
-        # 'start_time': datetime.datetime(2020, 8, 10, 20, 33, 4, tzinfo=tzutc()),
+        # 'start_time': datetime.datetime(2020, 8, 10, 21, 15, 30, tzinfo=tzutc()),
         # 'succeeded': None}
-        # STATUS:
-        # 71e237c0-4a07-4ae9-9d52-e973ce557f77
-        # prefect-job-b548867c
-        # {'active': None,
-        # 'completion_time': datetime.datetime(2020, 8, 10, 20, 33, 26, tzinfo=tzutc()),
-        # 'conditions': [{'last_probe_time': datetime.datetime(2020, 8, 10, 20, 33, 26, tzinfo=tzutc()),
-        #                 'last_transition_time': datetime.datetime(2020, 8, 10, 20, 33, 26, tzinfo=tzutc()),
+        # Pod status::::::::
+        # {'conditions': [{'last_probe_time': None,
+        #                 'last_transition_time': datetime.datetime(2020, 8, 10, 21, 15, 30, tzinfo=tzutc()),
         #                 'message': None,
         #                 'reason': None,
         #                 'status': 'True',
-        #                 'type': 'Complete'}],
-        # 'failed': None,
-        # 'start_time': datetime.datetime(2020, 8, 10, 20, 33, 4, tzinfo=tzutc()),
-        # 'succeeded': 1}
+        #                 'type': 'Initialized'},
+        #                 {'last_probe_time': None,
+        #                 'last_transition_time': datetime.datetime(2020, 8, 10, 21, 15, 30, tzinfo=tzutc()),
+        #                 'message': 'containers with unready status: [flow]',
+        #                 'reason': 'ContainersNotReady',
+        #                 'status': 'False',
+        #                 'type': 'Ready'},
+        #                 {'last_probe_time': None,
+        #                 'last_transition_time': datetime.datetime(2020, 8, 10, 21, 15, 30, tzinfo=tzutc()),
+        #                 'message': 'containers with unready status: [flow]',
+        #                 'reason': 'ContainersNotReady',
+        #                 'status': 'False',
+        #                 'type': 'ContainersReady'},
+        #                 {'last_probe_time': None,
+        #                 'last_transition_time': datetime.datetime(2020, 8, 10, 21, 15, 30, tzinfo=tzutc()),
+        #                 'message': None,
+        #                 'reason': None,
+        #                 'status': 'True',
+        #                 'type': 'PodScheduled'}],
+        # 'container_statuses': [{'container_id': None,
+        #                         'image': 'image-pull-error:2020-08-10t20-36-24-363817-00-00',
+        #                         'image_id': '',
+        #                         'last_state': {'running': None,
+        #                                         'terminated': None,
+        #                                         'waiting': None},
+        #                         'name': 'flow',
+        #                         'ready': False,
+        #                         'restart_count': 0,
+        #                         'state': {'running': None,
+        #                                 'terminated': None,
+        #                                 'waiting': {'message': 'Back-off pulling '
+        #                                                         'image '
+        #                                                         '"image-pull-error:2020-08-10t20-36-24-363817-00-00"',
+        #                                             'reason': 'ImagePullBackOff'}}}],
+        # 'host_ip': '10.142.0.55',
+        # 'init_container_statuses': None,
+        # 'message': None,
+        # 'nominated_node_name': None,
+        # 'phase': 'Pending',
+        # 'pod_ip': '10.36.2.5',
+        # 'qos_class': 'Burstable',
+        # 'reason': None,
+        # 'start_time': datetime.datetime(2020, 8, 10, 21, 15, 30, tzinfo=tzutc())}
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -159,7 +218,10 @@ class KubernetesAgent(Agent):
 
         image = get_flow_image(flow_run=flow_run)
 
-        job_spec = self.replace_job_spec_yaml(flow_run, image)
+        identifier = str(uuid.uuid4())[:8]
+        job_spec = self.replace_job_spec_yaml(
+            flow_run=flow_run, image=image, identifier=identifier
+        )
 
         self.logger.debug(
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
@@ -168,12 +230,30 @@ class KubernetesAgent(Agent):
             namespace=self.namespace or os.getenv("NAMESPACE", "default"), body=job_spec
         )
 
-        self.jobs.append({"id": flow_run.id, "job": job})
+        # self.jobs.append({"id": flow_run.id, "job": job})
         self.logger.debug("Job {} created".format(job.metadata.name))
+
+        # label prefect.io/identifier
+
+        print(f"prefect.io/identifier={identifier}")
+        pods = self.core_client.list_namespaced_pod(
+            namespace=self.namespace or os.getenv("NAMESPACE", "default"),
+            label_selector=f"prefect.io/identifier={identifier}",
+        )
+
+        pod_names = []
+        for pod in pods.items:
+            pod_names.append(pod.metadata.name)
+
+        self.jobs.append(
+            {"job_name": job.metadata.name, "pod_names": pod_names}
+        )
 
         return "Job {}".format(job.metadata.name)
 
-    def replace_job_spec_yaml(self, flow_run: GraphQLResult, image: str) -> dict:
+    def replace_job_spec_yaml(
+        self, flow_run: GraphQLResult, image: str, identifier: str
+    ) -> dict:
         """
         Populate a k8s job spec. This spec defines a k8s job that handles
         executing a flow. This method runs each time the agent receives
@@ -206,7 +286,7 @@ class KubernetesAgent(Agent):
         with open(path.join(path.dirname(__file__), "job_spec.yaml"), "r") as job_file:
             job = yaml.safe_load(job_file)
 
-        identifier = str(uuid.uuid4())[:8]
+        # identifier = str(uuid.uuid4())[:8]
         job_name = "prefect-job-{}".format(identifier)
 
         # Populate job metadata for identification
