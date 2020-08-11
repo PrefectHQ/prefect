@@ -270,6 +270,8 @@ def slack_notifier(
             classes
         - webhook_secret (str, optional): the name of the Prefect Secret that stores your slack
             webhook URL; defaults to `"SLACK_WEBHOOK_URL"`
+        - backend_info (bool, optional): Whether to supply slack notification with urls
+            pointing to backend pages; defaults to True
 
     Returns:
         - State: the `new_state` object that was provided
