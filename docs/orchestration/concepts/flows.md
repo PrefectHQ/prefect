@@ -9,16 +9,11 @@ Flows can be registered with the Prefect API for scheduling and execution, as we
 To register a flow from Prefect Core, use its `register()` method:
 
 ```python
-flow.register()
-```
-
-:::warning Projects <Badge text="Cloud"/>
-Prefect Cloud requires users to organize flows into projects. In this case we are using the `Hello, World!` Project created in [the "creating a project" tutorial](projects.html#creating-a-project).
-
-```python
 flow.register(project_name="Hello, World!")
 ```
 
+:::warning Projects
+Registering a flow with the backend API requires it to be registered to a project. To create a project see [the "creating a project" tutorial](projects.html#creating-a-project).
 :::
 
 Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](../tutorial/configure.html#log-in-to-prefect-cloud). For more information on Flow registration see [here](../tutorial/first.html#register-flow-with-prefect-cloud).
@@ -72,9 +67,9 @@ mutation {
 }
 ```
 
-## Flow Settings <Badge text="Cloud"/> <Badge text="GQL"/>
+## Flow Settings <Badge text="GQL"/>
 
-Prefect Cloud has several insurance policies to ensure flows run healthily and robustly. Three such policies are:
+Running your flows with a Prefect backend has several insurance policies to ensure flows run healthily and robustly. Three such policies are:
 
 - Flow and task run heartbeats
 - [Lazarus](services.html#lazarus) resurrections
@@ -86,9 +81,9 @@ These safeguards can be toggled on a flow-by-flow basis using flow settings.
 Disabling these safeguards can alter fundamental assumptions about how flows run in Cloud. Be sure to read the docs and understand how each of these settings alters flow behavior in Cloud.
 :::
 
-### Toggling Heartbeats <Badge text="0.8.1+"/>
+### Toggling Heartbeats
 
-When running flows registered with Cloud, Prefect Core sends heartbeats to Cloud every 30 seconds. These heartbeats are used to confirm the flow run and its task runs are healthy, and runs missing four heartbeats in a row will be marked as `Failed` by the [Zombie Killer](services.html#zombie-killer). For most users, this is a useful safeguard. In some cases, however, this is not useful to users. To prevent this, users may disable flow heartbeats, which will disable heartbeats and the Zombie Killer for runs of this flow. To do so, use the following GraphQL mutation:
+When running flows registered with a backend, Prefect Core sends heartbeats to the API every 30 seconds. These heartbeats are used to confirm the flow run and its task runs are healthy, and runs missing four heartbeats in a row will be marked as `Failed` by the [Zombie Killer](services.html#zombie-killer). For most users, this is a useful safeguard. In some cases, however, this is not useful to users. To prevent this, users may disable flow heartbeats, which will disable heartbeats and the Zombie Killer for runs of this flow. To do so, use the following GraphQL mutation:
 
 ```graphql
 mutation {
@@ -151,14 +146,6 @@ mutation {
   }
 }
 ```
-
-::: warning Dask Work Stealing with Version Locking
-**If you are using Dask**, you might consider turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) if you enable version locking. In rare occasions work stealing can result in tasks attempting to run twice. Though the version locking feature will prevent this from happening, you may experience a lot of log noise and inefficient re-submissions of the flow run when it occurs.
-
-You can turn off Dask worker stealing via an environment variable in your Dask Cluster:
-
-```DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive```
-:::
 
 ## Scheduling
 
