@@ -386,4 +386,3 @@ def ascii_welcome(ui_port="8080"):
     """
 
     return message
-
