@@ -124,7 +124,7 @@ def email_message_formatter(
 def slack_message_formatter(
     tracked_obj: TrackedObjectType,
     state: "prefect.engine.state.State",
-    backend_info: bool=True,
+    backend_info: bool = True,
 ) -> dict:
     # see https://api.slack.com/docs/message-attachments
     fields = []
