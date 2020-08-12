@@ -80,7 +80,7 @@ class KubernetesAgent(Agent):
             no_cloud_logs=no_cloud_logs,
         )
 
-        self.namespace = namespace
+        self.namespace = namespace or os.getenv("NAMESPACE", "default")
 
         from kubernetes import client, config
 
@@ -98,22 +98,30 @@ class KubernetesAgent(Agent):
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
 
-        self.jobs = self.get_jobs()
+        self.jobs = self._get_current_prefect_jobs()
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
-    def get_jobs(self) -> list:
+    def _get_current_prefect_jobs(self) -> list:
         """
-        Get the current jobs
+        Get a list of prefect jobs that are currently present in the cluster.
+
+        Returns:
+            - A list of dictionaries where each entry matches a job name, its pod names, and flow run id
         """
 
         jobs_list = list()
+
+        self.logger.debug(
+            f"Retrieving information of jobs that are currently in the cluster..."
+        )
+
         more = True
         _continue = ""
         while more:
             try:
                 jobs = self.batch_client.list_namespaced_job(
-                    namespace=self.namespace or os.getenv("NAMESPACE", "default"),
+                    namespace=self.namespace,
                     label_selector="prefect.io/identifier",
                     limit=20,
                     _continue=_continue,
@@ -123,7 +131,7 @@ class KubernetesAgent(Agent):
 
                 for job in jobs.items:
                     pods = self.core_client.list_namespaced_pod(
-                        namespace=self.namespace or os.getenv("NAMESPACE", "default"),
+                        namespace=self.namespace,
                         label_selector=f"prefect.io/identifier={job.metadata.labels.get('prefect.io/identifier')}",
                     )
 
@@ -145,13 +153,6 @@ class KubernetesAgent(Agent):
                     self.logger.debug("List jobs continue token expired, relisting")
                     _continue = ""
                     continue
-                # else:
-                #     self.logger.exception(
-                #         "Error attempting to list jobs in namespace {}".format(
-                #             self.namespace
-                #         )
-                #     )
-                #     return
 
         self.logger.debug(
             f"Found {len(jobs_list)} existing prefect jobs in the cluster"
@@ -166,22 +167,13 @@ class KubernetesAgent(Agent):
         deleted.
         """
 
-        # move all of the os.getenv calls to init for namespace
-        # not sure what to do with list of current jobs. Maybe at startup the agents
-        #   should query for all jobs with a matching prefect.io label
-        #   local / docker are weird though. Maybe docker and local don't even need
-        #   to delete them
-        # rearrange agent base class code
-        # resource manager will be deprecated, not removed. tbd if this should now be default
-
-        self.logger.debug(f"Reading statuses for {len(self.jobs)} jobs")
+        self.logger.debug(f"Reading statuses for {len(self.jobs)} jobs...")
         for job in copy.deepcopy(self.jobs):
             delete_job = False
 
             try:
                 job_status = self.batch_client.read_namespaced_job_status(
-                    namespace=self.namespace or os.getenv("NAMESPACE", "default"),
-                    name=job["job_name"],
+                    namespace=self.namespace, name=job["job_name"],
                 ).status
             except self.k8s_client.rest.ApiException:
                 delete_job = True
@@ -190,8 +182,7 @@ class KubernetesAgent(Agent):
                 for pod_name in job["pod_names"]:
                     try:
                         pod_status = self.core_client.read_namespaced_pod_status(
-                            namespace=self.namespace or os.getenv("NAMESPACE", "default"),
-                            name=pod_name,
+                            namespace=self.namespace, name=pod_name,
                         ).status
                     except self.k8s_client.rest.ApiException:
                         delete_job = True
@@ -222,7 +213,7 @@ class KubernetesAgent(Agent):
                 try:
                     self.batch_client.delete_namespaced_job(
                         name=job["job_name"],
-                        namespace=self.namespace or os.getenv("NAMESPACE", "default"),
+                        namespace=self.namespace,
                         body=self.k8s_client.V1DeleteOptions(
                             propagation_policy="Foreground"
                         ),
@@ -259,13 +250,13 @@ class KubernetesAgent(Agent):
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
         )
         job = self.batch_client.create_namespaced_job(
-            namespace=self.namespace or os.getenv("NAMESPACE", "default"), body=job_spec
+            namespace=self.namespace, body=job_spec
         )
 
         self.logger.debug("Job {} created".format(job.metadata.name))
 
         pods = self.core_client.list_namespaced_pod(
-            namespace=self.namespace or os.getenv("NAMESPACE", "default"),
+            namespace=self.namespace,
             label_selector=f"prefect.io/identifier={identifier}",
         )
 
