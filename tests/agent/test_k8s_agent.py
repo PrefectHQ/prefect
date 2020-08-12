@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 
 import pytest
 
@@ -69,15 +69,14 @@ def test_k8s_agent_deploy_flow(core_version, command, monkeypatch, cloud_api):
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     batch_client = MagicMock()
-    batch_client.create_namespaced_job.return_value = {}
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api", MagicMock(retrurn_value=batch_client)
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
     )
 
     core_client = MagicMock()
     core_client.list_namespaced_pod.return_value = MagicMock(items=[])
     monkeypatch.setattr(
-        "kubernetes.client.CoreV1Api", MagicMock(retrurn_value=core_client)
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
     )
 
     get_jobs = MagicMock(return_value=[])
@@ -123,15 +122,14 @@ def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, cloud_api)
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     batch_client = MagicMock()
-    batch_client.create_namespaced_job.return_value = {}
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api", MagicMock(retrurn_value=batch_client)
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
     )
 
     core_client = MagicMock()
     core_client.list_namespaced_pod.return_value = MagicMock(items=[])
     monkeypatch.setattr(
-        "kubernetes.client.CoreV1Api", MagicMock(retrurn_value=core_client)
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
     )
 
     get_jobs = MagicMock(return_value=[])
@@ -173,15 +171,14 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, cloud_api):
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     batch_client = MagicMock()
-    batch_client.create_namespaced_job.return_value = {}
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api", MagicMock(retrurn_value=batch_client)
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
     )
 
     core_client = MagicMock()
     core_client.list_namespaced_pod.return_value = MagicMock(items=[])
     monkeypatch.setattr(
-        "kubernetes.client.CoreV1Api", MagicMock(retrurn_value=core_client)
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
     )
 
     get_jobs = MagicMock(return_value=[])
@@ -209,6 +206,54 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, cloud_api):
         )
 
     assert not agent.batch_client.create_namespaced_job.called
+
+
+def test_k8s_agent_deploy_flow_tracks_jobs_and_pods(monkeypatch, cloud_api):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    batch_client = MagicMock()
+    batch_client.create_namespaced_job.return_value = PropertyMock(metadata=PropertyMock(name=PropertyMock(return_value="asdf")))
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
+    )
+
+    core_client = MagicMock()
+    core_client.list_namespaced_pod.return_value = MagicMock(
+        items=[MagicMock(metadata=MagicMock(name="my_pod"))]
+    )
+    monkeypatch.setattr(
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    get_jobs = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
+        get_jobs,
+    )
+
+    agent = KubernetesAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "environment": LocalEnvironment().serialize(),
+                        "id": "id",
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "id",
+            }
+        )
+    )
+
+    assert agent.batch_client.create_namespaced_job.called
+    assert agent.core_client.list_namespaced_pod.called
+    assert agent.jobs == "a"
 
 
 def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
