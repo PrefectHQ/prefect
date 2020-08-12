@@ -147,8 +147,8 @@ class TestResultCheck:
         with Flow("upstream-test") as f:
             result = down(x=up)
 
-        with pytest.raises(
-            ValueError, match="upstream dependencies do not have result types."
+        with pytest.warns(
+            UserWarning, match="upstream dependencies do not have result types."
         ):
             healthchecks.result_check([f])
 

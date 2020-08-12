@@ -69,7 +69,7 @@ def result_check(flows: list):
                     if e.key is not None
                 ]
             ):
-                raise ValueError(
+                warnings.warn(
                     f"Task {task} has retry settings but some upstream dependencies do not "
                     f"have result types. See https://docs.prefect.io/core/concepts/results.html "
                     f"for more details."
@@ -79,7 +79,7 @@ def result_check(flows: list):
         cached_tasks = [t for t in flow.tasks if t.cache_for is not None]
         for task in cached_tasks:
             if task.result is None:
-                raise ValueError(
+                warnings.warn(
                     f"Task {task} has cache settings but does not have a result type. "
                     f"See https://docs.prefect.io/core/concepts/results.html for more "
                     f"details."
@@ -91,7 +91,7 @@ def result_check(flows: list):
                     if e.key is not None
                 ]
             ):
-                raise ValueError(
+                warnings.warn(
                     f"Task {task} has cache settings but some upstream dependencies do not have "
                     f"result types. See https://docs.prefect.io/core/concepts/results.html for "
                     f"more details."
