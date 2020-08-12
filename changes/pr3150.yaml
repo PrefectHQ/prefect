@@ -1,0 +1,2 @@
+fix:
+  - "Fix Apollo service error output while waiting for GraphQL service with `prefect server start` - [#3150](https://github.com/PrefectHQ/prefect/pull/3150)"
