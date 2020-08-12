@@ -122,7 +122,9 @@ def email_message_formatter(
 
 
 def slack_message_formatter(
-    tracked_obj: TrackedObjectType, state: "prefect.engine.state.State"
+    tracked_obj: TrackedObjectType,
+    state: "prefect.engine.state.State",
+    backend_info: bool = True,
 ) -> dict:
     # see https://api.slack.com/docs/message-attachments
     fields = []
@@ -148,7 +150,7 @@ def slack_message_formatter(
         "footer": "Prefect notification",
     }
 
-    if prefect.context.get("flow_run_id"):
+    if backend_info and prefect.context.get("flow_run_id"):
         url = None
 
         if isinstance(tracked_obj, prefect.Flow):
@@ -247,6 +249,7 @@ def slack_notifier(
     ignore_states: list = None,
     only_states: list = None,
     webhook_secret: str = None,
+    backend_info: bool = True,
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.  Works as a
@@ -267,6 +270,8 @@ def slack_notifier(
             classes
         - webhook_secret (str, optional): the name of the Prefect Secret that stores your slack
             webhook URL; defaults to `"SLACK_WEBHOOK_URL"`
+        - backend_info (bool, optional): Whether to supply slack notification with urls
+            pointing to backend pages; defaults to True
 
     Returns:
         - State: the `new_state` object that was provided
@@ -302,7 +307,7 @@ def slack_notifier(
     # the 'import prefect' time low
     import requests
 
-    form_data = slack_message_formatter(tracked_obj, new_state)
+    form_data = slack_message_formatter(tracked_obj, new_state, backend_info)
     r = requests.post(webhook_url, json=form_data)
     if not r.ok:
         raise ValueError("Slack notification for {} failed".format(tracked_obj))
