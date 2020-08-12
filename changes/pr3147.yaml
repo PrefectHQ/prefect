@@ -1,0 +1,2 @@
+enhancement:
+  - "Add `server create-tenant` for creating a tenant on the server - [#3147](https://github.com/PrefectHQ/prefect/pull/3147)"
