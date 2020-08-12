@@ -309,7 +309,6 @@ class KubernetesAgent(Agent):
         with open(path.join(path.dirname(__file__), "job_spec.yaml"), "r") as job_file:
             job = yaml.safe_load(job_file)
 
-        # identifier = str(uuid.uuid4())[:8]
         job_name = "prefect-job-{}".format(identifier)
 
         # Populate job metadata for identification
