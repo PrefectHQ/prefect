@@ -113,7 +113,7 @@ class KubernetesAgent(Agent):
         jobs_list = list()
 
         self.logger.debug(
-            f"Retrieving information of jobs that are currently in the cluster..."
+            "Retrieving information of jobs that are currently in the cluster..."
         )
 
         more = True
