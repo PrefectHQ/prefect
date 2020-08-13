@@ -23,26 +23,6 @@ You can set this directly in the UI on the Home page:
 
 ![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
 
-or via the [Prefect configutation](/core/concepts/configuration.html#user-configuration),
-using either an environment variable or the `~/.prefect/config.toml` file:
-
-:::: tabs
-::: tab "Environment Variable"
-```bash
-export PREFECT_SERVER__UI__GRAPHQL_PORT=<YOUR_APOLLO_URL>
-```
-:::
-
-::: tab config.toml
-```toml
-# ~/.prefect/config.toml
-[server]
-    [server.ui]
-        graphql_url = "<YOUR_APOLLO_URL>"
-```
-:::
-::::
-
 ::: tip You don't need to host the UI yourself!
 Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!
 

@@ -258,3 +258,14 @@ def test_server_start_volume_options(monkeypatch, macos_platform):
     assert popen.call_args[1].get("cwd")
     assert popen.call_args[1].get("env")
     assert popen.call_args[1]["env"].get("POSTGRES_DATA_PATH") == "test/path"
+
+
+def test_create_tenant(monkeypatch, cloud_api):
+    monkeypatch.setattr(
+        "prefect.client.Client.create_tenant", MagicMock(return_value="my_id")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(server, ["create-tenant", "-n", "name", "-s", "slug"],)
+    assert result.exit_code == 0
+    assert "my_id" in result.output

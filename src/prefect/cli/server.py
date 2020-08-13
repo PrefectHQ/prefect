@@ -386,3 +386,27 @@ def ascii_welcome(ui_port="8080"):
     """
 
     return message
+
+
+@server.command(hidden=True)
+@click.option(
+    "--name", "-n", help="The name of a tenant to create", hidden=True,
+)
+@click.option(
+    "--slug", "-s", help="The slug of a tenant to create", hidden=True,
+)
+def create_tenant(
+    name, slug,
+):
+    """
+    This command creates a tenant for the Prefect Server
+
+    \b
+    Options:
+        --name, -n       TEXT    The name of a tenant to create
+        --slug, -n       TEXT    The slug of a tenant to create
+    """
+    client = prefect.Client()
+    tenant_id = client.create_tenant(name=name, slug=slug)
+
+    click.secho(f"Tenant created with ID: {tenant_id}", fg="green")
