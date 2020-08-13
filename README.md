@@ -16,7 +16,7 @@
 </a>
 
 <a href="https://pypi.org/project/prefect/">
-    <img src="https://static.pepy.tech/badge/prefect">
+    <img src="https://static.pepy.tech/badge/prefect/month">
 </a>
 
 <a href="https://hub.docker.com/r/prefecthq/prefect">
