@@ -305,6 +305,7 @@ class KubernetesAgent(Agent):
         Args:
             - flow_run (GraphQLResult): A flow run object
             - image (str): The full name of an image to use for the job
+            - identifier (str): A unique identifier to identify this job
 
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
