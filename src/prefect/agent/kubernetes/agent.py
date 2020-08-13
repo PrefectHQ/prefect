@@ -194,7 +194,6 @@ class KubernetesAgent(Agent):
                                 waiting.reason == "ErrImagePull"
                                 or waiting.reason == "ImagePullBackOff"
                             ):
-
                                 self.logger.debug(
                                     f"Failing flow run {job['flow_run_id']} due to pod {waiting.reason}"
                                 )
