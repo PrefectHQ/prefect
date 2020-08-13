@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
+# if simplejson is installed, `requests` defaults to using it instead of json
+# this allows the client to gracefully handle either json or simplejson
+try:
+    from simplejson.errors import JSONDecodeError
+except ImportError:
+    from json.decoder import JSONDecodeError
+
 import pendulum
 import toml
 from slugify import slugify
@@ -397,7 +404,7 @@ class Client:
         # parse the response
         try:
             json_resp = response.json()
-        except json.JSONDecodeError:
+        except JSONDecodeError:
             if prefect.config.backend == "cloud" and "Authorization" not in headers:
                 raise ClientError(
                     "Malformed response received from Cloud - please ensure that you "
