@@ -132,7 +132,9 @@ class KubernetesAgent(Agent):
                 for job in jobs.items:
                     pods = self.core_client.list_namespaced_pod(
                         namespace=self.namespace,
-                        label_selector=f"prefect.io/identifier={job.metadata.labels.get('prefect.io/identifier')}",
+                        label_selector="prefect.io/identifier={}".format(
+                            job.metadata.labels.get("prefect.io/identifier")
+                        ),
                     )
 
                     pod_names = []
@@ -200,7 +202,9 @@ class KubernetesAgent(Agent):
                                 self.client.set_flow_run_state(
                                     flow_run_id=job["flow_run_id"],
                                     state=Failed(
-                                        message=f"Kubernetes Error: {container_status.state.waiting.message}"
+                                        message="Kubernetes Error: {}".format(
+                                            container_status.state.waiting.message
+                                        )
                                     ),
                                 )
 
