@@ -2,4 +2,4 @@ enhancement:
   - "Make Client robust to simplejson - [#3151](https://github.com/PrefectHQ/prefect/issues/3151)"
 
 contributor:
-  - "[Contributor Name](https://github.com/zangell44)"
+  - "[Zach Angell](https://github.com/zangell44)"
