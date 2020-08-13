@@ -16,7 +16,7 @@
 </a>
 
 <a href="https://pypi.org/project/prefect/">
-    <img src="https://img.shields.io/pypi/dm/prefect.svg?color=%2327B1FF&label=installs&logoColor=%234D606E">
+    <img src="https://static.pepy.tech/badge/prefect/month">
 </a>
 
 <a href="https://hub.docker.com/r/prefecthq/prefect">
