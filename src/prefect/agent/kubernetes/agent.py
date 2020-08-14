@@ -199,7 +199,9 @@ class KubernetesAgent(Agent):
         # Use image pull secrets if provided
         image_pull_secrets = os.getenv("IMAGE_PULL_SECRETS")
         if image_pull_secrets:
-            job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = image_pull_secrets
+            job["spec"]["template"]["spec"]["imagePullSecrets"][0][
+                "name"
+            ] = image_pull_secrets
         else:
             del job["spec"]["template"]["spec"]["imagePullSecrets"]
 
