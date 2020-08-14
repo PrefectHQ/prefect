@@ -1,0 +1,2 @@
+fix:
+  - "Fix empty string `imagePullSecrets` issue on AKS by removing if not set - [#3142](https://github.com/PrefectHQ/prefect/issues/3142)"
