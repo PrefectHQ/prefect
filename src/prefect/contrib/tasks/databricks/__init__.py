@@ -1,22 +1,5 @@
 """
-This module contains a collection of tasks for interacting with Azure Machine Learning Service resources.
+This module contains a collection of tasks for interacting with Databricks resources.
 """
 
-try:
-    from prefect.tasks.azureml.dataset import (
-        DatasetCreateFromDelimitedFiles,
-        DatasetCreateFromParquetFiles,
-        DatasetCreateFromFiles,
-    )
-
-    from prefect.tasks.azureml.datastore import (
-        DatastoreRegisterBlobContainer,
-        DatastoreList,
-        DatastoreGet,
-        DatastoreUpload,
-    )
-
-except ImportError:
-    raise ImportError(
-        'Using `prefect.tasks.databricks` requires Prefect to be installed with the "databricks" extra.'
-    )
+from prefect.contrib.tasks.databricks.databricks_submitjob import DatabricksSubmitRun
