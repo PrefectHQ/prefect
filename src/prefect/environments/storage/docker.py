@@ -56,7 +56,7 @@ class Docker(Storage):
         - env_vars (dict, optional): a dictionary of environment variables to
             use when building
         - files (dict, optional): a dictionary of files to copy into the image
-            when building
+            when building. Takes the format of `{'src': 'dest'}`
         - prefect_version (str, optional): an optional branch, tag, or commit
             specifying the version of prefect you want installed into the container;
             defaults to the version you are currently using or `"master"` if your
