@@ -197,9 +197,11 @@ class KubernetesAgent(Agent):
             env.append(dict(name=key, value=value))
 
         # Use image pull secrets if provided
-        job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
-            "IMAGE_PULL_SECRETS", ""
-        )
+        image_pull_secrets = os.getenv("IMAGE_PULL_SECRETS")
+        if image_pull_secrets:
+            job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = image_pull_secrets
+        else:
+            del job["spec"]["template"]["spec"]["imagePullSecrets"]
 
         # Set resource requirements if provided
         resources = job["spec"]["template"]["spec"]["containers"][0]["resources"]
