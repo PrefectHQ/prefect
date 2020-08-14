@@ -232,7 +232,9 @@ def test_environment_run(monkeypatch):
 
 
 def test_populate_job_yaml():
-    environment = DaskKubernetesEnvironment(work_stealing=True, scheduler_logs=True)
+    environment = DaskKubernetesEnvironment(
+        work_stealing=True, scheduler_logs=True, log_k8s_errors=True
+    )
 
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
@@ -314,7 +316,7 @@ def test_populate_worker_pod_yaml():
     assert env[2]["value"] == "id_test"
     assert (
         env[10]["value"]
-        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes']"
+        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive']"
     )
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
@@ -415,7 +417,7 @@ def test_populate_custom_worker_spec_yaml(log_flag):
     assert env[7]["value"] == str(log_flag).lower()
     assert (
         env[8]["value"]
-        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes']"
+        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive']"
     )
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
@@ -462,7 +464,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
     assert env[9]["value"] == str(log_flag).lower()
     assert (
         env[10]["value"]
-        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes']"
+        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive']"
     )
 
     assert (
