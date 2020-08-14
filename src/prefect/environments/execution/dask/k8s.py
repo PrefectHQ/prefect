@@ -75,6 +75,8 @@ class DaskKubernetesEnvironment(Environment):
         - image_pull_secret (str, optional): optional name of an `imagePullSecret` to use for
             the scheduler and worker pods. For more information go
             [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
+        - log_k8s_errors (bool, optional): optional toggle to also log Kubernetes errors that may occur
+            using the Prefect logger. Defaults to `False`.
     """
 
     def __init__(
@@ -92,6 +94,7 @@ class DaskKubernetesEnvironment(Environment):
         scheduler_spec_file: str = None,
         worker_spec_file: str = None,
         image_pull_secret: str = None,
+        log_k8s_errors: bool = False,
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
@@ -116,6 +119,7 @@ class DaskKubernetesEnvironment(Environment):
         self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
 
         self._identifier_label = ""
+        self.log_k8s_erros = log_k8s_errors
 
         super().__init__(
             labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
@@ -322,8 +326,11 @@ class DaskKubernetesEnvironment(Environment):
         cluster_loggers = [
             "dask_kubernetes.core",
             "distributed.deploy.adaptive",
-            "kubernetes",
         ]
+
+        if self.log_k8s_erros:
+            cluster_loggers.append("kubernetes")
+
         config_extra_loggers = prefect.config.logging.extra_loggers
 
         extra_loggers = [*config_extra_loggers, *cluster_loggers]
