@@ -1,0 +1,2 @@
+enhancement:
+  - "Make use of `kubernetes` extra logger in the `DaskKubernetesEnvironment` optional - [#2988](https://github.com/PrefectHQ/prefect/issues/2988)"
