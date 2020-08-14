@@ -214,7 +214,7 @@ def _create_logger(name: str) -> logging.Logger:
     logger.setLevel(context.config.logging.level)
 
     cloud_handler = CloudHandler()
-    cloud_handler.setLevel("DEBUG")
+    cloud_handler.setLevel(context.config.logging.level)
     logger.addHandler(cloud_handler)
     return logger
 
