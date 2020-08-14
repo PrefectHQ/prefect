@@ -22,7 +22,7 @@ GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 
-USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
+USER_AGENT_HEADER = {'user-agent': 'prefect-{v}'.format(v=__version__)}
 
 
 
@@ -39,7 +39,7 @@ class RunState:
     def is_terminal(self) -> bool:
         """True if the current state is a terminal state."""
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise AirflowException(
+            raise PrefectError(
                 ('Unexpected life cycle state: {}: If the state has '
                  'been introduced recently, please check the Databricks user '
                  'guide for troubleshooting information').format(
