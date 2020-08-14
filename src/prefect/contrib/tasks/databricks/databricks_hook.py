@@ -65,7 +65,7 @@ class RunState:
 
 
 # noinspection PyAbstractClass
-class DatabricksHook(BaseHook):
+class DatabricksHook:
     """
     Interact with Databricks.
 
@@ -83,7 +83,7 @@ class DatabricksHook(BaseHook):
     """
     def __init__(self, databricks_conn_id: dict, timeout_seconds=180, retry_limit=3,
                  retry_delay=1.0):
-        super().__init__()
+
         self.databricks_conn = databricks_conn_id
         self.timeout_seconds = timeout_seconds
         if retry_limit < 1:
