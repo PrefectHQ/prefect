@@ -1,4 +1,6 @@
 import uuid
+import six
+import time
 
 from prefect import Task
 from prefect.client import Secret
@@ -53,16 +55,16 @@ def _handle_databricks_task_execution(task, hook, log):
         run_state = hook.get_run_state(task.run_id)
         if run_state.is_terminal:
             if run_state.is_successful:
-                log.info('%s completed successfully.', task.task_id)
+                log.info('%s completed successfully.', task.name)
                 log.info('View run status, Spark UI, and logs at %s', run_page_url)
                 return
             else:
                 error_message = '{t} failed with terminal state: {s}'.format(
-                    t=task.task_id,
+                    t=task.name,
                     s=run_state)
                 raise PrefectError(error_message)
         else:
-            log.info('%s in run state: %s', task.task_id, run_state)
+            log.info('%s in run state: %s', task.name, run_state)
             log.info('View run status, Spark UI, and logs at %s', run_page_url)
             log.info('Sleeping for %s seconds.', task.polling_period_seconds)
             time.sleep(task.polling_period_seconds)
@@ -213,13 +215,16 @@ class DatabricksSubmitRun(Task):
         polling_period_seconds=30,
         databricks_retry_limit=3,
         databricks_retry_delay=1,
+        **kwargs
     ) -> None:
 
-        self.json = json or {}
         self.databricks_conn_id = Secret(databricks_conn_secret).get()
+        
+        self.json = json or {}
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        
         if spark_jar_task is not None:
             self.json['spark_jar_task'] = spark_jar_task
         if notebook_task is not None:
@@ -235,45 +240,25 @@ class DatabricksSubmitRun(Task):
         if timeout_seconds is not None:
             self.json['timeout_seconds'] = timeout_seconds
         if 'run_name' not in self.json:
-            self.json['run_name'] = run_name or kwargs['task_id']
+            self.json['run_name'] = run_name or "Run Submitted by Prefect"
 
+        # Validate the dictionary to a valid JSON object
         self.json = _deep_string_coerce(self.json)
+
         # This variable will be used in case our task gets killed.
         self.run_id = None
+
         super().__init__(**kwargs)
 
     def get_hook(self):
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay)
+            retry_delay=self.databricks_retry_delay
+        )
 
-    @defaults_from_attrs(
-        "json",
-        "spark_jar_task",
-        "notebook_task",
-        "new_cluster",
-        "existing_cluster_id",
-        "libraries",
-        "run_name",
-        "timeout_seconds",
-        "polling_period_seconds",
-        "databricks_retry_limit",
-        "databricks_retry_delay"
-    )
     def run(
         self,
-        json=None,
-        spark_jar_task=None,
-        notebook_task=None,
-        new_cluster=None,
-        existing_cluster_id=None,
-        libraries=None,
-        run_name=None,
-        timeout_seconds=None,
-        polling_period_seconds=30,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
     ) -> str:
         """
         Task run method.
@@ -345,10 +330,10 @@ class DatabricksSubmitRun(Task):
             - str: Run id of the submitted run.
         """
 
-        # get Databricks credentials
-        databricks_credentials = Secret(databricks_credentials_secret).get()
-
+        # Initialize Databricks Connections
         hook = self.get_hook()
+
+        # Submit the job
         self.run_id = hook.submit_run(self.json)
         _handle_databricks_task_execution(self, hook, self.logger)
 
