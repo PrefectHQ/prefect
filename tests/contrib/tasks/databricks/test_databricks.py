@@ -8,7 +8,7 @@ def job_config():
     config =  {
         "run_name": "Prefect Test",
         "new_cluster": {
-            "spark_version": "6.2.x-scala2.11",
+            "spark_version": "6.6.x-scala2.11",
             "num_workers": 0,
             "node_type_id": "Standard_D3_v2"
         },
@@ -39,8 +39,8 @@ def test_initialization(job_config):
 
 
 def test_raises_if_invalid_host(job_config):
-    task = SubmitRun(
-        
+    task = DatabricksSubmitRun(
+        json=job_config
     )
 
     with pytest.raises(Exception, match="API requests to Databricks failed"):
