@@ -10,7 +10,7 @@ from prefect.utilities.exceptions import PrefectError
 from prefect.contrib.tasks.databricks.databricks_hook import DatabricksHook
 
 
-def _deep_string_coerce(content, json_path='json'):
+def _deep_string_coerce(content, json_path="json"):
     """
     Coerces content or all values of content if it is a dict to a string. The
     function will throw if content contains non-string or non-numeric types.
@@ -26,14 +26,16 @@ def _deep_string_coerce(content, json_path='json'):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):
-        return [c(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
+        return [c(e, "{0}[{1}]".format(json_path, i)) for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: c(v, '{0}[{1}]'.format(json_path, k))
-                for k, v in list(content.items())}
+        return {
+            k: c(v, "{0}[{1}]".format(json_path, k)) for k, v in list(content.items())
+        }
     else:
         param_type = type(content)
-        msg = 'Type {0} used for parameter {1} is not a number or a string' \
-            .format(param_type, json_path)
+        msg = "Type {0} used for parameter {1} is not a number or a string".format(
+            param_type, json_path
+        )
         raise ValueError(msg)
 
 
@@ -47,29 +49,30 @@ def _handle_databricks_task_execution(task, hook, log):
         - log (logger): Prefect logging instance
     """
 
-    log.info('Run submitted with run_id: %s', task.run_id)
+    log.info("Run submitted with run_id: %s", task.run_id)
     run_page_url = hook.get_run_page_url(task.run_id)
 
-    log.info('Run submitted with config : %s', task.json)
+    log.info("Run submitted with config : %s", task.json)
 
-    log.info('View run status, Spark UI, and logs at %s', run_page_url)
+    log.info("View run status, Spark UI, and logs at %s", run_page_url)
     while True:
         run_state = hook.get_run_state(task.run_id)
         if run_state.is_terminal:
             if run_state.is_successful:
-                log.info('%s completed successfully.', task.name)
-                log.info('View run status, Spark UI, and logs at %s', run_page_url)
+                log.info("%s completed successfully.", task.name)
+                log.info("View run status, Spark UI, and logs at %s", run_page_url)
                 return
             else:
-                error_message = '{t} failed with terminal state: {s}'.format(
-                    t=task.name,
-                    s=run_state)
+                error_message = "{t} failed with terminal state: {s}".format(
+                    t=task.name, s=run_state
+                )
                 raise PrefectError(error_message)
         else:
-            log.info('%s in run state: %s', task.name, run_state)
-            log.info('View run status, Spark UI, and logs at %s', run_page_url)
-            log.info('Sleeping for %s seconds.', task.polling_period_seconds)
+            log.info("%s in run state: %s", task.name, run_state)
+            log.info("View run status, Spark UI, and logs at %s", run_page_url)
+            log.info("Sleeping for %s seconds.", task.polling_period_seconds)
             time.sleep(task.polling_period_seconds)
+
 
 class DatabricksSubmitRun(Task):
     """
@@ -221,28 +224,28 @@ class DatabricksSubmitRun(Task):
     ) -> None:
 
         self.databricks_conn_id = Secret(databricks_conn_secret).get()
-        
+
         self.json = json or {}
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
 
         if spark_jar_task is not None:
-            self.json['spark_jar_task'] = spark_jar_task
+            self.json["spark_jar_task"] = spark_jar_task
         if notebook_task is not None:
-            self.json['notebook_task'] = notebook_task
+            self.json["notebook_task"] = notebook_task
         if new_cluster is not None:
-            self.json['new_cluster'] = new_cluster
+            self.json["new_cluster"] = new_cluster
         if existing_cluster_id is not None:
-            self.json['existing_cluster_id'] = existing_cluster_id
+            self.json["existing_cluster_id"] = existing_cluster_id
         if libraries is not None:
-            self.json['libraries'] = libraries
+            self.json["libraries"] = libraries
         if run_name is not None:
-            self.json['run_name'] = run_name
+            self.json["run_name"] = run_name
         if timeout_seconds is not None:
-            self.json['timeout_seconds'] = timeout_seconds
-        if 'run_name' not in self.json:
-            self.json['run_name'] = run_name or "Run Submitted by Prefect"
+            self.json["timeout_seconds"] = timeout_seconds
+        if "run_name" not in self.json:
+            self.json["run_name"] = run_name or "Run Submitted by Prefect"
 
         # Validate the dictionary to a valid JSON object
         self.json = _deep_string_coerce(self.json)
@@ -256,12 +259,10 @@ class DatabricksSubmitRun(Task):
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay
+            retry_delay=self.databricks_retry_delay,
         )
 
-    def run(
-        self,
-    ) -> str:
+    def run(self,) -> str:
         """
         Task run method.
 
