@@ -50,6 +50,8 @@ def _handle_databricks_task_execution(task, hook, log):
     log.info('Run submitted with run_id: %s', task.run_id)
     run_page_url = hook.get_run_page_url(task.run_id)
 
+    log.info('Run submitted with config : %s', task.json)
+
     log.info('View run status, Spark UI, and logs at %s', run_page_url)
     while True:
         run_state = hook.get_run_state(task.run_id)
@@ -224,7 +226,7 @@ class DatabricksSubmitRun(Task):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
-        
+
         if spark_jar_task is not None:
             self.json['spark_jar_task'] = spark_jar_task
         if notebook_task is not None:
