@@ -1,9 +1,13 @@
+import requests
+import logging
+
 from time import sleep
 from urllib.parse import urlparse
 
-import requests
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
+
+import prefect
 
 from prefect.utilities.exceptions import PrefectError
 
@@ -22,8 +26,7 @@ GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 
-USER_AGENT_HEADER = {'user-agent': 'prefect-{v}'.format(v=__version__)}
-
+USER_AGENT_HEADER = {'user-agent': 'prefect-{v}'.format(v=prefect.__version__)}
 
 
 class RunState:
@@ -137,11 +140,11 @@ class DatabricksHook:
         method, endpoint = endpoint_info
 
         if 'token' in self.databricks_conn:
-            self.log.info('Using token auth. ')
+            logging.info('Using token auth. ')
             auth = _TokenAuth(self.databricks_conn['token'])
             host = self._parse_host(self.databricks_conn['host'])
         else:
-            self.log.info('Using basic auth. ')
+            logging.info('Using basic auth. ')
             auth = (self.databricks_conn["login"], self.databricks_conn["password"])
             host = self.databricks_conn["host"]
 
@@ -187,7 +190,7 @@ class DatabricksHook:
 
 
     def _log_request_error(self, attempt_num, error):
-        self.log.error(
+        logging.error(
             'Attempt %s API Request to Databricks failed with reason: %s',
             attempt_num, error
 
