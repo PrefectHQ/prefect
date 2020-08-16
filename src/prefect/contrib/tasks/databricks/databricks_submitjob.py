@@ -267,7 +267,7 @@ class DatabricksSubmitRun(Task):
         Task run method.
            
         Returns:
-            - run_id (str): Run id of the submitted run.
+            - run_id (str): Run id of the submitted run
         """
 
         # Initialize Databricks Connections
