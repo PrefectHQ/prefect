@@ -20,15 +20,8 @@ def job_config():
 
     return config
 
-def test_databricks_submit_task(job_config):
-
-    task = DatabricksSubmitRun(
-        json=job_config
-    )
-
-    task.run()
-
 def test_initialization(job_config):
+
     task = DatabricksSubmitRun(
         json=job_config
     )
@@ -39,6 +32,7 @@ def test_initialization(job_config):
 
 
 def test_raises_if_invalid_host(job_config):
+    
     task = DatabricksSubmitRun(
         json=job_config
     )
