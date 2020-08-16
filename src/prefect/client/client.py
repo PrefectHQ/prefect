@@ -1154,23 +1154,23 @@ class Client:
         Returns:
             - List[State]: a list of Cached states created after the given date
         """
-        where_clause = {
+        args = {
             "where": {
                 "state": {"_eq": "Cached"},
-                "_or": [
-                    {
-                        "_and": [
-                            {"cache_key": {"_eq": cache_key}},
-                            {"cache_key": {"_is_null": False}},
-                        ]
-                    },
-                    {"task_id": {"_eq": task_id}},
-                ],
                 "state_timestamp": {"_gte": created_after.isoformat()},
             },
             "order_by": {"state_timestamp": EnumValue("desc")},
+            "limit": 100,
         }
-        query = {"query": {with_args("task_run", where_clause): "serialized_state"}}
+
+        # if a cache key was provided, match it against all tasks
+        if cache_key is not None:
+            args["where"].update({"cache_key": {"_eq": cache_key}})
+        # otherwise match against only this task, across all cache keys
+        else:
+            args["where"].update({"task_id": {"_eq": task_id}})
+
+        query = {"query": {with_args("task_run", args): "serialized_state"}}
         result = self.graphql(query)  # type: Any
         deserializer = prefect.engine.state.State.deserialize
         valid_states = [
