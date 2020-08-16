@@ -22,18 +22,9 @@ def job_config():
     return config
 
 
-def test_initialization(job_config):
-
-    task = DatabricksSubmitRun(json=job_config)
-
-    assert "run_name" in task.json
-    assert "new_cluster" in task.json
-    assert "spark_python_task" in task.json
-
-
 def test_raises_if_invalid_host(job_config):
 
     task = DatabricksSubmitRun(json=job_config)
 
-    with pytest.raises(Exception, match="API requests to Databricks failed"):
+    with pytest.raises(ValueError):
         task.run()
