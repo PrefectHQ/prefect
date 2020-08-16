@@ -24,7 +24,6 @@ def job_config():
 
 def test_raises_if_invalid_host(job_config):
 
-    task = DatabricksSubmitRun(json=job_config)
-
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Local Secret .* was not found"):
+        task = DatabricksSubmitRun(json=job_config)
         task.run()
