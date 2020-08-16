@@ -1161,7 +1161,7 @@ class Client:
             },
             "order_by": {"state_timestamp": EnumValue("desc")},
             "limit": 100,
-        }
+        }  # type: Dict[str, Any]
 
         # if a cache key was provided, match it against all tasks
         if cache_key is not None:
