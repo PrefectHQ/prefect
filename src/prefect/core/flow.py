@@ -994,6 +994,11 @@ class Flow:
             "context", {}
         ).copy()  # copy to avoid modification
 
+        # set flow_run_id from args or uuid if flow_run_id is not an argument
+        flow_run_context.setdefault(
+            "flow_run_id", kwargs.pop("flow_run_id", str(uuid.uuid4()))
+        )
+
         # run this flow indefinitely, so long as its schedule has future dates
         while True:
 
@@ -1002,7 +1007,7 @@ class Flow:
             flow_run_context.update(
                 scheduled_start_time=next_run_time,
                 flow_id=self.name,
-                flow_run_id=str(uuid.uuid4()),
+                flow_run_id=flow_run_context["flow_run_id"],
                 flow_run_name=str(uuid.uuid4()),
             )
 
