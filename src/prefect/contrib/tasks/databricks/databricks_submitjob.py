@@ -262,12 +262,12 @@ class DatabricksSubmitRun(Task):
             retry_delay=self.databricks_retry_delay,
         )
 
-    def run(self,) -> str:
+    def run(self) -> str:
         """
         Task run method.
            
         Returns:
-            - str: Run id of the submitted run.
+            - run_id (str): Run id of the submitted run.
         """
 
         # Initialize Databricks Connections
