@@ -1,2 +1,5 @@
 enhancement:
   - "Make use of `kubernetes` extra logger in the `DaskKubernetesEnvironment` optional - [#2988](https://github.com/PrefectHQ/prefect/issues/2988)"
+
+breaking:
+  - "DaskKubernetesEnvironment no longer logs Kubernetes errors by default - [#2988](https://github.com/PrefectHQ/prefect/issues/2988)"
