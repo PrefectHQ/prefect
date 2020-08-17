@@ -19,9 +19,9 @@ class ListImages(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `images`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `images`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -70,9 +70,9 @@ class ListImages(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `images`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `images`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - list: A list of dictionaries containing information about the images found
@@ -106,9 +106,9 @@ class PullImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `pull`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `pull`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -148,9 +148,9 @@ class PullImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `pull`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `pull`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: The output from Docker for pulling the image
@@ -187,9 +187,9 @@ class PushImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `push`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `push`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -229,9 +229,9 @@ class PushImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `push`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `push`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: The output from Docker for pushing the image
@@ -266,9 +266,9 @@ class RemoveImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `remove_image`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `remove_image`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -305,9 +305,9 @@ class RemoveImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `remove_image`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `remove_image`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `image` is `None`
@@ -340,9 +340,9 @@ class TagImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `tag`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `tag`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -394,9 +394,9 @@ class TagImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `tag`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `tag`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - bool: Whether or not the tagging was successful
@@ -441,9 +441,9 @@ class BuildImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `build`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `build`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -501,9 +501,9 @@ class BuildImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `build`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `build`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - List[dict]: a cleaned dictionary of the output of `client.build`

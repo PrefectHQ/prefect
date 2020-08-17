@@ -25,9 +25,9 @@ class CreateContainer(Task):
         - host_config (dict, optional): Extra keyword arguments to pass through to the Docker call
             (cf. method `create_host_config`). See https://docker-py.readthedocs.io/en/stable/api.html
             for more details
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `create_container`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker
+            call (cf. method `create_container`). Seelol
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -100,11 +100,11 @@ class CreateContainer(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
             - host_config (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `create_host_config`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `create_container`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+                (cf. method `create_host_config`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Dockercall (cf. method `create_container`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: A string representing the container id
@@ -158,9 +158,9 @@ class GetContainerLogs(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `logs`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker
+            call (cf. method `logs`). See https://docker-py.readthedocs.io/en/stable/api.html for more
+            details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -193,9 +193,9 @@ class GetContainerLogs(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `logs`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `logs`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: A string representation of the logs from the container
@@ -236,9 +236,9 @@ class ListContainers(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `containers`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker
+            call (cf. method `containers`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -279,9 +279,9 @@ class ListContainers(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `container`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `container`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - list: A list of dicts, one per container
@@ -309,9 +309,9 @@ class StartContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `start`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `start`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -344,9 +344,9 @@ class StartContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `start`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `start`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `container_id` is `None`
@@ -375,9 +375,9 @@ class StopContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `stop`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `stop`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -410,9 +410,9 @@ class StopContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `stop`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `stop`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `container_id` is `None`
@@ -441,9 +441,9 @@ class RemoveContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `remove_container`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `remove_container`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -476,9 +476,9 @@ class RemoveContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `remove_container`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `remove_container`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `container_id` is `None`
@@ -511,9 +511,9 @@ class WaitOnContainer(Task):
             can be provided
         - raise_on_exit_code (bool, optional): whether to raise a `FAIL` signal
             for a nonzero exit code; defaults to `True`
-        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-            (cf. method `wait`). See https://docker-py.readthedocs.io/en/stable/api.html
-            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `wait`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -553,9 +553,9 @@ class WaitOnContainer(Task):
                 can be provided
             - raise_on_exit_code (bool, optional): whether to raise a `FAIL`
                 signal for a nonzero exit code; defaults to `True`
-            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker call
-                (cf. method `wait`). See https://docker-py.readthedocs.io/en/stable/api.html
-                for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `wait`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - dict: a dictionary with `StatusCode` and `Error` keys
