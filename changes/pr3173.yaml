@@ -1,0 +1,5 @@
+task:
+  - "Add support for [`host_config`](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_host_config) and arbitrary keyword arguments in `Docker` tasks - [#3173](https://github.com/PrefectHQ/prefect/pull/3173)"
+
+contributor:
+  - "[Nelson Cornet](https://github.com/sk4la)"
