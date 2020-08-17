@@ -26,7 +26,7 @@ class CreateContainer(Task):
             (cf. method `create_host_config`). See https://docker-py.readthedocs.io/en/stable/api.html
             for more details
         - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker
-            call (cf. method `create_container`). Seelol
+            call (cf. method `create_container`). See
             https://docker-py.readthedocs.io/en/stable/api.html for more details
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
