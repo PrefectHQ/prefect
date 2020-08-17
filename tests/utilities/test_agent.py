@@ -86,3 +86,21 @@ def test_get_flow_run_command(core_version, command):
     )
 
     assert get_flow_run_command(flow_run) == command
+
+
+def test_get_flow_run_command_works_if_core_version_not_on_response():
+    legacy_command = "prefect execute cloud-flow"
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Local().serialize(),
+                    "environment": LocalEnvironment().serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+        }
+    )
+
+    assert get_flow_run_command(flow_run) == legacy_command
