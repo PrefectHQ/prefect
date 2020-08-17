@@ -119,7 +119,7 @@ class DaskKubernetesEnvironment(Environment):
         self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
 
         self._identifier_label = ""
-        self.log_k8s_erros = log_k8s_errors
+        self.log_k8s_errors = log_k8s_errors
 
         super().__init__(
             labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
