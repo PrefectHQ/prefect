@@ -75,7 +75,7 @@ class DatabricksHook:
 
     Args:
         - databricks_conn_id (dict): The name of the databricks connection to use.
-    
+
         - timeout_seconds (int): The amount of time in seconds the requests library
             will wait before timing-out.
 
@@ -227,7 +227,7 @@ class DatabricksHook:
 
         Args:
             - json (dict): The data used in the body of the request to the ``submit`` endpoint.
-        
+
         Returns:
             - str: the run_id as a string
         """

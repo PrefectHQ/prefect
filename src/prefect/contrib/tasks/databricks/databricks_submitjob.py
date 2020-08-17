@@ -86,122 +86,102 @@ class DatabricksSubmitRun(Task):
     In the first way, you can take the JSON payload that you typically use
     to call the ``api/2.0/jobs/runs/submit`` endpoint and pass it directly
     to our ``DatabricksSubmitRun`` task through the ``json`` parameter.
-    For example ::
+    For example:
 
-        json = {
-          'new_cluster': {
-            'spark_version': '2.1.0-db3-scala2.11',
-            'num_workers': 2
-          },
-          'notebook_task': {
-            'notebook_path': '/Users/prefect@example.com/PrepareData',
-          },
-        }
-        notebook_run = DatabricksSubmitRun(task_id='notebook_run', json=json)
+    ```
+    json = {
+        'new_cluster': {
+        'spark_version': '2.1.0-db3-scala2.11',
+        'num_workers': 2
+        },
+        'notebook_task': {
+        'notebook_path': '/Users/prefect@example.com/PrepareData',
+        },
+    }
+    notebook_run = DatabricksSubmitRun(task_id='notebook_run', json=json)
+    ```
 
     Another way to accomplish the same thing is to use the named parameters
     of the ``DatabricksSubmitRun`` directly. Note that there is exactly
     one named parameter for each top level parameter in the ``runs/submit``
-    endpoint. In this method, your code would look like this: ::
+    endpoint. In this method, your code would look like this:
 
-        new_cluster = {
-          'spark_version': '2.1.0-db3-scala2.11',
-          'num_workers': 2
-        }
-        notebook_task = {
-          'notebook_path': '/Users/prefect@example.com/PrepareData',
-        }
-        notebook_run = DatabricksSubmitRun(
-            task_id='notebook_run',
-            new_cluster=new_cluster,
-            notebook_task=notebook_task)
+    ```
+    new_cluster = {
+        'spark_version': '2.1.0-db3-scala2.11',
+        'num_workers': 2
+    }
+    notebook_task = {
+        'notebook_path': '/Users/prefect@example.com/PrepareData',
+    }
+    notebook_run = DatabricksSubmitRun(
+        task_id='notebook_run',
+        new_cluster=new_cluster,
+        notebook_task=notebook_task)
+    ```
 
     In the case where both the json parameter **AND** the named parameters
     are provided, they will be merged together. If there are conflicts during the merge,
-    the named parameters will take precedence and override the top level ``json`` keys.
+    the named parameters will take precedence and override the top level `json` keys.
 
     Currently the named parameters that ``DatabricksSubmitRun`` task supports are
-        - ``spark_jar_task``
-        - ``notebook_task``
-        - ``new_cluster``
-        - ``existing_cluster_id``
-        - ``libraries``
-        - ``run_name``
-        - ``timeout_seconds``
+
+    - `spark_jar_task`
+    - `notebook_task`
+    - `new_cluster`
+    - `existing_cluster_id`
+    - `libraries`
+    - `run_name`
+    - `timeout_seconds`
 
     Args:
-        - databricks_conn_id (str, optional): The name of the Prefect Secret to use.
+        - databricks_conn_secret (str, optional): The name of the Prefect Secret to use.
             By default and in the common case this will be ``DATABRICKS_CONNECTION_STRING``.
-            Structure must be a string of valid JSON. To use token based authentication, provide 
+            Structure must be a string of valid JSON. To use token based authentication, provide
             the key ``token`` in the string for the connection and create the key ``host``.
-
-                PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'
-
-                OR
-
-                PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'
-
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            OR
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
         - json (dict, optional): A JSON object containing API parameters which will be passed
             directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
             (i.e. ``spark_jar_task``, ``notebook_task``..) to this task will
             be merged with this json dictionary if they are provided.
             If there are conflicts during the merge, the named parameters will
             take precedence and override the top level json keys. (templated)
-
-            .. seealso::
-                For more information about templating see :ref:`jinja-templating`.
-                https://docs.databricks.com/api/latest/jobs.html#runs-submit
-    
+            For more information about templating see :ref:`jinja-templating`.
+            https://docs.databricks.com/api/latest/jobs.html#runs-submit
         - spark_jar_task (dict, optional): The main class and parameters for the JAR task. Note that
             the actual JAR is specified in the ``libraries``.
             *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
             This field will be templated.
-
-            .. seealso::
-                https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
-
+            https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
         - notebook_task (dict, optional): The notebook path and parameters for the notebook task.
             *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
             This field will be templated.
-
-            .. seealso::
-                https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
-
+            https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
         - new_cluster (dict, optional): Specs for a new cluster on which this task will be run.
             *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
             This field will be templated.
-
-            .. seealso::
-                https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
-
+            https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
         - existing_cluster_id (str, optional): ID for existing cluster on which to run this task.
             *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
             This field will be templated.
-
         - libraries (list of dicts, optional): Libraries which this run will use.
             This field will be templated.
-
-            .. seealso::
-                https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
-
+            https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
         - run_name (str, optional): The run name used for this task.
             By default this will be set to the Prefect ``task_id``. This ``task_id`` is a
             required parameter of the superclass ``Task``.
             This field will be templated.
-
         - timeout_seconds (int, optional): The timeout for this run. By default a value of 0 is used
             which means to have no timeout.
             This field will be templated.
-
         - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
             this run. By default the task will poll every 30 seconds.
-
         - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
             unreachable. Its value must be greater than or equal to 1.
-    
         - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
             might be a floating point number).
-
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -265,7 +245,7 @@ class DatabricksSubmitRun(Task):
     def run(self) -> str:
         """
         Task run method.
-           
+
         Returns:
             - run_id (str): Run id of the submitted run
         """
