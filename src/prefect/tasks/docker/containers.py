@@ -1,4 +1,4 @@
-from typing import Any, Union, Optional
+from typing import Any, Union
 
 from prefect import Task
 from prefect.engine.signals import FAIL
@@ -15,17 +15,20 @@ class CreateContainer(Task):
         - container_name (str, optional): A name for the container
         - command (Union[list, str], optional): A single command or a list of commands to run
         - detach (bool, optional): Run container in the background
-        - entrypoint (Union[str, list]): The entrypoint for the container
-        - environment (Union[dict, list]): Environment variables to set inside the container,
+        - entrypoint (Union[str, list], optional): The entrypoint for the container
+        - environment (Union[dict, list], optional): Environment variables to set inside the container,
             as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"]
-        - volumes (Union[dict, list]): Volumes to mount inside the container, as a dictionary
-            or a list of strings in the format ["/path/host:/path/guest:ro"]. See
-            https://docker-py.readthedocs.io/en/stable/containers.html for more details
+        - volumes (Union[str, list], optional): List of paths inside the container to use as volumes
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - extra_docker_kwargs (dict, optional): Extra kwargs to pass through to `create_container`
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - host_config (dict, optional): Extra keyword arguments to pass through to the Docker call
+            (cf. method `create_host_config`). See https://docker-py.readthedocs.io/en/stable/api.html
+            for more details
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker
+            call (cf. method `create_container`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -37,10 +40,11 @@ class CreateContainer(Task):
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
-        volumes: Union[list, dict] = None,
+        volumes: Union[str, list] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        extra_docker_kwargs: Optional[dict] = None,
-        **kwargs: Any
+        host_config: dict = None,
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.image_name = image_name
         self.container_name = container_name
@@ -50,7 +54,9 @@ class CreateContainer(Task):
         self.environment = environment
         self.volumes = volumes
         self.docker_server_url = docker_server_url
+        self.host_config = host_config
         self.extra_docker_kwargs = extra_docker_kwargs
+
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -62,6 +68,7 @@ class CreateContainer(Task):
         "environment",
         "volumes",
         "docker_server_url",
+        "host_config",
         "extra_docker_kwargs",
     )
     def run(
@@ -72,9 +79,10 @@ class CreateContainer(Task):
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
-        volumes: Union[list, dict] = None,
+        volumes: Union[str, list] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        extra_docker_kwargs: Optional[dict] = None,
+        host_config: dict = None,
+        extra_docker_kwargs: dict = None,
     ) -> str:
         """
         Task run method.
@@ -87,13 +95,16 @@ class CreateContainer(Task):
             - entrypoint (Union[str, list]): The entrypoint for the container
             - environment (Union[dict, list]): Environment variables to set inside the container,
                 as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"]
-            - volumes (Union[dict, list]): Volumes to mount inside the container, as a dictionary
-                or a list of strings in the format ["/path/host:/path/guest:ro"]. See
-                https://docker-py.readthedocs.io/en/stable/containers.html for more details
+            - volumes (Union[str, list], optional): List of paths inside the container to use as volumes
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - extra_docker_kwargs (dict, optional): Extra kwargs to pass through to `create_container`
+            - host_config (dict, optional): Extra keyword arguments to pass through to the Docker call
+                (cf. method `create_host_config`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Dockercall (cf. method `create_container`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: A string representing the container id
@@ -109,10 +120,12 @@ class CreateContainer(Task):
         import docker
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
+
+        if host_config is not None:
+            host_config = client.create_host_config(**host_config)
+
         self.logger.debug(
-            "Starting to create container {} with command {}".format(
-                image_name, command
-            )
+            f"Creating container from image {image_name} with command: {command}"
         )
         container = client.create_container(
             image=image_name,
@@ -122,13 +135,17 @@ class CreateContainer(Task):
             entrypoint=entrypoint,
             environment=environment,
             volumes=volumes,
-            **(self.extra_docker_kwargs or dict())
-        )
-        self.logger.debug(
-            "Completed created container {} with command {}".format(image_name, command)
+            host_config=host_config,
+            **(extra_docker_kwargs or dict()),
         )
 
-        return container.get("Id")
+        container_id = container.get("Id")
+
+        self.logger.debug(
+            f"Created container {container_id} from image {image_name} with command: {command}"
+        )
+
+        return container_id
 
 
 class GetContainerLogs(Task):
@@ -141,7 +158,10 @@ class GetContainerLogs(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker
+            call (cf. method `logs`). See https://docker-py.readthedocs.io/en/stable/api.html for more
+            details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -149,18 +169,21 @@ class GetContainerLogs(Task):
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.container_id = container_id
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("container_id", "docker_server_url")
+    @defaults_from_attrs("container_id", "docker_server_url", "extra_docker_kwargs")
     def run(
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> str:
         """
         Task run method.
@@ -170,6 +193,9 @@ class GetContainerLogs(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `logs`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: A string representation of the logs from the container
@@ -184,19 +210,16 @@ class GetContainerLogs(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug(
-            "Starting fetching container logs from container with id {}".format(
-                container_id
-            )
-        )
+        self.logger.debug(f"Gathering logs from container {container_id}")
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-        api_result = client.logs(container=container_id).decode()
-        self.logger.debug(
-            "Completed fetching all container logs from container with id {}".format(
-                container_id
-            )
-        )
+
+        api_result = client.logs(
+            container=container_id, **(extra_docker_kwargs or dict())
+        ).decode()
+
+        self.logger.debug(f"Gathered logs from container {container_id}")
+
         return api_result
 
 
@@ -213,7 +236,10 @@ class ListContainers(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the Docker
+            call (cf. method `containers`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -222,20 +248,25 @@ class ListContainers(Task):
         all_containers: bool = False,
         filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.all_containers = all_containers
         self.filters = filters
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("all_containers", "filters", "docker_server_url")
+    @defaults_from_attrs(
+        "all_containers", "filters", "docker_server_url", "extra_docker_kwargs"
+    )
     def run(
         self,
         all_containers: bool = False,
         filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> list:
         """
         Task run method.
@@ -248,6 +279,9 @@ class ListContainers(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `container`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - list: A list of dicts, one per container
@@ -256,10 +290,12 @@ class ListContainers(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug("Starting to list containers")
+        self.logger.debug("Listing all containers")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-        api_result = client.containers(all=all_containers, filters=filters)
-        self.logger.debug("Completed listing containers")
+        api_result = client.containers(
+            all=all_containers, filters=filters, **(extra_docker_kwargs or dict())
+        )
+        self.logger.debug("Listed all containers")
         return api_result
 
 
@@ -273,7 +309,10 @@ class StartContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `start`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -281,18 +320,21 @@ class StartContainer(Task):
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.container_id = container_id
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("container_id", "docker_server_url")
+    @defaults_from_attrs("container_id", "docker_server_url", "extra_docker_kwargs")
     def run(
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> None:
         """
         Task run method.
@@ -302,6 +344,9 @@ class StartContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `start`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `container_id` is `None`
@@ -313,13 +358,11 @@ class StartContainer(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug("Starting container with id {}".format(container_id))
+        self.logger.debug(f"Starting container {container_id}")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.start(container=container_id)
-        self.logger.debug(
-            "Completed starting container with id {}".format(container_id)
-        )
+        client.start(container=container_id, **(extra_docker_kwargs or dict()))
+        self.logger.debug(f"Started container {container_id}")
 
 
 class StopContainer(Task):
@@ -332,7 +375,10 @@ class StopContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `stop`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -340,18 +386,21 @@ class StopContainer(Task):
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.container_id = container_id
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("container_id", "docker_server_url")
+    @defaults_from_attrs("container_id", "docker_server_url", "extra_docker_kwargs")
     def run(
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> None:
         """
         Task run method.
@@ -361,6 +410,9 @@ class StopContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `stop`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `container_id` is `None`
@@ -372,13 +424,11 @@ class StopContainer(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug("Starting to stop container with id {}".format(container_id))
+        self.logger.debug(f"Stopping container {container_id}")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.stop(container=container_id)
-        self.logger.debug(
-            "Completed stopping container with id {}".format(container_id)
-        )
+        client.stop(container=container_id, **(extra_docker_kwargs or dict()))
+        self.logger.debug(f"Stopped container {container_id}")
 
 
 class RemoveContainer(Task):
@@ -391,7 +441,10 @@ class RemoveContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `remove_container`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -399,18 +452,21 @@ class RemoveContainer(Task):
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.container_id = container_id
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("container_id", "docker_server_url")
+    @defaults_from_attrs("container_id", "docker_server_url", "extra_docker_kwargs")
     def run(
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> None:
         """
         Task run method.
@@ -420,6 +476,9 @@ class RemoveContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `remove_container`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `container_id` is `None`
@@ -431,15 +490,13 @@ class RemoveContainer(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug(
-            "Starting to remove container with id {}".format(container_id)
-        )
+        self.logger.debug(f"Removing container {container_id}")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.remove_container(container=container_id)
-        self.logger.debug(
-            "Completed removing container with id {}".format(container_id)
+        client.remove_container(
+            container=container_id, **(extra_docker_kwargs or dict())
         )
+        self.logger.debug(f"Removed container {container_id}")
 
 
 class WaitOnContainer(Task):
@@ -454,7 +511,10 @@ class WaitOnContainer(Task):
             can be provided
         - raise_on_exit_code (bool, optional): whether to raise a `FAIL` signal
             for a nonzero exit code; defaults to `True`
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `wait`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -463,20 +523,25 @@ class WaitOnContainer(Task):
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         raise_on_exit_code: bool = True,
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.container_id = container_id
         self.docker_server_url = docker_server_url
         self.raise_on_exit_code = raise_on_exit_code
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("container_id", "docker_server_url", "raise_on_exit_code")
+    @defaults_from_attrs(
+        "container_id", "docker_server_url", "raise_on_exit_code", "extra_docker_kwargs"
+    )
     def run(
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         raise_on_exit_code: bool = True,
+        extra_docker_kwargs: dict = None,
     ) -> None:
         """
         Task run method.
@@ -488,6 +553,9 @@ class WaitOnContainer(Task):
                 can be provided
             - raise_on_exit_code (bool, optional): whether to raise a `FAIL`
                 signal for a nonzero exit code; defaults to `True`
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `wait`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - dict: a dictionary with `StatusCode` and `Error` keys
@@ -504,12 +572,10 @@ class WaitOnContainer(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug(
-            "Starting to wait on container with id {}".format(container_id)
-        )
+        self.logger.debug(f"Waiting on container {container_id}")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        result = client.wait(container=container_id)
+        result = client.wait(container=container_id, **(extra_docker_kwargs or dict()))
         if raise_on_exit_code and (
             (result.get("Error") is not None) or result.get("StatusCode")
         ):
@@ -525,7 +591,6 @@ class WaitOnContainer(Task):
                     msg=result.get("Error"),
                 )
             )
-        self.logger.debug(
-            "Completed waiting on container with id {}".format(container_id)
-        )
+        self.logger.debug(f"Container {container_id} has finished")
+
         return result
