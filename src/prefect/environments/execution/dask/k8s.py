@@ -328,7 +328,7 @@ class DaskKubernetesEnvironment(Environment):
             "distributed.deploy.adaptive",
         ]
 
-        if self.log_k8s_erros:
+        if self.log_k8s_errors:
             cluster_loggers.append("kubernetes")
 
         config_extra_loggers = prefect.config.logging.extra_loggers
