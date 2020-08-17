@@ -427,7 +427,7 @@ class Client:
                 )
                 if "API_ERROR" in str(response.json().get("errors")):
                     retry_count += 1
-                    time.sleep(0.1 * (2 ** (retry_count - 1)))
+                    time.sleep(0.25 * (2 ** (retry_count - 1)))
                 else:
                     success = True
 
