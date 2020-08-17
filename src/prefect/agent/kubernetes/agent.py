@@ -33,7 +33,7 @@ class KubernetesAgent(Agent):
     ```
 
     For details on the available environment variables for customizing the job spec,
-    see `help(KubernetesAgent.replace_job-spec_yaml)`.
+    see `help(KubernetesAgent.replace_job_spec_yaml)`.
 
     Specifying a namespace for the agent will create flow run jobs in that namespace:
     ```
