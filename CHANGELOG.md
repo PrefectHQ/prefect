@@ -16,6 +16,7 @@ Released on August 11, 2020.
 ### Task Library
 
 - Return `LoadJob` object in `BigQueryLoad` tasks - [#3086](https://github.com/PrefectHQ/prefect/issues/3086)
+- Add support for [`host_config`](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_host_config) and arbitrary keyword arguments in `Docker` tasks.
 
 ### Fixes
 
@@ -28,6 +29,7 @@ Released on August 11, 2020.
 - [Franklin Winokur](https://github.com/fwinokur)
 - [Fraznist](https://github.com/Fraznist)
 - [Jackson Maxfield Brown](https://github.com/JacksonMaxfield)
+- [Nelson Cornet](https://github.com/sk4la)
 
 ## 0.13.1 <Badge text="beta" type="success" />
 
