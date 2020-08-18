@@ -164,7 +164,7 @@ def test_populate_env_vars(cloud_api):
             "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
-            "PREFECT__LOGGING__LEVEL": "DEBUG",
+            "PREFECT__LOGGING__LEVEL": "INFO",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }
@@ -205,7 +205,7 @@ def test_populate_env_vars_includes_agent_labels(cloud_api):
             "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
-            "PREFECT__LOGGING__LEVEL": "DEBUG",
+            "PREFECT__LOGGING__LEVEL": "INFO",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }
