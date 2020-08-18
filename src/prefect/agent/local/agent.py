@@ -191,7 +191,7 @@ class LocalAgent(Agent):
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-            "PREFECT__LOGGING__LEVEL": "DEBUG",
+            "PREFECT__LOGGING__LEVEL": config.logging.level,
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             **self.env_vars,

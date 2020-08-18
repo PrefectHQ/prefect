@@ -347,7 +347,6 @@ class FlowRunner(Runner):
             - ENDRUN: if the flow is not pending or running
         """
         if state.is_pending():
-            self.logger.info("Starting flow run.")
             return Running(message="Running flow.")
         elif state.is_running():
             return state

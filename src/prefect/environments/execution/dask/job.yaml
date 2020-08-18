@@ -41,7 +41,7 @@ spec:
             - name: PREFECT__LOGGING__LOG_TO_CLOUD
               value: "true"
             - name: PREFECT__LOGGING__LEVEL
-              value: "DEBUG"
+              value: "INFO"
             - name: PREFECT__DEBUG
               value: "true"
             - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
