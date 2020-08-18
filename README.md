@@ -16,7 +16,7 @@
 </a>
 
 <a href="https://pypi.org/project/prefect/">
-    <img src="https://img.shields.io/pypi/dm/prefect.svg?color=%2327B1FF&label=installs&logoColor=%234D606E">
+    <img src="https://static.pepy.tech/badge/prefect/month">
 </a>
 
 <a href="https://hub.docker.com/r/prefecthq/prefect">
@@ -66,10 +66,10 @@ For more detail, please see the [Core docs](https://docs.prefect.io/core/)
 ### UI and Server
 
 <p align="center" style="margin-bottom:40px;">
-<img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/orchestration/ui/dashboard-overview.png"  height=440 style="max-height: 440px;">
+<img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/orchestration/ui/dashboard-overview2.png"  height=440 style="max-height: 440px;">
 </p>
 
-In addition to the [Prefect Cloud](https://www.prefect.io/cloud) platform, Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API.
+In addition to the [Prefect Cloud](https://www.prefect.io/cloud) platform, Prefect includes an open-source backend for orchestrating and managing flows, consisting primarily of [Prefect Server](https://github.com/prefecthq/server) and [Prefect UI](https://github.com/prefecthq/ui). This local server stores flow metadata in a Postgres database and exposes a GraphQL API.
 
 Before running the server for the first time, run `prefect backend server` to configure Prefect for local orchestration. Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
 
@@ -182,6 +182,4 @@ pip install ./prefect
 
 ## License
 
-Prefect is variously licensed under the [Apache Software License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) or the [Prefect Community License](https://www.prefect.io/legal/prefect-community-license).
-
-All code except the `/server` directory is Apache 2.0-licensed unless otherwise noted. The `/server` directory is licensed under the Prefect Community License.
+Prefect Core is licensed under the [Apache Software License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0). Please note that Prefect Core includes utilities for running [Prefect Server](https://www.github.com/prefecthq/server) and the [Prefect UI](https://www.github.com/prefecthq/ui), which are themselves licensed under the [Prefect Community License](https://www.prefect.io/legal/prefect-community-license).

@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.13.2 <Badge text="beta" type="success" />
+
+Released on August 11, 2020.
+
+### Features
+
+- Pandas DataFrame Serializer - [#3020](https://github.com/PrefectHQ/prefect/pull/3020), [#2963](https://github.com/PrefectHQ/prefect/pull/2963), [#2917](https://github.com/PrefectHQ/prefect/issues/2917)
+
+### Enhancements
+
+- Agents set flow run execution command based on flow's core version - [#3113](https://github.com/PrefectHQ/prefect/pull/3113)
+- Clean up extra labels on jobs created by Kubernetes agent - [#3129](https://github.com/PrefectHQ/prefect/pull/3129)
+
+### Task Library
+
+- Return `LoadJob` object in `BigQueryLoad` tasks - [#3086](https://github.com/PrefectHQ/prefect/issues/3086)
+
+### Fixes
+
+- Fix bug with `LocalDaskExecutor('processes')` that allowed tasks to be run multiple times in certain cases - [#3127](https://github.com/PrefectHQ/prefect/pull/3127)
+- Add toggle to bypass bug in `slack_notifier` that attempted to connect to backend even if the backend didn't exist - [#3136](https://github.com/PrefectHQ/prefect/pull/3136)
+
+### Contributors
+
+- [Andrew Schechtman-Rook](https://github.com/AndrewRook)
+- [Franklin Winokur](https://github.com/fwinokur)
+- [Fraznist](https://github.com/Fraznist)
+- [Jackson Maxfield Brown](https://github.com/JacksonMaxfield)
+
 ## 0.13.1 <Badge text="beta" type="success" />
 
 Released on August 6, 2020.

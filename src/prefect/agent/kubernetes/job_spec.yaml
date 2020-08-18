@@ -1,23 +1,19 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: prefect-job-UUID
-  labels:
-    app: prefect-job-UUID
-    identifier: UUID
+  name: prefect-job
+  labels: {}
 spec:
   template:
     metadata:
-      labels:
-        app: prefect-job-UUID
-        identifier: UUID
+      labels: {}
     spec:
       containers:
         - name: flow
           image: prefecthq/prefect:latest
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
-          args: ["prefect execute cloud-flow"]
+          args: ["prefect execute flow-run"]
           env:
             - name: PREFECT__CLOUD__API
               value: PREFECT__CLOUD__API

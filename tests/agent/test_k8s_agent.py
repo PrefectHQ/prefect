@@ -40,7 +40,16 @@ def test_k8s_agent_config_options(monkeypatch, cloud_api):
         assert agent.batch_client
 
 
-def test_k8s_agent_deploy_flow(monkeypatch, cloud_api):
+@pytest.mark.parametrize(
+    "core_version,command",
+    [
+        ("0.10.0", "prefect execute cloud-flow"),
+        ("0.6.0+134", "prefect execute cloud-flow"),
+        ("0.13.0", "prefect execute flow-run"),
+        ("0.13.1+134", "prefect execute flow-run"),
+    ],
+)
+def test_k8s_agent_deploy_flow(core_version, command, monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -61,6 +70,7 @@ def test_k8s_agent_deploy_flow(monkeypatch, cloud_api):
                         ).serialize(),
                         "environment": LocalEnvironment().serialize(),
                         "id": "id",
+                        "core_version": core_version,
                     }
                 ),
                 "id": "id",
@@ -76,6 +86,9 @@ def test_k8s_agent_deploy_flow(monkeypatch, cloud_api):
         agent.batch_client.create_namespaced_job.call_args[1]["body"]["apiVersion"]
         == "batch/v1"
     )
+    assert agent.batch_client.create_namespaced_job.call_args[1]["body"]["spec"][
+        "template"
+    ]["spec"]["containers"][0]["args"] == [command]
 
 
 def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, cloud_api):
@@ -99,6 +112,7 @@ def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, cloud_api)
                             metadata={"image": "repo/name:tag"}
                         ).serialize(),
                         "id": "id",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -135,6 +149,7 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, cloud_api):
                             "storage": Local().serialize(),
                             "id": "id",
                             "environment": LocalEnvironment().serialize(),
+                            "core_version": "0.13.0",
                         }
                     ),
                     "id": "id",
@@ -166,6 +181,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
                     ).serialize(),
                     "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
+                    "core_version": "0.13.0",
                 }
             ),
             "id": "id",
@@ -231,6 +247,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
                     ).serialize(),
                     "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
+                    "core_version": "0.13.0",
                 }
             ),
             "id": "id",
@@ -297,6 +314,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
                     ).serialize(),
                     "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
+                    "core_version": "0.13.0",
                 }
             ),
             "id": "id",
@@ -323,6 +341,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, cloud_api):
                     ).serialize(),
                     "environment": LocalEnvironment().serialize(),
                     "id": "id",
+                    "core_version": "0.13.0",
                 }
             ),
             "id": "id",
@@ -332,7 +351,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, cloud_api):
     agent = KubernetesAgent()
     job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
 
-    assert not job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
+    assert not job["spec"]["template"]["spec"].get("imagePullSecrets", None)
 
 
 def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
@@ -348,6 +367,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
                     ).serialize(),
                     "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
+                    "core_version": "0.13.0",
                 }
             ),
             "id": "id",

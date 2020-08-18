@@ -1,0 +1,2 @@
+enhancement:
+  - "Raise Warning instead of Exception during storage healthcheck when Result type is not provided - [#3146](https://github.com/PrefectHQ/prefect/pull/3146)"

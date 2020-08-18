@@ -9,7 +9,7 @@ from slugify import slugify
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.utilities.agent import get_flow_image
+from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -478,6 +478,7 @@ class FargateAgent(Agent):
             )  # type: ignore
 
         image = get_flow_image(flow_run=flow_run)
+        flow_run_command = get_flow_run_command(flow_run=flow_run)
 
         # check if task definition exists
         self.logger.debug("Checking for task definition")
@@ -488,6 +489,7 @@ class FargateAgent(Agent):
                 flow_task_definition_kwargs=flow_task_definition_kwargs,
                 container_definitions_kwargs=flow_container_definitions_kwargs,
                 task_definition_name=task_definition_dict["task_definition_name"],
+                flow_run_command=flow_run_command,
             )
 
         # run task
@@ -568,6 +570,7 @@ class FargateAgent(Agent):
         flow_task_definition_kwargs: dict,
         container_definitions_kwargs: dict,
         task_definition_name: str,
+        flow_run_command: str,
     ) -> None:
         """
         Create a task definition for the flow that each flow run will use. This function
@@ -579,13 +582,14 @@ class FargateAgent(Agent):
             - container_definitions_kwargs (dict): container definitions kwargs to use for
                 registration
             - task_definition_name (str): task definition name to use
+            - flow_run_command (str): the flow run command to execute
         """
         self.logger.debug("Using image {} for task definition".format(image))
         container_definitions = [
             {
                 "name": "flow",
                 "image": image,
-                "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
+                "command": ["/bin/sh", "-c", flow_run_command],
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__API",

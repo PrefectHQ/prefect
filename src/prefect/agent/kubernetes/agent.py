@@ -8,7 +8,7 @@ import yaml
 import prefect
 from prefect import config
 from prefect.agent import Agent
-from prefect.utilities.agent import get_flow_image
+from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
 AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
@@ -33,7 +33,7 @@ class KubernetesAgent(Agent):
     ```
 
     For details on the available environment variables for customizing the job spec,
-    see `help(KubernetesAgent.replace_job-spec_yaml)`.
+    see `help(KubernetesAgent.replace_job_spec_yaml)`.
 
     Specifying a namespace for the agent will create flow run jobs in that namespace:
     ```
@@ -176,6 +176,11 @@ class KubernetesAgent(Agent):
 
         self.logger.debug("Using image {} for job".format(image))
 
+        # Datermine flow run command
+        job["spec"]["template"]["spec"]["containers"][0]["args"] = [
+            get_flow_run_command(flow_run)
+        ]
+
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
@@ -192,9 +197,13 @@ class KubernetesAgent(Agent):
             env.append(dict(name=key, value=value))
 
         # Use image pull secrets if provided
-        job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
-            "IMAGE_PULL_SECRETS", ""
-        )
+        image_pull_secrets = os.getenv("IMAGE_PULL_SECRETS")
+        if image_pull_secrets:
+            job["spec"]["template"]["spec"]["imagePullSecrets"][0][
+                "name"
+            ] = image_pull_secrets
+        else:
+            del job["spec"]["template"]["spec"]["imagePullSecrets"]
 
         # Set resource requirements if provided
         resources = job["spec"]["template"]["spec"]["containers"][0]["resources"]

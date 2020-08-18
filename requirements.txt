@@ -1,7 +1,7 @@
 click >= 7.0
 cloudpickle >=0.6.0
 croniter >= 0.3.24, <1.0
-dask >= 2.8.0
+dask >= 2.15.0
 distributed >= 2.8.0
 docker >=3.4.1
 marshmallow >= 3.0.0b19
