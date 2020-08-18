@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.13.3 <Badge text="beta" type="success" />
+
+Released on August 18, 2020.
+
+### Enhancements
+
+- Make use of `kubernetes` extra logger in the `DaskKubernetesEnvironment` optional - [#2988](https://github.com/PrefectHQ/prefect/issues/2988)
+- Make Client robust to simplejson - [#3151](https://github.com/PrefectHQ/prefect/issues/3151)
+- Raise Warning instead of Exception during storage healthcheck when Result type is not provided - [#3146](https://github.com/PrefectHQ/prefect/pull/3146)
+- Add `server create-tenant` for creating a tenant on the server - [#3147](https://github.com/PrefectHQ/prefect/pull/3147)
+- Cloud logger now responds to logging level - [#3179](https://github.com/PrefectHQ/prefect/pull/3179)
+
+### Task Library
+
+- Add support for [`host_config`](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_host_config) and arbitrary keyword arguments in `Docker` tasks - [#3173](https://github.com/PrefectHQ/prefect/pull/3173)
+
+### Fixes
+
+- Fix empty string `imagePullSecrets` issue on AKS by removing if not set - [#3142](https://github.com/PrefectHQ/prefect/issues/3142)
+- Fix querying for cached states with no `cache_key` - [#3168](https://github.com/PrefectHQ/prefect/pull/3168)
+- Fix access to `core_version` in Agent's `get_flow_run_command()` - [#3177](https://github.com/PrefectHQ/prefect/pull/3177)
+
+### Breaking Changes
+
+- DaskKubernetesEnvironment no longer logs Kubernetes errors by default - [#2988](https://github.com/PrefectHQ/prefect/issues/2988)
+- Logging level in Cloud now defaults to INFO - [#3179](https://github.com/PrefectHQ/prefect/pull/3179)
+
+### Contributors
+
+- [James Lamb](https://github.com/jameslamb)
+- [Nelson Cornet](https://github.com/sk4la)
+- [Zach Angell](https://github.com/zangell44)
+
 ## 0.13.2 <Badge text="beta" type="success" />
 
 Released on August 11, 2020.
