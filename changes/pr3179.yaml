@@ -1,0 +1,5 @@
+enhancement:
+  - "Cloud logger now responds to logging level - [#3179](https://github.com/PrefectHQ/prefect/pull/3179)"
+
+breaking:
+  - "Logging level in Cloud now defaults to INFO - [#3179](https://github.com/PrefectHQ/prefect/pull/3179)"
