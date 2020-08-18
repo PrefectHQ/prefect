@@ -132,7 +132,7 @@ class CloudHandler(logging.StreamHandler):
 
             # ensures emitted logs respect configured logging level
             config_level = getattr(
-                logging, prefect.context.config.logging.level, "INFO"
+                logging, prefect.context.config.logging.level, logging.INFO
             )
 
             if record_dict["levelno"] < config_level:
