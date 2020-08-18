@@ -1,5 +1,0 @@
-fix:
-  - "Fix access to `core_version` in Agent's `get_flow_run_command()` - [#3177](https://github.com/PrefectHQ/prefect/pull/3177)"
-
-contributor:
-  - "[James Lamb](https://github.com/jameslamb)"
