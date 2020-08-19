@@ -149,7 +149,7 @@ class Agent:
 
         self.logger.debug(f"Prefect backend: {config.backend}")
 
-        self.client = Client(api_token=token)
+        self.client = Client(api_server=config.cloud.api, api_token=token)
 
     def _verify_token(self, token: str) -> None:
         """
