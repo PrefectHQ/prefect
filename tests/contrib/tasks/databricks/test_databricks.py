@@ -24,6 +24,12 @@ def job_config():
 
 def test_raises_if_invalid_host(job_config):
 
-    with pytest.raises(TypeError, match="argument of type"):
-        task = DatabricksSubmitRun(json=job_config)
+    # from prefect.tasks.secrets import PrefectSecret
+    # conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+    # task = DatabricksSubmitRun(databricks_conn_secret=conn, json=job_config)
+
+    with pytest.raises(AttributeError, match="object has no attribute"):
+        task = DatabricksSubmitRun(
+            databricks_conn_secret={"host": "", "token": ""}, json=job_config
+        )
         task.run()
