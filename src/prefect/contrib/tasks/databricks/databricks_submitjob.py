@@ -1,6 +1,7 @@
 import uuid
 import six
 import time
+from typing import List, Dict
 
 from prefect import Task
 from prefect.client import Secret
@@ -124,6 +125,18 @@ class DatabricksSubmitRun(Task):
     are provided, they will be merged together. If there are conflicts during the merge,
     the named parameters will take precedence and override the top level `json` keys.
 
+    This task requires a Databricks connection to be specified as a Prefect secret and can
+    be passed to the task like so:
+
+    ```
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.contrib.tasks.databricks import DatabricksSubmitRun
+
+    with Flow('my flow') as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        DatabricksSubmitRun(databricks_conn_string=conn, json=...)
+    ```
+
     Currently the named parameters that ``DatabricksSubmitRun`` task supports are
 
     - `spark_jar_task`
@@ -135,13 +148,13 @@ class DatabricksSubmitRun(Task):
     - `timeout_seconds`
 
     Args:
-        - databricks_conn_secret (str, optional): The name of the Prefect Secret to use.
-            By default and in the common case this will be ``DATABRICKS_CONNECTION_STRING``.
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
             Structure must be a string of valid JSON. To use token based authentication, provide
             the key ``token`` in the string for the connection and create the key ``host``.
             `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
             OR
             `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.            
         - json (dict, optional): A JSON object containing API parameters which will be passed
             directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
             (i.e. ``spark_jar_task``, ``notebook_task``..) to this task will
@@ -188,27 +201,132 @@ class DatabricksSubmitRun(Task):
 
     def __init__(
         self,
-        databricks_conn_secret: str = "DATABRICKS_CONNECTION_STRING",
-        json=None,
-        spark_jar_task=None,
-        notebook_task=None,
-        new_cluster=None,
-        existing_cluster_id=None,
-        libraries=None,
-        run_name=None,
-        timeout_seconds=None,
-        polling_period_seconds=30,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
+        databricks_conn_secret: dict = None,
+        json: dict = None,
+        spark_jar_task: dict = None,
+        notebook_task: dict = None,
+        new_cluster: dict = None,
+        existing_cluster_id: str = None,
+        libraries: List[Dict] = None,
+        run_name: str = None,
+        timeout_seconds: int = None,
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: float = 1,
         **kwargs
     ) -> None:
 
-        self.databricks_conn_id = Secret(databricks_conn_secret).get()
-
+        self.databricks_conn_secret = databricks_conn_secret
         self.json = json or {}
+        self.spark_jar_task = spark_jar_task
+        self.notebook_task = notebook_task
+        self.new_cluster = new_cluster
+        self.existing_cluster_id = existing_cluster_id
+        self.libraries = libraries
+        self.run_name = run_name
+        self.timeout_seconds = timeout_seconds
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+
+        self.run_id = None
+
+        super().__init__(**kwargs)
+
+    def get_hook(self):
+        return DatabricksHook(
+            self.databricks_conn_secret,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+        )
+
+    @defaults_from_attrs(
+        "databricks_conn_secret",
+        "json",
+        "spark_jar_task",
+        "notebook_task",
+        "new_cluster",
+        "existing_cluster_id",
+        "libraries",
+        "run_name",
+        "timeout_seconds",
+        "polling_period_seconds",
+        "databricks_retry_limit",
+        "databricks_retry_delay"
+    )
+    def run(
+        self,
+        databricks_conn_secret: dict = None,
+        json: dict = None,
+        spark_jar_task: dict = None,
+        notebook_task: dict = None,
+        new_cluster: dict = None,
+        existing_cluster_id: str = None,
+        libraries: List[Dict] = None,
+        run_name: str = None,
+        timeout_seconds: int = None,
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: float = 1,
+    ) -> str:
+        """
+        Task run method.
+
+        Args:
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
+            Structure must be a string of valid JSON. To use token based authentication, provide
+            the key ``token`` in the string for the connection and create the key ``host``.
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            OR
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.            
+        - json (dict, optional): A JSON object containing API parameters which will be passed
+            directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
+            (i.e. ``spark_jar_task``, ``notebook_task``..) to this task will
+            be merged with this json dictionary if they are provided.
+            If there are conflicts during the merge, the named parameters will
+            take precedence and override the top level json keys. (templated)
+            For more information about templating see :ref:`jinja-templating`.
+            https://docs.databricks.com/api/latest/jobs.html#runs-submit
+        - spark_jar_task (dict, optional): The main class and parameters for the JAR task. Note that
+            the actual JAR is specified in the ``libraries``.
+            *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
+            This field will be templated.
+            https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
+        - notebook_task (dict, optional): The notebook path and parameters for the notebook task.
+            *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
+            This field will be templated.
+            https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
+        - new_cluster (dict, optional): Specs for a new cluster on which this task will be run.
+            *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
+            This field will be templated.
+            https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
+        - existing_cluster_id (str, optional): ID for existing cluster on which to run this task.
+            *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
+            This field will be templated.
+        - libraries (list of dicts, optional): Libraries which this run will use.
+            This field will be templated.
+            https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
+        - run_name (str, optional): The run name used for this task.
+            By default this will be set to the Prefect ``task_id``. This ``task_id`` is a
+            required parameter of the superclass ``Task``.
+            This field will be templated.
+        - timeout_seconds (int, optional): The timeout for this run. By default a value of 0 is used
+            which means to have no timeout.
+            This field will be templated.
+        - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
+            this run. By default the task will poll every 30 seconds.
+        - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
+            unreachable. Its value must be greater than or equal to 1.
+        - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
+            might be a floating point number).
+
+        Returns:
+            - run_id (str): Run id of the submitted run
+        """
+
+        # Initialize Databricks Connections
+        hook = self.get_hook()
 
         if spark_jar_task is not None:
             self.json["spark_jar_task"] = spark_jar_task
@@ -226,32 +344,9 @@ class DatabricksSubmitRun(Task):
             self.json["timeout_seconds"] = timeout_seconds
         if "run_name" not in self.json:
             self.json["run_name"] = run_name or "Run Submitted by Prefect"
-
+        
         # Validate the dictionary to a valid JSON object
         self.json = _deep_string_coerce(self.json)
-
-        # This variable will be used in case our task gets killed.
-        self.run_id = None
-
-        super().__init__(**kwargs)
-
-    def get_hook(self):
-        return DatabricksHook(
-            self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-        )
-
-    def run(self) -> str:
-        """
-        Task run method.
-
-        Returns:
-            - run_id (str): Run id of the submitted run
-        """
-
-        # Initialize Databricks Connections
-        hook = self.get_hook()
 
         # Submit the job
         self.run_id = hook.submit_run(self.json)
