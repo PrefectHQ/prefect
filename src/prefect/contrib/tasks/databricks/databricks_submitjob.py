@@ -252,7 +252,7 @@ class DatabricksSubmitRun(Task):
         "timeout_seconds",
         "polling_period_seconds",
         "databricks_retry_limit",
-        "databricks_retry_delay"
+        "databricks_retry_delay",
     )
     def run(
         self,
@@ -344,7 +344,7 @@ class DatabricksSubmitRun(Task):
             self.json["timeout_seconds"] = timeout_seconds
         if "run_name" not in self.json:
             self.json["run_name"] = run_name or "Run Submitted by Prefect"
-        
+
         # Validate the dictionary to a valid JSON object
         self.json = _deep_string_coerce(self.json)
 
