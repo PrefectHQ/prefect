@@ -325,6 +325,13 @@ class DatabricksSubmitRun(Task):
             - run_id (str): Run id of the submitted run
         """
 
+        assert (
+            databricks_conn_secret
+        ), "A databricks connection string must be supplied as a dictionary or through Prefect Secrets (preferred)."
+        assert isinstance(
+            databricks_conn_secret, dict
+        ), "`databricks_conn_secret` must be supplied as a valid dictionary."
+
         # Initialize Databricks Connections
         hook = self.get_hook()
 
