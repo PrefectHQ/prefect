@@ -3,6 +3,7 @@ exclude =
     __init__.py,
     versioneer.py,
     _version.py
+    src/prefect/contrib/*
 ignore =
     # Import formatting
     E4,
