@@ -6,6 +6,23 @@ references:
     attach_workspace:
       at: *workspace_root
 
+commands:
+  promote_image:
+    description: Promotes images by retagging them
+    parameters:
+      IMAGE_NAME:
+        type: string
+      VERSION:
+        type: string
+    steps:
+      - run:
+          name: Promote
+          command: |
+            IMAGE_NAME=<<parameters.IMAGE_NAME>> && VERSION=<<parameters.VERSION>>
+            docker pull prefecthq/${IMAGE_NAME}:latest
+            docker tag prefecthq/${IMAGE_NAME}:latest prefecthq/${IMAGE_NAME}:${VERSION}
+            docker push prefecthq/${IMAGE_NAME}:${VERSION}
+
 jobs:
   # ----------------------------------
   # Check formatting
@@ -241,23 +258,6 @@ jobs:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
-  promote_image:
-    docker:
-      - image: docker
-    description: Promotes images by retagging them
-    parameters:
-      IMAGE_NAME:
-        type: string
-      VERSION:
-        type: string
-    steps:
-      - run:
-          name: Promote
-          command: |
-            IMAGE_NAME=<<parameters.IMAGE_NAME>> && VERSION=<<parameters.VERSION>>
-            docker pull prefecthq/${IMAGE_NAME}:latest
-            docker tag prefecthq/${IMAGE_NAME}:latest prefecthq/${IMAGE_NAME}:${VERSION}
-            docker push prefecthq/${IMAGE_NAME}:${VERSION}
 
   build_docker_image:
     docker:
