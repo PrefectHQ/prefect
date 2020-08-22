@@ -242,6 +242,8 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
   promote_image:
+    docker:
+      - image: docker
     description: Promotes images by retagging them
     parameters:
       IMAGE_NAME:
