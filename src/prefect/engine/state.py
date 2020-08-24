@@ -165,6 +165,18 @@ class State:
     def children(
         cls, include_self: bool = False, names_only: bool = False
     ) -> "List[Type[State]]":
+        """
+        Helper method for retrieving all possible child states of this state.
+
+        Args:
+            - include_self (bool, optional): whether to include the calling state in the return
+                values; defaults to `False`
+            - names_only (bool, optional): whether to only return the string names of the states;
+                defaults to `False`, in which case the actual classes are returned
+
+        Returns:
+            - list: a (possibly empty) list of states or state names
+        """
         children = []
         for state in cls.__subclasses__():
             # hide "private" state types
@@ -181,6 +193,18 @@ class State:
     def parents(
         cls, include_self: bool = False, names_only: bool = False
     ) -> "List[Type[State]]":
+        """
+        Helper method for retrieving all possible parent states of this state.
+
+        Args:
+            - include_self (bool, optional): whether to include the calling state in the return
+                values; defaults to `False`
+            - names_only (bool, optional): whether to only return the string names of the states;
+                defaults to `False`, in which case the actual classes are returned
+
+        Returns:
+            - list: a (possibly empty) list of states or state names
+        """
         parents = []
         for state in cls.mro():
             if state in [object, cls]:
