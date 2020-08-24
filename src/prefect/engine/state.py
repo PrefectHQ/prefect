@@ -174,7 +174,7 @@ class State:
         if include_self:
             children += [cls]
         if names_only:
-            return [s.__name__ for s in children]
+            return [s.__name__ for s in children]  # type: ignore
         return children
 
     @classmethod
@@ -192,7 +192,7 @@ class State:
         if include_self:
             parents += [cls]
         if names_only:
-            return [s.__name__ for s in parents]
+            return [s.__name__ for s in parents]  # type: ignore
         return parents
 
     def is_pending(self) -> bool:
