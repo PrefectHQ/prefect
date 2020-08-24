@@ -20,8 +20,7 @@ def test_k8s_agent_init(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -40,8 +39,7 @@ def test_k8s_agent_config_options(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
@@ -81,8 +79,7 @@ def test_k8s_agent_deploy_flow(core_version, command, monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -134,8 +131,7 @@ def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, cloud_api)
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -183,8 +179,7 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -208,62 +203,13 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, cloud_api):
     assert not agent.batch_client.create_namespaced_job.called
 
 
-def test_k8s_agent_deploy_flow_tracks_jobs_and_pods(monkeypatch, cloud_api):
-    k8s_config = MagicMock()
-    monkeypatch.setattr("kubernetes.config", k8s_config)
-
-    batch_client = MagicMock()
-    batch_client.create_namespaced_job.return_value = MagicMock(
-        metadata=MagicMock(name="job")
-    )
-    monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
-    )
-
-    core_client = MagicMock()
-    core_client.list_namespaced_pod.return_value = MagicMock(items=[])
-    monkeypatch.setattr(
-        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
-    )
-
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
-    )
-
-    agent = KubernetesAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "storage": Docker(
-                            registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
-                        "id": "id",
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-            }
-        )
-    )
-
-    assert agent.batch_client.create_namespaced_job.called
-    assert agent.core_client.list_namespaced_pod.called
-    assert agent.jobs
-
-
 def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     monkeypatch.setenv("IMAGE_PULL_SECRETS", "my-secret")
@@ -338,8 +284,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     monkeypatch.setenv("IMAGE_PULL_SECRETS", "my-secret")
@@ -419,8 +364,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     flow_run = GraphQLResult(
@@ -454,8 +398,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     flow_run = GraphQLResult(
@@ -488,8 +431,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     flow_run = GraphQLResult(
@@ -522,8 +464,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -558,8 +499,7 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -586,8 +526,7 @@ def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -618,8 +557,7 @@ def test_k8s_agent_generate_deployment_yaml_local_version(
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -645,8 +583,7 @@ def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -673,8 +610,7 @@ def test_k8s_agent_generate_deployment_yaml_no_resource_manager(monkeypatch, clo
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -699,8 +635,7 @@ def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -731,8 +666,7 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -755,8 +689,7 @@ def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -783,8 +716,7 @@ def test_k8s_agent_generate_deployment_yaml_contains_resources(monkeypatch, clou
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -818,8 +750,7 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
@@ -842,8 +773,7 @@ def test_k8s_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     on_shutdown = MagicMock()
@@ -875,8 +805,7 @@ def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     on_shutdown = MagicMock()
@@ -900,7 +829,7 @@ def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 2
-    assert heartbeat.call_count == 2
+    assert heartbeat.call_count == 1
 
 
 def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
@@ -909,8 +838,7 @@ def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     on_shutdown = MagicMock()
@@ -934,7 +862,7 @@ def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
-    assert heartbeat.call_count == 0
+    assert heartbeat.call_count == 1
 
 
 def test_k8s_agent_heartbeat(monkeypatch, cloud_api):
@@ -954,8 +882,7 @@ def test_k8s_agent_heartbeat(monkeypatch, cloud_api):
         ]
     )
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     # Failing flow run due to pod error
@@ -1001,15 +928,11 @@ def test_k8s_agent_heartbeat(monkeypatch, cloud_api):
         ]
     )
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_current_prefect_jobs",
-        get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
     )
 
     agent = KubernetesAgent()
-
-    assert agent.jobs
     agent.heartbeat()
-    assert not agent.jobs
 
 
 def test_k8s_agent_get_current_jobs(monkeypatch, cloud_api):
@@ -1039,4 +962,3 @@ def test_k8s_agent_get_current_jobs(monkeypatch, cloud_api):
     )
 
     agent = KubernetesAgent()
-    assert agent.jobs
