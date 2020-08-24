@@ -299,10 +299,6 @@ class Agent:
             # will terminate on exit anyway since it's a daemon thread.
             self._api_server_thread.join(timeout=1)
 
-        if self._heartbeat_thread is not None:
-            self.logger.debug("Joining heartbeat threads")
-            self._heartbeat_thread.join(timeout=1)
-
     def run_heartbeat_thread(self) -> None:
         def run() -> None:
             while True:
