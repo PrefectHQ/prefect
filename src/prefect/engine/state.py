@@ -162,13 +162,15 @@ class State:
         return self
 
     @classmethod
-    def children(cls) -> "List[Type[State]]":
+    def children(cls, include_self: bool = False) -> "List[Type[State]]":
         children = []
         for state in cls.__subclasses__():
             # hide "private" state types
             if not state.__name__.startswith("_"):
                 children.append(state)
             children.extend(state.children())
+        if include_self:
+            children += [cls]
         return children
 
     @classmethod

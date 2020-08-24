@@ -461,10 +461,12 @@ def test_state_is_methods(state_check):
                 assert not getattr(state, attr)()
 
 
-def test_children_method_on_base_state():
+@pytest.mark.parametrize("include_self", [True, False])
+def test_children_method_on_base_state(include_self):
     all_states_set = set(all_states)
-    all_states_set.remove(State)
-    assert all_states_set == set(State.children())
+    if not include_self:
+        all_states_set.remove(State)
+    assert all_states_set == set(State.children(include_self=include_self))
 
 
 def test_children_method_on_leaf_state_returns_empty():
