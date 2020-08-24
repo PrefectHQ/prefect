@@ -195,7 +195,7 @@ class Agent:
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
-            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         try:
             self.setup()

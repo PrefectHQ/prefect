@@ -1473,9 +1473,17 @@ class Client:
 
         result = self.graphql(
             mutation,
-            variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
+            variables=dict(
+                input=dict(
+                    type=agent_type,
+                    name=name,
+                    labels=labels or [],
+                    tenant_id=self._active_tenant_id,
+                )
+            ),
         )
 
+        print(result)
         if not result.data.register_agent.id:
             raise ValueError("Error registering agent")
 
