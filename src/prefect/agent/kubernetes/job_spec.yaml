@@ -42,6 +42,10 @@ spec:
               cpu: "100m"
             limits:
               cpu: "100m"
+          volumeMounts:
+            - name: ""
       restartPolicy: Never
       imagePullSecrets:
       - name: ""
+      volumes:
+        - name: ""
