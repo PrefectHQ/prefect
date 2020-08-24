@@ -473,17 +473,25 @@ def test_children_method_on_leaf_state_returns_empty():
     assert TriggerFailed.children() == []
 
 
-def test_children_method_on_success():
+@pytest.mark.parametrize("include_self", [True, False])
+def test_children_method_on_success(include_self):
     expected = {Cached, Mapped, Skipped}
-    assert set(Success.children()) == expected
+    if include_self:
+        expected.add(Success)
+    assert set(Success.children(include_self=include_self)) == expected
 
 
-def test_parent_method_on_base_state():
-    assert State.parents() == []
+@pytest.mark.parametrize("include_self", [True, False])
+def test_parent_method_on_base_state(include_self):
+    assert State.parents(include_self=include_self) == ([State] if include_self else [])
 
 
-def test_children_method_on_leaf_state_returns_hierarchy():
-    assert set(TriggerFailed.parents()) == {Finished, Failed, State}
+@pytest.mark.parametrize("include_self", [True, False])
+def test_children_method_on_leaf_state_returns_hierarchy(include_self):
+    expected = {Finished, Failed, State}
+    if include_self:
+        expected.add(TriggerFailed)
+    assert set(TriggerFailed.parents(include_self=include_self)) == expected
 
 
 def test_parents_method_on_success():

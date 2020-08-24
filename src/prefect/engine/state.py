@@ -174,7 +174,7 @@ class State:
         return children
 
     @classmethod
-    def parents(cls) -> "List[Type[State]]":
+    def parents(cls, include_self: bool = False) -> "List[Type[State]]":
         parents = []
         for state in cls.mro():
             if state in [object, cls]:
@@ -183,6 +183,8 @@ class State:
             # hide "private" state types
             if not state.__name__.startswith("_"):
                 parents.append(state)
+        if include_self:
+            parents += [cls]
         return parents
 
     def is_pending(self) -> bool:
