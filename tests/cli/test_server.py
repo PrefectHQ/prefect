@@ -95,9 +95,10 @@ def test_server_start(monkeypatch, macos_platform):
 @pytest.mark.parametrize(
     "version",
     [
-        ("0.10.3", "latest"),
-        ("0.10.3+114.g35bc7ba4", "latest"),
-        ("0.10.2+999.gr34343.dirty", "latest"),
+        ("0.10.3", "core-0.10.3"),
+        ("0.13.3", "core-0.13.3"),
+        ("0.10.3+114.g35bc7ba4", "master"),
+        ("0.10.2+999.gr34343.dirty", "master"),
     ],
 )
 def test_server_start_image_versions(monkeypatch, version, macos_platform):
@@ -120,7 +121,7 @@ def test_server_start_image_versions(monkeypatch, version, macos_platform):
     assert popen.call_args[0][0] == ["docker-compose", "up"]
     assert popen.call_args[1].get("cwd")
     assert popen.call_args[1].get("env")
-    assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == "latest"
+    assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == version[1]
 
 
 def test_server_start_options_and_flags(monkeypatch, macos_platform):
