@@ -604,7 +604,7 @@ class FargateAgent(Agent):
                         "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                         "value": str(self.log_to_cloud).lower(),
                     },
-                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": config.logging.level},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",

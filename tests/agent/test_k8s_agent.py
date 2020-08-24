@@ -422,7 +422,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, cloud_api):
         flow_run, image="test/name:tag", identifier="identifier"
     )
 
-    assert not job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
+    assert not job["spec"]["template"]["spec"].get("imagePullSecrets", None)
 
 
 def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):

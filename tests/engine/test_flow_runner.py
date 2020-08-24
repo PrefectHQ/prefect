@@ -1375,7 +1375,7 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
 
     time.sleep(0.75)
     assert len(calls) >= 1
-    assert len([log for call in calls for log in call[0]]) == 6  # actual number of logs
+    assert len([log for call in calls for log in call[0]]) == 5  # actual number of logs
 
     loggers = [log["name"] for call in calls for log in call[0]]
     assert set(loggers) == {

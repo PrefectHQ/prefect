@@ -54,6 +54,19 @@ mutation {
 
 As with the Core Client, you can instead provide `version_group_id` as an input to schedule a run for the unique unarchived flow within the provided version group. This provides a stable API for running flows which are regularly updated.
 
+To add parameters. add a parameters JSON payload:
+
+```graphql
+mutation {
+  create_flow_run(input: { 
+  flow_id: "<flow id>", 
+  parameters: "{\"a\":2}" 
+  }) {
+    id
+  }
+}
+```
+
 ### Idempotent run creation <Badge text="GQL"/>
 
 If you provide an `idempotency_key` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Idempotency is preserved for 24 hours, after which time a new run will be created for the same key. Each idempotent request refreshes the cache for an additional 24 hours.

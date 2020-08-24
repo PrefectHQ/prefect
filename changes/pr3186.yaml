@@ -1,0 +1,2 @@
+fix:
+  - "Fix `--api` CLI option not being respected by agent Client  - [#3186](https://github.com/PrefectHQ/prefect/pull/3186)"

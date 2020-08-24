@@ -34,7 +34,7 @@ class KubernetesAgent(Agent):
     ```
 
     For details on the available environment variables for customizing the job spec,
-    see `help(KubernetesAgent.replace_job-spec_yaml)`.
+    see `help(KubernetesAgent.replace_job_spec_yaml)`.
 
     Specifying a namespace for the agent will create flow run jobs in that namespace:
     ```
@@ -331,15 +331,20 @@ class KubernetesAgent(Agent):
         env[4]["value"] = os.getenv("NAMESPACE", "default")
         env[5]["value"] = str(self.labels)
         env[6]["value"] = str(self.log_to_cloud).lower()
+        env[7]["value"] = config.logging.level
 
         # append all user provided values
         for key, value in self.env_vars.items():
             env.append(dict(name=key, value=value))
 
         # Use image pull secrets if provided
-        job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
-            "IMAGE_PULL_SECRETS", ""
-        )
+        image_pull_secrets = os.getenv("IMAGE_PULL_SECRETS")
+        if image_pull_secrets:
+            job["spec"]["template"]["spec"]["imagePullSecrets"][0][
+                "name"
+            ] = image_pull_secrets
+        else:
+            del job["spec"]["template"]["spec"]["imagePullSecrets"]
 
         # Set resource requirements if provided
         resources = job["spec"]["template"]["spec"]["containers"][0]["resources"]

@@ -261,7 +261,6 @@ def test_describe_flow_runs(monkeypatch, cloud_api):
             start_time
             end_time
             duration
-            heartbeat
             serialized_state
         }
     }
@@ -319,7 +318,6 @@ def test_describe_flow_runs_populated(monkeypatch, cloud_api):
             start_time
             end_time
             duration
-            heartbeat
             serialized_state
         }
     }
