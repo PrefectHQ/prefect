@@ -162,7 +162,9 @@ class State:
         return self
 
     @classmethod
-    def children(cls, include_self: bool = False) -> "List[Type[State]]":
+    def children(
+        cls, include_self: bool = False, names_only: bool = False
+    ) -> "List[Type[State]]":
         children = []
         for state in cls.__subclasses__():
             # hide "private" state types
@@ -171,10 +173,14 @@ class State:
             children.extend(state.children())
         if include_self:
             children += [cls]
+        if names_only:
+            return [s.__name__ for s in children]
         return children
 
     @classmethod
-    def parents(cls, include_self: bool = False) -> "List[Type[State]]":
+    def parents(
+        cls, include_self: bool = False, names_only: bool = False
+    ) -> "List[Type[State]]":
         parents = []
         for state in cls.mro():
             if state in [object, cls]:
@@ -185,6 +191,8 @@ class State:
                 parents.append(state)
         if include_self:
             parents += [cls]
+        if names_only:
+            return [s.__name__ for s in parents]
         return parents
 
     def is_pending(self) -> bool:
