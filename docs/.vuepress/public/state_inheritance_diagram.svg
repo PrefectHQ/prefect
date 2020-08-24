@@ -150,7 +150,7 @@
 <!-- 140460341402496 -->
 <g id="node12" class="node">
 <title>140460341402496</title>
-<ellipse fill="#bdbdbd" fill-opacity="0.600000" stroke="#bdbdbd" stroke-opacity="0.600000" cx="588.3968" cy="-90" rx="50.0912" ry="18"/>
+<ellipse fill="#bdbdbd" fill-opacity="0.600000" stroke="#E8E8E8" stroke-opacity="0.600000" cx="588.3968" cy="-90" rx="50.0912" ry="18"/>
 <text text-anchor="middle" x="588.3968" y="-86.3" font-family="Times,serif" font-size="14.00" fill="#000000">Cancelling</text>
 </g>
 <!-- 140460341400928&#45;&gt;140460341402496 -->
