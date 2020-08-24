@@ -1,4 +1,3 @@
-import copy
 import os
 from os import path
 import uuid
@@ -98,11 +97,9 @@ class KubernetesAgent(Agent):
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
 
-        self.jobs = self._get_current_prefect_jobs()
-
         self.logger.debug(f"Namespace: {self.namespace}")
 
-    def _get_current_prefect_jobs(self) -> list:
+    def _get_prefect_jobs(self) -> list:
         """
         Get a list of prefect jobs that are currently present in the cluster.
 
@@ -161,16 +158,17 @@ class KubernetesAgent(Agent):
         )
         return jobs_list
 
-    def heartbeat(self) -> None:
+    def _read_prefect_jobs(self, jobs: list) -> None:
         """
-        Check status of jobs created by this agent. This function checks if jobs are `Failed` or
-        `Succeeded` and if they are then the jobs are deleted from the namespace. If one of the job's
-        pods happen to run into image pulling errors then the flow run is failed and the job is still
-        deleted.
-        """
+        This function checks if jobs are `Failed` or `Succeeded` and if they are then the jobs are
+        deleted from the namespace. If one of the job's pods happen to run into image pulling errors
+        then the flow run is failed and the job is still deleted.
 
-        self.logger.debug(f"Reading statuses for {len(self.jobs)} jobs...")
-        for job in copy.deepcopy(self.jobs):
+        Args:
+            jobs: A list of job identifiers from Kubernetes
+        """
+        self.logger.debug(f"Reading statuses for {len(jobs)} jobs...")
+        for job in jobs:
             delete_job = False
 
             try:
@@ -224,8 +222,13 @@ class KubernetesAgent(Agent):
                 except self.k8s_client.rest.ApiException:
                     pass
 
-                self.jobs.remove(job)
+    def heartbeat(self) -> None:
+        """
+        Check status of jobs created by this agent.
+        """
 
+        jobs = self._get_prefect_jobs()
+        self._read_prefect_jobs(jobs)
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
@@ -257,23 +260,6 @@ class KubernetesAgent(Agent):
         )
 
         self.logger.debug("Job {} created".format(job.metadata.name))
-
-        pods = self.core_client.list_namespaced_pod(
-            namespace=self.namespace,
-            label_selector=f"prefect.io/identifier={identifier}",
-        )
-
-        pod_names = []
-        for pod in pods.items:
-            pod_names.append(pod.metadata.name)
-
-        self.jobs.append(
-            {
-                "job_name": job.metadata.name,
-                "pod_names": pod_names,
-                "flow_run_id": flow_run.id,
-            }
-        )
 
         return "Job {}".format(job.metadata.name)
 
