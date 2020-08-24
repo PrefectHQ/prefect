@@ -106,6 +106,7 @@ class Agent:
 
     def __init__(
         self,
+        agent_id: str = None,
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
@@ -113,6 +114,7 @@ class Agent:
         agent_address: str = None,
         no_cloud_logs: bool = False,
     ) -> None:
+        self.agent_id = agent_id
         self.name = name or config.cloud.agent.get("name", "agent")
 
         self.labels = labels or list(config.cloud.agent.get("labels", []))
@@ -170,20 +172,24 @@ class Agent:
         ):
             raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
-    def _register_agent(self) -> str:
+    def _register_agent_instance(self) -> str:
         """
-        Register this agent with Prefect Cloud and retrieve agent ID
+        Register this agent with a backend API and retrieve the instance ID
 
         Returns:
             - The agent ID as a string
         """
-        agent_id = self.client.register_agent(
-            agent_type=type(self).__name__, name=self.name, labels=self.labels  # type: ignore
+        agent_instance_id = self.client.register_agent_instance(
+            agent_type=type(self).__name__, name=self.name, labels=self.labels, agent_id=self.agent_id  # type: ignore
         )
 
-        self.logger.debug(f"Agent ID: {agent_id}")
+        self.logger.debug(f"Agent instance ID: {agent_instance_id}")
 
-        return agent_id
+        # TODO: make use of agent config and separate out
+        if self.agent_id:
+            self.logger.info(f"Agent config: {self.client.get_agent_config(self.agent_id)}")
+
+        return agent_instance_id
 
     def start(self, _loop_intervals: dict = None) -> None:
         """
@@ -195,7 +201,9 @@ class Agent:
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
-        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+        self.client.attach_headers(
+            {"X-PREFECT-AGENT-ID": self._register_agent_instance()}
+        )
 
         try:
             self.setup()

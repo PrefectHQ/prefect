@@ -1454,7 +1454,7 @@ class Client:
         self, agent_type: str, name: str = None, labels: List[str] = None
     ) -> str:
         """
-        Register an agent with Cloud
+        Register an agent with Cloud. DEPRECATED
 
         Args:
             - agent_type (str): The type of agent being registered
@@ -1473,18 +1473,64 @@ class Client:
 
         result = self.graphql(
             mutation,
+            variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
+        )
+
+        if not result.data.register_agent.id:
+            raise ValueError("Error registering agent")
+
+        return result.data.register_agent.id
+
+    def register_agent_instance(
+        self, agent_type: str, name: str = None, labels: List[str] = None, agent_id: str = None
+    ) -> str:
+        """
+        Register an agent instance with a backend API
+
+        Args:
+            - agent_type (str): The type of agent being registered
+            - name: (str, optional): The name of the agent being registered
+            - labels (List[str], optional): A list of any present labels on the agent
+                being registered
+
+        Returns:
+            - The agent ID as a string
+        """
+        mutation = {
+            "mutation($input: register_agent_instance_input!)": {
+                "register_agent_instance(input: $input)": {"id"}
+            }
+        }
+
+        result = self.graphql(
+            mutation,
             variables=dict(
                 input=dict(
                     type=agent_type,
                     name=name,
                     labels=labels or [],
                     tenant_id=self._active_tenant_id,
+                    agent_id=agent_id
                 )
             ),
         )
 
-        print(result)
-        if not result.data.register_agent.id:
+        if not result.data.register_agent_instance.id:
             raise ValueError("Error registering agent")
 
-        return result.data.register_agent.id
+        return result.data.register_agent_instance.id
+
+    def get_agent_config(self, agent_id: str) -> dict:
+        """
+        Get agent config
+        """
+        query = {
+            "query": {
+                with_args("agent", {"where": {"id": {"_eq": agent_id}}}): {
+                    "config": True
+                }
+            }
+        }
+
+        result = self.graphql(query)  # type: Any
+        return result.data.agent[0].config

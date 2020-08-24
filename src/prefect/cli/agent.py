@@ -50,6 +50,7 @@ def agent():
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
 @click.option("--api", "-a", required=False, help="A Prefect API URL.", hidden=True)
+@click.option("--agent-id", required=False, help="An agent ID", hidden=True)
 @click.option(
     "--name",
     "-n",
@@ -139,6 +140,7 @@ def start(
     agent_option,
     token,
     api,
+    agent_id,
     name,
     verbose,
     label,
@@ -167,6 +169,7 @@ def start(
     Options:
         --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
         --api, -a       TEXT    A Prefect API URL
+        --agent-id      TEXT    An agent ID to link this agent instance with
         --name, -n      TEXT    A name to use for the agent
         --verbose, -v           Enable verbose agent DEBUG logs
                                 Defaults to INFO level logging
@@ -250,6 +253,7 @@ def start(
 
         if agent_option == "local":
             from_qualified_name(retrieved_agent)(
+                agent_id=agent_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -261,6 +265,7 @@ def start(
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
+                # agent_id=agent_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -275,6 +280,7 @@ def start(
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
+                # agent_id=agent_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -284,6 +290,7 @@ def start(
             ).start()
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
+                # agent_id=agent_id,
                 namespace=namespace,
                 name=name,
                 labels=labels,
@@ -293,6 +300,7 @@ def start(
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
+                # agent_id=agent_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
