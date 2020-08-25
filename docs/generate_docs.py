@@ -66,6 +66,7 @@ def load_outline(
                 title=data.get("title", ""),
                 classes=[],
                 functions=[],
+                commands=[],
             )
             module = importlib.import_module(data["module"])
             page["top-level-doc"] = module
@@ -95,6 +96,13 @@ def load_outline(
                 else:
                     obj = getattr(module, clss)
                 page["classes"].append(obj)
+
+            for cmd in data.get("commands", []):
+                print("&&&&&&&&&&&&&&&&&&&&&&")
+                print(cmd)
+                obj = getattr(module, cmd)
+                print(obj)
+                page["commands"].append(obj)
             OUTLINE.append(page)
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))
@@ -198,6 +206,23 @@ def create_methods_table(members, title):
         table += "|\n"
     return table
 
+def create_methods_table2(members, title):
+    table = ""
+    if members:
+        table = f"|{title} " + "&nbsp;" * 150 + "|\n"
+        table += "|:----|\n"
+    for method in members:
+        import click
+        with click.Context(method) as ctx:
+            table += method.get_help(ctx)
+            table += "|\n"
+        # print(method.get_help())
+        # raise ValueError()
+    # for method in members:
+    #     table += format_subheader(method, level=2, in_table=True).replace("\n\n", "\n")
+    #     table += format_doc(method, in_table=True)
+    #     table += "|\n"
+    return table
 
 @preprocess(remove_partial=False)
 def get_call_signature(obj):
@@ -415,10 +440,11 @@ if __name__ == "__main__":
 
         for page in OUTLINE:
             # collect what to document
-            fname, classes, fns = (
+            fname, classes, fns, cmds = (
                 page["page"],
                 page.get("classes", []),
                 page.get("functions", []),
+                page.get("commands", [])
             )
             fname = f"api/latest/{fname}"
             directory = os.path.dirname(fname)
@@ -450,6 +476,9 @@ if __name__ == "__main__":
 
                 if fns:
                     f.write("\n## Functions\n")
+                if cmds:
+                    f.write("\nCommands\n")
                 f.write(create_methods_table(fns, title="top-level functions:"))
+                f.write(create_methods_table2(cmds, title="commands:"))
                 f.write("\n")
                 f.write(auto_generated_footer)

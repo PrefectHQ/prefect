@@ -28,6 +28,11 @@ title = "Secrets"
 module = "prefect.client.secrets"
 classes = ["Secret"]
 
+[pages.cli.server]
+title = "CLI Server"
+module = "prefect.cli.server"
+commands = ["start"]
+
 [pages.schedules.schedules]
 title = "Schedules"
 module = "prefect.schedules.schedules"
