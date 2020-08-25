@@ -203,13 +203,15 @@ def create_methods_table(members, title):
         table += "|\n"
     return table
 
+
 def create_commands_table(commands):
     import click
+
     table = ""
     for cmd in commands:
         with click.Context(cmd) as ctx:
             table += f"<h3>{cmd.name}</h3>\n"
-            help_text = cmd.get_help(ctx).split("\n",2)[2]
+            help_text = cmd.get_help(ctx).split("\n", 2)[2]
 
             options = help_text.split("Options:")
             arguments = options[0].split("Arguments:")
@@ -235,6 +237,7 @@ def create_commands_table(commands):
                 )
                 table += block
     return table
+
 
 @preprocess(remove_partial=False)
 def get_call_signature(obj):
@@ -456,7 +459,7 @@ if __name__ == "__main__":
                 page["page"],
                 page.get("classes", []),
                 page.get("functions", []),
-                page.get("commands", [])
+                page.get("commands", []),
             )
             fname = f"api/latest/{fname}"
             directory = os.path.dirname(fname)

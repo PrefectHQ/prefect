@@ -648,7 +648,7 @@ def test_client_register_flow_id_output(
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert "Flow: https://cloud.prefect.io/tslug/flow/long-id\n" in captured.out
+    assert "Flow URL: https://cloud.prefect.io/tslug/flow/long-id\n" in captured.out
 
 
 @pytest.mark.parametrize("compressed", [True, False])
