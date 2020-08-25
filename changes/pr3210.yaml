@@ -1,0 +1,5 @@
+enhancement:
+  - "Added option to mount volumes with KubernetesAgent  - [#1234](https://github.com/PrefectHQ/prefect/pull/3210)"
+
+contributor:
+  - "[Thomas Frederik Hoeck](https://github.com/thomasfrederikhoeck)"

@@ -257,7 +257,9 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
     with set_temporary_config(
         {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
     ):
-        agent = KubernetesAgent()
+        volume_mounts = [{"name": "my-vol", "mountPath": "/mnt/my-mount"}]
+        volumes = [{"name": "my-vol", "hostPath": "/host/folder"}]
+        agent = KubernetesAgent(volume_mounts=volume_mounts, volumes=volumes)
         job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
 
         assert job["metadata"]["labels"]["prefect.io/flow_run_id"] == "id"
@@ -291,10 +293,19 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
         assert resources["requests"]["cpu"] == "cr"
         assert resources["limits"]["cpu"] == "cl"
 
+        volumeMounts = job["spec"]["template"]["spec"]["containers"][0]["volumeMounts"]
+        assert volumeMounts[0]["name"] == "my-vol"
+        assert volumeMounts[0]["mountPath"] == "/mnt/my-mount"
+
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
             == "IfNotPresent"
         )
+
+        volumes = job["spec"]["template"]["spec"]["volumes"]
+        assert volumes[0]["name"] == "my-vol"
+        assert volumes[0]["hostPath"] == "/host/folder"
+
         assert job["spec"]["template"]["spec"].get("serviceAccountName", None) is None
 
 
@@ -352,6 +363,35 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, cloud_api):
     job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
 
     assert not job["spec"]["template"]["spec"].get("imagePullSecrets", None)
+
+
+def test_k8s_agent_removes_yaml_no_volume(monkeypatch, cloud_api):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Docker(
+                        registry_url="test", image_name="name", image_tag="tag"
+                    ).serialize(),
+                    "environment": LocalEnvironment().serialize(),
+                    "id": "id",
+                    "core_version": "0.13.0",
+                }
+            ),
+            "id": "id",
+        }
+    )
+
+    agent = KubernetesAgent()
+    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+
+    assert not job["spec"]["template"]["spec"].get("volumes", None)
+    assert not job["spec"]["template"]["spec"]["containers"][0].get(
+        "volumeMounts", None
+    )
 
 
 def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
