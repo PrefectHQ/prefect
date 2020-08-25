@@ -781,7 +781,17 @@ class Client:
             # Generate direct link to Cloud flow
             flow_url = self.get_cloud_url("flow", flow_id)
 
-            print("Flow: {}".format(flow_url))
+            prefix = "└── "
+
+            print("Flow URL: {}".format(flow_url))
+
+            # Extra information to improve visibility
+            msg = (
+                f" {prefix}ID: {flow_id}\n"
+                f" {prefix}Project: {project_name}\n"
+                f" {prefix}Labels: {list(flow.environment.labels)}"
+            )
+            print(msg)
 
         return flow_id
 
