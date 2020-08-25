@@ -98,10 +98,7 @@ def load_outline(
                 page["classes"].append(obj)
 
             for cmd in data.get("commands", []):
-                print("&&&&&&&&&&&&&&&&&&&&&&")
-                print(cmd)
                 obj = getattr(module, cmd)
-                print(obj)
                 page["commands"].append(obj)
             OUTLINE.append(page)
         else:
@@ -206,22 +203,22 @@ def create_methods_table(members, title):
         table += "|\n"
     return table
 
-def create_methods_table2(members, title):
+def create_commands_table(commands):
     table = ""
-    if members:
-        table = f"|{title} " + "&nbsp;" * 150 + "|\n"
-        table += "|:----|\n"
-    for method in members:
+    for cmd in commands:
         import click
-        with click.Context(method) as ctx:
-            table += method.get_help(ctx)
-            table += "|\n"
-        # print(method.get_help())
-        # raise ValueError()
-    # for method in members:
-    #     table += format_subheader(method, level=2, in_table=True).replace("\n\n", "\n")
-    #     table += format_doc(method, in_table=True)
-    #     table += "|\n"
+        with click.Context(cmd) as ctx:
+            table += f"<h3>{cmd.name}</h3>\n"
+            help_text = cmd.get_help(ctx).split("\n",2)[2]
+
+            options = help_text.split("Options:")
+            table += options[0]
+            block = (
+                "<pre><code>"
+                + options[1].replace("\n", "<br>").replace("*", r"\*")
+                + "</code></pre>"
+            )
+            table += block
     return table
 
 @preprocess(remove_partial=False)
@@ -476,9 +473,8 @@ if __name__ == "__main__":
 
                 if fns:
                     f.write("\n## Functions\n")
-                if cmds:
-                    f.write("\nCommands\n")
+
                 f.write(create_methods_table(fns, title="top-level functions:"))
-                f.write(create_methods_table2(cmds, title="commands:"))
+                f.write(create_commands_table(cmds))
                 f.write("\n")
                 f.write(auto_generated_footer)
