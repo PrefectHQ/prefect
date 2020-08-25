@@ -1,0 +1,5 @@
+enhancement:
+  - "Allow for setting path to a custom job YAML spec on the Kubernetes Agent - [#3046](https://github.com/PrefectHQ/prefect/pull/3046)"
+
+contributor:
+  - "[emcake](https://github.com/emcake)"
