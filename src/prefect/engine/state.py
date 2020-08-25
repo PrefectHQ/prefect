@@ -710,7 +710,7 @@ class Cancelling(Running):
             should be JSON compatible
     """
 
-    color = "#bdbdbd"
+    color = "#E8E8E8"
 
 
 # -------------------------------------------------------------------
