@@ -457,7 +457,7 @@ def test_k8s_agent_removes_yaml_no_volume(monkeypatch, cloud_api):
     )
 
     agent = KubernetesAgent()
-    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag", identifier="id")
 
     assert not job["spec"]["template"]["spec"].get("volumes", None)
     assert not job["spec"]["template"]["spec"]["containers"][0].get(
