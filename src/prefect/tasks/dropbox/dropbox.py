@@ -56,6 +56,7 @@ class DropboxDownload(Task):
                 "The `access_token_secret` argument is deprecated. Use a `Secret` task "
                 "to pass the credentials value at runtime instead.",
                 UserWarning,
+                stacklevel=2,
             )
             access_token = Secret(access_token_secret).get()
         dbx = dropbox.Dropbox(access_token)

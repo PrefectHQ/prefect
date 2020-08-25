@@ -27,7 +27,7 @@ def system_check(python_version: str):
             sys_ver=(sys.version_info.major, sys.version_info.minor),
             user_ver=python_version,
         )
-        warnings.warn(msg)
+        warnings.warn(msg, stacklevel=2)
     else:
         print("System Version check: OK")
 
@@ -81,7 +81,8 @@ def result_check(flows: list):
                 warnings.warn(
                     f"Task {task} has retry settings but some upstream dependencies do not "
                     f"have result types. See https://docs.prefect.io/core/concepts/results.html "
-                    f"for more details."
+                    f"for more details.",
+                    stacklevel=2,
                 )
 
         # test for tasks which request caching with no result handler or no upstream result handlers
@@ -91,7 +92,8 @@ def result_check(flows: list):
                 warnings.warn(
                     f"Task {task} has cache settings but does not have a result type. "
                     f"See https://docs.prefect.io/core/concepts/results.html for more "
-                    f"details."
+                    f"details.",
+                    stacklevel=2,
                 )
             if any(
                 [
@@ -103,7 +105,8 @@ def result_check(flows: list):
                 warnings.warn(
                     f"Task {task} has cache settings but some upstream dependencies do not have "
                     f"result types. See https://docs.prefect.io/core/concepts/results.html for "
-                    f"more details."
+                    f"more details.",
+                    stacklevel=2,
                 )
     print("Result check: OK")
 

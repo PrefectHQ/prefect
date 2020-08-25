@@ -56,7 +56,8 @@ class RemoteEnvironment(Environment):
             # Only warn if its a subclass not part of prefect, since we don't
             # want to update the code for e.g. `DaskCloudProviderEnvironment`
             warnings.warn(
-                "`RemoteEnvironment` is deprecated, please use `LocalEnvironment` instead."
+                "`RemoteEnvironment` is deprecated, please use `LocalEnvironment` instead.",
+                stacklevel=2,
             )
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()

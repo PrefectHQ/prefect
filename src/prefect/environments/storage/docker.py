@@ -386,6 +386,7 @@ class Docker(Storage):
                     "This Docker storage object has no `registry_url`, and "
                     "will not be pushed.",
                     UserWarning,
+                    stacklevel=2,
                 )
                 full_name = self.image_name
             else:

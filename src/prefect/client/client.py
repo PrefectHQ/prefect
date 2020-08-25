@@ -691,7 +691,8 @@ class Client:
         if any(e.key for e in flow.edges) and flow.result is None:
             warnings.warn(
                 "No result handler was specified on your Flow. Cloud features such as "
-                "input caching and resuming task runs from failure may not work properly."
+                "input caching and resuming task runs from failure may not work properly.",
+                stacklevel=2,
             )
         if compressed:
             create_mutation = {

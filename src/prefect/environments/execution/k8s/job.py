@@ -72,7 +72,9 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         self.unique_job_name = unique_job_name
 
         if executor_kwargs is not None:
-            warnings.warn("`executor_kwargs` is deprecated, use `executor` instead")
+            warnings.warn(
+                "`executor_kwargs` is deprecated, use `executor` instead", stacklevel=2
+            )
         if executor is None:
             executor = prefect.engine.get_default_executor_class()(
                 **(executor_kwargs or {})
