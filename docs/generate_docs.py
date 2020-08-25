@@ -204,21 +204,36 @@ def create_methods_table(members, title):
     return table
 
 def create_commands_table(commands):
+    import click
     table = ""
     for cmd in commands:
-        import click
         with click.Context(cmd) as ctx:
             table += f"<h3>{cmd.name}</h3>\n"
             help_text = cmd.get_help(ctx).split("\n",2)[2]
 
             options = help_text.split("Options:")
-            table += options[0]
-            block = (
-                "<pre><code>"
-                + options[1].replace("\n", "<br>").replace("*", r"\*")
-                + "</code></pre>"
-            )
-            table += block
+            arguments = options[0].split("Arguments:")
+            if len(arguments) > 1:
+                table += arguments[0]
+
+                block = (
+                    "<pre><code>"
+                    + "Arguments:"
+                    + arguments[1].replace("\n", "<br>").replace("*", r"\*")
+                    + "</code></pre>"
+                )
+                table += block
+            else:
+                table += options[0]
+
+            if len(options) > 2:
+                block = (
+                    "<pre><code>"
+                    + "Options:"
+                    + options[1].replace("\n", "<br>").replace("*", r"\*")
+                    + "</code></pre>"
+                )
+                table += block
     return table
 
 @preprocess(remove_partial=False)
