@@ -666,7 +666,8 @@ class TaskRunner(Runner):
                 target = target(**formatting_kwargs)
 
             if result.exists(target, **formatting_kwargs):
-                new_res = result.read(target.format(**formatting_kwargs))
+                known_location = target.format(**formatting_kwargs)
+                new_res = result.read(known_location)
                 cached_state = Cached(
                     result=new_res,
                     hashed_inputs={
@@ -674,7 +675,7 @@ class TaskRunner(Runner):
                     },
                     cached_result_expiration=None,
                     cached_parameters=formatting_kwargs.get("parameters"),
-                    message=f"Result found at task target {target}",
+                    message=f"Result found at task target {known_location}",
                 )
                 return cached_state
 

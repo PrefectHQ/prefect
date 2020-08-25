@@ -1,0 +1,2 @@
+enhancement:
+  - "Add more kwargs to State.children and State.parents for common access patterns - [#3212](https://github.com/PrefectHQ/prefect/pull/3212)"

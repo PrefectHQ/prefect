@@ -1,7 +1,7 @@
 import os
 from os import path
 import uuid
-from typing import Iterable
+from typing import Iterable, List
 
 import yaml
 
@@ -58,6 +58,12 @@ class KubernetesAgent(Agent):
             (default).
         - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
             and all deployed flow runs
+        - volume_mounts (list, optional): A list of volumeMounts to mount when a job is
+            run. The volumeMounts in the list should be specified as dicts
+            i.e `[{"name": "my-vol", "mountPath": "/mnt/my-mount"}]`
+        - volumes (list, optional): A list of volumes to make available to be mounted when a
+            job is run. The volumes in the list should be specified as nested dicts.
+            i.e `[{"name": "my-vol", "csi": {"driver": "secrets-store.csi.k8s.io"}}]`
     """
 
     def __init__(
@@ -69,6 +75,8 @@ class KubernetesAgent(Agent):
         max_polls: int = None,
         agent_address: str = None,
         no_cloud_logs: bool = False,
+        volume_mounts: List[dict] = None,
+        volumes: List[dict] = None,
     ) -> None:
         super().__init__(
             name=name,
@@ -80,6 +88,8 @@ class KubernetesAgent(Agent):
         )
 
         self.namespace = namespace or os.getenv("NAMESPACE", "default")
+        self.volume_mounts = volume_mounts
+        self.volumes = volumes
 
         from kubernetes import client, config
 
@@ -369,6 +379,16 @@ class KubernetesAgent(Agent):
             resources["requests"]["cpu"] = os.getenv("JOB_CPU_REQUEST")
         if os.getenv("JOB_CPU_LIMIT"):
             resources["limits"]["cpu"] = os.getenv("JOB_CPU_LIMIT")
+        if self.volume_mounts:
+            job["spec"]["template"]["spec"]["containers"][0][
+                "volumeMounts"
+            ] = self.volume_mounts
+        else:
+            del job["spec"]["template"]["spec"]["containers"][0]["volumeMounts"]
+        if self.volumes:
+            job["spec"]["template"]["spec"]["volumes"] = self.volumes
+        else:
+            del job["spec"]["template"]["spec"]["volumes"]
         if os.getenv("IMAGE_PULL_POLICY"):
             job["spec"]["template"]["spec"]["containers"][0][
                 "imagePullPolicy"

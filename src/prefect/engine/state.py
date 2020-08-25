@@ -162,17 +162,49 @@ class State:
         return self
 
     @classmethod
-    def children(cls) -> "List[Type[State]]":
+    def children(
+        cls, include_self: bool = False, names_only: bool = False
+    ) -> "List[Type[State]]":
+        """
+        Helper method for retrieving all possible child states of this state.
+
+        Args:
+            - include_self (bool, optional): whether to include the calling state in the return
+                values; defaults to `False`
+            - names_only (bool, optional): whether to only return the string names of the states;
+                defaults to `False`, in which case the actual classes are returned
+
+        Returns:
+            - list: a (possibly empty) list of states or state names
+        """
         children = []
         for state in cls.__subclasses__():
             # hide "private" state types
             if not state.__name__.startswith("_"):
                 children.append(state)
             children.extend(state.children())
+        if include_self:
+            children += [cls]
+        if names_only:
+            return [s.__name__ for s in children]  # type: ignore
         return children
 
     @classmethod
-    def parents(cls) -> "List[Type[State]]":
+    def parents(
+        cls, include_self: bool = False, names_only: bool = False
+    ) -> "List[Type[State]]":
+        """
+        Helper method for retrieving all possible parent states of this state.
+
+        Args:
+            - include_self (bool, optional): whether to include the calling state in the return
+                values; defaults to `False`
+            - names_only (bool, optional): whether to only return the string names of the states;
+                defaults to `False`, in which case the actual classes are returned
+
+        Returns:
+            - list: a (possibly empty) list of states or state names
+        """
         parents = []
         for state in cls.mro():
             if state in [object, cls]:
@@ -181,6 +213,10 @@ class State:
             # hide "private" state types
             if not state.__name__.startswith("_"):
                 parents.append(state)
+        if include_self:
+            parents += [cls]
+        if names_only:
+            return [s.__name__ for s in parents]  # type: ignore
         return parents
 
     def is_pending(self) -> bool:
