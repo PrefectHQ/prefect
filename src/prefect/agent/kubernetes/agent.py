@@ -157,7 +157,9 @@ class KubernetesAgent(Agent):
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
         """
-        yaml_path = os.getenv("YAML_TEMPLATE", path.join(path.dirname(__file__), "job_spec.yaml"))
+        yaml_path = os.getenv(
+            "YAML_TEMPLATE", path.join(path.dirname(__file__), "job_spec.yaml")
+        )
         with open(yaml_path, "r") as job_file:
             job = yaml.safe_load(job_file)
 
