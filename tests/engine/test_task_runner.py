@@ -942,7 +942,7 @@ class TestCheckTaskCached:
             return False
 
         # have to have a state worth checking to trigger the validator
-        with prefect.context(caches={"Task": [State()]}):
+        with prefect.context(caches={"Task": [State()]}, checkpointing=False):
             task = Task(
                 cache_for=timedelta(seconds=10), cache_validator=custom_validator
             )
@@ -1432,19 +1432,20 @@ class TestTargetExistsStep:
         assert new_state._result.location is None
 
     def test_check_target_exists(self, tmp_dir):
-        result = LocalResult(dir=tmp_dir, location="test-file")
+        result = LocalResult(dir=tmp_dir, location="Task-test-file")
         result.write(1)
 
-        my_task = Task(target="test-file", result=result)
+        my_task = Task(target="{task_name}-test-file", result=result)
 
-        new_state = TaskRunner(task=my_task).check_target(
-            state=Running(result=result), inputs={}
-        )
+        with prefect.context(task_name="Task"):
+            new_state = TaskRunner(task=my_task).check_target(
+                state=Running(result=result), inputs={}
+            )
 
-        assert result.exists("test-file")
+        assert result.exists("Task-test-file")
         assert new_state.is_cached()
-        assert new_state._result.location == "test-file"
-        assert new_state.message == "Result found at task target test-file"
+        assert new_state._result.location == "Task-test-file"
+        assert new_state.message == "Result found at task target Task-test-file"
 
     def test_check_target_exists_multiple_checks(self, tmp_dir):
         result = LocalResult(dir=tmp_dir, location="test-file")
@@ -2138,7 +2139,7 @@ def test_task_runner_logs_stdout(caplog):
     # data was not being passed on correctly
     assert state.result == 42
     logs = [r.message for r in caplog.records]
-    assert logs[1] == "TEST_HERE"
+    assert "TEST_HERE" in logs
 
 
 def test_task_runner_logs_stdout_disabled(caplog):
