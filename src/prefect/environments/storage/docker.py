@@ -38,6 +38,25 @@ class Docker(Storage):
     `gcr.io/my-registry/subdir/my-image-name` whereas DockerHub requires the
     registry URL to be separate from the image name.
 
+    Custom modules can be packaged up during build by attaching the files and
+    setting the `PYTHONPATH` to the location of those files. Otherwise the
+    modules can be set independently when using a custom base image prior to the
+    build here.
+
+    ```python
+    Docker(
+        files={
+            # absolute path source -> destination in image
+            "/Users/me/code/mod1.py": "/modules/mod1.py",
+            "/Users/me/code/mod2.py": "/modules/mod2.py",
+        },
+        env_vars={
+            # append modules directory to PYTHONPATH
+            "PYTHONPATH": "$PYTHONPATH:modules/"
+        },
+    )
+    ```
+
     Args:
         - registry_url (str, optional): URL of a registry to push the image to;
             image will not be pushed if not provided
