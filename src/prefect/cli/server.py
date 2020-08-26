@@ -219,9 +219,11 @@ def start(
     \b
     Options:
         --version, -v       TEXT    The server image versions to use (for example, '0.1.0' or
-                                    'master'). Defaults to `latest`.
+                                    'master'). Defaults to `core-a.b.c` where `a.b.c.` is the version
+                                    of Prefect Core currently running.
         --ui-version, -uv   TEXT    The UI image version to use (for example, '0.1.0' or
-                                    'master'). Defaults to `latest`.
+                                    'master'). Defaults to `core-a.b.c` where `a.b.c.` is the version
+                                    of Prefect Core currently running.
         --skip-pull                 Flag to skip pulling new images (if available)
         --no-upgrade, -n            Flag to avoid running a database upgrade when the database
                                     spins up
@@ -306,10 +308,15 @@ def start(
     ):
         env = make_env()
 
+    base_version = prefect.__version__.split("+")
+    if len(base_version) > 1:
+        default_tag = "master"
+    else:
+        default_tag = f"core-{base_version[0]}"
     if "PREFECT_SERVER_TAG" not in env:
-        env.update(PREFECT_SERVER_TAG=version or "latest")
+        env.update(PREFECT_SERVER_TAG=version or default_tag)
     if "PREFECT_UI_TAG" not in env:
-        env.update(PREFECT_UI_TAG=ui_version or "latest")
+        env.update(PREFECT_UI_TAG=ui_version or default_tag)
     if "PREFECT_SERVER_DB_CMD" not in env:
         cmd = (
             "prefect-server database upgrade -y"

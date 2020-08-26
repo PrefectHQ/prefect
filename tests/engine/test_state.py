@@ -461,27 +461,50 @@ def test_state_is_methods(state_check):
                 assert not getattr(state, attr)()
 
 
-def test_children_method_on_base_state():
+@pytest.mark.parametrize("include_self", [True, False])
+def test_children_method_on_base_state(include_self):
     all_states_set = set(all_states)
-    all_states_set.remove(State)
-    assert all_states_set == set(State.children())
+    if not include_self:
+        all_states_set.remove(State)
+    assert all_states_set == set(State.children(include_self=include_self))
 
 
 def test_children_method_on_leaf_state_returns_empty():
     assert TriggerFailed.children() == []
 
 
-def test_children_method_on_success():
+def test_children_method_names_only_returns_strings():
+    assert TriggerFailed.children(include_self=True, names_only=True) == [
+        "TriggerFailed"
+    ]
+
+
+@pytest.mark.parametrize("include_self", [True, False])
+def test_children_method_on_success(include_self):
     expected = {Cached, Mapped, Skipped}
-    assert set(Success.children()) == expected
+    if include_self:
+        expected.add(Success)
+    assert set(Success.children(include_self=include_self)) == expected
 
 
-def test_parent_method_on_base_state():
-    assert State.parents() == []
+@pytest.mark.parametrize("include_self", [True, False])
+def test_parent_method_on_base_state(include_self):
+    assert State.parents(include_self=include_self) == ([State] if include_self else [])
 
 
-def test_children_method_on_leaf_state_returns_hierarchy():
-    assert set(TriggerFailed.parents()) == {Finished, Failed, State}
+@pytest.mark.parametrize("include_self", [True, False])
+def test_parent_method_on_base_state_names_only(include_self):
+    assert State.parents(include_self=include_self, names_only=True) == (
+        ["State"] if include_self else []
+    )
+
+
+@pytest.mark.parametrize("include_self", [True, False])
+def test_children_method_on_leaf_state_returns_hierarchy(include_self):
+    expected = {Finished, Failed, State}
+    if include_self:
+        expected.add(TriggerFailed)
+    assert set(TriggerFailed.parents(include_self=include_self)) == expected
 
 
 def test_parents_method_on_success():

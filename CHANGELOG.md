@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.13.4 <Badge text="beta" type="success" />
+
+Released on August 25, 2020.
+
+### Enhancements
+
+- Allow for setting path to a custom job YAML spec on the Kubernetes Agent - [#3046](https://github.com/PrefectHQ/prefect/pull/3046)
+- Use better coupled versioning scheme for Core / Server / UI images - [#3204](https://github.com/PrefectHQ/prefect/pull/3204)
+- Added option to mount volumes with KubernetesAgent  - [#1234](https://github.com/PrefectHQ/prefect/pull/3210)
+- Add more kwargs to State.children and State.parents for common access patterns - [#3212](https://github.com/PrefectHQ/prefect/pull/3212)
+- Reduce size of `prefecthq/prefect` Docker image - [#3215](https://github.com/PrefectHQ/prefect/pull/3215)
+
+### Task Library
+
+- Add `DatabricksSubmitRun` task for submitting Spark jobs on Databricks - [#3166](https://github.com/PrefectHQ/prefect/pull/3166)
+
+### Fixes
+
+- Fix Apollo service error output while waiting for GraphQL service with `prefect server start` - [#3150](https://github.com/PrefectHQ/prefect/pull/3150)
+- Fix `--api` CLI option not being respected by agent Client  - [#3186](https://github.com/PrefectHQ/prefect/pull/3186)
+- Fix state message when using targets - [#3216](https://github.com/PrefectHQ/prefect/pull/3216)
+
+### Contributors
+
+- [Ashton Sidhu](https://github.com/Ashton-Sidhu)
+- [Chris Martin](https://github.com/d80tb7)
+- [Juan Calderon-Perez](https://github.com/gabrielcalderon)
+- [Thomas Frederik Hoeck](https://github.com/thomasfrederikhoeck)
+- [VincentTNR](https://github.com/VincentTNR)
+- [emcake](https://github.com/emcake)
+
 ## 0.13.3 <Badge text="beta" type="success" />
 
 Released on August 18, 2020.

@@ -1,7 +1,0 @@
-task:
-  - "Add `DatabricksSubmitRun` task for submitting Spark jobs on Databricks - [#3166](https://github.com/PrefectHQ/prefect/pull/3166)"
-
-contributor:
-  - "[Ashton Sidhu](https://github.com/Ashton-Sidhu)"
-  - "[VincentTNR](https://github.com/VincentTNR)"
-  - "[Chris Martin](https://github.com/d80tb7)"
