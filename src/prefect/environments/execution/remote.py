@@ -68,9 +68,7 @@ class RemoteEnvironment(Environment):
     def dependencies(self) -> list:
         return []
 
-    def execute(  # type: ignore
-        self, flow: "Flow", **kwargs: Any
-    ) -> None:
+    def execute(self, flow: "Flow", **kwargs: Any) -> None:  # type: ignore
         """
         Run the provided flow here using the specified executor and executor kwargs.
 
