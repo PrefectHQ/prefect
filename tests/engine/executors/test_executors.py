@@ -427,6 +427,23 @@ class TestDaskExecutor:
             assert post._futures is None
             assert post._should_run_var is None
 
+    def test_executor_logs_worker_events(self, caplog):
+        caplog.set_level(logging.DEBUG, logger="prefect")
+        with distributed.Client(
+            n_workers=1, processes=False, set_as_default=False
+        ) as client:
+            executor = DaskExecutor(address=client.scheduler.address)
+            with executor.start():
+                client.cluster.scale(2)
+                while len(client.cluster.workers) < 2:
+                    time.sleep(0.1)
+                client.cluster.scale(1)
+                while len(client.cluster.workers) > 1:
+                    time.sleep(0.1)
+
+        assert any("Worker %s added" == rec.msg for rec in caplog.records)
+        assert any("Worker %s removed" == rec.msg for rec in caplog.records)
+
     @pytest.mark.parametrize("kind", ["external", "inproc"])
     def test_exit_early_with_external_or_inproc_cluster_waits_for_pending_futures(
         self, kind, monkeypatch
