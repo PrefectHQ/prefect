@@ -106,6 +106,7 @@ class KubernetesAgent(Agent):
         self.batch_client = client.BatchV1Api()
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
+        self.api_client = client.ApiClient()
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
@@ -194,6 +195,19 @@ class KubernetesAgent(Agent):
 
             if not delete_job and not job_status.failed and not job_status.succeeded:
                 for pod_name in job["pod_names"]:
+                    print("@@@@@@@")
+                    print(pod_name)
+                    print(f"/apis/metrics.k8s.io/v1beta1/namespaces/{self.namespace}/pods/{pod_name}")
+                    metrics = self.api_client.call_api(
+                        f"/apis/metrics.k8s.io/v1beta1/namespaces/{self.namespace}/pods/{pod_name}",
+                        "GET",
+                        auth_settings=["BearerToken"],
+                        response_type="json",
+                        _preload_content=False,
+                    )
+                    response = metrics[0].data.decode("utf-8")
+                    self.logger.info(response)
+
                     try:
                         pod_status = self.core_client.read_namespaced_pod_status(
                             namespace=self.namespace,
