@@ -288,7 +288,9 @@ class DaskExecutor(Executor):
         except asyncio.CancelledError:
             pass
         except Exception:
-            self.logger.info("Failure while watching dask worker events", exc_info=True)
+            self.logger.debug(
+                "Failure while watching dask worker events", exc_info=True
+            )
         finally:
             if comm is not None:
                 try:
