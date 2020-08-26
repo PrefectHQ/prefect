@@ -239,7 +239,6 @@ class KubernetesAgent(Agent):
                     self.logger.error(
                         f"{exc.status} error attempting to delete job {job['job_name']}"
                     )
-                    pass
 
     def heartbeat(self) -> None:
         """
