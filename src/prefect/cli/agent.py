@@ -265,7 +265,7 @@ def start(
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
-                # agent_id=agent_id,
+                agent_id=agent_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -280,7 +280,7 @@ def start(
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
-                # agent_id=agent_id,
+                agent_id=agent_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -290,7 +290,7 @@ def start(
             ).start()
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
-                # agent_id=agent_id,
+                agent_id=agent_id,
                 namespace=namespace,
                 name=name,
                 labels=labels,
@@ -300,7 +300,7 @@ def start(
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
-                # agent_id=agent_id,
+                agent_id=agent_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
