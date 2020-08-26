@@ -38,14 +38,14 @@ def cloudpickle_deserialization_check(flow_file_paths: list):
         with open(flow_file, "rb") as f:
             try:
                 flows.append(cloudpickle.load(f))
-            except ModuleNotFoundError as exc:
+            except ModuleNotFoundError:
                 warnings.warn(
                     "Flow uses module which is not importable. Refer to documentation "
                     "on how to import custom modules "
                     "https://docs.prefect.io/api/latest/environments/storage.html#docker",
                     stacklevel=2,
                 )
-                raise exc
+                raise
 
     print("Cloudpickle serialization check: OK")
     return flows
