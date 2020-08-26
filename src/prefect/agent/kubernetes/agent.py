@@ -159,7 +159,7 @@ class KubernetesAgent(Agent):
                     )
             except self.k8s_client.rest.ApiException as exc:
                 if exc.status == 410:
-                    self.logger.debug("List jobs continue token expired, relisting")
+                    self.logger.debug("Refreshing job listing token...")
                     _continue = ""
                     continue
 
