@@ -1482,7 +1482,11 @@ class Client:
         return result.data.register_agent.id
 
     def register_agent_instance(
-        self, agent_type: str, name: str = None, labels: List[str] = None, agent_id: str = None
+        self,
+        agent_type: str,
+        name: str = None,
+        labels: List[str] = None,
+        agent_id: str = None,
     ) -> str:
         """
         Register an agent instance with a backend API
@@ -1510,7 +1514,7 @@ class Client:
                     name=name,
                     labels=labels or [],
                     tenant_id=self._active_tenant_id,
-                    agent_id=agent_id
+                    agent_id=agent_id,
                 )
             ),
         )
