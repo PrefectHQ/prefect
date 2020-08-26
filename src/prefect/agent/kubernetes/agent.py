@@ -186,12 +186,10 @@ class KubernetesAgent(Agent):
                     namespace=self.namespace, name=job["job_name"],
                 ).status
             except self.k8s_client.rest.ApiException as exc:
-                if exc.status != 401:
-                    delete_job = True
-                else:
-                    self.logger.error(
-                        f"{exc.status} error attempting to read status of job {job['job_name']}"
-                    )
+                self.logger.error(
+                    f"{exc.status} error attempting to read status of job {job['job_name']}"
+                )
+                continue
 
             if not delete_job and not job_status.failed and not job_status.succeeded:
                 for pod_name in job["pod_names"]:
@@ -200,12 +198,10 @@ class KubernetesAgent(Agent):
                             namespace=self.namespace, name=pod_name,
                         ).status
                     except self.k8s_client.rest.ApiException as exc:
-                        if exc.status != 401:
-                            delete_job = True
-                        else:
-                            self.logger.error(
-                                f"{exc.status} error attempting to read status of pod {pod_name}"
-                            )
+                        self.logger.error(
+                            f"{exc.status} error attempting to read status of pod {pod_name}"
+                        )
+                        continue
 
                     if not delete_job and pod_status.container_statuses:
                         for container_status in pod_status.container_statuses:
