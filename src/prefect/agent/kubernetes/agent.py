@@ -310,6 +310,8 @@ class KubernetesAgent(Agent):
                 container registry, such as Amazon ECR.
         - `SERVICE_ACCOUNT_NAME`: name of a service account to run the job as.
                 By default, none is specified.
+        - `YAML_TEMPLATE`: a path to where the YAML template should be loaded from. defaults
+                to the embedded `job_spec.yaml`.
 
         Args:
             - flow_run (GraphQLResult): A flow run object
@@ -319,7 +321,10 @@ class KubernetesAgent(Agent):
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
         """
-        with open(path.join(path.dirname(__file__), "job_spec.yaml"), "r") as job_file:
+        yaml_path = os.getenv(
+            "YAML_TEMPLATE", path.join(path.dirname(__file__), "job_spec.yaml")
+        )
+        with open(yaml_path, "r") as job_file:
             job = yaml.safe_load(job_file)
 
         job_name = "prefect-job-{}".format(identifier)

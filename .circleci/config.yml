@@ -424,7 +424,7 @@ jobs:
 
   promote_server_artifacts:
     docker:
-      - image: python:3.7
+      - image: docker
 
     steps:
       - setup_remote_docker:
