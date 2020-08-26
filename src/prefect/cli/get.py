@@ -125,7 +125,11 @@ def flows(name, version, project, limit, all_versions):
 
     click.echo(
         tabulate(
-            output, headers=headers, tablefmt="plain", numalign="left", stralign="left",
+            output,
+            headers=headers,
+            tablefmt="plain",
+            numalign="left",
+            stralign="left",
         )
     )
 

@@ -150,7 +150,9 @@ class TestCreateFlow:
     def test_create_flow_with_storage_and_result(self):
         result = LocalResult(dir="/")
         f2 = Flow(
-            name="test", storage=prefect.environments.storage.Local(), result=result,
+            name="test",
+            storage=prefect.environments.storage.Local(),
+            result=result,
         )
         assert isinstance(f2.storage, prefect.environments.storage.Local)
         assert isinstance(f2.result, LocalResult)
@@ -1711,7 +1713,11 @@ class TestGetTasks:
 
 class TestSerialize:
     def test_serialization(self):
-        p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
+        p1, t2, t3, = (
+            Parameter("1"),
+            Task("2"),
+            Task("3"),
+        )
 
         f = Flow(name="test", tasks=[p1, t2, t3])
         f.add_edge(p1, t2)
@@ -1722,7 +1728,11 @@ class TestSerialize:
         assert len(serialized["tasks"]) == len(f.tasks)
 
     def test_deserialization(self):
-        p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
+        p1, t2, t3, = (
+            Parameter("1"),
+            Task("2"),
+            Task("3"),
+        )
 
         f = Flow(
             name="hi",
@@ -2486,7 +2496,10 @@ class TestFlowDiagnostics:
 class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
-        ["prefect.environments.storage.Docker", "prefect.environments.storage.Local",],
+        [
+            "prefect.environments.storage.Docker",
+            "prefect.environments.storage.Local",
+        ],
     )
     def test_flow_register_uses_default_storage(self, monkeypatch, storage):
         monkeypatch.setattr("prefect.Client", MagicMock())

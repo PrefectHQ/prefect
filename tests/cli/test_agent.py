@@ -108,7 +108,8 @@ def test_agent_start_kubernetes(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs",
+        get_jobs,
     )
 
     k8s_config = MagicMock()
@@ -125,7 +126,8 @@ def test_agent_start_kubernetes_namespace(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs",
+        get_jobs,
     )
 
     k8s_config = MagicMock()
@@ -142,7 +144,8 @@ def test_agent_start_kubernetes_kwargs_ignored(monkeypatch, cloud_api):
 
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs", get_jobs,
+        "prefect.agent.kubernetes.agent.KubernetesAgent._get_prefect_jobs",
+        get_jobs,
     )
 
     k8s_config = MagicMock()

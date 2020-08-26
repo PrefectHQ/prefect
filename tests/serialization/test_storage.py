@@ -64,7 +64,10 @@ def test_docker_full_serialize():
 
 def test_docker_serialize_with_flows():
     docker = storage.Docker(
-        registry_url="url", image_name="name", image_tag="tag", secrets=["FOO"],
+        registry_url="url",
+        image_name="name",
+        image_tag="tag",
+        secrets=["FOO"],
     )
     f = prefect.Flow("test")
     docker.add_flow(f)
@@ -137,7 +140,11 @@ def test_s3_full_serialize():
 
 
 def test_s3_serialize_with_flows():
-    s3 = storage.S3(bucket="bucket", key="key", secrets=["hidden", "auth"],)
+    s3 = storage.S3(
+        bucket="bucket",
+        key="key",
+        secrets=["hidden", "auth"],
+    )
     f = prefect.Flow("test")
     s3.flows["test"] = "key"
     serialized = S3Schema().dump(s3)

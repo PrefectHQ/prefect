@@ -29,7 +29,10 @@ class S3Download(Task):
 
     @defaults_from_attrs("bucket")
     def run(
-        self, key: str, credentials: str = None, bucket: str = None,
+        self,
+        key: str,
+        credentials: str = None,
+        bucket: str = None,
     ):
         """
         Task run method.
@@ -85,7 +88,11 @@ class S3Upload(Task):
 
     @defaults_from_attrs("bucket")
     def run(
-        self, data: str, key: str = None, credentials: dict = None, bucket: str = None,
+        self,
+        data: str,
+        key: str = None,
+        credentials: dict = None,
+        bucket: str = None,
     ):
         """
         Task run method.

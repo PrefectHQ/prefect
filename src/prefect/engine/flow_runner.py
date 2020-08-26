@@ -171,7 +171,8 @@ class FlowRunner(Runner):
 
         for task in self.flow.tasks:
             task_contexts.setdefault(task, {}).update(
-                task_name=task.name, task_slug=self.flow.slugs[task],
+                task_name=task.name,
+                task_slug=self.flow.slugs[task],
             )
 
         state, context = super().initialize_run(state=state, context=context)
@@ -469,7 +470,8 @@ class FlowRunner(Runner):
                         # to complete and then flatten them
                         if edge.flattened:
                             children = executors.flatten_mapped_children(
-                                mapped_children=children, executor=executor,
+                                mapped_children=children,
+                                executor=executor,
                             )
 
                         upstream_mapped_states[edge] = children
@@ -517,11 +519,13 @@ class FlowRunner(Runner):
 
                     # either way, we should now have enough resolved states to restructure
                     # the upstream states into a list of upstream state dictionaries to iterate over
-                    list_of_upstream_states = executors.prepare_upstream_states_for_mapping(
-                        task_states[task],
-                        upstream_states,
-                        mapped_children,
-                        executor=executor,
+                    list_of_upstream_states = (
+                        executors.prepare_upstream_states_for_mapping(
+                            task_states[task],
+                            upstream_states,
+                            mapped_children,
+                            executor=executor,
+                        )
                     )
 
                     submitted_states = []

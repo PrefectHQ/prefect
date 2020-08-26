@@ -23,7 +23,10 @@ def test_create_s3_storage_init_args():
     storage = S3(
         bucket="bucket",
         key="key",
-        client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
+        client_options={
+            "endpoint_url": "http://some-endpoint",
+            "use_ssl": False,
+        },
         secrets=["auth"],
     )
     assert storage
@@ -59,7 +62,10 @@ def test_boto3_client_property(monkeypatch):
 
     storage = S3(
         bucket="bucket",
-        client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
+        client_options={
+            "endpoint_url": "http://some-endpoint",
+            "use_ssl": False,
+        },
     )
 
     credentials = dict(

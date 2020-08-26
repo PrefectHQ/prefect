@@ -30,7 +30,11 @@ class GCSResultHandler(ResultHandler):
             which stores a JSON representation of your Google Cloud credentials.
     """
 
-    def __init__(self, bucket: str = None, credentials_secret: str = None,) -> None:
+    def __init__(
+        self,
+        bucket: str = None,
+        credentials_secret: str = None,
+    ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
         super().__init__()

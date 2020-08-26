@@ -16,7 +16,8 @@ def client(monkeypatch):
         create_flow_run=MagicMock(return_value="xyz890"),
     )
     monkeypatch.setattr(
-        "prefect.tasks.prefect.flow_run.Client", MagicMock(return_value=cloud_client),
+        "prefect.tasks.prefect.flow_run.Client",
+        MagicMock(return_value=cloud_client),
     )
     yield cloud_client
 
@@ -83,7 +84,10 @@ class TestFlowRunTaskCloud:
 
     def test_idempotency_key_uses_map_index_if_present(self, client, cloud_api):
         # verify that create_flow_run was called
-        task = FlowRunTask(project_name="Test Project", flow_name="Test Flow",)
+        task = FlowRunTask(
+            project_name="Test Project",
+            flow_name="Test Flow",
+        )
 
         # verify that run returns the new flow run ID
         with prefect.context(flow_run_id="test-id", map_index=4):
@@ -137,7 +141,9 @@ class TestFlowRunTaskCoreServer:
     def test_flow_run_task(self, client, server_api):
         # verify that create_flow_run was called
         task = FlowRunTask(
-            flow_name="Test Flow", project_name="Demo", parameters={"test": "ing"},
+            flow_name="Test Flow",
+            project_name="Demo",
+            parameters={"test": "ing"},
         )
         # verify that run returns the new flow run ID
         assert task.run() == "xyz890"

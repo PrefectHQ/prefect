@@ -27,7 +27,9 @@ def initial_job_spec(default_command_args):
     return {
         "apiVersion": "batch/v1",
         "kind": "Job",
-        "metadata": {"labels": {},},
+        "metadata": {
+            "labels": {},
+        },
         "spec": {
             "template": {
                 "spec": {
@@ -92,7 +94,10 @@ def test_create_k8s_job_callbacks(job_spec_file):
         pass
 
     environment = KubernetesJobEnvironment(
-        job_spec_file=job_spec_file, labels=["foo"], on_start=f, on_exit=f,
+        job_spec_file=job_spec_file,
+        labels=["foo"],
+        on_start=f,
+        on_exit=f,
     )
     assert environment.labels == set(["foo"])
     assert environment.on_start is f
@@ -398,7 +403,10 @@ def test_initialize_environment_with_spec_populates(
     assert environment._job_spec == initial_job_spec
     assert environment._job_spec["spec"]["template"]["spec"]["containers"][0][
         "command"
-    ] == ["/bin/sh", "-c",]
+    ] == [
+        "/bin/sh",
+        "-c",
+    ]
     assert (
         environment._job_spec["spec"]["template"]["spec"]["containers"][0]["args"]
         == default_command_args

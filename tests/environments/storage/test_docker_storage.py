@@ -179,7 +179,9 @@ def test_initialized_docker_storage_client(monkeypatch, no_docker_host_var):
     monkeypatch.setattr("docker.APIClient", client)
 
     storage = Docker(
-        registry_url="test1", base_url="test_url", tls_config={"tls": "here"},
+        registry_url="test1",
+        base_url="test_url",
+        tls_config={"tls": "here"},
     )
 
     storage._get_client()
@@ -613,7 +615,9 @@ def test_create_dockerfile_with_flow_file(no_docker_host_var, tmpdir):
     with tempfile.TemporaryDirectory() as tempdir_inside:
 
         storage = Docker(
-            files={full_path: "flow.py"}, stored_as_script=True, path="flow.py",
+            files={full_path: "flow.py"},
+            stored_as_script=True,
+            path="flow.py",
         )
         f = Flow("test-flow")
         storage.add_flow(f)
@@ -624,7 +628,10 @@ def test_create_dockerfile_with_flow_file(no_docker_host_var, tmpdir):
 
         assert "COPY flow.py flow.py" in output
 
-        storage = Docker(files={full_path: "flow.py"}, stored_as_script=True,)
+        storage = Docker(
+            files={full_path: "flow.py"},
+            stored_as_script=True,
+        )
         f = Flow("test-flow")
         storage.add_flow(f)
 
@@ -663,7 +670,8 @@ def test_run_healthchecks_arg_custom_prefect_dir(ignore_healthchecks, tmpdir):
         t.write("asdf")
 
     storage = Docker(
-        ignore_healthchecks=ignore_healthchecks, prefect_directory="/usr/local/prefect",
+        ignore_healthchecks=ignore_healthchecks,
+        prefect_directory="/usr/local/prefect",
     )
 
     f = Flow("test")

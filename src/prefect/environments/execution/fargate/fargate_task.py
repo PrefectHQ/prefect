@@ -290,7 +290,8 @@ class FargateTaskEnvironment(Environment, _RunMixin):
                     "change the family/taskDefinition name in the FargateTaskEnvironment\n"
                     "for this flow."
                 ).format(
-                    self.task_definition_kwargs.get("family"), "\n\t".join(differences),
+                    self.task_definition_kwargs.get("family"),
+                    "\n\t".join(differences),
                 )
             )
 

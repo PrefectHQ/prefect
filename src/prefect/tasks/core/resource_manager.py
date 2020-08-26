@@ -61,7 +61,11 @@ class ResourceContext:
     """
 
     def __init__(
-        self, init_task: Task, setup_task: Task, cleanup_task: Task, flow: Flow,
+        self,
+        init_task: Task,
+        setup_task: Task,
+        cleanup_task: Task,
+        flow: Flow,
     ):
         self.init_task = init_task
         self.setup_task = setup_task

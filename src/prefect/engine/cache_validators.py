@@ -127,7 +127,9 @@ def all_parameters(
         return False
 
 
-def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
+def partial_parameters_only(
+    validate_on: Iterable[str] = None,
+) -> Callable:
     """
     Validates the cache based on cache expiration _and_ a subset of parameters (determined by the
     `validate_on` keyword) that were provided on the last successful run.
@@ -206,7 +208,9 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
     return _partial_parameters_only
 
 
-def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
+def partial_inputs_only(
+    validate_on: Iterable[str] = None,
+) -> Callable:
     """
     Validates the cache based on cache expiration _and_ a subset of inputs (determined by the
     `validate_on` keyword) that were provided on the last successful run.
