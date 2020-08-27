@@ -437,15 +437,11 @@ class TestDaskExecutor:
             executor = DaskExecutor(address=client.scheduler.address)
             with executor.start():
                 client.cluster.scale(2)
-                while len(client.cluster.workers) < 2:
+                while len(client.scheduler_info()["workers"]) < 2:
                     time.sleep(0.1)
                 client.cluster.scale(1)
-                while len(client.cluster.workers) > 1:
+                while len(client.scheduler_info()["workers"]) > 1:
                     time.sleep(0.1)
-
-        print("LOGS!")
-        for r in caplog.records:
-            print(r)
 
         assert any("Worker %s added" == rec.msg for rec in caplog.records)
         assert any("Worker %s removed" == rec.msg for rec in caplog.records)
