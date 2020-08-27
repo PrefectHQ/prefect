@@ -89,7 +89,7 @@ class case(object):
             prefect.context.update(case=self.__prev_case)
 
         if self._tasks:
-            cond = CompareValue(self.value, name=f"case({self.value})",).bind(
+            cond = CompareValue(self.value, name=f"case({self.value})").bind(
                 value=self.task, flow=self._flow
             )
 

@@ -385,7 +385,10 @@ def test_setup_definition_register(monkeypatch):
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
+                {
+                    "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                    "value": "[]",
+                },
             ],
             "essential": True,
         }
@@ -429,7 +432,10 @@ def test_setup_definition_register_no_defintions(monkeypatch):
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
+                {
+                    "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                    "value": "[]",
+                },
             ],
             "name": "flow-container",
             "image": "test/image:tag",

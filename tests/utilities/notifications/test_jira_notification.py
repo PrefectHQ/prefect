@@ -31,7 +31,7 @@ def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(
             secrets=dict(
-                JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "123", "JIRASERVER": "",}
+                JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "123", "JIRASERVER": ""}
             )
         ):
             assert (
@@ -145,7 +145,7 @@ def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(
             secrets=dict(
-                JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": "",}
+                JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": ""}
             )
         ):
             returned = handler(
@@ -184,7 +184,7 @@ def test_jira_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(
             secrets=dict(
-                JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": "",}
+                JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": ""}
             )
         ):
             returned = handler(

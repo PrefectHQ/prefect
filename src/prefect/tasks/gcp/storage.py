@@ -205,7 +205,7 @@ class GCSUpload(GCSBaseTask):
         )
 
     @defaults_from_attrs(
-        "bucket", "blob", "project", "create_bucket", "encryption_key_secret",
+        "bucket", "blob", "project", "create_bucket", "encryption_key_secret"
     )
     def run(
         self,
@@ -309,7 +309,7 @@ class GCSCopy(GCSBaseTask):
         super().__init__(project=project, **kwargs)
 
     @defaults_from_attrs(
-        "source_bucket", "source_blob", "dest_bucket", "dest_blob", "project",
+        "source_bucket", "source_blob", "dest_bucket", "dest_blob", "project"
     )
     def run(
         self,

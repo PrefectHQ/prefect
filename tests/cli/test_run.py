@@ -30,7 +30,7 @@ def test_run_help():
 def test_run_cloud(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}],)))
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
         )
     )
     session = MagicMock()
@@ -190,16 +190,7 @@ def test_run_cloud_logs(monkeypatch, cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         run,
-        [
-            "cloud",
-            "--name",
-            "flow",
-            "--project",
-            "project",
-            "--version",
-            "2",
-            "--logs",
-        ],
+        ["cloud", "--name", "flow", "--project", "project", "--version", "2", "--logs"],
     )
     assert result.exit_code == 0
     assert "test_timestamp" in result.output
@@ -441,7 +432,7 @@ def test_run_cloud_flow_run_id_link(monkeypatch, api, expected, cloud_api):
     with set_temporary_config({"cloud.api": api, "cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(
-            run, ["cloud", "--name", "flow", "--project", "project", "--version", "2",],
+            run, ["cloud", "--name", "flow", "--project", "project", "--version", "2"]
         )
         assert result.exit_code == 0
         assert "Flow Run" in result.output
