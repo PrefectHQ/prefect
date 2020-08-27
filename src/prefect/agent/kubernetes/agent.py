@@ -183,7 +183,8 @@ class KubernetesAgent(Agent):
 
             try:
                 job_status = self.batch_client.read_namespaced_job_status(
-                    namespace=self.namespace, name=job["job_name"],
+                    namespace=self.namespace,
+                    name=job["job_name"],
                 ).status
             except self.k8s_client.rest.ApiException as exc:
                 self.logger.error(
@@ -195,7 +196,8 @@ class KubernetesAgent(Agent):
                 for pod_name in job["pod_names"]:
                     try:
                         pod_status = self.core_client.read_namespaced_pod_status(
-                            namespace=self.namespace, name=pod_name,
+                            namespace=self.namespace,
+                            name=pod_name,
                         ).status
                     except self.k8s_client.rest.ApiException as exc:
                         self.logger.error(
