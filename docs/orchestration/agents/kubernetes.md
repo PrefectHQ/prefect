@@ -212,13 +212,3 @@ Once the flow has entered a finished state the pod's status should read `Complet
 :::warning Resources
 The current default resource usage of a prefect-job has a request and limit for CPU of `100m` and the agent limits itself to `128Mi` for memory and `100m` for CPU. Make sure your cluster has enough resources that it does not start to get clogged up with all of your flow runs. A more customizable Kubernetes environment is on the roadmap!
 :::
-
-### Resource Manager
-
-Prefect is currently testing a feature called the Resource Manager alongside the Kubernetes agent. The Resource Manager is a small container that runs inside the agent's pod, responsible for cleaning up resources created from the orchestration of flow runs. For example: when a prefect-job is finished, the resource manager will delete the job and it's associated pods from the cluster. It checks every minute if there are prefect-jobs and pods that need to be cleaned up.
-
-To install your agent with the resource manager run:
-
-```
-$ prefect agent install kubernetes -t MY_TOKEN --resource-manager | kubectl apply -f -
-```
