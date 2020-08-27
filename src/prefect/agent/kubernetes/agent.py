@@ -1,4 +1,3 @@
-import json
 import os
 from os import path
 import uuid
@@ -107,7 +106,6 @@ class KubernetesAgent(Agent):
         self.batch_client = client.BatchV1Api()
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
-        self.api_client = client.ApiClient()
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
@@ -120,7 +118,7 @@ class KubernetesAgent(Agent):
         self.logger.debug(
             "Retrieving information of jobs that are currently in the cluster..."
         )
-
+        print("nonononon")
         more = True
         _continue = ""
         while more:
@@ -196,7 +194,7 @@ class KubernetesAgent(Agent):
         """
         Check status of jobs created by this agent, delete completed jobs and failed containers.
         """
-
+        print("nononoonononononononononono")
         self.manage_jobs()
         super().heartbeat()
 

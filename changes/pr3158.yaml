@@ -1,6 +1,5 @@
 enhancement:
   - "Kubernetes agent now manages lifecycle of prefect jobs in its namespace - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)"
-  - "Kubernetes agent will log resource usage of prefect containers via the `metrics.k8s.io` API - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)"
   - "Move agent heartbeat to background thread - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)"
 
 deprecation:
