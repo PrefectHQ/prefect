@@ -439,7 +439,6 @@ class TestDaskExecutor:
                 client.cluster.scale(4)
                 while len(client.scheduler_info()["workers"]) < 4:
                     time.sleep(0.1)
-                time.sleep(0.2)
                 client.cluster.scale(1)
                 while len(client.scheduler_info()["workers"]) > 1:
                     time.sleep(0.1)
