@@ -133,11 +133,11 @@ class KubernetesAgent(Agent):
                 more = bool(_continue)
 
                 for job in jobs.items:
-                    delete_job = False
+                    delete_job = job.status.failed or job.status.succeeded
                     job_name = job.metadata.name
                     flow_run_id = job.metadata.labels.get("prefect.io/flow_run_id")
 
-                    if not job.status.failed and not job.status.succeeded:
+                    if not delete_job:
                         pods = self.core_client.list_namespaced_pod(
                             namespace=self.namespace,
                             label_selector="prefect.io/identifier={}".format(
@@ -168,7 +168,7 @@ class KubernetesAgent(Agent):
                                         delete_job = True
                                         break
 
-                    if delete_job or job.status.failed or job.status.succeeded:
+                    if delete_job:
                         self.logger.debug(f"Deleting job {job_name}")
                         try:
                             self.batch_client.delete_namespaced_job(
