@@ -210,7 +210,7 @@ def timeout_handler(
             "but continue running in the background."
         )
 
-    warnings.warn(msg)
+    warnings.warn(msg, stacklevel=2)
     executor = ThreadPoolExecutor()
 
     def run_with_ctx(*args: Any, _ctx_dict: dict, **kwargs: Any) -> Any:

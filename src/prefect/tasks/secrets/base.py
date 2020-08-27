@@ -71,5 +71,6 @@ class Secret(PrefectSecret):
         warnings.warn(
             "The `Secret` task is deprecated and has been renamed `PrefectSecret`.",
             UserWarning,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

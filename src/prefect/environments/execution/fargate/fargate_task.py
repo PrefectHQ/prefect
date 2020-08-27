@@ -126,7 +126,9 @@ class FargateTaskEnvironment(Environment, _RunMixin):
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
         if executor_kwargs is not None:
-            warnings.warn("`executor_kwargs` is deprecated, use `executor` instead")
+            warnings.warn(
+                "`executor_kwargs` is deprecated, use `executor` instead", stacklevel=2
+            )
         if executor is None:
             executor = prefect.engine.get_default_executor_class()(
                 **(executor_kwargs or {})

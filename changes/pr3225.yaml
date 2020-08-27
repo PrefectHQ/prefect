@@ -1,0 +1,5 @@
+enhancement:
+  - "Handles `ModuleNotFound` errors in the storage healthcheck - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)"
+  - "Raises the `warnings.warn` stack level to 2 to reduce duplicate warning messages - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)"
+  - "Add some extra output to the `client.register` print output for visibility - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)"
+  - "CLI help text docstrings are now auto documented using the API documentation parser - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)"

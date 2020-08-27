@@ -174,45 +174,46 @@ def start(
                                 Defaults to INFO level logging
         --label, -l     TEXT    Labels the agent will use to query for flow runs
                                 Multiple values supported e.g. `-l label1 -l label2`
-
-        --env, -e       TEXT    Environment variables to set on each submitted flow run.
-                                Note that equal signs in environment variable values are not
-                                currently supported from the CLI.  Multiple values supported
-                                e.g. `-e AUTH=token -e PKG_SETTING=true`
-        --max-polls     INT     Maximum number of times the agent should poll the Prefect API
-                                for flow runs. Will run forever if not specified.
+        --env, -e       TEXT    Environment variables to set on each submitted flow
+                                run.
+                                Note that equal signs in environment variable values
+                                are not currently supported from the CLI.  Multiple
+                                values supported.
+                                    e.g. `-e AUTH=token -e PKG_SETTING=true`
+        --max-polls     INT     Maximum number of times the agent should poll the
+                                Prefect API for flow runs. Will run forever if not
+                                specified.
         --no-cloud-logs         Turn off logging to the Prefect API for all flow runs
                                 Defaults to `False`
-        --agent-address TEXT    The address to server internal api at. Currently this is
-                                just health checks for use by an orchestration layer
+        --agent-address TEXT    The address to server internal api at. Currently this
+                                is just health checks for use by an orchestration layer
                                 (e.g. kubernetes). Leave blank for no api server (default).
 
     \b
-    Local Agent Options:
-        --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime
-                                    environment.  Used for Flows which might import from
-                                    scripts or local packages.  Multiple values supported e.g.
-                                    `-p /root/my_scripts -p /utilities`
-        --show-flow-logs, -f        Display logging output from flows run by the agent (available
-                                    for Local and Docker agents only)
+    Local Agent:
+        --import-path, -p   TEXT    Import paths which will be provided to each Flow's
+                                    runtime environment.  Used for Flows which might
+                                    import from scripts or local packages.  Multiple values
+                                    supported.
+                                        e.g. `-p /root/my_scripts -p /utilities`
+        --show-flow-logs, -f        Display logging output from flows run by the agent
+                                    (available for Local and Docker agents only)
 
     \b
-    Docker Agent Options:
+    Docker Agent:
         --base-url, -b      TEXT    A Docker daemon host URL for a DockerAgent
         --no-pull                   Pull images for a DockerAgent
                                     Defaults to pulling if not provided
-
-        --volume            TEXT    Host paths for Docker bind mount volumes attached to each
-                                    Flow runtime container.  Multiple values supported e.g.
-                                    `--volume /some/path --volume /some/other/path`
+        --volume            TEXT    Host paths for Docker bind mount volumes attached to
+                                    each Flow runtime container. Multiple values supported.
+                                        e.g. `--volume /some/path`
         --network           TEXT    Add containers to an existing docker network
-
         --no-docker-interface       Disable the check of a Docker interface on this machine.
-                                    **Note**: This is mostly relevant for some Docker-in-Docker
+                                    Note: This is mostly relevant for some Docker-in-Docker
                                     setups that users may be running their agent with.
 
     \b
-    Kubernetes Agent Options:
+    Kubernetes Agent:
         --namespace     TEXT    A Kubernetes namespace to create Prefect jobs in
                                 Defaults to env var `NAMESPACE` or `default`
 
@@ -432,15 +433,16 @@ def install(
     Options:
         --token, -t                 TEXT    A Prefect Cloud API token
         --label, -l                 TEXT    Labels the agent will use to query for flow runs
-                                            Multiple values supported e.g. `-l label1 -l label2`
-        --env, -e                   TEXT    Environment variables to set on each submitted flow
-                                            run. Note that equal signs in environment variable
-                                            values are not currently supported from the CLI.
-                                            Multiple values supported e.g. `-e AUTH=token -e
-                                            PKG_SETTING=true`
+                                            Multiple values supported.
+                                                e.g. `-l label1 -l label2`
+        --env, -e                   TEXT    Environment variables to set on each submitted
+                                            flow run. Note that equal signs in environment
+                                            variable values are not currently supported from
+                                            the CLI. Multiple values supported.
+                                                e.g. `-e AUTH=token -e PKG_SETTING=true`
 
     \b
-    Kubernetes Agent Options:
+    Kubernetes Agent:
         --api, -a                   TEXT    A Prefect API URL
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
@@ -457,11 +459,12 @@ def install(
                                             Defaults to the backend currently set in config.
 
     \b
-    Local Agent Options:
-        --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
-                                            Multiple values supported e.g. `-p /root/my_scripts
-                                            -p /utilities`
-        --show-flow-logs, -f                Display logging output from flows run by the agent
+    Local Agent:
+        --import-path, -p           TEXT    Absolute import paths to provide to the local
+                                            agent. Multiple values supported.
+                                                e.g. `-p /root/my_scripts -p /utilities`
+        --show-flow-logs, -f                Display logging output from flows run by the
+                                            agent
     """
 
     supported_agents = {

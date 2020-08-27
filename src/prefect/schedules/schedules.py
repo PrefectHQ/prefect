@@ -278,6 +278,7 @@ def OneTimeSchedule(start_date: datetime) -> Schedule:
         "The OneTimeSchedule is deprecated and will be removed from "
         "Prefect. Use a Schedule with a single-date DatesClock instead.",
         UserWarning,
+        stacklevel=2,
     )
     return Schedule(clocks=[prefect.schedules.clocks.DatesClock(dates=[start_date])])
 
@@ -292,5 +293,6 @@ def UnionSchedule(schedules: List[Schedule]) -> Schedule:
         "The UnionSchedule is deprecated and will be removed from "
         "Prefect. Use a Schedule with multiple clocks instead.",
         UserWarning,
+        stacklevel=2,
     )
     return Schedule(clocks=[c for s in schedules for c in s.clocks])

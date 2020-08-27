@@ -68,7 +68,8 @@ class RemoteDaskEnvironment(RemoteEnvironment):
             # want to update the code for e.g. `DaskCloudProviderEnvironment`
             warnings.warn(
                 "`RemoteDaskEnvironment` is deprecated, please use `LocalEnvironment` with a "
-                "`DaskExecutor` instead."
+                "`DaskExecutor` instead.",
+                stacklevel=2,
             )
         self.address = address
         dask_executor_kwargs = executor_kwargs or dict()

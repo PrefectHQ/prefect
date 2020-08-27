@@ -111,6 +111,11 @@ module.exports = {
           children: getChildren('docs/api/latest', 'client')
         },
         {
+          title: 'prefect.cli',
+          collapsable: true,
+          children: getChildren('docs/api/latest', 'cli')
+        },
+        {
           title: 'prefect.core',
           collapsable: true,
           children: getChildren('docs/api/latest', 'core')

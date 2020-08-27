@@ -144,7 +144,8 @@ class DaskExecutor(Executor):
         if address == "local":
             warnings.warn(
                 "`address='local'` is deprecated. To use a local cluster, leave the "
-                "`address` field empty."
+                "`address` field empty.",
+                stacklevel=2,
             )
             address = None
 
@@ -158,7 +159,8 @@ class DaskExecutor(Executor):
             warnings.warn(
                 "`local_processes` is deprecated, please use "
                 "`cluster_kwargs={'processes': local_processes}`. The default is "
-                "now `local_processes=True`."
+                "now `local_processes=True`.",
+                stacklevel=2,
             )
 
         if address is not None:
@@ -190,7 +192,8 @@ class DaskExecutor(Executor):
                 if for_cluster:
                     warnings.warn(
                         "Forwarding executor kwargs to `LocalCluster` is now handled by the "
-                        "`cluster_kwargs` parameter, please update accordingly"
+                        "`cluster_kwargs` parameter, please update accordingly",
+                        stacklevel=2,
                     )
                     for k in for_cluster:
                         cluster_kwargs[k] = kwargs.pop(k)
@@ -205,7 +208,8 @@ class DaskExecutor(Executor):
         if kwargs:
             warnings.warn(
                 "Forwarding executor kwargs to `Client` is now handled by the "
-                "`client_kwargs` parameter, please update accordingly"
+                "`client_kwargs` parameter, please update accordingly",
+                stacklevel=2,
             )
             client_kwargs.update(kwargs)
         client_kwargs.setdefault("set_as_default", False)

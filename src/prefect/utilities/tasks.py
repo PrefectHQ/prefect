@@ -190,7 +190,8 @@ from prefect.utilities.edges import unmapped as _unmapped
 
 def unmapped(*args, **kwargs):  # type: ignore
     warnings.warn(
-        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`"
+        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`",
+        stacklevel=2,
     )
     return _unmapped(*args, **kwargs)
 

@@ -92,17 +92,20 @@ def flow(
         --project, -p               TEXT        The name of a project that contains
                                                 the flow [required]
         --version, -v               INTEGER     A flow version to run
-        --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
+        --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing
+                                                parameters
         --parameters-string, -ps    TEXT        A string of JSON parameters
         --run-name, -rn             TEXT        A name to assign for this run
         --watch, -w                             Watch current state of the flow run, stream
                                                 output to stdout
-        --logs, -l                              Get logs of the flow run, stream output to stdout
-        --no-url                                Only output the flow run id instead of a link
+        --logs, -l                              Get logs of the flow run, stream output to
+                                                stdout
+        --no-url                                Only output the flow run id instead of a
+                                                link
 
     \b
-    If both `--parameters-file` and `--parameters-string` are provided then the values passed
-    in through the string will override the values provided from the file.
+    If both `--parameters-file` and `--parameters-string` are provided then the values
+    passed in through the string will override the values provided from the file.
 
     \b
     e.g.

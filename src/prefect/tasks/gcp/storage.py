@@ -29,6 +29,7 @@ class GCSBaseTask(Task):
                 "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
                 "to pass the key value at runtime instead.",
                 UserWarning,
+                stacklevel=2,
             )
         self.encryption_key_secret = encryption_key_secret
         super().__init__(**kwargs)
@@ -62,6 +63,7 @@ class GCSBaseTask(Task):
                 "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
                 "to pass the credentials value at runtime instead.",
                 UserWarning,
+                stacklevel=2,
             )
             encryption_key = Secret(encryption_key_secret).get()
 
