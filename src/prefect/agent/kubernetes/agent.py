@@ -116,9 +116,7 @@ class KubernetesAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info(
-            "Deploying flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         image = get_flow_image(flow_run=flow_run)
 

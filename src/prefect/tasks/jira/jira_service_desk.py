@@ -67,7 +67,7 @@ class JiraServiceDeskTask(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "server_url", "service_desk_id", "issue_type", "summary", "description",
+        "server_url", "service_desk_id", "issue_type", "summary", "description"
     )
     def run(
         self,

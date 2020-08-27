@@ -30,7 +30,7 @@ class LoadTweetReplies(Task):
 
     @defaults_from_attrs("user", "tweet_id")
     def run(
-        self, user: str = None, tweet_id: str = None, credentials: dict = None,
+        self, user: str = None, tweet_id: str = None, credentials: dict = None
     ) -> list:
         """
         Args:

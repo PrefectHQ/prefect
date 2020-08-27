@@ -16,7 +16,10 @@ def test_create_azure_storage():
 
 def test_create_azure_storage_init_args():
     storage = Azure(
-        container="test", connection_string="conn", blob_name="name", secrets=["foo"],
+        container="test",
+        connection_string="conn",
+        blob_name="name",
+        secrets=["foo"],
     )
     assert storage
     assert storage.flows == dict()

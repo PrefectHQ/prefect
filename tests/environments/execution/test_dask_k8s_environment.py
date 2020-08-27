@@ -187,7 +187,10 @@ def test_environment_run(monkeypatch):
 
     flow = prefect.Flow("my-flow")
     flow.environment = DaskKubernetesEnvironment(
-        on_start=start_func, on_exit=exit_func, min_workers=3, max_workers=5,
+        on_start=start_func,
+        on_exit=exit_func,
+        min_workers=3,
+        max_workers=5,
     )
 
     flow_runner = MagicMock()

@@ -154,7 +154,7 @@ class DatabricksSubmitRun(Task):
             `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
             OR
             `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
-            See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.            
+            See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.
         - json (dict, optional): A JSON object containing API parameters which will be passed
             directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
             (i.e. ``spark_jar_task``, ``notebook_task``..) to this task will
@@ -279,7 +279,7 @@ class DatabricksSubmitRun(Task):
             `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
             OR
             `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
-            See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.            
+            See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.
         - json (dict, optional): A JSON object containing API parameters which will be passed
             directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
             (i.e. ``spark_jar_task``, ``notebook_task``..) to this task will

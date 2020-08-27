@@ -51,7 +51,7 @@ class Parameter(Task):
         self.default = default
 
         super().__init__(
-            name=name, slug=name, tags=tags, result=PrefectResult(), checkpoint=True,
+            name=name, slug=name, tags=tags, result=PrefectResult(), checkpoint=True
         )
 
     def __repr__(self) -> str:

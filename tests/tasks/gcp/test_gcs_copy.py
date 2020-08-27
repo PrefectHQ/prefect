@@ -22,7 +22,13 @@ class TestInitialization:
 
     @pytest.mark.parametrize(
         "attr",
-        ["source_bucket", "source_blob", "dest_bucket", "dest_blob", "project",],
+        [
+            "source_bucket",
+            "source_blob",
+            "dest_bucket",
+            "dest_blob",
+            "project",
+        ],
     )
     def test_initializes_attr_from_kwargs(self, attr):
         task = GCSCopy(**{attr: "my-value"})

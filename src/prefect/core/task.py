@@ -630,7 +630,7 @@ class Task(metaclass=SignatureValidator):
         )
 
     def set_upstream(
-        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False,
+        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
     ) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
@@ -658,7 +658,7 @@ class Task(metaclass=SignatureValidator):
             self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
     def set_downstream(
-        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False,
+        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
     ) -> None:
         """
         Sets the provided task as a downstream dependency of this task.

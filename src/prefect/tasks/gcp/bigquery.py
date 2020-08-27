@@ -509,7 +509,7 @@ class BigQueryLoadFile(Task):
             raise ValueError(f"File {path.as_posix()} does not exist.")
 
         # create client
-        client = get_bigquery_client(project=project, credentials=credentials,)
+        client = get_bigquery_client(project=project, credentials=credentials)
 
         # get table reference
         table_ref = client.dataset(dataset_id).table(table)
