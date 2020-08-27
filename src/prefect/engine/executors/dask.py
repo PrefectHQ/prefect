@@ -271,7 +271,10 @@ class DaskExecutor(Executor):
                 self.client.scheduler.address,  # type: ignore
                 connection_args=self.client.security.get_connection_args("client"),  # type: ignore
             )
-            comm = await scheduler_comm.live_comm()
+            # due to a bug in distributed's inproc comms, letting cancellation
+            # bubble up here will kill the listener. wrap with a shield to
+            # prevent that.
+            comm = await asyncio.shield(scheduler_comm.live_comm())
             await comm.write({"op": "subscribe_worker_status"})
             _ = await comm.read()
             while True:
@@ -287,9 +290,7 @@ class DaskExecutor(Executor):
                         self.logger.debug("Worker %s removed", msg)
         except asyncio.CancelledError:
             pass
-        except Exception as exc:
-            print("EXCEPTION WHILE WATCHING DASK WORKER EVENTS")
-            print(exc)
+        except Exception:
             self.logger.debug(
                 "Failure while watching dask worker events", exc_info=True
             )
