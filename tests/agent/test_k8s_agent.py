@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, PropertyMock
 
 import pytest
@@ -968,6 +969,17 @@ def test_k8s_agent_heartbeat(monkeypatch, cloud_api):
     core_client.read_namespaced_pod_status.return_value = read_pod_status
     monkeypatch.setattr(
         "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    metric_response = json.dumps(
+        {"containers": [{"name": "flow", "usage": {"cpu": "1", "memory": "2"}}]}
+    ).encode()
+    api_client = MagicMock()
+    call_api = MagicMock()
+    call_api.data = metric_response
+    api_client.call_api.return_value = [call_api]
+    monkeypatch.setattr(
+        "kubernetes.client.ApiClient", MagicMock(return_value=api_client)
     )
 
     agent = KubernetesAgent()

@@ -1,3 +1,4 @@
+import json
 import os
 from os import path
 import uuid
@@ -106,6 +107,7 @@ class KubernetesAgent(Agent):
         self.batch_client = client.BatchV1Api()
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
+        self.api_client = client.ApiClient()
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
@@ -204,6 +206,29 @@ class KubernetesAgent(Agent):
                             f"{exc.status} error attempting to read status of pod {pod_name}"
                         )
                         continue
+
+                    try:
+                        metrics = self.api_client.call_api(
+                            f"/apis/metrics.k8s.io/v1beta1/namespaces/{self.namespace}/pods/{pod_name}",
+                            "GET",
+                            auth_settings=["BearerToken"],
+                            response_type="json",
+                            _preload_content=False,
+                        )
+                        response = json.loads(metrics[0].data.decode("utf-8"))
+
+                        for container in response["containers"]:
+                            name = container.get("name")
+                            cpu = container.get("usage").get("cpu")
+                            memory = container.get("usage").get("memory")
+                            self.logger.debug(
+                                f"Pod {pod_name} {name} container using {cpu} CPU and {memory} memory"
+                            )
+                    except self.k8s_client.rest.ApiException as exc:
+                        if exc.status != 404:
+                            self.logger.error(
+                                f"{exc.status} error attempting to read metrics of pod {pod_name}"
+                            )
 
                     if not delete_job and pod_status.container_statuses:
                         for container_status in pod_status.container_statuses:
