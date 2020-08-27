@@ -111,16 +111,12 @@ class KubernetesAgent(Agent):
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
-    def _get_prefect_jobs(self) -> list:
+    def manage_jobs(self) -> None:
         """
-        Get a list of prefect jobs that are currently present in the cluster.
-
-        Returns:
-            - A list of dictionaries where each entry matches a job name, its pod names, and flow run id
+        This function checks if jobs are `Failed` or `Succeeded` and if they are then the jobs are
+        deleted from the namespace. If one of the job's pods happen to run into image pulling errors
+        then the flow run is failed and the job is still deleted.
         """
-
-        jobs_list = list()
-
         self.logger.debug(
             "Retrieving information of jobs that are currently in the cluster..."
         )
@@ -139,141 +135,69 @@ class KubernetesAgent(Agent):
                 more = bool(_continue)
 
                 for job in jobs.items:
-                    pods = self.core_client.list_namespaced_pod(
-                        namespace=self.namespace,
-                        label_selector="prefect.io/identifier={}".format(
-                            job.metadata.labels.get("prefect.io/identifier")
-                        ),
-                    )
+                    delete_job = False
+                    job_name = job.metadata.name
+                    flow_run_id = job.metadata.labels.get("prefect.io/flow_run_id")
 
-                    pod_names = []
-                    for pod in pods.items:
-                        pod_names.append(pod.metadata.name)
-
-                    jobs_list.append(
-                        {
-                            "job_name": job.metadata.name,
-                            "pod_names": pod_names,
-                            "flow_run_id": job.metadata.labels.get(
-                                "prefect.io/flow_run_id"
+                    if not job.status.failed and not job.status.succeeded:
+                        pods = self.core_client.list_namespaced_pod(
+                            namespace=self.namespace,
+                            label_selector="prefect.io/identifier={}".format(
+                                job.metadata.labels.get("prefect.io/identifier")
                             ),
-                        }
-                    )
+                        )
+
+                        for pod in pods.items:
+                            if pod.status.container_statuses:
+                                for container_status in pod.status.container_statuses:
+                                    waiting = container_status.state.waiting
+                                    if waiting and (
+                                        waiting.reason == "ErrImagePull"
+                                        or waiting.reason == "ImagePullBackOff"
+                                    ):
+                                        self.logger.debug(
+                                            f"Failing flow run {flow_run_id} due to pod {waiting.reason}"
+                                        )
+                                        self.client.set_flow_run_state(
+                                            flow_run_id=flow_run_id,
+                                            state=Failed(
+                                                message="Kubernetes Error: {}".format(
+                                                    container_status.state.waiting.message
+                                                )
+                                            ),
+                                        )
+
+                                        delete_job = True
+                                        break
+
+                    if delete_job or job.status.failed or job.status.succeeded:
+                        self.logger.debug(f"Deleting job {job_name}")
+                        try:
+                            self.batch_client.delete_namespaced_job(
+                                name=job_name,
+                                namespace=self.namespace,
+                                body=self.k8s_client.V1DeleteOptions(
+                                    propagation_policy="Foreground"
+                                ),
+                            )
+                        except self.k8s_client.rest.ApiException as exc:
+                            self.logger.error(
+                                f"{exc.status} error attempting to delete job {job_name}"
+                            )
             except self.k8s_client.rest.ApiException as exc:
                 if exc.status == 410:
                     self.logger.debug("Refreshing job listing token...")
                     _continue = ""
                     continue
-
-        self.logger.debug(
-            f"Found {len(jobs_list)} existing prefect jobs in the cluster"
-        )
-        return jobs_list
-
-    def _read_prefect_jobs(self, jobs: list) -> None:
-        """
-        This function checks if jobs are `Failed` or `Succeeded` and if they are then the jobs are
-        deleted from the namespace. If one of the job's pods happen to run into image pulling errors
-        then the flow run is failed and the job is still deleted.
-
-        Args:
-            jobs: A list of job identifiers from Kubernetes
-        """
-        self.logger.debug(f"Reading statuses for {len(jobs)} jobs...")
-        for job in jobs:
-            delete_job = False
-
-            try:
-                job_status = self.batch_client.read_namespaced_job_status(
-                    namespace=self.namespace,
-                    name=job["job_name"],
-                ).status
-            except self.k8s_client.rest.ApiException as exc:
-                self.logger.error(
-                    f"{exc.status} error attempting to read status of job {job['job_name']}"
-                )
-                continue
-
-            if not delete_job and not job_status.failed and not job_status.succeeded:
-                for pod_name in job["pod_names"]:
-                    try:
-                        pod_status = self.core_client.read_namespaced_pod_status(
-                            namespace=self.namespace,
-                            name=pod_name,
-                        ).status
-                    except self.k8s_client.rest.ApiException as exc:
-                        self.logger.error(
-                            f"{exc.status} error attempting to read status of pod {pod_name}"
-                        )
-                        continue
-
-                    try:
-                        metrics = self.api_client.call_api(
-                            f"/apis/metrics.k8s.io/v1beta1/namespaces/{self.namespace}/pods/{pod_name}",
-                            "GET",
-                            auth_settings=["BearerToken"],
-                            response_type="json",
-                            _preload_content=False,
-                        )
-                        response = json.loads(metrics[0].data.decode("utf-8"))
-
-                        for container in response["containers"]:
-                            name = container.get("name")
-                            cpu = container.get("usage").get("cpu")
-                            memory = container.get("usage").get("memory")
-                            self.logger.debug(
-                                f"Pod {pod_name} {name} container using {cpu} CPU and {memory} memory"
-                            )
-                    except self.k8s_client.rest.ApiException as exc:
-                        if exc.status != 404:
-                            self.logger.error(
-                                f"{exc.status} error attempting to read metrics of pod {pod_name}"
-                            )
-
-                    if not delete_job and pod_status.container_statuses:
-                        for container_status in pod_status.container_statuses:
-                            waiting = container_status.state.waiting
-                            if waiting and (
-                                waiting.reason == "ErrImagePull"
-                                or waiting.reason == "ImagePullBackOff"
-                            ):
-                                self.logger.debug(
-                                    f"Failing flow run {job['flow_run_id']} due to pod {waiting.reason}"
-                                )
-                                self.client.set_flow_run_state(
-                                    flow_run_id=job["flow_run_id"],
-                                    state=Failed(
-                                        message="Kubernetes Error: {}".format(
-                                            container_status.state.waiting.message
-                                        )
-                                    ),
-                                )
-
-                                delete_job = True
-                                break
-
-            if delete_job or job_status.failed or job_status.succeeded:
-                self.logger.debug(f"Deleting job {job['job_name']}")
-                try:
-                    self.batch_client.delete_namespaced_job(
-                        name=job["job_name"],
-                        namespace=self.namespace,
-                        body=self.k8s_client.V1DeleteOptions(
-                            propagation_policy="Foreground"
-                        ),
-                    )
-                except self.k8s_client.rest.ApiException as exc:
-                    self.logger.error(
-                        f"{exc.status} error attempting to delete job {job['job_name']}"
-                    )
+                else:
+                    self.logger.debug(exc)
 
     def heartbeat(self) -> None:
         """
-        Check status of jobs created by this agent.
+        Check status of jobs created by this agent, delete completed jobs and failed containers.
         """
 
-        jobs = self._get_prefect_jobs()
-        self._read_prefect_jobs(jobs)
+        self.manage_jobs()
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
