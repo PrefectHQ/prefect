@@ -287,7 +287,9 @@ class DaskExecutor(Executor):
                         self.logger.debug("Worker %s removed", msg)
         except asyncio.CancelledError:
             pass
-        except Exception:
+        except Exception as exc:
+            print("EXCEPTION WHILE WATCHING DASK WORKER EVENTS")
+            print(exc)
             self.logger.debug(
                 "Failure while watching dask worker events", exc_info=True
             )
@@ -319,7 +321,10 @@ class DaskExecutor(Executor):
         from distributed import wait
 
         if self._watch_dask_events_task is not None:
-            self._watch_dask_events_task.cancel()
+            try:
+                self._watch_dask_events_task.cancel()
+            except Exception:
+                pass
             self._watch_dask_events_task = None
 
         if self._should_run_var is not None:

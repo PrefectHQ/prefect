@@ -443,6 +443,10 @@ class TestDaskExecutor:
                 while len(client.cluster.workers) > 1:
                     time.sleep(0.1)
 
+        print("LOGS!")
+        for r in caplog.records:
+            print(r)
+
         assert any("Worker %s added" == rec.msg for rec in caplog.records)
         assert any("Worker %s removed" == rec.msg for rec in caplog.records)
 
