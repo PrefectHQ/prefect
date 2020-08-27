@@ -124,9 +124,7 @@ class LocalAgent(Agent):
         Raises:
             - ValueError: if deployment attempted on unsupported Storage type
         """
-        self.logger.info(
-            "Deploying flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         if not isinstance(
             StorageSchema().load(flow_run.flow.storage),

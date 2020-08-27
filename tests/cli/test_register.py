@@ -41,6 +41,6 @@ def test_register_flow_kwargs(monkeypatch, tmpdir):
     runner = CliRunner()
     result = runner.invoke(
         register,
-        ["flow", "--file", full_path, "--name", "test-flow", "--project", "project",],
+        ["flow", "--file", full_path, "--name", "test-flow", "--project", "project"],
     )
     assert result.exit_code == 0

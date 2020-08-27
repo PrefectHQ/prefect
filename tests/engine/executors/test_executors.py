@@ -361,7 +361,8 @@ class TestDaskExecutor:
     def test_deprecated_client_kwargs(self):
         with pytest.warns(UserWarning, match="client_kwargs"):
             executor = DaskExecutor(
-                cluster_class="distributed.LocalCluster", set_as_default=True,
+                cluster_class="distributed.LocalCluster",
+                set_as_default=True,
             )
         assert executor.cluster_kwargs == {"silence_logs": logging.CRITICAL}
         assert executor.client_kwargs == {"set_as_default": True}
@@ -382,7 +383,8 @@ class TestDaskExecutor:
     def test_cant_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
             DaskExecutor(
-                address="localhost:8787", cluster_class=distributed.LocalCluster,
+                address="localhost:8787",
+                cluster_class=distributed.LocalCluster,
             )
 
     def test_prep_dask_kwargs(self):
