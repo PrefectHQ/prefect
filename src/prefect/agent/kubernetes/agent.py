@@ -118,7 +118,7 @@ class KubernetesAgent(Agent):
         self.logger.debug(
             "Retrieving information of jobs that are currently in the cluster..."
         )
-        print("nonononon")
+
         more = True
         _continue = ""
         while more:
@@ -194,7 +194,6 @@ class KubernetesAgent(Agent):
         """
         Check status of jobs created by this agent, delete completed jobs and failed containers.
         """
-        print("nononoonononononononononono")
         self.manage_jobs()
         super().heartbeat()
 
