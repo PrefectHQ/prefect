@@ -301,7 +301,7 @@ class Agent:
 
         if self._heartbeat_thread is not None:
             self.logger.debug("Stopping heartbeat thread")
-            self._heartbeat_thread.stop()
+            self._heartbeat_thread.join(timeout=1)
 
     def run_heartbeat_thread(self) -> None:
         def run() -> None:
