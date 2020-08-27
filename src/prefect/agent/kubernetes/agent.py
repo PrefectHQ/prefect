@@ -179,9 +179,10 @@ class KubernetesAgent(Agent):
                                 ),
                             )
                         except self.k8s_client.rest.ApiException as exc:
-                            self.logger.error(
-                                f"{exc.status} error attempting to delete job {job_name}"
-                            )
+                            if exc.status != 404:
+                                self.logger.error(
+                                    f"{exc.status} error attempting to delete job {job_name}"
+                                )
             except self.k8s_client.rest.ApiException as exc:
                 if exc.status == 410:
                     self.logger.debug("Refreshing job listing token...")
