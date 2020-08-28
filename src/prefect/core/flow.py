@@ -602,6 +602,7 @@ class Flow:
             self.constants[edge.downstream_task].update(
                 {edge.key: edge.upstream_task.value}
             )
+            self.add_task(edge.downstream_task)
             return edge
 
         # add the edge
