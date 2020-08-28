@@ -871,7 +871,7 @@ class Mapped(Success):
             message=message, result=result, context=context, cached_inputs=cached_inputs
         )
         self.map_states = map_states or []  # type: List[State]
-        self.n_map_states = n_map_states
+        self.n_map_states = n_map_states  # type: ignore
 
     @property
     def n_map_states(self) -> int:

@@ -452,7 +452,7 @@ class TaskRunner(Runner):
                     if e.mapped and s.is_successful() and not s.is_mapped()
                 ]
                 + [
-                    s.n_map_states
+                    s.n_map_states  # type: ignore
                     for e, s in upstream_states.items()
                     if e.mapped and s.is_mapped()
                 ],
