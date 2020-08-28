@@ -1,0 +1,2 @@
+enhancement:
+  - "`DaskExecutor` now logs dask worker add/removal events - [#3227](https://github.com/PrefectHQ/prefect/pull/3227)"
