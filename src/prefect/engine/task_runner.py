@@ -444,6 +444,7 @@ class TaskRunner(Runner):
             new_state = Failed("At least one upstream state has an unmappable result.")
             raise ENDRUN(new_state)
         else:
+            # compute and set n_map_states
             n_map_states = min(
                 [
                     len(s.result)

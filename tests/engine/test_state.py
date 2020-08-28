@@ -723,3 +723,14 @@ def test_meta_states_dont_nest():
     new_state = StateSchema().load(state.serialize())
     assert new_state.is_meta_state()
     assert not new_state.state.is_meta_state()
+
+
+def test_n_map_states():
+    state = Mapped(map_states=[1, 2])
+    assert state.n_map_states == 2
+
+    state = Mapped(n_map_states=4)
+    assert state.n_map_states == 4
+
+    state = Mapped(map_states=[1, 2], n_map_states=4)
+    assert state.n_map_states == 4

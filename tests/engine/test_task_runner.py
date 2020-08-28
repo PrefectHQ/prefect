@@ -1839,8 +1839,8 @@ class TestCheckTaskReadyToMapStep:
             Edge(mapped=True, upstream_task=Task(), downstream_task=Task()): Success(
                 result=[1, 2, 3, 4, 5]
             ),
-            Edge(mapped=True, upstream_task=Task(), downstream_task=Task()): Success(
-                result=[1, 2, 3, 4, 5]
+            Edge(mapped=False, upstream_task=Task(), downstream_task=Task()): Success(
+                result=object
             ),
             Edge(mapped=True, downstream_task=Task(), upstream_task=Task()): Success(
                 result=list(range(10))
@@ -1853,6 +1853,24 @@ class TestCheckTaskReadyToMapStep:
             )
         assert exc.value.state.is_mapped()
         assert exc.value.state.n_map_states == 5
+
+    def test_run_mapped_handles_upstream_mapped_states(self):
+        upstreams = {
+            Edge(mapped=True, upstream_task=Task(), downstream_task=Task()): Success(
+                result=[1, 2, 3, 4, 5]
+            ),
+            Edge(mapped=False, upstream_task=Task(), downstream_task=Task()): Success(),
+            Edge(mapped=True, downstream_task=Task(), upstream_task=Task()): Mapped(
+                n_map_states=2
+            ),
+        }
+
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=Pending(), upstream_states=upstreams
+            )
+        assert exc.value.state.is_mapped()
+        assert exc.value.state.n_map_states == 2
 
 
 def test_task_runner_skips_upstream_check_for_parent_mapped_task():
