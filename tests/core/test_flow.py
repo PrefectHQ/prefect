@@ -449,9 +449,12 @@ def test_add_edge_returns_edge():
 
 def test_add_edge_from_contant():
     f = Flow(name="test")
-    c1 = constants.Constant(1)
+    value = 1
+    c1 = constants.Constant(value)
     t1 = Task()
-    edge = f.add_edge(upstream_task=c1, downstream_task=t1, key="foo")
+    f.add_edge(upstream_task=c1, downstream_task=t1, key="foo")
+    assert t1 in f.get_tasks()
+    assert f.constants[t1]['foo'] == value
 
 def test_chain():
     f = Flow(name="test")
