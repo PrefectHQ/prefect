@@ -196,6 +196,17 @@ def test_serialize_mapped():
     assert serialized["__version__"] == prefect.__version__
 
 
+def test_serialize_mapped_uses_set_n_map_states():
+    serialized = StateSchema().dump(state.Mapped(message="message", n_map_states=20))
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == "Mapped"
+    assert serialized["message"] == "message"
+    assert "_result" not in serialized
+    assert "map_states" not in serialized
+    assert serialized["n_map_states"] == 20
+    assert serialized["__version__"] == prefect.__version__
+
+
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_deserialize_state(cls):
     s = cls(message="message")
