@@ -1,0 +1,2 @@
+enhancement:
+  - "Begin storing the width of mapped pipelines on the parent Mapped state - [#3233](https://github.com/PrefectHQ/prefect/issues/3233)"
