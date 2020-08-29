@@ -19,6 +19,7 @@ from prefect import task
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Task
+from prefect.tasks.core import constants
 from prefect.core.parameter import Parameter
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.engine.executors import LocalExecutor
@@ -446,6 +447,16 @@ def test_add_edge_returns_edge():
     assert edge == added_edge
     assert added_edge in f.edges
     assert edge in f.edges
+
+
+def test_add_edge_from_contant():
+    f = Flow(name="test")
+    value = 1
+    c1 = constants.Constant(value)
+    t1 = Task()
+    f.add_edge(upstream_task=c1, downstream_task=t1, key="foo")
+    assert t1 in f.get_tasks()
+    assert f.constants[t1]["foo"] == value
 
 
 def test_chain():
