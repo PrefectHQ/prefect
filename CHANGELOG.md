@@ -1,5 +1,98 @@
 # Changelog
 
+## 0.13.4 <Badge text="beta" type="success" />
+
+Released on August 25, 2020.
+
+### Enhancements
+
+- Allow for setting path to a custom job YAML spec on the Kubernetes Agent - [#3046](https://github.com/PrefectHQ/prefect/pull/3046)
+- Use better coupled versioning scheme for Core / Server / UI images - [#3204](https://github.com/PrefectHQ/prefect/pull/3204)
+- Added option to mount volumes with KubernetesAgent  - [#1234](https://github.com/PrefectHQ/prefect/pull/3210)
+- Add more kwargs to State.children and State.parents for common access patterns - [#3212](https://github.com/PrefectHQ/prefect/pull/3212)
+- Reduce size of `prefecthq/prefect` Docker image - [#3215](https://github.com/PrefectHQ/prefect/pull/3215)
+
+### Task Library
+
+- Add `DatabricksSubmitRun` task for submitting Spark jobs on Databricks - [#3166](https://github.com/PrefectHQ/prefect/pull/3166)
+
+### Fixes
+
+- Fix Apollo service error output while waiting for GraphQL service with `prefect server start` - [#3150](https://github.com/PrefectHQ/prefect/pull/3150)
+- Fix `--api` CLI option not being respected by agent Client  - [#3186](https://github.com/PrefectHQ/prefect/pull/3186)
+- Fix state message when using targets - [#3216](https://github.com/PrefectHQ/prefect/pull/3216)
+
+### Contributors
+
+- [Ashton Sidhu](https://github.com/Ashton-Sidhu)
+- [Chris Martin](https://github.com/d80tb7)
+- [Juan Calderon-Perez](https://github.com/gabrielcalderon)
+- [Thomas Frederik Hoeck](https://github.com/thomasfrederikhoeck)
+- [VincentTNR](https://github.com/VincentTNR)
+- [emcake](https://github.com/emcake)
+
+## 0.13.3 <Badge text="beta" type="success" />
+
+Released on August 18, 2020.
+
+### Enhancements
+
+- Make use of `kubernetes` extra logger in the `DaskKubernetesEnvironment` optional - [#2988](https://github.com/PrefectHQ/prefect/issues/2988)
+- Make Client robust to simplejson - [#3151](https://github.com/PrefectHQ/prefect/issues/3151)
+- Raise Warning instead of Exception during storage healthcheck when Result type is not provided - [#3146](https://github.com/PrefectHQ/prefect/pull/3146)
+- Add `server create-tenant` for creating a tenant on the server - [#3147](https://github.com/PrefectHQ/prefect/pull/3147)
+- Cloud logger now responds to logging level - [#3179](https://github.com/PrefectHQ/prefect/pull/3179)
+
+### Task Library
+
+- Add support for [`host_config`](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_host_config) and arbitrary keyword arguments in `Docker` tasks - [#3173](https://github.com/PrefectHQ/prefect/pull/3173)
+
+### Fixes
+
+- Fix empty string `imagePullSecrets` issue on AKS by removing if not set - [#3142](https://github.com/PrefectHQ/prefect/issues/3142)
+- Fix querying for cached states with no `cache_key` - [#3168](https://github.com/PrefectHQ/prefect/pull/3168)
+- Fix access to `core_version` in Agent's `get_flow_run_command()` - [#3177](https://github.com/PrefectHQ/prefect/pull/3177)
+
+### Breaking Changes
+
+- DaskKubernetesEnvironment no longer logs Kubernetes errors by default - [#2988](https://github.com/PrefectHQ/prefect/issues/2988)
+- Logging level in Cloud now defaults to INFO - [#3179](https://github.com/PrefectHQ/prefect/pull/3179)
+
+### Contributors
+
+- [James Lamb](https://github.com/jameslamb)
+- [Nelson Cornet](https://github.com/sk4la)
+- [Zach Angell](https://github.com/zangell44)
+
+## 0.13.2 <Badge text="beta" type="success" />
+
+Released on August 11, 2020.
+
+### Features
+
+- Pandas DataFrame Serializer - [#3020](https://github.com/PrefectHQ/prefect/pull/3020), [#2963](https://github.com/PrefectHQ/prefect/pull/2963), [#2917](https://github.com/PrefectHQ/prefect/issues/2917)
+
+### Enhancements
+
+- Agents set flow run execution command based on flow's core version - [#3113](https://github.com/PrefectHQ/prefect/pull/3113)
+- Clean up extra labels on jobs created by Kubernetes agent - [#3129](https://github.com/PrefectHQ/prefect/pull/3129)
+
+### Task Library
+
+- Return `LoadJob` object in `BigQueryLoad` tasks - [#3086](https://github.com/PrefectHQ/prefect/issues/3086)
+
+### Fixes
+
+- Fix bug with `LocalDaskExecutor('processes')` that allowed tasks to be run multiple times in certain cases - [#3127](https://github.com/PrefectHQ/prefect/pull/3127)
+- Add toggle to bypass bug in `slack_notifier` that attempted to connect to backend even if the backend didn't exist - [#3136](https://github.com/PrefectHQ/prefect/pull/3136)
+
+### Contributors
+
+- [Andrew Schechtman-Rook](https://github.com/AndrewRook)
+- [Franklin Winokur](https://github.com/fwinokur)
+- [Fraznist](https://github.com/Fraznist)
+- [Jackson Maxfield Brown](https://github.com/JacksonMaxfield)
+
 ## 0.13.1 <Badge text="beta" type="success" />
 
 Released on August 6, 2020.

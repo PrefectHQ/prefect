@@ -64,12 +64,14 @@ services:
     image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
     ports:
       - "${APOLLO_HOST_PORT:-4200}:4200"
-    command: "npm run serve"
+    command: bash -c "./post-start.sh && npm run serve"
     environment:
       HASURA_API_URL: ${HASURA_API_URL:-http://hasura:3000/v1alpha1/graphql}
       PREFECT_API_URL: ${PREFECT_API_URL:-http://graphql:4201/graphql/}
       PREFECT_API_HEALTH_URL: ${PREFECT_API_HEALTH_URL:-http://graphql:4201/health}
       PREFECT_SERVER__TELEMETRY__ENABLED: ${PREFECT_SERVER__TELEMETRY__ENABLED:-true}
+      GRAPHQL_SERVICE_HOST: http://graphql
+      GRAPHQL_SERVICE_PORT: ${GRAPHQL_HOST_PORT:-4201}
     networks:
       - prefect-server
     restart: "always"

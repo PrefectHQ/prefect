@@ -210,12 +210,12 @@ class Webhook(Storage):
 
         if build_request_http_method not in self._method_to_function.keys():
             msg = "HTTP method '{}' not recognized".format(build_request_http_method)
-            self.logger.fatal(msg)
+            self.logger.critical(msg)
             raise RuntimeError(msg)
 
         if get_flow_request_http_method not in self._method_to_function.keys():
             msg = "HTTP method '{}' not recognized".format(get_flow_request_http_method)
-            self.logger.fatal(msg)
+            self.logger.critical(msg)
             raise RuntimeError(msg)
 
         self.stored_as_script = stored_as_script
@@ -357,14 +357,14 @@ class Webhook(Storage):
                 # so that serialization and deserialization of flows doesnot fail
                 if not self.flow_script_path:
                     msg = "flow_script_path must be provided if stored_as_script=True"
-                    self.logger.fatal(msg)
+                    self.logger.critical(msg)
                     raise RuntimeError(msg)
 
                 if not os.path.isfile(self.flow_script_path):
                     msg = "file '{}' passed to flow_script_path does not exist".format(
                         self.flow_script_path
                     )
-                    self.logger.fatal(msg)
+                    self.logger.critical(msg)
                     raise RuntimeError(msg)
 
                 with open(self.flow_script_path, "r") as f:
@@ -381,7 +381,7 @@ class Webhook(Storage):
                     "be set directly"
                 )
                 self.logger.warning(msg)
-                warnings.warn(msg, RuntimeWarning)
+                warnings.warn(msg, RuntimeWarning, stacklevel=2)
             build_request_kwargs["data"] = data
 
             response = req_function(**build_request_kwargs)  # type: ignore

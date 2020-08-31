@@ -126,6 +126,7 @@ class Agent:
         self._api_server = None  # type: ignore
         self._api_server_loop = None  # type: Optional[IOLoop]
         self._api_server_thread = None  # type: Optional[threading.Thread]
+        self._heartbeat_thread = None  # type: Optional[threading.Thread]
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
@@ -149,7 +150,7 @@ class Agent:
 
         self.logger.debug(f"Prefect backend: {config.backend}")
 
-        self.client = Client(api_token=token)
+        self.client = Client(api_server=config.cloud.api, api_token=token)
 
     def _verify_token(self, token: str) -> None:
         """
@@ -199,6 +200,7 @@ class Agent:
 
         try:
             self.setup()
+            self.run_heartbeat_thread()
 
             with exit_handler(self) as exit_event:
 
@@ -225,8 +227,6 @@ class Agent:
                     while not exit_event.is_set() and remaining_polls:
                         # Reset the event in case it was set by poke handler.
                         AGENT_WAKE_EVENT.clear()
-
-                        self.heartbeat()
 
                         if self.agent_process(executor):
                             index = 0
@@ -298,6 +298,23 @@ class Agent:
             # Give the server a small period to shutdown nicely, otherwise it
             # will terminate on exit anyway since it's a daemon thread.
             self._api_server_thread.join(timeout=1)
+
+        if self._heartbeat_thread is not None:
+            self.logger.debug("Stopping heartbeat thread")
+            self._heartbeat_thread.join(timeout=1)
+
+    def run_heartbeat_thread(self) -> None:
+        def run() -> None:
+            while True:
+                self.logger.debug("Running agent heartbeat...")
+                self.heartbeat()
+                self.logger.debug("Sleeping heartbeat for 60 seconds")
+                time.sleep(60)
+
+        self._heartbeat_thread = threading.Thread(
+            name="heartbeat", target=run, daemon=True
+        )
+        self._heartbeat_thread.start()
 
     def on_shutdown(self) -> None:
         """

@@ -66,6 +66,7 @@ def load_outline(
                 title=data.get("title", ""),
                 classes=[],
                 functions=[],
+                commands=[],
             )
             module = importlib.import_module(data["module"])
             page["top-level-doc"] = module
@@ -95,6 +96,10 @@ def load_outline(
                 else:
                     obj = getattr(module, clss)
                 page["classes"].append(obj)
+
+            for cmd in data.get("commands", []):
+                obj = getattr(module, cmd)
+                page["commands"].append(obj)
             OUTLINE.append(page)
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))
@@ -196,6 +201,41 @@ def create_methods_table(members, title):
         table += format_subheader(method, level=2, in_table=True).replace("\n\n", "\n")
         table += format_doc(method, in_table=True)
         table += "|\n"
+    return table
+
+
+def create_commands_table(commands):
+    import click
+
+    table = ""
+    for cmd in commands:
+        with click.Context(cmd) as ctx:
+            table += f"<h3>{cmd.name}</h3>\n"
+            help_text = cmd.get_help(ctx).split("\n", 2)[2]
+
+            options = help_text.split("Options:")
+            arguments = options[0].split("Arguments:")
+            if len(arguments) > 1:
+                table += arguments[0]
+
+                block = (
+                    "<pre><code>"
+                    + "Arguments:"
+                    + arguments[1].replace("\n", "<br>").replace("*", r"\*")
+                    + "</code></pre>"
+                )
+                table += block
+            else:
+                table += options[0]
+
+            if len(options) > 2:
+                block = (
+                    "<pre><code>"
+                    + "Options:"
+                    + options[1].replace("\n", "<br>").replace("*", r"\*")
+                    + "</code></pre>"
+                )
+                table += block
     return table
 
 
@@ -415,10 +455,11 @@ if __name__ == "__main__":
 
         for page in OUTLINE:
             # collect what to document
-            fname, classes, fns = (
+            fname, classes, fns, cmds = (
                 page["page"],
                 page.get("classes", []),
                 page.get("functions", []),
+                page.get("commands", []),
             )
             fname = f"api/latest/{fname}"
             directory = os.path.dirname(fname)
@@ -450,6 +491,8 @@ if __name__ == "__main__":
 
                 if fns:
                     f.write("\n## Functions\n")
+
                 f.write(create_methods_table(fns, title="top-level functions:"))
+                f.write(create_commands_table(cmds))
                 f.write("\n")
                 f.write(auto_generated_footer)

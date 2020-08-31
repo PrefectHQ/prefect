@@ -6,6 +6,23 @@ references:
     attach_workspace:
       at: *workspace_root
 
+commands:
+  promote_image:
+    description: Promotes images by retagging them
+    parameters:
+      IMAGE_NAME:
+        type: string
+      VERSION:
+        type: string
+    steps:
+      - run:
+          name: Promote
+          command: |
+            IMAGE_NAME=<<parameters.IMAGE_NAME>> && VERSION=<<parameters.VERSION>>
+            docker pull prefecthq/${IMAGE_NAME}:latest
+            docker tag prefecthq/${IMAGE_NAME}:latest prefecthq/${IMAGE_NAME}:${VERSION}
+            docker push prefecthq/${IMAGE_NAME}:${VERSION}
+
 jobs:
   # ----------------------------------
   # Check formatting
@@ -241,6 +258,7 @@ jobs:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
+
   build_docker_image:
     docker:
       - image: docker
@@ -404,6 +422,23 @@ jobs:
                   docker push prefecthq/prefect:all_extras
 
 
+  promote_server_artifacts:
+    docker:
+      - image: docker
+
+    steps:
+      - setup_remote_docker:
+          version: 18.09.3
+      - promote_image:
+          IMAGE_NAME: apollo
+          VERSION: core-${CIRCLE_TAG}
+      - promote_image:
+          IMAGE_NAME: server
+          VERSION: core-${CIRCLE_TAG}
+      - promote_image:
+          IMAGE_NAME: ui
+          VERSION: core-${CIRCLE_TAG}
+
   release_to_pypi:
     docker:
       - image: python:3.7
@@ -506,6 +541,12 @@ workflows:
           python_version: '3.8'
           extras: 'all_extras'
           tag_latest: true
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - promote_server_artifacts:
           filters:
             branches:
               ignore: /.*/

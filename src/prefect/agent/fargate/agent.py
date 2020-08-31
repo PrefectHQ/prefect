@@ -443,9 +443,7 @@ class FargateAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info(
-            "Deploying flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         # create copies of kwargs to apply overrides as needed
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
@@ -604,7 +602,7 @@ class FargateAgent(Agent):
                         "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                         "value": str(self.log_to_cloud).lower(),
                     },
-                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": config.logging.level},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",

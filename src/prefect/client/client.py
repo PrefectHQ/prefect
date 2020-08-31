@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
+# if simplejson is installed, `requests` defaults to using it instead of json
+# this allows the client to gracefully handle either json or simplejson
+try:
+    from simplejson.errors import JSONDecodeError
+except ImportError:
+    from json.decoder import JSONDecodeError
+
 import pendulum
 import toml
 from slugify import slugify
@@ -397,7 +404,7 @@ class Client:
         # parse the response
         try:
             json_resp = response.json()
-        except json.JSONDecodeError:
+        except JSONDecodeError:
             if prefect.config.backend == "cloud" and "Authorization" not in headers:
                 raise ClientError(
                     "Malformed response received from Cloud - please ensure that you "
@@ -420,7 +427,7 @@ class Client:
                 )
                 if "API_ERROR" in str(response.json().get("errors")):
                     retry_count += 1
-                    time.sleep(0.1 * (2 ** (retry_count - 1)))
+                    time.sleep(0.25 * (2 ** (retry_count - 1)))
                 else:
                     success = True
 
@@ -684,7 +691,8 @@ class Client:
         if any(e.key for e in flow.edges) and flow.result is None:
             warnings.warn(
                 "No result handler was specified on your Flow. Cloud features such as "
-                "input caching and resuming task runs from failure may not work properly."
+                "input caching and resuming task runs from failure may not work properly.",
+                stacklevel=2,
             )
         if compressed:
             create_mutation = {
@@ -773,7 +781,17 @@ class Client:
             # Generate direct link to Cloud flow
             flow_url = self.get_cloud_url("flow", flow_id)
 
-            print("Flow: {}".format(flow_url))
+            prefix = "└── "
+
+            print("Flow URL: {}".format(flow_url))
+
+            # Extra information to improve visibility
+            msg = (
+                f" {prefix}ID: {flow_id}\n"
+                f" {prefix}Project: {project_name}\n"
+                f" {prefix}Labels: {list(flow.environment.labels)}"
+            )
+            print(msg)
 
         return flow_id
 
@@ -1147,23 +1165,23 @@ class Client:
         Returns:
             - List[State]: a list of Cached states created after the given date
         """
-        where_clause = {
+        args = {
             "where": {
                 "state": {"_eq": "Cached"},
-                "_or": [
-                    {
-                        "_and": [
-                            {"cache_key": {"_eq": cache_key}},
-                            {"cache_key": {"_is_null": False}},
-                        ]
-                    },
-                    {"task_id": {"_eq": task_id}},
-                ],
                 "state_timestamp": {"_gte": created_after.isoformat()},
             },
             "order_by": {"state_timestamp": EnumValue("desc")},
-        }
-        query = {"query": {with_args("task_run", where_clause): "serialized_state"}}
+            "limit": 100,
+        }  # type: Dict[str, Any]
+
+        # if a cache key was provided, match it against all tasks
+        if cache_key is not None:
+            args["where"].update({"cache_key": {"_eq": cache_key}})
+        # otherwise match against only this task, across all cache keys
+        else:
+            args["where"].update({"task_id": {"_eq": task_id}})
+
+        query = {"query": {with_args("task_run", args): "serialized_state"}}
         result = self.graphql(query)  # type: Any
         deserializer = prefect.engine.state.State.deserialize
         valid_states = [

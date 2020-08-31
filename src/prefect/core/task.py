@@ -255,7 +255,8 @@ class Task(metaclass=SignatureValidator):
         ):
             warnings.warn(
                 "cache_validator provided without specifying cache expiration "
-                "(cache_for); this Task will not be cached."
+                "(cache_for); this Task will not be cached.",
+                stacklevel=2,
             )
 
         self.cache_for = cache_for
@@ -269,7 +270,8 @@ class Task(metaclass=SignatureValidator):
         self.checkpoint = checkpoint
         if result_handler:
             warnings.warn(
-                "Result Handlers are deprecated; please use the new style Result classes instead."
+                "Result Handlers are deprecated; please use the new style Result classes instead.",
+                stacklevel=2,
             )
             self.result = ResultHandlerResult.from_result_handler(
                 result_handler
@@ -288,7 +290,8 @@ class Task(metaclass=SignatureValidator):
             ):
                 warnings.warn(
                     "Both `result.location` and `target` were provided. "
-                    "The `target` value will be used."
+                    "The `target` value will be used.",
+                    stacklevel=2,
                 )
             self.result = self.result.copy()
             self.result.location = self.target
@@ -373,7 +376,8 @@ class Task(metaclass=SignatureValidator):
         ):
             warnings.warn(
                 "You are making a copy of a task that has dependencies on or to other tasks "
-                "in the active flow context. The copy will not retain those dependencies."
+                "in the active flow context. The copy will not retain those dependencies.",
+                stacklevel=2,
             )
 
         new = copy.copy(self)
@@ -399,7 +403,8 @@ class Task(metaclass=SignatureValidator):
             ):
                 warnings.warn(
                     "Both `result.location` and `target` were provided. "
-                    "The `target` value will be used."
+                    "The `target` value will be used.",
+                    stacklevel=2,
                 )
             new.result = new.result.copy()
             new.result.location = new.target
@@ -630,7 +635,7 @@ class Task(metaclass=SignatureValidator):
         )
 
     def set_upstream(
-        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False,
+        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
     ) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
@@ -658,7 +663,7 @@ class Task(metaclass=SignatureValidator):
             self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
     def set_downstream(
-        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False,
+        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
     ) -> None:
         """
         Sets the provided task as a downstream dependency of this task.
@@ -1117,5 +1122,7 @@ from .parameter import Parameter as _Parameter
 
 class Parameter(_Parameter):
     def __new__(cls, *args, **kwargs):  # type: ignore
-        warnings.warn("`Parameter` has moved, please import as `prefect.Parameter`")
+        warnings.warn(
+            "`Parameter` has moved, please import as `prefect.Parameter`", stacklevel=2
+        )
         return super().__new__(cls)

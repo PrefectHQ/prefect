@@ -72,7 +72,9 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         self.unique_job_name = unique_job_name
 
         if executor_kwargs is not None:
-            warnings.warn("`executor_kwargs` is deprecated, use `executor` instead")
+            warnings.warn(
+                "`executor_kwargs` is deprecated, use `executor` instead", stacklevel=2
+            )
         if executor is None:
             executor = prefect.engine.get_default_executor_class()(
                 **(executor_kwargs or {})
@@ -113,9 +115,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def execute(  # type: ignore
-        self, flow: "Flow", **kwargs: Any
-    ) -> None:
+    def execute(self, flow: "Flow", **kwargs: Any) -> None:  # type: ignore
         """
         Create a single Kubernetes job that runs the flow.
 
@@ -139,7 +139,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
 
         batch_client = client.BatchV1Api()
 
-        job = self._populate_run_time_job_spec_details(docker_name=docker_name,)
+        job = self._populate_run_time_job_spec_details(docker_name=docker_name)
 
         # Create Job
         try:

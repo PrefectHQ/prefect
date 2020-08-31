@@ -167,7 +167,8 @@ class Flow:
         self.storage = storage
         if result_handler:
             warnings.warn(
-                "Result Handlers are deprecated; please use the new style Result classes instead."
+                "Result Handlers are deprecated; please use the new style Result classes instead.",
+                stacklevel=2,
             )
             self.result = ResultHandlerResult.from_result_handler(
                 result_handler
@@ -353,7 +354,8 @@ class Flow:
                 "inside a `with flow:` block but not added to the flow either "
                 "explicitly or as the input to another task. For more information, see "
                 "https://docs.prefect.io/core/advanced_tutorials/"
-                "task-guide.html#adding-tasks-to-flows."
+                "task-guide.html#adding-tasks-to-flows.",
+                stacklevel=2,
             )
 
     def __enter__(self) -> "Flow":
@@ -600,6 +602,7 @@ class Flow:
             self.constants[edge.downstream_task].update(
                 {edge.key: edge.upstream_task.value}
             )
+            self.add_task(edge.downstream_task)
             return edge
 
         # add the edge
@@ -994,6 +997,11 @@ class Flow:
             "context", {}
         ).copy()  # copy to avoid modification
 
+        # set flow_run_id from args or uuid if flow_run_id is not an argument
+        flow_run_context.setdefault(
+            "flow_run_id", kwargs.pop("flow_run_id", str(uuid.uuid4()))
+        )
+
         # run this flow indefinitely, so long as its schedule has future dates
         while True:
 
@@ -1002,7 +1010,7 @@ class Flow:
             flow_run_context.update(
                 scheduled_start_time=next_run_time,
                 flow_id=self.name,
-                flow_run_id=str(uuid.uuid4()),
+                flow_run_id=flow_run_context["flow_run_id"],
                 flow_run_name=str(uuid.uuid4()),
             )
 
@@ -1157,7 +1165,8 @@ class Flow:
         if prefect.context.get("loading_flow", False):
             warnings.warn(
                 "Attempting to call `flow.run` during execution of flow file will lead to "
-                "unexpected results."
+                "unexpected results.",
+                stacklevel=2,
             )
             return None
 
@@ -1424,7 +1433,8 @@ class Flow:
                 warnings.warn(
                     "A flow with the same name is already contained in storage; if you "
                     "changed your Flow since the last build, you might experience "
-                    "unexpected issues and should re-create your storage object."
+                    "unexpected issues and should re-create your storage object.",
+                    stacklevel=2,
                 )
             storage = self.storage.build()  # type: Optional[Storage]
         else:
@@ -1555,7 +1565,8 @@ class Flow:
         if prefect.context.get("loading_flow", False):
             warnings.warn(
                 "Attempting to call `flow.register` during execution of flow file will lead "
-                "to unexpected results."
+                "to unexpected results.",
+                stacklevel=2,
             )
             return None
 

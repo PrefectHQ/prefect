@@ -52,7 +52,7 @@ def get_flow_run_command(flow_run: GraphQLResult) -> str:
     Returns:
         - str: a prefect CLI command to execute a flow run
     """
-    core_version = flow_run.flow.core_version or "0.0.0"
+    core_version = getattr(flow_run.flow, "core_version", None) or "0.0.0"
 
     if LooseVersion(core_version) < LooseVersion("0.13.0"):
         return "prefect execute cloud-flow"

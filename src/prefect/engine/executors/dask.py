@@ -1,4 +1,5 @@
 import atexit
+import asyncio
 import logging
 import uuid
 import warnings
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     import dask
     from distributed import Future, Variable
     import multiprocessing.pool
+    import concurrent.futures
 
 
 __any__ = ("DaskExecutor", "LocalDaskExecutor")
@@ -147,7 +149,8 @@ class DaskExecutor(Executor):
         if address == "local":
             warnings.warn(
                 "`address='local'` is deprecated. To use a local cluster, leave the "
-                "`address` field empty."
+                "`address` field empty.",
+                stacklevel=2,
             )
             address = None
 
@@ -161,7 +164,8 @@ class DaskExecutor(Executor):
             warnings.warn(
                 "`local_processes` is deprecated, please use "
                 "`cluster_kwargs={'processes': local_processes}`. The default is "
-                "now `local_processes=True`."
+                "now `local_processes=True`.",
+                stacklevel=2,
             )
 
         if address is not None:
@@ -193,7 +197,8 @@ class DaskExecutor(Executor):
                 if for_cluster:
                     warnings.warn(
                         "Forwarding executor kwargs to `LocalCluster` is now handled by the "
-                        "`cluster_kwargs` parameter, please update accordingly"
+                        "`cluster_kwargs` parameter, please update accordingly",
+                        stacklevel=2,
                     )
                     for k in for_cluster:
                         cluster_kwargs[k] = kwargs.pop(k)
@@ -208,7 +213,8 @@ class DaskExecutor(Executor):
         if kwargs:
             warnings.warn(
                 "Forwarding executor kwargs to `Client` is now handled by the "
-                "`client_kwargs` parameter, please update accordingly"
+                "`client_kwargs` parameter, please update accordingly",
+                stacklevel=2,
             )
             client_kwargs.update(kwargs)
         client_kwargs.setdefault("set_as_default", False)
@@ -225,6 +231,8 @@ class DaskExecutor(Executor):
         # and need to wait for all the dask tasks to cleanup before exiting.
         self._futures = None  # type: Optional[weakref.WeakSet[Future]]
         self._should_run_var = None  # type: Optional[Variable]
+        # A ref to a background task subscribing to dask cluster events
+        self._watch_dask_events_task = None  # type: Optional[concurrent.futures.Future]
 
         super().__init__()
 
@@ -263,8 +271,54 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
+    async def _watch_dask_events(self) -> None:
+        scheduler_comm = None
+        comm = None
+        from distributed.core import rpc
+
+        try:
+            scheduler_comm = rpc(
+                self.client.scheduler.address,  # type: ignore
+                connection_args=self.client.security.get_connection_args("client"),  # type: ignore
+            )
+            # due to a bug in distributed's inproc comms, letting cancellation
+            # bubble up here will kill the listener. wrap with a shield to
+            # prevent that.
+            comm = await asyncio.shield(scheduler_comm.live_comm())
+            await comm.write({"op": "subscribe_worker_status"})
+            _ = await comm.read()
+            while True:
+                try:
+                    msgs = await comm.read()
+                except OSError:
+                    break
+                for op, msg in msgs:
+                    if op == "add":
+                        for worker in msg.get("workers", ()):
+                            self.logger.debug("Worker %s added", worker)
+                    elif op == "remove":
+                        self.logger.debug("Worker %s removed", msg)
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            self.logger.debug(
+                "Failure while watching dask worker events", exc_info=True
+            )
+        finally:
+            if comm is not None:
+                try:
+                    await comm.close()
+                except Exception:
+                    pass
+            if scheduler_comm is not None:
+                scheduler_comm.close_rpc()
+
     def _pre_start_yield(self) -> None:
         from distributed import Variable
+
+        self._watch_dask_events_task = asyncio.run_coroutine_threadsafe(
+            self._watch_dask_events(), self.client.loop.asyncio_loop  # type: ignore
+        )
 
         is_inproc = self.client.scheduler.address.startswith("inproc")  # type: ignore
         if self.address is not None or is_inproc:
@@ -276,6 +330,13 @@ class DaskExecutor(Executor):
 
     def _post_start_yield(self, on_cleanup: Callable = None) -> None:
         from distributed import wait
+
+        if self._watch_dask_events_task is not None:
+            try:
+                self._watch_dask_events_task.cancel()
+            except Exception:
+                pass
+            self._watch_dask_events_task = None
 
         if self._should_run_var is not None:
             # Multipart cleanup, ignoring exceptions in each stage
@@ -338,7 +399,17 @@ class DaskExecutor(Executor):
 
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
-        state.update({k: None for k in ["client", "_futures", "_should_run_var"]})
+        state.update(
+            {
+                k: None
+                for k in [
+                    "client",
+                    "_futures",
+                    "_should_run_var",
+                    "_watch_dask_events_task",
+                ]
+            }
+        )
         return state
 
     def __setstate__(self, state: dict) -> None:

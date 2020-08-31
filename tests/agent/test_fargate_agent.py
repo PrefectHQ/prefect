@@ -358,7 +358,14 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, cloud_api):
 
     agent = FargateAgent()
 
-    kwarg_dict = {"test": "not_real", "containerDefinitions": [{"test": "not_real",}]}
+    kwarg_dict = {
+        "test": "not_real",
+        "containerDefinitions": [
+            {
+                "test": "not_real",
+            }
+        ],
+    }
 
     (
         task_definition_kwargs,
@@ -1026,7 +1033,7 @@ def test_deploy_flow_register_task_definition_all_args(
                 {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1167,7 +1174,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                     "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                     "value": str(not flag).lower(),
                 },
-                {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1265,7 +1272,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1646,7 +1653,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1964,7 +1971,7 @@ def test_fargate_agent_start_max_polls_count(monkeypatch, runner_token, cloud_ap
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 2
-    assert heartbeat.call_count == 2
+    assert heartbeat.call_count == 1
 
 
 def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
@@ -1990,7 +1997,7 @@ def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
-    assert heartbeat.call_count == 0
+    assert heartbeat.call_count == 1
 
 
 def test_agent_configuration_utility(monkeypatch, cloud_api):

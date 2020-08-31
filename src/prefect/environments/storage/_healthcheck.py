@@ -27,7 +27,7 @@ def system_check(python_version: str):
             sys_ver=(sys.version_info.major, sys.version_info.minor),
             user_ver=python_version,
         )
-        warnings.warn(msg)
+        warnings.warn(msg, stacklevel=2)
     else:
         print("System Version check: OK")
 
@@ -36,7 +36,16 @@ def cloudpickle_deserialization_check(flow_file_paths: list):
     flows = []
     for flow_file in flow_file_paths:
         with open(flow_file, "rb") as f:
-            flows.append(cloudpickle.load(f))
+            try:
+                flows.append(cloudpickle.load(f))
+            except ModuleNotFoundError:
+                warnings.warn(
+                    "Flow uses module which is not importable. Refer to documentation "
+                    "on how to import custom modules "
+                    "https://docs.prefect.io/api/latest/environments/storage.html#docker",
+                    stacklevel=2,
+                )
+                raise
 
     print("Cloudpickle serialization check: OK")
     return flows
@@ -69,20 +78,22 @@ def result_check(flows: list):
                     if e.key is not None
                 ]
             ):
-                raise ValueError(
+                warnings.warn(
                     f"Task {task} has retry settings but some upstream dependencies do not "
                     f"have result types. See https://docs.prefect.io/core/concepts/results.html "
-                    f"for more details."
+                    f"for more details.",
+                    stacklevel=2,
                 )
 
         # test for tasks which request caching with no result handler or no upstream result handlers
         cached_tasks = [t for t in flow.tasks if t.cache_for is not None]
         for task in cached_tasks:
             if task.result is None:
-                raise ValueError(
+                warnings.warn(
                     f"Task {task} has cache settings but does not have a result type. "
                     f"See https://docs.prefect.io/core/concepts/results.html for more "
-                    f"details."
+                    f"details.",
+                    stacklevel=2,
                 )
             if any(
                 [
@@ -91,10 +102,11 @@ def result_check(flows: list):
                     if e.key is not None
                 ]
             ):
-                raise ValueError(
+                warnings.warn(
                     f"Task {task} has cache settings but some upstream dependencies do not have "
                     f"result types. See https://docs.prefect.io/core/concepts/results.html for "
-                    f"more details."
+                    f"more details.",
+                    stacklevel=2,
                 )
     print("Result check: OK")
 

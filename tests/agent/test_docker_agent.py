@@ -27,9 +27,7 @@ def test_docker_agent_config_options(monkeypatch, cloud_api):
     import docker  # DockerAgent imports docker within the constructor
 
     api = MagicMock()
-    monkeypatch.setattr(
-        "docker.APIClient", api,
-    )
+    monkeypatch.setattr("docker.APIClient", api)
     monkeypatch.setattr("prefect.agent.docker.agent.platform", "osx")
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
@@ -45,9 +43,7 @@ def test_docker_agent_daemon_url_responds_to_system(monkeypatch, cloud_api):
     import docker  # DockerAgent imports docker within the constructor
 
     api = MagicMock()
-    monkeypatch.setattr(
-        "docker.APIClient", api,
-    )
+    monkeypatch.setattr("docker.APIClient", api)
     monkeypatch.setattr("prefect.agent.docker.agent.platform", "win32")
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
@@ -62,9 +58,7 @@ def test_docker_agent_config_options_populated(monkeypatch, cloud_api):
     import docker  # DockerAgent imports docker within the constructor
 
     api = MagicMock()
-    monkeypatch.setattr(
-        "docker.APIClient", api,
-    )
+    monkeypatch.setattr("docker.APIClient", api)
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = DockerAgent(base_url="url", no_pull=True)
@@ -176,7 +170,7 @@ def test_populate_env_vars(monkeypatch, cloud_api):
             "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
-            "PREFECT__LOGGING__LEVEL": "DEBUG",
+            "PREFECT__LOGGING__LEVEL": "INFO",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }
@@ -212,7 +206,7 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, cloud_api):
             "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
-            "PREFECT__LOGGING__LEVEL": "DEBUG",
+            "PREFECT__LOGGING__LEVEL": "INFO",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }
@@ -230,9 +224,7 @@ def test_populate_env_vars_is_responsive_to_logging_config(
         MagicMock(return_value=api),
     )
 
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "cloud.api": "api",}
-    ):
+    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
         agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
         env_vars = agent.populate_env_vars(
@@ -757,21 +749,21 @@ def test_docker_agent_is_named_volume_win32(monkeypatch, cloud_api, path, result
             ["/some/path"],
             [],
             ["/some/path"],
-            {"/some/path": {"bind": "/some/path", "mode": "rw",}},
+            {"/some/path": {"bind": "/some/path", "mode": "rw"}},
         ),
         (
             # internal & external paths
             ["/some/path:/ctr/path"],
             [],
             ["/ctr/path"],
-            {"/some/path": {"bind": "/ctr/path", "mode": "rw",}},
+            {"/some/path": {"bind": "/ctr/path", "mode": "rw"}},
         ),
         (
             # internal & external paths with mode
             ["/some/path:/ctr/path:ro"],
             [],
             ["/ctr/path"],
-            {"/some/path": {"bind": "/ctr/path", "mode": "ro",}},
+            {"/some/path": {"bind": "/ctr/path", "mode": "ro"}},
         ),
         (
             # named volume
@@ -791,13 +783,13 @@ def test_docker_agent_is_named_volume_win32(monkeypatch, cloud_api, path, result
             ["/ctr/path3", "/ctr/path1", "/ctr/path2"],
             {
                 "/another/path": {"bind": "/ctr/path2", "mode": "ro"},
-                "/some/path": {"bind": "/ctr/path1", "mode": "rw",},
+                "/some/path": {"bind": "/ctr/path1", "mode": "rw"},
             },
         ),
     ],
 )
 def test_docker_agent_parse_volume_spec_unix(
-    monkeypatch, cloud_api, candidate, named_volumes, container_mount_paths, host_spec,
+    monkeypatch, cloud_api, candidate, named_volumes, container_mount_paths, host_spec
 ):
     api = MagicMock()
     monkeypatch.setattr(
@@ -826,21 +818,21 @@ def test_docker_agent_parse_volume_spec_unix(
             ["C:\\some\\path"],
             [],
             ["/c/some/path"],
-            {"C:\\some\\path": {"bind": "/c/some/path", "mode": "rw",}},
+            {"C:\\some\\path": {"bind": "/c/some/path", "mode": "rw"}},
         ),
         (
             # internal & external paths
             ["C:\\some\\path:/ctr/path"],
             [],
             ["/ctr/path"],
-            {"C:\\some\\path": {"bind": "/ctr/path", "mode": "rw",}},
+            {"C:\\some\\path": {"bind": "/ctr/path", "mode": "rw"}},
         ),
         (
             # internal & external paths with mode
             ["C:\\some\\path:/ctr/path:ro"],
             [],
             ["/ctr/path"],
-            {"C:\\some\\path": {"bind": "/ctr/path", "mode": "ro",}},
+            {"C:\\some\\path": {"bind": "/ctr/path", "mode": "ro"}},
         ),
         (
             # named volume
@@ -860,13 +852,13 @@ def test_docker_agent_parse_volume_spec_unix(
             ["/ctr/path3", "/ctr/path1", "/ctr/path2"],
             {
                 "D:\\another\\path": {"bind": "/ctr/path2", "mode": "ro"},
-                "C:\\some\\path": {"bind": "/ctr/path1", "mode": "rw",},
+                "C:\\some\\path": {"bind": "/ctr/path1", "mode": "rw"},
             },
         ),
     ],
 )
 def test_docker_agent_parse_volume_spec_win(
-    monkeypatch, cloud_api, candidate, named_volumes, container_mount_paths, host_spec,
+    monkeypatch, cloud_api, candidate, named_volumes, container_mount_paths, host_spec
 ):
     api = MagicMock()
     monkeypatch.setattr(
@@ -897,7 +889,7 @@ def test_docker_agent_parse_volume_spec_win(
     ],
 )
 def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
-    monkeypatch, cloud_api, candidate, exception_type,
+    monkeypatch, cloud_api, candidate, exception_type
 ):
     api = MagicMock()
     monkeypatch.setattr(
@@ -965,7 +957,7 @@ def test_docker_agent_start_max_polls_count(monkeypatch, runner_token, cloud_api
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 2
-    assert heartbeat.call_count == 2
+    assert heartbeat.call_count == 1
 
 
 def test_docker_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
@@ -994,7 +986,7 @@ def test_docker_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api)
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
-    assert heartbeat.call_count == 0
+    assert heartbeat.call_count == 1
 
 
 def test_docker_agent_network(monkeypatch, cloud_api):

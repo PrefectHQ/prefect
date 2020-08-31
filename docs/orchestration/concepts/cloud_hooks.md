@@ -1,9 +1,9 @@
 
-# Cloud Hooks <Badge text="Cloud"/>
+# Cloud Hooks
 
-Cloud Hooks allow you to send notifications to certain endpoints when your flow enters a given state. For example, you can send a Slack message to your team when a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. Prefect Cloud currently supports hooks for Slack, Twilio, Pager Duty, email, and a more general Webhook.
+Cloud Hooks allow you to send notifications to certain endpoints when your flow enters a given state. For example, you can send a Slack message to your team when a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. The Prefect backend API currently supports hooks for Slack, Twilio, Pager Duty, email, and a more general Webhook.
 
-You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts/api.html) or the Flow Settings page in the UI. 
+You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts/api.html) or the Flow Settings page in the UI.
 
 ## UI
 
@@ -17,27 +17,27 @@ For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom'
 
 ### Email Cloud Hook
 
-To set up an Email Cloud Hook, enter an email in the "To" section. The email you enter will receive formatted emails that contain state updates and a link to the flow for which this Cloud Hook is configured. 
+To set up an Email Cloud Hook, enter an email in the "To" section. The email you enter will receive formatted emails that contain state updates and a link to the flow for which this Cloud Hook is configured.
 
 ### Web Cloud Hook
 
 The Web Cloud Hook operates as an all-purpose webhook and can hit any endpoint.
 
-To set up a Web Cloud Hook, enter the URL that you want Prefect to POST a JSON payload to when your flow enters your configured states. 
+To set up a Web Cloud Hook, enter the URL that you want Prefect to POST a JSON payload to when your flow enters your configured states.
 
 ### Slack Cloud Hook
 
-To set up a Slack Cloud Hook, you will need to create an incoming webhook for your slack channel.  [Slack's docs](https://api.slack.com/messaging/webhooks) talk you through how to create a Slack app and create an incoming webhook (and it's even easier than that sounds!) 
+To set up a Slack Cloud Hook, you will need to create an incoming webhook for your slack channel.  [Slack's docs](https://api.slack.com/messaging/webhooks) talk you through how to create a Slack app and create an incoming webhook (and it's even easier than that sounds!)
 
-Once you have an incoming webhook URL, you can copy it into the 'Slack URL' section of the Slack Cloud Hook form. 
+Once you have an incoming webhook URL, you can copy it into the 'Slack URL' section of the Slack Cloud Hook form.
 
 ### Twilio Cloud Hook
 
-A Twilio Cloud Hook needs a few more inputs: an Auth Token, an Account SID, a Messaging Service SID and at least one phone number. 
+A Twilio Cloud Hook needs a few more inputs: an Auth Token, an Account SID, a Messaging Service SID and at least one phone number.
 
-The phone number is the number that you want alerts to be sent to. 
+The phone number is the number that you want alerts to be sent to.
 
-The Auth Token and Account SID are on your Twilio project dashboard. 
+The Auth Token and Account SID are on your Twilio project dashboard.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/twilio-dashboard.png">
@@ -47,7 +47,7 @@ The Auth Token and Account SID are on your Twilio project dashboard.
 
 The Messaging Service SID requires you to have a messaging service set up. These instructions are for the programmable SMS service.
 
-1. Click on the "All Products and Services" option in the side-menu. 
+1. Click on the "All Products and Services" option in the side-menu.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/twilio-sidenav.png">
@@ -57,7 +57,7 @@ The Messaging Service SID requires you to have a messaging service set up. These
 
 2. Select "Programmable SMS"
 3. Select SMS
-4. Click on the "Create New Messaging Service" icon 
+4. Click on the "Create New Messaging Service" icon
 
 <div class="add-shadow">
   <img src="/orchestration/ui/twilio-new.png">
@@ -67,13 +67,13 @@ The Messaging Service SID requires you to have a messaging service set up. These
 
 5. Give your project a name and check the settings.
 6. Click on 'Numbers' and add a number to your account. (This is not the number your messages will get sent to so you don't need to enter this in the Prefect Cloud Hooks form.)
-7. Your Mesaging Service SID is the Service SID in the Settings page. 
+7. Your Mesaging Service SID is the Service SID in the Settings page.
 
 ### Pager Duty Cloud Hook
 
-For a Pager Duty token, you'll need an API Token and an Integration Key. You'll also need to select a Severity level from the dropdown menu. 
+For a Pager Duty token, you'll need an API Token and an Integration Key. You'll also need to select a Severity level from the dropdown menu.
 
-The API Token comes from the API Access section of the Configuration menu of the Pager Duty dashboard. 
+The API Token comes from the API Access section of the Configuration menu of the Pager Duty dashboard.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-menu.png">
@@ -81,7 +81,7 @@ The API Token comes from the API Access section of the Configuration menu of the
 
 <p>&nbsp;</p>
 
-To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud Hook to and then click on the Integrations tab. 
+To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud Hook to and then click on the Integrations tab.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-integrations.png">
@@ -89,7 +89,7 @@ To find your Integration Key, you also need the Configuration menu but choose Se
 
 <p>&nbsp;</p>
 
-In Integrations, select "New integration" and create a new integration using the API. 
+In Integrations, select "New integration" and create a new integration using the API.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-new-integration.png">
@@ -97,7 +97,7 @@ In Integrations, select "New integration" and create a new integration using the
 
 <p>&nbsp;</p>
 
-Your Integration Key will show in the integrations list. 
+Your Integration Key will show in the integrations list.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-integration-key.png">

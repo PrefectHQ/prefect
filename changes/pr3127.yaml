@@ -1,2 +1,0 @@
-fix:
-  - "Fix bug with `LocalDaskExecutor('processes')` that allowed tasks to be run multiple times in certain cases - [#3127](https://github.com/PrefectHQ/prefect/pull/3127)"

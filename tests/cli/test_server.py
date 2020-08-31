@@ -95,9 +95,10 @@ def test_server_start(monkeypatch, macos_platform):
 @pytest.mark.parametrize(
     "version",
     [
-        ("0.10.3", "latest"),
-        ("0.10.3+114.g35bc7ba4", "latest"),
-        ("0.10.2+999.gr34343.dirty", "latest"),
+        ("0.10.3", "core-0.10.3"),
+        ("0.13.3", "core-0.13.3"),
+        ("0.10.3+114.g35bc7ba4", "master"),
+        ("0.10.2+999.gr34343.dirty", "master"),
     ],
 )
 def test_server_start_image_versions(monkeypatch, version, macos_platform):
@@ -120,7 +121,7 @@ def test_server_start_image_versions(monkeypatch, version, macos_platform):
     assert popen.call_args[0][0] == ["docker-compose", "up"]
     assert popen.call_args[1].get("cwd")
     assert popen.call_args[1].get("env")
-    assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == "latest"
+    assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == version[1]
 
 
 def test_server_start_options_and_flags(monkeypatch, macos_platform):
@@ -246,7 +247,8 @@ def test_server_start_volume_options(monkeypatch, macos_platform):
 
     runner = CliRunner()
     result = runner.invoke(
-        server, ["start", "--use-volume", "--volume-path", "test/path"],
+        server,
+        ["start", "--use-volume", "--volume-path", "test/path"],
     )
     assert result.exit_code == 1
 
@@ -258,3 +260,17 @@ def test_server_start_volume_options(monkeypatch, macos_platform):
     assert popen.call_args[1].get("cwd")
     assert popen.call_args[1].get("env")
     assert popen.call_args[1]["env"].get("POSTGRES_DATA_PATH") == "test/path"
+
+
+def test_create_tenant(monkeypatch, cloud_api):
+    monkeypatch.setattr(
+        "prefect.client.Client.create_tenant", MagicMock(return_value="my_id")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        server,
+        ["create-tenant", "-n", "name", "-s", "slug"],
+    )
+    assert result.exit_code == 0
+    assert "my_id" in result.output

@@ -168,7 +168,7 @@ def test_task_runner_sets_mapped_state_prior_to_executor_mapping(client):
 
     with pytest.raises(ENDRUN) as exc:
         CloudTaskRunner(task=Task()).check_task_ready_to_map(
-            state=Pending(), upstream_states=upstream_states,
+            state=Pending(), upstream_states=upstream_states
         )
 
     ## assertions
@@ -261,7 +261,7 @@ class TestCheckTaskCached:
             task = Task(cache_validator=duration_only, result=PrefectResult())
 
         state = Cached(
-            result=result, cached_result_expiration=pendulum.now("utc").add(minutes=1),
+            result=result, cached_result_expiration=pendulum.now("utc").add(minutes=1)
         )
 
         client.get_latest_cached_states = MagicMock(return_value=[])
@@ -282,7 +282,7 @@ class TestCheckTaskCached:
             task = Task(cache_validator=duration_only, result=MyResult())
         result = PrefectResult(location="2")
         state = Cached(
-            result=result, cached_result_expiration=pendulum.now("utc").add(minutes=1),
+            result=result, cached_result_expiration=pendulum.now("utc").add(minutes=1)
         )
 
         client.get_latest_cached_states = MagicMock(return_value=[])
@@ -643,7 +643,7 @@ def test_task_runner_performs_retries_for_short_delays(client):
 
     client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(4, 7)]
     res = CloudTaskRunner(task=noop).run(
-        context={"task_run_version": 1}, state=None, upstream_states={},
+        context={"task_run_version": 1}, state=None, upstream_states={}
     )
 
     ## assertions
@@ -668,7 +668,7 @@ def test_task_runner_handles_looping(client):
         return prefect.context.get("task_loop_result")
 
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1}, state=None, upstream_states={},
+        context={"task_run_version": 1}, state=None, upstream_states={}
     )
 
     ## assertions
@@ -693,7 +693,7 @@ def test_task_runner_handles_looping_with_no_result(client):
         return 42
 
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1}, state=None, upstream_states={},
+        context={"task_run_version": 1}, state=None, upstream_states={}
     )
 
     ## assertions
@@ -729,7 +729,7 @@ def test_task_runner_handles_looping_with_retries_with_no_result(client):
 
     client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(6, 9)]
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1}, state=None, upstream_states={},
+        context={"task_run_version": 1}, state=None, upstream_states={}
     )
 
     ## assertions
@@ -765,7 +765,7 @@ def test_task_runner_handles_looping_with_retries(client):
 
     client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(6, 9)]
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1}, state=None, upstream_states={},
+        context={"task_run_version": 1}, state=None, upstream_states={}
     )
 
     ## assertions
@@ -799,7 +799,7 @@ def test_cloud_task_runner_respects_queued_states_from_cloud(client):
         pass
 
     res = CloudTaskRunner(task=tagged_task).run(
-        context={"task_run_version": 1}, state=None, upstream_states={},
+        context={"task_run_version": 1}, state=None, upstream_states={}
     )
 
     assert res.is_successful()
@@ -825,9 +825,7 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
     client.set_task_run_state = queued_mock
 
     @prefect.task(
-        max_retries=2,
-        retry_delay=datetime.timedelta(seconds=0),
-        result=PrefectResult(),
+        max_retries=2, retry_delay=datetime.timedelta(seconds=0), result=PrefectResult()
     )
     def tagged_task(x):
         if prefect.context.get("task_run_count", 1) == 1:
@@ -877,9 +875,7 @@ def test_cloud_task_runner_sends_heartbeat_on_queued_retries(client):
     client.update_task_run_heartbeat = mock_heartbeat
 
     @prefect.task(
-        max_retries=2,
-        retry_delay=datetime.timedelta(seconds=0),
-        result=PrefectResult(),
+        max_retries=2, retry_delay=datetime.timedelta(seconds=0), result=PrefectResult()
     )
     def tagged_task(x):
         if prefect.context.get("task_run_count", 1) == 1:
@@ -923,7 +919,7 @@ class TestLoadResults:
         state = Success(result=PrefectResult(location="1"))
         edge = Edge(Task(result=CustomResult()), 2, key="x")
         new_state, upstreams = CloudTaskRunner(task=Task()).load_results(
-            state=Pending(), upstream_states={edge: state},
+            state=Pending(), upstream_states={edge: state}
         )
         assert upstreams[edge].result == ["foo", "bar", "baz"]
 
@@ -935,7 +931,7 @@ class TestLoadResults:
         with prefect.context(secrets=dict(foo=42)):
             edge = Edge(Task(result=secret_result), 2, key="x")
             new_state, upstreams = CloudTaskRunner(task=Task()).load_results(
-                state=Pending(), upstream_states={edge: state},
+                state=Pending(), upstream_states={edge: state}
             )
 
         assert upstreams[edge].result == 42
