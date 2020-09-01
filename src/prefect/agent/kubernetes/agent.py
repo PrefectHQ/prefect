@@ -3,6 +3,7 @@ from os import path
 import uuid
 from typing import Iterable, List
 
+import json
 import yaml
 
 import prefect
@@ -444,10 +445,12 @@ class KubernetesAgent(Agent):
         agent_env[10]["value"] = service_account_name
 
         if env_vars:
-            for k, v in env_vars.items():
-                agent_env.append(
-                    {"name": f"PREFECT__CLOUD__AGENT__ENV_VARS__{k}", "value": v}
-                )
+            agent_env.append(
+                {
+                    "name": f"PREFECT__CLOUD__AGENT__ENV_VARS",
+                    "value": json.dumps(env_vars),
+                }
+            )
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][
