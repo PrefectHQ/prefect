@@ -447,7 +447,7 @@ class KubernetesAgent(Agent):
         if env_vars:
             agent_env.append(
                 {
-                    "name": f"PREFECT__CLOUD__AGENT__ENV_VARS",
+                    "name": "PREFECT__CLOUD__AGENT__ENV_VARS",
                     "value": json.dumps(env_vars),
                 }
             )
