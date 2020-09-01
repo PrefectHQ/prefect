@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import uuid
+from unittest.mock import MagicMock
 
 import cloudpickle
 import dask
@@ -192,6 +193,14 @@ class TestLocalDaskExecutor:
         if stop - start > 4:
             assert False, "Failed to interrupt"
 
+    @pytest.mark.parametrize("scheduler", ["threads", "synchronous"])
+    def test_on_cleanup_called(self, scheduler):
+        e = LocalDaskExecutor(scheduler)
+        on_cleanup = MagicMock()
+        with e.start(on_cleanup):
+            pass
+        assert on_cleanup.called
+
 
 class TestLocalExecutor:
     def test_submit(self):
@@ -216,6 +225,13 @@ class TestLocalExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalExecutor)
+
+    def test_on_cleanup_called(self):
+        e = LocalExecutor()
+        on_cleanup = MagicMock()
+        with e.start(on_cleanup):
+            pass
+        assert on_cleanup.called
 
 
 @pytest.mark.parametrize("executor", ["mproc", "mthread", "sync"], indirect=True)
@@ -501,3 +517,32 @@ class TestDaskExecutor:
         # Cluster shutdown before task could complete
         assert stop - start < 5
         assert not os.path.exists(filname)
+
+    @pytest.mark.parametrize("kind", ["external", "inproc"])
+    def test_on_cleanup_called(self, kind, tmpdir):
+        dir_path = str(tmpdir)
+
+        def setup():
+            pid = os.getpid()
+            with open(os.path.join(dir_path, str(pid)), "w"):
+                pass
+
+        def on_cleanup():
+            try:
+                pid = os.getpid()
+                os.unlink(os.path.join(dir_path, str(pid)))
+            except Exception:
+                pass
+
+        if kind == "external":
+            with distributed.Client(processes=False, set_as_default=False) as client:
+                executor = DaskExecutor(address=client.scheduler.address)
+                with executor.start(on_cleanup):
+                    executor.client.run(setup)
+
+        elif kind == "inproc":
+            executor = DaskExecutor(cluster_kwargs={"processes": False})
+            with executor.start(on_cleanup):
+                executor.client.run(setup)
+
+        assert not os.listdir(dir_path)

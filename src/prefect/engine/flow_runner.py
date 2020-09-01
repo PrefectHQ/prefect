@@ -1,3 +1,4 @@
+import uuid
 from typing import (
     Any,
     Callable,
@@ -156,6 +157,7 @@ class FlowRunner(Runner):
 
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
+        context.setdefault("flow_run_id", str(uuid.uuid4()))
 
         # add various formatted dates to context
         now = pendulum.now("utc")
@@ -412,7 +414,7 @@ class FlowRunner(Runner):
 
         # -- process each task in order
 
-        flow_run_id = prefect.context["flow_run_id"]
+        flow_run_id = prefect.context.get("flow_run_id")
 
         with self.check_for_cancellation(), executor.start(
             on_cleanup=partial(clear_local_cache, flow_run_id=flow_run_id)

@@ -1447,8 +1447,8 @@ def test_dask_executor_with_flow_runner_sets_task_keys(mthread):
 
     class MyExecutor(Executor):
         @contextmanager
-        def start(self):
-            with mthread.start():
+        def start(self, on_cleanup=None):
+            with mthread.start(on_cleanup=on_cleanup):
                 yield
 
         def submit(self, *args, **kwargs):

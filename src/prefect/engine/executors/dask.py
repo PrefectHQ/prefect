@@ -1,4 +1,3 @@
-import atexit
 import asyncio
 import logging
 import uuid
@@ -6,8 +5,6 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
-
-import cloudpickle
 
 from prefect import context
 from prefect.engine.executors.base import Executor
@@ -460,12 +457,6 @@ class DaskExecutor(Executor):
         return self.client.gather(futures)
 
 
-def _init_process(on_cleanup_pickled: bytes) -> None:
-    on_cleanup = cloudpickle.loads(on_cleanup_pickled)
-    if on_cleanup is not None:
-        atexit.register(on_cleanup)
-
-
 class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable
@@ -578,11 +569,7 @@ class LocalDaskExecutor(Executor):
                     from dask.multiprocessing import get_context
 
                     context = get_context()
-                    on_cleanup_pickled = cloudpickle.dumps(on_cleanup)
-                    self._pool = context.Pool(
-                        num_workers, _init_process, (on_cleanup_pickled,)
-                    )
-
+                    self._pool = context.Pool(num_workers)
             try:
                 exiting_early = False
                 yield
