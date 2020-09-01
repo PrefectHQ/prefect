@@ -444,7 +444,23 @@ class TaskRunner(Runner):
             new_state = Failed("At least one upstream state has an unmappable result.")
             raise ENDRUN(new_state)
         else:
-            new_state = Mapped("Ready to proceed with mapping.")
+            # compute and set n_map_states
+            n_map_states = min(
+                [
+                    len(s.result)
+                    for e, s in upstream_states.items()
+                    if e.mapped and s.is_successful() and not s.is_mapped()
+                ]
+                + [
+                    s.n_map_states  # type: ignore
+                    for e, s in upstream_states.items()
+                    if e.mapped and s.is_mapped()
+                ],
+                default=0,
+            )
+            new_state = Mapped(
+                "Ready to proceed with mapping.", n_map_states=n_map_states
+            )
             raise ENDRUN(new_state)
 
     @call_state_handlers
