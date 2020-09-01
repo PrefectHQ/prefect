@@ -547,6 +547,11 @@ module = "prefect.utilities.graphql"
 classes = ["EnumValue"]
 functions = ["parse_graphql", "parse_graphql_arguments", "with_args", "compress", "decompress"]
 
+[pages.utilities.local_cache]
+title = "Local Process Cache"
+module = "prefect.utilities.local_cache"
+functions = ["shared_object"]
+
 [pages.utilities.logging]
 title = "Logging"
 module = "prefect.utilities.logging"
