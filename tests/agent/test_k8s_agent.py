@@ -556,18 +556,15 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
     )
 
     agent = KubernetesAgent()
-    deployment = agent.generate_deployment_yaml(
-        env_vars={"test1": "test2", "test3": "test4"}
-    )
+    env_vars = {"test1": "test2", "test3": "test4"}
+    deployment = agent.generate_deployment_yaml(env_vars=env_vars)
 
     deployment = yaml.safe_load(deployment)
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[13]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
-    assert agent_env[13]["value"] == "test2"
-    assert agent_env[14]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
-    assert agent_env[14]["value"] == "test4"
+    assert agent_env[13]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS"
+    assert agent_env[13]["value"] == json.dumps(env_vars)
 
 
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
