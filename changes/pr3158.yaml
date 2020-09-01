@@ -1,6 +1,0 @@
-enhancement:
-  - "Kubernetes agent now manages lifecycle of prefect jobs in its namespace - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)"
-  - "Move agent heartbeat to background thread - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)"
-
-deprecation:
-  - "Kubernetes resource manager is now deprecated and the functionality is moved into the Kubernetes agent - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)"

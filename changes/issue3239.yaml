@@ -1,2 +1,0 @@
-fix:
-  - "Fix issue with passing --env-vars flag to K8s Agent Install manifest - [#3239](https://github.com/PrefectHQ/prefect/issues/3239)"

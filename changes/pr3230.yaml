@@ -1,5 +1,0 @@
-fix:
-  - "Fix edge case with `add_edge` method - [#3230](https://github.com/PrefectHQ/prefect/pull/3230)"
-
-contributor:
-  - "[shaunc](https://github.com/shaunc)"
