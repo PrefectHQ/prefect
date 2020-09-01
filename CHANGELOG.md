@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.13.5 <Badge text="beta" type="success" />
+
+Released on September 1, 2020.
+
+### Enhancements
+
+- Begin storing the width of mapped pipelines on the parent Mapped state - [#3233](https://github.com/PrefectHQ/prefect/issues/3233)
+- Kubernetes agent now manages lifecycle of prefect jobs in its namespace - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)
+- Move agent heartbeat to background thread - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)
+- Handles `ModuleNotFound` errors in the storage healthcheck - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)
+- Raises the `warnings.warn` stack level to 2 to reduce duplicate warning messages - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)
+- Add some extra output to the `client.register` print output for visibility - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)
+- CLI help text docstrings are now auto documented using the API documentation parser - [#3225](https://github.com/PrefectHQ/prefect/pull/3225)
+- `DaskExecutor` now logs dask worker add/removal events - [#3227](https://github.com/PrefectHQ/prefect/pull/3227)
+
+### Fixes
+
+- Fix issue with passing --env-vars flag to K8s Agent Install manifest - [#3239](https://github.com/PrefectHQ/prefect/issues/3239)
+- Fix edge case with `add_edge` method - [#3230](https://github.com/PrefectHQ/prefect/pull/3230)
+
+### Deprecations
+
+- Kubernetes resource manager is now deprecated and the functionality is moved into the Kubernetes agent - [#3158](https://github.com/PrefectHQ/prefect/pull/3158)
+
+### Contributors
+
+- [shaunc](https://github.com/shaunc)
+
 ## 0.13.4 <Badge text="beta" type="success" />
 
 Released on August 25, 2020.
