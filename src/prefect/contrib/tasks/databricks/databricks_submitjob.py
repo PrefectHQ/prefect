@@ -451,6 +451,8 @@ class DatabricksRunNow(Task):
             OR
             `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
             See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.
+        - job_id (str, optional): The job_id of the existing Databricks job.
+            https://docs.databricks.com/api/latest/jobs.html#run-now
         - json (dict, optional): A JSON object containing API parameters which will be passed
             directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
             (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
@@ -563,6 +565,8 @@ class DatabricksRunNow(Task):
                 OR
                 `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
                 See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.
+            - job_id (str, optional): The job_id of the existing Databricks job.
+                https://docs.databricks.com/api/latest/jobs.html#run-now
             - json (dict, optional): A JSON object containing API parameters which will be passed
                 directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
                 (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
