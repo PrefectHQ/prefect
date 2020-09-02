@@ -1,0 +1,6 @@
+enhancement:
+    - "Expand FunctionTask AttributeError Message - [#3248](https://github.com/PrefectHQ/prefect/pull/3248)"
+  
+contributor:
+    - "[Rowan Molony](https://github.com/rdmolony)"
+  
