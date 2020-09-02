@@ -28,6 +28,46 @@ title = "Secrets"
 module = "prefect.client.secrets"
 classes = ["Secret"]
 
+[pages.cli.agent]
+title = "agent"
+module = "prefect.cli.agent"
+commands = ["start", "install"]
+
+[pages.cli.auth]
+title = "auth"
+module = "prefect.cli.auth"
+commands = ["login", "logout", "list_tenants", "switch_tenants", "create_token", "list_tokens", "revoke_token"]
+
+[pages.cli.create]
+title = "create"
+module = "prefect.cli.create"
+commands = ["project"]
+
+[pages.cli.describe]
+title = "describe"
+module = "prefect.cli.describe"
+commands = ["flows", "tasks", "flow_runs"]
+
+[pages.cli.get]
+title = "get"
+module = "prefect.cli.get"
+commands = ["flows", "tasks", "projects", "flow_runs", "logs"]
+
+[pages.cli.register]
+title = "register"
+module = "prefect.cli.register"
+commands = ["flow"]
+
+[pages.cli.run]
+title = "run"
+module = "prefect.cli.run"
+commands = ["flow"]
+
+[pages.cli.server]
+title = "server"
+module = "prefect.cli.server"
+commands = ["start", "create_tenant"]
+
 [pages.schedules.schedules]
 title = "Schedules"
 module = "prefect.schedules.schedules"

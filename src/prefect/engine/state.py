@@ -848,6 +848,8 @@ class Mapped(Success):
         - map_states (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
+        - n_map_states (int, optional): the number of tasks that were mapped; if not provided,
+            the value of `len(map_states)` is used
         - cached_inputs (dict, optional, DEPRECATED): A dictionary of input keys to fully hydrated
             `Result`s. Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
@@ -863,15 +865,21 @@ class Mapped(Success):
         map_states: List[State] = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
+        n_map_states: int = None,
     ):
         super().__init__(
             message=message, result=result, context=context, cached_inputs=cached_inputs
         )
         self.map_states = map_states or []  # type: List[State]
+        self.n_map_states = n_map_states  # type: ignore
 
     @property
     def n_map_states(self) -> int:
-        return len(self.map_states)
+        return self._n_map_states or len(self.map_states)
+
+    @n_map_states.setter
+    def n_map_states(self, val: Optional[int]) -> None:
+        self._n_map_states = val
 
 
 class Cancelled(Finished):

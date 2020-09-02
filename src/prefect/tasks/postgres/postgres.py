@@ -120,7 +120,7 @@ class PostgresFetch(Task):
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
-        """
+    """
 
     def __init__(
         self,

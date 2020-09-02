@@ -328,9 +328,7 @@ class DockerAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info(
-            "Deploying flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         # 'import docker' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low

@@ -12,6 +12,7 @@ import warnings
 warnings.warn(
     "DEPRECATED: prefect.tasks.google is deprecated, use prefect.tasks.gcp instead",
     UserWarning,
+    stacklevel=2,
 )
 
 from prefect.tasks.gcp.storage import GCSDownload, GCSUpload, GCSCopy

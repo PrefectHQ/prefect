@@ -21,6 +21,7 @@ commands:
             IMAGE_NAME=<<parameters.IMAGE_NAME>> && VERSION=<<parameters.VERSION>>
             docker pull prefecthq/${IMAGE_NAME}:latest
             docker tag prefecthq/${IMAGE_NAME}:latest prefecthq/${IMAGE_NAME}:${VERSION}
+            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/${IMAGE_NAME}:${VERSION}
 
 jobs:

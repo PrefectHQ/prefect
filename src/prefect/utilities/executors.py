@@ -210,7 +210,7 @@ def timeout_handler(
             "but continue running in the background."
         )
 
-    warnings.warn(msg)
+    warnings.warn(msg, stacklevel=2)
     executor = ThreadPoolExecutor()
 
     def run_with_ctx(*args: Any, _ctx_dict: dict, **kwargs: Any) -> Any:
@@ -398,9 +398,7 @@ def prepare_upstream_states_for_mapping(
 def _build_flattened_state(state: "State", index: int) -> "State":
     """Helper function for `flatten_upstream_state`"""
     new_state = copy.copy(state)
-    new_state.result = state._result.from_value(  # type: ignore
-        state.result[index]
-    )
+    new_state.result = state._result.from_value(state.result[index])  # type: ignore
     return new_state
 
 
@@ -416,14 +414,13 @@ def flatten_upstream_state(upstream_state: "State") -> "State":
         return upstream_state
 
     new_state = copy.copy(upstream_state)
-    new_state.result = new_state._result.from_value(  # type: ignore
-        flattened_result
-    )
+    new_state.result = new_state._result.from_value(flattened_result)  # type: ignore
     return new_state
 
 
 def flatten_mapped_children(
-    mapped_children: List["State"], executor: "prefect.engine.executors.Executor",
+    mapped_children: List["State"],
+    executor: "prefect.engine.executors.Executor",
 ) -> List["State"]:
     counts = executor.wait(
         [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]

@@ -358,7 +358,14 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, cloud_api):
 
     agent = FargateAgent()
 
-    kwarg_dict = {"test": "not_real", "containerDefinitions": [{"test": "not_real",}]}
+    kwarg_dict = {
+        "test": "not_real",
+        "containerDefinitions": [
+            {
+                "test": "not_real",
+            }
+        ],
+    }
 
     (
         task_definition_kwargs,
@@ -1964,7 +1971,7 @@ def test_fargate_agent_start_max_polls_count(monkeypatch, runner_token, cloud_ap
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 2
-    assert heartbeat.call_count == 2
+    assert heartbeat.call_count == 1
 
 
 def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
@@ -1990,7 +1997,7 @@ def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
-    assert heartbeat.call_count == 0
+    assert heartbeat.call_count == 1
 
 
 def test_agent_configuration_utility(monkeypatch, cloud_api):

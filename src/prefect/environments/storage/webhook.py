@@ -381,7 +381,7 @@ class Webhook(Storage):
                     "be set directly"
                 )
                 self.logger.warning(msg)
-                warnings.warn(msg, RuntimeWarning)
+                warnings.warn(msg, RuntimeWarning, stacklevel=2)
             build_request_kwargs["data"] = data
 
             response = req_function(**build_request_kwargs)  # type: ignore

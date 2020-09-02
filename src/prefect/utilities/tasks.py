@@ -179,7 +179,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
                 # upstream tasks if they're not already upstream tasks
                 if arg_task not in upstream_tasks and (is_mapped or not is_constant):
                     flow.add_edge(
-                        upstream_task=arg_task, downstream_task=task, mapped=is_mapped,
+                        upstream_task=arg_task, downstream_task=task, mapped=is_mapped
                     )
     return res
 
@@ -190,7 +190,8 @@ from prefect.utilities.edges import unmapped as _unmapped
 
 def unmapped(*args, **kwargs):  # type: ignore
     warnings.warn(
-        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`"
+        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`",
+        stacklevel=2,
     )
     return _unmapped(*args, **kwargs)
 

@@ -48,7 +48,7 @@ class MySQLExecute(Task):
 
     @defaults_from_attrs("query", "commit", "charset")
     def run(
-        self, query: str = None, commit: bool = False, charset: str = "utf8mb4",
+        self, query: str = None, commit: bool = False, charset: str = "utf8mb4"
     ) -> int:
         """
         Task run method. Executes a query against MySQL database.

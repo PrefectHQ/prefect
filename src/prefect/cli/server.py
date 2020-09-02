@@ -218,15 +218,15 @@ def start(
 
     \b
     Options:
-        --version, -v       TEXT    The server image versions to use (for example, '0.1.0' or
-                                    'master'). Defaults to `core-a.b.c` where `a.b.c.` is the version
-                                    of Prefect Core currently running.
+        --version, -v       TEXT    The server image versions to use (for example, '0.1.0'
+                                    or 'master'). Defaults to `core-a.b.c` where `a.b.c.`
+                                    is the version of Prefect Core currently running.
         --ui-version, -uv   TEXT    The UI image version to use (for example, '0.1.0' or
-                                    'master'). Defaults to `core-a.b.c` where `a.b.c.` is the version
-                                    of Prefect Core currently running.
+                                    'master'). Defaults to `core-a.b.c` where `a.b.c.` is
+                                    the version of Prefect Core currently running.
         --skip-pull                 Flag to skip pulling new images (if available)
-        --no-upgrade, -n            Flag to avoid running a database upgrade when the database
-                                    spins up
+        --no-upgrade, -n            Flag to avoid running a database upgrade when the
+                                    database spins up
         --no-ui, -u                 Flag to avoid starting the UI
 
     \b
@@ -397,14 +397,18 @@ def ascii_welcome(ui_port="8080"):
 
 @server.command(hidden=True)
 @click.option(
-    "--name", "-n", help="The name of a tenant to create", hidden=True,
+    "--name",
+    "-n",
+    help="The name of a tenant to create",
+    hidden=True,
 )
 @click.option(
-    "--slug", "-s", help="The slug of a tenant to create", hidden=True,
+    "--slug",
+    "-s",
+    help="The slug of a tenant to create",
+    hidden=True,
 )
-def create_tenant(
-    name, slug,
-):
+def create_tenant(name, slug):
     """
     This command creates a tenant for the Prefect Server
 

@@ -1,13 +1,15 @@
 import os
-import uuid
 from os import path
+import uuid
 from typing import Iterable, List
 
+import json
 import yaml
 
 import prefect
 from prefect import config
 from prefect.agent import Agent
+from prefect.engine.state import Failed
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
@@ -91,7 +93,7 @@ class KubernetesAgent(Agent):
             no_cloud_logs=no_cloud_logs,
         )
 
-        self.namespace = namespace
+        self.namespace = namespace or os.getenv("NAMESPACE", "default")
         self.volume_mounts = volume_mounts
         self.volumes = volumes
 
@@ -108,8 +110,99 @@ class KubernetesAgent(Agent):
             config.load_kube_config()
 
         self.batch_client = client.BatchV1Api()
+        self.core_client = client.CoreV1Api()
+        self.k8s_client = client
 
         self.logger.debug(f"Namespace: {self.namespace}")
+
+    def manage_jobs(self) -> None:
+        """
+        This function checks if jobs are `Failed` or `Succeeded` and if they are then the jobs are
+        deleted from the namespace. If one of the job's pods happen to run into image pulling errors
+        then the flow run is failed and the job is still deleted.
+        """
+        self.logger.debug(
+            "Retrieving information of jobs that are currently in the cluster..."
+        )
+
+        more = True
+        _continue = ""
+        while more:
+            try:
+                jobs = self.batch_client.list_namespaced_job(
+                    namespace=self.namespace,
+                    label_selector="prefect.io/identifier",
+                    limit=20,
+                    _continue=_continue,
+                )
+                _continue = jobs.metadata._continue
+                more = bool(_continue)
+
+                for job in jobs.items:
+                    delete_job = job.status.failed or job.status.succeeded
+                    job_name = job.metadata.name
+                    flow_run_id = job.metadata.labels.get("prefect.io/flow_run_id")
+
+                    if not delete_job:
+                        pods = self.core_client.list_namespaced_pod(
+                            namespace=self.namespace,
+                            label_selector="prefect.io/identifier={}".format(
+                                job.metadata.labels.get("prefect.io/identifier")
+                            ),
+                        )
+
+                        for pod in pods.items:
+                            if pod.status.container_statuses:
+                                for container_status in pod.status.container_statuses:
+                                    waiting = container_status.state.waiting
+                                    if waiting and (
+                                        waiting.reason == "ErrImagePull"
+                                        or waiting.reason == "ImagePullBackOff"
+                                    ):
+                                        self.logger.debug(
+                                            f"Failing flow run {flow_run_id} due to pod {waiting.reason}"
+                                        )
+                                        self.client.set_flow_run_state(
+                                            flow_run_id=flow_run_id,
+                                            state=Failed(
+                                                message="Kubernetes Error: {}".format(
+                                                    container_status.state.waiting.message
+                                                )
+                                            ),
+                                        )
+
+                                        delete_job = True
+                                        break
+
+                    if delete_job:
+                        self.logger.debug(f"Deleting job {job_name}")
+                        try:
+                            self.batch_client.delete_namespaced_job(
+                                name=job_name,
+                                namespace=self.namespace,
+                                body=self.k8s_client.V1DeleteOptions(
+                                    propagation_policy="Foreground"
+                                ),
+                            )
+                        except self.k8s_client.rest.ApiException as exc:
+                            if exc.status != 404:
+                                self.logger.error(
+                                    f"{exc.status} error attempting to delete job {job_name}"
+                                )
+            except self.k8s_client.rest.ApiException as exc:
+                if exc.status == 410:
+                    self.logger.debug("Refreshing job listing token...")
+                    _continue = ""
+                    continue
+                else:
+                    self.logger.debug(exc)
+
+    def heartbeat(self) -> None:
+        """
+        Check status of jobs created by this agent, delete completed jobs and failed containers.
+        """
+        self.manage_jobs()
+        super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -121,26 +214,29 @@ class KubernetesAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info(
-            "Deploying flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         image = get_flow_image(flow_run=flow_run)
 
-        job_spec = self.replace_job_spec_yaml(flow_run, image)
+        identifier = str(uuid.uuid4())[:8]
+        job_spec = self.replace_job_spec_yaml(
+            flow_run=flow_run, image=image, identifier=identifier
+        )
 
         self.logger.debug(
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
         )
         job = self.batch_client.create_namespaced_job(
-            namespace=self.namespace or os.getenv("NAMESPACE", "default"), body=job_spec
+            namespace=self.namespace, body=job_spec
         )
 
         self.logger.debug("Job {} created".format(job.metadata.name))
 
         return "Job {}".format(job.metadata.name)
 
-    def replace_job_spec_yaml(self, flow_run: GraphQLResult, image: str) -> dict:
+    def replace_job_spec_yaml(
+        self, flow_run: GraphQLResult, image: str, identifier: str
+    ) -> dict:
         """
         Populate a k8s job spec. This spec defines a k8s job that handles
         executing a flow. This method runs each time the agent receives
@@ -168,6 +264,7 @@ class KubernetesAgent(Agent):
         Args:
             - flow_run (GraphQLResult): A flow run object
             - image (str): The full name of an image to use for the job
+            - identifier (str): A unique identifier to identify this job
 
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
@@ -178,7 +275,6 @@ class KubernetesAgent(Agent):
         with open(yaml_path, "r") as job_file:
             job = yaml.safe_load(job_file)
 
-        identifier = str(uuid.uuid4())[:8]
         job_name = "prefect-job-{}".format(identifier)
 
         # Populate job metadata for identification
@@ -354,10 +450,12 @@ class KubernetesAgent(Agent):
         agent_env[10]["value"] = service_account_name
 
         if env_vars:
-            for k, v in env_vars.items():
-                agent_env.append(
-                    {"name": f"PREFECT__CLOUD__AGENT__ENV_VARS__{k}", "value": v}
-                )
+            agent_env.append(
+                {
+                    "name": "PREFECT__CLOUD__AGENT__ENV_VARS",
+                    "value": json.dumps(env_vars),
+                }
+            )
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][
