@@ -1,4 +1,4 @@
-feature:
+fix:
   - "Make identifier optional in KubernetesAgent.replace_job_spec_yaml() - [#3251](https://github.com/PrefectHQ/prefect/pull/3251)"
 
 contributor:
