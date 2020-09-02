@@ -67,6 +67,6 @@ class FunctionTask(prefect.Task):
             return self.run
         raise AttributeError(
             f"'FunctionTask' object has no attribute {k}."
-            f" Did you call {self.name} within a function that should have been"
-            " decorated with @prefect.task?"
+            " Did you call this object within a function that should have been"
+            "decorated with @prefect.task?"
         )
