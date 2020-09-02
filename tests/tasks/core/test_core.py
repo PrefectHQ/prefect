@@ -70,12 +70,12 @@ class TestFunctionTask:
         t = FunctionTask(fn=my_fn)
         assert t.__wrapped__ == my_fn
         assert not hasattr(FunctionTask, "__wrapped__")
-    
+
     def test_function_task_raises_attribute_error(self):
         def my_fn():
             """An example function"""
             pass
-        
+
         t = FunctionTask(fn=my_fn)
         with pytest.raises(AttributeError):
             t.unknown_attribute
