@@ -65,4 +65,8 @@ class FunctionTask(prefect.Task):
     def __getattr__(self, k):
         if k == "__wrapped__":
             return self.run
-        raise AttributeError(f"'FunctionTask' object has no attribute {k}")
+        raise AttributeError(
+            f"'FunctionTask' object has no attribute {k}."
+            f" Did you call {self.name} within a function that should have been"
+            " decorated with @prefect.task?"
+        )
