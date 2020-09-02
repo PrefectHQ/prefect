@@ -213,10 +213,7 @@ class KubernetesAgent(Agent):
 
         image = get_flow_image(flow_run=flow_run)
 
-        identifier = str(uuid.uuid4())[:8]
-        job_spec = self.replace_job_spec_yaml(
-            flow_run=flow_run, image=image, identifier=identifier
-        )
+        job_spec = self.replace_job_spec_yaml(flow_run=flow_run, image=image)
 
         self.logger.debug(
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
@@ -230,7 +227,7 @@ class KubernetesAgent(Agent):
         return "Job {}".format(job.metadata.name)
 
     def replace_job_spec_yaml(
-        self, flow_run: GraphQLResult, image: str, identifier: str
+        self, flow_run: GraphQLResult, image: str, identifier: str = None
     ) -> dict:
         """
         Populate a k8s job spec. This spec defines a k8s job that handles
@@ -259,11 +256,13 @@ class KubernetesAgent(Agent):
         Args:
             - flow_run (GraphQLResult): A flow run object
             - image (str): The full name of an image to use for the job
-            - identifier (str): A unique identifier to identify this job
+            - identifier (str): A unique identifier to identify this job. If none is given,
+                Prefect will create a random identifier each time a job is created.
 
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
         """
+        identifier = identifier or str(uuid.uuid4())[:8]
         yaml_path = os.getenv(
             "YAML_TEMPLATE", path.join(path.dirname(__file__), "job_spec.yaml")
         )
