@@ -77,8 +77,11 @@ class TestFunctionTask:
             pass
 
         t = FunctionTask(fn=my_fn)
-        with pytest.raises(AttributeError):
+        with pytest.raises(AttributeError) as exc:
             t.unknown_attribute
+            
+        assert "unknown_attribute" in str(exc.value)
+        assert "@prefect.task" in str(exc.value)
 
 
 class TestCollections:
