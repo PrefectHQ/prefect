@@ -599,9 +599,6 @@ class DatabricksRunNow(Task):
                 in job setting.
                 The json representation of this field cannot exceed 10,000 bytes.
                 https://docs.databricks.com/api/latest/jobs.html#run-now
-            - timeout_seconds (int, optional): The timeout for this run. By default a value of 0 is used
-                which means to have no timeout.
-                This field will be templated.
             - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
                 this run. By default the task will poll every 30 seconds.
             - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is

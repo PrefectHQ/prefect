@@ -22,6 +22,7 @@ def job_config():
 
     return config
 
+
 @pytest.fixture(scope="session")
 def notebook_job_config():
 
@@ -29,8 +30,8 @@ def notebook_job_config():
         "job_id": 1,
         "notebook_params": {
             "dry-run": "true",
-            "oldest-time-to-consider": "1457570074236"
-        }
+            "oldest-time-to-consider": "1457570074236",
+        },
     }
 
     return config
