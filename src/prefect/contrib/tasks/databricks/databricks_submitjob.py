@@ -437,11 +437,11 @@ class DatabricksRunNow(Task):
 
     Currently the named parameters that ``DatabricksRunNow`` task supports are
 
-    - `job_id``
-    - `json``
-    - `notebook_params``
-    - `python_params``
-    - `spark_submit_params``
+    - `job_id`
+    - `json`
+    - `notebook_params`
+    - `python_params`
+    - `spark_submit_params`
 
     Args:
         - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
