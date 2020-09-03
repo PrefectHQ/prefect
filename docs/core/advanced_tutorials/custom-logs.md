@@ -41,7 +41,7 @@ export PREFECT__LOGGING__FORMAT="[%(asctime)s] %(levelname)s - %(name)s | %(mess
 
 In addition to changing how your logs are formatted, you can take it one step further by interacting with the logger objects directly prior to execution. For example, you can add new handlers to your logger (recall that logging handlers allow you to ship your logs to multiple configurable destinations).
 
-This is easily accomplished via the [`get_logger` utility](../../api/latest/utilities/logging.html#prefect-utilities-logging-get-logger) located in `prefect.utilities.logging`. The root logger can be accessed by calling `get_logger()` with no arguments. Note that the `Task` and `Flow` loggers are associated with loggers with the names `"Task"` and `"Flow"`, respectively.
+This is easily accomplished via the [`get_logger` utility](../../api/latest/utilities/logging.html#prefect-utilities-logging-get-logger) located in `prefect.utilities.logging`. The root logger can be accessed by calling `get_logger()` with no arguments. Note that the `Task` and `Flow` loggers are associated with loggers of the same names as the Task or Flow.
 
 ## An Example
 
@@ -87,7 +87,7 @@ with Flow("logging-example") as flow:
 
 
 # now attach our custom handler to Task B's logger
-task_logger = get_logger("Task")
+task_logger = get_logger("Task B")
 task_logger.addHandler(MyHandler())
 
 
