@@ -99,7 +99,9 @@ class DatabricksSubmitRun(Task):
         'notebook_path': '/Users/prefect@example.com/PrepareData',
         },
     }
-    notebook_run = DatabricksSubmitRun(task_id='notebook_run', json=json)
+
+    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+    notebook_run = DatabricksSubmitRun(databricks_conn_string=conn, json=json)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -115,8 +117,10 @@ class DatabricksSubmitRun(Task):
     notebook_task = {
         'notebook_path': '/Users/prefect@example.com/PrepareData',
     }
+
+    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
     notebook_run = DatabricksSubmitRun(
-        task_id='notebook_run',
+        databricks_conn_string=conn,
         new_cluster=new_cluster,
         notebook_task=notebook_task)
     ```
@@ -357,6 +361,279 @@ class DatabricksSubmitRun(Task):
 
         # Submit the job
         self.run_id = hook.submit_run(self.json)
+        _handle_databricks_task_execution(self, hook, self.logger)
+
+        return self.run_id
+
+
+class DatabricksRunNow(Task):
+    """
+    Runs an existing Spark job run to Databricks using the
+    `api/2.0/jobs/run-now
+    <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
+    API endpoint.
+
+    There are two ways to instantiate this task.
+
+    In the first way, you can take the JSON payload that you typically use
+    to call the ``api/2.0/jobs/run-now`` endpoint and pass it directly
+    to our ``DatabricksRunNow`` task through the ``json`` parameter.
+    For example:
+
+    ```
+    json = {
+          "job_id": 42,
+          "notebook_params": {
+            "dry-run": "true",
+            "oldest-time-to-consider": "1457570074236"
+          }
+        }
+
+    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+    notebook_run = DatabricksRunNow(databricks_conn_string=conn, json=json)
+    ```
+
+    Another way to accomplish the same thing is to use the named parameters
+    of the ``DatabricksRunNow`` task directly. Note that there is exactly
+    one named parameter for each top level parameter in the ``run-now``
+    endpoint. In this method, your code would look like this:
+
+    ```
+    job_id=42
+
+    notebook_params = {
+        "dry-run": "true",
+        "oldest-time-to-consider": "1457570074236"
+    }
+
+    python_params = ["douglas adams", "42"]
+
+    spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
+
+    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+    notebook_run = DatabricksRunNow(
+        databricks_conn_string=conn,
+        notebook_params=notebook_params,
+        python_params=python_params,
+        spark_submit_params=spark_submit_params
+    )
+    ```
+
+    In the case where both the json parameter **AND** the named parameters
+    are provided, they will be merged together. If there are conflicts during the merge,
+    the named parameters will take precedence and override the top level `json` keys.
+
+    This task requires a Databricks connection to be specified as a Prefect secret and can
+    be passed to the task like so:
+
+    ```
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.contrib.tasks.databricks import DatabricksRunNow
+
+    with Flow('my flow') as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        DatabricksRunNow(databricks_conn_string=conn, json=...)
+    ```
+
+    Currently the named parameters that ``DatabricksRunNow`` task supports are
+
+    - `job_id`
+    - `json`
+    - `notebook_params`
+    - `python_params`
+    - `spark_submit_params`
+
+    Args:
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
+            Structure must be a string of valid JSON. To use token based authentication, provide
+            the key ``token`` in the string for the connection and create the key ``host``.
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            OR
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.
+        - job_id (str, optional): The job_id of the existing Databricks job.
+            https://docs.databricks.com/api/latest/jobs.html#run-now
+        - json (dict, optional): A JSON object containing API parameters which will be passed
+            directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
+            (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
+            be merged with this json dictionary if they are provided.
+            If there are conflicts during the merge, the named parameters will
+            take precedence and override the top level json keys. (templated)
+            https://docs.databricks.com/api/latest/jobs.html#run-now
+        - notebook_params (dict, optional): A dict from keys to values for jobs with notebook task,
+            e.g. "notebook_params": {"name": "john doe", "age":  "35"}.
+            The map is passed to the notebook and will be accessible through the
+            dbutils.widgets.get function. See Widgets for more information.
+            If not specified upon run-now, the triggered run will use the
+            job’s base parameters. notebook_params cannot be
+            specified in conjunction with jar_params. The json representation
+            of this field (i.e. {"notebook_params":{"name":"john doe","age":"35"}})
+            cannot exceed 10,000 bytes.
+            https://docs.databricks.com/user-guide/notebooks/widgets.html
+        - python_params (list[str], optional): A list of parameters for jobs with python tasks,
+            e.g. "python_params": ["john doe", "35"].
+            The parameters will be passed to python file as command line parameters.
+            If specified upon run-now, it would overwrite the parameters specified in
+            job setting.
+            The json representation of this field (i.e. {"python_params":["john doe","35"]})
+            cannot exceed 10,000 bytes.
+            https://docs.databricks.com/api/latest/jobs.html#run-now
+        - spark_submit_params (list[str], optional): A list of parameters for jobs with spark submit task,
+            e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
+            The parameters will be passed to spark-submit script as command line parameters.
+            If specified upon run-now, it would overwrite the parameters specified
+            in job setting.
+            The json representation of this field cannot exceed 10,000 bytes.
+            https://docs.databricks.com/api/latest/jobs.html#run-now
+        - timeout_seconds (int, optional): The timeout for this run. By default a value of 0 is used
+            which means to have no timeout.
+            This field will be templated.
+        - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
+            this run. By default the task will poll every 30 seconds.
+        - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
+            unreachable. Its value must be greater than or equal to 1.
+        - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
+            might be a floating point number).
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        databricks_conn_secret: dict = None,
+        job_id: str = None,
+        json: dict = None,
+        notebook_params: dict = None,
+        python_params: List[str] = None,
+        spark_submit_params: List[str] = None,
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: float = 1,
+        **kwargs
+    ) -> None:
+
+        self.databricks_conn_secret = databricks_conn_secret
+        self.json = json or {}
+        self.notebook_params = notebook_params
+        self.python_params = python_params
+        self.spark_submit_params = spark_submit_params
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+
+        self.run_id = None
+
+        super().__init__(**kwargs)
+
+    def get_hook(self):
+        return DatabricksHook(
+            self.databricks_conn_secret,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+        )
+
+    @defaults_from_attrs(
+        "databricks_conn_secret",
+        "job_id",
+        "json",
+        "notebook_params",
+        "python_params",
+        "spark_submit_params",
+        "polling_period_seconds",
+        "databricks_retry_limit",
+        "databricks_retry_delay",
+    )
+    def run(
+        databricks_conn_secret: dict = None,
+        job_id: str = None,
+        json: dict = None,
+        notebook_params: dict = None,
+        python_params: List[str] = None,
+        spark_submit_params: List[str] = None,
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: float = 1,
+    ) -> str:
+        """
+        Task run method.
+
+        Args:
+            - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
+                Structure must be a string of valid JSON. To use token based authentication, provide
+                the key ``token`` in the string for the connection and create the key ``host``.
+                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+                OR
+                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+                See documentation of the ``DatabricksSubmitRun`` Task to see how to pass in the connection string using ``PrefectSecret``.
+            - job_id (str, optional): The job_id of the existing Databricks job.
+                https://docs.databricks.com/api/latest/jobs.html#run-now
+            - json (dict, optional): A JSON object containing API parameters which will be passed
+                directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
+                (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
+                be merged with this json dictionary if they are provided.
+                If there are conflicts during the merge, the named parameters will
+                take precedence and override the top level json keys. (templated)
+                https://docs.databricks.com/api/latest/jobs.html#run-now
+            - notebook_params (dict, optional): A dict from keys to values for jobs with notebook task,
+                e.g. "notebook_params": {"name": "john doe", "age":  "35"}.
+                The map is passed to the notebook and will be accessible through the
+                dbutils.widgets.get function. See Widgets for more information.
+                If not specified upon run-now, the triggered run will use the
+                job’s base parameters. notebook_params cannot be
+                specified in conjunction with jar_params. The json representation
+                of this field (i.e. {"notebook_params":{"name":"john doe","age":"35"}})
+                cannot exceed 10,000 bytes.
+                https://docs.databricks.com/user-guide/notebooks/widgets.html
+            - python_params (list[str], optional): A list of parameters for jobs with python tasks,
+                e.g. "python_params": ["john doe", "35"].
+                The parameters will be passed to python file as command line parameters.
+                If specified upon run-now, it would overwrite the parameters specified in
+                job setting.
+                The json representation of this field (i.e. {"python_params":["john doe","35"]})
+                cannot exceed 10,000 bytes.
+                https://docs.databricks.com/api/latest/jobs.html#run-now
+            - spark_submit_params (list[str], optional): A list of parameters for jobs with spark submit task,
+                e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
+                The parameters will be passed to spark-submit script as command line parameters.
+                If specified upon run-now, it would overwrite the parameters specified
+                in job setting.
+                The json representation of this field cannot exceed 10,000 bytes.
+                https://docs.databricks.com/api/latest/jobs.html#run-now
+            - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
+                this run. By default the task will poll every 30 seconds.
+            - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
+                unreachable. Its value must be greater than or equal to 1.
+            - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
+                might be a floating point number).
+
+        Returns:
+            - run_id (str): Run id of the submitted run
+        """
+
+        assert (
+            databricks_conn_secret
+        ), "A databricks connection string must be supplied as a dictionary or through Prefect Secrets (preferred)."
+        assert isinstance(
+            databricks_conn_secret, dict
+        ), "`databricks_conn_secret` must be supplied as a valid dictionary."
+
+        # Initialize Databricks Connections
+        hook = self.get_hook()
+
+        if self.job_id is not None:
+            self.json["job_id"] = self.job_id
+        if self.notebook_params is not None:
+            self.json["notebook_params"] = self.notebook_params
+        if self.python_params is not None:
+            self.json["python_params"] = self.python_params
+        if self.spark_submit_params is not None:
+            self.json["spark_submit_params"] = self.spark_submit_params
+
+        # Validate the dictionary to a valid JSON object
+        self.json = _deep_string_coerce(self.json)
+
+        # Submit the job
+        self.run_id = hook.run_now(self.json)
         _handle_databricks_task_execution(self, hook, self.logger)
 
         return self.run_id
