@@ -708,6 +708,16 @@ class TestRunCount:
         assert isinstance(state3.result[t2], Failed)
 
 
+def test_flow_runner_uses_default_executor_on_flow_if_present():
+    t = SuccessTask()
+    with Flow(name="test", executor=Executor()) as flow:
+        result = t()
+
+    with raise_on_exception():
+        with pytest.raises(NotImplementedError):
+            FlowRunner(flow=flow).run(executor=Executor())
+
+
 def test_flow_runner_uses_user_provided_executor():
     t = SuccessTask()
     with Flow(name="test") as f:
