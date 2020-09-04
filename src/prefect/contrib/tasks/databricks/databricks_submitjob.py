@@ -445,7 +445,6 @@ class DatabricksRunNow(Task):
     - `spark_submit_params`
 
     Args:
-
         - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
             Structure must be a string of valid JSON. To use token based authentication, provide
             the key `token` in the string for the connection and create the key `host`.
