@@ -92,7 +92,7 @@ class DaskExecutor(Executor):
             class name (e.g. `"distributed.LocalCluster"`), or the class itself.
         - cluster_kwargs (dict, optional): addtional kwargs to pass to the
            `cluster_class` when creating a temporary dask cluster.
-        - adapt_kwargs (dict, optional): additional kwargs to pass to ``cluster.adapt`
+        - adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
             when creating a temporary dask cluster. Note that adaptive scaling
             is only enabled if `adapt_kwargs` are provided.
         - client_kwargs (dict, optional): additional kwargs to use when creating a

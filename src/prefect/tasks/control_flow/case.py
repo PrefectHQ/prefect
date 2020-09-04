@@ -12,18 +12,18 @@ __all__ = ("case",)
 class case(object):
     """A conditional block in a flow definition.
 
-    Used as a context-manager, ``case`` creates a block of tasks that are only
-    run if the result of ``task`` is equal to ``value``.
+    Used as a context-manager, `case` creates a block of tasks that are only
+    run if the result of `task` is equal to `value`.
 
     Args:
         - task (Task): The task to use in the comparison
-        - value (Any): A constant the result of ``task`` will be compared with
+        - value (Any): A constant the result of `task` will be compared with
 
     Example:
 
-    A ``case`` block is similar to Python's if-blocks. It delimits a block
-    of tasks that will only be run if the result of ``task`` is equal to
-    ``value``:
+    A `case` block is similar to Python's if-blocks. It delimits a block
+    of tasks that will only be run if the result of `task` is equal to
+    `value`:
 
     ```python
     # Standard python code
@@ -34,12 +34,12 @@ class case(object):
     # Equivalent prefect code
     with case(task, value):
         # Tasks created in this block are only run if the
-        # result of ``task`` is equal to ``value``
+        # result of `task` is equal to `value`
         res = run_if_task_equals_value()
         other_task(run)
     ```
 
-    The ``value`` argument can be any non-task object. Here we branch on a
+    The `value` argument can be any non-task object. Here we branch on a
     string result:
 
     ```python
