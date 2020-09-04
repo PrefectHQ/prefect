@@ -18,6 +18,7 @@ def system_information() -> dict:
             platform=platform.platform(),
             python_version=platform.python_version(),
             prefect_version=prefect.__version__,
+            prefect_backend=prefect.config.backend,
         )
     )
 
