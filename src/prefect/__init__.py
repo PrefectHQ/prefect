@@ -17,6 +17,7 @@ from prefect.tasks.core.resource_manager import resource_manager
 
 from prefect.utilities.tasks import task, tags, apply_map
 from prefect.utilities.edges import mapped, unmapped, flatten
+from prefect.utilities.logging import get_logger
 
 import prefect.serialization
 import prefect.agent
@@ -33,3 +34,5 @@ try:
     _signal.signal(29, _sig_handler)
 except:
     pass
+
+context.logger = get_logger()
