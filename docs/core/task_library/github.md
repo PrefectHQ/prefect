@@ -17,6 +17,12 @@ Task for opening / creating new GitHub issues using the v3 version of the GitHub
 
 [API Reference](/api/latest/tasks/github.html#prefect-tasks-github-prs-opengithubissue)
 
+## CreateIssueComment <Badge text="task"/>
+
+Task for creating a comment on the specified GitHub issue using the v3 version of the GitHub REST API.
+
+[API Reference](/api/latest/tasks/github.html#prefect-tasks-github-prs-createissuecomment)
+
 ## GetRepoInfo <Badge text="task"/>
 
 Task for retrieving GitHub repository information using the v3 version of the GitHub REST API.
