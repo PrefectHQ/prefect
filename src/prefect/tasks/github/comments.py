@@ -1,5 +1,5 @@
 import json
-from typing import Any, List
+from typing import Any
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
