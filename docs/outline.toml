@@ -276,7 +276,7 @@ classes = ["FlowRunTask"]
 [pages.tasks.github]
 title = "GitHub Tasks"
 module = "prefect.tasks.github"
-classes = ["CreateGitHubPR", "OpenGitHubIssue", "GetRepoInfo", "CreateBranch"]
+classes = ["CreateGitHubPR", "OpenGitHubIssue", "CreateIssueComment", "GetRepoInfo", "CreateBranch"]
 
 [pages.tasks.kubernetes]
 title = "Kubernetes Tasks"
