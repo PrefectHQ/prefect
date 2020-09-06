@@ -372,7 +372,7 @@ def start(
 
 def ascii_welcome(ui_port="8080"):
     ui_url = click.style(
-        f"https://localhost:{ui_port}", fg="white", bg="blue", bold=True
+        f"http://localhost:{ui_port}", fg="white", bg="blue", bold=True
     )
     docs_url = click.style("https://docs.prefect.io", fg="white", bg="blue", bold=True)
 
