@@ -27,7 +27,7 @@ class AWSSecretsManager(SecretBase):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("secret")
-    def run(self, secret: str = None, credentials: str = None) -> dict:
+    def run(self, secret: str = None, credentials: str = None, **kwargs) -> dict:
         """
         Task run method.
 
@@ -46,7 +46,7 @@ class AWSSecretsManager(SecretBase):
         if secret is None:
             raise ValueError("A secret name must be provided.")
 
-        secrets_client = get_boto_client("secretsmanager", credentials=credentials)
+        secrets_client = get_boto_client("secretsmanager", credentials=credentials, **kwargs)
 
         secret_string = secrets_client.get_secret_value(SecretId=secret)["SecretString"]
 
