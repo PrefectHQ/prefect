@@ -107,7 +107,7 @@ class LambdaCreate(Task):
 
         super().__init__(**kwargs)
 
-    def run(self, credentials: dict = None):
+    def run(self, credentials: dict = None, boto_kwargs: dict = None):
         """
         Task run method. Creates Lambda function.
 
@@ -117,12 +117,19 @@ class LambdaCreate(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
+            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
+                Task constructor that are forwarded as kwargs to the boto client
 
         Returns:
             - json: response from AWS CreateFunction endpoint
         """
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        if boto_kwargs is None:
+            boto_kwargs = {}
+
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **boto_kwargs
+        )
 
         # create lambda function
         response = lambda_client.create_function(
@@ -164,7 +171,7 @@ class LambdaDelete(Task):
         self.qualifier = qualifier
         super().__init__(**kwargs)
 
-    def run(self, credentials: dict = None):
+    def run(self, credentials: dict = None, boto_kwargs: dict = None):
         """
         Task run method. Deletes Lambda function.
 
@@ -174,12 +181,19 @@ class LambdaDelete(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
+            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
+                Task constructor that are forwarded as kwargs to the boto client
 
         Returns:
             - dict: response from AWS DeleteFunction endpoint
         """
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        if boto_kwargs is None:
+            boto_kwargs = {}
+
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **boto_kwargs
+        )
 
         # delete function, depending on if qualifier provided
         if len(self.qualifier) > 0:
@@ -255,7 +269,11 @@ class LambdaInvoke(Task):
 
     @defaults_from_attrs("function_name", "payload")
     def run(
-        self, function_name: str = None, payload: str = None, credentials: dict = None
+        self,
+        function_name: str = None,
+        payload: str = None,
+        credentials: dict = None,
+        boto_kwargs: dict = None,
     ):
         """
         Task run method. Invokes Lambda function.
@@ -269,12 +287,18 @@ class LambdaInvoke(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
+            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
+                Task constructor that are forwarded as kwargs to the boto client
 
         Returns:
             - dict : response from AWS Invoke endpoint
         """
+        if boto_kwargs is None:
+            boto_kwargs = {}
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **boto_kwargs
+        )
 
         # invoke lambda function
         response = lambda_client.invoke(
@@ -320,7 +344,7 @@ class LambdaList(Task):
         self.max_items = max_items
         super().__init__(**kwargs)
 
-    def run(self, credentials: dict = None):
+    def run(self, credentials: dict = None, boto_kwargs: dict = None):
         """
         Task fun method. Lists all Lambda functions.
 
@@ -330,12 +354,18 @@ class LambdaList(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
+            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
+                Task constructor that are forwarded as kwargs to the boto client
 
         Returns:
             - dict : a list of Lambda functions from AWS ListFunctions endpoint
         """
+        if boto_kwargs is None:
+            boto_kwargs = {}
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **boto_kwargs
+        )
 
         # list functions, optionally passing in marker if not None
         if self.marker:
