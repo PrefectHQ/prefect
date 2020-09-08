@@ -13,6 +13,7 @@ class StepActivate(Task):
             your AWS account, region, and state machine for 90 days
         - execution_input (str, optional): string that contains the JSON input data for
             the execution
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -22,14 +23,21 @@ class StepActivate(Task):
         state_machine_arn: str,
         execution_name: str,
         execution_input: str = "{}",
+        boto_kwargs: dict = None,
         **kwargs
     ):
         self.state_machine_arn = state_machine_arn
         self.execution_name = execution_name
         self.execution_input = execution_input
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
-    def run(self, credentials: dict = None, boto_kwargs: dict = None):
+    def run(self, credentials: dict = None):
         """
         Task run method. Activates AWS Step function.
 
@@ -39,17 +47,13 @@ class StepActivate(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
-            - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
 
         Returns:
             - dict: response from AWS StartExecution endpoint
         """
 
-        if boto_kwargs is None:
-            boto_kwargs = {}
-
         step_client = get_boto_client(
-            "stepfunctions", credentials=credentials, **boto_kwargs
+            "stepfunctions", credentials=credentials, **self.boto_kwargs
         )
 
         response = step_client.start_execution(
