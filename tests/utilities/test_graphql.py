@@ -335,6 +335,26 @@ def test_use_true_to_indicate_field_name():
     )
 
 
+def test_use_ellipsis_to_indicate_field_name():
+    inner = OrderedDict()
+    inner["id"] = ...
+    inner["authors"] = {"id"}
+
+    verify(
+        query={"query": {"books": inner}},
+        expected="""
+            query {
+                books {
+                    id
+                    authors {
+                        id
+                    }
+                }
+            }
+        """,
+    )
+
+
 def test_box_query_parsing():
     verify(
         query=Box(query=Box(books={"id"})),

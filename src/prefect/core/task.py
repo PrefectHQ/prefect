@@ -844,7 +844,7 @@ class Task(metaclass=SignatureValidator):
         self.set_dependencies(upstream_tasks=[other])
         return self
 
-    # Maginc Method Operators  -----------------------------------------------------
+    # Magic Method Operators  -----------------------------------------------------
 
     def __add__(self, other: object) -> "Task":
         """

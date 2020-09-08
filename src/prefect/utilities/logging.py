@@ -248,7 +248,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     return _create_logger(name)
 
 
-prefect_logger = configure_logging()
+context.logger = prefect_logger = configure_logging()
 
 
 def configure_extra_loggers() -> None:
