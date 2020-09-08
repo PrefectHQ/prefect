@@ -1,0 +1,5 @@
+fix:
+  - "fix typo, Maginc -> Magic - [#3279](https://github.com/PrefectHQ/prefect/pull/3279)"
+
+contributor:
+  - "[Bas Nijholt](https://github.com/basnijholt)"
