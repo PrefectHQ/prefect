@@ -145,7 +145,13 @@ class S3List(Task):
 
     @defaults_from_attrs("bucket")
     def run(
-        self, key: str, delimiter: str = "", credentials: str = None, bucket: str = None
+        self,
+        key: str,
+        delimiter: str = "",
+        page_size: int = None,
+        max_items: int = None,
+        credentials: str = None,
+        bucket: str = None,
     ):
         """
         Task run method.
@@ -153,12 +159,14 @@ class S3List(Task):
         Args:
             - key (str): the name of the Key within this bucket to retrieve
             - delimiter (str): indicates the key hierarchy
+            - page_size (int): controls the number of items returned per page of each result
+            - max_items (int): limits the maximum number of total items returned during pagination
             - credentials (dict, optional): your AWS credentials passed from an upstream
                 Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
-            - bucket (str, optional): the name of the S3 Bucket to list the files of.
+            - bucket (str, optional): the name of the S3 Bucket to list the files of
 
         Returns:
             - str: the contents of this Key / Bucket, as a string
@@ -168,15 +176,14 @@ class S3List(Task):
 
         s3_client = get_boto_client("s3", credentials=credentials)
 
+        config = {"PageSize": page_size, "MaxItems": max_items}
         paginator = s3_client.get_paginator("list_objects_v2")
-        results = paginator.paginate(Bucket=bucket, Prefix=key, Delimiter=delimiter)
-        files = []
+        results = paginator.paginate(
+            Bucket=bucket, Prefix=key, Delimiter=delimiter, PaginationConfig=config
+        )
 
+        files = []
         for page in results:
-            if "Contents" in page:
-                # Only list objects with non-zero size
-                files.extend(
-                    [obj["Key"] for obj in page["Contents"] if obj["Size"] > 0]
-                )
+            files.extend(obj["Key"] for obj in page.get("Contents", []))
 
         return files
