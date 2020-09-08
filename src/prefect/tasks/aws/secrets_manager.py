@@ -38,6 +38,8 @@ class AWSSecretsManager(SecretBase):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
+            - **kwargs (dict, optional): additional keyword arguments to pass to the
+                Task constructor
 
         Returns:
             - dict: the contents of this secret, as a dictionary
