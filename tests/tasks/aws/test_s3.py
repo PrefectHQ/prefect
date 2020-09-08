@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
-from prefect.tasks.aws import S3Download, S3Upload
+from prefect.tasks.aws import S3Download, S3Upload, S3List
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -49,3 +49,18 @@ class TestS3Upload:
             ):
                 task.run(data="")
         assert type(client.upload_fileobj.call_args[1]["Key"]) == str
+
+
+class TestS3List:
+    def test_initialization(self):
+        task = S3List()
+
+    def test_initialization_passes_to_task_constructor(self):
+        task = S3List(name="test", tags=["AWS"])
+        assert task.name == "test"
+        assert task.tags == {"AWS"}
+
+    def test_raises_if_bucket_not_eventually_provided(self):
+        task = S3List()
+        with pytest.raises(ValueError, match="bucket"):
+            task.run(key="fake/path")
