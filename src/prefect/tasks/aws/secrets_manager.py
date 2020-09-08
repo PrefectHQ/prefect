@@ -46,7 +46,9 @@ class AWSSecretsManager(SecretBase):
         if secret is None:
             raise ValueError("A secret name must be provided.")
 
-        secrets_client = get_boto_client("secretsmanager", credentials=credentials, **kwargs)
+        secrets_client = get_boto_client(
+            "secretsmanager", credentials=credentials, **kwargs
+        )
 
         secret_string = secrets_client.get_secret_value(SecretId=secret)["SecretString"]
 
