@@ -46,8 +46,7 @@ class S3Download(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to download from
-            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor that are forwarded as kwargs to the boto client
+            - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
 
         Returns:
             - str: the contents of this Key / Bucket, as a string
@@ -114,8 +113,7 @@ class S3Upload(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to upload to
-            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor that are forwarded as kwargs to the boto client
+            - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
 
         Returns:
             - str: the name of the Key the data payload was uploaded to

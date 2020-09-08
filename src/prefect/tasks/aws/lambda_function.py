@@ -117,8 +117,7 @@ class LambdaCreate(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
-            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor that are forwarded as kwargs to the boto client
+            - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
 
         Returns:
             - json: response from AWS CreateFunction endpoint
@@ -181,8 +180,7 @@ class LambdaDelete(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
-            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor that are forwarded as kwargs to the boto client
+            - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
 
         Returns:
             - dict: response from AWS DeleteFunction endpoint
@@ -287,8 +285,7 @@ class LambdaInvoke(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
-            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor that are forwarded as kwargs to the boto client
+            - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
 
         Returns:
             - dict : response from AWS Invoke endpoint
@@ -354,8 +351,7 @@ class LambdaList(Task):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
-            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor that are forwarded as kwargs to the boto client
+            - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
 
         Returns:
             - dict : a list of Lambda functions from AWS ListFunctions endpoint
