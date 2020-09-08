@@ -146,7 +146,7 @@ class S3List(Task):
     @defaults_from_attrs("bucket")
     def run(
         self,
-        key: str,
+        prefix: str,
         delimiter: str = "",
         page_size: int = None,
         max_items: int = None,
@@ -157,7 +157,7 @@ class S3List(Task):
         Task run method.
 
         Args:
-            - key (str): the name of the Key within this bucket to retrieve
+            - prefix (str): the name of the prefix within this bucket to retrieve objects from
             - delimiter (str): indicates the key hierarchy
             - page_size (int): controls the number of items returned per page of each result
             - max_items (int): limits the maximum number of total items returned during pagination
@@ -169,7 +169,7 @@ class S3List(Task):
             - bucket (str, optional): the name of the S3 Bucket to list the files of
 
         Returns:
-            - str: the contents of this Key / Bucket, as a string
+            - list[str]: A list of keys that match the given prefix.
         """
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
@@ -179,7 +179,7 @@ class S3List(Task):
         config = {"PageSize": page_size, "MaxItems": max_items}
         paginator = s3_client.get_paginator("list_objects_v2")
         results = paginator.paginate(
-            Bucket=bucket, Prefix=key, Delimiter=delimiter, PaginationConfig=config
+            Bucket=bucket, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
         files = []

@@ -63,4 +63,4 @@ class TestS3List:
     def test_raises_if_bucket_not_eventually_provided(self):
         task = S3List()
         with pytest.raises(ValueError, match="bucket"):
-            task.run(key="fake/path")
+            task.run(prefix="fake/path")
