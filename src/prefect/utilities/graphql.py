@@ -117,14 +117,14 @@ def parse_graphql(document: Any) -> str:
     }
     ```
 
-    For convenience, if a dictionary key is True, it is ignored and the key alone is used as
-    a field name
+    For convenience, if a dictionary key is either True or Ellipsis(...), it is ignored and
+    the key alone is used as a field name.
 
     ```python
     {'query':{
         'books': {
             'id': True,
-            'name': True,
+            'name': ...,
             'author': {
                 'id',
                 'name',
@@ -177,7 +177,7 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
     elif isinstance(document, dict):
         result = []
         for key, value in document.items():
-            if value is True:
+            if value in (True, Ellipsis):
                 result.append(key)
             else:
                 result.append(
