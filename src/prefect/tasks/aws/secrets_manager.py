@@ -27,7 +27,9 @@ class AWSSecretsManager(SecretBase):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("secret")
-    def run(self, secret: str = None, credentials: str = None, **kwargs) -> dict:
+    def run(
+        self, secret: str = None, credentials: str = None, boto_kwargs: dict = None
+    ) -> dict:
         """
         Task run method.
 
@@ -38,8 +40,8 @@ class AWSSecretsManager(SecretBase):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
-            - **kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor
+            - boto_kwargs (dict, optional): additional keyword arguments to pass to the
+                Task constructor that are forwarded as kwargs to the boto client
 
         Returns:
             - dict: the contents of this secret, as a dictionary
@@ -48,8 +50,11 @@ class AWSSecretsManager(SecretBase):
         if secret is None:
             raise ValueError("A secret name must be provided.")
 
+        if boto_kwargs is None:
+            boto_kwargs = {}
+
         secrets_client = get_boto_client(
-            "secretsmanager", credentials=credentials, **kwargs
+            "secretsmanager", credentials=credentials, **boto_kwargs
         )
 
         secret_string = secrets_client.get_secret_value(SecretId=secret)["SecretString"]
