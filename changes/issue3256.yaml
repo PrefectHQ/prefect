@@ -1,0 +1,3 @@
+enhancement:
+  - "Adds logger to global context to remove friction on running task unit tests  - [#3256](https://https://github.com/PrefectHQ/prefect/issues/3256)"
+
