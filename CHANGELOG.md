@@ -6,7 +6,7 @@ Released on September 9, 2020.
 
 ### Enhancements
 
-- Adds logger to global context to remove friction on running task unit tests  - [#3256](https://https://github.com/PrefectHQ/prefect/issues/3256)
+- Adds logger to global context to remove friction on running task unit tests - [#3256](https://https://github.com/PrefectHQ/prefect/issues/3256)
 - Expand FunctionTask AttributeError Message - [#3248](https://github.com/PrefectHQ/prefect/pull/3248)
 - Add backend info to diagnostics - [#3265](https://github.com/PrefectHQ/prefect/pull/3265)
 - Ellipsis Support for GraphQL DSL - [#3268](https://github.com/PrefectHQ/prefect/pull/3268)
