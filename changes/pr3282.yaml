@@ -1,0 +1,4 @@
+task:
+    - "Add new `S3List` task for listing keys in an S3 bucket - [#3282](https://github.com/PrefectHQ/prefect/pull/3282)."
+contributor:
+    - "[Max Del Giudice](https://github.com/madelgi)"
