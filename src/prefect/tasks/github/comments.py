@@ -20,7 +20,7 @@ class CreateIssueComment(Task):
             init method
 
     References:
-        - [Create an issue
+        - See [Create an issue
           comment](https://developer.github.com/v3/issues/comments/#create-an-issue-comment)
     """
 
