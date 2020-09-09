@@ -15,7 +15,7 @@ Released on September 9, 2020.
 
 - Add `DatabricksRunNow` task for running Spark jobs on Databricks - [#3247](https://github.com/PrefectHQ/prefect/pull/3247)
 - Add GitHub `CreateIssueComment` task - [#3269](https://github.com/PrefectHQ/prefect/pull/3269)
-- Add `S3List` task for listing keys in an S3 bucket - [#3282](https://github.com/PrefectHQ/prefect/pull/3282).
+- Add `S3List` task for listing keys in an S3 bucket - [#3282](https://github.com/PrefectHQ/prefect/pull/3282)
 - Add `boto_kwargs` to AWS tasks - [#3275](https://github.com/PrefectHQ/prefect/pull/3275)
 
 ### Fixes
