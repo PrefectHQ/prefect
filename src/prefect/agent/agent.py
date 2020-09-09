@@ -202,26 +202,26 @@ class Agent:
         ):
             raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
-    def _register_agent_instance(self) -> str:
+    def _register_agent(self) -> str:
         """
-        Register this agent with a backend API and retrieve the instance ID
+        Register this agent with a backend API and retrieve the ID
 
         Returns:
             - The agent ID as a string
         """
-        agent_instance_id = self.client.register_agent_instance(
+        agent_id = self.client.register_agent(
             agent_type=type(self).__name__,
             name=self.name,
             labels=self.labels,
             agent_id=self.agent_id,
         )  # type: ignore
 
-        self.logger.debug(f"Agent instance ID: {agent_instance_id}")
+        self.logger.debug(f"Agent ID: {agent_id}")
 
         if self.agent_id:
             self._retrieve_agent_config()
 
-        return agent_instance_id
+        return agent_id
 
     def _retrieve_agent_config(self) -> dict:
         """
@@ -242,9 +242,7 @@ class Agent:
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
-        self.client.attach_headers(
-            {"X-PREFECT-AGENT-ID": self._register_agent_instance()}
-        )
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         try:
             self.setup()

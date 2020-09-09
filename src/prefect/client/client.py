@@ -1492,7 +1492,7 @@ class Client:
 
         return result.data.register_agent.id
 
-    def register_agent_instance(
+    def register_agent(
         self,
         agent_type: str,
         name: str = None,
@@ -1500,7 +1500,7 @@ class Client:
         agent_id: str = None,
     ) -> str:
         """
-        Register an agent instance with a backend API
+        Register an agent with a backend API
 
         Args:
             - agent_type (str): The type of agent being registered
@@ -1512,8 +1512,8 @@ class Client:
             - The agent ID as a string
         """
         mutation = {
-            "mutation($input: register_agent_instance_input!)": {
-                "register_agent_instance(input: $input)": {"id"}
+            "mutation($input: register_agent_input!)": {
+                "register_agent(input: $input)": {"id"}
             }
         }
 
@@ -1530,10 +1530,10 @@ class Client:
             ),
         )
 
-        if not result.data.register_agent_instance.id:
+        if not result.data.register_agent.id:
             raise ValueError("Error registering agent")
 
-        return result.data.register_agent_instance.id
+        return result.data.register_agent.id
 
     def get_agent_config(self, agent_id: str) -> dict:
         """
