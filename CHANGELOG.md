@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.13.6 <Badge text="beta" type="success" />
+
+Released on September 9, 2020.
+
+### Enhancements
+
+- Adds logger to global context to remove friction on running task unit tests  - [#3256](https://https://github.com/PrefectHQ/prefect/issues/3256)
+- Expand FunctionTask AttributeError Message - [#3248](https://github.com/PrefectHQ/prefect/pull/3248)
+- Add backend info to diagnostics - [#3265](https://github.com/PrefectHQ/prefect/pull/3265)
+- Ellipsis Support for GraphQL DSL - [#3268](https://github.com/PrefectHQ/prefect/pull/3268)
+
+### Task Library
+
+- Add `DatabricksRunNow` task for running Spark jobs on Databricks - [#3247](https://github.com/PrefectHQ/prefect/pull/3247)
+- Add GitHub `CreateIssueComment` task - [#3269](https://github.com/PrefectHQ/prefect/pull/3269)
+- Add `S3List` task for listing keys in an S3 bucket - [#3282](https://github.com/PrefectHQ/prefect/pull/3282).
+- Add `boto_kwargs` to AWS tasks - [#3275](https://github.com/PrefectHQ/prefect/pull/3275)
+
+### Fixes
+
+- Make identifier optional in `KubernetesAgent.replace_job_spec_yaml()` - [#3251](https://github.com/PrefectHQ/prefect/pull/3251)
+- Change `https://localhost` to `http://localhost` in the welcome message - [#3271](https://github.com/PrefectHQ/prefect/pull/3271)
+
+### Contributors
+
+- [Ashmeet Lamba](https://github.com/ashmeet13)
+- [Ashton Sidhu](https://github.com/Ashton-Sidhu)
+- [Bas Nijholt](https://github.com/basnijholt)
+- [Harutaka Kawamura](https://github.com/harupy)
+- [James Lamb](https://github.com/jameslamb)
+- [Max Del Giudice](https://github.com/madelgi)
+- [Robin Beer](https://github.com/Zaubeerer)
+- [Rowan Molony](https://github.com/rdmolony)
+- [Shunwen](https://github.com/shunwen)
+
 ## 0.13.5 <Badge text="beta" type="success" />
 
 Released on September 1, 2020.

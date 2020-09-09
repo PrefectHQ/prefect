@@ -1,4 +1,0 @@
-feature:
-  - "Add CreateIssueComment task - [#3269](https://github.com/PrefectHQ/prefect/pull/3269)."
-contributor:
-  - "[Harutaka Kawamura](https://github.com/harupy)"
