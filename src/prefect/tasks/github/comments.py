@@ -20,8 +20,8 @@ class CreateIssueComment(Task):
             init method
 
     References:
-        - See [Create an issue
-          comment](https://developer.github.com/v3/issues/comments/#create-an-issue-comment)
+        [Create an issue
+        comment](https://developer.github.com/v3/issues/comments/#create-an-issue-comment)
     """
 
     def __init__(
