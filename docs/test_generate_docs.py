@@ -280,6 +280,9 @@ def test_format_list_on_normal_doc():
 
     Raises:
         - NotImplementedError: because it doesnt exist
+
+    References:
+        - Example: https://example.com
     """
     formatted_doc = format_lists(doc)
     assert formatted_doc == (
@@ -292,7 +295,10 @@ def test_format_list_on_normal_doc():
         'Returns:\n        <ul class="args">'
         '<li class="args">whatever you want</li></ul>'
         '\n\n    Raises:\n        <ul class="args">'
-        '<li class="args">`NotImplementedError`: because it doesnt exist\n    </li></ul>'
+        '<li class="args">`NotImplementedError`: because it doesnt exist</li></ul>    '
+        'References:\n        <ul class="args">'
+        '<li class="args">`Example`: https://example.com\n    </li></ul>'
+        ""
     )
 
 
@@ -467,7 +473,7 @@ def test_format_doc_escapes_asteriks_inside_tables():
 )
 def test_sections_have_formatted_headers_for_function_docs(fn):
     doc = format_doc(fn, in_table=True)
-    for section in ["Args", "Returns", "Raises", "Example"]:
+    for section in ["Args", "Returns", "Raises", "References", "Example"]:
         option1 = ">**{}**:".format(section)
         option2 = "\n**{}**:".format(section)
         assert (section in doc) is any(
@@ -488,7 +494,7 @@ def test_sections_have_formatted_headers_for_function_docs(fn):
 )
 def test_sections_have_formatted_headers_for_class_docs(obj):
     doc = format_doc(obj)
-    for section in ["Args", "Returns", "Raises", "Example"]:
+    for section in ["Args", "Returns", "Raises", "References", "Example"]:
         option1 = ">**{}**:".format(section)
         option2 = "\n**{}**:".format(section)
         option3 = "**{}**:".format(section)
