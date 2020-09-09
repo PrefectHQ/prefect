@@ -298,7 +298,7 @@ def test_format_list_on_normal_doc():
         '<li class="args">`NotImplementedError`: because it doesnt exist</li></ul>    '
         'References:\n        <ul class="args">'
         '<li class="args">`Example`: https://example.com\n    </li></ul>'
-        ''
+        ""
     )
 
 
