@@ -46,6 +46,7 @@ class LambdaCreate(Task):
             subset of incoming requests with Amazon X-Ray
         - layers (List[str], optional): a list of function layers to add to
             the function's execution environment, specify each layer by its ARN
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -72,6 +73,7 @@ class LambdaCreate(Task):
         function_tags: dict = None,
         tracing_config: str = "PassThrough",
         layers: list = None,
+        boto_kwargs: dict = None,
         **kwargs
     ):
         self.function_name = function_name
@@ -105,6 +107,11 @@ class LambdaCreate(Task):
         self.tracing_config = tracing_config
         self.layers = layers
 
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
     def run(self, credentials: dict = None):
@@ -122,7 +129,9 @@ class LambdaCreate(Task):
             - json: response from AWS CreateFunction endpoint
         """
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **self.boto_kwargs
+        )
 
         # create lambda function
         response = lambda_client.create_function(
@@ -155,13 +164,26 @@ class LambdaDelete(Task):
         - function_name (str): name of the Lambda function to delete
         - qualifier (str, optional): specify a version to delete, if not
             provided, the function will be deleted entirely
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
-    def __init__(self, function_name: str, qualifier: str = "", **kwargs):
+    def __init__(
+        self,
+        function_name: str,
+        qualifier: str = "",
+        boto_kwargs: dict = None,
+        **kwargs
+    ):
         self.function_name = function_name
         self.qualifier = qualifier
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
     def run(self, credentials: dict = None):
@@ -179,7 +201,9 @@ class LambdaDelete(Task):
             - dict: response from AWS DeleteFunction endpoint
         """
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **self.boto_kwargs
+        )
 
         # delete function, depending on if qualifier provided
         if len(self.qualifier) > 0:
@@ -210,6 +234,7 @@ class LambdaInvoke(Task):
             Lambda function as input
         - qualifier (str, optional): specify a version or alias to invoke a
             published version of the function, defaults to $LATEST
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -222,6 +247,7 @@ class LambdaInvoke(Task):
         client_context: dict = None,
         payload: str = json.dumps(None),
         qualifier: str = "$LATEST",
+        boto_kwargs: dict = None,
         **kwargs
     ):
         self.function_name = function_name
@@ -233,6 +259,12 @@ class LambdaInvoke(Task):
 
         self.payload = payload
         self.qualifier = qualifier
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
     def _encode_lambda_context(self, custom=None, env=None, client=None):
@@ -255,7 +287,10 @@ class LambdaInvoke(Task):
 
     @defaults_from_attrs("function_name", "payload")
     def run(
-        self, function_name: str = None, payload: str = None, credentials: dict = None
+        self,
+        function_name: str = None,
+        payload: str = None,
+        credentials: dict = None,
     ):
         """
         Task run method. Invokes Lambda function.
@@ -274,7 +309,9 @@ class LambdaInvoke(Task):
             - dict : response from AWS Invoke endpoint
         """
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **self.boto_kwargs
+        )
 
         # invoke lambda function
         response = lambda_client.invoke(
@@ -302,6 +339,7 @@ class LambdaList(Task):
             by a previous request to retreive the next page of results
         - max_items (int, optional): specify a value between 1 and 50 to limit
             the number of functions in the response
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -312,12 +350,19 @@ class LambdaList(Task):
         function_version: str = "ALL",
         marker: str = None,
         max_items: int = 50,
+        boto_kwargs: dict = None,
         **kwargs
     ):
         self.master_region = master_region
         self.function_version = function_version
         self.marker = marker
         self.max_items = max_items
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
     def run(self, credentials: dict = None):
@@ -335,7 +380,9 @@ class LambdaList(Task):
             - dict : a list of Lambda functions from AWS ListFunctions endpoint
         """
 
-        lambda_client = get_boto_client("lambda", credentials=credentials)
+        lambda_client = get_boto_client(
+            "lambda", credentials=credentials, **self.boto_kwargs
+        )
 
         # list functions, optionally passing in marker if not None
         if self.marker:

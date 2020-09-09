@@ -18,12 +18,19 @@ class AWSSecretsManager(SecretBase):
 
     Args:
         - secret (str, optional): the name of the secret to retrieve
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
-    def __init__(self, secret: str = None, **kwargs):
+    def __init__(self, secret: str = None, boto_kwargs: dict = None, **kwargs):
         self.secret = secret
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
     @defaults_from_attrs("secret")
@@ -46,7 +53,9 @@ class AWSSecretsManager(SecretBase):
         if secret is None:
             raise ValueError("A secret name must be provided.")
 
-        secrets_client = get_boto_client("secretsmanager", credentials=credentials)
+        secrets_client = get_boto_client(
+            "secretsmanager", credentials=credentials, **self.boto_kwargs
+        )
 
         secret_string = secrets_client.get_secret_value(SecretId=secret)["SecretString"]
 

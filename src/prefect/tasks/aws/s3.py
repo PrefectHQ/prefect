@@ -19,16 +19,28 @@ class S3Download(Task):
 
     Args:
         - bucket (str, optional): the name of the S3 Bucket to download from
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
-    def __init__(self, bucket: str = None, **kwargs):
+    def __init__(self, bucket: str = None, boto_kwargs: dict = None, **kwargs):
         self.bucket = bucket
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
     @defaults_from_attrs("bucket")
-    def run(self, key: str, credentials: str = None, bucket: str = None):
+    def run(
+        self,
+        key: str,
+        credentials: str = None,
+        bucket: str = None,
+    ):
         """
         Task run method.
 
@@ -47,7 +59,7 @@ class S3Download(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials)
+        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
 
         stream = io.BytesIO()
 
@@ -73,17 +85,28 @@ class S3Upload(Task):
 
     Args:
         - bucket (str, optional): the name of the S3 Bucket to upload to
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
-    def __init__(self, bucket: str = None, **kwargs):
+    def __init__(self, bucket: str = None, boto_kwargs: dict = None, **kwargs):
         self.bucket = bucket
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
         super().__init__(**kwargs)
 
     @defaults_from_attrs("bucket")
     def run(
-        self, data: str, key: str = None, credentials: dict = None, bucket: str = None
+        self,
+        data: str,
+        key: str = None,
+        credentials: dict = None,
+        bucket: str = None,
     ):
         """
         Task run method.
@@ -105,7 +128,7 @@ class S3Upload(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials)
+        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
 
         # prepare data
         try:
