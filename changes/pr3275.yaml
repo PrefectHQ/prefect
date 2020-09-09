@@ -1,0 +1,6 @@
+enhancement:
+    - "Add boto_kwargs to AWS tasks - [#3275](https://github.com/PrefectHQ/prefect/pull/3275)"
+  
+contributor:
+    - "[Robin Beer](https://github.com/Zaubeerer)"
+  
