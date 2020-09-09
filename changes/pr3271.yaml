@@ -1,5 +1,0 @@
-fix:
-  - "Change https://localhost to http://localhost in the welcome message - [#3271](https://github.com/PrefectHQ/prefect/pull/3271) "
-
-contributor:
-  - "[Shunwen](https://github.com/shunwen)"

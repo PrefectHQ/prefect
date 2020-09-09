@@ -1,4 +1,0 @@
-feature:
-  - "Add DatabricksRunNow task to Prefect, porting it over from Airflow - [#3247](https://github.com/PrefectHQ/prefect/pull/3247)."
-contributor:
-  - "[Ashton Sidhu](https://github.com/Ashton-Sidhu)"
