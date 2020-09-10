@@ -1,8 +1,13 @@
 # Pause for Approval
 
-A manual-only trigger that has been applied to a task will pause the task once it is reached. The task can only be resumed by an individual or event, either from the Prefect UI or GraphQL API. 
+There are many situations when a workflow contains tasks that require some form of manual approval to continue. Prefect has two built-in mechanisms for achieving this pattern:
 
-This example demonstrates the functionality by running the workflow with Prefect Cloud, using a cloud hook for a notification to approve the task run and then continuing with the approve button.
+- a manual-only trigger that can be configured on a per task basis, and unconditionally prevents the task from running unless a user approves it
+- a PAUSE signal that can be raised programmatically when certain conditions are met and also prevents the task from running unless a user approves it
+
+Both these mechanisms can only be resumed by an individual or event, either from the Prefect UI or GraphQL API. 
+
+This manual-only trigger example demonstrates the functionality by running the workflow with Prefect Cloud, using a Prefect cloud hook notification to request approval of a task and using the approve button to resume the task.
 
 Cloud hook to notify of flows in a paused state.
 
