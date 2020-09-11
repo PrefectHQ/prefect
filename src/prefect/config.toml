@@ -45,7 +45,7 @@ endpoint = "${server.host}:${server.port}"
     port = "8080"
     host_port = "8080"
     endpoint = "${server.ui.host}:${server.ui.port}"
-    graphql_url = "http://localhost:4200/graphql"
+    apollo_url = "http://localhost:4200/graphql"
 
     [server.telemetry]
     enabled = true
