@@ -1,0 +1,3 @@
+fix:
+  - "Allow using `apply_map` under a `case` or `resource_manager` block - [#3293](https://github.com/PrefectHQ/prefect/pull/3293)"
+  - "Fix bug with interaction between `case` blocks and `Constant` tasks which resulted in some tasks never skipping - [#3293](https://github.com/PrefectHQ/prefect/pull/3293)"

@@ -115,7 +115,9 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     kwargs2 = {k: preprocess(v) for k, v in kwargs.items()}
 
     # Construct a temporary flow for the subgraph
-    with prefect.context(mapped=True):
+    # We set case=None & resource=None to ignore any external case/resource
+    # blocks while constructing the temporary flow.
+    with prefect.context(mapped=True, case=None, resource=None):
         with flow2:
             if no_flow_provided:
                 res = func(*args2, **kwargs2)
