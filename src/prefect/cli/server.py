@@ -50,7 +50,7 @@ def make_env(fname=None):
         POSTGRES_DATA_PATH=config.server.database.volume_path,
     )
 
-    UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
+    UI_ENV = dict(APOLLO_URL=config.server.ui.apollo_url)
 
     HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
