@@ -475,7 +475,10 @@ class Docker(Storage):
                         )
                     )
                 else:
-                    shutil.copy2(src, full_fname)
+                    if os.path.isdir(src):
+                        shutil.copytree(src, full_fname, symlinks=False, ignore=None)
+                    else:
+                        shutil.copy2(src, full_fname)
                 copy_files += "COPY {fname} {dest}\n".format(
                     fname=full_fname.replace("\\", "/") if self.dockerfile else fname,
                     dest=dest,
