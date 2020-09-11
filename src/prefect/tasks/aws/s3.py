@@ -1,3 +1,4 @@
+import gzip
 import io
 import uuid
 
@@ -40,6 +41,7 @@ class S3Download(Task):
         key: str,
         credentials: str = None,
         bucket: str = None,
+        compression: str = None,
     ):
         """
         Task run method.
@@ -52,6 +54,8 @@ class S3Download(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to download from
+            - compression (str, optional): specifies a file format for decompression, decompressing
+                data upon download. Currently supports `'gzip'`.
 
         Returns:
             - str: the contents of this Key / Bucket, as a string
@@ -69,6 +73,14 @@ class S3Download(Task):
         # prepare data and return
         stream.seek(0)
         output = stream.read()
+
+        # decompress data if decompression is specified
+        if compression:
+            if compression == "gzip":
+                output = gzip.decompress(output)
+            else:
+                raise ValueError(f"Unrecognized compression method '{compression}'.")
+
         return output.decode()
 
 
@@ -107,6 +119,7 @@ class S3Upload(Task):
         key: str = None,
         credentials: dict = None,
         bucket: str = None,
+        compression: str = None,
     ):
         """
         Task run method.
@@ -121,6 +134,8 @@ class S3Upload(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to upload to
+            - compression (str, optional): specifies a file format for compression,
+                compressing data before upload. Currently supports `'gzip'`.
 
         Returns:
             - str: the name of the Key the data payload was uploaded to
@@ -129,6 +144,13 @@ class S3Upload(Task):
             raise ValueError("A bucket name must be provided.")
 
         s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+
+        # compress data if compression is specified
+        if compression:
+            if compression == "gzip":
+                data = gzip.compress(data)
+            else:
+                raise ValueError(f"Unrecognized compression method '{compression}'.")
 
         # prepare data
         try:
