@@ -7,11 +7,7 @@ There are many situations when a workflow contains tasks that require some form 
 
 Both these mechanisms can only be resumed by an individual or event, either from the Prefect UI or GraphQL API. 
 
-This manual-only trigger example demonstrates the functionality by running the workflow with Prefect Cloud, using a Prefect cloud hook notification to request approval of a task and using the approve button to resume the task.
-
-Cloud hook to notify of flows in a paused state.
-
-![Cloud Hook Paused State](/idioms/pause_resume_cloud_hook.png)
+This manual-only trigger example demonstrates the functionality by running the workflow with Prefect Cloud, being alerted with a notification to request approval of a task and using the approve button to resume the task.
  
 ```python
 
