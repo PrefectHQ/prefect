@@ -26,6 +26,7 @@ def test(build_result):
 
 @task(trigger=manual_only)
 def deploy():
+    """With the manual_only trigger this task will only run after it has been approved"""
     print("deploy task")
     pass
     
