@@ -11,7 +11,6 @@ from time import sleep
 
 import prefect
 from prefect import Flow, task
-from prefect.engine import FlowRunner
 
 @task
 def i_will_take_forever() -> int:
@@ -24,20 +23,14 @@ def failure(a_number: int):
     return a_number / 0
 
 
-def get_flow() -> Flow:
-    
-    with Flow("Success/Failure") as flow:
-
-        a_great_number = i_will_take_forever()
-        failure(a_great_number)
-    
-    return flow
+with Flow("Success/Failure") as flow:
+    a_great_number = i_will_take_forever()
+    failure(a_great_number)
 ```
 
 Running this flow in an `iPython` command shell fails
 
 ```python
-flow = get_flow()
 flow.run()
 ```
 
