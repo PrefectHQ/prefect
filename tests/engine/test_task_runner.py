@@ -1686,6 +1686,36 @@ class TestTaskStateHandlers:
         # the task changed state two times: Pending -> Running -> Failed
         assert task_handler.call_count == 2
 
+    def test_task_handlers_respect_signals(self):
+        def state_handler(t, o, n):
+            if n.is_failed():
+                raise prefect.engine.signals.PAUSE("Pausing.")
+
+        @prefect.task(state_handlers=[state_handler])
+        def fn():
+            1 / 0
+
+        state = TaskRunner(task=fn).run()
+        assert isinstance(state, Paused)
+
+    def test_task_handlers_handle_retry_signals(self):
+        def state_handler(t, o, n):
+            if n.is_failed():
+                raise prefect.engine.signals.RETRY("Will retry.")
+
+        @prefect.task(state_handlers=[state_handler])
+        def fn():
+            1 / 0
+
+        state = TaskRunner(task=fn).run()
+
+        assert state.is_retrying()
+        assert state.run_count == 1
+
+        new_state = TaskRunner(task=fn).run(state=state)
+        assert new_state.is_retrying()
+        assert new_state.run_count == 2
+
     def test_multiple_task_handlers_are_called(self):
         task_handler = MagicMock(side_effect=lambda t, o, n: n)
         task = Task(state_handlers=[task_handler, task_handler])
