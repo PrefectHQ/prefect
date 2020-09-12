@@ -648,7 +648,7 @@ def test_client_register_flow_id_output(
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert "Flow: https://cloud.prefect.io/tslug/flow/long-id\n" in captured.out
+    assert "Flow URL: https://cloud.prefect.io/tslug/flow/long-id\n" in captured.out
 
 
 @pytest.mark.parametrize("compressed", [True, False])
@@ -973,7 +973,9 @@ def test_set_flow_run_state_with_error(patch_post):
 
 def test_get_task_run_info(patch_posts):
     mutation_resp = {
-        "get_or_create_task_run": {"id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",}
+        "get_or_create_task_run": {
+            "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
+        }
     }
     query_resp = {
         "task_run_by_pk": {

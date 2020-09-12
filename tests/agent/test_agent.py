@@ -474,7 +474,7 @@ def test_agent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 2
-    assert heartbeat.call_count == 2
+    assert heartbeat.call_count == 1
 
 
 def test_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
@@ -495,7 +495,7 @@ def test_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
-    assert heartbeat.call_count == 0
+    assert heartbeat.call_count == 1
 
 
 def test_agent_registration_and_id(monkeypatch, cloud_api):

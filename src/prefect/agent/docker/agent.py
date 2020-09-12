@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
-from prefect.utilities.agent import get_flow_image
+from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
 
@@ -323,9 +323,7 @@ class DockerAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info(
-            "Deploying flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         # 'import docker' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low
@@ -384,7 +382,7 @@ class DockerAgent(Agent):
 
         container = self.docker_client.create_container(
             image,
-            command="prefect execute flow-run",
+            command=get_flow_run_command(flow_run),
             environment=env_vars,
             volumes=container_mount_paths,
             host_config=self.docker_client.create_host_config(**host_config),
@@ -450,7 +448,7 @@ class DockerAgent(Agent):
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-            "PREFECT__LOGGING__LEVEL": "DEBUG",
+            "PREFECT__LOGGING__LEVEL": config.logging.level,
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             **self.env_vars,

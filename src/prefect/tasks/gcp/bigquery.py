@@ -362,7 +362,7 @@ class BigQueryLoadGoogleCloudStorage(Task):
             - ValueError: if the load job results in an error
 
         Returns:
-            - the response from `load_table_from_uri`
+            - google.cloud.bigquery.job.LoadJob: the response from `load_table_from_uri`
         """
         # check for any argument inconsistencies
         if dataset_id is None or table is None:
@@ -382,6 +382,8 @@ class BigQueryLoadGoogleCloudStorage(Task):
         load_job = client.load_table_from_uri(uri, table_ref, job_config=job_config)
         load_job.result()  # block until job is finished
 
+        return load_job
+
 
 class BigQueryLoadFile(Task):
     """
@@ -397,6 +399,8 @@ class BigQueryLoadFile(Task):
         - size (int, optional):  the number of bytes to read from the file handle. If size is
             None or large, resumable upload will be used. Otherwise, multipart upload will be
             used.
+        - num_retries (int, optional): the number of max retries for loading the bigquery table from
+            file. Defaults to `6`
         - dataset_id (str, optional): the id of a destination dataset to write the records to
         - table (str, optional): the name of a destination table to write the records to
         - project (str, optional): the project to initialize the BigQuery Client with; if not
@@ -468,6 +472,8 @@ class BigQueryLoadFile(Task):
             - size (int, optional):  the number of bytes to read from the file handle. If size
                 is None or large, resumable upload will be used. Otherwise, multipart upload
                 will be used.
+            - num_retries (int, optional): the number of max retries for loading the bigquery table from
+                file. Defaults to `6`
             - dataset_id (str, optional): the id of a destination dataset to write the records
                 to; if not provided here, will default to the one provided at initialization
             - table (str, optional): the name of a destination table to write the records to;
@@ -490,7 +496,7 @@ class BigQueryLoadFile(Task):
             - ValueError: if the load job results in an error
 
         Returns:
-            - the response from `load_table_from_file`
+            - google.cloud.bigquery.job.LoadJob: the response from `load_table_from_file`
         """
         # check for any argument inconsistencies
         if dataset_id is None or table is None:
@@ -503,7 +509,7 @@ class BigQueryLoadFile(Task):
             raise ValueError(f"File {path.as_posix()} does not exist.")
 
         # create client
-        client = get_bigquery_client(project=project, credentials=credentials,)
+        client = get_bigquery_client(project=project, credentials=credentials)
 
         # get table reference
         table_ref = client.dataset(dataset_id).table(table)
@@ -529,6 +535,8 @@ class BigQueryLoadFile(Task):
             raise IOError(f"Can't open and read from {path.as_posix()}.")
 
         load_job.result()  # block until job is finished
+
+        return load_job
 
 
 class CreateBigQueryTable(Task):

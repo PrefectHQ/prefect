@@ -129,6 +129,15 @@ class CloudHandler(logging.StreamHandler):
             assert isinstance(self.client, Client)  # mypy assert
 
             record_dict = record.__dict__.copy()
+
+            # ensures emitted logs respect configured logging level
+            config_level = getattr(
+                logging, prefect.context.config.logging.level, logging.INFO
+            )
+
+            if record_dict["levelno"] < config_level:
+                return
+
             # remove potentially non-json serializable formatting args
             record_dict.pop("args", None)
 
@@ -213,6 +222,9 @@ def _create_logger(name: str) -> logging.Logger:
     logger.addHandler(handler)
     logger.setLevel(context.config.logging.level)
 
+    # we set the cloud handler to DEBUG level
+    # but the handler itself will dynamically respond
+    # to the configured level in the emit() method call
     cloud_handler = CloudHandler()
     cloud_handler.setLevel("DEBUG")
     logger.addHandler(cloud_handler)
@@ -236,7 +248,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     return _create_logger(name)
 
 
-prefect_logger = configure_logging()
+context.logger = prefect_logger = configure_logging()
 
 
 def configure_extra_loggers() -> None:

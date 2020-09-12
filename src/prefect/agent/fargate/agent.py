@@ -9,7 +9,7 @@ from slugify import slugify
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.utilities.agent import get_flow_image
+from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -443,9 +443,7 @@ class FargateAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info(
-            "Deploying flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         # create copies of kwargs to apply overrides as needed
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
@@ -478,6 +476,7 @@ class FargateAgent(Agent):
             )  # type: ignore
 
         image = get_flow_image(flow_run=flow_run)
+        flow_run_command = get_flow_run_command(flow_run=flow_run)
 
         # check if task definition exists
         self.logger.debug("Checking for task definition")
@@ -488,6 +487,7 @@ class FargateAgent(Agent):
                 flow_task_definition_kwargs=flow_task_definition_kwargs,
                 container_definitions_kwargs=flow_container_definitions_kwargs,
                 task_definition_name=task_definition_dict["task_definition_name"],
+                flow_run_command=flow_run_command,
             )
 
         # run task
@@ -568,6 +568,7 @@ class FargateAgent(Agent):
         flow_task_definition_kwargs: dict,
         container_definitions_kwargs: dict,
         task_definition_name: str,
+        flow_run_command: str,
     ) -> None:
         """
         Create a task definition for the flow that each flow run will use. This function
@@ -579,13 +580,14 @@ class FargateAgent(Agent):
             - container_definitions_kwargs (dict): container definitions kwargs to use for
                 registration
             - task_definition_name (str): task definition name to use
+            - flow_run_command (str): the flow run command to execute
         """
         self.logger.debug("Using image {} for task definition".format(image))
         container_definitions = [
             {
                 "name": "flow",
                 "image": image,
-                "command": ["/bin/sh", "-c", "prefect execute flow-run"],
+                "command": ["/bin/sh", "-c", flow_run_command],
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__API",
@@ -600,7 +602,7 @@ class FargateAgent(Agent):
                         "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                         "value": str(self.log_to_cloud).lower(),
                     },
-                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": config.logging.level},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",

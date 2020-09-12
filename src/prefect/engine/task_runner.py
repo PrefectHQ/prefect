@@ -444,7 +444,23 @@ class TaskRunner(Runner):
             new_state = Failed("At least one upstream state has an unmappable result.")
             raise ENDRUN(new_state)
         else:
-            new_state = Mapped("Ready to proceed with mapping.")
+            # compute and set n_map_states
+            n_map_states = min(
+                [
+                    len(s.result)
+                    for e, s in upstream_states.items()
+                    if e.mapped and s.is_successful() and not s.is_mapped()
+                ]
+                + [
+                    s.n_map_states  # type: ignore
+                    for e, s in upstream_states.items()
+                    if e.mapped and s.is_mapped()
+                ],
+                default=0,
+            )
+            new_state = Mapped(
+                "Ready to proceed with mapping.", n_map_states=n_map_states
+            )
             raise ENDRUN(new_state)
 
     @call_state_handlers
@@ -666,7 +682,8 @@ class TaskRunner(Runner):
                 target = target(**formatting_kwargs)
 
             if result.exists(target, **formatting_kwargs):
-                new_res = result.read(target.format(**formatting_kwargs))
+                known_location = target.format(**formatting_kwargs)
+                new_res = result.read(known_location)
                 cached_state = Cached(
                     result=new_res,
                     hashed_inputs={
@@ -674,7 +691,7 @@ class TaskRunner(Runner):
                     },
                     cached_result_expiration=None,
                     cached_parameters=formatting_kwargs.get("parameters"),
-                    message=f"Result found at task target {target}",
+                    message=f"Result found at task target {known_location}",
                 )
                 return cached_state
 
@@ -758,7 +775,7 @@ class TaskRunner(Runner):
 
     @run_with_heartbeat
     @call_state_handlers
-    def get_task_run_state(self, state: State, inputs: Dict[str, Result],) -> State:
+    def get_task_run_state(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Runs the task and traps any signals or errors it raises.
         Also checkpoints the result of a successful task, if `task.checkpoint` is `True`.
@@ -810,7 +827,7 @@ class TaskRunner(Runner):
         except TimeoutError as exc:
             if prefect.context.get("raise_on_exception"):
                 raise exc
-            state = TimedOut("Task timed out during execution.", result=exc,)
+            state = TimedOut("Task timed out during execution.", result=exc)
             return state
 
         except signals.LOOP as exc:
@@ -835,13 +852,13 @@ class TaskRunner(Runner):
                     **raw_inputs,
                     **prefect.context,
                 }
-                result = self.result.write(value, **formatting_kwargs,)
+                result = self.result.write(value, **formatting_kwargs)
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
             result = self.result.from_value(value=value)
 
-        state = Success(result=result, message="Task run succeeded.",)
+        state = Success(result=result, message="Task run succeeded.")
         return state
 
     @call_state_handlers

@@ -942,7 +942,7 @@ class TestCheckTaskCached:
             return False
 
         # have to have a state worth checking to trigger the validator
-        with prefect.context(caches={"Task": [State()]}):
+        with prefect.context(caches={"Task": [State()]}, checkpointing=False):
             task = Task(
                 cache_for=timedelta(seconds=10), cache_validator=custom_validator
             )
@@ -1010,7 +1010,7 @@ class TestRunTaskStep:
             raise signals.FAIL()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert new_state.is_failed()
 
     def test_raise_loop_signal(self):
@@ -1019,7 +1019,7 @@ class TestRunTaskStep:
             raise signals.LOOP(result=1)
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert new_state.is_looped()
         assert new_state.result == 1
         assert new_state.loop_count == 1
@@ -1031,7 +1031,7 @@ class TestRunTaskStep:
             raise signals.LOOP(message="My message")
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert new_state.is_looped()
         assert "LOOP" in new_state.result
         assert new_state.loop_count == 1
@@ -1043,7 +1043,7 @@ class TestRunTaskStep:
             raise signals.SKIP()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert isinstance(new_state, Skipped)
 
     def test_raise_pause_signal(self):
@@ -1052,7 +1052,7 @@ class TestRunTaskStep:
             raise signals.PAUSE()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert isinstance(new_state, Paused)
 
     def test_run_with_error(self):
@@ -1061,7 +1061,7 @@ class TestRunTaskStep:
             1 / 0
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert new_state.is_failed()
         assert isinstance(new_state.result, ZeroDivisionError)
 
@@ -1072,7 +1072,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"x": Result(1)},
+            state=state, inputs={"x": Result(1)}
         )
         assert new_state.is_successful()
         assert new_state.result == 2
@@ -1084,20 +1084,20 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"y": Result(1)},
+            state=state, inputs={"y": Result(1)}
         )
         assert new_state.is_failed()
 
     def test_returns_success_with_hydrated_result_obj(self):
         runner = TaskRunner(task=Task())
-        state = runner.get_task_run_state(state=Running(), inputs={},)
+        state = runner.get_task_run_state(state=Running(), inputs={})
         assert state.is_successful()
         assert isinstance(state._result, Result)
         assert state._result == Result(value=None)
 
     def test_returns_success_with_correct_result_type(self):
         runner = TaskRunner(task=Task(result=PrefectResult()))
-        state = runner.get_task_run_state(state=Running(), inputs={},)
+        state = runner.get_task_run_state(state=Running(), inputs={})
         assert state.is_successful()
         assert isinstance(state._result, PrefectResult)
 
@@ -1108,7 +1108,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)},
+                state=Running(), inputs={"x": Result(1)}
             )
         assert new_state.is_successful()
         assert new_state._result.location is None
@@ -1182,7 +1182,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(2)},
+                state=Running(), inputs={"x": Result(2)}
             )
         assert new_state.is_successful()
         assert new_state._result.location == "3"
@@ -1196,14 +1196,14 @@ class TestRunTaskStep:
         ## checkpointing allows users to toggle behavior for local testing
         with prefect.context(checkpointing=False):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={},
+                state=Running(), inputs={}
             )
         assert new_state.is_successful()
         assert new_state._result.location is None
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={},
+                state=Running(), inputs={}
             )
         assert new_state.is_successful()
         assert new_state._result.location == "1"
@@ -1212,7 +1212,7 @@ class TestRunTaskStep:
         p = prefect.Parameter("p", default=2)
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=p).get_task_run_state(
-                state=Running(), inputs={},
+                state=Running(), inputs={}
             )
         assert new_state.is_successful()
         assert new_state._result.location == "2"
@@ -1232,7 +1232,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)},
+                state=Running(), inputs={"x": Result(1)}
             )
         assert new_state.is_failed()
         assert "SyntaxError" in new_state.message
@@ -1251,7 +1251,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)},
+                state=Running(), inputs={"x": Result(1)}
             )
         assert new_state.is_successful()
 
@@ -1432,19 +1432,20 @@ class TestTargetExistsStep:
         assert new_state._result.location is None
 
     def test_check_target_exists(self, tmp_dir):
-        result = LocalResult(dir=tmp_dir, location="test-file")
+        result = LocalResult(dir=tmp_dir, location="Task-test-file")
         result.write(1)
 
-        my_task = Task(target="test-file", result=result)
+        my_task = Task(target="{task_name}-test-file", result=result)
 
-        new_state = TaskRunner(task=my_task).check_target(
-            state=Running(result=result), inputs={}
-        )
+        with prefect.context(task_name="Task"):
+            new_state = TaskRunner(task=my_task).check_target(
+                state=Running(result=result), inputs={}
+            )
 
-        assert result.exists("test-file")
+        assert result.exists("Task-test-file")
         assert new_state.is_cached()
-        assert new_state._result.location == "test-file"
-        assert new_state.message == "Result found at task target test-file"
+        assert new_state._result.location == "Task-test-file"
+        assert new_state.message == "Result found at task target Task-test-file"
 
     def test_check_target_exists_multiple_checks(self, tmp_dir):
         result = LocalResult(dir=tmp_dir, location="test-file")
@@ -1490,7 +1491,7 @@ class TestTargetExistsStep:
         result = LocalResult(dir=tmp_dir, location="testtask")
         result.write(1)
 
-        my_task = Task(target=lambda **kwargs: "{task_name}", result=result,)
+        my_task = Task(target=lambda **kwargs: "{task_name}", result=result)
 
         with prefect.context({"task_name": "testtask"}):
             new_state = TaskRunner(task=my_task).check_target(
@@ -1574,7 +1575,7 @@ class TestCheckScheduledStep:
         )
 
     @pytest.mark.parametrize(
-        "state", [Scheduled(start_time=None), Retrying(start_time=None),],
+        "state", [Scheduled(start_time=None), Retrying(start_time=None)]
     )
     def test_scheduled_states_with_default_start_time(self, state):
         assert state.start_time is not None
@@ -1582,9 +1583,7 @@ class TestCheckScheduledStep:
             TaskRunner(task=Task()).check_task_reached_start_time(state=state) is state
         )
 
-    @pytest.mark.parametrize(
-        "state", [Paused(start_time=None),],
-    )
+    @pytest.mark.parametrize("state", [Paused(start_time=None)])
     def test_scheduled_states_with_none_start_time(self, state):
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task=Task()).check_task_reached_start_time(state=state)
@@ -1823,7 +1822,7 @@ class TestCheckTaskReadyToMapStep:
     def test_run_mapped_returns_mapped(self, state):
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task=Task()).check_task_ready_to_map(
-                state=state, upstream_states={},
+                state=state, upstream_states={}
             )
         assert exc.value.state.is_mapped()
 
@@ -1834,6 +1833,44 @@ class TestCheckTaskReadyToMapStep:
                 upstream_states={Edge(Task(), Task(), mapped=True): Failed()},
             )
         assert exc.value.state.is_failed()
+
+    def test_run_mapped_sets_n_map_states(self):
+        upstreams = {
+            Edge(mapped=True, upstream_task=Task(), downstream_task=Task()): Success(
+                result=[1, 2, 3, 4, 5]
+            ),
+            Edge(mapped=False, upstream_task=Task(), downstream_task=Task()): Success(
+                result=object
+            ),
+            Edge(mapped=True, downstream_task=Task(), upstream_task=Task()): Success(
+                result=list(range(10))
+            ),
+        }
+
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=Pending(), upstream_states=upstreams
+            )
+        assert exc.value.state.is_mapped()
+        assert exc.value.state.n_map_states == 5
+
+    def test_run_mapped_handles_upstream_mapped_states(self):
+        upstreams = {
+            Edge(mapped=True, upstream_task=Task(), downstream_task=Task()): Success(
+                result=[1, 2, 3, 4, 5]
+            ),
+            Edge(mapped=False, upstream_task=Task(), downstream_task=Task()): Success(),
+            Edge(mapped=True, downstream_task=Task(), upstream_task=Task()): Mapped(
+                n_map_states=2
+            ),
+        }
+
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=Pending(), upstream_states=upstreams
+            )
+        assert exc.value.state.is_mapped()
+        assert exc.value.state.n_map_states == 2
 
 
 def test_task_runner_skips_upstream_check_for_parent_mapped_task():
@@ -2138,7 +2175,7 @@ def test_task_runner_logs_stdout(caplog):
     # data was not being passed on correctly
     assert state.result == 42
     logs = [r.message for r in caplog.records]
-    assert logs[1] == "TEST_HERE"
+    assert "TEST_HERE" in logs
 
 
 def test_task_runner_logs_stdout_disabled(caplog):

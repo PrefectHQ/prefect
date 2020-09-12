@@ -1,16 +1,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: prefect-job-UUID
-  labels:
-    app: prefect-job-UUID
-    identifier: UUID
+  name: prefect-job
+  labels: {}
 spec:
   template:
     metadata:
-      labels:
-        app: prefect-job-UUID
-        identifier: UUID
+      labels: {}
     spec:
       containers:
         - name: flow
@@ -33,10 +29,10 @@ spec:
               value: PREFECT__CLOUD__AGENT__LABELS
             - name: PREFECT__LOGGING__LOG_TO_CLOUD
               value: PREFECT__LOGGING__LOG_TO_CLOUD
+            - name: PREFECT__LOGGING__LEVEL
+              value: "INFO"
             - name: PREFECT__CLOUD__USE_LOCAL_SECRETS
               value: "false"
-            - name: PREFECT__LOGGING__LEVEL
-              value: "DEBUG"
             - name: PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
               value: "prefect.engine.cloud.CloudFlowRunner"
             - name: PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
@@ -46,6 +42,10 @@ spec:
               cpu: "100m"
             limits:
               cpu: "100m"
+          volumeMounts:
+            - name: ""
       restartPolicy: Never
       imagePullSecrets:
       - name: ""
+      volumes:
+        - name: ""

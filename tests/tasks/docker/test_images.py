@@ -25,8 +25,8 @@ class DockerLoggingTestingUtilityMixin:
             initial = caplog.records[0]
             final = caplog.records[1]
 
-            assert "Starting" in initial.msg
-            assert "Completed" in final.msg
+            assert any(image in initial.msg for image in ["image", "Image"])
+            assert any(image in initial.msg for image in ["image", "Image"])
 
     @staticmethod
     def assert_logs_once_on_docker_api_failure(task, caplog):
@@ -35,8 +35,8 @@ class DockerLoggingTestingUtilityMixin:
             with pytest.raises(docker.errors.DockerException):
                 task.run()
                 assert len(caplog.records) == 1
-                assert "Starting" in caplog.text
-                assert "Completed" not in caplog.text
+                assert any(image in caplog.text for image in ["image", "Image"])
+                assert any(image not in caplog.text for image in ["image", "Image"])
 
     @staticmethod
     def assert_doesnt_log_on_param_failure(task, caplog):

@@ -50,7 +50,7 @@ def make_env(fname=None):
         POSTGRES_DATA_PATH=config.server.database.volume_path,
     )
 
-    UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
+    UI_ENV = dict(APOLLO_URL=config.server.ui.apollo_url)
 
     HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
@@ -78,7 +78,6 @@ def server():
     \b
     Arguments:
         start                   Start the Prefect Core server using docker-compose
-        create-default-tenant   Create a default tenant
 
     \b
     Examples:
@@ -219,13 +218,15 @@ def start(
 
     \b
     Options:
-        --version, -v       TEXT    The server image versions to use (for example, '0.1.0' or
-                                    'master'). Defaults to `latest`.
+        --version, -v       TEXT    The server image versions to use (for example, '0.1.0'
+                                    or 'master'). Defaults to `core-a.b.c` where `a.b.c.`
+                                    is the version of Prefect Core currently running.
         --ui-version, -uv   TEXT    The UI image version to use (for example, '0.1.0' or
-                                    'master'). Defaults to `latest`.
+                                    'master'). Defaults to `core-a.b.c` where `a.b.c.` is
+                                    the version of Prefect Core currently running.
         --skip-pull                 Flag to skip pulling new images (if available)
-        --no-upgrade, -n            Flag to avoid running a database upgrade when the database
-                                    spins up
+        --no-upgrade, -n            Flag to avoid running a database upgrade when the
+                                    database spins up
         --no-ui, -u                 Flag to avoid starting the UI
 
     \b
@@ -307,10 +308,15 @@ def start(
     ):
         env = make_env()
 
+    base_version = prefect.__version__.split("+")
+    if len(base_version) > 1:
+        default_tag = "master"
+    else:
+        default_tag = f"core-{base_version[0]}"
     if "PREFECT_SERVER_TAG" not in env:
-        env.update(PREFECT_SERVER_TAG=version or "latest")
+        env.update(PREFECT_SERVER_TAG=version or default_tag)
     if "PREFECT_UI_TAG" not in env:
-        env.update(PREFECT_UI_TAG=ui_version or "latest")
+        env.update(PREFECT_UI_TAG=ui_version or default_tag)
     if "PREFECT_SERVER_DB_CMD" not in env:
         cmd = (
             "prefect-server database upgrade -y"
@@ -344,7 +350,7 @@ def start(
                     # Create a default tenant if no tenant exists
                     if not client.get_available_tenants():
                         client.create_tenant(name="default")
-                    print(ascii_name)
+                    print(ascii_welcome(ui_port=str(ui_port)))
                 except Exception:
                     time.sleep(0.5)
                     pass
@@ -364,11 +370,54 @@ def start(
         raise
 
 
-ascii_name = r"""
-  _____           __          _      _____
- |  __ \         / _|        | |    / ____|
- | |__) | __ ___| |_ ___  ___| |_  | (___   ___ _ ____   _____ _ __
- |  ___/ '__/ _ \  _/ _ \/ __| __|  \___ \ / _ \ '__\ \ / / _ \ '__|
- | |   | | |  __/ ||  __/ (__| |_   ____) |  __/ |   \ V /  __/ |
- |_|   |_|  \___|_| \___|\___|\__| |_____/ \___|_|    \_/ \___|_|
-"""
+def ascii_welcome(ui_port="8080"):
+    ui_url = click.style(
+        f"http://localhost:{ui_port}", fg="white", bg="blue", bold=True
+    )
+    docs_url = click.style("https://docs.prefect.io", fg="white", bg="blue", bold=True)
+
+    title = r"""
+   _____  _____  ______ ______ ______ _____ _______    _____ ______ _______      ________ _____
+  |  __ \|  __ \|  ____|  ____|  ____/ ____|__   __|  / ____|  ____|  __ \ \    / /  ____|  __ \
+  | |__) | |__) | |__  | |__  | |__ | |       | |    | (___ | |__  | |__) \ \  / /| |__  | |__) |
+  |  ___/|  _  /|  __| |  __| |  __|| |       | |     \___ \|  __| |  _  / \ \/ / |  __| |  _  /
+  | |    | | \ \| |____| |    | |___| |____   | |     ____) | |____| | \ \  \  /  | |____| | \ \
+  |_|    |_|  \_\______|_|    |______\_____|  |_|    |_____/|______|_|  \_\  \/   |______|_|  \_\
+
+    """
+
+    message = f"""
+                                            {click.style('WELCOME TO', fg='blue', bold=True)}
+  {click.style(title, bold=True)}
+   Visit {ui_url} to get started, or check out the docs at {docs_url}
+    """
+
+    return message
+
+
+@server.command(hidden=True)
+@click.option(
+    "--name",
+    "-n",
+    help="The name of a tenant to create",
+    hidden=True,
+)
+@click.option(
+    "--slug",
+    "-s",
+    help="The slug of a tenant to create",
+    hidden=True,
+)
+def create_tenant(name, slug):
+    """
+    This command creates a tenant for the Prefect Server
+
+    \b
+    Options:
+        --name, -n       TEXT    The name of a tenant to create
+        --slug, -n       TEXT    The slug of a tenant to create
+    """
+    client = prefect.Client()
+    tenant_id = client.create_tenant(name=name, slug=slug)
+
+    click.secho(f"Tenant created with ID: {tenant_id}", fg="green")

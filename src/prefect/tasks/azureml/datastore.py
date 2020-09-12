@@ -136,7 +136,7 @@ class DatastoreList(Task):
         - workspace (azureml.core.workspace.Workspace): The Workspace which Datastores are to
             be listed.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-            constructor """
+            constructor"""
 
     def __init__(self, workspace: Workspace, **kwargs) -> None:
         self.workspace = workspace

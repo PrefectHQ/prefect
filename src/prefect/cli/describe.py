@@ -240,7 +240,6 @@ def flow_runs(name, flow_name, output):
                 "start_time": True,
                 "end_time": True,
                 "duration": True,
-                "heartbeat": True,
                 "serialized_state": True,
             }
         }

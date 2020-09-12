@@ -1,8 +1,6 @@
 # Architecture
 
-<div class="add-shadow">
-  <img src="/orchestration/server/server-diagram.svg">
-</div>
+![Server Architecture](/orchestration/server/server-diagram.svg)
 
 Prefect Server is composed of a few different services:
 

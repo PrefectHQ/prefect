@@ -20,7 +20,7 @@ services:
       - "-c"
       - "max_connections=150"
   hasura:
-    image: "hasura/graphql-engine:v1.1.0"
+    image: "hasura/graphql-engine:v1.3.0"
     ports:
       - "${HASURA_HOST_PORT:-3000}:3000"
     command: "graphql-engine serve"
@@ -29,6 +29,7 @@ services:
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
       HASURA_GRAPHQL_SERVER_PORT: "3000"
       HASURA_GRAPHQL_QUERY_PLAN_CACHE_SIZE: 100
+      HASURA_GRAPHQL_LOG_LEVEL: "warn"
     networks:
       - prefect-server
     restart: "always"
@@ -64,12 +65,14 @@ services:
     image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
     ports:
       - "${APOLLO_HOST_PORT:-4200}:4200"
-    command: "npm run serve"
+    command: bash -c "./post-start.sh && npm run serve"
     environment:
       HASURA_API_URL: ${HASURA_API_URL:-http://hasura:3000/v1alpha1/graphql}
       PREFECT_API_URL: ${PREFECT_API_URL:-http://graphql:4201/graphql/}
       PREFECT_API_HEALTH_URL: ${PREFECT_API_HEALTH_URL:-http://graphql:4201/health}
       PREFECT_SERVER__TELEMETRY__ENABLED: ${PREFECT_SERVER__TELEMETRY__ENABLED:-true}
+      GRAPHQL_SERVICE_HOST: http://graphql
+      GRAPHQL_SERVICE_PORT: ${GRAPHQL_HOST_PORT:-4201}
     networks:
       - prefect-server
     restart: "always"
@@ -81,7 +84,7 @@ services:
       - "${UI_HOST_PORT:-8080}:8080"
     command: "/intercept.sh"
     environment:
-      PREFECT_SERVER__GRAPHQL_URL: ${GRAPHQL_URL:-http://localhost:4200/graphql}
+      PREFECT_SERVER__APOLLO_URL: ${APOLLO_URL:-http://localhost:4200/graphql}
     networks:
       - prefect-server
     restart: "always"

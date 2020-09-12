@@ -1,7 +1,6 @@
-const sidebar81 = require('../api/0.8.1/sidebar')
-const sidebar98 = require('../api/0.9.8/sidebar')
 const sidebar107 = require('../api/0.10.7/sidebar')
 const sidebar115 = require('../api/0.11.5/sidebar')
+const sidebar126 = require('../api/0.12.6/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -75,11 +74,10 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.12.6)', link: '/api/latest/' },
+          { text: 'Latest (0.13.6)', link: '/api/latest/' },
+          { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
-          { text: '0.9.8', link: '/api/0.9.8/' },
-          { text: '0.8.1', link: '/api/0.8.1/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
@@ -89,10 +87,9 @@ module.exports = {
       }
     ],
     sidebar: {
-      '/api/0.8.1/': sidebar81.sidebar,
-      '/api/0.9.8/': sidebar98.sidebar,
       '/api/0.10.7/': sidebar107.sidebar,
       '/api/0.11.5/': sidebar115.sidebar,
+      '/api/0.12.6/': sidebar126.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
@@ -112,6 +109,11 @@ module.exports = {
           title: 'prefect.client',
           collapsable: true,
           children: getChildren('docs/api/latest', 'client')
+        },
+        {
+          title: 'prefect.cli',
+          collapsable: true,
+          children: getChildren('docs/api/latest', 'cli')
         },
         {
           title: 'prefect.core',
@@ -151,6 +153,16 @@ module.exports = {
       ],
       '/orchestration/': [
         '/orchestration/',
+        {
+          title: 'Server',
+          collapsable: true,
+          children: [
+            'server/overview',
+            'server/architecture',
+            'server/deploy-local',
+            'server/telemetry'
+          ]
+        },
         {
           title: 'UI',
           collapsable: true,
@@ -228,11 +240,6 @@ module.exports = {
             'recipes/k8s_dask',
             'recipes/k8s_docker_sidecar'
           ]
-        },
-        {
-          title: 'Server',
-          collapsable: true,
-          children: ['server/architecture', 'server/deploy', 'server/telemetry']
         },
         {
           title: 'FAQ',

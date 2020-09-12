@@ -19,7 +19,10 @@ class ListImages(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `images`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -29,17 +32,23 @@ class ListImages(Task):
         all_layers: bool = False,
         filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.repository_name = repository_name
         self.all_layers = all_layers
         self.filters = filters
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "repository_name", "all_layers", "filters", "docker_server_url"
+        "repository_name",
+        "all_layers",
+        "filters",
+        "docker_server_url",
+        "extra_docker_kwargs",
     )
     def run(
         self,
@@ -47,6 +56,7 @@ class ListImages(Task):
         all_layers: bool = False,
         filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> list:
         """
         Task run method.
@@ -60,6 +70,9 @@ class ListImages(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `images`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - list: A list of dictionaries containing information about the images found
@@ -68,16 +81,15 @@ class ListImages(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug(
-            "Starting docker pull for repository {}...".format(repository_name)
-        )
+        self.logger.debug(f"Listing images from {repository_name}")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
         api_result = client.images(
-            name=repository_name, all=all_layers, filters=filters
+            name=repository_name,
+            all=all_layers,
+            filters=filters,
+            **(extra_docker_kwargs or dict()),
         )
-        self.logger.debug(
-            "Completed docker pull for repository {}...".format(repository_name)
-        )
+        self.logger.debug(f"Listed images from {repository_name}")
 
         return api_result
 
@@ -94,7 +106,10 @@ class PullImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `pull`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -103,20 +118,25 @@ class PullImage(Task):
         repository: str = None,
         tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.repository = repository
         self.tag = tag
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("repository", "tag", "docker_server_url")
+    @defaults_from_attrs(
+        "repository", "tag", "docker_server_url", "extra_docker_kwargs"
+    )
     def run(
         self,
         repository: str = None,
         tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> str:
         """
         Task run method.
@@ -128,6 +148,9 @@ class PullImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `pull`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: The output from Docker for pulling the image
@@ -143,18 +166,12 @@ class PullImage(Task):
         import docker
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-        self.logger.debug(
-            "Starting docker pull for repository {repo} with tag {tag}...".format(
-                repo=repository, tag=tag
-            )
+        self.logger.debug(f"Pulling image {repository}:{tag}")
+        api_result = client.pull(
+            repository=repository, tag=tag, **(extra_docker_kwargs or dict())
         )
-        api_result = client.pull(repository=repository, tag=tag)
 
-        self.logger.debug(
-            "Completed docker pull for repository {repo} with tag {tag}...".format(
-                repo=repository, tag=tag
-            )
-        )
+        self.logger.debug(f"Pulled image {repository}:{tag}")
         return api_result
 
 
@@ -170,7 +187,10 @@ class PushImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `push`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -179,20 +199,25 @@ class PushImage(Task):
         repository: str = None,
         tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.repository = repository
         self.tag = tag
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("repository", "tag", "docker_server_url")
+    @defaults_from_attrs(
+        "repository", "tag", "docker_server_url", "extra_docker_kwargs"
+    )
     def run(
         self,
         repository: str = None,
         tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> str:
         """
         Task run method.
@@ -204,6 +229,9 @@ class PushImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `push`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - str: The output from Docker for pushing the image
@@ -218,18 +246,12 @@ class PushImage(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug(
-            "Starting docker image push for repo {repo} and tag {tag}".format(
-                repo=repository, tag=tag
-            )
-        )
+        self.logger.debug(f"Pushing image {repository}:{tag} to the registry")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-        api_result = client.push(repository=repository, tag=tag)
-        self.logger.debug(
-            "Completed docker image push for repo {repo} and tag {tag}".format(
-                repo=repository, tag=tag
-            )
+        api_result = client.push(
+            repository=repository, tag=tag, **(extra_docker_kwargs or dict())
         )
+        self.logger.debug(f"Pushed image {repository}:{tag} to the registry")
         return api_result
 
 
@@ -244,7 +266,10 @@ class RemoveImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `remove_image`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -253,20 +278,23 @@ class RemoveImage(Task):
         image: str = None,
         force: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.image = image
         self.force = force
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("image", "force", "docker_server_url")
+    @defaults_from_attrs("image", "force", "docker_server_url", "extra_docker_kwargs")
     def run(
         self,
         image: str = None,
         force: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> None:
         """
         Task run method.
@@ -277,6 +305,9 @@ class RemoveImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `remove_image`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Raises:
             - ValueError: if `image` is `None`
@@ -288,11 +319,12 @@ class RemoveImage(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug("Starting to remove Docker images: {}".format(image))
+        self.logger.debug(f"Removing image {image}")
+
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.remove_image(image=image, force=force)
-        self.logger.debug("Completed removing Docker images... {}".format(image))
+        client.remove_image(image=image, force=force, **(extra_docker_kwargs or dict()))
+        self.logger.debug(f"Removed image {image}")
 
 
 class TagImage(Task):
@@ -308,7 +340,10 @@ class TagImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `tag`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -319,17 +354,26 @@ class TagImage(Task):
         tag: str = None,
         force: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.image = image
         self.repository = repository
         self.tag = tag
         self.force = force
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("image", "repository", "tag", "force", "docker_server_url")
+    @defaults_from_attrs(
+        "image",
+        "repository",
+        "tag",
+        "force",
+        "docker_server_url",
+        "extra_docker_kwargs",
+    )
     def run(
         self,
         image: str = None,
@@ -337,6 +381,7 @@ class TagImage(Task):
         tag: str = None,
         force: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> bool:
         """
         Task run method.
@@ -349,6 +394,9 @@ class TagImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `tag`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - bool: Whether or not the tagging was successful
@@ -363,21 +411,18 @@ class TagImage(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug(
-            "Starting to tagging Docker image {image} with tag {tag} in repo {repo}".format(
-                image=image, tag=tag, repo=repository
-            )
-        )
+        self.logger.debug(f"Tagging image {repository}/{image}:{tag}")
+
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         api_result = client.tag(
-            image=image, repository=repository, tag=tag, force=force
+            image=image,
+            repository=repository,
+            tag=tag,
+            force=force,
+            **(extra_docker_kwargs or dict()),
         )
-        self.logger.debug(
-            "Completed tagging Docker image {image} with tag {tag} in repo {repo}".format(
-                image=image, tag=tag, repo=repository
-            )
-        )
+        self.logger.debug(f"Tagged image {repository}/{image}:{tag}")
         return api_result
 
 
@@ -396,7 +441,10 @@ class BuildImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+        - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+            Docker call (cf. method `build`). See
+            https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
 
@@ -408,7 +456,8 @@ class BuildImage(Task):
         rm: bool = True,
         forcerm: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        **kwargs: Any
+        extra_docker_kwargs: dict = None,
+        **kwargs: Any,
     ):
         self.path = path
         self.tag = tag
@@ -416,10 +465,19 @@ class BuildImage(Task):
         self.rm = rm
         self.forcerm = forcerm
         self.docker_server_url = docker_server_url
+        self.extra_docker_kwargs = extra_docker_kwargs
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("path", "tag", "nocache", "rm", "forcerm", "docker_server_url")
+    @defaults_from_attrs(
+        "path",
+        "tag",
+        "nocache",
+        "rm",
+        "forcerm",
+        "docker_server_url",
+        "extra_docker_kwargs",
+    )
     def run(
         self,
         path: str = None,
@@ -428,6 +486,7 @@ class BuildImage(Task):
         rm: bool = True,
         forcerm: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
+        extra_docker_kwargs: dict = None,
     ) -> None:
         """
         Task run method.
@@ -442,6 +501,9 @@ class BuildImage(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
+            - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
+                Docker call (cf. method `build`). See
+                https://docker-py.readthedocs.io/en/stable/api.html for more details
 
         Returns:
             - List[dict]: a cleaned dictionary of the output of `client.build`
@@ -458,24 +520,22 @@ class BuildImage(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug(
-            "Starting docker build with path {path} and tag {tag}".format(
-                path=path, tag=tag
-            )
-        )
+        self.logger.debug(f"Building image from {path} with tag {tag}")
+
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         payload = [
             line
             for line in client.build(
-                path=path, tag=tag, nocache=nocache, rm=rm, forcerm=forcerm
+                path=path,
+                tag=tag,
+                nocache=nocache,
+                rm=rm,
+                forcerm=forcerm,
+                **(extra_docker_kwargs or dict()),
             )
         ]
-        self.logger.debug(
-            "Completed docker build with path {path} and tag {tag}".format(
-                path=path, tag=tag
-            )
-        )
+        self.logger.debug(f"Built image from {path} with tag {tag}")
         output = [
             json.loads(line.decode("utf-8"))
             for resp in payload

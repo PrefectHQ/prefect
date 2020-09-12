@@ -29,6 +29,7 @@ class GCSBaseTask(Task):
                 "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
                 "to pass the key value at runtime instead.",
                 UserWarning,
+                stacklevel=2,
             )
         self.encryption_key_secret = encryption_key_secret
         super().__init__(**kwargs)
@@ -62,6 +63,7 @@ class GCSBaseTask(Task):
                 "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
                 "to pass the credentials value at runtime instead.",
                 UserWarning,
+                stacklevel=2,
             )
             encryption_key = Secret(encryption_key_secret).get()
 
@@ -203,7 +205,7 @@ class GCSUpload(GCSBaseTask):
         )
 
     @defaults_from_attrs(
-        "bucket", "blob", "project", "create_bucket", "encryption_key_secret",
+        "bucket", "blob", "project", "create_bucket", "encryption_key_secret"
     )
     def run(
         self,
@@ -307,7 +309,7 @@ class GCSCopy(GCSBaseTask):
         super().__init__(project=project, **kwargs)
 
     @defaults_from_attrs(
-        "source_bucket", "source_blob", "dest_bucket", "dest_blob", "project",
+        "source_bucket", "source_blob", "dest_bucket", "dest_blob", "project"
     )
     def run(
         self,

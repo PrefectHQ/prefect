@@ -358,7 +358,14 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, cloud_api):
 
     agent = FargateAgent()
 
-    kwarg_dict = {"test": "not_real", "containerDefinitions": [{"test": "not_real",}]}
+    kwarg_dict = {
+        "test": "not_real",
+        "containerDefinitions": [
+            {
+                "test": "not_real",
+            }
+        ],
+    }
 
     (
         task_definition_kwargs,
@@ -640,6 +647,7 @@ def test_deploy_flow_local_storage_raises(monkeypatch, cloud_api):
                             "storage": Local().serialize(),
                             "id": "id",
                             "environment": LocalEnvironment().serialize(),
+                            "core_version": "0.13.0",
                         }
                     ),
                     "id": "id",
@@ -670,6 +678,7 @@ def test_deploy_flow_docker_storage_raises(monkeypatch, cloud_api):
                         ).serialize(),
                         "environment": LocalEnvironment().serialize(),
                         "id": "id",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -736,6 +745,7 @@ def test_deploy_flow_all_args(monkeypatch, cloud_api):
                         ).serialize(),
                         "environment": LocalEnvironment().serialize(),
                         "id": "id",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -789,6 +799,7 @@ def test_deploy_flow_register_task_definition(monkeypatch, cloud_api):
                         ).serialize(),
                         "environment": LocalEnvironment().serialize(),
                         "id": "id",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -826,6 +837,7 @@ def test_deploy_flow_register_task_definition_uses_environment_metadata(
                             metadata={"image": "repo/name:tag"}
                         ).serialize(),
                         "id": "id",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -869,6 +881,7 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
                         ).serialize(),
                         "environment": LocalEnvironment().serialize(),
                         "id": "id",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -895,7 +908,18 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     assert container_defs[0]["environment"][-2] in user_vars
 
 
-def test_deploy_flow_register_task_definition_all_args(monkeypatch, cloud_api):
+@pytest.mark.parametrize(
+    "core_version,command",
+    [
+        ("0.10.0", "prefect execute cloud-flow"),
+        ("0.6.0+134", "prefect execute cloud-flow"),
+        ("0.13.0", "prefect execute flow-run"),
+        ("0.13.1+134", "prefect execute flow-run"),
+    ],
+)
+def test_deploy_flow_register_task_definition_all_args(
+    core_version, command, monkeypatch, cloud_api
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -983,6 +1007,7 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, cloud_api):
                         ).serialize(),
                         "environment": LocalEnvironment().serialize(),
                         "id": "id",
+                        "core_version": core_version,
                     }
                 ),
                 "id": "id",
@@ -1002,13 +1027,13 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, cloud_api):
         {
             "name": "flow",
             "image": "test/name:tag",
-            "command": ["/bin/sh", "-c", "prefect execute flow-run"],
+            "command": ["/bin/sh", "-c", command],
             "environment": [
                 {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
                 {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1117,6 +1142,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                         ).serialize(),
                         "environment": LocalEnvironment().serialize(),
                         "id": "id",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1148,7 +1174,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                     "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                     "value": str(not flag).lower(),
                 },
-                {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1188,6 +1214,7 @@ def test_deploy_flows_require_docker_storage(monkeypatch, cloud_api):
                             "id": "id",
                             "version": 2,
                             "name": "name",
+                            "core_version": "0.13.0",
                         }
                     ),
                     "id": "id",
@@ -1224,6 +1251,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                         "id": "id",
                         "version": 2,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1244,7 +1272,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
-                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1296,6 +1324,7 @@ def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, cloud_api)
                         "id": "id",
                         "version": 5,
                         "name": "name #1",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1339,6 +1368,7 @@ def test_deploy_flows_enable_task_revisions_old_version_exists(monkeypatch, clou
                         "id": "id",
                         "version": 3,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1412,6 +1442,7 @@ def test_override_kwargs(monkeypatch, cloud_api):
                         "id": "id",
                         "version": 2,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1480,6 +1511,7 @@ def test_override_kwargs_exception(monkeypatch, cloud_api):
                         "id": "id",
                         "version": 2,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1528,6 +1560,7 @@ def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, cloud_ap
                         "id": "id",
                         "version": 2,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1597,6 +1630,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                         "id": "new_id",
                         "version": 6,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1619,7 +1653,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -1707,6 +1741,7 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
                         "id": "new_id",
                         "version": 6,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1781,6 +1816,7 @@ def test_deploy_flows_launch_type_ec2(monkeypatch, cloud_api):
                         "id": "new_id",
                         "version": 6,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1855,6 +1891,7 @@ def test_deploy_flows_launch_type_none(monkeypatch, cloud_api):
                         "id": "new_id",
                         "version": 6,
                         "name": "name",
+                        "core_version": "0.13.0",
                     }
                 ),
                 "id": "id",
@@ -1934,7 +1971,7 @@ def test_fargate_agent_start_max_polls_count(monkeypatch, runner_token, cloud_ap
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 2
-    assert heartbeat.call_count == 2
+    assert heartbeat.call_count == 1
 
 
 def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
@@ -1960,7 +1997,7 @@ def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api
 
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
-    assert heartbeat.call_count == 0
+    assert heartbeat.call_count == 1
 
 
 def test_agent_configuration_utility(monkeypatch, cloud_api):

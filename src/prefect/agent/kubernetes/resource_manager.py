@@ -19,6 +19,9 @@ class ResourceManager:
     The resource manager is responsible for cleaning up old completed/failed k8s jobs
     and pods from the cluster. This is optional and does not need to me used for the agent
     to work.
+
+    DEPRECATED: The resource manager is deprecated and it's main functionality is now present in the
+    Kubernetes agent.
     """
 
     def __init__(self) -> None:
@@ -55,6 +58,7 @@ class ResourceManager:
         """
         Main loop which waits on a `LOOP_INTERVAL` and looks for finished jobs to clean
         """
+        self.logger.warning("DEPRECATED: The resource manager is deprecated")
         self.logger.info("Starting {}".format(type(self).__name__))
         while True:
             try:

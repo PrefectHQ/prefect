@@ -112,7 +112,7 @@ class CloudFlowRunner(FlowRunner):
             )
         except Exception as exc:
             msg = "Exception raised while calling state handlers: {}".format(repr(exc))
-            self.logger.debug(msg)
+            self.logger.exception(msg)
             if raise_on_exception:
                 raise exc
             new_state = Failed(msg, result=exc)
@@ -143,7 +143,7 @@ class CloudFlowRunner(FlowRunner):
             )
             new_state = state
         except Exception as exc:
-            self.logger.debug(
+            self.logger.exception(
                 "Failed to set flow state with error: {}".format(repr(exc))
             )
             raise ENDRUN(state=new_state)
@@ -182,9 +182,9 @@ class CloudFlowRunner(FlowRunner):
                             "Error getting flow run info", exc_info=True
                         )
                         continue
-                    else:
-                        self.logger.debug(
-                            "Successfully queried server for flow run state: %r",
+                    if not flow_run_info.state.is_running():
+                        self.logger.warning(
+                            "Flow run is no longer in a running state; the current state is: %r",
                             flow_run_info.state,
                         )
                     if isinstance(flow_run_info.state, Cancelling):
@@ -290,7 +290,7 @@ class CloudFlowRunner(FlowRunner):
             time_remaining = max(
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
-            self.logger.info(
+            self.logger.debug(
                 (
                     f"Flow run is in a Queued state. Sleeping for at most {time_remaining:.2f} "
                     f"seconds and attempting to run again."

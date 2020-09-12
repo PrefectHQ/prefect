@@ -10,10 +10,6 @@ Prefect Cloud has built-in functionality for achieving this; Tasks can be "tagge
 
 Note that the ability to _alter_ or _update_ your Tag Concurrency limits requires [Tenant Admin level permissions](tokens.html#tenant).
 
-::: warning Concurrency Limiting requires Core 0.6.6+
-Note that in order to utilize this feature, your Flows containing the relevant tagged tasks must be running Prefect version 0.6.6+.
-:::
-
 ## Tagging your Tasks
 
 Tagging your tasks is as simple as providing a list of tags to your Task at initialization via the `tags` keyword argument:

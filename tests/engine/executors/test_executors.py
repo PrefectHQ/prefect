@@ -107,27 +107,25 @@ class TestLocalDaskExecutor:
             assert f.key.startswith("inc-1-")
             assert res == 2
 
-    def test_only_compute_once(self):
-        e = LocalDaskExecutor()
-        count = 0
+    @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])
+    def test_only_compute_once(self, scheduler, tmpdir):
+        e = LocalDaskExecutor(scheduler)
 
-        def inc(x):
-            nonlocal count
-            count += 1
+        def inc(x, path):
+            if os.path.exists(path):
+                raise ValueError("Should only run once!")
+            with open(path, "wb"):
+                pass
             return x + 1
 
         with e.start():
-            f1 = e.submit(inc, 0)
-            f2 = e.submit(inc, f1)
-            f3 = e.submit(inc, f2)
+            f1 = e.submit(inc, 0, str(tmpdir.join("f1")))
+            f2 = e.submit(inc, f1, str(tmpdir.join("f2")))
+            f3 = e.submit(inc, f2, str(tmpdir.join("f3")))
             assert e.wait([f1]) == [1]
-            assert count == 1
             assert e.wait([f2]) == [2]
-            assert count == 2
             assert e.wait([f3]) == [3]
-            assert count == 3
             assert e.wait([f1, f2, f3]) == [1, 2, 3]
-            assert count == 3
 
     def test_is_pickleable(self):
         e = LocalDaskExecutor()
@@ -363,7 +361,8 @@ class TestDaskExecutor:
     def test_deprecated_client_kwargs(self):
         with pytest.warns(UserWarning, match="client_kwargs"):
             executor = DaskExecutor(
-                cluster_class="distributed.LocalCluster", set_as_default=True,
+                cluster_class="distributed.LocalCluster",
+                set_as_default=True,
             )
         assert executor.cluster_kwargs == {"silence_logs": logging.CRITICAL}
         assert executor.client_kwargs == {"set_as_default": True}
@@ -384,7 +383,8 @@ class TestDaskExecutor:
     def test_cant_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
             DaskExecutor(
-                address="localhost:8787", cluster_class=distributed.LocalCluster,
+                address="localhost:8787",
+                cluster_class=distributed.LocalCluster,
             )
 
     def test_prep_dask_kwargs(self):
@@ -428,6 +428,23 @@ class TestDaskExecutor:
             assert post.client is None
             assert post._futures is None
             assert post._should_run_var is None
+
+    def test_executor_logs_worker_events(self, caplog):
+        caplog.set_level(logging.DEBUG, logger="prefect")
+        with distributed.Client(
+            n_workers=1, processes=False, set_as_default=False
+        ) as client:
+            executor = DaskExecutor(address=client.scheduler.address)
+            with executor.start():
+                client.cluster.scale(4)
+                while len(client.scheduler_info()["workers"]) < 4:
+                    time.sleep(0.1)
+                client.cluster.scale(1)
+                while len(client.scheduler_info()["workers"]) > 1:
+                    time.sleep(0.1)
+
+        assert any("Worker %s added" == rec.msg for rec in caplog.records)
+        assert any("Worker %s removed" == rec.msg for rec in caplog.records)
 
     @pytest.mark.parametrize("kind", ["external", "inproc"])
     def test_exit_early_with_external_or_inproc_cluster_waits_for_pending_futures(

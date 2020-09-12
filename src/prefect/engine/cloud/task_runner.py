@@ -51,7 +51,7 @@ class CloudTaskRunner(TaskRunner):
     ) -> None:
         self.client = Client()
         super().__init__(
-            task=task, state_handlers=state_handlers, flow_result=flow_result,
+            task=task, state_handlers=state_handlers, flow_result=flow_result
         )
 
     def _heartbeat(self) -> bool:
