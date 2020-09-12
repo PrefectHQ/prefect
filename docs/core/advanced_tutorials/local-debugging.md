@@ -258,7 +258,6 @@ with Flow("Success/Failure") as flow:
 Running this flow in an `iPython` command shell fails
 
 ```python
-run example.py
 flow.run()
 ```
 
@@ -267,10 +266,11 @@ Swapping out `1/0` with `1/1` in the task `failure()` using `flow.replace` would
 Every time a Prefect flow is run, the `state` of the flow after it is run is returned.  The flow run `state` result is a dictionary whose keys are `Task` objects and whose values are the states of those tasks after the run is complete.  
 
 ```python
-run example.py
 from prefect.engine.state import Success
+
 long_task = flow.get_tasks(name="i_will_take_forever")[0]
 task_states =  {long_task : Success("Mocked success", result=42)}
+
 flow.run(task_states=task_states)
 ```
 

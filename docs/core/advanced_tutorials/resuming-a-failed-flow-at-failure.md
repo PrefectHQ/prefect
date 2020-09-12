@@ -37,19 +37,19 @@ def get_flow() -> Flow:
 Running this flow in an `iPython` command shell fails
 
 ```python
-In[1]: run example.py
-In[2]: flow = get_flow()
-In[3]: flow.run()
+flow = get_flow()
+flow.run()
 ```
 
 Replacing `1/0` with `1/1` in `failure()` would fix this error, however, rerunning the whole flow including the slow `i_will_take_forever` is unncessary.  
 
 ```python
-In[1]: run example.py
-In[2]: from prefect.engine.state import Success
-In[3]: long_task = flow.get_tasks(name="i_will_take_forever")[0]
-In[4]: task_states =  {long_task : Success("Mocked success", result=42)}
-In[5]: flow.run(task_states=task_states)
+from prefect.engine.state import Success
+
+long_task = flow.get_tasks(name="i_will_take_forever")[0]
+task_states =  {long_task : Success("Mocked success", result=42)}
+
+flow.run(task_states=task_states)
 ```
 
 As a result the flow skips the slow task and resumes from failure.
