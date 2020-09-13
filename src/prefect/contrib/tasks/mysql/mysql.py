@@ -83,12 +83,12 @@ class MySQLExecute(Task):
                         conn.commit()
 
             conn.close()
-            logging.debug("Execute Results: ", executed)
+            logging.debug("Execute Results: %s", executed)
             return executed
 
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
-            logging.debug("Execute Error: ", e)
+            logging.debug("Execute Error: %s", e)
             raise e
 
 
@@ -202,10 +202,10 @@ class MySQLFetch(Task):
                         conn.commit()
 
             conn.close()
-            logging.debug("Fetch Results: ", results)
+            logging.debug("Fetch Results: %s", results)
             return results
 
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
-            logging.debug("Fetch Error: ", e)
+            logging.debug("Fetch Error: %s", e)
             raise e
