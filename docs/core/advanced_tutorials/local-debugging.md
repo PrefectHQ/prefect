@@ -274,7 +274,7 @@ task_states =  {long_task : Success("Mocked success", result=42)}
 flow.run(task_states=task_states)
 ```
 
-We can access our long-running task using the convenient `get_tasks` method, and then set it's `state` to `Success` success via a `task_states` dictionary which can be passed as an argument to `flow.run`.  As a result the flow skips the slow task and resumes from failure.
+We can access our long-running task using the convenient `get_tasks` method, and then set it's `state` to `Success` via a `task_states` dictionary which can be passed as an argument to `flow.run`.  As a result the flow skips the slow task and resumes from failure.
 
 
 ### Locally check your Flow's `Docker` storage
