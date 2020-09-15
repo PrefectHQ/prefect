@@ -152,7 +152,7 @@ class Secret:
                             f"The secret {self.name} was not found.  Please ensure that it "
                             f"was set correctly in your tenant: https://docs.prefect.io/"
                             f"orchestration/concepts/secrets.html"
-                        )
+                        ) from exc
                     else:
                         raise exc
                 # the result object is a Box, so we recursively restore builtin
