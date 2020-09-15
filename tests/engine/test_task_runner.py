@@ -1940,6 +1940,17 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
     assert state.is_mapped()
 
 
+def test_mapped_tasks_parent_regenerates_child_pipeline():
+    runner = TaskRunner(task=Task())
+    state = runner.run(
+        upstream_states={Edge(Task(), Task(), mapped=True): Success()},
+        is_mapped_parent=True,
+        state=Mapped(n_map_states=10),
+    )
+    assert state.is_mapped()
+    assert len(state.map_states) == 10
+
+
 def test_retry_has_updated_metadata():
     a, b = Success(result=15), Success(result="abc")
 
