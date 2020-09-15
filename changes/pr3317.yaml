@@ -1,0 +1,2 @@
+fix:
+  - "Fix bug in `DaskExecutor` where not all client timeouts could be configured via setting `distributed.comm.timeouts.connect` - [#3317](https://github.com/PrefectHQ/prefect/pull/3317)"
