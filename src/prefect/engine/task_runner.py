@@ -423,8 +423,8 @@ class TaskRunner(Runner):
             - ENDRUN: either way, we dont continue past this point
         """
         if state.is_mapped():
-            if len(state.map_states) == 0 and state.n_map_states > 0:
-                state.map_states = [None] * state.n_map_states
+            if len(state.map_states) == 0 and state.n_map_states > 0:  # type: ignore
+                state.map_states = [None] * state.n_map_states  # type: ignore
             raise ENDRUN(state)
 
         # we can't map if there are no success states with iterables upstream
