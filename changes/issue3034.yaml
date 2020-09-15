@@ -1,0 +1,2 @@
+fix:
+  - "Fix issue with result templating that failed on task arguments named 'value' - [#3034](https://github.com/PrefectHQ/prefect/issues/3034)"
