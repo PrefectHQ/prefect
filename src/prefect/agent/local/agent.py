@@ -59,7 +59,7 @@ class LocalAgent(Agent):
 
     def __init__(
         self,
-        agent_id: str = None,
+        agent_config_id: str = None,
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
@@ -74,7 +74,7 @@ class LocalAgent(Agent):
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
         super().__init__(
-            agent_id=agent_id,
+            agent_config_id=agent_config_id,
             name=name,
             labels=labels,
             env_vars=env_vars,

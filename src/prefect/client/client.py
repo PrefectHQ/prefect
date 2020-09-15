@@ -1461,43 +1461,44 @@ class Client:
         if not result.data.write_run_logs.success:
             raise ValueError("Writing logs failed.")
 
-    def register_agent(
-        self, agent_type: str, name: str = None, labels: List[str] = None
-    ) -> str:
-        """
-        Register an agent with Cloud. DEPRECATED
+    # def register_agent(
+    #     self, agent_type: str, name: str = None, labels: List[str] = None
+    # ) -> str:
+    #     """
+    #     Register an agent with Cloud. DEPRECATED
 
-        Args:
-            - agent_type (str): The type of agent being registered
-            - name: (str, optional): The name of the agent being registered
-            - labels (List[str], optional): A list of any present labels on the agent
-                being registered
+    #     Args:
+    #         - agent_type (str): The type of agent being registered
+    #         - name: (str, optional): The name of the agent being registered
+    #         - labels (List[str], optional): A list of any present labels on the agent
+    #             being registered
 
-        Returns:
-            - The agent ID as a string
-        """
-        mutation = {
-            "mutation($input: register_agent_input!)": {
-                "register_agent(input: $input)": {"id"}
-            }
-        }
+    #     Returns:
+    #         - The agent ID as a string
+    #     """
+    #     mutation = {
+    #         "mutation($input: register_agent_input!)": {
+    #             "register_agent(input: $input)": {"id"}
+    #         }
+    #     }
 
-        result = self.graphql(
-            mutation,
-            variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
-        )
+    #     print("here")
+    #     result = self.graphql(
+    #         mutation,
+    #         variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
+    #     )
 
-        if not result.data.register_agent.id:
-            raise ValueError("Error registering agent")
+    #     if not result.data.register_agent.id:
+    #         raise ValueError("Error registering agent")
 
-        return result.data.register_agent.id
+    #     return result.data.register_agent.id
 
     def register_agent(
         self,
         agent_type: str,
         name: str = None,
         labels: List[str] = None,
-        agent_id: str = None,
+        agent_config_id: str = None,
     ) -> str:
         """
         Register an agent with a backend API
@@ -1525,7 +1526,7 @@ class Client:
                     name=name,
                     labels=labels or [],
                     tenant_id=self._active_tenant_id,
-                    agent_id=agent_id,
+                    agent_config_id=agent_config_id,
                 )
             ),
         )

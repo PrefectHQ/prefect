@@ -50,7 +50,7 @@ def agent():
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
 @click.option("--api", "-a", required=False, help="A Prefect API URL.", hidden=True)
-@click.option("--agent-id", required=False, help="An agent ID", hidden=True)
+@click.option("--agent-config-id", required=False, help="An agent ID", hidden=True)
 @click.option(
     "--name",
     "-n",
@@ -142,7 +142,7 @@ def start(
     agent_option,
     token,
     api,
-    agent_id,
+    agent_config_id,
     name,
     verbose,
     label,
@@ -256,7 +256,7 @@ def start(
 
         if agent_option == "local":
             from_qualified_name(retrieved_agent)(
-                agent_id=agent_id,
+                agent_config_id=agent_config_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -268,7 +268,7 @@ def start(
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
-                agent_id=agent_id,
+                agent_config_id=agent_config_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -283,7 +283,7 @@ def start(
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
-                agent_id=agent_id,
+                agent_config_id=agent_config_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
@@ -293,7 +293,7 @@ def start(
             ).start()
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
-                agent_id=agent_id,
+                agent_config_id=agent_config_id,
                 namespace=namespace,
                 name=name,
                 labels=labels,
@@ -303,7 +303,7 @@ def start(
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
-                agent_id=agent_id,
+                agent_config_id=agent_config_id,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,
