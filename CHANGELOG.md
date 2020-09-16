@@ -6,7 +6,6 @@ Released on September 16, 2020.
 
 ### Enhancements
 
-- Adds a compression argument to both S3Upload and S3Download, allowing for compression of data upon upload and decompression of data upon download - [#3259](https://github.com/PrefectHQ/prefect/issues/3259)
 - Use explicit exception chaining [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
 - Quiet Hasura logs with `prefect server start` - [#3296](https://github.com/PrefectHQ/prefect/pull/3296)
 
@@ -19,6 +18,10 @@ Released on September 16, 2020.
 - Allow using `apply_map` under a `case` or `resource_manager` block - [#3293](https://github.com/PrefectHQ/prefect/pull/3293)
 - Fix bug with interaction between `case` blocks and `Constant` tasks which resulted in some tasks never skipping - [#3293](https://github.com/PrefectHQ/prefect/pull/3293)
 - Fix bug in `DaskExecutor` where not all client timeouts could be configured via setting `distributed.comm.timeouts.connect` - [#3317](https://github.com/PrefectHQ/prefect/pull/3317)
+
+## Task Library
+
+- Adds a compression argument to both S3Upload and S3Download, allowing for compression of data upon upload and decompression of data upon download - [#3259](https://github.com/PrefectHQ/prefect/issues/3259)
 
 ### Contributors
 
