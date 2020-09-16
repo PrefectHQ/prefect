@@ -170,7 +170,7 @@ def test_is_day_of_week():
         for year in years:
             month = years[year]["month"]
             day = (
-                years[year].day + day_of_week
+                years[year]["day"] + day_of_week
             )  # day of the week also acts as an offset for each day, which starts at Sunday (0)
             next_day = day + 1
 
