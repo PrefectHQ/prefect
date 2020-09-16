@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prefect-job
+  labels: {}
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: flow
+          image: prefecthq/prefect:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args: ["prefect execute flow-run"]
+          resources:
+            requests:
+              cpu: "100m"
+            limits:
+              cpu: "100m"

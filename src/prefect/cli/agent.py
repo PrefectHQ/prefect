@@ -8,6 +8,7 @@ _agents = {
     "fargate": "prefect.agent.fargate.FargateAgent",
     "docker": "prefect.agent.docker.DockerAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
+    "kubernetes2": "prefect.agent.kubernetes2.KubernetesAgent",
     "local": "prefect.agent.local.LocalAgent",
 }
 
@@ -286,6 +287,15 @@ def start(
                 **kwargs
             ).start()
         elif agent_option == "kubernetes":
+            from_qualified_name(retrieved_agent)(
+                namespace=namespace,
+                name=name,
+                labels=labels,
+                env_vars=env_vars,
+                max_polls=max_polls,
+                agent_address=agent_address,
+            ).start()
+        elif agent_option == "kubernetes2":
             from_qualified_name(retrieved_agent)(
                 namespace=namespace,
                 name=name,

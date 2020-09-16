@@ -5,4 +5,5 @@ from prefect.agent.agent import Agent
 import prefect.agent.docker
 import prefect.agent.fargate
 import prefect.agent.kubernetes
+import prefect.agent.kubernetes2
 import prefect.agent.local
