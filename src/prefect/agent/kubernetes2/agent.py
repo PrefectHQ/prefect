@@ -1,5 +1,7 @@
 import os
+import io
 import uuid
+from urllib.parse import urlparse
 from typing import Iterable
 
 import yaml
@@ -21,6 +23,32 @@ def _get_or_create(d, key, val=None):
     for k in path[:-1]:
         d = d.setdefault(k, {})
     return d.setdefault(path[-1], val)
+
+
+def read_bytes_from_path(path: str) -> bytes:
+    parsed = urlparse(path)
+    if not parsed.scheme or parsed.scheme == "agent":
+        with open(parsed.path, "rb") as f:
+            return f.read()
+    elif parsed.scheme == "gcs":
+        from prefect.utilities.gcp import get_storage_client
+
+        client = get_storage_client()
+        parsed = urlparse(path)
+        bucket = client.bucket(parsed.hostname)
+        blob = bucket.get_blob(parsed.path.lstrip("/"))
+        if blob is None:
+            raise ValueError(f"Job template doesn't exist at {path}")
+        return blob.download_as_bytes()
+    elif parsed.scheme == "s3":
+        from prefect.utilities.aws import get_boto_client
+
+        client = get_boto_client(resource="s3")
+        stream = io.BytesIO()
+        client.download_fileobj(Bucket=parsed.hostname, Key=parsed.path, Fileobj=stream)
+        return stream.getbuffer()
+    else:
+        raise ValueError(f"Unsupported file scheme {path}")
 
 
 class KubernetesAgent(Agent):
@@ -185,19 +213,16 @@ class KubernetesAgent(Agent):
 
         return "Job {}".format(job.metadata.name)
 
-    def load_job_template(self, path):
-        with open(path, "r") as f:
-            return yaml.safe_load(f)
-
     def generate_job_spec(self, flow_run: GraphQLResult) -> dict:
         environment = EnvironmentSchema().load(flow_run.flow.environment).metadata
 
         if environment.job_template:
             job = environment.job_template
         else:
-            job = self.load_job_template(
-                environment.job_template_path or self.job_template_path
-            )
+            job_template_path = environment.job_template_path or self.job_template_path
+            self.logger.debug("Loading job template from %r", job_template_path)
+            template_bytes = read_bytes_from_path(job_template_path)
+            job = yaml.safe_load(template_bytes)
 
         identifier = uuid.uuid4().hex[:8]
 

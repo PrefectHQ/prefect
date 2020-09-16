@@ -25,7 +25,7 @@ class KubernetesJobConfig(Environment):
                 "Cannot provide both `job_template_path` and `job_template`"
             )
         if job_template_path is not None:
-            parsed = urlparse(job_template)
+            parsed = urlparse(job_template_path)
             # If it's a local file, load now rather than runtime
             if not parsed.scheme or parsed.scheme in ("local", "file"):
                 with open(parsed.path) as f:
