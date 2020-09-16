@@ -15,7 +15,11 @@ from prefect.engine.results import (
     PrefectResult,
     SecretResult,
 )
-from prefect.engine.serializers import JSONSerializer, PickleSerializer, DateTimeSerializer
+from prefect.engine.serializers import (
+    JSONSerializer,
+    PickleSerializer,
+    DateTimeSerializer,
+)
 from prefect.tasks.core.constants import Constant
 from prefect.tasks.secrets import PrefectSecret
 
