@@ -18,7 +18,7 @@ try:
         BigQueryStreamingInsert,
         CreateBigQueryTable,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.gcp` requires Prefect to be installed with the "gcp" extra.'
-    )
+    ) from err
