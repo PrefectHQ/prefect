@@ -1,10 +1,17 @@
----
-title: Overview
----
+# Overview
 
-# Task Library
+The Prefect task library is a constantly growing list of pre-defined tasks that provide off-the-shelf
+functionality for working with a wide range of tools anywhere from shell script execution to kubernetes
+job management to sending tweets. A majority of the task library is community supported and thus opens
+the door for users who want to contribute tasks for working with any number of tools. Tasks in the task
+library are created with a specific goal in mind such as creating a Kubernetes job with
+[`CreateNamespacedJob`](/api/latest/tasks/kubernetes.html#createnamespacedjob) or invoking an AWS lambda
+function with [`LambdaInvoke`](/api/latest/tasks/aws.html#lambdainvoke).
 
-The Prefect task library is constantly growing. This documentation is meant to give a sample of the types of tasks that it includes. However, unlike the API Reference, these documents are updated by hand and therefore may fall behind. For the auto-generated and complete documentation, see the [reference documentation](/api/latest) for the `prefect.tasks` module.
+Below is a table showcasing some of the tasks that have been contributed to the task library for
+interfacing with varying tools and services that users have deemed useful. For a full list of tasks in
+the library and more information on how to use them visit the API [reference documentation](/api/latest)
+for the `prefect.tasks` module.
 
 |       |       |       |       |       |
 | :---: | :---: | :---: | :---: | :---: |
@@ -14,3 +21,95 @@ The Prefect task library is constantly growing. This documentation is meant to g
 | <img src="/logos/mysql.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>MySQL</p>](https://docs.prefect.io/api/latest/tasks/mysql.html) | <img src="/logos/postgres.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>PostgreSQL</p>](https://docs.prefect.io/api/latest/tasks/postgres.html) | <img src="/logos/python.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Python</p>](https://docs.prefect.io/api/latest/tasks/function.html) | <img src="/logos/pushbullet.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Pushbullet</p>](https://docs.prefect.io/api/latest/tasks/pushbullet.html) | <img src="/logos/redis.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Redis</p>](https://docs.prefect.io/api/latest/tasks/redis.html) |
 | <img src="/logos/rlogo.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>RSS</p>](https://docs.prefect.io/api/latest/tasks/rss.html) | <img src="/logos/shell.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Shell</p>](https://docs.prefect.io/api/latest/tasks/shell.html) | <img src="/logos/slack.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Slack</p>](https://docs.prefect.io/api/latest/tasks/slack.html)| <img src="/logos/snowflake.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Snowflake</p>](https://docs.prefect.io/api/latest/tasks/snowflake.html) | <img src="/logos/spacy.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>SpaCy</p>](https://docs.prefect.io/api/latest/tasks/spacy.html) |
 | <img src="/logos/sqlite.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>SQLite</p>](https://docs.prefect.io/api/latest/tasks/sqlite.html) | <img src="/logos/tlogo.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Twitter</p>](https://docs.prefect.io/api/latest/tasks/twitter.html) |
+
+## Task library in action
+
+Just like any other Prefect [task](/core/concepts/tasks.html), tasks in the task library can easily be
+used by importing and adding them to your flow.
+
+:::: tabs
+::: tab "Functional API"
+```python
+from prefect import task, Flow
+from prefect.tasks.shell import ShellTask
+
+ls_task = ShellTask(command="ls", return_all=True)
+
+@task
+def show_output(std_out):
+    print(std_out)
+
+with Flow("list_files") as flow:
+    ls = ls_task()
+    show_output(ls)
+```
+:::
+
+::: tab "Imperative API"
+```python
+from prefect import Task, Flow
+from prefect.tasks.shell import ShellTask
+
+class ShowOutput(Task):
+    def run(self, std_out):
+        print(std_out)
+
+ls_task = ShellTask(command="ls", return_all=True)
+show_output = ShowOutput()
+
+flow = Flow("list_files")
+show_output.set_upstream(ls_task, key="std_out", flow=flow)
+```
+:::
+::::
+
+Keyword arguments for tasks imported from the task library can either be set at initialization for reuse
+purposed or optionally set and overwritten when defining the flow.
+
+:::: tabs
+::: tab "Functional API"
+```python
+from prefect import task, Flow
+from prefect.tasks.shell import ShellTask
+
+# Will only return the listed files
+ls_task = ShellTask(command="ls", return_all=True)
+
+@task
+def show_output(std_out):
+    print(std_out)
+
+with Flow("count_files") as flow:
+    ls = ls_task()
+    show_output(ls)
+
+    # Override command to count listed files
+    ls_count = ls_task(command="ls | wc -l")
+    show_output(ls_count)
+```
+:::
+
+::: tab "Imperative API"
+```python
+from prefect import Task, Flow
+from prefect.tasks.shell import ShellTask
+
+class ShowOutput(Task):
+    def run(self, std_out):
+        print(std_out)
+
+ls_task = ShellTask(command="ls", return_all=True)
+show_output = ShowOutput()
+
+ls_count = ShellTask(command="ls | wc -l", return_all=True)
+show_output2 = ShowOutput()
+
+flow = Flow("count_files")
+show_output.set_upstream(ls_task, key="std_out", flow=flow)
+show_output2.set_upstream(ls_count, key="std_out", flow=flow)
+```
+:::
+::::
+
+For more information on the tasks available for use in the task library visit the API
+[reference documentation](/api/latest) for the `prefect.tasks` and if you are interested in contributing to the task library visit the [contributing page](/core/task_library/contributing.html)!
