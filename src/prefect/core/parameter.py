@@ -128,7 +128,7 @@ class DateTimeParameter(Parameter):
         - tags ([str], optional): A list of tags for this parameter
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 
