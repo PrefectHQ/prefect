@@ -4,6 +4,7 @@ exclude =
     versioneer.py,
     _version.py
     src/prefect/contrib/*
+    src/prefect/tasks/*
 ignore =
     # Import formatting
     E4,
