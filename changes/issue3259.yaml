@@ -1,5 +1,0 @@
-enhancement:
-    - "Adds a compression argument to both S3Upload and S3Download, allowing for compression of data upon upload and decompression of data upon download - [#3259](https://github.com/PrefectHQ/prefect/issues/3259)"
-
-contributor:
-    - "[Max Del Giudice](https://github.com/madelgi)"
