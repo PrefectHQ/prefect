@@ -140,13 +140,13 @@ def test_is_month_start():
     months = range(1, 12)
 
     def test_first_day_of_month(month: int):
-        filter_fn = filters.is_month_start()
+        filter_fn = filters.is_month_start
 
         for year in years:
-            assert filter_fn(pendulum.datetime(year=year, month=month, day=1))
-            assert not filter_fn(pendulum.datetime(year=year, month=month, day=2))
-            assert not filter_fn(pendulum.datetime(year=year, month=month, day=15))
-            assert not filter_fn(pendulum.datetime(year=year, month=month, day=28))
+            assert filter_fn(dt=pendulum.datetime(year=year, month=month, day=1))
+            assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=2))
+            assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=15))
+            assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=28))
 
     for month in months:
         test_first_day_of_month(month=month)
@@ -168,15 +168,15 @@ def test_is_day_of_week():
         filter_fn = filters.is_day_of_week(day_of_week=day_of_week)
 
         for year in years:
-            month = years[year].month
+            month = years[year]["month"]
             day = (
                 years[year].day + day_of_week
             )  # day of the week also acts as an offset for each day, which starts at Sunday (0)
             next_day = day + 1
 
-            assert filter_fn(pendulum.datetime(year=year, month=month, day=day))
+            assert filter_fn(dt=pendulum.datetime(year=year, month=month, day=day))
             assert not filter_fn(
-                pendulum.datetime(year=year, month=month, day=next_day)
+                dt=pendulum.datetime(year=year, month=month, day=next_day)
             )
 
     for day in days_week:
