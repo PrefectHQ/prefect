@@ -86,7 +86,6 @@ def _generate_metadata(env):
     fields = [
         "job_template_path",
         "job_template",
-        "image",
         "env",
         "memory_limit",
         "memory_request",
@@ -96,6 +95,8 @@ def _generate_metadata(env):
     d = env.metadata.copy() if env.metadata else {}
     for f in fields:
         d[f] = getattr(env, f)
+    if env.image or d.get("image") is None:
+        d["image"] = env.image
     return d
 
 

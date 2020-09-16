@@ -2,10 +2,10 @@ import yaml
 from typing import List, Union
 from urllib.parse import urlparse
 
-from prefect.environments.execution.base import Environment, _RunMixin
+from prefect.environments.execution.base import Environment
 
 
-class KubernetesJobConfig(Environment, _RunMixin):
+class KubernetesJobConfig(Environment):
     def __init__(
         self,
         *,
@@ -46,4 +46,19 @@ class KubernetesJobConfig(Environment, _RunMixin):
         self.cpu_request = cpu_request
 
     def execute(self, flow) -> None:
-        self.run(flow)
+        """
+        Run the flow using this environment.
+
+        Args:
+            - flow (Flow): the flow object
+        """
+        try:
+            from prefect.engine import get_default_flow_runner_class
+
+            runner_cls = get_default_flow_runner_class()
+            runner_cls(flow=flow).run()
+        except Exception:
+            self.logger.exception(
+                "Unexpected error raised during flow run", exc_info=True
+            )
+            raise

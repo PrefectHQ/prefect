@@ -216,7 +216,7 @@ class KubernetesAgent(Agent):
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
 
         # Get the first container, which is used for the prefect job
-        containers = _get_or_create(job, "spec.template.spec", [])
+        containers = _get_or_create(job, "spec.template.spec.containers", [])
         if not containers:
             containers.append({})
         container = containers[0]
@@ -248,8 +248,8 @@ class KubernetesAgent(Agent):
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             }
         )
-        container_env = container.setdefault("env", {})
-        existing = {e["name"] for e in env}
+        container_env = _get_or_create(container, "env", [])
+        existing = {e["name"] for e in container_env}
         for k, v in env.items():
             if k not in existing:
                 container_env.append({"name": k, "value": v})
