@@ -124,7 +124,7 @@ class DateTimeSerializer(Serializer):
 
     def serialize(self, value: Any) -> bytes:
         """
-        Serialize an object to JSON
+        Serialize a datetime to human-readable bytes
 
         Args:
             - value (Any): the value to serialize
@@ -136,7 +136,7 @@ class DateTimeSerializer(Serializer):
 
     def deserialize(self, value: bytes) -> Any:
         """
-        Deserialize an object from JSON
+        Deserialize an datetime from human-readable bytes
 
         Args:
             - value (bytes): the value to deserialize
