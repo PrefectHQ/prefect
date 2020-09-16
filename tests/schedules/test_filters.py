@@ -128,28 +128,24 @@ def test_is_month_end(dates):
     assert filters.is_month_end(dates[0]) is dates[1]
 
 
-def test_is_month_start():
-    years = [
+@pytest.mark.parametrize(
+    "year",
+    [
         1971,  # Before start of UTC
         1972,  # Start of UTC
         1992,  # Near past
         2020,  # Relative present
         2525,  # Distant future
-    ]
+    ],
+)
+@pytest.mark.parametrize("month", list(range(1, 12)))
+def test_is_month_start(year: int, month: int):
+    filter_fn = filters.is_month_start
 
-    months = range(1, 12)
-
-    def test_first_day_of_month(month: int):
-        filter_fn = filters.is_month_start
-
-        for year in years:
-            assert filter_fn(dt=pendulum.datetime(year=year, month=month, day=1))
-            assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=2))
-            assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=15))
-            assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=28))
-
-    for month in months:
-        test_first_day_of_month(month=month)
+    assert filter_fn(dt=pendulum.datetime(year=year, month=month, day=1))
+    assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=2))
+    assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=15))
+    assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=28))
 
 
 def test_is_day_of_week():
