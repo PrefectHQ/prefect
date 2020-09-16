@@ -1,2 +1,0 @@
-fix:
-  - "Fix issue restarting Mapped pipelines with no result- [#3246](https://github.com/PrefectHQ/prefect/issues/3246)"

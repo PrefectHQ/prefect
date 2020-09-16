@@ -1,2 +1,0 @@
-fix:
-  - "Fix handling of Prefect Signals when Task state handlers are called - [#3258](https://github.com/PrefectHQ/prefect/issues/3258)"

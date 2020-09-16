@@ -1,2 +1,0 @@
-enhancement:
-  - "Quiet Hasura logs with `prefect server start` - [#3296](https://github.com/PrefectHQ/prefect/pull/3296)"
