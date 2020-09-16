@@ -136,8 +136,7 @@ class DateTimeParameter(Parameter):
         value = super().run()
         if value is None:
             return value
-        if isinstance(value, str):
-            value = pendulum.parse(value)
+        elif isinstance(value, str):
+            return pendulum.parse(value)
         else:
-            value = pendulum.instance(value)
-        return value
+            return pendulum.instance(value)
