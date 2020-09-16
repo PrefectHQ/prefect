@@ -183,7 +183,9 @@ def is_weekend(dt: datetime) -> bool:
     return pendulum.instance(dt).weekday() > 4
 
 
-def is_month_start_or_specific_day(day_of_week: int) -> Callable[[datetime], bool]:
+def is_month_start_or_specific_day(
+    day_of_week: int = None,
+) -> Callable[[datetime], bool]:
     """
     Filter that only matches on the first day of the month
     or a specific day of the week.
@@ -201,7 +203,7 @@ def is_month_start_or_specific_day(day_of_week: int) -> Callable[[datetime], boo
     return _filter_fn
 
 
-def is_month_end_or_specific_day(day_of_week: int) -> Callable[[datetime], bool]:
+def is_month_end_or_specific_day(day_of_week: int = None) -> Callable[[datetime], bool]:
     """
     Filter that only matches on the last day of the month
     or a specific day of the week.
