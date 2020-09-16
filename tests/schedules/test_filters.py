@@ -132,7 +132,7 @@ def test_is_month_start_or_specific_day():
     years = {
         1971: {"month": 2, "day": 21},  # Before start of UTC
         1972: {"month": 6, "day": 11},  # Start of UTC
-        1992: {"month": 6, "day": 7},   # Near past
+        1992: {"month": 6, "day": 7},  # Near past
         2020: {"month": 9, "day": 13},  # Relative present
         2525: {"month": 12, "day": 2},  # Distant future
     }
@@ -164,6 +164,49 @@ def test_is_month_start_or_specific_day():
             )
 
     test_first_day_of_every_month()
+
+    for day in days_week:
+        test_day_of_week(day)
+
+
+def test_is_month_end_or_specific_day():
+    years = {
+        1971: {"month": 2, "day": 21},  # Before start of UTC
+        1972: {"month": 6, "day": 11},  # Start of UTC
+        1992: {"month": 6, "day": 7},  # Near past
+        2020: {"month": 9, "day": 13},  # Relative present
+        2525: {"month": 12, "day": 2},  # Distant future
+    }
+
+    months = range(1, 12)
+    days_week = range(0, 6)
+
+    def test_last_day_of_every_month():
+        filter_fn = filters.is_month_start_or_specific_day()
+
+        for month in months:
+            for year in years:
+                assert filter_fn(
+                    pendulum.datetime(year=year, month=month).end_of("month")
+                )
+                assert not filter_fn(pendulum.datetime(year=year, month=month, day=15))
+
+    def test_day_of_week(day_of_week):
+        filter_fn = filters.is_month_start_or_specific_day(day_of_week=day_of_week)
+
+        for year in years:
+            month = years[year].month
+            day = (
+                years[year].day + day_of_week
+            )  # day of the week also acts as an offset for each day, which starts at Sunday (0)
+            next_day = day + 1
+
+            assert filter_fn(pendulum.datetime(year=year, month=month, day=day))
+            assert not filter_fn(
+                pendulum.datetime(year=year, month=month, day=next_day)
+            )
+
+    test_last_day_of_every_month()
 
     for day in days_week:
         test_day_of_week(day)
