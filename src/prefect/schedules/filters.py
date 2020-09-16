@@ -181,3 +181,21 @@ def is_weekend(dt: datetime) -> bool:
         - bool: True if the date is a weekend; False otherwise
     """
     return pendulum.instance(dt).weekday() > 4
+
+
+def is_month_start_or_specific_day(day_of_week: int) -> Callable[[datetime], bool]:
+    """
+    Filter that only matches on the first day of the month
+    or the first day of the week (Sunday).
+
+    Args:
+        - day_of_week (int): the integer day of the week to match on (0 - 6 == Sunday - Saturday)
+
+    Returns:
+        - Callable[[datetime], bool]: a filter function
+    """
+
+    def _filter_fn(dt: datetime) -> bool:
+        return dt.day == 1 or dt.day_of_week == day_of_week
+
+    return _filter_fn
