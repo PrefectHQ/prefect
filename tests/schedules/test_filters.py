@@ -139,24 +139,24 @@ def test_is_month_start():
 
     months = range(1, 12)
 
-    def test_first_day_of_every_month():
-        filter_fn = filters.is_month_start_or_specific_day()
+    def test_first_day_of_month(month: int):
+        filter_fn = filters.is_month_start()
 
-        for month in months:
-            for year in years:
-                assert filter_fn(pendulum.datetime(year=year, month=month, day=1))
-                assert not filter_fn(pendulum.datetime(year=year, month=month, day=2))
-                assert not filter_fn(pendulum.datetime(year=year, month=month, day=15))
-                assert not filter_fn(pendulum.datetime(year=year, month=month, day=28))
+        for year in years:
+            assert filter_fn(pendulum.datetime(year=year, month=month, day=1))
+            assert not filter_fn(pendulum.datetime(year=year, month=month, day=2))
+            assert not filter_fn(pendulum.datetime(year=year, month=month, day=15))
+            assert not filter_fn(pendulum.datetime(year=year, month=month, day=28))
 
-    test_first_day_of_every_month()
+    for month in months:
+        test_first_day_of_month(month=month)
 
 
-def test_is_specific_day():
+def test_is_day_of_week():
     years = {
         1971: {"month": 2, "day": 21},  # Before start of UTC
         1972: {"month": 6, "day": 11},  # Start of UTC
-        1992: {"month": 6, "day": 7},   # Near past
+        1992: {"month": 6, "day": 7},  # Near past
         2020: {"month": 9, "day": 13},  # Relative present
         2525: {"month": 12, "day": 2},  # Distant future
     }
@@ -164,8 +164,8 @@ def test_is_specific_day():
     months = range(1, 12)
     days_week = range(0, 6)
 
-    def test_day_of_week(day_of_week):
-        filter_fn = filters.is_month_start_or_specific_day(day_of_week=day_of_week)
+    def test_day_of_week(day_of_week: int):
+        filter_fn = filters.is_day_of_week(day_of_week=day_of_week)
 
         for year in years:
             month = years[year].month
