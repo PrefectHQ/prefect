@@ -806,7 +806,9 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task
         """
-        return prefect.tasks.core.operators.GetItem().bind(self, key)
+        return prefect.tasks.core.operators.GetItem(
+            checkpoint=self.checkpoint, result=self.result
+        ).bind(self, key)
 
     def __or__(self, other: object) -> object:
         """
