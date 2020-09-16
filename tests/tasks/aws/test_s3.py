@@ -79,7 +79,6 @@ class TestS3Upload:
     def test_gzip_compression(self, monkeypatch):
         task = S3Upload("bucket")
         byte_string = b"col1,col2,col3\nfake,data,1\nfalse,info,2\n"
-        gzip_data = gzip.compress(byte_string)
 
         client = MagicMock()
         boto3 = MagicMock(client=MagicMock(return_value=client))
@@ -88,7 +87,7 @@ class TestS3Upload:
         task.run(byte_string, key="key", compression="gzip")
         args, kwargs = client.upload_fileobj.call_args_list[0]
         gzip_data_stream = args[0]
-        assert gzip_data_stream.read() == gzip_data
+        assert gzip.decompress(gzip_data_stream.read()) == byte_string
 
     def test_raises_on_invalid_compression_method(self, monkeypatch):
         task = S3Upload("test")
