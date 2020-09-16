@@ -1,6 +1,8 @@
+import pendulum
 from typing import TYPE_CHECKING, Any, Dict, Iterable
 
 import prefect
+from prefect.engine.serializers import DateTimeSerializer
 import prefect.engine.signals
 import prefect.triggers
 from prefect.core.task import Task
@@ -112,3 +114,30 @@ class Parameter(Task):
             - dict representing this parameter
         """
         return prefect.serialization.task.ParameterSchema().dump(self)
+
+
+class DateTimeParameter(Parameter):
+    """
+    A DateTimeParameter that casts its input as a DateTime
+    Args:
+        - name (str): the Parameter name.
+        - required (bool, optional): If True, the Parameter is required and the default
+            value is ignored.
+        - default (any, optional): A default value for the parameter. If the default
+            is not None, the Parameter will not be required.
+        - tags ([str], optional): A list of tags for this parameter
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.result = PrefectResult(serializer=DateTimeSerializer())
+
+    def run(self) -> Any:
+        value = super().run()
+        if value is None:
+            return value
+        if isinstance(value, str):
+            value = pendulum.parse(value)
+        else:
+            value = pendulum.instance(value)
+        return value

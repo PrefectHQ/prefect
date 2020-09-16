@@ -1,11 +1,12 @@
-import pytest
 import base64
 import json
 
 import cloudpickle
 import pendulum
+import pytest
 
 from prefect.engine.serializers import (
+    DateTimeSerializer,
     JSONSerializer,
     PandasSerializer,
     PickleSerializer,
@@ -61,6 +62,19 @@ class TestJSONSerializer:
         value = ["abc", 123]
         serialized = JSONSerializer().serialize(value)
         assert serialized == json.dumps(value).encode()
+
+
+class TestDateTimeSerializer:
+    def test_serialize_returns_bytes(self):
+        value = pendulum.now()
+        serialized = DateTimeSerializer().serialize(value)
+        assert isinstance(serialized, bytes)
+
+    def test_deserialize_returns_objects(self):
+        value = pendulum.now()
+        serialized = DateTimeSerializer().serialize(value)
+        deserialized = DateTimeSerializer().deserialize(serialized)
+        assert deserialized == value
 
 
 class TestPandasSerializer:

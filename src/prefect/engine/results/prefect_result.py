@@ -1,7 +1,7 @@
 from typing import Any
 
 from prefect.engine.result import Result
-from prefect.engine.serializers import JSONSerializer, Serializer
+from prefect.engine.serializers import JSONSerializer, Serializer, DateTimeSerializer
 
 
 class PrefectResult(Result):
@@ -24,8 +24,10 @@ class PrefectResult(Result):
 
     @serializer.setter
     def serializer(self, val: Serializer) -> None:  # type: ignore
-        if not isinstance(val, JSONSerializer):
-            raise TypeError("PrefectResult only supports JSONSerializer")
+        if not isinstance(val, (JSONSerializer, DateTimeSerializer)):
+            raise TypeError(
+                "PrefectResult only supports JSONSerializer or DateTimeSerializer"
+            )
         self._serializer = val
 
     def read(self, location: str) -> Result:

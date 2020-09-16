@@ -15,7 +15,7 @@ from prefect.engine.results import (
     PrefectResult,
     SecretResult,
 )
-from prefect.engine.serializers import JSONSerializer, PickleSerializer
+from prefect.engine.serializers import JSONSerializer, PickleSerializer, DateTimeSerializer
 from prefect.tasks.core.constants import Constant
 from prefect.tasks.secrets import PrefectSecret
 
@@ -114,10 +114,14 @@ class TestPrefectResult:
         result = PrefectResult(serializer=serializer)
         assert result.serializer is serializer
 
-        # Can set if it's a JSONSerializer
+        # Can set if it's a JSONSerializer or DateTimeSerializer
         serializer2 = JSONSerializer()
         result.serializer = serializer2
         assert result.serializer is serializer2
+
+        serializer3 = DateTimeSerializer()
+        result.serializer = serializer3
+        assert result.serializer is serializer3
 
         # Type errors for other serializer types
         with pytest.raises(TypeError):

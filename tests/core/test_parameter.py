@@ -1,9 +1,10 @@
+import pendulum
 import pytest
 
 import prefect
 from prefect.core.flow import Flow
+from prefect.core.parameter import DateTimeParameter, Parameter
 from prefect.core.task import Task
-from prefect.core.parameter import Parameter
 from prefect.tasks.core.function import FunctionTask
 
 
@@ -111,3 +112,30 @@ def test_deprecated_parameter_in_task_module():
         p = OldParameter("hello")
 
     assert isinstance(p, Parameter)
+
+
+class TestDateTimeParameter:
+    @prefect.task
+    def return_value(x):
+        return x
+
+    with Flow("test") as dt_flow:
+        dt = DateTimeParameter("dt", required=False)
+        x = return_value(dt)
+
+    def test_datetime_parameter_returns_datetimes_if_passed_datetimes(self):
+        now = pendulum.now()
+        state = self.dt_flow.run(dt=now)
+        assert state.result[self.dt].result == now
+        assert state.result[self.x].result == now
+
+    def test_datetime_parameter_returns_datetimes_if_passed_string(self):
+        now = pendulum.now()
+        state = self.dt_flow.run(dt=str(now))
+        assert state.result[self.dt].result == now
+        assert state.result[self.x].result == now
+
+    def test_datetime_parameter_returns_none_if_passed_none(self):
+        state = self.dt_flow.run(dt=None)
+        assert state.result[self.dt].result is None
+        assert state.result[self.x].result is None
