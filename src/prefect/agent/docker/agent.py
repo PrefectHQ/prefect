@@ -16,6 +16,21 @@ if TYPE_CHECKING:
     import docker
 
 
+def _stream_container_logs(base_url: str, container_id: str) -> None:
+    """
+    Stream container logs back to stdout
+
+    Args:
+        - base_url (str): URL for a Docker daemon server
+        - container_id (str): ID of a container to stream logs
+    """
+    import docker
+
+    client = docker.APIClient(base_url=base_url, version="auto")
+    for log in client.logs(container=container_id, stream=True, follow=True):
+        print(str(log, "utf-8").rstrip())
+
+
 class DockerAgent(Agent):
     """
     Agent which deploys flow runs locally as Docker containers. Information on using the
@@ -401,29 +416,28 @@ class DockerAgent(Agent):
         self.docker_client.start(container=container.get("Id"))
 
         if self.show_flow_logs:
-            proc = multiprocessing.Process(
-                target=self.stream_container_logs,
-                kwargs={"container_id": container.get("Id")},
-            )
-
-            proc.start()
-            self.processes.append(proc)
+            self.stream_flow_logs(container.get("Id"))
 
         self.logger.debug("Docker container {} started".format(container.get("Id")))
 
         return "Container ID: {}".format(container.get("Id"))
 
-    def stream_container_logs(self, container_id: str) -> None:
-        """
-        Stream container logs back to stdout
+    def stream_flow_logs(self, container_id: str) -> None:
+        """Stream container logs back to stdout.
 
         Args:
-            - container_id (str): ID of a container to stream logs
+            - container_id (str): ID of container
         """
-        for log in self.docker_client.logs(
-            container=container_id, stream=True, follow=True
-        ):
-            print(str(log, "utf-8").rstrip())
+        # All arguments to multiprocessing.Process need to be pickleable
+        proc = multiprocessing.Process(
+            target=_stream_container_logs,
+            kwargs={
+                "base_url": self.base_url,
+                "container_id": container_id,
+            },
+        )
+        proc.start()
+        self.processes.append(proc)
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
         """
