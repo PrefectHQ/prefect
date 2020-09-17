@@ -5,8 +5,10 @@
 The flow overview summarizes each flow's recent behavior. It is a dashboard for a single workflow.
 
 In the details tile of the flow overview, you can add and remove flow group labels.  As with other [flow group settings](https://docs.prefect.io/orchestration/ui/flow.html#flow-group-settings), these flow group labels take precedence over the labels your flow is registered with. 
-![](/orchestration/ui/flow-overview.png)
 
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-overview.png">
+</div>
 ## Schematic
 
 The flow schematic shows an interactive overview of all the tasks in the flow and their dependency structure.
