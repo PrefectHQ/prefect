@@ -197,7 +197,7 @@ def is_day_of_week(
     """
 
     def _filter_fn(dt: datetime) -> bool:
-        return dt.day_of_week == day_of_week
+        return dt.weekday() == day_of_week
 
     return _filter_fn
 
