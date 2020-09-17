@@ -1,9 +1,10 @@
+import pickle
 from unittest.mock import MagicMock
 
 import pytest
 
 from prefect import context
-from prefect.agent.docker import DockerAgent
+from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
@@ -539,9 +540,14 @@ def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, cloud_api):
         )
     )
 
-    process.assert_called_with(
-        target=agent.stream_container_logs, kwargs={"container_id": "container_id"}
+    process_kwargs = dict(
+        target=_stream_container_logs,
+        kwargs={"base_url": agent.base_url, "container_id": "container_id"},
     )
+    process.assert_called_with(**process_kwargs)
+    # Check all arguments to `multiprocessing.Process` are pickleable
+    assert pickle.loads(pickle.dumps(process_kwargs)) == process_kwargs
+
     assert len(agent.processes) == 1
     assert api.create_container.called
     assert api.start.called
