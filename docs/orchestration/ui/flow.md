@@ -34,7 +34,9 @@ When you update schedules and parameters in the settings pages of the UI, it upd
 
 ## Flow Group Settings
 
-A flow group setting overrides individual flow settings. They supersede any re-registrations of your flow and act as the source of truth until they are removed. For example if you update flow group parameters via the UI (or GraphQL), those parameters will take precedence over the parameters your flow is registered with. 
+A flow group setting overrides individual flow settings. They supersede any re-registrations of your flow and act as the source of truth until they are removed. 
+
+For example if you update flow group parameters via the UI (or GraphQL), those parameters will take precedence over the parameters your flow is registered with. 
 
 <div class="add-shadow">
   <img src="/orchestration/ui/flow-group-settings.png">
