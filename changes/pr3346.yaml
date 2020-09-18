@@ -1,0 +1,2 @@
+fix:
+  - "Fix mypy type checking for tasks created with `prefect.task` - [#3346](https://github.com/PrefectHQ/prefect/pull/3346)"
