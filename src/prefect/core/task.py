@@ -77,6 +77,21 @@ class SignatureValidator(type):
         return type.__new__(cls, name, parents, methods)  # type: ignore
 
 
+class instance_property:
+    """Like property, but only available on instances, not the class"""
+
+    def __init__(self, func: Callable):
+        self.func = func
+
+    def __getattr__(self, k: str) -> Any:
+        return getattr(self.func, k)
+
+    def __get__(self, obj: Any, cls: Any) -> Any:
+        if obj is None:
+            raise AttributeError
+        return self.func(obj)
+
+
 class Task(metaclass=SignatureValidator):
     """
     The Task class which is used as the full representation of a unit of work.
@@ -426,7 +441,7 @@ class Task(metaclass=SignatureValidator):
 
         return new
 
-    @property
+    @instance_property
     def __signature__(self) -> inspect.Signature:
         """Dynamically generate the signature, replacing ``*args``/``**kwargs``
         with parameters from ``run``"""

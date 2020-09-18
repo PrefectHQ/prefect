@@ -4,10 +4,9 @@ from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, overload, Union
 
 import pendulum
-from toolz import curry
 
 import prefect
 
@@ -330,10 +329,26 @@ def pause_task(message: str = None, duration: timedelta = None) -> None:
         )
 
 
-@curry
+# To support mypy type checking with optional arguments to `task`, we need to
+# make use of `typing.overload`
+@overload
+def task(__fn: Callable) -> "prefect.tasks.core.function.FunctionTask":
+    pass
+
+
+@overload
 def task(
-    fn: Callable, **task_init_kwargs: Any
-) -> "prefect.tasks.core.function.FunctionTask":
+    **task_init_kwargs: Any,
+) -> Callable[[Callable], "prefect.tasks.core.function.FunctionTask"]:
+    pass
+
+
+def task(
+    fn: Callable = None, **task_init_kwargs: Any
+) -> Union[
+    "prefect.tasks.core.function.FunctionTask",
+    Callable[[Callable], "prefect.tasks.core.function.FunctionTask"],
+]:
     """
     A decorator for creating Tasks from functions.
 
@@ -380,6 +395,11 @@ def task(
         fn_with_args(1)
     ```
     """
+    if fn is None:
+        return lambda fn: prefect.tasks.core.function.FunctionTask(
+            fn=fn,
+            **task_init_kwargs,
+        )
     return prefect.tasks.core.function.FunctionTask(fn=fn, **task_init_kwargs)
 
 
