@@ -56,6 +56,7 @@ def run():
     "--parameters-string", "-ps", help="A parameters JSON string.", hidden=True
 )
 @click.option("--run-name", "-rn", help="A name to assign for this run.", hidden=True)
+@click.option("--context", "-c", help="A context JSON string.", hidden=True)
 @click.option(
     "--watch",
     "-w",
@@ -79,6 +80,7 @@ def flow(
     parameters_file,
     parameters_string,
     run_name,
+    context,
     watch,
     logs,
     no_url,
@@ -98,6 +100,9 @@ def flow(
                                                 parsed correctly, it is best to include the full payload
                                                 within single quotes)
         --run-name, -rn             TEXT        A name to assign for this run
+        --context, -c               TEXT        A string of JSON key / value pairs to include in context
+                                                (note: to ensure these are parsed correctly, it is best
+                                                to include the full payload within single quotes)
         --watch, -w                             Watch current state of the flow run, stream
                                                 output to stdout
         --logs, -l                              Get logs of the flow run, stream output to
@@ -127,6 +132,7 @@ def flow(
         parameters_file=parameters_file,
         parameters_string=parameters_string,
         run_name=run_name,
+        context=context,
         watch=watch,
         logs=logs,
         no_url=no_url,
@@ -221,6 +227,7 @@ def cloud(
         parameters_file=parameters_file,
         parameters_string=parameters_string,
         run_name=run_name,
+        context=None,
         watch=watch,
         logs=logs,
         no_url=no_url,
@@ -313,6 +320,7 @@ def server(
         parameters_file=parameters_file,
         parameters_string=parameters_string,
         run_name=run_name,
+        context=None,
         watch=watch,
         logs=logs,
         no_url=no_url,
@@ -325,6 +333,7 @@ def _run_flow(
     parameters_file,
     parameters_string,
     run_name,
+    context,
     watch,
     logs,
     no_url,
@@ -382,8 +391,13 @@ def _run_flow(
     if parameters_string:
         string_params = json.loads(parameters_string)
 
+    if context:
+        context = json.loads(context)
     flow_run_id = client.create_flow_run(
-        flow_id=flow_id, parameters={**file_params, **string_params}, run_name=run_name
+        flow_id=flow_id,
+        context=context,
+        parameters={**file_params, **string_params},
+        run_name=run_name,
     )
 
     if no_url:
