@@ -83,6 +83,9 @@ class instance_property:
     def __init__(self, func: Callable):
         self.func = func
 
+    def __getattr__(self, k: str) -> Any:
+        return getattr(self.func, k)
+
     def __get__(self, obj: Any, cls: Any) -> Any:
         if obj is None:
             raise AttributeError
