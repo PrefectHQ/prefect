@@ -99,7 +99,7 @@ class Docker(Storage):
             if `stored_as_script=True`.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
-        - final_build_commands (list[str], optional): list of unstructured Docker build commands
+        - extra_dockerfile_commands (list[str], optional): list of unstructured Docker build commands
             which are injected at the end of generated DockerFile (before the health checks).
             Defaults to `None`
         - **kwargs (Any, optional): any additional `Storage` initialization options
@@ -128,7 +128,7 @@ class Docker(Storage):
         prefect_directory: str = "/opt/prefect",
         path: str = None,
         stored_as_script: bool = False,
-        final_build_commands: List[str] = None,
+        extra_dockerfile_commands: List[str] = None,
         **kwargs: Any,
     ) -> None:
         self.registry_url = registry_url
@@ -159,7 +159,7 @@ class Docker(Storage):
         self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.tls_config = tls_config
         self.build_kwargs = build_kwargs or {}
-        self.final_build_commands = final_build_commands
+        self.extra_dockerfile_commands = final_build_commands
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -519,8 +519,8 @@ class Docker(Storage):
         # Write final user commands that should be run in the image
         final_commands = (
             ""
-            if self.final_build_commands is None
-            else str.join("\n", self.final_build_commands)
+            if self.extra_dockerfile_commands is None
+            else str.join("\n", self.extra_dockerfile_commands)
         )
 
         # Write a healthcheck script into the image
