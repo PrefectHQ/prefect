@@ -586,6 +586,24 @@ def test_eager_cycle_detection_works():
     assert not prefect.config.flows.eager_edge_validation
 
 
+def test_copy_handles_constants():
+    @task
+    def f(x):
+        return x
+
+    with Flow("foo") as original_flow:
+        x = Parameter(name="x")
+        y = f(x)
+
+    assert not original_flow.constants
+
+    copied_flow = original_flow.copy()
+    copied_flow.replace(x, 1)
+
+    assert copied_flow.constants
+    assert not original_flow.constants
+
+
 def test_copy():
     with Flow(name="test") as f:
         t1 = Task()
