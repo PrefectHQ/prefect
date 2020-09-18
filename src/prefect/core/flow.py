@@ -230,6 +230,7 @@ class Flow:
         new = copy.copy(self)
         # create a new cache
         new._cache = dict()
+        new.constants = self.constants.copy()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_reference_tasks(self._reference_tasks)
