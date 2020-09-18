@@ -1383,8 +1383,11 @@ class Flow:
             try:
                 from IPython import get_ipython
 
-                assert get_ipython().config.get("IPKernelApp") is not None
+                in_ipython = get_ipython().config.get("IPKernelApp") is not None
             except Exception:
+                in_ipython = False
+
+            if not in_ipython:
                 with tempfile.NamedTemporaryFile(delete=False) as tmp:
                     tmp.close()
                     try:
