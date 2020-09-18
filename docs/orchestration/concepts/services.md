@@ -1,6 +1,6 @@
 # Services
 
-The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly. The Scheduler is present in both Prefect Core's server and Cloud, while the others are exclusive to Prefect Cloud.
+The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly.
 
 ## Scheduler
 
@@ -8,7 +8,7 @@ The `Scheduler` service is responsible for scheduling new flow runs.
 
 ### How is it useful?
 
-In many distributed systems, the scheduler is a single point of failure. Cloud was designed to have a robust, asynchronous scheduling service whose only job is to correctly generate future flow runs. It can be trivially restarted or even run concurrently without issue.
+In many distributed systems, the scheduler is a single point of failure. Our API was designed to have a robust, asynchronous scheduling service whose only job is to correctly generate future flow runs. It can be trivially restarted or even run concurrently without issue.
 
 More importantly, the scheduler service is not responsible for actually running flows -- that's what [Agents](/orchestration/agents/overview) are for. This means that scheduled runs can happily coexist with manually-started runs; Agents are indifferent to _how_ a run was created. You can tell if a run was created by the Scheduler service because it will have an `auto_scheduled` flag set to `TRUE`. Manually-created runs will record the user that created them.
 
@@ -39,15 +39,15 @@ The `Zombie Killer` service is responsible for handling zombies, which Prefect d
 
 ### How is it useful?
 
-Zombies are tasks that started running but -- for some reason -- are no longer in communication with Cloud. Since Prefect is usually able to capture errors in code, the most common reason for a zombie is an unexpected infrastructure event in the execution cluster: a node failure, loss of internet, or other catastrophic error. Zombie tasks prevent flow progress: downstream tasks won't start while they believe an upstream dependency is running. Therefore, when Prefect Cloud detects a zombie, it marks the task failed so that execution can continue.
+Zombies are tasks that started running but -- for some reason -- are no longer in communication with the API. Since Prefect is usually able to capture errors in code, the most common reason for a zombie is an unexpected infrastructure event in the execution cluster: a node failure, loss of internet, or other catastrophic error. Zombie tasks prevent flow progress: downstream tasks won't start while they believe an upstream dependency is running. Therefore, when the Zombie Killer detects a zombie, it marks the task failed so that execution can continue.
 
 ### How does it work?
 
-Periodically, Prefect Cloud queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
+Periodically, the Zombie Killer queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
 
 ## Towel
 
-The `Towel` service is an orchestration layer for maintenance routines that are critical to Cloud's operation, including some of the services on this page.
+The `Towel` service is an orchestration layer for maintenance routines that are critical to Prefect's operation, including some of the services on this page.
 
 ### How is it useful?
 
