@@ -97,8 +97,8 @@ Checkpointing is only turned on by default when running on Prefect Cloud or Serv
 from prefect import Flow, task
 from prefect.engine.results import LocalResult
 
-@task
-def my_task(result=LocalResult(dir='~/Desktop/HelloWorld/results')):
+@task(result=LocalResult(dir='~/Desktop/HelloWorld/results'))
+def my_task():
     return 3
 ```
 
