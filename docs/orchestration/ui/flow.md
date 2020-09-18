@@ -10,6 +10,7 @@ In the details tile of the flow overview, you can add and remove flow group labe
 <div class="add-shadow">
   <img src="/orchestration/ui/flow-overview.png">
 </div>
+
 ## Schematic
 
 The flow schematic shows an interactive overview of all the tasks in the flow and their dependency structure.
@@ -55,6 +56,6 @@ For example if you update flow group parameters via the UI (or GraphQL), those p
     z-index: -1;
     outline: 1;
     box-shadow: 0px 20px 15px #3D4849;
-    padding: bottom: 10px;
+    margin-bottom: 50px
 }
 </style>
