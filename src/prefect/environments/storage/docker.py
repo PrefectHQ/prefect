@@ -99,7 +99,7 @@ class Docker(Storage):
             if `stored_as_script=True`.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
-        - final_build_commands (list[str], optional): list of unstructured Docker build commands 
+        - final_build_commands (list[str], optional): list of unstructured Docker build commands
             which are injected at the end of generated DockerFile (before the health checks)
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
@@ -514,9 +514,13 @@ class Docker(Storage):
         extra_commands = ""
         for cmd in self.extra_commands:
             extra_commands += "RUN {}\n".format(cmd)
-        
+
         # Write final user commands that should be run in the image
-        final_commands = "" if self.final_build_commands is None else str.join("\n", self.final_build_commands) 
+        final_commands = (
+            ""
+            if self.final_build_commands is None
+            else str.join("\n", self.final_build_commands)
+        )
 
         # Write a healthcheck script into the image
         with open(
