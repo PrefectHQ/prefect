@@ -54,7 +54,7 @@ mutation {
 
 As with the Core Client, you can instead provide `version_group_id` as an input to schedule a run for the unique unarchived flow within the provided version group. This provides a stable API for running flows which are regularly updated.
 
-To add parameters. add a parameters JSON payload:
+To add parameters, add a parameters JSON payload:
 
 ```graphql
 mutation {
