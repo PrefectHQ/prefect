@@ -100,7 +100,8 @@ class Docker(Storage):
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - final_build_commands (list[str], optional): list of unstructured Docker build commands
-            which are injected at the end of generated DockerFile (before the health checks)
+            which are injected at the end of generated DockerFile (before the health checks). 
+            Defaults to `None`
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
