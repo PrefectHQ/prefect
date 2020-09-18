@@ -99,6 +99,8 @@ class Docker(Storage):
             if `stored_as_script=True`.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
+        - final_build_commands (list[str], optional): list of unstructured Docker build commands 
+            which are injected at the end of generated DockerFile (before the health checks)
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
@@ -125,6 +127,7 @@ class Docker(Storage):
         prefect_directory: str = "/opt/prefect",
         path: str = None,
         stored_as_script: bool = False,
+        final_build_commands: List[str] = None,
         **kwargs: Any,
     ) -> None:
         self.registry_url = registry_url
@@ -155,6 +158,7 @@ class Docker(Storage):
         self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.tls_config = tls_config
         self.build_kwargs = build_kwargs or {}
+        self.final_build_commands = final_build_commands
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -510,6 +514,9 @@ class Docker(Storage):
         extra_commands = ""
         for cmd in self.extra_commands:
             extra_commands += "RUN {}\n".format(cmd)
+        
+        # Write final user commands that should be run in the image
+        final_commands = "" if self.final_build_commands is None else str.join("\n", self.final_build_commands) 
 
         # Write a healthcheck script into the image
         with open(
@@ -541,6 +548,7 @@ class Docker(Storage):
             {copy_files}
 
             {env_vars}
+            {final_commands}
             """.format(
                 base_commands=base_commands,
                 extra_commands=extra_commands,
@@ -552,6 +560,7 @@ class Docker(Storage):
                 copy_files=copy_files,
                 env_vars=env_vars,
                 prefect_dir=self.prefect_directory,
+                final_commands=final_commands,
             )
         )
 
