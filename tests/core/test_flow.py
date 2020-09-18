@@ -1232,7 +1232,16 @@ def test_skip_validation_in_init_with_kwarg():
     assert Flow(name="test", edges=[e1, e2], validate=False)
 
 
-@pytest.mark.xfail(raises=ImportError, reason="viz extras not installed.")
+try:
+    import graphviz
+
+    graphviz.pipe("dot", "png", b"graph {a -- b}", quiet=True)
+    no_graphviz = False
+except Exception:
+    no_graphviz = True
+
+
+@pytest.mark.skipif(no_graphviz, reason="viz extras not installed.")
 class TestFlowVisualize:
     def test_visualize_raises_informative_importerror_without_python_graphviz(
         self, monkeypatch
@@ -1242,6 +1251,7 @@ class TestFlowVisualize:
 
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
+            m.delitem(sys.modules, "graphviz", raising=False)
             with pytest.raises(ImportError, match=r"pip install 'prefect\[viz\]'"):
                 f.visualize()
 
