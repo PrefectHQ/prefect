@@ -1,0 +1,2 @@
+enhancement:
+  - "Support configuring executor on flow, not on environment - [#3338](https://github.com/PrefectHQ/prefect/pull/3338)"
