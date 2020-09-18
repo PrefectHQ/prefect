@@ -47,9 +47,9 @@ mutation($flow: JSON!) {
 
 Every registered flow is part of a version group and has a version group id and a flow group id. 
 
-Version group ids are deprecated but maintained for backwards compatibility. The version group id can be provided when [registering a flow](api/latest/core/flow.html#flow-2). If no version group id is provided at registration, the platform checks if any other flows in the same project have the same name as the new flow. If so, the new flow is assigned to the same version group as the other flow.  Version group ids can be used when creating a flow run and, if provided, the unique unarchived version in this version group will be run; this input is useful as a stable API for running a regularly updated flow.
+Version group ids are deprecated but maintained for backwards compatibility. The version group id can be provided when [registering a flow](/api/latest/core/flow.html#flow-2). If no version group id is provided at registration, the platform checks if any other flows in the same project have the same name as the new flow. If so, the new flow is assigned to the same version group as the other flow.  Version group ids can be used when creating a flow run and, if provided, the unique unarchived version in this version group will be run; this input is useful as a stable API for running a regularly updated flow.
 
-The flow group id is a UUID and is not currently editable.  The flow group id can be used when setting [flow group settings](orchestration/ui/flow.html#flow-group-settings) such as default parameters and labels.
+The flow group id is a UUID and is not currently editable.  The flow group id can be used when setting [flow group settings](/orchestration/ui/flow.html#flow-group-settings) such as default parameters and labels.
 
 Each version group can only have one active flow at a time. When a new flow is added to a version group, any other flows are automatically archived. Archiving maintains their history and data, but prevents them from being run.
 
