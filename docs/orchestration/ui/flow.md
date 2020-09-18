@@ -6,6 +6,7 @@ The flow overview summarizes each flow's recent behavior. It is a dashboard for 
 
 In the details tile of the flow overview, you can add and remove flow group labels.  As with other [flow group settings](https://docs.prefect.io/orchestration/ui/flow.html#flow-group-settings), these flow group labels take precedence over the labels your flow is registered with. 
 
+
 <div class="add-shadow">
   <img src="/orchestration/ui/flow-overview.png">
 </div>
@@ -33,6 +34,7 @@ When you update schedules and parameters in the settings pages of the UI, it upd
 <div class="add-shadow">
   <img src="/orchestration/ui/flow-settings.png">
 </div>
+
 
 ## Flow Group Settings
 
