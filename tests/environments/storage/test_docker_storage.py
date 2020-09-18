@@ -460,11 +460,11 @@ def test_copy_files():
             ), output
 
 
-def test_final_build_commands():
+def test_extra_dockerfile_commands():
     with tempfile.TemporaryDirectory() as directory:
 
         storage = Docker(
-            final_build_commands=[
+            extra_dockerfile_commands=[
                 'RUN echo "I\'m a little tea pot"',
             ],
         )
