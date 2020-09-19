@@ -153,13 +153,13 @@ class Docker(Storage):
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.local_image = local_image
-        self.extra_commands = []  # type: List[str]
+        self.installation_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
 
         self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.tls_config = tls_config
         self.build_kwargs = build_kwargs or {}
-        self.extra_dockerfile_commands = final_build_commands
+        self.extra_dockerfile_commands = extra_dockerfile_commands
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -178,7 +178,7 @@ class Docker(Storage):
             else:
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
-                self.extra_commands.append(
+                self.installation_commands.append(
                     "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*"
                 )
         elif base_image and dockerfile:
@@ -191,7 +191,7 @@ class Docker(Storage):
         self.dockerfile = dockerfile
         # we should always try to install prefect, unless it is already installed. We can't
         # determine this until image build time.
-        self.extra_commands.append(
+        self.installation_commands.append(
             f"pip show prefect || "
             f"pip install git+https://github.com/PrefectHQ/prefect.git"
             f"@{self.prefect_version}#egg=prefect[kubernetes]"
@@ -512,9 +512,9 @@ class Docker(Storage):
                 )
 
         # Write all extra commands that should be run in the image
-        extra_commands = ""
-        for cmd in self.extra_commands:
-            extra_commands += "RUN {}\n".format(cmd)
+        installation_commands = ""
+        for cmd in self.installation_commands:
+            installation_commands += "RUN {}\n".format(cmd)
 
         # Write final user commands that should be run in the image
         final_commands = (
@@ -544,7 +544,7 @@ class Docker(Storage):
             {base_commands}
 
             RUN pip install pip --upgrade
-            {extra_commands}
+            {installation_commands}
             {pip_installs}
 
             RUN mkdir -p {prefect_dir}/
@@ -556,7 +556,7 @@ class Docker(Storage):
             {final_commands}
             """.format(
                 base_commands=base_commands,
-                extra_commands=extra_commands,
+                installation_commands=installation_commands,
                 pip_installs=pip_installs,
                 copy_flows=copy_flows,
                 healthcheck_loc=healthcheck_loc.replace("\\", "/")
