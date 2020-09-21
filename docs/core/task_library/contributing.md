@@ -1,11 +1,17 @@
 # Contributing
 
 Contributing to Prefect's task library is a great way to assist in open source development! Generally
-users have contributed tasks to the task library that accomplish a specific goal or action. If there is a
-library, tool, or framework that you commonly use or if you have a preferred abstraction to performing
-some task we highly encourage contributions to the library. Additionally if you are a developer who has
-built something then providing a simple way for Prefect users to interact with it has the potential to
-increase adoption.
+users have contributed tasks to the task library that accomplish a specific goal or action. 
+
+There are a few key reasons why users would want to contribute tasks to the task library:
+
+- Gain experience contributing to an open source project
+- Increase adoption for libraries, tools, and frameworks by making an easy route for users of Prefect to
+interact with
+- Allow for tasks to _evolve_ with Prefect meaning that as paradigms and abstractions change in Prefect
+the task in the open source library will change with it
+- Open up collaboration to thousands of other developers who could use your task (they might fix bugs in
+the task you weren't aware of!)
 
 Not to mention that we occasionally also send Prefect swag to some of our open source contributors!
 
