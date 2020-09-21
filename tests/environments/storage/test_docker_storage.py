@@ -460,6 +460,25 @@ def test_copy_files():
             ), output
 
 
+def test_extra_dockerfile_commands():
+    with tempfile.TemporaryDirectory() as directory:
+
+        storage = Docker(
+            extra_dockerfile_commands=[
+                'RUN echo "I\'m a little tea pot"',
+            ],
+        )
+        storage.add_flow(Flow("foo"))
+        dpath = storage.create_dockerfile_object(directory=directory)
+
+        with open(dpath, "r") as dockerfile:
+            output = dockerfile.read()
+
+        assert "COPY {} /path/test_file.txt".format(
+            'RUN echo "I\'m a little tea pot"\n' in output
+        ), output
+
+
 def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
     myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
     with tempfile.TemporaryDirectory() as tempdir_outside:
