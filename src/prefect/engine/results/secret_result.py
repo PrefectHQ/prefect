@@ -39,12 +39,12 @@ class SecretResult(Result):
         new.location = location
         return new
 
-    def write(self, value: Any, **kwargs: Any) -> Result:
+    def write(self, value_: Any, **kwargs: Any) -> Result:
         """
         Secret results cannot be written to; provided for interface compatibility.
 
         Args:
-            - value (Any): unused, for interface compatibility
+            - value_ (Any): unused, for interface compatibility
             - **kwargs (optional): unused, for interface compatibility
 
         Raises:

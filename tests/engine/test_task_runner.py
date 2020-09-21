@@ -1174,6 +1174,21 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.location.endswith("2.txt")
 
+    def test_result_formatting_with_input_named_value(self, tmpdir):
+        result = LocalResult(dir=tmpdir, location="{value}.txt")
+
+        @prefect.task(checkpoint=True, result=result, slug="1234567")
+        def fn(value):
+            return value + 1
+
+        edge = Edge(Task(), fn, key="value")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state._result.location.endswith("2.txt")
+
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_with_checkpointing_in_context(self, checkpoint):
         @prefect.task(checkpoint=checkpoint, result=PrefectResult())
@@ -1968,6 +1983,17 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
         is_mapped_parent=True,
     )
     assert state.is_mapped()
+
+
+def test_mapped_tasks_parent_regenerates_child_pipeline():
+    runner = TaskRunner(task=Task())
+    state = runner.run(
+        upstream_states={Edge(Task(), Task(), mapped=True): Success()},
+        is_mapped_parent=True,
+        state=Mapped(n_map_states=10),
+    )
+    assert state.is_mapped()
+    assert len(state.map_states) == 10
 
 
 def test_retry_has_updated_metadata():

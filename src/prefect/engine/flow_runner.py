@@ -229,7 +229,12 @@ class FlowRunner(Runner):
         task_contexts = dict(task_contexts or {})
         parameters = dict(parameters or {})
         if executor is None:
-            executor = prefect.engine.get_default_executor_class()()
+            # Use the executor on the flow, if configured
+            executor = getattr(self.flow, "executor", None)
+            if executor is None:
+                executor = prefect.engine.get_default_executor_class()()
+
+        self.logger.debug("Using executor type %s", type(executor).__name__)
 
         try:
             state, task_states, context, task_contexts = self.initialize_run(

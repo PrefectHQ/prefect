@@ -1,4 +1,5 @@
 from prefect.core import Edge, Flow, Parameter, Task
+from prefect.engine.results import LocalResult
 
 
 class TestMagicInteractionMethods:
@@ -22,6 +23,15 @@ class TestMagicInteractionMethods:
             z = Parameter("x")["b"]
         state = f.run(parameters=dict(x=dict(a=1, b=2, c=3)))
         assert state.result[z].result == 2
+
+    def test_getitem_preserves_result_info(self):
+        with Flow(name="test") as f:
+            z = Task(checkpoint=False)()[0]
+            y = Task(checkpoint=True, result=LocalResult(dir="home"))[1]
+
+        assert z.checkpoint is False
+        assert isinstance(y.result, LocalResult)
+        assert y.result.dir.endswith("home")
 
     # -----------------------------------------
     # or / pipe / |

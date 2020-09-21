@@ -586,6 +586,24 @@ def test_eager_cycle_detection_works():
     assert not prefect.config.flows.eager_edge_validation
 
 
+def test_copy_handles_constants():
+    @task
+    def f(x):
+        return x
+
+    with Flow("foo") as original_flow:
+        x = Parameter(name="x")
+        y = f(x)
+
+    assert not original_flow.constants
+
+    copied_flow = original_flow.copy()
+    copied_flow.replace(x, 1)
+
+    assert copied_flow.constants
+    assert not original_flow.constants
+
+
 def test_copy():
     with Flow(name="test") as f:
         t1 = Task()
@@ -1214,7 +1232,16 @@ def test_skip_validation_in_init_with_kwarg():
     assert Flow(name="test", edges=[e1, e2], validate=False)
 
 
-@pytest.mark.xfail(raises=ImportError, reason="viz extras not installed.")
+try:
+    import graphviz
+
+    graphviz.pipe("dot", "png", b"graph {a -- b}", quiet=True)
+    no_graphviz = False
+except Exception:
+    no_graphviz = True
+
+
+@pytest.mark.skipif(no_graphviz, reason="viz extras not installed.")
 class TestFlowVisualize:
     def test_visualize_raises_informative_importerror_without_python_graphviz(
         self, monkeypatch
@@ -1224,6 +1251,7 @@ class TestFlowVisualize:
 
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
+            m.delitem(sys.modules, "graphviz", raising=False)
             with pytest.raises(ImportError, match=r"pip install 'prefect\[viz\]'"):
                 f.visualize()
 

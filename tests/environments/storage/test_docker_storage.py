@@ -423,6 +423,43 @@ def test_create_dockerfile_from_dockerfile():
     )
 
 
+def test_copy_files():
+    with tempfile.TemporaryDirectory() as sample_top_directory:
+
+        sample_sub_directory = os.path.join(sample_top_directory, "subdir")
+        os.mkdir(sample_sub_directory)
+
+        sample_file = os.path.join(sample_sub_directory, "test.txt")
+        with open(sample_file, "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as directory:
+
+            storage = Docker(
+                files={
+                    sample_sub_directory: "/test_dir",
+                    sample_file: "/path/test_file.txt",
+                },
+            )
+            storage.add_flow(Flow("foo"))
+            dpath = storage.create_dockerfile_object(directory=directory)
+
+            with open(dpath, "r") as dockerfile:
+                output = dockerfile.read()
+
+            contents = os.listdir(directory)
+            assert "subdir" in contents, contents
+            assert "test.txt" in contents, contents
+
+            assert "COPY {} /test_dir".format(
+                os.path.join(directory, "subdir").replace("\\", "/") in output
+            ), output
+
+            assert "COPY {} /path/test_file.txt".format(
+                os.path.join(directory, "test.txt").replace("\\", "/") in output
+            ), output
+
+
 def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
     myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
     with tempfile.TemporaryDirectory() as tempdir_outside:

@@ -1,5 +1,5 @@
 import os
-from os import path
+import time
 import uuid
 from typing import Iterable, List
 
@@ -12,8 +12,6 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
-
-AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
 
 
 class KubernetesAgent(Agent):
@@ -209,22 +207,41 @@ class KubernetesAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
+        import urllib3.exceptions
+
         self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         image = get_flow_image(flow_run=flow_run)
 
         job_spec = self.replace_job_spec_yaml(flow_run=flow_run, image=image)
+        job_name = job_spec["metadata"]["name"]
 
-        self.logger.debug(
-            "Creating namespaced job {}".format(job_spec["metadata"]["name"])
-        )
-        job = self.batch_client.create_namespaced_job(
-            namespace=self.namespace, body=job_spec
-        )
+        self.logger.debug("Creating namespaced job {}".format(job_name))
+        attempts = 3
+        while True:
+            try:
+                self.batch_client.create_namespaced_job(
+                    namespace=self.namespace, body=job_spec
+                )
+                break
+            except self.k8s_client.rest.ApiException as exc:
+                if exc.status == 409:
+                    # object already exists, previous submission was successful
+                    # even though it errored
+                    break
+                raise
+            except urllib3.exceptions.HTTPError:
+                attempts -= 1
+                if attempts == 0:
+                    raise
+                self.logger.warning(
+                    "Error submitting job %s, retrying...", job_name, exc_info=True
+                )
+                time.sleep(1)
 
-        self.logger.debug("Job {} created".format(job.metadata.name))
+        self.logger.debug("Job {} created".format(job_name))
 
-        return "Job {}".format(job.metadata.name)
+        return "Job {}".format(job_name)
 
     def replace_job_spec_yaml(
         self, flow_run: GraphQLResult, image: str, identifier: str = None
@@ -264,7 +281,7 @@ class KubernetesAgent(Agent):
         """
         identifier = identifier or str(uuid.uuid4())[:8]
         yaml_path = os.getenv(
-            "YAML_TEMPLATE", path.join(path.dirname(__file__), "job_spec.yaml")
+            "YAML_TEMPLATE", os.path.join(os.path.dirname(__file__), "job_spec.yaml")
         )
         with open(yaml_path, "r") as job_file:
             job = yaml.safe_load(job_file)
@@ -421,7 +438,7 @@ class KubernetesAgent(Agent):
         )
 
         with open(
-            path.join(path.dirname(__file__), "deployment.yaml"), "r"
+            os.path.join(os.path.dirname(__file__), "deployment.yaml"), "r"
         ) as deployment_file:
             deployment = yaml.safe_load(deployment_file)
 
@@ -484,7 +501,9 @@ class KubernetesAgent(Agent):
         # Load RBAC if specified
         rbac_yaml = []
         if rbac:
-            with open(path.join(path.dirname(__file__), "rbac.yaml"), "r") as rbac_file:
+            with open(
+                os.path.join(os.path.dirname(__file__), "rbac.yaml"), "r"
+            ) as rbac_file:
                 rbac_generator = yaml.safe_load_all(rbac_file)
 
                 for document in rbac_generator:
