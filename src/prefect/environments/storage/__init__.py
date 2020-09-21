@@ -1,14 +1,24 @@
 """
-The Prefect Storage interface encapsulates logic for storing, serializing and even running Flows.  Each storage unit is able to store _multiple_ flows (possibly with the constraint of name uniqueness within a given unit), and exposes the following methods and attributes:
+The Prefect Storage interface encapsulates logic for storing, serializing and even running Flows.
+Each storage unit is able to store _multiple_ flows (possibly with the constraint of name uniqueness
+within a given unit), and exposes the following methods and attributes:
 
-- a name attribute
-- a `flows` attribute that is a dictionary of Flows -> location
-- an `add_flow(flow: Flow) -> str` method for adding flows to Storage, and that will return the location of the given flow in the Storage unit
-- the `__contains__(self, obj) -> bool` special method for determining whether the Storage contains a given Flow
-- one of `get_flow(flow_location: str)` or `get_env_runner(flow_location: str)` for retrieving a way of interfacing with either `flow.run` or a `FlowRunner` for the flow; `get_env_runner` is intended for situations where flow execution can only be interacted with via environment variables
-- a `build() -> Storage` method for "building" the storage
-- a `serialize() -> dict` method for serializing the relevant information about this Storage for later re-use.
+- a `flows` attribute that is a dictionary of flow name  -> location
+- an `add_flow(flow: Flow) -> str` method for adding flows to Storage, and that will return the intended
+location of the given flow in the Storage unit (note flow uploading/saving does not happen until `build`)
+- the `__contains__(self, obj) -> bool` special method for determining whether the Storage contains a
+given Flow
+- one of `get_flow(flow_location: str)` for retrieving a way of interfacing with either `flow.run` or a
+`FlowRunner` for the flow
+- a `build() -> Storage` method for "building" the storage. In storage options where flows are stored in
+an external service (such as S3 and the filesystem) the flows are uploaded/saved during this step
+- a `serialize() -> dict` method for serializing the relevant information about this Storage for later
+re-use.
 
+The default flow storage mechanism is based on pickling the flow object using `cloudpickle` and the
+saving that pickle to a location. Flows can optionally also be stored as a script using the
+`stored_as_script` boolean kwarg. For more information visit the
+[file-based storage idiom](/core/idioms/file-based.html).
 """
 
 from warnings import warn
