@@ -8,5 +8,5 @@ from prefect.contrib.tasks.databricks.databricks_submitjob import DatabricksRunN
 import warnings
 
 warnings.warn(
-    "Importing from `prefct.contrib.tasks` has been deprecated and instead should be `prefect.tasks`"
+    "Importing from `prefect.contrib.tasks` has been deprecated and instead should be `prefect.tasks`"
 )

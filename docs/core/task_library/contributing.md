@@ -1,7 +1,7 @@
 # Contributing
 
 Contributing to Prefect's task library is a great way to assist in open source development! Generally
-users have contributed tasks to the task library that accomplish a specific goal or action. 
+users have contributed tasks to the task library that accomplish a specific goal or action.
 
 There are a few key reasons why users would want to contribute tasks to the task library:
 

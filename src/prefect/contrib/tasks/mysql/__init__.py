@@ -8,7 +8,7 @@ try:
     from prefect.contrib.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 
     warnings.warn(
-        "Importing from `prefct.contrib.tasks` has been deprecated and instead should be `prefect.tasks`"
+        "Importing from `prefect.contrib.tasks` has been deprecated and instead should be `prefect.tasks`"
     )
 except ImportError:
     raise ImportError(
