@@ -78,7 +78,7 @@ For more information on contributing to the Prefect library as whole check out t
 ## Testing
 
 Due to the nature of the tasks in the task library interacting with a wide range of services from various
-contributors it is not condusive for Prefect integration tests to maintain tests that communicate with
+contributors it is not always possible for Prefect to maintain tests that communicate with
 all of these services. Because of this, it is integral that users who are contributing tasks to the task
 library test their tasks themselves against whichever services the tasks interact with.
 
