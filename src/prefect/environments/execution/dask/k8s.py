@@ -55,6 +55,9 @@ class DaskKubernetesEnvironment(Environment):
             defaults to False Only used when a custom scheduler spec is not provided. Enabling
             this may cause ClientErrors to appear when multiple Dask workers try to run the
             same Prefect Task.
+            `Warning`:  `work_stealing` if provided won't be appended to your custom
+            `scheduler_spec_file`. If wanted, don't forget to add it in your container env
+            (`DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING`).
         - scheduler_logs (bool, optional): log all Dask scheduler logs, defaults to False
         - private_registry (bool, optional, DEPRECATED): a boolean specifying whether your
             Flow's Docker container will be in a private Docker registry; if so, requires a
@@ -75,6 +78,9 @@ class DaskKubernetesEnvironment(Environment):
         - image_pull_secret (str, optional): optional name of an `imagePullSecret` to use for
             the scheduler and worker pods. For more information go
             [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
+            `Warning`:  `image_pull_secret` if provided won't be appended to your custom
+            `worker_spec_file` or `scheduler_spec_file`. If you want it, don't forget to add it in
+            your spec files.
         - log_k8s_errors (bool, optional): optional toggle to also log Kubernetes errors that may occur
             using the Prefect logger. Defaults to `False`.
     """
