@@ -150,6 +150,8 @@ class LocalAgent(Agent):
 
         current_env["PYTHONPATH"] = ":".join(python_path)
 
+        cmd = [sys.executable, "-m"] + get_flow_run_command(flow_run).split(" ")
+
         stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
         # note: we will allow these processes to be orphaned if the agent were to exit
@@ -158,7 +160,7 @@ class LocalAgent(Agent):
         # show flow logs, these log entries will continue to stream to the users terminal
         # until these child processes exit, even if the agent has already exited.
         p = Popen(
-            get_flow_run_command(flow_run).split(" "),
+            cmd,
             stdout=stdout,
             stderr=STDOUT,
             env=current_env,
