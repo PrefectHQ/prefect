@@ -150,11 +150,11 @@ def test_is_month_start(year: int, month: int):
 
 def test_is_day_of_week():
     years = {
-        1971: {"month": 2, "day": 21},  # Before start of UTC
-        1972: {"month": 6, "day": 11},  # Start of UTC
-        1992: {"month": 6, "day": 7},  # Near past
-        2020: {"month": 9, "day": 13},  # Relative present
-        2525: {"month": 12, "day": 2},  # Distant future
+        1971: {"month": 2, "day": 22},  # Before start of UTC
+        1972: {"month": 6, "day": 12},  # Start of UTC
+        1992: {"month": 6, "day": 8},  # Near past
+        2020: {"month": 9, "day": 14},  # Relative present
+        2525: {"month": 12, "day": 3},  # Distant future
     }
 
     months = range(1, 12)
