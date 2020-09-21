@@ -24,7 +24,7 @@ for the `prefect.tasks` module.
 
 ## Task library in action
 
-Just like any other Prefect [task](/core/concepts/tasks.html), tasks in the task library can easily be
+Just like any other Prefect [task](/core/concepts/tasks.html), tasks in the task library can be
 used by importing and adding them to your flow.
 
 :::: tabs
