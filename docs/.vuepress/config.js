@@ -290,7 +290,10 @@ module.exports = {
         {
           title: 'Task Library',
           collapsable: true,
-          children: getChildren('docs/core', 'task_library')
+          children: [
+            'task_library/overview',
+            'task_library/contributing'
+          ]
         },
         {
           title: 'Advanced Tutorials',

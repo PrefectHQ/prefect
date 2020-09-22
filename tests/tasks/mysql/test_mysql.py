@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.contrib.tasks.mysql.mysql import MySQLExecute, MySQLFetch
+from prefect.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 
 
 class TestMySQLExecute:

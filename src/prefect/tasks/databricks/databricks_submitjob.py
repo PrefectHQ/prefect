@@ -1,14 +1,12 @@
-import uuid
 import six
 import time
 from typing import List, Dict
 
 from prefect import Task
-from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 from prefect.utilities.exceptions import PrefectError
 
-from prefect.contrib.tasks.databricks.databricks_hook import DatabricksHook
+from prefect.tasks.databricks.databricks_hook import DatabricksHook
 
 
 def _deep_string_coerce(content, json_path="json"):
@@ -152,13 +150,16 @@ class DatabricksSubmitRun(Task):
     - `timeout_seconds`
 
     Args:
-        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
-            Structure must be a string of valid JSON. To use token based authentication, provide
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
+            String. Structure must be a string of valid JSON. To use token based authentication, provide
             the key `token` in the string for the connection and create the key `host`.
-            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
             OR
-            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
-            See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection string using `PrefectSecret`.
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection
+            string using `PrefectSecret`.
         - json (dict, optional): A JSON object containing API parameters which will be passed
             directly to the `api/2.0/jobs/runs/submit` endpoint. The other named parameters
             (i.e. `spark_jar_task`, `notebook_task`..) to this task will
@@ -278,13 +279,16 @@ class DatabricksSubmitRun(Task):
 
         Args:
 
-        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
-            Structure must be a string of valid JSON. To use token based authentication, provide
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
+            String. Structure must be a string of valid JSON. To use token based authentication, provide
             the key `token` in the string for the connection and create the key `host`.
-            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
             OR
-            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
-            See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection string using `PrefectSecret`.
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection
+            string using `PrefectSecret`.
         - json (dict, optional): A JSON object containing API parameters which will be passed
             directly to the `api/2.0/jobs/runs/submit` endpoint. The other named parameters
             (i.e. `spark_jar_task`, `notebook_task`..) to this task will
@@ -332,7 +336,7 @@ class DatabricksSubmitRun(Task):
 
         assert (
             databricks_conn_secret
-        ), "A databricks connection string must be supplied as a dictionary or through Prefect Secrets (preferred)."
+        ), "A databricks connection string must be supplied as a dictionary or through Prefect Secrets"
         assert isinstance(
             databricks_conn_secret, dict
         ), "`databricks_conn_secret` must be supplied as a valid dictionary."
@@ -445,13 +449,16 @@ class DatabricksRunNow(Task):
     - `spark_submit_params`
 
     Args:
-        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
-            Structure must be a string of valid JSON. To use token based authentication, provide
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
+            String. Structure must be a string of valid JSON. To use token based authentication, provide
             the key `token` in the string for the connection and create the key `host`.
-            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
             OR
-            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
-            See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection string using `PrefectSecret`.
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection
+            string using `PrefectSecret`.
         - job_id (str, optional): The job_id of the existing Databricks job.
             https://docs.databricks.com/api/latest/jobs.html#run-now
         - json (dict, optional): A JSON object containing API parameters which will be passed
@@ -479,8 +486,8 @@ class DatabricksRunNow(Task):
             The json representation of this field (i.e. {"python_params":["john doe","35"]})
             cannot exceed 10,000 bytes.
             https://docs.databricks.com/api/latest/jobs.html#run-now
-        - spark_submit_params (list[str], optional): A list of parameters for jobs with spark submit task,
-            e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
+        - spark_submit_params (list[str], optional): A list of parameters for jobs with spark submit
+            task, e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
             The parameters will be passed to spark-submit script as command line parameters.
             If specified upon run-now, it would overwrite the parameters specified
             in job setting.
@@ -545,6 +552,7 @@ class DatabricksRunNow(Task):
         "databricks_retry_delay",
     )
     def run(
+        self,
         databricks_conn_secret: dict = None,
         job_id: str = None,
         json: dict = None,
@@ -560,13 +568,17 @@ class DatabricksRunNow(Task):
 
         Args:
 
-            - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection String.
-                Structure must be a string of valid JSON. To use token based authentication, provide
-                the key `token` in the string for the connection and create the key `host`.
-                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks
+                Connection String. Structure must be a string of valid JSON. To use token based
+                authentication, provide the key `token` in the string for the connection and create the
+                key `host`.
+                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+                '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
                 OR
-                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING='{"host": "abcdef.xyz", "token": "ghijklmn"}'`
-                See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection string using `PrefectSecret`.
+                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+                '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+                See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection
+                string using `PrefectSecret`.
             - job_id (str, optional): The job_id of the existing Databricks job.
                 https://docs.databricks.com/api/latest/jobs.html#run-now
             - json (dict, optional): A JSON object containing API parameters which will be passed
@@ -594,8 +606,8 @@ class DatabricksRunNow(Task):
                 The json representation of this field (i.e. {"python_params":["john doe","35"]})
                 cannot exceed 10,000 bytes.
                 https://docs.databricks.com/api/latest/jobs.html#run-now
-            - spark_submit_params (list[str], optional): A list of parameters for jobs with spark submit task,
-                e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
+            - spark_submit_params (list[str], optional): A list of parameters for jobs with spark submit
+                task, e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
                 The parameters will be passed to spark-submit script as command line parameters.
                 If specified upon run-now, it would overwrite the parameters specified
                 in job setting.
@@ -614,7 +626,7 @@ class DatabricksRunNow(Task):
 
         assert (
             databricks_conn_secret
-        ), "A databricks connection string must be supplied as a dictionary or through Prefect Secrets (preferred)."
+        ), "A databricks connection string must be supplied as a dictionary or through Prefect Secrets"
         assert isinstance(
             databricks_conn_secret, dict
         ), "`databricks_conn_secret` must be supplied as a valid dictionary."

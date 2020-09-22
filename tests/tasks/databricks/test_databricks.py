@@ -1,7 +1,7 @@
 import pytest
 
-from prefect.contrib.tasks.databricks import DatabricksSubmitRun
-from prefect.contrib.tasks.databricks import DatabricksRunNow
+from prefect.tasks.databricks import DatabricksSubmitRun
+from prefect.tasks.databricks import DatabricksRunNow
 
 
 @pytest.fixture(scope="session")
