@@ -25,7 +25,7 @@ Released on September 22, 2020.
 - Fix `DockerAgent` with `--show-flow-logs` to work on windows/osx (with python >= 3.8) - [#3339](https://github.com/PrefectHQ/prefect/pull/3339)
 - Fix mypy type checking for tasks created with `prefect.task` - [#3346](https://github.com/PrefectHQ/prefect/pull/3346)
 - Fix bug in `flow.visualize()` where no output would be generated when running with `PYTHONOPTIMIZE=1` - [#3352](https://github.com/PrefectHQ/prefect/pull/3352)
-- `Fix` typo in `DaskCloudProviderEnvironment` logs - [#3354](https://github.com/PrefectHQ/prefect/pull/3354)
+- Fix typo in `DaskCloudProviderEnvironment` logs - [#3354](https://github.com/PrefectHQ/prefect/pull/3354)
 
 ### Deprecations
 
