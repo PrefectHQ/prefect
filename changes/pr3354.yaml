@@ -1,5 +1,0 @@
-fix:
-  - "fix typo in DaskCloudProviderEnvironment logs - [#3354](https://github.com/PrefectHQ/prefect/pull/3354)"
-
-contributor:
-  - "[James Lamb](https://github.com/jameslamb)"

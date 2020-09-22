@@ -1,4 +1,0 @@
-enhancement:
-  - "Allow copying of directories into Docker image - [#3299](https://github.com/PrefectHQ/prefect/pull/3299)"
-contributor:
-  - "[David Severin Ryberg](https://github.com/sevberg)"

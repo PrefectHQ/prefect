@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.13.8 <Badge text="beta" type="success" />
+
+Released on September 22, 2020.
+
+### Enhancements
+
+- Allow passing context values as JSON string from CLI - [#3347](https://github.com/PrefectHQ/prefect/issues/3347)
+- Allow copying of directories into Docker image - [#3299](https://github.com/PrefectHQ/prefect/pull/3299)
+- Adds schedule filters for month end or month start and specific day  - [#3330](https://github.com/PrefectHQ/prefect/pull/3330)
+- Support configuring executor on flow, not on environment - [#3338](https://github.com/PrefectHQ/prefect/pull/3338)
+- Support configuring additional docker build commands on `Docker` storage  - [#3342](https://github.com/PrefectHQ/prefect/pull/3342)
+- Support submission retries within the k8s agent - [#3344](https://github.com/PrefectHQ/prefect/pull/3344)
+- Expose flow_run_name to .run() method for local runs - [#3364](https://github.com/PrefectHQ/prefect/pull/3364)
+
+### Task Library
+
+- Add contributing documentation for task library - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)
+- Remove duplicate task library documentation in favor of API reference docs - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)
+
+### Fixes
+
+- Fix issue with constants when copying Flows - [#3319](https://github.com/PrefectHQ/prefect/issues/3319)
+- Fix `DockerAgent` with `--show-flow-logs` to work on windows/osx (with python >= 3.8) - [#3339](https://github.com/PrefectHQ/prefect/pull/3339)
+- Fix mypy type checking for tasks created with `prefect.task` - [#3346](https://github.com/PrefectHQ/prefect/pull/3346)
+- Fix bug in `flow.visualize()` where no output would be generated when running with `PYTHONOPTIMIZE=1` - [#3352](https://github.com/PrefectHQ/prefect/pull/3352)
+- fix typo in DaskCloudProviderEnvironment logs - [#3354](https://github.com/PrefectHQ/prefect/pull/3354)
+
+### Deprecations
+
+- Deprecate the use of the `/contrib` directory - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)
+- Deprecate importing `Databricks` and `MySQL` tasks from `prefect.contrib.tasks`, should use `prefect.tasks` instead - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)
+
+### Contributors
+
+- [David Severin Ryberg](https://github.com/sevberg)
+- [James Lamb](https://github.com/jameslamb)
+- [Nejc Vesel](https://github.com/veseln)
+
 ## 0.13.7 <Badge text="beta" type="success" />
 
 Released on September 16, 2020.

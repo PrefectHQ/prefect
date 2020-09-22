@@ -1,2 +1,0 @@
-enhancement:
-  - "Allow passing context values as JSON string from CLI - [#3347](https://github.com/PrefectHQ/prefect/issues/3347)"

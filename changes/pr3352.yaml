@@ -1,2 +1,0 @@
-fix:
-  - "Fix bug in `flow.visualize()` where no output would be generated when running with `PYTHONOPTIMIZE=1` - [#3352](https://github.com/PrefectHQ/prefect/pull/3352)"

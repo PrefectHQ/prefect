@@ -1,4 +1,0 @@
-enhancement:
-  - "Support configuring additional docker build commands on `Docker` storage  - [#3342](https://github.com/PrefectHQ/prefect/pull/3342)"
-contributor:
-  - "[David Severin Ryberg](https://github.com/sevberg)"

@@ -1,2 +1,0 @@
-fix:
-  - "Fix `DockerAgent` with `--show-flow-logs` to work on windows/osx (with python >= 3.8) - [#3339](https://github.com/PrefectHQ/prefect/pull/3339)"
