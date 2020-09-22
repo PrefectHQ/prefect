@@ -1,0 +1,5 @@
+enhancement:
+  - "Expose flow_run_name to .run() method for local runs - [#3364](https://github.com/PrefectHQ/prefect/pull/3364)"
+
+contributor:
+  - "[Nejc Vesel](https://github.com/veseln)"
