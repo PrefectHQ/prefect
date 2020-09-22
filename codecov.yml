@@ -11,9 +11,9 @@ coverage:
     patch: no
     project:
       default:
-        target: 80%
+        target: 92%
         threshold: 1%
 
 ignore:
-  - "src/prefect/contrib/*"
-  - "src/prefect/tasks/*"
+  - "contrib/*"
+  - "tasks/*"
