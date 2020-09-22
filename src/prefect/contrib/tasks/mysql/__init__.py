@@ -5,7 +5,7 @@ the pymysql library.
 import warnings
 
 try:
-    from prefect.contrib.tasks.mysql.mysql import MySQLExecute, MySQLFetch
+    from prefect.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 
     warnings.warn(
         "Importing from `prefect.contrib.tasks` has been deprecated and instead should be `prefect.tasks`"

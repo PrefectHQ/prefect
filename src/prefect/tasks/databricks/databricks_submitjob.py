@@ -6,7 +6,7 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 from prefect.utilities.exceptions import PrefectError
 
-from prefect.contrib.tasks.databricks.databricks_hook import DatabricksHook
+from prefect.tasks.databricks.databricks_hook import DatabricksHook
 
 
 def _deep_string_coerce(content, json_path="json"):
