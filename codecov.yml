@@ -13,3 +13,7 @@ coverage:
       default:
         target: 92%
         threshold: 1%
+
+ignore:
+  - "src/prefect/contrib/*"
+  - "src/prefect/tasks/*"
