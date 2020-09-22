@@ -1606,9 +1606,9 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=pendulum.now("utc").add(minutes=10)),
-            Retrying(start_time=pendulum.now("utc").add(minutes=10)),
-            Paused(start_time=pendulum.now("utc").add(minutes=10)),
+            Scheduled(start_time=pendulum.now("utc").add(minutes=20)),
+            Retrying(start_time=pendulum.now("utc").add(minutes=20)),
+            Paused(start_time=pendulum.now("utc").add(minutes=20)),
         ],
     )
     def test_scheduled_states_with_future_start_time(self, state):
