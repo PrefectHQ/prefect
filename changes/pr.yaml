@@ -1,8 +1,0 @@
-
-task:
-  - "Add contributing documentation for task library - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)"
-  - "Remove duplicate task library documentation in favor of API reference docs - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)"
-
-deprecation:
-  - "Deprecate the use of the `/contrib` directory - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)"
-  - "Deprecate importing `Databricks` and `MySQL` tasks from `prefect.contrib.tasks`, should use `prefect.tasks` instead - [#3360](https://github.com/PrefectHQ/prefect/pull/3360)"
