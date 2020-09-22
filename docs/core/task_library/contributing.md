@@ -141,7 +141,7 @@ class YourTask(Task):
         ...
 ```
 
-This allows users of the task to use Prefect Secrets to securely pass sensitive information to the task:
+This allows users of the task to use Prefect Secrets to securely pass sensitive information to the task using whatever secret storage mechanism they prefer:
 
 ```python
 from prefect import flow
