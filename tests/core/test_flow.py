@@ -2856,10 +2856,10 @@ def test_flow_run_name_as_run_param():
     with Flow(name="flow-run-name-from-context") as f:
         flow_run_name = get_flow_run_from_context()
 
-    flow_state = f.run(flow_run_name='test-flow-run')
+    flow_state = f.run(flow_run_name="test-flow-run")
 
     assert flow_state.is_successful()
-    assert flow_state.result[flow_run_name].result == 'test-flow-run'
+    assert flow_state.result[flow_run_name].result == "test-flow-run"
 
 
 class TestSaveLoad:
