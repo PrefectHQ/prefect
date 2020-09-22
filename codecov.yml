@@ -15,5 +15,5 @@ coverage:
         threshold: 1%
 
 ignore:
-  - "contrib/*"
-  - "tasks/*"
+  - "contrib/**/*"
+  - "tasks/**/*"
