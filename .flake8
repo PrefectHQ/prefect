@@ -11,7 +11,7 @@ ignore =
     E203,
     # Comparing types instead of isinstance
     E721,
-    # Assign a lam\bda
+    # Assign a lambda
     E731,
     # Ambiguous variable names
     E741,
