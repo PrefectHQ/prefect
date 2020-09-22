@@ -91,27 +91,6 @@ of reducing the amount of boilerplate code in the task. If a value is set via in
 and is not set again at runtime then the value set at initialization will be used in place of the absent
 runtime value. However, values set at runtime will always override those set during initialization.
 
-```python
-def __init__(self, your_kwarg: str = None, **kwargs: Any):
-    self.your_kwarg = your_kwarg
-    super().__init__(**kwargs)
-
-    @defaults_from_attrs("your_kwarg")
-    def run(self, your_kwarg: str = None) -> str:
-        use_your_library(your_kwarg)
-```
-
-is equivalent to
-
-```python
-def __init__(self, your_kwarg: str = None, **kwargs: Any):
-    self.your_kwarg = your_kwarg
-    super().__init__(**kwargs)
-
-    def run(self, your_kwarg: str = None) -> str:
-        use_your_library(your_kwarg or self.your_kwarg)
-```
-
 For more examples of how the other tasks in the task library look check out the directory
 containing all of the [task library code](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/tasks).
 
