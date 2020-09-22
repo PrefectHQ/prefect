@@ -22,6 +22,8 @@ FILTERS = [
     prefect.schedules.filters.is_weekday,
     prefect.schedules.filters.is_weekend,
     prefect.schedules.filters.is_month_end,
+    prefect.schedules.filters.is_day_of_week,
+    prefect.schedules.filters.is_month_start,
 ]
 
 ADJUSTMENTS = [
