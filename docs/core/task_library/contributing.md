@@ -27,9 +27,27 @@ export default {
 
 ## Task Structure
 
-This snippet below is the general structure of a task contained in the task library. All you need to do
-is define the task's `__init__` and `run` functions! The `run` function is where any of your task's logic
-will live.
+In order to build a task for the task library you need to define the task's `__init__` and `run`
+functions. The `__init__` of the task will be called before the flow runs and the `run` function is where
+any of your task's logic will live to be executed at runtime. Allowing for kwargs to be set both during
+initialization and at runtime is key to improving a task's functionality.
+
+One example of this separation in action would be initializing a `ShellTask` with a specific `shell` and
+then passing in a different `command` at runtime. This will create two tasks in the flow, each with
+different commands, without having to redefine the shell type.
+
+```python
+my_shell = ShellTask(shell="bash")
+
+with Flow("shell_commands") as flow:
+    task1 = my_shell(command="ls")
+    task2 = my_shell(command="ls | wc -l")
+```
+
+(For more in depth information on the components of Prefect tasks take a look at
+[The Anatomy of a Prefect Task](/core/advanced_tutorials/task-guide.html) guide.)
+
+This snippet below is the general structure of a task contained in the task library.
 
 ```python
 from prefect import Task
@@ -52,7 +70,6 @@ class YourTask(Task):
         self.your_kwarg = your_kwarg
         super().__init__(**kwargs)
 
-    # Allows init kwargs to be passed to the run function if they are not overridden
     @defaults_from_attrs("your_kwarg")
     def run(self, your_kwarg: str = None) -> str:
         """
@@ -69,11 +86,74 @@ class YourTask(Task):
         return use_your_library(your_kwarg)
 ```
 
+In the snippet above there is a special decorator `defaults_from_attrs`. This decorator serves the purpose
+of reducing the amount of boilerplate code in the task. If a value is set via initialization of the task
+and is not set again at runtime then the value set at initialization will be used in place of the absent
+runtime value. However, values set at runtime will always override those set during initialization.
+
+```python
+def __init__(self, your_kwarg: str = None, **kwargs: Any):
+    self.your_kwarg = your_kwarg
+    super().__init__(**kwargs)
+
+    @defaults_from_attrs("your_kwarg")
+    def run(self, your_kwarg: str = None) -> str:
+        use_your_library(your_kwarg)
+```
+
+is equivalent to
+
+```python
+def __init__(self, your_kwarg: str = None, **kwargs: Any):
+    self.your_kwarg = your_kwarg
+    super().__init__(**kwargs)
+
+    def run(self, your_kwarg: str = None) -> str:
+        use_your_library(your_kwarg or self.your_kwarg)
+```
+
 For more examples of how the other tasks in the task library look check out the directory
 containing all of the [task library code](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/tasks).
 
 For more information on contributing to the Prefect library as whole check out the
 [development documentation](/core/development/overview.html).
+
+### Secrets and Authentication
+
+It is common for tasks in the task library to require some sort of authentication when interacting with
+services. Prefect has a desired implementation when it comes to using credentials in a task and that is
+through the use of a [Secret task](/api/latest/tasks/secrets.html). A `PrefectSecret` is a special type
+of task for interacting with Prefect [secrets](/core/concepts/secrets.html) that securely represents
+the retrieval of sensitive data.
+
+Secret tasks are only able to retrieve secret data during runtime therefore it is required that your
+secret values be passed into your tasks through the `run` kwargs:
+
+```python
+class YourTask(Task):
+    def __init__(self, your_kwarg: str = None, **kwargs: Any):
+        ...
+
+    # Allows init kwargs to be passed to the run function if they are not overridden
+    @defaults_from_attrs("your_kwarg")
+    def run(self, your_kwarg: str = None, your_secret: str = None) -> str:
+        authenticate_with_your_service(your_secret)
+        ...
+```
+
+This allows users of the task to use Prefect Secrets to securely pass sensitive information to the task:
+
+```python
+from prefect import flow
+from prefect.tasks.secrets import PrefectSecret
+from prefect.tasks.your_framework import YourTask
+
+your_task = YourTask(your_kwarg="init kwarg")
+
+with Flow("your-flow") as flow:
+    your_secret = PrefectSecrets("your_secret_name")
+    your_task(your_secret=your_secret)
+```
 
 ## Testing
 
