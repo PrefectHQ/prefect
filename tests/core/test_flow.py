@@ -2848,6 +2848,20 @@ def test_starting_at_arbitrary_loop_index():
     assert flow_state.result[final].result == 100
 
 
+def test_flow_run_name_as_run_param():
+    @task
+    def get_flow_run_from_context():
+        return prefect.context["flow_run_name"]
+
+    with Flow(name="flow-run-name-from-context") as f:
+        flow_run_name = get_flow_run_from_context()
+
+    flow_state = f.run(flow_run_name="test-flow-run")
+
+    assert flow_state.is_successful()
+    assert flow_state.result[flow_run_name].result == "test-flow-run"
+
+
 class TestSaveLoad:
     def test_save_saves_and_load_loads(self):
         t = Task(name="foo")
