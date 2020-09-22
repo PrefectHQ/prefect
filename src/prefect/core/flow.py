@@ -1009,6 +1009,11 @@ class Flow:
             "flow_run_id", kwargs.pop("flow_run_id", str(uuid.uuid4()))
         )
 
+        # set flow_run_name from args or uuid if flow_run_name is not an argument
+        flow_run_context.setdefault(
+            "flow_run_name", kwargs.pop("flow_run_name", str(uuid.uuid4()))
+        )
+
         # run this flow indefinitely, so long as its schedule has future dates
         while True:
 
@@ -1018,7 +1023,7 @@ class Flow:
                 scheduled_start_time=next_run_time,
                 flow_id=self.name,
                 flow_run_id=flow_run_context["flow_run_id"],
-                flow_run_name=str(uuid.uuid4()),
+                flow_run_name=flow_run_context["flow_run_name"],
             )
 
             if flow_state.is_scheduled():
