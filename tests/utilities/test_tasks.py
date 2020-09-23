@@ -1,6 +1,6 @@
 import pytest
 
-from prefect import Flow, Task, case
+from prefect import Flow, Task, case, Parameter
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.state import Paused, Resume
 from prefect.utilities import tasks, edges
@@ -300,6 +300,26 @@ class TestApplyMap:
             r: [3, 4, 5],
         }
         assert res == sol
+
+    def test_apply_map_inside_case_statement_works(self):
+        def func(x):
+            return add(x, 1), add(x, 2)
+
+        with Flow("test") as flow:
+            branch = Parameter("branch")
+            with case(branch, True):
+                a, b = apply_map(func, range(4))
+                c = add.map(a, b)
+
+        state = flow.run(branch=True)
+        assert state.result[a].result == [1, 2, 3, 4]
+        assert state.result[b].result == [2, 3, 4, 5]
+        assert state.result[c].result == [3, 5, 7, 9]
+
+        state = flow.run(branch=False)
+        assert state.result[a].is_skipped()
+        assert state.result[b].is_skipped()
+        assert state.result[c].is_skipped()
 
 
 class TestAsTask:

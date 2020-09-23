@@ -97,6 +97,18 @@ class CloudTaskRunner(TaskRunner):
             new_state = super().call_runner_target_handlers(
                 old_state=old_state, new_state=new_state
             )
+
+        # PrefectStateSignals are trapped and turned into States
+        except prefect.engine.signals.PrefectStateSignal as exc:
+            self.logger.info(
+                "{name} signal raised: {rep}".format(
+                    name=type(exc).__name__, rep=repr(exc)
+                )
+            )
+            if raise_on_exception:
+                raise exc
+            new_state = exc.state
+
         except Exception as exc:
             msg = "Exception raised while calling state handlers: {}".format(repr(exc))
             self.logger.exception(msg)
@@ -337,7 +349,8 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - `State` object representing the final post-run state of the Task
         """
-        with prefect.context(context or {}):
+        context = context or {}
+        with prefect.context(context):
             end_state = super().run(
                 state=state,
                 upstream_states=upstream_states,

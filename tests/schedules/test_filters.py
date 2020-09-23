@@ -126,3 +126,54 @@ def test_is_weekend(dt):
 )
 def test_is_month_end(dates):
     assert filters.is_month_end(dates[0]) is dates[1]
+
+
+@pytest.mark.parametrize(
+    "year",
+    [
+        1971,  # Before start of UTC
+        1972,  # Start of UTC
+        1992,  # Near past
+        2020,  # Relative present
+        2525,  # Distant future
+    ],
+)
+@pytest.mark.parametrize("month", list(range(1, 12)))
+def test_is_month_start(year: int, month: int):
+    filter_fn = filters.is_month_start
+
+    assert filter_fn(dt=pendulum.datetime(year=year, month=month, day=1))
+    assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=2))
+    assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=15))
+    assert not filter_fn(dt=pendulum.datetime(year=year, month=month, day=28))
+
+
+def test_is_day_of_week():
+    years = {
+        1971: {"month": 2, "day": 22},  # Before start of UTC
+        1972: {"month": 6, "day": 12},  # Start of UTC
+        1992: {"month": 6, "day": 8},  # Near past
+        2020: {"month": 9, "day": 14},  # Relative present
+        2525: {"month": 12, "day": 3},  # Distant future
+    }
+
+    months = range(1, 12)
+    days_week = range(0, 6)
+
+    def test_day_of_week(day_of_week: int):
+        filter_fn = filters.is_day_of_week(day_of_week=day_of_week)
+
+        for year in years:
+            month = years[year]["month"]
+            day = (
+                years[year]["day"] + day_of_week
+            )  # day of the week also acts as an offset for each day, which starts at Sunday (0)
+            next_day = day + 1
+
+            assert filter_fn(dt=pendulum.datetime(year=year, month=month, day=day))
+            assert not filter_fn(
+                dt=pendulum.datetime(year=year, month=month, day=next_day)
+            )
+
+    for day in days_week:
+        test_day_of_week(day)

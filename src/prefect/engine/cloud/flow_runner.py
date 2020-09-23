@@ -182,9 +182,9 @@ class CloudFlowRunner(FlowRunner):
                             "Error getting flow run info", exc_info=True
                         )
                         continue
-                    else:
-                        self.logger.debug(
-                            "Successfully queried server for flow run state: %r",
+                    if not flow_run_info.state.is_running():
+                        self.logger.warning(
+                            "Flow run is no longer in a running state; the current state is: %r",
                             flow_run_info.state,
                         )
                     if isinstance(flow_run_info.state, Cancelling):

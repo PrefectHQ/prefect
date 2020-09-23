@@ -14,7 +14,8 @@ if TYPE_CHECKING:
 
 class Storage(metaclass=ABCMeta):
     """
-    Base interface for Storage objects.
+    Base interface for Storage objects. All kwargs present in this base class are valid on storage
+    subclasses.
 
     Args:
         - result (Result, optional): a default result to use for

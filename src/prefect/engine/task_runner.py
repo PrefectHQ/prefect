@@ -423,6 +423,8 @@ class TaskRunner(Runner):
             - ENDRUN: either way, we dont continue past this point
         """
         if state.is_mapped():
+            if len(state.map_states) == 0 and state.n_map_states > 0:  # type: ignore
+                state.map_states = [None] * state.n_map_states  # type: ignore
             raise ENDRUN(state)
 
         # we can't map if there are no success states with iterables upstream
@@ -537,7 +539,7 @@ class TaskRunner(Runner):
             return state
 
         # the task is mapped, in which case we still proceed so that the children tasks
-        # are generated (note that if the children tasks)
+        # are generated
         elif state.is_mapped():
             self.logger.debug(
                 "Task '%s': task is mapped, but run will proceed so children are generated.",

@@ -50,7 +50,7 @@ def make_env(fname=None):
         POSTGRES_DATA_PATH=config.server.database.volume_path,
     )
 
-    UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
+    UI_ENV = dict(APOLLO_URL=config.server.ui.apollo_url)
 
     HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
@@ -372,7 +372,7 @@ def start(
 
 def ascii_welcome(ui_port="8080"):
     ui_url = click.style(
-        f"https://localhost:{ui_port}", fg="white", bg="blue", bold=True
+        f"http://localhost:{ui_port}", fg="white", bg="blue", bold=True
     )
     docs_url = click.style("https://docs.prefect.io", fg="white", bg="blue", bold=True)
 

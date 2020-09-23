@@ -55,12 +55,12 @@ class GCSResult(Result):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def write(self, value: Any, **kwargs: Any) -> Result:
+    def write(self, value_: Any, **kwargs: Any) -> Result:
         """
         Writes the result value to a location in GCS and returns the resulting URI.
 
         Args:
-            - value (Any): the value to write; will then be stored as the `value` attribute
+            - value_ (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
             - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to
@@ -70,7 +70,7 @@ class GCSResult(Result):
         """
 
         new = self.format(**kwargs)
-        new.value = value
+        new.value = value_
         self.logger.debug("Starting to upload result to {}...".format(new.location))
         binary_data = new.serializer.serialize(new.value)
 

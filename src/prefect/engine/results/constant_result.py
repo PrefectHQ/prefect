@@ -25,12 +25,12 @@ class ConstantResult(Result):
         """
         return self
 
-    def write(self, value: Any, **kwargs: Any) -> Result:
+    def write(self, value_: Any, **kwargs: Any) -> Result:
         """
         Will return the repr of the underlying value, purely for convenience.
 
         Args:
-            - value (Any): unused, for interface compatibility
+            - value_ (Any): unused, for interface compatibility
             - **kwargs (optional): unused, for interface compatibility
 
         Raises:

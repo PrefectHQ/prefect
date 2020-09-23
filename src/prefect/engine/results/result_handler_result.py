@@ -74,19 +74,19 @@ class ResultHandlerResult(Result):
         new.value = self.result_handler.read(location)
         return new
 
-    def write(self, value: Any, **kwargs: Any) -> Result:
+    def write(self, value_: Any, **kwargs: Any) -> Result:
         """
         Exposes the write method of the underlying custom result handler fitting the Result
         interface.
 
         Args:
-            - value (Any): the value to write and attach to the result
+            - value_ (Any): the value to write and attach to the result
             - **kwargs (Any, optional): unused, for interface compatibility
 
         Returns:
             - Result: returns a copy of this Result with the location and value set
         """
         new = self.copy()
-        new.location = self.result_handler.write(value)
-        new.value = value
+        new.location = self.result_handler.write(value_)
+        new.value = value_
         return new

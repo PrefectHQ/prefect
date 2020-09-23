@@ -23,7 +23,7 @@ def run():
 
     \b
     Examples:
-        $ prefect run flow --name Test-Flow --project My-Project
+        $ prefect run flow --name Test-Flow --project My-Project -ps '{"my_param": 42}'
         Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
 
     \b
@@ -56,6 +56,7 @@ def run():
     "--parameters-string", "-ps", help="A parameters JSON string.", hidden=True
 )
 @click.option("--run-name", "-rn", help="A name to assign for this run.", hidden=True)
+@click.option("--context", "-c", help="A context JSON string.", hidden=True)
 @click.option(
     "--watch",
     "-w",
@@ -79,6 +80,7 @@ def flow(
     parameters_file,
     parameters_string,
     run_name,
+    context,
     watch,
     logs,
     no_url,
@@ -94,8 +96,13 @@ def flow(
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing
                                                 parameters
-        --parameters-string, -ps    TEXT        A string of JSON parameters
+        --parameters-string, -ps    TEXT        A string of JSON parameters (note: to ensure these are
+                                                parsed correctly, it is best to include the full payload
+                                                within single quotes)
         --run-name, -rn             TEXT        A name to assign for this run
+        --context, -c               TEXT        A string of JSON key / value pairs to include in context
+                                                (note: to ensure these are parsed correctly, it is best
+                                                to include the full payload within single quotes)
         --watch, -w                             Watch current state of the flow run, stream
                                                 output to stdout
         --logs, -l                              Get logs of the flow run, stream output to
@@ -112,6 +119,11 @@ def flow(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
+
+    \b
+    Example:
+        $ prefect run flow -n "Test-Flow" -p "My Project" -ps '{"my_param": 42}'
+        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
     """
     return _run_flow(
         name=name,
@@ -120,6 +132,7 @@ def flow(
         parameters_file=parameters_file,
         parameters_string=parameters_string,
         run_name=run_name,
+        context=context,
         watch=watch,
         logs=logs,
         no_url=no_url,
@@ -188,7 +201,9 @@ def cloud(
                                                 the flow [required]
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
-        --parameters-string, -ps    TEXT        A string of JSON parameters
+        --parameters-string, -ps    TEXT        A string of JSON parameters (note: to ensure these are
+                                                parsed correctly, it is best to include the full payload
+                                                within single quotes)
         --run-name, -rn             TEXT        A name to assign for this run
         --watch, -w                             Watch current state of the flow run, stream
                                                 output to stdout
@@ -212,6 +227,7 @@ def cloud(
         parameters_file=parameters_file,
         parameters_string=parameters_string,
         run_name=run_name,
+        context=None,
         watch=watch,
         logs=logs,
         no_url=no_url,
@@ -304,6 +320,7 @@ def server(
         parameters_file=parameters_file,
         parameters_string=parameters_string,
         run_name=run_name,
+        context=None,
         watch=watch,
         logs=logs,
         no_url=no_url,
@@ -316,6 +333,7 @@ def _run_flow(
     parameters_file,
     parameters_string,
     run_name,
+    context,
     watch,
     logs,
     no_url,
@@ -373,8 +391,13 @@ def _run_flow(
     if parameters_string:
         string_params = json.loads(parameters_string)
 
+    if context:
+        context = json.loads(context)
     flow_run_id = client.create_flow_run(
-        flow_id=flow_id, parameters={**file_params, **string_params}, run_name=run_name
+        flow_id=flow_id,
+        context=context,
+        parameters={**file_params, **string_params},
+        run_name=run_name,
     )
 
     if no_url:

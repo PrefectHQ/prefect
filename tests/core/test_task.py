@@ -249,6 +249,10 @@ class TestCreateTask:
         )
         assert sig.return_annotation == "Task"
 
+        # doesn't override class signature
+        class_sig = inspect.signature(Test)
+        assert "name" in class_sig.parameters
+
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()
         assert t1.cache_validator is never_use

@@ -1174,6 +1174,21 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.location.endswith("2.txt")
 
+    def test_result_formatting_with_input_named_value(self, tmpdir):
+        result = LocalResult(dir=tmpdir, location="{value}.txt")
+
+        @prefect.task(checkpoint=True, result=result, slug="1234567")
+        def fn(value):
+            return value + 1
+
+        edge = Edge(Task(), fn, key="value")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state._result.location.endswith("2.txt")
+
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_with_checkpointing_in_context(self, checkpoint):
         @prefect.task(checkpoint=checkpoint, result=PrefectResult())
@@ -1591,9 +1606,9 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=pendulum.now("utc").add(minutes=10)),
-            Retrying(start_time=pendulum.now("utc").add(minutes=10)),
-            Paused(start_time=pendulum.now("utc").add(minutes=10)),
+            Scheduled(start_time=pendulum.now("utc").add(minutes=20)),
+            Retrying(start_time=pendulum.now("utc").add(minutes=20)),
+            Paused(start_time=pendulum.now("utc").add(minutes=20)),
         ],
     )
     def test_scheduled_states_with_future_start_time(self, state):
@@ -1685,6 +1700,36 @@ class TestTaskStateHandlers:
         TaskRunner(task=fn).run()
         # the task changed state two times: Pending -> Running -> Failed
         assert task_handler.call_count == 2
+
+    def test_task_handlers_respect_signals(self):
+        def state_handler(t, o, n):
+            if n.is_failed():
+                raise prefect.engine.signals.PAUSE("Pausing.")
+
+        @prefect.task(state_handlers=[state_handler])
+        def fn():
+            1 / 0
+
+        state = TaskRunner(task=fn).run()
+        assert isinstance(state, Paused)
+
+    def test_task_handlers_handle_retry_signals(self):
+        def state_handler(t, o, n):
+            if n.is_failed():
+                raise prefect.engine.signals.RETRY("Will retry.")
+
+        @prefect.task(state_handlers=[state_handler])
+        def fn():
+            1 / 0
+
+        state = TaskRunner(task=fn).run()
+
+        assert state.is_retrying()
+        assert state.run_count == 1
+
+        new_state = TaskRunner(task=fn).run(state=state)
+        assert new_state.is_retrying()
+        assert new_state.run_count == 2
 
     def test_multiple_task_handlers_are_called(self):
         task_handler = MagicMock(side_effect=lambda t, o, n: n)
@@ -1938,6 +1983,17 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
         is_mapped_parent=True,
     )
     assert state.is_mapped()
+
+
+def test_mapped_tasks_parent_regenerates_child_pipeline():
+    runner = TaskRunner(task=Task())
+    state = runner.run(
+        upstream_states={Edge(Task(), Task(), mapped=True): Success()},
+        is_mapped_parent=True,
+        state=Mapped(n_map_states=10),
+    )
+    assert state.is_mapped()
+    assert len(state.map_states) == 10
 
 
 def test_retry_has_updated_metadata():
