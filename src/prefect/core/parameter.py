@@ -119,16 +119,17 @@ class Parameter(Task):
 class DateTimeParameter(Parameter):
     """
     A DateTimeParameter that casts its input as a DateTime
+
     Args:
         - name (str): the Parameter name.
         - required (bool, optional): If True, the Parameter is required and the default
             value is ignored.
-        - default (any, optional): A default value for the parameter. If the default
-            is not None, the Parameter will not be required.
         - tags ([str], optional): A list of tags for this parameter
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if kwargs.get("default") not in (None, no_default):
+            raise ValueError("DateTimeParameters do not support custom defaults.")
         super().__init__(*args, **kwargs)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 
