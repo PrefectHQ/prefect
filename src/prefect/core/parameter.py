@@ -128,7 +128,7 @@ class DateTimeParameter(Parameter):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        if kwargs.get("default") not in (None, no_default):
+        if kwargs.get("default") is not None:
             raise ValueError("DateTimeParameters do not support custom defaults.")
         super().__init__(*args, **kwargs)
         self.result = PrefectResult(serializer=DateTimeSerializer())
