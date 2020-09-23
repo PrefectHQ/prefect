@@ -140,10 +140,6 @@ class TestDateTimeParameter:
         assert state.result[self.dt].result is None
         assert state.result[self.x].result is None
 
-    def test_datetime_parameter_rejects_custom_default(self):
-        with pytest.raises(ValueError, match="do not support custom defaults"):
-            DateTimeParameter("dt", default=1)
-
     def test_datetime_parameter_with_none_default(self):
         state = self.dt_flow.run()
         assert state.result[self.dt].result is None

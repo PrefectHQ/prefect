@@ -122,15 +122,19 @@ class DateTimeParameter(Parameter):
 
     Args:
         - name (str): the Parameter name.
-        - required (bool, optional): If True, the Parameter is required and the default
-            value is ignored.
+        - required (bool, optional): If True, the Parameter is required. Otherwise, it
+            is optional and will return `None` if no value is provided.
         - tags ([str], optional): A list of tags for this parameter
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        if kwargs.get("default") is not None:
-            raise ValueError("DateTimeParameters do not support custom defaults.")
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        name: str,
+        required: bool = True,
+        tags: Iterable[str] = None,
+    ) -> None:
+        default = no_default if required else None
+        super().__init__(name=name, default=default, required=required, tags=tags)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 
     def run(self) -> Any:
