@@ -240,7 +240,7 @@ class Agent:
         Returns:
             - dict: a dictionary of agent configuration
         """
-        return self.client.get_agent_config(self.agent_id)  # type: ignore
+        return self.client.get_agent_config(self.agent_config_id)  # type: ignore
 
     def start(self, _loop_intervals: dict = None) -> None:
         """
