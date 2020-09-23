@@ -130,7 +130,7 @@ from prefect.tasks.your_framework import YourTask
 your_task = YourTask(your_kwarg="init kwarg")
 
 with Flow("your-flow") as flow:
-    your_secret = PrefectSecrets("your_secret_name")
+    your_secret = PrefectSecret("your_secret_name")
     your_task(your_secret=your_secret)
 ```
 
