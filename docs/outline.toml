@@ -372,6 +372,11 @@ title = "Jira Tasks"
 module = "prefect.tasks.jira"
 classes = ["JiraTask", "JiraServiceDeskTask"]
 
+[pages.tasks.monday]
+title = "Monday Tasks"
+module = "prefect.tasks.monday"
+classes = ["CreateItem"]
+
 [pages.tasks.mysql]
 title = "MySQL Tasks"
 module = "prefect.contrib.tasks.mysql"
