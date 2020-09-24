@@ -2,7 +2,7 @@ import os
 import io
 import uuid
 from urllib.parse import urlparse
-from typing import Iterable
+from typing import Iterable, Any
 
 import yaml
 
@@ -11,12 +11,12 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.utilities.agent import get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
-from prefect.serialization.environment import EnvironmentSchema
+from prefect.serialization.run_config import RunConfigSchema
 
 DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
 
 
-def _get_or_create(d, key, val=None):
+def _get_or_create(d: dict, key: str, val: Any = None) -> Any:
     if val is None:
         val = {}
     path = key.split(".")
@@ -214,12 +214,12 @@ class KubernetesAgent(Agent):
         return "Job {}".format(job.metadata.name)
 
     def generate_job_spec(self, flow_run: GraphQLResult) -> dict:
-        environment = EnvironmentSchema().load(flow_run.flow.environment).metadata
+        run_config = RunConfigSchema().load(flow_run.flow.run_config)
 
-        if environment.job_template:
-            job = environment.job_template
+        if run_config.job_template:
+            job = run_config.job_template
         else:
-            job_template_path = environment.job_template_path or self.job_template_path
+            job_template_path = run_config.job_template_path or self.job_template_path
             self.logger.debug("Loading job template from %r", job_template_path)
             template_bytes = read_bytes_from_path(job_template_path)
             job = yaml.safe_load(template_bytes)
@@ -247,8 +247,8 @@ class KubernetesAgent(Agent):
         container = containers[0]
 
         # Set image if specified
-        if environment.image:
-            container["image"] = environment.image
+        if run_config.image:
+            container["image"] = run_config.image
 
         # Set flow run command
         container["args"] = [get_flow_run_command(flow_run)]
@@ -258,8 +258,8 @@ class KubernetesAgent(Agent):
         # - Values set on the job configuration
         # - Hardcoded values below, provided they're not already set
         env = self.env_vars.copy()
-        if environment.env:
-            env.update(environment.env)
+        if run_config.env:
+            env.update(run_config.env)
         env.update(
             {
                 "PREFECT__CLOUD__API": config.cloud.api,
@@ -283,14 +283,14 @@ class KubernetesAgent(Agent):
         _get_or_create(container, "resources.requests")
         _get_or_create(container, "resources.limits")
         resources = container["resources"]
-        if environment.memory_request:
-            resources["requests"]["memory"] = environment.memory_request
-        if environment.memory_limit:
-            resources["limits"]["memory"] = environment.memory_limit
-        if environment.cpu_request:
-            resources["requests"]["cpu"] = environment.cpu_request
-        if environment.cpu_limit:
-            resources["limits"]["cpu"] = environment.cpu_limit
+        if run_config.memory_request:
+            resources["requests"]["memory"] = run_config.memory_request
+        if run_config.memory_limit:
+            resources["limits"]["memory"] = run_config.memory_limit
+        if run_config.cpu_request:
+            resources["requests"]["cpu"] = run_config.cpu_request
+        if run_config.cpu_limit:
+            resources["limits"]["cpu"] = run_config.cpu_limit
 
         return job
 
