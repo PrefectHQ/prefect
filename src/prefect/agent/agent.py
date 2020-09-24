@@ -89,7 +89,7 @@ class Agent:
     environment variable or in your user configuration file.
 
     Args:
-        - agent_config_id (str, optional): An optional agent ID that can be used to set configuration
+        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set configuration
             based on an agent from a backend API. If set all configuration values will be pulled
             from backend agent configuration. If not set, any manual kwargs will be used.
         - name (str, optional): An optional name to give this agent. Can also be set through
