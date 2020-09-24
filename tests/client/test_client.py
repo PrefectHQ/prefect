@@ -1319,7 +1319,7 @@ def test_register_agent(patch_post, cloud_api):
         client = Client()
 
         agent_id = client.register_agent(
-            agent_type="type", name="name", labels=["1", "2"]
+            agent_type="type", name="name", labels=["1", "2"], agent_config_id="asdf"
         )
         assert agent_id == "ID"
 
@@ -1336,3 +1336,15 @@ def test_register_agent_raises_error(patch_post, cloud_api):
             agent_id = client.register_agent(
                 agent_type="type", name="name", labels=["1", "2"]
             )
+
+
+def test_get_agent_config(patch_post, cloud_api):
+    response = {"data": {"agent_config": [{"settings": {"yes": "no"}}]}}
+
+    patch_post(response)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+        client = Client()
+
+        agent_config = client.get_agent_config(agent_config_id="id")
+        assert agent_config == {"yes": "no"}

@@ -20,6 +20,7 @@ def test_docker_agent_init(monkeypatch, cloud_api):
 
     agent = DockerAgent()
     assert agent
+    assert agent.agent_config_id == None
     assert agent.labels == []
     assert agent.name == "agent"
 

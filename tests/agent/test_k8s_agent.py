@@ -27,6 +27,7 @@ def test_k8s_agent_init(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     assert agent
+    assert agent.agent_config_id == None
     assert agent.labels == []
     assert agent.name == "agent"
     assert agent.batch_client

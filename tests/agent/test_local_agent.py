@@ -15,6 +15,7 @@ from prefect.utilities.graphql import GraphQLResult
 def test_local_agent_init(cloud_api):
     agent = LocalAgent()
     assert agent
+    assert agent.agent_config_id == None
     assert set(agent.labels) == {
         socket.gethostname(),
         "azure-flow-storage",

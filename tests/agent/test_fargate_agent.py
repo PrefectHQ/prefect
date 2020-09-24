@@ -29,6 +29,7 @@ def test_fargate_agent_config_options_default(monkeypatch, cloud_api):
 
     agent = FargateAgent()
     assert agent
+    assert agent.agent_config_id == None
     assert agent.labels == []
     assert agent.name == "agent"
     assert agent.task_definition_kwargs == {}
