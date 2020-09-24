@@ -1,14 +1,21 @@
 import base64
 import io
 import json
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 import cloudpickle
+import pendulum
 
 if TYPE_CHECKING:
     import pandas as pd
 
-__all__ = ("Serializer", "PickleSerializer", "JSONSerializer", "PandasSerializer")
+__all__ = (
+    "Serializer",
+    "PickleSerializer",
+    "JSONSerializer",
+    "DateTimeSerializer",
+    "PandasSerializer",
+)
 
 
 class Serializer:
@@ -110,6 +117,34 @@ class JSONSerializer(Serializer):
             - Any: the deserialized value
         """
         return json.loads(value)
+
+
+class DateTimeSerializer(Serializer):
+    """A Serializer for working with human-readable datetimes"""
+
+    def serialize(self, value: Any) -> bytes:
+        """
+        Serialize a datetime to human-readable bytes
+
+        Args:
+            - value (Any): the value to serialize
+
+        Returns:
+            - bytes: the serialized value
+        """
+        return pendulum.instance(value).to_iso8601_string().encode()
+
+    def deserialize(self, value: bytes) -> Any:
+        """
+        Deserialize an datetime from human-readable bytes
+
+        Args:
+            - value (bytes): the value to deserialize
+
+        Returns:
+            - Any: the deserialized value
+        """
+        return pendulum.parse(value.decode())
 
 
 class PandasSerializer(Serializer):
