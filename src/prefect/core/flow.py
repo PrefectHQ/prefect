@@ -1283,12 +1283,12 @@ class Flow:
 
         try:
             import graphviz
-        except ImportError:
+        except ImportError as exc:
             msg = (
                 "This feature requires graphviz.\n"
                 "Try re-installing prefect with `pip install 'prefect[viz]'`"
             )
-            raise ImportError(msg)
+            raise ImportError(msg) from exc
 
         def get_color(task: Task, map_index: int = None) -> str:
             assert flow_state
@@ -1397,14 +1397,14 @@ class Flow:
                     tmp.close()
                     try:
                         graph.render(tmp.name, view=True)
-                    except graphviz.backend.ExecutableNotFound:
+                    except graphviz.backend.ExecutableNotFound as exc:
                         msg = (
                             "It appears you do not have Graphviz installed, or it is not on your "
                             "PATH. Please install Graphviz from http://www.graphviz.org/download/. "
                             "And note: just installing the `graphviz` python package is not "
                             "sufficient!"
                         )
-                        raise graphviz.backend.ExecutableNotFound(msg)
+                        raise graphviz.backend.ExecutableNotFound(msg) from exc
                     finally:
                         os.unlink(tmp.name)
 

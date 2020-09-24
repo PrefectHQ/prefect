@@ -45,7 +45,7 @@ def _validate_run_signature(run: Callable) -> None:
                 "use it as a task, please wrap it in a standard "
                 "Python function. For more detail, see "
                 "https://docs.prefect.io/core/advanced_tutorials/task-guide.html#the-task-decorator"
-            )
+            ) from exc
         raise
 
     if run_sig.varargs:

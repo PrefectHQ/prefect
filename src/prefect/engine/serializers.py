@@ -232,10 +232,10 @@ class PandasSerializer(Serializer):
 
         try:
             return getattr(pd, "read_{}".format(self.file_type))
-        except AttributeError:
+        except AttributeError as exc:
             raise ValueError(
                 "Could not find deserialization methods for {}".format(self.file_type)
-            )
+            ) from exc
 
     def _get_serialize_method(self, dataframe: "pd.DataFrame" = None) -> Callable:
         import pandas as pd
@@ -245,7 +245,7 @@ class PandasSerializer(Serializer):
             dataframe = pd.DataFrame()
         try:
             return getattr(dataframe, "to_{}".format(self.file_type))
-        except AttributeError:
+        except AttributeError as exc:
             raise ValueError(
                 "Could not find serialization methods for {}".format(self.file_type)
-            )
+            ) from exc

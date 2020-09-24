@@ -181,5 +181,5 @@ class Runner:
                 raise
             msg = "Unexpected error while calling state handlers: {}".format(repr(exc))
             self.logger.exception(msg)
-            raise ENDRUN(Failed(msg, result=exc))
+            raise ENDRUN(Failed(msg, result=exc)) from exc
         return new_state

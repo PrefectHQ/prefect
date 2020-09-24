@@ -496,7 +496,7 @@ class TaskRunner(Runner):
             )
             if prefect.context.get("raise_on_exception"):
                 raise exc
-            raise ENDRUN(exc.state)
+            raise ENDRUN(exc.state) from exc
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
@@ -515,7 +515,7 @@ class TaskRunner(Runner):
                     ),
                     result=exc,
                 )
-            )
+            ) from exc
 
         return state
 
