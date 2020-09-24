@@ -82,8 +82,16 @@ class CreateItem(Task):
             variables.update({"COLUMN_VALUES": json.dumps(column_values)})
 
         query = """
-            mutation ($MONDAY_BOARD_ID:Int!, $MONDAY_GROUP_ID:String!, $ITEM_NAME:String!, $COLUMN_VALUES:JSON) {
-                create_item (board_id: $MONDAY_BOARD_ID, group_id: $MONDAY_GROUP_ID, item_name: $ITEM_NAME, column_values: $COLUMN_VALUES)
+            mutation (
+                $MONDAY_BOARD_ID:Int!, 
+                $MONDAY_GROUP_ID:String!, 
+                $ITEM_NAME:String!, 
+                $COLUMN_VALUES:JSON) {
+                create_item (
+                    board_id: $MONDAY_BOARD_ID, 
+                    group_id: $MONDAY_GROUP_ID, 
+                    item_name: $ITEM_NAME, 
+                    column_values: $COLUMN_VALUES)
                 {
                     id
                 }
