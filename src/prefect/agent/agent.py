@@ -89,9 +89,9 @@ class Agent:
     environment variable or in your user configuration file.
 
     Args:
-        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set configuration
-            based on an agent from a backend API. If set, all configuration values will be pulled
-            from backend agent configuration. If not set, any manual kwargs will be used.
+        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
+            configuration based on an agent from a backend API. If set, all configuration values will be
+            pulled from backend agent configuration. If not set, any manual kwargs will be used.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string
