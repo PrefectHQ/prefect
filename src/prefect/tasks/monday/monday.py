@@ -83,14 +83,14 @@ class CreateItem(Task):
 
         query = """
             mutation (
-                $MONDAY_BOARD_ID:Int!, 
-                $MONDAY_GROUP_ID:String!, 
-                $ITEM_NAME:String!, 
+                $MONDAY_BOARD_ID:Int!,
+                $MONDAY_GROUP_ID:String!,
+                $ITEM_NAME:String!,
                 $COLUMN_VALUES:JSON) {
                 create_item (
-                    board_id: $MONDAY_BOARD_ID, 
-                    group_id: $MONDAY_GROUP_ID, 
-                    item_name: $ITEM_NAME, 
+                    board_id: $MONDAY_BOARD_ID,
+                    group_id: $MONDAY_GROUP_ID,
+                    item_name: $ITEM_NAME,
                     column_values: $COLUMN_VALUES)
                 {
                     id
