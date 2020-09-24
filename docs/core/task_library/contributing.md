@@ -123,14 +123,14 @@ class YourTask(Task):
 This allows users of the task to use Prefect Secrets to securely pass sensitive information to the task using whatever secret storage mechanism they prefer:
 
 ```python
-from prefect import flow
+from prefect import Flow
 from prefect.tasks.secrets import PrefectSecret
 from prefect.tasks.your_framework import YourTask
 
 your_task = YourTask(your_kwarg="init kwarg")
 
 with Flow("your-flow") as flow:
-    your_secret = PrefectSecrets("your_secret_name")
+    your_secret = PrefectSecret("your_secret_name")
     your_task(your_secret=your_secret)
 ```
 
