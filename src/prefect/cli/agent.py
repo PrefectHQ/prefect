@@ -169,28 +169,28 @@ def start(
 
     \b
     Options:
-        --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
-        --api, -a       TEXT    A Prefect API URL
-        --agent-id      TEXT    An agent ID to link this agent instance with
-        --name, -n      TEXT    A name to use for the agent
-        --verbose, -v           Enable verbose agent DEBUG logs
-                                Defaults to INFO level logging
-        --label, -l     TEXT    Labels the agent will use to query for flow runs
-                                Multiple values supported e.g. `-l label1 -l label2`
-        --env, -e       TEXT    Environment variables to set on each submitted flow
-                                run.
-                                Note that equal signs in environment variable values
-                                are not currently supported from the CLI.  Multiple
-                                values supported.
-                                    e.g. `-e AUTH=token -e PKG_SETTING=true`
-        --max-polls     INT     Maximum number of times the agent should poll the
-                                Prefect API for flow runs. Will run forever if not
-                                specified.
-        --no-cloud-logs         Turn off logging to the Prefect API for all flow runs
-                                Defaults to `False`
-        --agent-address TEXT    The address to server internal api at. Currently this
-                                is just health checks for use by an orchestration layer
-                                (e.g. kubernetes). Leave blank for no api server (default).
+        --token, -t             TEXT    A Prefect Cloud API token with RUNNER scope
+        --api, -a               TEXT    A Prefect API URL
+        --agent-config--id      TEXT    An agent ID to link this agent instance with
+        --name, -n              TEXT    A name to use for the agent
+        --verbose, -v                   Enable verbose agent DEBUG logs
+                                        Defaults to INFO level logging
+        --label, -l             TEXT    Labels the agent will use to query for flow runs
+                                        Multiple values supported e.g. `-l label1 -l label2`
+        --env, -e               TEXT    Environment variables to set on each submitted flow
+                                        run.
+                                        Note that equal signs in environment variable values
+                                        are not currently supported from the CLI.  Multiple
+                                        values supported.
+                                            e.g. `-e AUTH=token -e PKG_SETTING=true`
+        --max-polls             INT     Maximum number of times the agent should poll the
+                                        Prefect API for flow runs. Will run forever if not
+                                        specified.
+        --no-cloud-logs                 Turn off logging to the Prefect API for all flow runs
+                                        Defaults to `False`
+        --agent-address         TEXT    The address to server internal api at. Currently this
+                                        is just health checks for use by an orchestration layer
+                                        (e.g. kubernetes). Leave blank for no api server (default).
 
     \b
     Local Agent:

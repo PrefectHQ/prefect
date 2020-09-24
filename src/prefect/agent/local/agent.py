@@ -31,9 +31,9 @@ class LocalAgent(Agent):
     ```
 
     Args:
-        - agent_id (str, optional): An optional agent ID that can be used to set configuration
-            based on an agent from a backend API. If set all configuration values will be pulled
-            from backend agent configuration. If not set, any manual kwargs will be used.
+        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
+            configuration based on an agent from a backend API. If set all configuration values will be
+            pulled from backend agent configuration.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string

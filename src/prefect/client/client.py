@@ -1461,38 +1461,6 @@ class Client:
         if not result.data.write_run_logs.success:
             raise ValueError("Writing logs failed.")
 
-    # def register_agent(
-    #     self, agent_type: str, name: str = None, labels: List[str] = None
-    # ) -> str:
-    #     """
-    #     Register an agent with Cloud. DEPRECATED
-
-    #     Args:
-    #         - agent_type (str): The type of agent being registered
-    #         - name: (str, optional): The name of the agent being registered
-    #         - labels (List[str], optional): A list of any present labels on the agent
-    #             being registered
-
-    #     Returns:
-    #         - The agent ID as a string
-    #     """
-    #     mutation = {
-    #         "mutation($input: register_agent_input!)": {
-    #             "register_agent(input: $input)": {"id"}
-    #         }
-    #     }
-
-    #     print("here")
-    #     result = self.graphql(
-    #         mutation,
-    #         variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
-    #     )
-
-    #     if not result.data.register_agent.id:
-    #         raise ValueError("Error registering agent")
-
-    #     return result.data.register_agent.id
-
     def register_agent(
         self,
         agent_type: str,
@@ -1508,6 +1476,7 @@ class Client:
             - name: (str, optional): The name of the agent being registered
             - labels (List[str], optional): A list of any present labels on the agent
                 being registered
+            - agent_config_id (str, optional): The ID of an agent configuration to register with
 
         Returns:
             - The agent ID as a string
@@ -1538,13 +1507,19 @@ class Client:
 
     def get_agent_config(self, agent_config_id: str) -> dict:
         """
-        Get agent config
+        Get agent config settings
+
+        Args:
+            - agent_config_id (str): The ID of an agent configuration to retrieve
+
+        Returns:
+            - dict: the agent configuration's `settings`
         """
         query = {
             "query": {
-                with_args("agent_config", {"where": {"id": {"_eq": agent_config_id}}}): {
-                    "settings": True
-                }
+                with_args(
+                    "agent_config", {"where": {"id": {"_eq": agent_config_id}}}
+                ): {"settings": True}
             }
         }
 

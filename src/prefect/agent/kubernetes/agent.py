@@ -41,9 +41,9 @@ class KubernetesAgent(Agent):
     ```
 
     Args:
-        - agent_id (str, optional): An optional agent ID that can be used to set configuration
-            based on an agent from a backend API. If set all configuration values will be pulled
-            from backend agent configuration. If not set, any manual kwargs will be used.
+        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
+            configuration based on an agent from a backend API. If set all configuration values will be
+            pulled from backend agent configuration.
         - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
             to the environment variable `NAMESPACE` or `default`.
         - name (str, optional): An optional name to give this agent. Can also be set through
@@ -70,7 +70,7 @@ class KubernetesAgent(Agent):
 
     def __init__(
         self,
-        agent_id: str = None,
+        agent_config_id: str = None,
         namespace: str = None,
         name: str = None,
         labels: Iterable[str] = None,
@@ -82,7 +82,7 @@ class KubernetesAgent(Agent):
         volumes: List[dict] = None,
     ) -> None:
         super().__init__(
-            agent_id=agent_id,
+            agent_config_id=agent_config_id,
             name=name,
             labels=labels,
             env_vars=env_vars,

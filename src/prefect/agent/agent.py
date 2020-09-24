@@ -117,18 +117,12 @@ class Agent:
         agent_address: str = None,
         no_cloud_logs: bool = False,
     ) -> None:
+        # Load token and initialize client
         token = config.cloud.agent.get("auth_token")
         self.client = Client(api_server=config.cloud.api, api_token=token)
 
         self.agent_config_id = agent_config_id
-
-        # # TODO: Auto populate on updates to config, possibly in a background thread
-        # self.agent_config = {}  # type: ignore
-        # if self.agent_id:
-        #     self.agent_config = self._retrieve_agent_config()
-
         self.name = name or config.cloud.agent.get("name", "agent")
-
         self.labels = labels or list(config.cloud.agent.get("labels", []))
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
@@ -137,36 +131,6 @@ class Agent:
         self.agent_address = agent_address or config.cloud.agent.get(
             "agent_address", ""
         )
-        # self.name = (
-        #     self.agent_config.get("name", "agent")
-        #     if self.agent_id
-        #     else name or config.cloud.agent.get("name", "agent")
-        # )
-        # self.labels = (
-        #     self.agent_config.get("labels", [])
-        #     if self.agent_id
-        #     else labels or list(config.cloud.agent.get("labels", []))
-        # )
-        # self.env_vars = (
-        #     self.agent_config.get("env_vars", dict())
-        #     if self.agent_id
-        #     else env_vars or config.cloud.agent.get("env_vars", dict())
-        # )
-        # self.max_polls = (
-        #     self.agent_config.get("max_polls") if self.agent_id else max_polls
-        # )
-        # self.log_to_cloud = (
-        #     self.agent_config.get("log_to_cloud")
-        #     if self.agent_id
-        #     else False
-        #     if no_cloud_logs
-        #     else True
-        # )
-        # self.agent_address = (
-        #     self.agent_config.get("agent_address", "")
-        #     if self.agent_id
-        #     else agent_address or config.cloud.agent.get("agent_address", "")
-        # )
 
         self._api_server = None  # type: ignore
         self._api_server_loop = None  # type: Optional[IOLoop]
@@ -222,9 +186,9 @@ class Agent:
         agent_id = self.client.register_agent(
             agent_type=type(self).__name__,
             name=self.name,
-            labels=self.labels,
+            labels=self.labels,  # type: ignore
             agent_config_id=self.agent_config_id,
-        )  # type: ignore
+        )
 
         self.logger.debug(f"Agent ID: {agent_id}")
 
