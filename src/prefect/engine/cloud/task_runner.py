@@ -127,7 +127,7 @@ class CloudTaskRunner(TaskRunner):
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
-        except VersionLockError:
+        except VersionLockError as exc:
             state = self.client.get_task_run_state(task_run_id=task_run_id)
 
             if state.is_running():
@@ -136,7 +136,7 @@ class CloudTaskRunner(TaskRunner):
                         self.task.name
                     )
                 )
-                raise ENDRUN(state=state)
+                raise ENDRUN(state=state) from exc
 
             self.logger.debug(
                 "Version lock encountered for task {}, proceeding with state {}...".format(
@@ -146,19 +146,19 @@ class CloudTaskRunner(TaskRunner):
 
             try:
                 new_state = state.load_result(self.result)
-            except Exception as exc:
+            except Exception as exc_inner:
                 self.logger.debug(
                     "Error encountered attempting to load result for state of {} task...".format(
                         self.task.name
                     )
                 )
-                self.logger.error(repr(exc))
-                raise ENDRUN(state=state)
+                self.logger.error(repr(exc_inner))
+                raise ENDRUN(state=state) from exc_inner
         except Exception as exc:
             self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))
             )
-            raise ENDRUN(state=ClientFailed(state=new_state))
+            raise ENDRUN(state=ClientFailed(state=new_state)) from exc
 
         if state.is_queued():
             state.state = old_state  # type: ignore
@@ -208,7 +208,7 @@ class CloudTaskRunner(TaskRunner):
                         message="Could not retrieve state from Prefect Cloud",
                         result=exc,
                     )
-                raise ENDRUN(state=state)
+                raise ENDRUN(state=state) from exc
 
         # we assign this so it can be shared with heartbeat thread
         self.task_run_id = context.get("task_run_id", "")  # type: str
@@ -320,7 +320,7 @@ class CloudTaskRunner(TaskRunner):
                 message=f"Failed to retrieve task results: {exc}", result=exc
             )
             final_state = self.handle_state_change(old_state=state, new_state=new_state)
-            raise ENDRUN(final_state)
+            raise ENDRUN(final_state) from exc
 
     @tail_recursive
     def run(
