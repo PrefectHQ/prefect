@@ -3,28 +3,29 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 from typing import Any
 
+import json
+
 
 class CreateItem(Task):
     """
-    Task for creating items in Monday
+    Task for creating items in a Monday board
 
     Args:
-        - monday_personal_token
-        - board_id
-        - group_id
-        - item_name
-        - column_values
+        - board_id (int)
+        - group_id (str)
+        - item_name (str)
+        - column_values (dict, optional): any additional custom columns added to your board
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
     def __init__(
-            self,
-            board_id: int = None,
-            group_id: str = None,
-            item_name: str = None,
-            column_values: dict = None,
-            **kwargs: Any
+        self,
+        board_id: int = None,
+        group_id: str = None,
+        item_name: str = None,
+        column_values: dict = None,
+        **kwargs: Any
     ):
         self.board_id = board_id
         self.group_id = group_id
@@ -46,8 +47,12 @@ class CreateItem(Task):
         Task run method.
 
         Args:
-            - TODO: data to create item with
-            - monday_api_token
+            - board_id (int)
+            - group_id (str)
+            - item_name (str)
+            - column_values (dict, optional): any additional custom columns added to your board
+            - monday_api_token (str): the name of the Prefect Secret which stored your Monday
+                API Token.
 
         Returns:
             - int: the id of the item created
@@ -62,24 +67,34 @@ class CreateItem(Task):
         if item_name is None:
             raise ValueError("An item name must be provided")
 
-        # prepare mutation
-        headers = {
-            "Authorization": monday_api_token
-        }
+        if monday_api_token is None:
+            raise ValueError("An API Token must be provided")
 
-        variables = {"MONDAY_BOARD_ID": board_id, "MONDAY_GROUP_ID": group_id, "ITEM_NAME": item_name}
+        # prepare mutation
+        headers = {"Authorization": monday_api_token}
+
+        variables = {
+            "MONDAY_BOARD_ID": board_id,
+            "MONDAY_GROUP_ID": group_id,
+            "ITEM_NAME": item_name,
+        }
+        if column_values:
+            variables.update({"COLUMN_VALUES": json.dumps(column_values)})
 
         query = """
-            mutation ($MONDAY_BOARD_ID:Int!, $MONDAY_GROUP_ID:String!, $ITEM_NAME:String!) {
-                create_item (board_id: $MONDAY_BOARD_ID, group_id: $MONDAY_GROUP_ID, item_name: $ITEM_NAME)
+            mutation ($MONDAY_BOARD_ID:Int!, $MONDAY_GROUP_ID:String!, $ITEM_NAME:String!, $COLUMN_VALUES:JSON) {
+                create_item (board_id: $MONDAY_BOARD_ID, group_id: $MONDAY_GROUP_ID, item_name: $ITEM_NAME, column_values: $COLUMN_VALUES)
                 {
                     id
                 }
             }
         """
 
-        response = requests.post('https://api.monday.com/v2/', json={'query': query, 'variables': variables},
-                                 headers=headers)
+        response = requests.post(
+            "https://api.monday.com/v2/",
+            json={"query": query, "variables": variables},
+            headers=headers,
+        )
         if response.status_code == 200:
             return response.json()["data"]["create_item"]["id"]
         else:
