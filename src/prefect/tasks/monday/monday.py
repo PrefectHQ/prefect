@@ -11,9 +11,9 @@ class CreateItem(Task):
     Task for creating items in a Monday board
 
     Args:
-        - board_id (int)
-        - group_id (str)
-        - item_name (str)
+        - board_id (int): the id of the board to add the new item
+        - group_id (str): the id of the group to add the new item
+        - item_name (str): the name of the item to be created
         - column_values (dict, optional): any additional custom columns added to your board
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -47,9 +47,9 @@ class CreateItem(Task):
         Task run method.
 
         Args:
-            - board_id (int)
-            - group_id (str)
-            - item_name (str)
+            - board_id (int): the id of the board to add the new item
+            - group_id (str): the id of the group to add the new item
+            - item_name (str): the name of the item to be created
             - column_values (dict, optional): any additional custom columns added to your board
             - monday_api_token (str): the name of the Prefect Secret which stored your Monday
                 API Token.
