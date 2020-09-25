@@ -4,6 +4,17 @@ import prefect
 from prefect.utilities.graphql import GraphQLResult
 
 
+def get_flow_image_if_docker_storage(flow_run: GraphQLResult) -> str:
+    """
+    If a flow is configured with docker storage, return the image. Otherwise
+    returns `None`
+    """
+    storage = prefect.serialization.storage.StorageSchema().load(flow_run.flow.storage)
+    if isinstance(storage, prefect.environments.storage.Docker):
+        return storage.name
+    return None
+
+
 def get_flow_image(flow_run: GraphQLResult) -> str:
     """
     Retrieve the image to use for this flow run deployment. Will start by looking for

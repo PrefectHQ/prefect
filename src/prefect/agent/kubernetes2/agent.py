@@ -9,7 +9,10 @@ import yaml
 from prefect import config
 from prefect.agent import Agent
 from prefect.engine.state import Failed
-from prefect.utilities.agent import get_flow_run_command
+from prefect.utilities.agent import (
+    get_flow_run_command,
+    get_flow_image_if_docker_storage,
+)
 from prefect.utilities.graphql import GraphQLResult
 from prefect.serialization.run_config import RunConfigSchema
 
@@ -246,8 +249,13 @@ class KubernetesAgent(Agent):
             containers.append({})
         container = containers[0]
 
-        # Set image if specified
-        if run_config.image:
+        # Set container image if specified
+        # - Use storage image if using docker storage
+        # - Otherwise use run-config image if specified
+        storage_image = get_flow_image_if_docker_storage(flow_run)
+        if storage_image is not None:
+            container["image"] = storage_image
+        elif run_config.image:
             container["image"] = run_config.image
 
         # Set flow run command

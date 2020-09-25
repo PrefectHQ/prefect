@@ -81,6 +81,8 @@ def _execute_flow_run():
 
         with prefect.context(secrets=secrets, loading_flow=True):
             flow = storage.get_flow(storage.flows[flow_data.name])
+
+        with prefect.context(secrets=secrets):
             if getattr(flow, "run_config", None) is not None:
                 flow.run()
             else:
