@@ -18,7 +18,12 @@ class ClockEvent:
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, (ClockEvent, datetime)):
             return False
-        return self.start_time == other
+        if isinstance(other, datetime):
+            return self.start_time == other
+        return (
+            self.start_time == other.start_time
+            and self.parameter_defaults == other.parameter_defaults
+        )
 
     def __gt__(self, other: Union[datetime, "ClockEvent"]) -> bool:
         if not isinstance(other, (ClockEvent, datetime)):
