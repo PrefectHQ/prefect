@@ -35,12 +35,14 @@ class FlowRunTask(Task):
         parameters: dict = None,
         wait: bool = False,
         new_flow_context: dict = None,
+        run_name: str = None,
         **kwargs: Any,
     ):
         self.flow_name = flow_name
         self.project_name = project_name
         self.parameters = parameters
         self.new_flow_context = new_flow_context
+        self.run_name = run_name
         self.wait = wait
         if flow_name:
             kwargs.setdefault("name", f"Flow {flow_name}")
@@ -54,6 +56,7 @@ class FlowRunTask(Task):
         parameters: dict = None,
         idempotency_key: str = None,
         new_flow_context: dict = None,
+        run_name: str = None,
     ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
@@ -71,6 +74,7 @@ class FlowRunTask(Task):
                 flow run; if provided, ensures that only one run is created if this task is retried
                 or rerun with the same inputs.  If not provided, the current flow run ID will be used.
             - new_flow_context (dict, optional): the optional run context for the new flow run
+            - run_name (str, optional): name to be set for the flow run
 
         Returns:
             - str: the ID of the newly-scheduled flow run
@@ -139,6 +143,7 @@ class FlowRunTask(Task):
             parameters=parameters,
             idempotency_key=idem_key or idempotency_key,
             context=new_flow_context,
+            run_name=run_name,
         )
 
         self.logger.debug(f"Flow Run {flow_run_id} created.")
