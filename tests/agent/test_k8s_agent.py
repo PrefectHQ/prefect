@@ -247,7 +247,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
         {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
-        job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+        job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
 
         assert job["metadata"]["labels"]["prefect.io/flow_run_id"] == "id"
         assert job["metadata"]["labels"]["prefect.io/flow_id"] == "new_id"
@@ -321,7 +321,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
         volume_mounts = [{"name": "my-vol", "mountPath": "/mnt/my-mount"}]
         volumes = [{"name": "my-vol", "hostPath": "/host/folder"}]
         agent = KubernetesAgent(volume_mounts=volume_mounts, volumes=volumes)
-        job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+        job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
 
         assert job["metadata"]["labels"]["prefect.io/flow_run_id"] == "id"
         assert job["metadata"]["labels"]["prefect.io/flow_id"] == "new_id"
@@ -401,7 +401,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
     )
 
     agent = KubernetesAgent(no_cloud_logs=flag)
-    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+    job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
     assert env[6]["value"] == str(not flag).lower()
 
@@ -433,7 +433,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, cloud_api):
     )
 
     agent = KubernetesAgent()
-    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+    job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
 
     assert not job["spec"]["template"]["spec"].get("imagePullSecrets", None)
 
@@ -459,7 +459,7 @@ def test_k8s_agent_removes_yaml_no_volume(monkeypatch, cloud_api):
     )
 
     agent = KubernetesAgent()
-    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+    job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
 
     assert not job["spec"]["template"]["spec"].get("volumes", None)
     assert not job["spec"]["template"]["spec"]["containers"][0].get(
@@ -494,7 +494,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
     )
 
     agent = KubernetesAgent(labels=["foo", "bar"])
-    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
+    job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
     assert env[5]["value"] == "['foo', 'bar']"
 

@@ -278,12 +278,14 @@ class KubernetesAgent(Agent):
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
         """
-        if flow_run.flow.run_config is not None:
+        if getattr(flow_run.flow, "run_config", None) is not None:
             return self.generate_job_spec_from_run_config(flow_run)
         else:
             return self.generate_job_spec_from_environment(flow_run)
 
-    def generate_job_spec_from_environment(self, flow_run: GraphQLResult) -> dict:
+    def generate_job_spec_from_environment(
+        self, flow_run: GraphQLResult, image: str = None
+    ) -> dict:
         """
         Populate a k8s job spec. This spec defines a k8s job that handles
         executing a flow. This method runs each time the agent receives
@@ -310,6 +312,7 @@ class KubernetesAgent(Agent):
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - image (str, optional): The full name of an image to use for the job
 
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
@@ -334,7 +337,8 @@ class KubernetesAgent(Agent):
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
 
         # Use provided image for job
-        image = get_flow_image(flow_run=flow_run)
+        if image is None:
+            image = get_flow_image(flow_run=flow_run)
         job["spec"]["template"]["spec"]["containers"][0]["image"] = image
 
         self.logger.debug("Using image {} for job".format(image))
