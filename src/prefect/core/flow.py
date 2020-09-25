@@ -241,6 +241,7 @@ class Flow:
         new = copy.copy(self)
         # create a new cache
         new._cache = dict()
+        new.constants = self.constants.copy()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_reference_tasks(self._reference_tasks)
@@ -532,9 +533,9 @@ class Flow:
             self.tasks.add(task)
             self._cache.clear()
 
-            # Parameters must be root tasks
+            # Parameters and constants must be root tasks
             # All other new tasks should be added to the current case/resource (if any)
-            if not isinstance(task, Parameter):
+            if not isinstance(task, (Parameter, prefect.tasks.core.constants.Constant)):
                 case = prefect.context.get("case", None)
                 if case is not None:
                     case.add_task(task, self)
@@ -1013,6 +1014,11 @@ class Flow:
             "flow_run_id", kwargs.pop("flow_run_id", str(uuid.uuid4()))
         )
 
+        # set flow_run_name from args or uuid if flow_run_name is not an argument
+        flow_run_context.setdefault(
+            "flow_run_name", kwargs.pop("flow_run_name", str(uuid.uuid4()))
+        )
+
         # run this flow indefinitely, so long as its schedule has future dates
         while True:
 
@@ -1022,7 +1028,7 @@ class Flow:
                 scheduled_start_time=next_run_time,
                 flow_id=self.name,
                 flow_run_id=flow_run_context["flow_run_id"],
-                flow_run_name=str(uuid.uuid4()),
+                flow_run_name=flow_run_context["flow_run_name"],
             )
 
             if flow_state.is_scheduled():
@@ -1282,12 +1288,12 @@ class Flow:
 
         try:
             import graphviz
-        except ImportError:
+        except ImportError as exc:
             msg = (
                 "This feature requires graphviz.\n"
                 "Try re-installing prefect with `pip install 'prefect[viz]'`"
             )
-            raise ImportError(msg)
+            raise ImportError(msg) from exc
 
         def get_color(task: Task, map_index: int = None) -> str:
             assert flow_state
@@ -1387,20 +1393,23 @@ class Flow:
             try:
                 from IPython import get_ipython
 
-                assert get_ipython().config.get("IPKernelApp") is not None
+                in_ipython = get_ipython().config.get("IPKernelApp") is not None
             except Exception:
+                in_ipython = False
+
+            if not in_ipython:
                 with tempfile.NamedTemporaryFile(delete=False) as tmp:
                     tmp.close()
                     try:
                         graph.render(tmp.name, view=True)
-                    except graphviz.backend.ExecutableNotFound:
+                    except graphviz.backend.ExecutableNotFound as exc:
                         msg = (
                             "It appears you do not have Graphviz installed, or it is not on your "
                             "PATH. Please install Graphviz from http://www.graphviz.org/download/. "
                             "And note: just installing the `graphviz` python package is not "
                             "sufficient!"
                         )
-                        raise graphviz.backend.ExecutableNotFound(msg)
+                        raise graphviz.backend.ExecutableNotFound(msg) from exc
                     finally:
                         os.unlink(tmp.name)
 

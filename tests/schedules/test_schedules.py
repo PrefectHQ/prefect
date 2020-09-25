@@ -66,6 +66,31 @@ def test_create_schedule_multiple_overlapping_clocks():
     ]
 
 
+def test_create_schedule_multiple_overlapping_clocks_distinguishes_parameters():
+    dt = pendulum.datetime(2019, 1, 1)
+    special_day = pendulum.datetime(2020, 3, 1)
+    s = schedules.Schedule(
+        clocks=[
+            clocks.DatesClock([special_day]),
+            clocks.DatesClock([special_day]),
+        ]
+    )
+    output = s.next(2, after=dt, return_events=True)
+    assert len(output) == 1
+    assert output[0].start_time == special_day
+
+    s = schedules.Schedule(
+        clocks=[
+            clocks.DatesClock([special_day], parameter_defaults=dict(a=1)),
+            clocks.DatesClock([special_day], parameter_defaults=dict(a=2)),
+        ]
+    )
+    output = s.next(2, after=dt, return_events=True)
+    assert len(output) == 2
+    assert [e.start_time for e in output] == [special_day] * 2
+    assert set(e.parameter_defaults["a"] for e in output) == {1, 2}
+
+
 def test_create_schedule_multiple_overlapping_clocks_emit_events_if_asked():
     dt = pendulum.datetime(2019, 1, 1)
     s = schedules.Schedule(
@@ -100,16 +125,14 @@ def test_create_schedule_multiple_overlapping_clocks_emit_events_with_correct_pa
     output = s.next(6, after=dt, return_events=True)
 
     assert all([isinstance(e, clocks.ClockEvent) for e in output])
-    assert all(
-        [e.parameter_defaults == dict(x=(i + 1) % 2) for i, e in enumerate(output)]
-    )
-    assert output == [
+    assert [e.parameter_defaults["x"] for e in output] == [1, 0, 1, 1, 0, 1]
+    assert [e.start_time for e in output] == [
         dt.add(hours=12),
+        dt.add(days=1),
         dt.add(days=1),
         dt.add(days=1, hours=12),
         dt.add(days=2),
-        dt.add(days=2, hours=12),
-        dt.add(days=3),
+        dt.add(days=2),
     ]
 
 

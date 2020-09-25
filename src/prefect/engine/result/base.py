@@ -257,12 +257,12 @@ class Result(ResultInterface):
             "see https://docs.prefect.io/core/concepts/results.html"
         )
 
-    def write(self, value: Any, **kwargs: Any) -> "Result":
+    def write(self, value_: Any, **kwargs: Any) -> "Result":
         """
         Serialize and write the result to the target location.
 
         Args:
-            - value (Any): the value to write; will then be stored as the `value` attribute
+            - value_ (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
             - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to

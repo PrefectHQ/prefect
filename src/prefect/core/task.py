@@ -45,7 +45,7 @@ def _validate_run_signature(run: Callable) -> None:
                 "use it as a task, please wrap it in a standard "
                 "Python function. For more detail, see "
                 "https://docs.prefect.io/core/advanced_tutorials/task-guide.html#the-task-decorator"
-            )
+            ) from exc
         raise
 
     if run_sig.varargs:
@@ -75,6 +75,21 @@ class SignatureValidator(type):
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
         return type.__new__(cls, name, parents, methods)  # type: ignore
+
+
+class instance_property:
+    """Like property, but only available on instances, not the class"""
+
+    def __init__(self, func: Callable):
+        self.func = func
+
+    def __getattr__(self, k: str) -> Any:
+        return getattr(self.func, k)
+
+    def __get__(self, obj: Any, cls: Any) -> Any:
+        if obj is None:
+            raise AttributeError
+        return self.func(obj)
 
 
 class Task(metaclass=SignatureValidator):
@@ -426,7 +441,7 @@ class Task(metaclass=SignatureValidator):
 
         return new
 
-    @property
+    @instance_property
     def __signature__(self) -> inspect.Signature:
         """Dynamically generate the signature, replacing ``*args``/``**kwargs``
         with parameters from ``run``"""
@@ -806,7 +821,9 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task
         """
-        return prefect.tasks.core.operators.GetItem().bind(self, key)
+        return prefect.tasks.core.operators.GetItem(
+            checkpoint=self.checkpoint, result=self.result
+        ).bind(self, key)
 
     def __or__(self, other: object) -> object:
         """
@@ -844,7 +861,7 @@ class Task(metaclass=SignatureValidator):
         self.set_dependencies(upstream_tasks=[other])
         return self
 
-    # Maginc Method Operators  -----------------------------------------------------
+    # Magic Method Operators  -----------------------------------------------------
 
     def __add__(self, other: object) -> "Task":
         """

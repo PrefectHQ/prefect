@@ -138,7 +138,7 @@ You can find the URL for the Dask dashboard of your cluster in the Flow logs:
 
 ```
 April 26th 2020 at 12:17:41pm | prefect.DaskCloudProviderEnvironment
-Dask cluster created. Sheduler address: tls://172.33.18.197:8786 Dashboard: http://172.33.18.197:8787
+Dask cluster created. Scheduler address: tls://172.33.18.197:8786 Dashboard: http://172.33.18.197:8787
 ```
 
 #### Setup

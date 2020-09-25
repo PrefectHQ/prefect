@@ -715,7 +715,7 @@ def test_flow_runner_uses_default_executor_on_flow_if_present():
 
     with raise_on_exception():
         with pytest.raises(NotImplementedError):
-            FlowRunner(flow=flow).run(executor=Executor())
+            FlowRunner(flow=flow).run()
 
 
 def test_flow_runner_uses_user_provided_executor():

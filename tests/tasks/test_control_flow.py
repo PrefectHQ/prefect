@@ -6,7 +6,6 @@ from prefect.engine.result import NoResult
 from prefect.engine.state import Skipped, Success
 from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch, case
 from prefect.tasks.control_flow.conditional import CompareValue
-from prefect.tasks.core.constants import Constant
 
 
 class Condition(Task):
@@ -158,7 +157,7 @@ def test_merge_imperative_flow():
     c = merge(a, b, flow=flow)
 
     state = flow.run()
-    assert state.result[cond].result == True
+    assert state.result[cond].result is True
     assert state.result[a].result == 2
     assert state.result[b].is_skipped()
     assert state.result[c].result == 2
@@ -591,3 +590,15 @@ class TestCase:
         state = flow.run(x=1)
         assert state.result[y1].result == 2
         assert state.result[y2].is_skipped()
+
+    def test_case_with_constants(self):
+        with Flow("test") as flow:
+            cond = identity(True)
+            with case(cond, True):
+                res = inc.map(range(4))
+            with case(cond, False):
+                res2 = inc.map(range(4))
+
+        state = flow.run()
+        assert state.result[res].result == [1, 2, 3, 4]
+        assert state.result[res2].is_skipped()

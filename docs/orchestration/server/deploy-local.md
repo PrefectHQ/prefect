@@ -23,14 +23,25 @@ You can set this directly in the UI on the Home page:
 
 ![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
 
+...or by setting `apollo_url` in `./prefect/config.toml` on whatever machine you're running Prefect Server:
+
+```
+[server]
+  [server.ui]
+  apollo_url="http://localhost:4200/graphql"
+```
+
+Note: The second method will change the _default_ Apollo endpoint but can still be overidden by the UI setting.
+
 ::: tip You don't need to host the UI yourself!
 Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!
 
 To achieve this:
+
 - [sign up for a free Developer account](https://cloud.prefect.io/)
 - login; if you click the Prefect Cloud logo at the bottom of the left menu bar, the UI will switch the endpoint that it talks to
 - you can further configure the location of this endpoint on the Home page
-:::
+  :::
 
 ## Database persistence and migrations
 

@@ -132,7 +132,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         self.cluster = self._provider_class(**self._provider_kwargs)
         if self.cluster and self.cluster.scheduler and self.cluster.scheduler.address:
             self.logger.info(
-                "Dask cluster created. Sheduler address: {} Dashboard: http://{}:8787 "
+                "Dask cluster created. Scheduler address: {} Dashboard: http://{}:8787 "
                 "(unless port was changed from default of 8787)".format(
                     self.cluster.scheduler.address,
                     urlparse(self.cluster.scheduler.address).hostname,

@@ -1,5 +1,6 @@
 import io
 import os
+import time
 import uuid
 from typing import Iterable, List, Any
 from urllib.parse import urlparse
@@ -254,20 +255,39 @@ class KubernetesAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
+        import urllib3.exceptions
+
         self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         job_spec = self.generate_job_spec(flow_run=flow_run)
+        job_name = job_spec["metadata"]["name"]
 
-        self.logger.debug(
-            "Creating namespaced job {}".format(job_spec["metadata"]["name"])
-        )
-        job = self.batch_client.create_namespaced_job(
-            namespace=self.namespace, body=job_spec
-        )
+        self.logger.debug("Creating namespaced job {}".format(job_name))
+        attempts = 3
+        while True:
+            try:
+                self.batch_client.create_namespaced_job(
+                    namespace=self.namespace, body=job_spec
+                )
+                break
+            except self.k8s_client.rest.ApiException as exc:
+                if exc.status == 409:
+                    # object already exists, previous submission was successful
+                    # even though it errored
+                    break
+                raise
+            except urllib3.exceptions.HTTPError:
+                attempts -= 1
+                if attempts == 0:
+                    raise
+                self.logger.warning(
+                    "Error submitting job %s, retrying...", job_name, exc_info=True
+                )
+                time.sleep(1)
 
-        self.logger.debug("Job {} created".format(job.metadata.name))
+        self.logger.debug("Job {} created".format(job_name))
 
-        return "Job {}".format(job.metadata.name)
+        return "Job {}".format(job_name)
 
     def generate_job_spec(self, flow_run: GraphQLResult) -> dict:
         """Generate a k8s job spec for a flow run

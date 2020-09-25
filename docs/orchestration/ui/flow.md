@@ -3,7 +3,13 @@
 ## Overview
 
 The flow overview summarizes each flow's recent behavior. It is a dashboard for a single workflow.
-![](/orchestration/ui/flow-overview.png)
+
+In the details tile of the flow overview, you can add and remove flow group labels.  As with other [flow group settings](/orchestration/ui/flow.html#flow-group-settings), these flow group labels take precedence over the labels your flow is registered with. 
+
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-overview.png">
+</div>
 
 ## Schematic
 
@@ -22,11 +28,25 @@ From this page, you can schedule a new run of your flow. You may provide paramet
 
 ## Settings
 
-You can use the settings page to change which project your flow is part of and toggle [flow settings](/orchestration/concepts/flows.html#flow-settings) such as heartbeat, Lazarus process and version locking. You can also use the page to set [Cloud Hooks](/orchestration/concepts/cloud_hooks.html).
+You can use the settings page to change which project your flow is part of and toggle [flow settings](/orchestration/concepts/flows.html#flow-settings) such as heartbeat, Lazarus process and version locking. You can also use the page to set [Cloud Hooks](/orchestration/concepts/cloud_hooks.html), [Schedules](/core/concepts/schedules.html), and [Parameters](/core/concepts/parameters.html).  
+
+When you update schedules and parameters in the settings pages of the UI, it updates the settings for all versions of that flow, otherwise known as its flow group settings.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/flow-settings.png">
 </div>
+
+
+## Flow Group Settings
+
+A flow group setting overrides individual flow settings. They supersede any re-registrations of your flow and act as the source of truth until they are removed. 
+
+For example if you update flow group parameters via the UI (or GraphQL), those parameters will take precedence over the parameters your flow is registered with. 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-group-settings.png">
+</div>
+
 
 <style>
 .add-shadow  {
@@ -36,5 +56,6 @@ You can use the settings page to change which project your flow is part of and t
     z-index: -1;
     outline: 1;
     box-shadow: 0px 20px 15px #3D4849;
+    margin-bottom: 50px
 }
 </style>

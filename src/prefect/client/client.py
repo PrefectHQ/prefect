@@ -404,14 +404,14 @@ class Client:
         # parse the response
         try:
             json_resp = response.json()
-        except JSONDecodeError:
+        except JSONDecodeError as exc:
             if prefect.config.backend == "cloud" and "Authorization" not in headers:
                 raise ClientError(
                     "Malformed response received from Cloud - please ensure that you "
                     "have an API token properly configured."
-                )
+                ) from exc
             else:
-                raise ClientError("Malformed response received from API.")
+                raise ClientError("Malformed response received from API.") from exc
 
         # check if there was an API_ERROR code in the response
         if "API_ERROR" in str(json_resp.get("errors")) and retry_on_api_error:
@@ -548,8 +548,8 @@ class Client:
         elif tenant_id:
             try:
                 uuid.UUID(tenant_id)
-            except ValueError:
-                raise ValueError("The `tenant_id` must be a valid UUID.")
+            except ValueError as exc:
+                raise ValueError("The `tenant_id` must be a valid UUID.") from exc
 
         tenant = self.graphql(
             {
@@ -754,7 +754,7 @@ class Client:
                 "Flow could not be deserialized successfully. Error was: {}".format(
                     repr(exc)
                 )
-            )
+            ) from exc
 
         if compressed:
             serialized_flow = compress(serialized_flow)

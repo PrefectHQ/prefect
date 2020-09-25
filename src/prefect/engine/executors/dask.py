@@ -51,9 +51,14 @@ def _maybe_run(var_name: str, fn: Callable, *args: Any, **kwargs: Any) -> Any:
     # In certain configurations, the way distributed unpickles variables can
     # lead to excess client connections being created. To avoid this issue we
     # manually lookup the variable by name.
+    import dask
     from distributed import Variable, get_client
 
-    var = Variable(var_name, client=get_client())
+    # Explicitly pass in the timeout from dask's config, distributed currently
+    # hardcodes this rather than using the value from the config. Can be
+    # removed once this is fixed upstream.
+    timeout = dask.config.get("distributed.comm.timeouts.connect")
+    var = Variable(var_name, client=get_client(timeout=timeout))
     try:
         should_run = var.get(timeout=0)
     except Exception:
@@ -92,7 +97,7 @@ class DaskExecutor(Executor):
             class name (e.g. `"distributed.LocalCluster"`), or the class itself.
         - cluster_kwargs (dict, optional): addtional kwargs to pass to the
            `cluster_class` when creating a temporary dask cluster.
-        - adapt_kwargs (dict, optional): additional kwargs to pass to ``cluster.adapt`
+        - adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
             when creating a temporary dask cluster. Note that adaptive scaling
             is only enabled if `adapt_kwargs` are provided.
         - client_kwargs (dict, optional): additional kwargs to use when creating a

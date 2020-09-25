@@ -603,6 +603,32 @@ class TestStateResultHandling:
         assert states[1]._result.location == "2"
 
 
+def test_task_handlers_handle_retry_signals(client):
+    def state_handler(t, o, n):
+        if n.is_failed():
+            raise prefect.engine.signals.RETRY(
+                "Will retry.", start_time=pendulum.now("utc").add(days=1)
+            )
+
+    @prefect.task(state_handlers=[state_handler])
+    def fn():
+        1 / 0
+
+    state = CloudTaskRunner(task=fn).run()
+
+    assert state.is_retrying()
+    assert state.run_count == 1
+
+    # to make it run
+    state.start_time = pendulum.now("utc")
+    new_state = CloudTaskRunner(task=fn).run(state=state)
+    assert new_state.is_retrying()
+    assert new_state.run_count == 2
+
+    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+    assert [type(s).__name__ for s in states] == ["Running", "Retrying"] * 2
+
+
 def test_state_handler_failures_are_handled_appropriately(client, caplog):
     def bad(*args, **kwargs):
         raise SyntaxError("Syntax Errors are nice because they're so unique")

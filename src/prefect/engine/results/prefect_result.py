@@ -1,7 +1,7 @@
 from typing import Any
 
 from prefect.engine.result import Result
-from prefect.engine.serializers import JSONSerializer, Serializer
+from prefect.engine.serializers import JSONSerializer, Serializer, DateTimeSerializer
 
 
 class PrefectResult(Result):
@@ -24,8 +24,10 @@ class PrefectResult(Result):
 
     @serializer.setter
     def serializer(self, val: Serializer) -> None:  # type: ignore
-        if not isinstance(val, JSONSerializer):
-            raise TypeError("PrefectResult only supports JSONSerializer")
+        if not isinstance(val, (JSONSerializer, DateTimeSerializer)):
+            raise TypeError(
+                "PrefectResult only supports JSONSerializer or DateTimeSerializer"
+            )
         self._serializer = val
 
     def read(self, location: str) -> Result:
@@ -43,12 +45,12 @@ class PrefectResult(Result):
         new.location = location
         return new
 
-    def write(self, value: Any, **kwargs: Any) -> Result:
+    def write(self, value_: Any, **kwargs: Any) -> Result:
         """
         JSON serializes `self.value` and returns `self`.
 
         Args:
-            - value (Any): the value to write; will then be stored as the `value` attribute
+            - value_ (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
             - **kwargs (optional): unused, for compatibility with the interface
 
@@ -56,7 +58,7 @@ class PrefectResult(Result):
             - Result: returns a new `Result` with both `value` and `location` attributes
         """
         new = self.copy()
-        new.value = value
+        new.value = value_
         new.location = self.serializer.serialize(new.value).decode("utf-8")
         return new
 

@@ -74,7 +74,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.13.5)', link: '/api/latest/' },
+          { text: 'Latest (0.13.8)', link: '/api/latest/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
@@ -290,7 +290,10 @@ module.exports = {
         {
           title: 'Task Library',
           collapsable: true,
-          children: getChildren('docs/core', 'task_library')
+          children: [
+            'task_library/overview',
+            'task_library/contributing'
+          ]
         },
         {
           title: 'Advanced Tutorials',
