@@ -41,19 +41,11 @@ class TestClockEvent:
         assert e.start_time == now
         assert e.parameter_defaults == dict(x=42, z=[1, 2, 3])
 
-    @pytest.mark.parametrize(
-        "dt,params",
-        list(
-            itertools.product(
-                [pendulum.now("UTC").add(hours=1), pendulum.now("UTC").add(hours=-2)],
-                [None, dict(x=1)],
-            )
-        ),
-    )
-    def test_clock_event_comparisons_are_datetime_comparisons(self, dt, params):
+    def test_clock_event_comparisons_are_datetime_comparisons(self):
         now = pendulum.now("UTC")
+        dt = now.add(hours=1)
 
-        e = clocks.ClockEvent(now, parameter_defaults=params)
+        e = clocks.ClockEvent(now)
         e2 = clocks.ClockEvent(dt)
 
         ## compare to raw datetimes
@@ -67,6 +59,26 @@ class TestClockEvent:
         assert (e == e2) == (e.start_time == e2.start_time)
         assert (e < e2) == (e.start_time < e2.start_time)
         assert (e > e2) == (e.start_time > e2.start_time)
+
+    def test_clock_event_comparisons_take_parameters_into_account(self):
+        now = pendulum.now("UTC")
+        dt = now.add(hours=1)
+
+        e = clocks.ClockEvent(now, parameter_defaults=dict(a=1))
+        e2 = clocks.ClockEvent(dt)
+        e3 = clocks.ClockEvent(dt, parameter_defaults=dict(a=2))
+
+        ## compare to raw datetimes
+        assert e2 == dt
+        assert e == now
+        assert e3 == dt
+        assert e2 > now
+        assert e3 > now
+
+        ## compare to each other
+        assert e2 != e3
+        assert e2 > e
+        assert e3 > e
 
 
 class TestIntervalClock:
