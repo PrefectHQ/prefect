@@ -55,7 +55,7 @@ def _execute_flow_run():
     query = {
         "query": {
             with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                "flow": {"name": True, "storage": True, "environment": True},
+                "flow": {"name": True, "storage": True},
                 "version": True,
             }
         }
@@ -81,10 +81,12 @@ def _execute_flow_run():
 
         with prefect.context(secrets=secrets, loading_flow=True):
             flow = storage.get_flow(storage.flows[flow_data.name])
-            environment = flow.environment
-
-            environment.setup(flow)
-            environment.execute(flow)
+            if getattr(flow, "run_config", None) is not None:
+                flow.run()
+            else:
+                environment = flow.environment
+                environment.setup(flow)
+                environment.execute(flow)
     except Exception as exc:
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)
