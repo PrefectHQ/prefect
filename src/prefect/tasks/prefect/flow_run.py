@@ -22,6 +22,7 @@ class FlowRunTask(Task):
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
         - new_flow_context (dict, optional): the optional run context for the new flow run
+        - run_name (str, optional): name to be set for the flow run
         - wait (bool, optional): whether to wait the triggered flow run's state; if True, this
             task will wait until the flow run is complete, and then reflect the corresponding
             state as the state of this task.  Defaults to `False`.
