@@ -8,7 +8,6 @@ _agents = {
     "fargate": "prefect.agent.fargate.FargateAgent",
     "docker": "prefect.agent.docker.DockerAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
-    "kubernetes2": "prefect.agent.kubernetes2.KubernetesAgent",
     "local": "prefect.agent.local.LocalAgent",
 }
 
@@ -98,6 +97,12 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--job-template",
+    required=False,
+    help="Path to a kubernetes job template to use instead of the default.",
+    hidden=True,
+)
+@click.option(
     "--import-path",
     "-p",
     multiple=True,
@@ -147,6 +152,7 @@ def start(
     label,
     env,
     namespace,
+    job_template,
     no_pull,
     no_cloud_logs,
     base_url,
@@ -217,6 +223,7 @@ def start(
     Kubernetes Agent:
         --namespace     TEXT    A Kubernetes namespace to create Prefect jobs in
                                 Defaults to env var `NAMESPACE` or `default`
+        --job-template  TEXT    Path to a job template to use instead of the default.
 
     \b
     Fargate Agent Options:
@@ -289,15 +296,7 @@ def start(
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
                 namespace=namespace,
-                name=name,
-                labels=labels,
-                env_vars=env_vars,
-                max_polls=max_polls,
-                agent_address=agent_address,
-            ).start()
-        elif agent_option == "kubernetes2":
-            from_qualified_name(retrieved_agent)(
-                namespace=namespace,
+                job_template_path=job_template,
                 name=name,
                 labels=labels,
                 env_vars=env_vars,

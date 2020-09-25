@@ -1,10 +1,11 @@
 from distutils.version import LooseVersion
+from typing import Optional
 
 import prefect
 from prefect.utilities.graphql import GraphQLResult
 
 
-def get_flow_image_if_docker_storage(flow_run: GraphQLResult) -> str:
+def get_flow_image_if_docker_storage(flow_run: GraphQLResult) -> Optional[str]:
     """
     If a flow is configured with docker storage, return the image. Otherwise
     returns `None`

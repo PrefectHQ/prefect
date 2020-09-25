@@ -1,7 +1,8 @@
+import io
 import os
-from os import path
 import uuid
-from typing import Iterable, List
+from typing import Iterable, List, Any
+from urllib.parse import urlparse
 
 import json
 import yaml
@@ -10,10 +11,50 @@ import prefect
 from prefect import config
 from prefect.agent import Agent
 from prefect.engine.state import Failed
-from prefect.utilities.agent import get_flow_image, get_flow_run_command
+from prefect.serialization.run_config import RunConfigSchema
+from prefect.utilities.agent import (
+    get_flow_image,
+    get_flow_run_command,
+    get_flow_image_if_docker_storage,
+)
 from prefect.utilities.graphql import GraphQLResult
 
-AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
+DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
+
+
+def _get_or_create(d: dict, key: str, val: Any = None) -> Any:
+    if val is None:
+        val = {}
+    path = key.split(".")
+    for k in path[:-1]:
+        d = d.setdefault(k, {})
+    return d.setdefault(path[-1], val)
+
+
+def read_bytes_from_path(path: str) -> bytes:
+    parsed = urlparse(path)
+    if not parsed.scheme or parsed.scheme == "agent":
+        with open(parsed.path, "rb") as f:
+            return f.read()
+    elif parsed.scheme == "gcs":
+        from prefect.utilities.gcp import get_storage_client
+
+        client = get_storage_client()
+        parsed = urlparse(path)
+        bucket = client.bucket(parsed.hostname)
+        blob = bucket.get_blob(parsed.path.lstrip("/"))
+        if blob is None:
+            raise ValueError(f"Job template doesn't exist at {path}")
+        return blob.download_as_bytes()
+    elif parsed.scheme == "s3":
+        from prefect.utilities.aws import get_boto_client
+
+        client = get_boto_client(resource="s3")
+        stream = io.BytesIO()
+        client.download_fileobj(Bucket=parsed.hostname, Key=parsed.path, Fileobj=stream)
+        return stream.getbuffer()
+    else:
+        raise ValueError(f"Unsupported file scheme {path}")
 
 
 class KubernetesAgent(Agent):
@@ -35,7 +76,7 @@ class KubernetesAgent(Agent):
     ```
 
     For details on the available environment variables for customizing the job spec,
-    see `help(KubernetesAgent.replace_job_spec_yaml)`.
+    see `help(KubernetesAgent.generate_job_spec_from_environment)`.
 
     Specifying a namespace for the agent will create flow run jobs in that namespace:
     ```
@@ -45,6 +86,8 @@ class KubernetesAgent(Agent):
     Args:
         - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
             to the environment variable `NAMESPACE` or `default`.
+        - job_template_path (str, optional): A path to a job template file to use instead
+            of the default.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string
@@ -70,6 +113,7 @@ class KubernetesAgent(Agent):
     def __init__(
         self,
         namespace: str = None,
+        job_template_path: str = None,
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
@@ -89,6 +133,7 @@ class KubernetesAgent(Agent):
         )
 
         self.namespace = namespace or os.getenv("NAMESPACE", "default")
+        self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
         self.volumes = volumes
 
@@ -211,9 +256,7 @@ class KubernetesAgent(Agent):
         """
         self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
-        image = get_flow_image(flow_run=flow_run)
-
-        job_spec = self.replace_job_spec_yaml(flow_run=flow_run, image=image)
+        job_spec = self.generate_job_spec(flow_run=flow_run)
 
         self.logger.debug(
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
@@ -226,9 +269,21 @@ class KubernetesAgent(Agent):
 
         return "Job {}".format(job.metadata.name)
 
-    def replace_job_spec_yaml(
-        self, flow_run: GraphQLResult, image: str, identifier: str = None
-    ) -> dict:
+    def generate_job_spec(self, flow_run: GraphQLResult) -> dict:
+        """Generate a k8s job spec for a flow run
+
+        Args:
+            - flow_run (GraphQLResult): A flow run object
+
+        Returns:
+            - dict: a dictionary representation of a k8s job for flow execution
+        """
+        if flow_run.flow.run_config is not None:
+            return self.generate_job_spec_from_run_config(flow_run)
+        else:
+            return self.generate_job_spec_from_environment(flow_run)
+
+    def generate_job_spec_from_environment(self, flow_run: GraphQLResult) -> dict:
         """
         Populate a k8s job spec. This spec defines a k8s job that handles
         executing a flow. This method runs each time the agent receives
@@ -255,16 +310,13 @@ class KubernetesAgent(Agent):
 
         Args:
             - flow_run (GraphQLResult): A flow run object
-            - image (str): The full name of an image to use for the job
-            - identifier (str): A unique identifier to identify this job. If none is given,
-                Prefect will create a random identifier each time a job is created.
 
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
         """
-        identifier = identifier or str(uuid.uuid4())[:8]
+        identifier = str(uuid.uuid4())[:8]
         yaml_path = os.getenv(
-            "YAML_TEMPLATE", path.join(path.dirname(__file__), "job_spec.yaml")
+            "YAML_TEMPLATE", os.path.join(os.path.dirname(__file__), "job_spec.yaml")
         )
         with open(yaml_path, "r") as job_file:
             job = yaml.safe_load(job_file)
@@ -282,6 +334,7 @@ class KubernetesAgent(Agent):
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
 
         # Use provided image for job
+        image = get_flow_image(flow_run=flow_run)
         job["spec"]["template"]["spec"]["containers"][0]["image"] = image
 
         self.logger.debug("Using image {} for job".format(image))
@@ -344,6 +397,101 @@ class KubernetesAgent(Agent):
             job["spec"]["template"]["spec"]["serviceAccountName"] = os.getenv(
                 "SERVICE_ACCOUNT_NAME"
             )
+
+        return job
+
+    def generate_job_spec_from_run_config(self, flow_run: GraphQLResult) -> dict:
+        """Generate a k8s job spec for a flow run.
+
+        Args:
+            - flow_run (GraphQLResult): A flow run object
+
+        Returns:
+            - dict: a dictionary representation of a k8s job for flow execution
+        """
+        run_config = RunConfigSchema().load(flow_run.flow.run_config)
+
+        if run_config.job_template:
+            job = run_config.job_template
+        else:
+            job_template_path = run_config.job_template_path or self.job_template_path
+            self.logger.debug("Loading job template from %r", job_template_path)
+            template_bytes = read_bytes_from_path(job_template_path)
+            job = yaml.safe_load(template_bytes)
+
+        identifier = uuid.uuid4().hex[:8]
+
+        job_name = f"prefect-job-{identifier}"
+
+        # Populate job metadata for identification
+        k8s_labels = {
+            "prefect.io/identifier": identifier,
+            "prefect.io/flow_run_id": flow_run.id,  # type: ignore
+            "prefect.io/flow_id": flow_run.flow.id,  # type: ignore
+        }
+        _get_or_create(job, "metadata.labels")
+        _get_or_create(job, "spec.template.metadata.labels")
+        job["metadata"]["name"] = job_name
+        job["metadata"]["labels"].update(**k8s_labels)
+        job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
+
+        # Get the first container, which is used for the prefect job
+        containers = _get_or_create(job, "spec.template.spec.containers", [])
+        if not containers:
+            containers.append({})
+        container = containers[0]
+
+        # Set container image if specified
+        # - Use storage image if using docker storage
+        # - Otherwise use run-config image if specified
+        storage_image = get_flow_image_if_docker_storage(flow_run)
+        if storage_image is not None:
+            container["image"] = storage_image
+        elif run_config.image:
+            container["image"] = run_config.image
+
+        # Set flow run command
+        container["args"] = [get_flow_run_command(flow_run)]
+
+        # Populate environment variables from the following sources:
+        # - Values set using the `--env` CLI flag on the agent
+        # - Values set on the job configuration
+        # - Hardcoded values below, provided they're not already set
+        env = self.env_vars.copy()
+        if run_config.env:
+            env.update(run_config.env)
+        env.update(
+            {
+                # "PREFECT__CLOUD__API": config.cloud.api,
+                "PREFECT__CLOUD__API": "http://host.docker.internal:4200/graphql",
+                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
+                "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
+                "PREFECT__LOGGING__LEVEL": config.logging.level,
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            }
+        )
+        container_env = _get_or_create(container, "env", [])
+        existing = {e["name"] for e in container_env}
+        for k, v in env.items():
+            if k not in existing:
+                container_env.append({"name": k, "value": v})
+
+        # Set resource requirements if provided
+        _get_or_create(container, "resources.requests")
+        _get_or_create(container, "resources.limits")
+        resources = container["resources"]
+        if run_config.memory_request:
+            resources["requests"]["memory"] = run_config.memory_request
+        if run_config.memory_limit:
+            resources["limits"]["memory"] = run_config.memory_limit
+        if run_config.cpu_request:
+            resources["requests"]["cpu"] = run_config.cpu_request
+        if run_config.cpu_limit:
+            resources["limits"]["cpu"] = run_config.cpu_limit
 
         return job
 
@@ -421,7 +569,7 @@ class KubernetesAgent(Agent):
         )
 
         with open(
-            path.join(path.dirname(__file__), "deployment.yaml"), "r"
+            os.path.join(os.path.dirname(__file__), "deployment.yaml"), "r"
         ) as deployment_file:
             deployment = yaml.safe_load(deployment_file)
 
@@ -484,7 +632,9 @@ class KubernetesAgent(Agent):
         # Load RBAC if specified
         rbac_yaml = []
         if rbac:
-            with open(path.join(path.dirname(__file__), "rbac.yaml"), "r") as rbac_file:
+            with open(
+                os.path.join(os.path.dirname(__file__), "rbac.yaml"), "r"
+            ) as rbac_file:
                 rbac_generator = yaml.safe_load_all(rbac_file)
 
                 for document in rbac_generator:
