@@ -231,8 +231,8 @@ def start(
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
-        --hasura-port       TEXT    Port used to serve Hasura, defaults to '3001'
-        --graphql-port      TEXT    Port used to serve the GraphQL API, defaults to '4001'
+        --hasura-port       TEXT    Port used to serve Hasura, defaults to '3000'
+        --graphql-port      TEXT    Port used to serve the GraphQL API, defaults to '4201'
         --ui-port           TEXT    Port used to serve the UI, defaults to '8080'
         --server-port       TEXT    Port used to serve the Core server, defaults to '4200'
 
