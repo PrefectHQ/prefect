@@ -91,11 +91,16 @@ class KubernetesJob(RunConfig):
             if isinstance(job_template, str):
                 job_template = yaml.safe_load(job_template)
 
+        if cpu_limit is not None:
+            cpu_limit = str(cpu_limit)
+        if cpu_request is not None:
+            cpu_request = str(cpu_request)
+
         self.job_template_path = job_template_path
         self.job_template = job_template
         self.image = image
         self.env = env
-        self.cpu_limit = str(cpu_limit)
-        self.cpu_request = str(cpu_request)
+        self.cpu_limit = cpu_limit
+        self.cpu_request = cpu_request
         self.memory_limit = memory_limit
         self.memory_request = memory_request
