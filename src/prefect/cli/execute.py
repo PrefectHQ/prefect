@@ -2,6 +2,7 @@ import click
 
 import prefect
 from prefect.client import Client
+from prefect.engine import get_default_flow_runner_class
 from prefect.tasks.secrets import PrefectSecret
 from prefect.utilities.graphql import with_args
 
@@ -84,7 +85,8 @@ def _execute_flow_run():
 
         with prefect.context(secrets=secrets):
             if getattr(flow, "run_config", None) is not None:
-                flow.run()
+                runner_cls = get_default_flow_runner_class()
+                runner_cls(flow=flow).run()
             else:
                 environment = flow.environment
                 environment.setup(flow)

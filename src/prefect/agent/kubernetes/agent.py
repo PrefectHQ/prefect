@@ -24,6 +24,8 @@ DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_templat
 
 
 def _get_or_create(d: dict, key: str, val: Any = None) -> Any:
+    """Get a (possibly nested) field from a dict, creating intermediate values
+    if needed."""
     if val is None:
         val = {}
     path = key.split(".")
@@ -33,6 +35,16 @@ def _get_or_create(d: dict, key: str, val: Any = None) -> Any:
 
 
 def read_bytes_from_path(path: str) -> bytes:
+    """Read bytes from a given path.
+
+    Paths may be local files, or remote files (given a supported file scheme).
+
+    Args:
+        - path (str): The file path
+
+    Returns:
+        - bytes: The file contents
+    """
     parsed = urlparse(path)
     if not parsed.scheme or parsed.scheme == "agent":
         with open(parsed.path, "rb") as f:
@@ -486,8 +498,7 @@ class KubernetesAgent(Agent):
             env.update(run_config.env)
         env.update(
             {
-                # "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__API": "http://host.docker.internal:4200/graphql",
+                "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
