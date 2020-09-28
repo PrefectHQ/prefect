@@ -132,6 +132,7 @@ def clean_line(line):
         .replace("Returns:", "**Returns**:")
         .replace("Raises:", "**Raises**:")
         .replace("Example:", "**Example**:")
+        .replace("Examples:", "**Examples**:")
         .replace("References:", "**References**:")
         .replace(".**", ".\n\n**")
     )

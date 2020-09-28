@@ -1,12 +1,65 @@
 import yaml
-from typing import List, Union
+from typing import Union, Iterable
 from urllib.parse import urlparse
 
 from .base import RunConfig
 
 
 class KubernetesJob(RunConfig):
-    """Configure a flow-run to run as a Kubernetes Job."""
+    """Configure a flow-run to run as a Kubernetes Job.
+
+    Kubernetes jobs are configured by filling in a job template at runtime. A
+    job template can be specified either as a path (to be read in at runtime)
+    or an in-memory object (which will be stored along with the flow in Prefect
+    Cloud/Server). By default the job template configured on the Agent is used.
+
+    Args:
+        - job_template_path (str, optional): Path to a job template to use. If
+            a local path (no file scheme, or a `file`/`local` scheme), the job
+            template will be loaded on initialization and stored on the
+            `KubernetesJob` object as the `job_template` field.  Otherwise the
+            job template will be loaded at runtime on the agent.  Supported
+            runtime file schemes include (`s3`, `gcs`, and `agent` (for paths
+            local to the runtime agent)).
+        - job_template (str or dict, optional): An in-memory job template to
+            use. Can be either a dict, or a YAML string.
+        - image (str, optional): The image to use
+        - env (dict, optional): Additional environment variables to set on the job
+        - cpu_limit (float or str, optional): The CPU limit to use for the job
+        - cpu_request (float or str, optional): The CPU request to use for the job
+        - memory_limit (str, optional): The memory limit to use for the job
+        - memory_request (str, optional): The memory request to use for the job
+        - labels (Iterable[str], optional): an iterable of labels to apply to this
+            run config. Labels are string identifiers used by Prefect Agents
+            for selecting valid flow runs when polling for work
+
+    Examples:
+
+    Use the defaults set on the agent:
+
+    ```python
+    flow.run_config = KubernetesJob()
+    ```
+
+    Use a local job template, which is stored along with the Flow in Prefect
+    Cloud/Server:
+
+    ```python
+    flow.run_config = KubernetesJob(
+        job_template_path="my_custom_template.yaml"
+    )
+    ```
+
+    Use a job template stored in S3, but override the image and CPU limit:
+
+    ```python
+    flow.run_config = KubernetesJob(
+        job_template_path="s3://example-bucket/my_custom_template.yaml",
+        image="example/my-custom-image:latest",
+        cpu_limit=2,
+    )
+    ```
+    """
 
     def __init__(
         self,
@@ -15,11 +68,11 @@ class KubernetesJob(RunConfig):
         job_template: Union[str, dict] = None,
         image: str = None,
         env: dict = None,
-        cpu_limit: str = None,
-        cpu_request: str = None,
+        cpu_limit: Union[float, str] = None,
+        cpu_request: Union[float, str] = None,
         memory_limit: str = None,
         memory_request: str = None,
-        labels: List[str] = None,
+        labels: Iterable[str] = None,
     ) -> None:
         super().__init__(labels=labels)
         if job_template_path is not None and job_template is not None:
@@ -42,7 +95,7 @@ class KubernetesJob(RunConfig):
         self.job_template = job_template
         self.image = image
         self.env = env
+        self.cpu_limit = str(cpu_limit)
+        self.cpu_request = str(cpu_request)
         self.memory_limit = memory_limit
         self.memory_request = memory_request
-        self.cpu_limit = cpu_limit
-        self.cpu_request = cpu_request
