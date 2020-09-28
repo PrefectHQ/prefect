@@ -49,7 +49,9 @@ class FlowRunTask(Task):
             kwargs.setdefault("name", f"Flow {flow_name}")
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("flow_name", "project_name", "parameters", "new_flow_context", "run_name")
+    @defaults_from_attrs(
+        "flow_name", "project_name", "parameters", "new_flow_context", "run_name"
+    )
     def run(
         self,
         flow_name: str = None,
