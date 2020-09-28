@@ -62,7 +62,7 @@ class TestFlowRunTaskCloud:
             parameters={"test": "ing"},
             idempotency_key=None,
             context=None,
-            run_name=None,
+            run_name="test-run",
         )
 
     def test_flow_run_task_with_flow_run_id(self, client, cloud_api):
@@ -162,7 +162,7 @@ class TestFlowRunTaskCoreServer:
             parameters={"test": "ing"},
             idempotency_key=None,
             context=None,
-            run_name=None,
+            run_name="test-run",
         )
 
     def test_flow_run_task_without_flow_name(self, server_api):
