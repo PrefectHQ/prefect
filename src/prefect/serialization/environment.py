@@ -82,44 +82,6 @@ class RemoteDaskEnvironmentSchema(ObjectSchema):
     metadata = JSONCompatible(allow_none=True)
 
 
-def _generate_metadata(env):
-    fields = [
-        "job_template_path",
-        "job_template",
-        "env",
-        "memory_limit",
-        "memory_request",
-        "cpu_limit",
-        "cpu_request",
-    ]
-    d = env.metadata.copy() if env.metadata else {}
-    for f in fields:
-        d[f] = getattr(env, f)
-    if env.image or d.get("image") is None:
-        d["image"] = env.image
-    return d
-
-
-class KubernetesJobConfigSchema(ObjectSchema):
-    # XXX: this is all a hack to avoid updating cloud/server for now while
-    # experimenting. None of this is good.
-
-    class Meta:
-        object_class = Environment
-        exclude_fields = ["type"]
-
-    labels = fields.List(fields.String())
-    metadata = fields.Function(_generate_metadata, lambda x: x)
-
-    type = fields.Function(
-        lambda environment: to_qualified_name(type(environment)), lambda x: x
-    )
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Environment:
-        return Environment(labels=data.get("labels"), metadata=data.get("metadata"))
-
-
 class CustomEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = lambda: Environment
@@ -153,7 +115,6 @@ class EnvironmentSchema(OneOfSchema):
         "FargateTaskEnvironment": FargateTaskEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
-        "KubernetesJobConfig": KubernetesJobConfigSchema,
         "RemoteEnvironment": RemoteEnvironmentSchema,
         "RemoteDaskEnvironment": RemoteDaskEnvironmentSchema,
         "CustomEnvironment": CustomEnvironmentSchema,
