@@ -3,7 +3,6 @@ import snowflake.connector as sf
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
-
 class SnowflakeQuery(Task):
     """
     Task for executing a query against a snowflake database.
@@ -12,7 +11,8 @@ class SnowflakeQuery(Task):
         - account (str): snowflake account name, see snowflake connector
              package documentation for details
         - user (str): user name used to authenticate
-        - password (str): password used to authenticate
+        - password (str, optional): password used to authenticate
+        - private_key (rsa.RSAPrivateKey): pem to authenticate
         - database (str, optional): name of the default database to use
         - schema (int, optional): name of the default schema to use
         - role (str, optional): name of the default role to use
@@ -30,7 +30,8 @@ class SnowflakeQuery(Task):
         self,
         account: str,
         user: str,
-        password: str,
+        password: str = None,
+        private_key: bytes = None,
         database: str = None,
         schema: str = None,
         role: str = None,
@@ -50,6 +51,7 @@ class SnowflakeQuery(Task):
         self.query = query
         self.data = data
         self.autocommit = autocommit
+        self.private_key = private_key
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "data", "autocommit")
@@ -80,6 +82,7 @@ class SnowflakeQuery(Task):
             "account": self.account,
             "user": self.user,
             "password": self.password,
+            "private_key": self.private_key,
             "database": self.database,
             "schema": self.schema,
             "role": self.role,
