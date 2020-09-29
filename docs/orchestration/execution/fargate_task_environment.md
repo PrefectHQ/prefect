@@ -159,6 +159,7 @@ flow = Flow(
             }
         },
         family="my_flow",
+        taskDefinition="my_flow",
         taskRoleArn="MY_TASK_ROLE_ARN",
         executionRoleArn="MY_EXECUTION_ROLE_ARN",
         containerDefinitions=[{
