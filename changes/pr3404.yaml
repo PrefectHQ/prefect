@@ -1,0 +1,2 @@
+enhancement:
+  - "Add keypair auth for snowflake - [#3404](https://github.com/PrefectHQ/prefect/pull/3404)"
