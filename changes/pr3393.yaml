@@ -1,5 +1,0 @@
-enhancement:
-  - "Add option to specify run_name for FlowRUnTask - [#3393](https://github.com/PrefectHQ/prefect/pull/3393)"
-
-contributor:
-  - "[Nejc Vesel](https://github.com/veseln)"
