@@ -161,13 +161,13 @@ flow = Flow(
         family="my_flow",
         taskRoleArn="MY_TASK_ROLE_ARN",
         executionRoleArn="MY_EXECUTION_ROLE_ARN",
-        containerDefinitions={
+        containerDefinitions=[{
             "name": "flow-container",
             "image": "image",
             "command": [],
             "environment": [],
             "essential": True,
-        }
+        }]
     ),
     storage=Docker(
         registry_url="gcr.io/dev/", image_name="fargate-task-flow", image_tag="0.1.0"
