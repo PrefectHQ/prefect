@@ -3,6 +3,7 @@ import snowflake.connector as sf
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
+
 class SnowflakeQuery(Task):
     """
     Task for executing a query against a snowflake database.
