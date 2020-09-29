@@ -14,7 +14,7 @@ class SnowflakeQuery(Task):
         - user (str): user name used to authenticate
         - password (str, optional): password used to authenticate.
             password or private_lkey must be present
-        - private_key (rsa.RSAPrivateKey): pem to authenticate.
+        - private_key (bytes, optional): pem to authenticate.
             password or private_key must be present
         - database (str, optional): name of the default database to use
         - schema (int, optional): name of the default schema to use
