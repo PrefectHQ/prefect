@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.13.9 <Badge text="beta" type="success" />
+
+Released on September 29, 2020.
+
+### Features
+
+- Allow for scheduling the same flow at the same time with multiple parameter values - [#2510](https://github.com/PrefectHQ/prefect/issues/2510)
+
+### Enhancements
+
+- Adopt explicit exception chaining in more places - [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
+- Add `DateTimeParameter` - [#3327](https://github.com/PrefectHQ/prefect/pull/3327)
+
+### Task Library
+
+- New task for the task library to create an item in Monday - [#3387](https://github.com/PrefectHQ/prefect/pull/3387)
+- Add option to specify `run_name` for `FlowRunTask` - [#3393](https://github.com/PrefectHQ/prefect/pull/3393)
+
+### Contributors
+
+- [Nejc Vesel](https://github.com/veseln)
+- [Sumit Datta](https://github.com/brainless)
+
 ## 0.13.8 <Badge text="beta" type="success" />
 
 Released on September 22, 2020.

@@ -1,2 +1,0 @@
-feature:
-  - "Allow for scheduling the same flow at the same time with multiple parameter values - [#2510](https://github.com/PrefectHQ/prefect/issues/2510)"
