@@ -1462,16 +1462,21 @@ class Client:
             raise ValueError("Writing logs failed.")
 
     def register_agent(
-        self, agent_type: str, name: str = None, labels: List[str] = None
+        self,
+        agent_type: str,
+        name: str = None,
+        labels: List[str] = None,
+        agent_config_id: str = None,
     ) -> str:
         """
-        Register an agent with Cloud
+        Register an agent with a backend API
 
         Args:
             - agent_type (str): The type of agent being registered
             - name: (str, optional): The name of the agent being registered
             - labels (List[str], optional): A list of any present labels on the agent
                 being registered
+            - agent_config_id (str, optional): The ID of an agent configuration to register with
 
         Returns:
             - The agent ID as a string
@@ -1484,10 +1489,39 @@ class Client:
 
         result = self.graphql(
             mutation,
-            variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
+            variables=dict(
+                input=dict(
+                    type=agent_type,
+                    name=name,
+                    labels=labels or [],
+                    tenant_id=self._active_tenant_id,
+                    agent_config_id=agent_config_id,
+                )
+            ),
         )
 
         if not result.data.register_agent.id:
             raise ValueError("Error registering agent")
 
         return result.data.register_agent.id
+
+    def get_agent_config(self, agent_config_id: str) -> dict:
+        """
+        Get agent config settings
+
+        Args:
+            - agent_config_id (str): The ID of an agent configuration to retrieve
+
+        Returns:
+            - dict: the agent configuration's `settings`
+        """
+        query = {
+            "query": {
+                with_args(
+                    "agent_config", {"where": {"id": {"_eq": agent_config_id}}}
+                ): {"settings": True}
+            }
+        }
+
+        result = self.graphql(query)  # type: Any
+        return result.data.agent_config[0].settings

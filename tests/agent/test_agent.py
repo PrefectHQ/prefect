@@ -25,6 +25,7 @@ def test_multiple_agent_init_doesnt_duplicate_logs(cloud_api):
 def test_agent_config_options(cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
+        assert agent.agent_config_id == None
         assert agent.labels == []
         assert agent.env_vars == dict()
         assert agent.max_polls is None
@@ -508,6 +509,21 @@ def test_agent_registration_and_id(monkeypatch, cloud_api):
     agent.start()
     assert agent._register_agent() == "ID"
     assert agent.client._attached_headers == {"X-PREFECT-AGENT-ID": "ID"}
+
+
+def test_agent_rerieve_config(monkeypatch, cloud_api):
+    monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())
+    monkeypatch.setattr(
+        "prefect.agent.agent.Client.register_agent", MagicMock(return_value="ID")
+    )
+    monkeypatch.setattr(
+        "prefect.agent.agent.Client.get_agent_config",
+        MagicMock(return_value={"settings": "yes"}),
+    )
+
+    agent = Agent(max_polls=1)
+    agent.start()
+    assert agent._retrieve_agent_config() == {"settings": "yes"}
 
 
 def test_agent_health_check(cloud_api):

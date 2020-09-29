@@ -205,6 +205,7 @@ def test_agent_start_fargate_kwargs_received(monkeypatch, cloud_api):
 
     assert fargate_agent.called
     fargate_agent.assert_called_with(
+        agent_config_id=None,
         agent_address="http://localhost:8000",
         labels=[],
         env_vars=dict(),
@@ -226,6 +227,7 @@ def test_agent_start_with_env_vars(monkeypatch, cloud_api):
     assert result.exit_code == 0
 
     docker_agent.assert_called_with(
+        agent_config_id=None,
         agent_address="",
         base_url=None,
         env_vars={"KEY": "VAL", "SETTING": "false"},
@@ -249,6 +251,7 @@ def test_agent_start_with_max_polls(monkeypatch, cloud_api):
     assert result.exit_code == 0
 
     docker_agent.assert_called_with(
+        agent_config_id=None,
         agent_address="",
         base_url=None,
         env_vars={},

@@ -31,6 +31,9 @@ class LocalAgent(Agent):
     ```
 
     Args:
+        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
+            configuration based on an agent from a backend API. If set all configuration values will be
+            pulled from backend agent configuration.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string
@@ -56,6 +59,7 @@ class LocalAgent(Agent):
 
     def __init__(
         self,
+        agent_config_id: str = None,
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
@@ -70,6 +74,7 @@ class LocalAgent(Agent):
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
         super().__init__(
+            agent_config_id=agent_config_id,
             name=name,
             labels=labels,
             env_vars=env_vars,

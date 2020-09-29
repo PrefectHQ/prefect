@@ -1,0 +1,2 @@
+enhancement:
+  - "Enable agent registration for server users - [#3385](https://github.com/PrefectHQ/prefect/pull/3385)"

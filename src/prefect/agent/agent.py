@@ -89,6 +89,9 @@ class Agent:
     environment variable or in your user configuration file.
 
     Args:
+        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
+            configuration based on an agent from a backend API. If set, all configuration values will be
+            pulled from backend agent configuration. If not set, any manual kwargs will be used.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string
@@ -106,6 +109,7 @@ class Agent:
 
     def __init__(
         self,
+        agent_config_id: str = None,
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
@@ -113,8 +117,12 @@ class Agent:
         agent_address: str = None,
         no_cloud_logs: bool = False,
     ) -> None:
-        self.name = name or config.cloud.agent.get("name", "agent")
+        # Load token and initialize client
+        token = config.cloud.agent.get("auth_token")
+        self.client = Client(api_server=config.cloud.api, api_token=token)
 
+        self.agent_config_id = agent_config_id
+        self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = labels or list(config.cloud.agent.get("labels", []))
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
@@ -123,6 +131,7 @@ class Agent:
         self.agent_address = agent_address or config.cloud.agent.get(
             "agent_address", ""
         )
+
         self._api_server = None  # type: ignore
         self._api_server_loop = None  # type: Optional[IOLoop]
         self._api_server_thread = None  # type: Optional[threading.Thread]
@@ -146,11 +155,7 @@ class Agent:
         self.logger.debug(f"Agent address: {self.agent_address}")
         self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
 
-        token = config.cloud.agent.get("auth_token")
-
         self.logger.debug(f"Prefect backend: {config.backend}")
-
-        self.client = Client(api_server=config.cloud.api, api_token=token)
 
     def _verify_token(self, token: str) -> None:
         """
@@ -173,18 +178,33 @@ class Agent:
 
     def _register_agent(self) -> str:
         """
-        Register this agent with Prefect Cloud and retrieve agent ID
+        Register this agent with a backend API and retrieve the ID
 
         Returns:
             - The agent ID as a string
         """
         agent_id = self.client.register_agent(
-            agent_type=type(self).__name__, name=self.name, labels=self.labels  # type: ignore
+            agent_type=type(self).__name__,
+            name=self.name,
+            labels=self.labels,  # type: ignore
+            agent_config_id=self.agent_config_id,
         )
 
         self.logger.debug(f"Agent ID: {agent_id}")
 
+        if self.agent_config_id:
+            self._retrieve_agent_config()
+
         return agent_id
+
+    def _retrieve_agent_config(self) -> dict:
+        """
+        Retrieve the configuration of an agent if an agent ID is provided
+
+        Returns:
+            - dict: a dictionary of agent configuration
+        """
+        return self.client.get_agent_config(self.agent_config_id)  # type: ignore
 
     def start(self, _loop_intervals: dict = None) -> None:
         """
@@ -196,7 +216,17 @@ class Agent:
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
+
+        try:
             self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+        except Exception as exc:
+            if config.backend == "cloud":
+                raise exc
+            else:
+                self.logger.warning(
+                    f"Unable to register agent to {self.client.api_server}. "
+                    f"Make sure the server is running on the latest version."
+                )
 
         try:
             self.setup()
