@@ -566,6 +566,7 @@ class Agent:
                         "id",
                         "name",
                         "environment",
+                        "run_config",
                         "storage",
                         "version",
                         "core_version",

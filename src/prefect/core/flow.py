@@ -41,6 +41,7 @@ from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.results import ResultHandlerResult
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
+from prefect.run_configs import RunConfig
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
@@ -118,6 +119,8 @@ class Flow:
            will be used.
         - environment (prefect.environments.Environment, optional): The environment
            that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
+        - run_config (prefect.run_configs.RunConfig, optional): The runtime
+           configuration to use when deploying this flow.
         - storage (prefect.environments.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
@@ -150,6 +153,7 @@ class Flow:
         schedule: prefect.schedules.Schedule = None,
         executor: Executor = None,
         environment: Environment = None,
+        run_config: RunConfig = None,
         storage: Storage = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
@@ -170,6 +174,7 @@ class Flow:
         self.schedule = schedule
         self.executor = executor
         self.environment = environment or prefect.environments.LocalEnvironment()
+        self.run_config = run_config
         self.storage = storage
         if result_handler:
             warnings.warn(

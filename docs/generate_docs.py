@@ -126,15 +126,20 @@ def preprocess(f, remove_partial=True):
     return wrapped
 
 
+VALID_DOCSTRING_SECTIONS = [
+    "Args",
+    "Returns",
+    "Raises",
+    "Example",
+    "Examples",
+    "References",
+]
+
+
 def clean_line(line):
-    line = (
-        line.replace("Args:", "**Args**:")
-        .replace("Returns:", "**Returns**:")
-        .replace("Raises:", "**Raises**:")
-        .replace("Example:", "**Example**:")
-        .replace("References:", "**References**:")
-        .replace(".**", ".\n\n**")
-    )
+    for header in VALID_DOCSTRING_SECTIONS:
+        line = line.replace(f"{header}:", f"**{header}**:")
+    line = line.replace(".**", ".\n\n**")
     return line.lstrip()
 
 

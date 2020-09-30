@@ -1,3 +1,4 @@
+import inspect
 import re
 import sys
 import textwrap
@@ -22,6 +23,7 @@ try:
         get_call_signature,
         get_class_methods,
         patch_imports,
+        VALID_DOCSTRING_SECTIONS,
     )
 
     with patch_imports():
@@ -468,71 +470,21 @@ def test_format_doc_escapes_asteriks_inside_tables():
     assert res.count(r">\*<") == 2
 
 
-@pytest.mark.parametrize(
-    "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
-)
-def test_sections_have_formatted_headers_for_function_docs(fn):
-    doc = format_doc(fn, in_table=True)
-    for section in ["Args", "Returns", "Raises", "References", "Example"]:
-        option1 = ">**{}**:".format(section)
-        option2 = "\n**{}**:".format(section)
-        assert (section in doc) is any(
-            [(o in doc) for o in (option1, option2)]
-        ), "{fn.__name__} has a poorly formatted {sec} header.".format(
-            fn=fn, sec=section
-        )
-        if (section != "Example") and section in doc:
-            assert "{}**:<".format(section) in doc.replace(
-                " ", ""
-            ), "{fn.__name__} has a poorly formatted {sec} listing.".format(
-                fn=fn, sec=section
-            )
+all_objects = []
+for page in OUTLINE:
+    all_objects.extend(page.get("functions", []))
+    for cls in page.get("classes"):
+        all_objects.append(cls)
+        all_objects.extend(get_class_methods(cls))
 
 
-@pytest.mark.parametrize(
-    "obj", [obj for page in OUTLINE for obj in page.get("classes", [])]
-)
-def test_sections_have_formatted_headers_for_class_docs(obj):
-    doc = format_doc(obj)
-    for section in ["Args", "Returns", "Raises", "References", "Example"]:
-        option1 = ">**{}**:".format(section)
-        option2 = "\n**{}**:".format(section)
-        option3 = "**{}**:".format(section)
-        assert (section in doc) is any(
-            [(o in doc) for o in (option1, option2)] + [doc.startswith(option3)]
-        ), "{obj.__module__}.{obj.__name__} has a poorly formatted {sec} header.".format(
-            obj=obj, sec=section
-        )
-        if (section != "Example") and section in doc:
-            assert "{}**:<".format(section) in doc.replace(
-                " ", ""
-            ), "{obj.__module__}.{obj.__name__} has a poorly formatted {sec} listing.".format(
-                obj=obj, sec=section
-            )
-
-
-@pytest.mark.parametrize(
-    "obj,fn",
-    [
-        (obj, fn)
-        for page in OUTLINE
-        for obj in page.get("classes", [])
-        for fn in get_class_methods(obj)
-    ],
-)  # parametrized like this for easy reading of tests
-def test_sections_have_formatted_headers_for_class_method_docs(obj, fn):
-    doc = format_doc(fn, in_table=True)
-    for section in ["Args", "Returns", "Raises", "Example"]:
-        option1 = ">**{}**:".format(section)
-        option2 = "\n**{}**:".format(section)
-        assert (section in doc) is any(
-            [(o in doc) for o in (option1, option2)]
-        ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has a poorly formatted {sec} header.".format(
-            obj=obj, fn=fn, sec=section
-        )
-        if (section != "Example") and section in doc:
-            assert "{}**:<".format(section) in doc.replace(
-                " ", ""
-            ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has a poorly formatted {sec} listing.".format(
-                obj=obj, fn=fn, sec=section
-            )
+@pytest.mark.parametrize("obj", all_objects)
+def test_section_headers_are_properly_formatted(obj):
+    doc = inspect.getdoc(obj)
+    if not doc:
+        return
+    for section in VALID_DOCSTRING_SECTIONS:
+        if re.search(f"^\\s*{section}\\s*$", doc, flags=re.M):
+            assert (
+                False
+            ), f"{obj.__module__}.{obj.__qualname__} has a poorly formatted '{section}' header"
