@@ -1,26 +1,11 @@
 from distutils.version import LooseVersion
-from typing import Optional
 
-import prefect
 from prefect.utilities.graphql import GraphQLResult
-
-
-def get_flow_image_if_docker_storage(flow_run: GraphQLResult) -> Optional[str]:
-    """
-    If a flow is configured with docker storage, return the image. Otherwise
-    returns `None`
-    """
-    storage = prefect.serialization.storage.StorageSchema().load(flow_run.flow.storage)
-    if isinstance(storage, prefect.environments.storage.Docker):
-        return storage.name
-    return None
 
 
 def get_flow_image(flow_run: GraphQLResult) -> str:
     """
-    Retrieve the image to use for this flow run deployment. Will start by looking for
-    an `image` value in the flow's `environment.metadata`. If not found then it will fall
-    back to using the `flow.storage`.
+    Retrieve the image to use for this flow run deployment.
 
     Args:
         - flow_run (GraphQLResult): A GraphQLResult flow run object
@@ -32,25 +17,32 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
         - ValueError: if deployment attempted on unsupported Storage type and `image` not
             present in environment metadata
     """
-    environment = prefect.serialization.environment.EnvironmentSchema().load(
-        flow_run.flow.environment
-    )
-    if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
-        return environment.metadata.get("image")
-    else:
-        storage = prefect.serialization.storage.StorageSchema().load(
-            flow_run.flow.storage
-        )
-        if not isinstance(
-            prefect.serialization.storage.StorageSchema().load(flow_run.flow.storage),
-            prefect.environments.storage.Docker,
-        ):
-            raise ValueError(
-                f"Storage for flow run {flow_run.id} is not of type Docker and "
-                f"environment has no `image` attribute in the metadata field."
-            )
+    from prefect.environments.storage import Docker
+    from prefect.serialization.storage import StorageSchema
+    from prefect.serialization.run_config import RunConfigSchema
+    from prefect.serialization.environment import EnvironmentSchema
 
-        return storage.name
+    storage = StorageSchema().load(flow_run.flow.storage)
+    if getattr(flow_run.flow, "run_config", None) is not None:
+        run_config = RunConfigSchema().load(flow_run.flow.run_config)
+        if isinstance(storage, Docker):
+            return storage.name
+        elif getattr(run_config, "image", None) is not None:
+            return run_config.image
+        else:
+            # core_version should always be present, but just in case
+            version = flow_run.flow.get("core_version") or "latest"
+            return f"prefecthq/prefect:all_extras-{version}"
+    else:
+        environment = EnvironmentSchema().load(flow_run.flow.environment)
+        if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
+            return environment.metadata.get("image")
+        elif isinstance(storage, Docker):
+            return storage.name
+        raise ValueError(
+            f"Storage for flow run {flow_run.id} is not of type Docker and "
+            f"environment has no `image` attribute in the metadata field."
+        )
 
 
 def get_flow_run_command(flow_run: GraphQLResult) -> str:

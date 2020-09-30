@@ -13,11 +13,7 @@ from prefect import config
 from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.serialization.run_config import RunConfigSchema
-from prefect.utilities.agent import (
-    get_flow_image,
-    get_flow_run_command,
-    get_flow_image_if_docker_storage,
-)
+from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
 DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
@@ -65,7 +61,7 @@ def read_bytes_from_path(path: str) -> bytes:
         client = get_boto_client(resource="s3")
         stream = io.BytesIO()
         client.download_fileobj(Bucket=parsed.hostname, Key=parsed.path, Fileobj=stream)
-        return stream.getbuffer()
+        return stream.getvalue()
     else:
         raise ValueError(f"Unsupported file scheme {path}")
 
@@ -477,19 +473,15 @@ class KubernetesAgent(Agent):
             containers.append({})
         container = containers[0]
 
-        # Set container image if specified
-        # - Use storage image if using docker storage
-        # - Otherwise use run-config image if specified
-        storage_image = get_flow_image_if_docker_storage(flow_run)
-        if storage_image is not None:
-            container["image"] = storage_image
-        elif run_config.image:
-            container["image"] = run_config.image
+        # Set container image
+        container["image"] = get_flow_image(flow_run)
 
         # Set flow run command
         container["args"] = [get_flow_run_command(flow_run)]
 
-        # Populate environment variables from the following sources:
+        # Populate environment variables from the following sources,
+        # with reverse precedence (later sources override).
+        # - Values in the job template
         # - Values set using the `--env` CLI flag on the agent
         # - Values set on the job configuration
         # - Hardcoded values below, provided they're not already set
@@ -509,11 +501,11 @@ class KubernetesAgent(Agent):
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             }
         )
-        container_env = _get_or_create(container, "env", [])
-        existing = {e["name"] for e in container_env}
-        for k, v in env.items():
-            if k not in existing:
-                container_env.append({"name": k, "value": v})
+        container_env = [{"name": k, "value": v} for k, v in env.items()]
+        for entry in container.get("env", []):
+            if entry["name"] not in env:
+                container_env.append(entry)
+        container["env"] = container_env
 
         # Set resource requirements if provided
         _get_or_create(container, "resources.requests")

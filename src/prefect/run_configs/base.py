@@ -1,5 +1,7 @@
 from typing import Iterable, Set  # noqa
 
+import prefect
+
 
 class RunConfig:
     """
@@ -16,3 +18,13 @@ class RunConfig:
 
     def __init__(self, labels: Iterable[str] = None):
         self.labels = set(labels) if labels else set()  # Set[str]
+
+    def serialize(self) -> dict:
+        """
+        Returns a serialized version of the RunConfig.
+
+        Returns:
+            - dict: the serialized RunConfig
+        """
+        schema = prefect.serialization.run_config.RunConfigSchema()
+        return schema.dump(self)
