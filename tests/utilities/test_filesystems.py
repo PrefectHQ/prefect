@@ -44,11 +44,16 @@ class Test_read_bytes_from_path:
         with open(path, "wb") as f:
             f.write(b"hello")
 
-        path_arg = path if scheme is None else f"agent://{path}"
+        path_arg = (
+            path
+            if scheme is None
+            else "agent://" + os.path.splitdrive(path)[1].replace("\\", "/")
+        )
         res = read_bytes_from_path(path_arg)
         assert res == b"hello"
 
     def test_read_gcs(self, monkeypatch):
+        pytest.importorskip("prefect.utilities.gcp")
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.utilities.gcp.get_storage_client", MagicMock(return_value=client)
@@ -62,6 +67,7 @@ class Test_read_bytes_from_path:
         assert blob.download_as_bytes.return_value is res
 
     def test_read_s3(self, monkeypatch):
+        pytest.importorskip("prefect.utilities.aws")
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.utilities.aws.get_boto_client", MagicMock(return_value=client)
