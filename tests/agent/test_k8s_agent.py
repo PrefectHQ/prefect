@@ -1003,7 +1003,7 @@ class TestK8sAgentRunConfig:
         )
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
-        assert mocked_read_bytes.call_args.args == (template_path,)
+        assert mocked_read_bytes.call_args[0] == (template_path,)
 
     def test_generate_job_spec_metadata(self, tmpdir):
         template_path = str(tmpdir.join("job.yaml"))
@@ -1131,9 +1131,9 @@ class Test_read_bytes_from_path:
             "prefect.utilities.gcp.get_storage_client", MagicMock(return_value=client)
         )
         res = read_bytes_from_path("gcs://mybucket/path/to/thing.yaml")
-        assert client.bucket.call_args.args == ("mybucket",)
+        assert client.bucket.call_args[0] == ("mybucket",)
         bucket = client.bucket.return_value
-        assert bucket.get_blob.call_args.args == ("path/to/thing.yaml",)
+        assert bucket.get_blob.call_args[0] == ("path/to/thing.yaml",)
         blob = bucket.get_blob.return_value
         assert blob.download_as_bytes.called
         assert blob.download_as_bytes.return_value is res
@@ -1144,6 +1144,6 @@ class Test_read_bytes_from_path:
             "prefect.utilities.aws.get_boto_client", MagicMock(return_value=client)
         )
         res = read_bytes_from_path("s3://mybucket/path/to/thing.yaml")
-        assert client.download_fileobj.call_args.kwargs["Bucket"] == "mybucket"
-        assert client.download_fileobj.call_args.kwargs["Key"] == "/path/to/thing.yaml"
+        assert client.download_fileobj.call_args[1]["Bucket"] == "mybucket"
+        assert client.download_fileobj.call_args[1]["Key"] == "/path/to/thing.yaml"
         assert isinstance(res, bytes)
