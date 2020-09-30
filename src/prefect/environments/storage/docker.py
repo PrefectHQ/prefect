@@ -482,7 +482,7 @@ class Docker(Storage):
                 else:
                     if os.path.isdir(src):
                         shutil.copytree(
-                            src=src, dst=full_fname, symlinks=False, ignore=None
+                            src=src, dst=full_fname, symlinks=False, ignore=None, copy_function=shutil.copyfile
                         )
                     else:
                         shutil.copy2(src=src, dst=full_fname)
