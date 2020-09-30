@@ -1,2 +1,5 @@
-enhancement:
+task:
   - "Add keypair auth for snowflake - [#3404](https://github.com/PrefectHQ/prefect/pull/3404)"
+
+contributor:
+  - "[Ian Fridge](https://github.com/fridgei)"
