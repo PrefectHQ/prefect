@@ -1112,38 +1112,3 @@ class TestK8sAgentRunConfig:
             "limits": {"cpu": "2", "memory": "8G"},
             "requests": {"cpu": "1", "memory": "4G"},
         }
-
-
-class Test_read_bytes_from_path:
-    @pytest.mark.parametrize("scheme", ["agent", None])
-    def test_read_local_file(self, tmpdir, scheme):
-        path = str(tmpdir.join("test.yaml"))
-        with open(path, "wb") as f:
-            f.write(b"hello")
-
-        path_arg = path if scheme is None else f"agent://{path}"
-        res = read_bytes_from_path(path_arg)
-        assert res == b"hello"
-
-    def test_read_gcs(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.utilities.gcp.get_storage_client", MagicMock(return_value=client)
-        )
-        res = read_bytes_from_path("gcs://mybucket/path/to/thing.yaml")
-        assert client.bucket.call_args[0] == ("mybucket",)
-        bucket = client.bucket.return_value
-        assert bucket.get_blob.call_args[0] == ("path/to/thing.yaml",)
-        blob = bucket.get_blob.return_value
-        assert blob.download_as_bytes.called
-        assert blob.download_as_bytes.return_value is res
-
-    def test_read_s3(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.utilities.aws.get_boto_client", MagicMock(return_value=client)
-        )
-        res = read_bytes_from_path("s3://mybucket/path/to/thing.yaml")
-        assert client.download_fileobj.call_args[1]["Bucket"] == "mybucket"
-        assert client.download_fileobj.call_args[1]["Key"] == "/path/to/thing.yaml"
-        assert isinstance(res, bytes)

@@ -1,9 +1,7 @@
-import io
 import os
 import time
 import uuid
 from typing import Iterable, List, Any
-from urllib.parse import urlparse
 
 import json
 import yaml
@@ -14,6 +12,7 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
+from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
 
 DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
@@ -28,42 +27,6 @@ def _get_or_create(d: dict, key: str, val: Any = None) -> Any:
     for k in path[:-1]:
         d = d.setdefault(k, {})
     return d.setdefault(path[-1], val)
-
-
-def read_bytes_from_path(path: str) -> bytes:
-    """Read bytes from a given path.
-
-    Paths may be local files, or remote files (given a supported file scheme).
-
-    Args:
-        - path (str): The file path
-
-    Returns:
-        - bytes: The file contents
-    """
-    parsed = urlparse(path)
-    if not parsed.scheme or parsed.scheme == "agent":
-        with open(parsed.path, "rb") as f:
-            return f.read()
-    elif parsed.scheme == "gcs":
-        from prefect.utilities.gcp import get_storage_client
-
-        client = get_storage_client()
-        parsed = urlparse(path)
-        bucket = client.bucket(parsed.hostname)
-        blob = bucket.get_blob(parsed.path.lstrip("/"))
-        if blob is None:
-            raise ValueError(f"Job template doesn't exist at {path}")
-        return blob.download_as_bytes()
-    elif parsed.scheme == "s3":
-        from prefect.utilities.aws import get_boto_client
-
-        client = get_boto_client(resource="s3")
-        stream = io.BytesIO()
-        client.download_fileobj(Bucket=parsed.hostname, Key=parsed.path, Fileobj=stream)
-        return stream.getvalue()
-    else:
-        raise ValueError(f"Unsupported file scheme {path}")
 
 
 class KubernetesAgent(Agent):

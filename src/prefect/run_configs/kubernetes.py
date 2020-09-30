@@ -1,8 +1,8 @@
 import yaml
 from typing import Union, Iterable
-from urllib.parse import urlparse
 
-from .base import RunConfig
+from prefect.utilities.filesystems import parse_path
+from prefect.run_configs.base import RunConfig
 
 
 class KubernetesJob(RunConfig):
@@ -80,9 +80,8 @@ class KubernetesJob(RunConfig):
                 "Cannot provide both `job_template_path` and `job_template`"
             )
         if job_template_path is not None:
-            parsed = urlparse(job_template_path)
-            # If it's a local file, load now rather than runtime
-            if not parsed.scheme or parsed.scheme in ("local", "file"):
+            parsed = parse_path(job_template_path)
+            if parsed.scheme == "file":
                 with open(parsed.path) as f:
                     job_template = yaml.safe_load(f)
                     job_template_path = None

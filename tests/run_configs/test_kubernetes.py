@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import yaml
 
@@ -44,7 +46,10 @@ def test_local_job_template_path(tmpdir, scheme):
     if scheme is None:
         job_template_path = path
     else:
-        job_template_path = f"{scheme}://{path}"
+        # With a scheme, unix-style slashes are required
+        job_template_path = f"{scheme}://" + os.path.splitdrive(path)[1].replace(
+            "\\", "/"
+        )
 
     with open(path, "w") as f:
         yaml.safe_dump(job_template, f)
