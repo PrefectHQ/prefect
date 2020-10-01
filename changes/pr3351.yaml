@@ -1,0 +1,4 @@
+enhancement:
+  - "Allow python path in Local storage - [#3351](https://github.com/PrefectHQ/prefect/pull/3351)"
+contributor:
+  - "[Jack D. Sundberg](https://github.com/jacksund)"
