@@ -113,4 +113,4 @@ def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
             if isinstance(getattr(module, var), prefect.Flow):
                 return getattr(module, var)
 
-    raise ValueError("No flow found in file.")
+    raise ValueError("No flow found in module.")
