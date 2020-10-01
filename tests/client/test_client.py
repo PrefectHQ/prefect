@@ -572,7 +572,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     with pytest.raises(ValueError) as exc:
         flow_id = client.register(flow, project_name="my-default-project")
     assert "not found" in str(exc.value)
-    assert "client.create_project" in str(exc.value)
+    assert "prefect create project 'my-default-project'" in str(exc.value)
 
 
 def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeypatch):
