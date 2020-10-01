@@ -664,7 +664,7 @@ class TaskRunner(Runner):
         Sets the name for this task run.
 
         Args:
-            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+            - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
         """
         pass

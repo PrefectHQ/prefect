@@ -327,7 +327,7 @@ class CloudTaskRunner(TaskRunner):
         Sets the name for this task run by calling the `set_task_run_name` mutation.
 
         Args:
-            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+            - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
         """
         task_run_name = self.task.task_run_name
