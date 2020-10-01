@@ -93,7 +93,7 @@ class Local(Storage):
             raise ValueError("No flow location provided")
             
         # check if the path given is a file path
-        if os.path.isfile(self.path):
+        if os.path.isfile(flow_location):
             if self.stored_as_script:
                 return extract_flow_from_file(file_path=flow_location)
             else:
