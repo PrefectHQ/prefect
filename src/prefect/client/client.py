@@ -1259,10 +1259,11 @@ class Client:
         Set the name of a task run
 
         Args:
-            - task_run_id (str): the id for this task run
+            - task_run_id (str): the id of a task run
+            - name (str): a name for this task run
 
         Returns:
-            - State: a Prefect State object
+            - bool: whether or not the task run name was updated
         """
         mutation = {
             "mutation($input: set_task_run_name_input!)": {

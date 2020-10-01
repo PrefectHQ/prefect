@@ -175,7 +175,7 @@ class Task(metaclass=SignatureValidator):
             is provided, it should have signature `callable(**kwargs) -> str` and at write
             time all formatting kwargs will be passed and a fully formatted location is
             expected as the return value.  Can be used for string formatting logic that
-            `.format(**kwargs)` doesn't support
+            `.format(**kwargs)` supports.
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -189,6 +189,13 @@ class Task(metaclass=SignatureValidator):
             Task enters a failure state
         - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
             the Prefect logger. Defaults to `False`.
+        - task_run_name (Union[str, Callable], optional): a name to set for this task at runtime.
+            `task_run_name` strings can be templated formatting strings which will be
+            formatted at runtime with values from `prefect.context`. If a callable function
+            is provided, it should have signature `callable(**kwargs) -> str` and at write
+            time all formatting kwargs will be passed and a fully formatted location is
+            expected as the return value. Can be used for string formatting logic that
+            `.format(**kwargs)` supports. Note: this only works for tasks running against a backend API.
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -217,7 +224,7 @@ class Task(metaclass=SignatureValidator):
         on_failure: Callable = None,
         log_stdout: bool = False,
         result: "Result" = None,
-        target: str = None,
+        target: Union[str, Callable] = None,
         task_run_name: Union[str, Callable] = None,
     ):
         self.name = name or type(self).__name__

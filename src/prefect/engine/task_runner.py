@@ -268,7 +268,7 @@ class TaskRunner(Runner):
                         state, upstream_states=upstream_states
                     )
 
-                # set task run name based on ........
+                # dynamically set task run name
                 self.set_task_run_name(task_inputs=task_inputs)
 
                 if self.task.target:
@@ -662,7 +662,11 @@ class TaskRunner(Runner):
 
     def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
         """
-        Set task run name .....
+        Sets the name for this task run.
+
+        Args:
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
         """
         pass
 
