@@ -1051,6 +1051,7 @@ def test_task_runner_handles_version_lock_error(monkeypatch):
     with pytest.raises(ENDRUN):
         res = runner.call_runner_target_handlers(Pending(), Running())
 
+
 def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
 
     client = MagicMock()
@@ -1068,7 +1069,6 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     assert client.set_task_run_name.called
     assert client.set_task_run_name.call_args[1]["name"] == "asdf"
     assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
-
 
     task = Task(name="test", task_run_name="{map_index}")
     runner = CloudTaskRunner(task=task)
