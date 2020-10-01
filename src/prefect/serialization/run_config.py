@@ -1,16 +1,16 @@
 from marshmallow import fields
 
 from prefect.utilities.serialization import JSONCompatible, OneOfSchema, ObjectSchema
-from prefect.run_configs import KubernetesJob
+from prefect.run_configs import KubernetesRun
 
 
 class RunConfigSchemaBase(ObjectSchema):
     labels = fields.List(fields.String())
 
 
-class KubernetesJobSchema(RunConfigSchemaBase):
+class KubernetesRunSchema(RunConfigSchemaBase):
     class Meta:
-        object_class = KubernetesJob
+        object_class = KubernetesRun
 
     job_template_path = fields.String(allow_none=True)
     job_template = JSONCompatible(allow_none=True)
@@ -24,5 +24,5 @@ class KubernetesJobSchema(RunConfigSchemaBase):
 
 class RunConfigSchema(OneOfSchema):
     type_schemas = {
-        "KubernetesJob": KubernetesJobSchema,
+        "KubernetesRun": KubernetesRunSchema,
     }
