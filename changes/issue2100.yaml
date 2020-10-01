@@ -1,2 +1,4 @@
 enhancement:
   - "Add option to template task run name at runtime when using backend API - [#2100](https://github.com/PrefectHQ/prefect/issues/2100)"
+  - "Add `set_task_run_name` Client function - [#2100](https://github.com/PrefectHQ/prefect/issues/2100)"
+  - "Update mypy typing for `target` kwarg on base Task class - [#2100](https://github.com/PrefectHQ/prefect/issues/2100)"
