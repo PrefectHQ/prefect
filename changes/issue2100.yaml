@@ -1,0 +1,2 @@
+enhancement:
+  - "Allow for templatable task run names when using backend API - [#2100](https://github.com/PrefectHQ/prefect/issues/2100)"
