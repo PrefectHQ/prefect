@@ -96,6 +96,7 @@ class LocalSchema(ObjectSchema):
         base_obj.flows = flows
         return base_obj
 
+
 class S3Schema(ObjectSchema):
     class Meta:
         object_class = S3

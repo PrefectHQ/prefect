@@ -253,6 +253,7 @@ def test_local_storage_doesnt_validate_on_deserialization():
     storage = LocalSchema().load(payload)
     assert storage.directory == "C:\\Users\\chris\\.prefect\\flows"
 
+
 def test_gcs_empty_serialize():
     gcs = storage.GCS(bucket="bucket")
     serialized = GCSSchema().dump(gcs)
