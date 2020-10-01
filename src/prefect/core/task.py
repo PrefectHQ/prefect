@@ -174,8 +174,8 @@ class Task(metaclass=SignatureValidator):
             formatted at runtime with values from `prefect.context`. If a callable function
             is provided, it should have signature `callable(**kwargs) -> str` and at write
             time all formatting kwargs will be passed and a fully formatted location is
-            expected as the return value.  Can be used for string formatting logic that
-            `.format(**kwargs)` supports.
+            expected as the return value. The callable can be used for string formatting logic that
+            `.format(**kwargs)` doesn't support.
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -191,11 +191,12 @@ class Task(metaclass=SignatureValidator):
             the Prefect logger. Defaults to `False`.
         - task_run_name (Union[str, Callable], optional): a name to set for this task at runtime.
             `task_run_name` strings can be templated formatting strings which will be
-            formatted at runtime with values from `prefect.context`. If a callable function
-            is provided, it should have signature `callable(**kwargs) -> str` and at write
-            time all formatting kwargs will be passed and a fully formatted location is
-            expected as the return value. Can be used for string formatting logic that
-            `.format(**kwargs)` supports. Note: this only works for tasks running against a backend API.
+            formatted at runtime with values from `prefect.context`, task inputs, and parameters.
+            If a callable function is provided, it should have signature `callable(**kwargs) -> str`
+            and at write time all formatting kwargs will be passed and a fully formatted location is
+            expected as the return value. The callable can be used for string formatting logic that
+            `.format(**kwargs)` doesn't support. **Note**: this only works for tasks running against a
+            backend API.
 
     Raises:
         - TypeError: if `tags` is of type `str`
