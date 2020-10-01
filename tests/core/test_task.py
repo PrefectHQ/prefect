@@ -299,6 +299,16 @@ class TestCreateTask:
         s = Task(log_stdout=True)
         assert s.log_stdout is True
 
+    def test_create_task_with_task_run_name(self):
+        t1 = Task()
+        assert t1.task_run_name is None
+
+        t2 = Task(task_run_name="test")
+        assert t2.task_run_name == "test"
+
+        t2 = Task(task_run_name=lambda: 42)
+        assert t2.task_run_name() == 42
+
 
 def test_task_has_logger():
     t = Task()
