@@ -726,7 +726,7 @@ class Client:
 
         if not project:
             raise ValueError(
-                'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
+                'Project {} not found. Run `prefect create project {}` to create it.'.format(
                     project_name, project_name
                 )
             )
