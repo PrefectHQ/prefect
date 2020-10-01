@@ -32,7 +32,8 @@ class Local(Storage):
             absolute path and created.  Defaults to `True`
         - path (str, optional): a direct path to the location of the flow file if
             `stored_as_script=True`, otherwise this path will be used when storing the serialized,
-            pickled flow.
+            pickled flow. If `stored_as_script=True`, the direct path may be a file path
+            (such as 'path/to/myflow.py') or a direct python path (such as 'myrepo.mymodule.myflow')
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
@@ -76,7 +77,8 @@ class Local(Storage):
 
         Args:
             - flow_location (str, optional): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to. Will use `path` if not provided.
+                a file path or python path where a Flow has been serialized to. Will use `path`
+                if not provided.
 
         Returns:
             - Flow: the requested flow
@@ -91,7 +93,7 @@ class Local(Storage):
             flow_location = self.path
         else:
             raise ValueError("No flow location provided")
-            
+
         # check if the path given is a file path
         if os.path.isfile(flow_location):
             if self.stored_as_script:
@@ -101,7 +103,7 @@ class Local(Storage):
         # otherwise the path is given in the module format
         else:
             return extract_flow_from_module(module_str=flow_location)
-        
+
     def add_flow(self, flow: "Flow") -> str:
         """
         Method for storing a new flow as bytes in the local filesytem.

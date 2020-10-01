@@ -84,14 +84,13 @@ def extract_flow_from_file(
 
     raise ValueError("No flow found in file.")
 
-def extract_flow_from_module(
-    module_str: str, flow_name: str = None
-) -> "Flow":
+
+def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
     """
     Extract a flow object from a python module.
 
     Args:
-        - module_str (str, optional): A module path pointing to a .py file containing a flow.
+        - module_str (str): A module path pointing to a .py file containing a flow.
             For example, 'myrepo.mymodule.myflow' where myflow.py contains the flow.
         - flow_name (str, optional): A specific name of a flow to extract from a file.
             If not set then the first flow object retrieved from file will be returned.
@@ -103,8 +102,8 @@ def extract_flow_from_module(
     """
 
     # load the module
-    module = importlib.import_module('prefecttest.flow')
-    
+    module = importlib.import_module(module_str)
+
     # if flow_name is specified, grab it from the module
     if flow_name:
         return getattr(module, flow_name)
@@ -113,5 +112,5 @@ def extract_flow_from_module(
         for var in dir(module):
             if isinstance(getattr(module, var), prefect.Flow):
                 return getattr(module, var)
-                
+
     raise ValueError("No flow found in file.")
