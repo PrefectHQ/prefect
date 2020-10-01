@@ -1,6 +1,6 @@
 # Configuration Options
 
-A full list of configuation options can be seen in the Prefect [config.toml](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/config.toml). To update configuration settings you can update them in ./prefect/config.toml or by [environment varia]bles](/core/concepts/configuration.html#environment-variables). 
+A full list of configuation options can be seen in the Prefect [config.toml](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/config.toml). To update configuration settings you can update them in ./prefect/config.toml or by [environment varia]bles](/core/concepts/configuration.html#environment-variables). For more on configuration, you can also see the [Prefect Core configuration docs](/core/concepts/configuration.html).
 
 ## Connecting to a different API Endpoint
 If you are running Prefect Server, you can update the server.host and server.port config settings to point to a new API endpoint.
