@@ -179,7 +179,7 @@ class TaskRunner(Runner):
         # If provided, use task's target as result location
         if self.task.target:
             if not isinstance(self.task.target, str):
-                self.result._formatter = self.task.target
+                self.result._formatter = self.task.target  # type: ignore
                 self.result.location = None
             else:
                 self.result.location = self.task.target
@@ -261,7 +261,6 @@ class TaskRunner(Runner):
                 task_inputs = self.get_task_inputs(
                     state=state, upstream_states=upstream_states
                 )
-
 
                 if is_mapped_parent:
                     state = self.check_task_ready_to_map(
@@ -697,8 +696,8 @@ class TaskRunner(Runner):
             if not isinstance(target, str):
                 target = target(**formatting_kwargs)
 
-            if result.exists(target, **formatting_kwargs):
-                known_location = target.format(**formatting_kwargs)
+            if result.exists(target, **formatting_kwargs):  # type: ignore
+                known_location = target.format(**formatting_kwargs)  # type: ignore
                 new_res = result.read(known_location)
                 cached_state = Cached(
                     result=new_res,
@@ -740,7 +739,7 @@ class TaskRunner(Runner):
                 state = Pending("Cache was invalid; ready to run.")
 
         if self.task.cache_for is not None:
-            candidate_states = []
+            candidate_states = []  # type: ignore
             if prefect.context.get("caches"):
                 candidate_states = prefect.context.caches.get(
                     self.task.cache_key or self.task.name, []

@@ -345,7 +345,9 @@ class CloudTaskRunner(TaskRunner):
             else:
                 task_run_name = task_run_name.format(**formatting_kwargs)
 
-            self.client.set_task_run_name(task_run_id=self.task_run_id, name=task_run_name)
+            self.client.set_task_run_name(
+                task_run_id=self.task_run_id, name=task_run_name  # type: ignore
+            )
 
     @tail_recursive
     def run(

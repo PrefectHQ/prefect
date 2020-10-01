@@ -318,9 +318,9 @@ class Task(metaclass=SignatureValidator):
                     stacklevel=2,
                 )
             self.result = self.result.copy()
-            self.result.location = self.target
+            self.result.location = self.target  # type: ignore
 
-        self.task_run_name = task_run_name
+        self.task_run_name = task_run_name  # type: ignore
 
         if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
@@ -433,7 +433,7 @@ class Task(metaclass=SignatureValidator):
                     stacklevel=2,
                 )
             new.result = new.result.copy()
-            new.result.location = new.target
+            new.result.location = new.target  # type: ignore
 
         new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))

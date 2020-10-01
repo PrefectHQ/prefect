@@ -1273,7 +1273,9 @@ class Client:
             }
         }
 
-        result = self.graphql(mutation, variables=dict(input=dict(task_run_id=task_run_id, name=name)))
+        result = self.graphql(
+            mutation, variables=dict(input=dict(task_run_id=task_run_id, name=name))
+        )
 
         return result.data.set_task_run_name.success
 
