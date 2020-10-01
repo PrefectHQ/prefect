@@ -2,7 +2,7 @@ import pytest
 
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
-from prefect.run_configs import KubernetesJob
+from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
@@ -70,7 +70,7 @@ def test_get_flow_image_run_config_docker_storage():
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "run_config": KubernetesJob().serialize(),
+                    "run_config": KubernetesRun().serialize(),
                     "id": "id",
                 }
             ),
@@ -88,7 +88,7 @@ def test_get_flow_image_run_config_default_value_from_core_version():
                 {
                     "core_version": "0.13.0",
                     "storage": Local().serialize(),
-                    "run_config": KubernetesJob().serialize(),
+                    "run_config": KubernetesRun().serialize(),
                     "id": "id",
                 }
             ),
@@ -105,7 +105,7 @@ def test_get_flow_image_run_config_image_on_RunConfig():
             "flow": GraphQLResult(
                 {
                     "storage": Local().serialize(),
-                    "run_config": KubernetesJob(image="myfancyimage").serialize(),
+                    "run_config": KubernetesRun(image="myfancyimage").serialize(),
                     "id": "id",
                 }
             ),

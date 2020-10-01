@@ -1,2 +1,2 @@
 from .base import RunConfig
-from .kubernetes import KubernetesJob
+from .kubernetes import KubernetesRun

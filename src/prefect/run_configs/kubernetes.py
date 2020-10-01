@@ -5,7 +5,7 @@ from prefect.utilities.filesystems import parse_path
 from prefect.run_configs.base import RunConfig
 
 
-class KubernetesJob(RunConfig):
+class KubernetesRun(RunConfig):
     """Configure a flow-run to run as a Kubernetes Job.
 
     Note: The functionality here is experimental, and may change between
@@ -20,7 +20,7 @@ class KubernetesJob(RunConfig):
         - job_template_path (str, optional): Path to a job template to use. If
             a local path (no file scheme, or a `file`/`local` scheme), the job
             template will be loaded on initialization and stored on the
-            `KubernetesJob` object as the `job_template` field.  Otherwise the
+            `KubernetesRun` object as the `job_template` field.  Otherwise the
             job template will be loaded at runtime on the agent.  Supported
             runtime file schemes include (`s3`, `gcs`, and `agent` (for paths
             local to the runtime agent)).
@@ -41,14 +41,14 @@ class KubernetesJob(RunConfig):
     Use the defaults set on the agent:
 
     ```python
-    flow.run_config = KubernetesJob()
+    flow.run_config = KubernetesRun()
     ```
 
     Use a local job template, which is stored along with the Flow in Prefect
     Cloud/Server:
 
     ```python
-    flow.run_config = KubernetesJob(
+    flow.run_config = KubernetesRun(
         job_template_path="my_custom_template.yaml"
     )
     ```
@@ -56,7 +56,7 @@ class KubernetesJob(RunConfig):
     Use a job template stored in S3, but override the image and CPU limit:
 
     ```python
-    flow.run_config = KubernetesJob(
+    flow.run_config = KubernetesRun(
         job_template_path="s3://example-bucket/my_custom_template.yaml",
         image="example/my-custom-image:latest",
         cpu_limit=2,

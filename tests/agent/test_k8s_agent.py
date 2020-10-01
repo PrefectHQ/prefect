@@ -11,7 +11,7 @@ import prefect
 from prefect.agent.kubernetes.agent import KubernetesAgent, read_bytes_from_path
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
-from prefect.run_configs import KubernetesJob
+from prefect.run_configs import KubernetesRun
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -981,7 +981,7 @@ class TestK8sAgentRunConfig:
         template = self.read_default_template()
         labels = template.setdefault("metadata", {}).setdefault("labels", {})
         labels["TEST"] = "VALUE"
-        flow_run = self.build_flow_run(KubernetesJob(job_template=template))
+        flow_run = self.build_flow_run(KubernetesRun(job_template=template))
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
 
@@ -996,7 +996,7 @@ class TestK8sAgentRunConfig:
             yaml.safe_dump(template, f)
         template_path = f"agent://{path}"
 
-        flow_run = self.build_flow_run(KubernetesJob(job_template_path=template_path))
+        flow_run = self.build_flow_run(KubernetesRun(job_template_path=template_path))
 
         mocked_read_bytes = MagicMock(wraps=read_bytes_from_path)
         monkeypatch.setattr(
@@ -1021,7 +1021,7 @@ class TestK8sAgentRunConfig:
             yaml.safe_dump(template, f)
         self.agent.job_template_path = template_path
 
-        flow_run = self.build_flow_run(KubernetesJob())
+        flow_run = self.build_flow_run(KubernetesRun())
         job = self.agent.generate_job_spec(flow_run)
 
         identifier = job["metadata"]["labels"]["prefect.io/identifier"]
@@ -1041,12 +1041,12 @@ class TestK8sAgentRunConfig:
         "run_config, storage, expected",
         [
             (
-                KubernetesJob(),
+                KubernetesRun(),
                 Docker(registry_url="test", image_name="name", image_tag="tag"),
                 "test/name:tag",
             ),
-            (KubernetesJob(image="myimage"), Local(), "myimage"),
-            (KubernetesJob(), Local(), "prefecthq/prefect:all_extras-0.13.0"),
+            (KubernetesRun(image="myimage"), Local(), "myimage"),
+            (KubernetesRun(), Local(), "prefecthq/prefect:all_extras-0.13.0"),
         ],
         ids=["on-storage", "on-run_config", "default"],
     )
@@ -1079,7 +1079,7 @@ class TestK8sAgentRunConfig:
         self.agent.job_template_path = template_path
 
         self.agent.env_vars = {"CUSTOM2": "OVERRIDE2", "CUSTOM3": "VALUE3"}
-        run_config = KubernetesJob(env={"CUSTOM3": "OVERRIDE3", "CUSTOM4": "VALUE4"})
+        run_config = KubernetesRun(env={"CUSTOM3": "OVERRIDE3", "CUSTOM4": "VALUE4"})
 
         flow_run = self.build_flow_run(run_config)
         job = self.agent.generate_job_spec(flow_run)
@@ -1103,7 +1103,7 @@ class TestK8sAgentRunConfig:
 
     def test_generate_job_spec_resources(self):
         flow_run = self.build_flow_run(
-            KubernetesJob(
+            KubernetesRun(
                 cpu_request=1, cpu_limit=2, memory_request="4G", memory_limit="8G"
             )
         )
