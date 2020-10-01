@@ -322,6 +322,27 @@ class CloudTaskRunner(TaskRunner):
             final_state = self.handle_state_change(old_state=state, new_state=new_state)
             raise ENDRUN(final_state) from exc
 
+    def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
+        """
+        Backend!
+        """
+        task_run_name = self.task.task_run_name
+
+        if task_run_name:
+            raw_inputs = {k: r.value for k, r in task_inputs.items()}
+            formatting_kwargs = {
+                **prefect.context.get("parameters", {}).copy(),
+                **raw_inputs,
+                **prefect.context,
+            }
+
+            if not isinstance(task_run_name, str):
+                task_run_name = task_run_name(**formatting_kwargs)
+            else:
+                task_run_name = task_run_name.format(**formatting_kwargs)
+
+            self.client.set_task_run_name(task_run_id=self.task_run_id, name=task_run_name)
+
     @tail_recursive
     def run(
         self,

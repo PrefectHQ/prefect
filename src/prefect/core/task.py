@@ -12,6 +12,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Union,
 )
 
 import prefect
@@ -217,6 +218,7 @@ class Task(metaclass=SignatureValidator):
         log_stdout: bool = False,
         result: "Result" = None,
         target: str = None,
+        task_run_name: Union[str, Callable] = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug
@@ -310,6 +312,8 @@ class Task(metaclass=SignatureValidator):
                 )
             self.result = self.result.copy()
             self.result.location = self.target
+
+        self.task_run_name = task_run_name
 
         if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")

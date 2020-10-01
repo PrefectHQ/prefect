@@ -262,10 +262,14 @@ class TaskRunner(Runner):
                     state=state, upstream_states=upstream_states
                 )
 
+
                 if is_mapped_parent:
                     state = self.check_task_ready_to_map(
                         state, upstream_states=upstream_states
                     )
+
+                # set task run name based on ........
+                self.set_task_run_name(task_inputs=task_inputs)
 
                 if self.task.target:
                     # check to see if there is a Result at the task's target
@@ -655,6 +659,12 @@ class TaskRunner(Runner):
 
         """
         return state, upstream_states
+
+    def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
+        """
+        Set task run name .....
+        """
+        pass
 
     @call_state_handlers
     def check_target(self, state: State, inputs: Dict[str, Result]) -> State:

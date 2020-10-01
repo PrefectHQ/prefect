@@ -1254,6 +1254,28 @@ class Client:
             state=state,
         )
 
+    def set_task_run_name(self, task_run_id: str, name: str) -> bool:
+        """
+        Set the name of a task run
+
+        Args:
+            - task_run_id (str): the id for this task run
+
+        Returns:
+            - State: a Prefect State object
+        """
+        mutation = {
+            "mutation($input: set_task_run_name_input!)": {
+                "set_task_run_name(input: $input)": {
+                    "success": True,
+                }
+            }
+        }
+
+        result = self.graphql(mutation, variables=dict(input=dict(task_run_id=task_run_id, name=name)))
+
+        return result.data.set_task_run_name.success
+
     def get_task_run_state(self, task_run_id: str) -> "prefect.engine.state.State":
         """
         Retrieves the current state for a task run.
