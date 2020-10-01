@@ -17,7 +17,6 @@ def test_local_agent_init(cloud_api):
     assert agent
     assert set(agent.labels) == {
         socket.gethostname(),
-        # "localmod-flow-storage", #!!! jacksund
         "azure-flow-storage",
         "s3-flow-storage",
         "gcs-flow-storage",
@@ -32,7 +31,6 @@ def test_local_agent_deduplicates_labels(cloud_api):
     assert agent
     assert set(agent.labels) == {
         socket.gethostname(),
-        # "localmod-flow-storage", #!!! jacksund
         "azure-flow-storage",
         "s3-flow-storage",
         "gcs-flow-storage",
@@ -59,7 +57,6 @@ def test_local_agent_config_options(cloud_api):
         assert agent.processes == set()
         assert agent.import_paths == ["test_path"]
         assert set(agent.labels) == {
-            # "localmod-flow-storage", #!!! jacksund
             "azure-flow-storage",
             "s3-flow-storage",
             "gcs-flow-storage",
@@ -86,7 +83,6 @@ def test_local_agent_config_options_hostname(cloud_api):
         assert set(agent.labels) == {
             "test_label",
             socket.gethostname(),
-            # "localmod-flow-storage", #!!! jacksund
             "azure-flow-storage",
             "s3-flow-storage",
             "gcs-flow-storage",
@@ -157,7 +153,6 @@ def test_populate_env_vars(cloud_api):
             "PREFECT__CLOUD__AGENT__LABELS": str(
                 [
                     socket.gethostname(),
-                    # "localmod-flow-storage", #!!! jacksund
                     "azure-flow-storage",
                     "gcs-flow-storage",
                     "s3-flow-storage",

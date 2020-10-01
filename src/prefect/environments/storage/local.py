@@ -7,7 +7,7 @@ from slugify import slugify
 import prefect
 from prefect.engine.results import LocalResult
 from prefect.environments.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import extract_flow_from_file, extract_flow_from_module
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -91,12 +91,17 @@ class Local(Storage):
             flow_location = self.path
         else:
             raise ValueError("No flow location provided")
-
-        if self.stored_as_script:
-            return extract_flow_from_file(file_path=flow_location)
+            
+        # check if the path given is a file path
+        if os.path.isfile(self.path):
+            if self.stored_as_script:
+                return extract_flow_from_file(file_path=flow_location)
+            else:
+                return prefect.core.flow.Flow.load(flow_location)
+        # otherwise the path is given in the module format
         else:
-            return prefect.core.flow.Flow.load(flow_location)
-
+            return extract_flow_from_module(module_str=flow_location)
+        
     def add_flow(self, flow: "Flow") -> str:
         """
         Method for storing a new flow as bytes in the local filesytem.

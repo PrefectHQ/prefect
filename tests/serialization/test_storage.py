@@ -253,42 +253,6 @@ def test_local_storage_doesnt_validate_on_deserialization():
     storage = LocalSchema().load(payload)
     assert storage.directory == "C:\\Users\\chris\\.prefect\\flows"
 
-# TO-DO -- jacksund
-# def test_localmod_empty_serialize():
-#     b = storage.Local()
-#     serialized = LocalSchema().dump(b)
-
-#     assert serialized
-#     assert serialized["__version__"] == prefect.__version__
-#     assert serialized["flows"] == dict()
-#     assert serialized["directory"].endswith(os.path.join(".prefect", "flows"))
-#     assert serialized["secrets"] == []
-
-
-# def test_localmod_roundtrip():
-#     with tempfile.TemporaryDirectory() as tmpdir:
-#         s = storage.Local(directory=tmpdir, secrets=["AUTH"])
-#         flow_loc = s.add_flow(prefect.Flow("test"))
-#         serialized = LocalSchema().dump(s)
-#         deserialized = LocalSchema().load(serialized)
-
-#         assert "test" in deserialized
-#         runner = deserialized.get_flow(flow_loc)
-
-#     assert runner.run().is_successful()
-#     assert deserialized.secrets == ["AUTH"]
-
-
-# def test_localmod_storage_doesnt_validate_on_deserialization():
-#     payload = {
-#         "directory": "C:\\Users\\chris\\.prefect\\flows",
-#         "flows": {"hello": "C:\\Users\\chris\\.prefect\\flows\\hello.prefect"},
-#         "__version__": "0.7.3",
-#         "type": "Local",
-#     }
-#     storage = LocalSchema().load(payload)
-#     assert storage.directory == "C:\\Users\\chris\\.prefect\\flows"
-
 def test_gcs_empty_serialize():
     gcs = storage.GCS(bucket="bucket")
     serialized = GCSSchema().dump(gcs)

@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+import importlib
 
 import prefect
 
@@ -81,4 +82,36 @@ def extract_flow_from_file(
             elif not flow_name:
                 return exec_vals[var]
 
+    raise ValueError("No flow found in file.")
+
+def extract_flow_from_module(
+    module_str: str, flow_name: str = None
+) -> "Flow":
+    """
+    Extract a flow object from a python module.
+
+    Args:
+        - module_str (str, optional): A module path pointing to a .py file containing a flow.
+            For example, 'myrepo.mymodule.myflow' where myflow.py contains the flow.
+        - flow_name (str, optional): A specific name of a flow to extract from a file.
+            If not set then the first flow object retrieved from file will be returned.
+            The "first" flow object will be based on the dir(module) ordering, which
+            is alphabetical and capitalized letters come first.
+
+    Returns:
+        - Flow: A flow object extracted from a file
+    """
+
+    # load the module
+    module = importlib.import_module('prefecttest.flow')
+    
+    # if flow_name is specified, grab it from the module
+    if flow_name:
+        return getattr(module, flow_name)
+    # otherwise loop until we get a Flow object
+    else:
+        for var in dir(module):
+            if isinstance(getattr(module, var), prefect.Flow):
+                return getattr(module, var)
+                
     raise ValueError("No flow found in file.")

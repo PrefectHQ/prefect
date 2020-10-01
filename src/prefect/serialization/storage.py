@@ -8,7 +8,6 @@ from prefect.environments.storage import (
     Azure,
     Docker,
     Local,
-    LocalModule,
     Storage,
     GitHub,
     Webhook,
@@ -97,25 +96,6 @@ class LocalSchema(ObjectSchema):
         base_obj.flows = flows
         return base_obj
 
-class LocalModSchema(ObjectSchema):
-    class Meta:
-        object_class = LocalModule
-
-    directory = fields.Str(allow_none=False)
-    module_path = fields.Str(allow_none=False)
-    class_str = fields.Str(allow_none=True)
-    stored_as_script = fields.Bool(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
-        flows = data.pop("flows", dict())
-        data.update(validate=False)
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
-
 class S3Schema(ObjectSchema):
     class Meta:
         object_class = S3
@@ -185,7 +165,6 @@ class StorageSchema(OneOfSchema):
         "Docker": DockerSchema,
         "GCS": GCSSchema,
         "Local": LocalSchema,
-        "LocalModule": LocalModSchema,
         "Storage": BaseStorageSchema,
         "S3": S3Schema,
         "GitHub": GitHubSchema,
