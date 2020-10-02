@@ -199,7 +199,6 @@ class FargateAgent(Agent):
         )
         self.logger.debug(f"External kwargs S3 key: {self.external_kwargs_s3_key}")
 
-
     def _override_kwargs(
         self,
         flow_run: GraphQLResult,
