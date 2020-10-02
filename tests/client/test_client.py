@@ -1037,6 +1037,17 @@ def test_get_task_run_info_with_error(patch_post):
         )
 
 
+def test_set_task_run_name(patch_posts, cloud_api):
+    mutation_resp = {"data": {"set_task_run_name": {"success": True}}}
+
+    post = patch_posts(mutation_resp)
+
+    client = Client()
+    result = client.set_task_run_name(task_run_id="76-salt", name="name")
+
+    assert result == True
+
+
 def test_get_task_run_state(patch_posts, cloud_api, runner_token):
     query_resp = {
         "task_run_by_pk": {
