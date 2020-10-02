@@ -199,6 +199,7 @@ class FargateAgent(Agent):
         )
         self.logger.debug(f"External kwargs S3 key: {self.external_kwargs_s3_key}")
 
+
     def _override_kwargs(
         self,
         flow_run: GraphQLResult,
@@ -362,6 +363,11 @@ class FargateAgent(Agent):
                         pass
                 task_definition_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
+
+        # Special case for int provided cpu and memory
+        for key in definition_kwarg_list_no_eval:
+            if isinstance(task_definition_kwargs.get(key, ""), int):
+                task_definition_kwargs[key] = str(task_definition_kwargs[key])
 
         task_run_kwargs = {}
         for key, item in user_kwargs.items():
