@@ -34,6 +34,7 @@
     "@vuepress/plugin-search": "<=1.4.0",
     "@vuepress/shared-utils": "<=1.4.0",
     "@vuepress/theme-default": "<=1.4.0",
+    "vue-server-renderer": "^2.6.11",
     "vuepress": "<=1.4.0",
     "vuepress-plugin-code-copy": "^1.0.6",
     "vuepress-plugin-element-tabs": "^0.1.8",
