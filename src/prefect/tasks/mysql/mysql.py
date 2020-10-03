@@ -30,7 +30,7 @@ class MySQLExecute(Task):
         user: str,
         password: str,
         host: str,
-        port: int = 3307,
+        port: int = 3306,
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
@@ -47,9 +47,7 @@ class MySQLExecute(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "commit", "charset")
-    def run(
-        self, query: str = None, commit: bool = False, charset: str = "utf8mb4"
-    ) -> int:
+    def run(self, query: str, commit: bool = False, charset: str = "utf8mb4") -> int:
         """
         Task run method. Executes a query against MySQL database.
 
@@ -73,14 +71,14 @@ class MySQLExecute(Task):
             password=self.password,
             db=self.db_name,
             charset=self.charset,
+            port=self.port,
         )
 
         try:
-            with conn:
-                with conn.cursor() as cursor:
-                    executed = cursor.execute(query)
-                    if commit:
-                        conn.commit()
+            with conn.cursor() as cursor:
+                executed = cursor.execute(query)
+                if commit:
+                    conn.commit()
 
             conn.close()
             logging.debug("Execute Results: %s", executed)
@@ -120,7 +118,7 @@ class MySQLFetch(Task):
         user: str,
         password: str,
         host: str,
-        port: int = 3307,
+        port: int = 3306,
         fetch: str = "one",
         fetch_count: int = 10,
         query: str = None,
@@ -143,9 +141,9 @@ class MySQLFetch(Task):
     @defaults_from_attrs("fetch", "fetch_count", "query", "commit", "charset")
     def run(
         self,
+        query: str,
         fetch: str = "one",
         fetch_count: int = 10,
-        query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
     ) -> Any:
@@ -181,25 +179,25 @@ class MySQLFetch(Task):
             password=self.password,
             db=self.db_name,
             charset=self.charset,
+            port=self.port,
         )
 
         try:
-            with conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(query)
+            with conn.cursor() as cursor:
+                cursor.execute(query)
 
-                    # override mypy inferred type since we redefine with incompatible types
-                    results: Any
+                # override mypy inferred type since we redefine with incompatible types
+                results: Any
 
-                    if fetch == "all":
-                        results = cursor.fetchall()
-                    elif fetch == "many":
-                        results = cursor.fetchmany(fetch_count)
-                    else:
-                        results = cursor.fetchone()
+                if fetch == "all":
+                    results = cursor.fetchall()
+                elif fetch == "many":
+                    results = cursor.fetchmany(fetch_count)
+                else:
+                    results = cursor.fetchone()
 
-                    if commit:
-                        conn.commit()
+                if commit:
+                    conn.commit()
 
             conn.close()
             logging.debug("Fetch Results: %s", results)
