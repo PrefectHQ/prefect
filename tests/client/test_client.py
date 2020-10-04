@@ -696,6 +696,17 @@ def test_client_register_flow_id_no_output(
     assert captured.out == "Result check: OK\n"
 
 
+def test_set_flow_run_name(patch_posts, cloud_api):
+    mutation_resp = {"data": {"set_flow_run_name": {"success": True}}}
+
+    post = patch_posts(mutation_resp)
+
+    client = Client()
+    result = client.set_flow_run_name(flow_run_id="74-salt", name="name")
+
+    assert result == True
+
+
 def test_get_flow_run_info(patch_post):
     response = {
         "flow_run_by_pk": {
