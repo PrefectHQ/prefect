@@ -54,7 +54,7 @@ Examples of extra packages include:
 
 ## Running the local server and UI
 
-Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API. The local server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running. If you've installed [Docker Desktop](https://www.docker.com/products/docker-desktop), you've got both of these.
+Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API. The local server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be installed. If you have [Docker Desktop](https://www.docker.com/products/docker-desktop) on your machine, you've got both of these.
 
 ::: tip Once you are ready to deploy into production, you can use [Prefect Cloud](https://www.prefect.io/cloud) to orchestrate your workflows. :::
 
