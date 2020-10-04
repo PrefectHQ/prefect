@@ -1,0 +1,4 @@
+enhancement:
+  - "Use 'from' to explicitly chain exceptions - [#3306](https://github.com/PrefectHQ/prefect/pull/3306)"
+contributor:
+  - "[Paras Luthra](https://github.com/luthrap)"
