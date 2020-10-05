@@ -5,7 +5,7 @@ from prefect.client import Client
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class FlowRunRenameTask(Task):
+class RenameFlowRunTask(Task):
     """
     Task used to rename a running flow.
 

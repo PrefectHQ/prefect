@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.tasks.prefect.flow_run_rename import FlowRunRenameTask
+from prefect.tasks.prefect.flow_run_rename import RenameFlowRunTask
 
 
 def test_flow_run_rename_task(monkeypatch):
@@ -12,7 +12,7 @@ def test_flow_run_rename_task(monkeypatch):
         "prefect.tasks.prefect.flow_run_rename.Client", MagicMock(return_value=client)
     )
 
-    task = FlowRunRenameTask(flow_run_id="id123", flow_run_name="a_new_name!")
+    task = RenameFlowRunTask(flow_run_id="id123", flow_run_name="a_new_name!")
 
     # Verify correct initialization
     assert task.flow_run_id == "id123"
@@ -26,12 +26,12 @@ def test_flow_run_rename_task(monkeypatch):
 
 
 def test_missing_flow_run_id():
-    task = FlowRunRenameTask()
+    task = RenameFlowRunTask()
     with pytest.raises(ValueError, match="Must provide a flow run ID."):
         task.run(flow_run_name="a_new_name!")
 
 
 def test_missing_flow_run_name():
-    task = FlowRunRenameTask()
+    task = RenameFlowRunTask()
     with pytest.raises(ValueError, match="Must provide a flow name."):
         task.run(flow_run_id="id123")
