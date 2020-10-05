@@ -5,6 +5,9 @@ references:
   attach_workspace: &attach_workspace
     attach_workspace:
       at: *workspace_root
+  docker_auth: &docker_auth
+    username: $DOCKER_HUB_USER
+    password: $DOCKER_HUB_PW
 
 commands:
   promote_image:
@@ -32,9 +35,7 @@ jobs:
   check_static_analysis:
     docker:
       - image: python:3.7
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     steps:
       - checkout
 
@@ -82,9 +83,7 @@ jobs:
   check_documentation:
     docker:
       - image: python:3.7
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     steps:
       - checkout
       - setup_remote_docker
@@ -102,9 +101,7 @@ jobs:
   test_lower_prefect:
     docker:
       - image: python:3.6
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
 
     steps:
       - *attach_workspace
@@ -145,9 +142,7 @@ jobs:
   test_vanilla_prefect:
     docker:
       - image: python:3.7
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
 
     steps:
       - *attach_workspace
@@ -181,9 +176,7 @@ jobs:
   test_36:
     docker:
       - image: python:3.6
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     steps:
       - *attach_workspace
       - checkout
@@ -216,9 +209,7 @@ jobs:
   test_37:
     docker:
       - image: python:3.7
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     steps:
       - checkout
       - setup_remote_docker
@@ -245,9 +236,7 @@ jobs:
   test_38:
     docker:
       - image: python:3.8
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     steps:
       - checkout
       - setup_remote_docker
@@ -271,12 +260,60 @@ jobs:
           name: Run tests
           command: pytest tests -vvrfEsx
 
+  test_server_integration:
+    docker:
+      - image: python:3.7
+        auth: *docker_auth
+        environment:
+          PREFECT_SERVER__DATABASE__NAME: prefect_server
+          PREFECT_SERVER__DATABASE__USERNAME: prefect
+          PREFECT_SERVER__DATABASE__PASSWORD: pr343ct
+      - image: "postgres:11"
+        auth: *docker_auth
+        environment:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: pr343ct
+          POSTGRES_DB: prefect_server
+        command: postgres -c max_connections=150
+      - image: "hasura/graphql-engine:v1.3.1"
+        auth: *docker_auth
+        command: /bin/sh -c "sleep 5 && graphql-engine serve"
+        environment:
+          HASURA_GRAPHQL_DATABASE_URL: postgres://prefect:prefect@localhost:5432/prefect_server
+          HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+          HASURA_GRAPHQL_SERVER_PORT: "3000"
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            apt-get update
+            # official binaries for nodejs
+            curl -sL https://deb.nodesource.com/setup_11.x | bash -
+            apt-get install -y sudo nodejs netcat
+      - run:
+          name: Install
+          command: |
+            # install prefect
+            pip install .
+            # install prefect server
+            pip install "git+https://github.com/prefecthq/server.git"
+            cd services/apollo && npm install
+      - run:
+          name: Run Prefect Server database migrations
+          command: prefect-server database upgrade --yes
+      - run:
+          name: Start Server services
+          command: prefect-server dev services
+          background: true
+      - run:
+          name: Wait 10 seconds for services to start...
+          command: sleep 10
+
   upload_coverage:
     docker:
       - image: python:3.7
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     steps:
       - *attach_workspace
       - run:
@@ -287,9 +324,7 @@ jobs:
   build_docker_image:
     docker:
       - image: docker
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     parameters:
       python_version:
         type: string
@@ -354,9 +389,7 @@ jobs:
   build_master_docker_image:
     docker:
       - image: docker
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     parameters:
       python_version:
         type: string
@@ -398,9 +431,7 @@ jobs:
   build_all_extras_docker_image:
     docker:
       - image: docker
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     parameters:
       python_version:
         type: string
@@ -459,9 +490,7 @@ jobs:
   promote_server_artifacts:
     docker:
       - image: docker
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
 
     steps:
       - setup_remote_docker:
@@ -479,9 +508,7 @@ jobs:
   release_to_pypi:
     docker:
       - image: python:3.7
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
+        auth: *docker_auth
     steps:
       - checkout
 
@@ -522,17 +549,19 @@ workflows:
 
   'Run tests':
     jobs:
-      - test_36
-      - test_37
-      - test_38
-      - test_lower_prefect
-      - test_vanilla_prefect
-      - upload_coverage:
-          requires:
-            - test_36
-            - test_37
-            - test_38
-            - test_vanilla_prefect
+      #- test_36
+      #- test_37
+      #- test_38
+      #- test_lower_prefect
+      #- test_vanilla_prefect
+      - test_server_integration
+      #- upload_coverage:
+          #requires:
+            #- test_36
+            #- test_37
+            #- test_38
+            #- test_vanilla_prefect
+            #- test_server_integration
 
   'Check code style and docs':
     jobs:
