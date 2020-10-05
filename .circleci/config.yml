@@ -304,10 +304,14 @@ jobs:
             npm install
       - run:
           name: Run Prefect Server database migrations
-          command: prefect-server database upgrade --yes
+          command: |
+            cd server
+            prefect-server database upgrade --yes
       - run:
           name: Start Server services
-          command: prefect-server dev services
+          command: |
+            cd server
+            prefect-server dev services
           background: true
       - run:
           name: Wait 10 seconds for services to start...
