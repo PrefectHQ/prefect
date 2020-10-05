@@ -297,7 +297,7 @@ jobs:
       - run:
           name: Install Prefect Server
           command: |
-            git clone "git+https://github.com/prefecthq/server.git"
+            git clone "https://github.com/prefecthq/server.git"
             cd server
             pip install .
             cd services/apollo
