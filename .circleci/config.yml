@@ -292,13 +292,16 @@ jobs:
             curl -sL https://deb.nodesource.com/setup_11.x | bash -
             apt-get install -y sudo nodejs netcat
       - run:
-          name: Install
+          name: Install Prefect
+          command: pip install .
+      - run:
+          name: Install Prefect Server
           command: |
-            # install prefect
+            git clone "git+https://github.com/prefecthq/server.git"
+            cd server
             pip install .
-            # install prefect server
-            pip install "git+https://github.com/prefecthq/server.git"
-            cd services/apollo && npm install
+            cd services/apollo
+            npm install
       - run:
           name: Run Prefect Server database migrations
           command: prefect-server database upgrade --yes
