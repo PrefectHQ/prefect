@@ -1,0 +1,5 @@
+task:
+    - "Add new `RenameFlowRunTask` for renaming a currently running flow - [#3285](https://github.com/PrefectHQ/prefect/issues/3285)."
+
+contributor:
+    - "[Max Del Giudice](https://github.com/madelgi)"

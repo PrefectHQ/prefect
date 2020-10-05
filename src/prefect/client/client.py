@@ -1069,6 +1069,31 @@ class Client:
         }
         self.graphql(mutation, raise_on_error=True)
 
+    def set_flow_run_name(self, flow_run_id: str, name: str) -> bool:
+        """
+        Set the name of a flow run.
+
+        Args:
+            - flow_run_id (str): the id of a flow run
+            - name (str): a name for this flow run
+
+        Returns:
+            - bool: whether or not the flow run name was updated
+        """
+        mutation = {
+            "mutation($input: set_flow_run_name_input!)": {
+                "set_flow_run_name(input: $input)": {
+                    "success": True,
+                }
+            }
+        }
+
+        result = self.graphql(
+            mutation, variables=dict(input=dict(flow_run_id=flow_run_id, name=name))
+        )
+
+        return result.data.set_flow_run_name.success
+
     def get_flow_run_state(self, flow_run_id: str) -> "prefect.engine.state.State":
         """
         Retrieves the current state for a flow run.
