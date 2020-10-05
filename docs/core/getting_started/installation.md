@@ -44,6 +44,7 @@ Examples of extra packages include:
 - `templates`: tools for working with string templates
 - `viz`: tools for visualizing Prefect flows
 - `aws`: tools for interacting with Amazon Web Services
+- `azure`: tools for interacting with Microsoft Azure
 - `google`: tools for interacting with Google Cloud Platform
 - `kubernetes`: tools for interacting with Kubernetes API objects
 - `twitter`: tools for interacting with the Twitter API
