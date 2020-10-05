@@ -1,10 +1,7 @@
 import json
-import time
 import typing
-import random
 import importlib.resources as resources
 
-import botocore
 from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel, create_waiter_with_client
 
@@ -82,7 +79,7 @@ class BatchSubmit(Task):
             - job_definition (str, optional): The AWS batch job definition.
             - job_queue (str, optional): Name of the AWS batch job queue.
             - batch_kwargs (dict, optional): Additional keyword arguments to pass to the boto3
-                `submit_job` function. See the [submit_job](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html#Batch.Client.submit_job)
+                `submit_job` function. See the [submit_job](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html#Batch.Client.submit_job)  # noqa
                 documentation for more details.
             - exit_condition (str, optional): Specify what job state the task should wait for before
                 returning, one of 'submitted', 'exists', 'running', or 'complete'.
