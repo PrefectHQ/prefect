@@ -223,8 +223,8 @@ def timeout_handler(
 
     try:
         return fut.result(timeout=timeout)
-    except FutureTimeout:
-        raise TimeoutError("Execution timed out.")
+    except FutureTimeout as exc:
+        raise TimeoutError("Execution timed out.") from exc
 
 
 class RecursiveCall(Exception):
@@ -261,11 +261,11 @@ def tail_recursive(func: Callable) -> Callable:
             except RecursiveCall as exc:
                 try:
                     call_func = getattr(exc.func, "__wrapped_func__")
-                except AttributeError:
+                except AttributeError as exc:
                     raise RecursionError(
                         "function has not been wrapped to provide tail recursion (func={})".format(
                             exc.func
-                        )
+                        ) from exc
                     )
 
                 # there may be multiple nested recursive calls, we should only
