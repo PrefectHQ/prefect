@@ -283,6 +283,47 @@ jobs:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
+  test_39:
+    docker:
+      - image: python:3.9
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Upgrade pip
+          command: pip install -U pip
+
+      - run:
+          name: Install Prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          name: Run tests
+          command: pytest tests -vvrfEsx
+
+  upload_coverage:
+    docker:
+      - image: python:3.7
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    steps:
+      - *attach_workspace
+      - run:
+          name: Upload Coverage
+          command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
+
 
   build_docker_image:
     docker:
