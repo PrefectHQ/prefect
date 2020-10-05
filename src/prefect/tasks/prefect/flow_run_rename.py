@@ -12,6 +12,7 @@ class FlowRunRenameTask(Task):
     Args:
         - flow_run_id (str, optional): The ID of the flow run to rename.
         - flow_run_name (str, optional): The new flow run name.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
     def __init__(
