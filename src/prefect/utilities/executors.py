@@ -265,8 +265,8 @@ def tail_recursive(func: Callable) -> Callable:
                     raise RecursionError(
                         "function has not been wrapped to provide tail recursion (func={})".format(
                             exc.func
-                        ) from exc
-                    )
+                        )
+                    ) from exc
 
                 # there may be multiple nested recursive calls, we should only
                 # respond to calls for the wrapped function explicitly,
