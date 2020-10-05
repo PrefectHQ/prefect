@@ -32,6 +32,9 @@ jobs:
   check_static_analysis:
     docker:
       - image: python:3.7
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     steps:
       - checkout
 
@@ -79,6 +82,9 @@ jobs:
   check_documentation:
     docker:
       - image: python:3.7
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     steps:
       - checkout
       - setup_remote_docker
@@ -96,6 +102,9 @@ jobs:
   test_lower_prefect:
     docker:
       - image: python:3.6
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
 
     steps:
       - *attach_workspace
@@ -136,6 +145,9 @@ jobs:
   test_vanilla_prefect:
     docker:
       - image: python:3.7
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
 
     steps:
       - *attach_workspace
@@ -169,6 +181,9 @@ jobs:
   test_36:
     docker:
       - image: python:3.6
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     steps:
       - *attach_workspace
       - checkout
@@ -201,6 +216,9 @@ jobs:
   test_37:
     docker:
       - image: python:3.7
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     steps:
       - checkout
       - setup_remote_docker
@@ -227,6 +245,9 @@ jobs:
   test_38:
     docker:
       - image: python:3.8
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     steps:
       - checkout
       - setup_remote_docker
@@ -253,6 +274,9 @@ jobs:
   upload_coverage:
     docker:
       - image: python:3.7
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     steps:
       - *attach_workspace
       - run:
@@ -263,6 +287,9 @@ jobs:
   build_docker_image:
     docker:
       - image: docker
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     parameters:
       python_version:
         type: string
@@ -327,6 +354,9 @@ jobs:
   build_master_docker_image:
     docker:
       - image: docker
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     parameters:
       python_version:
         type: string
@@ -368,6 +398,9 @@ jobs:
   build_all_extras_docker_image:
     docker:
       - image: docker
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     parameters:
       python_version:
         type: string
@@ -426,6 +459,9 @@ jobs:
   promote_server_artifacts:
     docker:
       - image: docker
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
 
     steps:
       - setup_remote_docker:
@@ -443,6 +479,9 @@ jobs:
   release_to_pypi:
     docker:
       - image: python:3.7
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
     steps:
       - checkout
 
