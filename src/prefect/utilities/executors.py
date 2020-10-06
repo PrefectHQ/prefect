@@ -261,12 +261,12 @@ def tail_recursive(func: Callable) -> Callable:
             except RecursiveCall as exc:
                 try:
                     call_func = getattr(exc.func, "__wrapped_func__")
-                except AttributeError as exc:
+                except AttributeError as attr_error:
                     raise RecursionError(
                         "function has not been wrapped to provide tail recursion (func={})".format(
                             exc.func
                         )
-                    ) from exc
+                    ) from attr_error
 
                 # there may be multiple nested recursive calls, we should only
                 # respond to calls for the wrapped function explicitly,
