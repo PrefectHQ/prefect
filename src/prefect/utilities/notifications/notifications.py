@@ -234,7 +234,9 @@ def gmail_notifier(
     try:
         server.sendmail("notifications@prefect.io", username, body)
     except Exception as exc:
-        raise ValueError("Email notification for {} failed".format(tracked_obj)) from exc
+        raise ValueError(
+            "Email notification for {} failed".format(tracked_obj)
+        ) from exc
     finally:
         server.quit()
 
