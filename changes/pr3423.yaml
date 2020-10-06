@@ -1,2 +1,0 @@
-fix:
-  - "Fix Fargate Agent not parsing cpu and memory provided as integers - [#3423](https://github.com/PrefectHQ/prefect/pull/3423)"

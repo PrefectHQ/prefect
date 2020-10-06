@@ -1,4 +1,0 @@
-fix:
-  - "Fix MySQL Tasks breaking on opening a context - [#3426](https://github.com/PrefectHQ/prefect/pull/3426)"
-contributor:
-  - "[Tenzin Choedak](https://github.com/tchoedak)"
