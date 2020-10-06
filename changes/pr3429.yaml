@@ -1,5 +1,0 @@
-enhancement:
-  - "Added FROM to explicitly chain exceptions in src/prefect/utilities - [#3429](https://github.com/PrefectHQ/prefect/pull/3429)"
-
-contributor:
-  - "[Juan Calderon-Perez](https://github.com/gabrielcalderon)"
