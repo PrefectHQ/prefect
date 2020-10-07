@@ -252,8 +252,8 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             "containerDefinition.{idx}.{key} -> Given: {given}, Expected: {expected}".format(
                 idx=idx,
                 key=key,
-                given=sorted(value) if key == "environment" else value,
-                expected=sorted(existing_container_definition.get(key))
+                given=sorted(list(value)) if key == "environment" else value,
+                expected=sorted(list(existing_container_definition.get(key)))
                 if key == "environment"
                 else existing_container_definition.get(key),
             )
@@ -285,8 +285,8 @@ class FargateTaskEnvironment(Environment, _RunMixin):
                     and key != "environment"
                 )
                 or (
-                    sorted(existing_task_definition.get(key))
-                    != sorted(task_definition_kwargs[key])
+                    sorted(list(existing_task_definition.get(key)))
+                    != sorted(list(task_definition_kwargs[key]))
                 )
                 and key == "environment"
             )
