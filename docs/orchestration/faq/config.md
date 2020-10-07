@@ -28,3 +28,8 @@ If you are running Prefect Server and have a postgres instance set up elsewhere 
 connection_url = ...
 host= ...
 ```
+The connection_url format is: 
+
+```
+postgresql://username:password@host:port/database_name
+```
