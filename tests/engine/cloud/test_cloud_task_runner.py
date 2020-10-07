@@ -1050,3 +1050,45 @@ def test_task_runner_handles_version_lock_error(monkeypatch):
     client.get_task_run_state.return_value = s
     with pytest.raises(ENDRUN):
         res = runner.call_runner_target_handlers(Pending(), Running())
+
+
+def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
+
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
+    )
+    client.set_task_run_name = MagicMock()
+
+    task = Task(name="test", task_run_name="asdf")
+    runner = CloudTaskRunner(task=task)
+    runner.task_run_id = "id"
+
+    runner.set_task_run_name(task_inputs={})
+
+    assert client.set_task_run_name.called
+    assert client.set_task_run_name.call_args[1]["name"] == "asdf"
+    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+
+    task = Task(name="test", task_run_name="{map_index}")
+    runner = CloudTaskRunner(task=task)
+    runner.task_run_id = "id"
+
+    class Temp:
+        value = 100
+
+    runner.set_task_run_name(task_inputs={"map_index": Temp()})
+
+    assert client.set_task_run_name.called
+    assert client.set_task_run_name.call_args[1]["name"] == "100"
+    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+
+    task = Task(name="test", task_run_name=lambda **kwargs: "name")
+    runner = CloudTaskRunner(task=task)
+    runner.task_run_id = "id"
+
+    runner.set_task_run_name(task_inputs={})
+
+    assert client.set_task_run_name.called
+    assert client.set_task_run_name.call_args[1]["name"] == "name"
+    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"

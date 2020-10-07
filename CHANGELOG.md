@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.13.10 <Badge text="beta" type="success" />
+
+Released on October 6, 2020.
+
+### Enhancements
+
+- Add option to template task run name at runtime when using backend API - [#2100](https://github.com/PrefectHQ/prefect/issues/2100)
+- Add `set_task_run_name` Client function - [#2100](https://github.com/PrefectHQ/prefect/issues/2100)
+- Use 'from' to explicitly chain exceptions - [#3306](https://github.com/PrefectHQ/prefect/pull/3306)
+- Update error message when registering flow to non-existant project - [#3418](https://github.com/PrefectHQ/prefect/pull/3418)
+- Add `flow.run_config`, an *experimental* design for configuring deployed flows - [#3333](https://github.com/PrefectHQ/prefect/pull/3333)
+- Allow python path in Local storage - [#3351](https://github.com/PrefectHQ/prefect/pull/3351)
+- Enable agent registration for server users - [#3385](https://github.com/PrefectHQ/prefect/pull/3385)
+- Added FROM to explicitly chain exceptions in src/prefect/utilities - [#3429](https://github.com/PrefectHQ/prefect/pull/3429)
+
+### Task Library
+
+- Add keypair auth for snowflake - [#3404](https://github.com/PrefectHQ/prefect/pull/3404)
+- Add new `RenameFlowRunTask` for renaming a currently running flow - [#3285](https://github.com/PrefectHQ/prefect/issues/3285).
+
+### Fixes
+
+- Fix mypy typing for `target` kwarg on base Task class - [#2100](https://github.com/PrefectHQ/prefect/issues/2100)
+- Fix Fargate Agent not parsing cpu and memory provided as integers - [#3423](https://github.com/PrefectHQ/prefect/pull/3423)
+- Fix MySQL Tasks breaking on opening a context - [#3426](https://github.com/PrefectHQ/prefect/pull/3426)
+
+### Contributors
+
+- [Ian Fridge](https://github.com/fridgei)
+- [Jack D. Sundberg](https://github.com/jacksund)
+- [Juan Calderon-Perez](https://github.com/gabrielcalderon)
+- [Max Del Giudice](https://github.com/madelgi)
+- [Paras Luthra](https://github.com/luthrap)
+- [Tenzin Choedak](https://github.com/tchoedak)
+
 ## 0.13.9 <Badge text="beta" type="success" />
 
 Released on September 29, 2020.

@@ -252,8 +252,10 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             "containerDefinition.{idx}.{key} -> Given: {given}, Expected: {expected}".format(
                 idx=idx,
                 key=key,
-                given=value,
-                expected=existing_container_definition.get(key),
+                given=sorted([value]) if key == "environment" else value,
+                expected=sorted([existing_container_definition.get(key)])
+                if key == "environment"
+                else existing_container_definition.get(key),
             )
             for idx, (
                 container_definition,
@@ -277,7 +279,17 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             for key in _DEFINITION_KWARG_LIST
             if key != "containerDefinitions"
             and key in task_definition_kwargs
-            and existing_task_definition.get(key) != task_definition_kwargs[key]
+            and (
+                (
+                    existing_task_definition.get(key) != task_definition_kwargs[key]
+                    and key != "environment"
+                )
+                or (
+                    sorted([existing_task_definition.get(key)])
+                    != sorted([task_definition_kwargs[key]])
+                )
+                and key == "environment"
+            )
         ]
 
         differences = containerDifferences + otherDifferences

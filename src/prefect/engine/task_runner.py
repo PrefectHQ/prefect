@@ -179,7 +179,7 @@ class TaskRunner(Runner):
         # If provided, use task's target as result location
         if self.task.target:
             if not isinstance(self.task.target, str):
-                self.result._formatter = self.task.target
+                self.result._formatter = self.task.target  # type: ignore
                 self.result.location = None
             else:
                 self.result.location = self.task.target
@@ -266,6 +266,9 @@ class TaskRunner(Runner):
                     state = self.check_task_ready_to_map(
                         state, upstream_states=upstream_states
                     )
+
+                # dynamically set task run name
+                self.set_task_run_name(task_inputs=task_inputs)
 
                 if self.task.target:
                     # check to see if there is a Result at the task's target
@@ -656,6 +659,16 @@ class TaskRunner(Runner):
         """
         return state, upstream_states
 
+    def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
+        """
+        Sets the name for this task run.
+
+        Args:
+            - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+        """
+        pass
+
     @call_state_handlers
     def check_target(self, state: State, inputs: Dict[str, Result]) -> State:
         """
@@ -683,8 +696,8 @@ class TaskRunner(Runner):
             if not isinstance(target, str):
                 target = target(**formatting_kwargs)
 
-            if result.exists(target, **formatting_kwargs):
-                known_location = target.format(**formatting_kwargs)
+            if result.exists(target, **formatting_kwargs):  # type: ignore
+                known_location = target.format(**formatting_kwargs)  # type: ignore
                 new_res = result.read(known_location)
                 cached_state = Cached(
                     result=new_res,
@@ -726,7 +739,7 @@ class TaskRunner(Runner):
                 state = Pending("Cache was invalid; ready to run.")
 
         if self.task.cache_for is not None:
-            candidate_states = []
+            candidate_states = []  # type: ignore
             if prefect.context.get("caches"):
                 candidate_states = prefect.context.caches.get(
                     self.task.cache_key or self.task.name, []

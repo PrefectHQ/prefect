@@ -11,10 +11,10 @@ import prefect
 
 try:
     from jira import JIRA
-except ImportError:
+except ImportError as import_error:
     raise ImportError(
         'Using `jira_notifier` requires Prefect to be installed with the "jira" extra.'
-    )
+    ) from import_error
 
 if TYPE_CHECKING:
     import prefect.engine.state

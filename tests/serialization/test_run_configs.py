@@ -2,15 +2,15 @@ import pytest
 
 from marshmallow import ValidationError
 
-from prefect.run_configs import KubernetesJob
+from prefect.run_configs import KubernetesRun
 from prefect.serialization.run_config import RunConfigSchema
 
 
 @pytest.mark.parametrize(
     "config",
     [
-        KubernetesJob(),
-        KubernetesJob(
+        KubernetesRun(),
+        KubernetesRun(
             job_template_path="s3://bucket/test.yaml",
             image="myimage",
             env={"test": "foo"},
@@ -20,7 +20,7 @@ from prefect.serialization.run_config import RunConfigSchema
             memory_request="2G",
             labels=["a", "b"],
         ),
-        KubernetesJob(
+        KubernetesRun(
             job_template={
                 "apiVersion": "batch/v1",
                 "kind": "Job",

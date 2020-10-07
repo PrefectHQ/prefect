@@ -12,6 +12,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Union,
 )
 
 import prefect
@@ -173,8 +174,8 @@ class Task(metaclass=SignatureValidator):
             formatted at runtime with values from `prefect.context`. If a callable function
             is provided, it should have signature `callable(**kwargs) -> str` and at write
             time all formatting kwargs will be passed and a fully formatted location is
-            expected as the return value.  Can be used for string formatting logic that
-            `.format(**kwargs)` doesn't support
+            expected as the return value. The callable can be used for string formatting logic that
+            `.format(**kwargs)` doesn't support.
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -188,6 +189,14 @@ class Task(metaclass=SignatureValidator):
             Task enters a failure state
         - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
             the Prefect logger. Defaults to `False`.
+        - task_run_name (Union[str, Callable], optional): a name to set for this task at runtime.
+            `task_run_name` strings can be templated formatting strings which will be
+            formatted at runtime with values from `prefect.context`, task inputs, and parameters.
+            If a callable function is provided, it should have signature `callable(**kwargs) -> str`
+            and at write time all formatting kwargs will be passed and a fully formatted location is
+            expected as the return value. The callable can be used for string formatting logic that
+            `.format(**kwargs)` doesn't support. **Note**: this only works for tasks running against a
+            backend API.
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -216,7 +225,8 @@ class Task(metaclass=SignatureValidator):
         on_failure: Callable = None,
         log_stdout: bool = False,
         result: "Result" = None,
-        target: str = None,
+        target: Union[str, Callable] = None,
+        task_run_name: Union[str, Callable] = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug
@@ -309,7 +319,9 @@ class Task(metaclass=SignatureValidator):
                     stacklevel=2,
                 )
             self.result = self.result.copy()
-            self.result.location = self.target
+            self.result.location = self.target  # type: ignore
+
+        self.task_run_name = task_run_name  # type: ignore
 
         if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
@@ -422,7 +434,7 @@ class Task(metaclass=SignatureValidator):
                     stacklevel=2,
                 )
             new.result = new.result.copy()
-            new.result.location = new.target
+            new.result.location = new.target  # type: ignore
 
         new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))
