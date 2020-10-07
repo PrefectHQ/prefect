@@ -273,7 +273,7 @@ jobs:
 
   test_39:
     docker:
-      - image: python:3.9-rc
+      - image: python:3.9.0
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
