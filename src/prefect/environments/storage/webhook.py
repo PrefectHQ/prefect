@@ -35,12 +35,12 @@ class _SecretMapping(Mapping):
         if out is None:
             try:
                 out = Secret(key).get()
-            except ValueError as valueError:
+            except ValueError as exc:
                 msg = (
                     "Template value '{}' does not refer to an "
                     "environment variable or Prefect secret."
                 )
-                raise RuntimeError(msg.format(key)) from valueError
+                raise RuntimeError(msg.format(key)) from exc
         return out  # type: ignore
 
     def __iter__(self) -> Iterator[Any]:
