@@ -215,12 +215,13 @@ class S3List(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to list the files of
-            - last_modified_begin (str, optional): provide a timestamp in `RFC 3339`, `ISO 8601` or
-                any pendulum supported [format](https://pendulum.eustace.io/docs/#parsing) and filter
+            - last_modified_begin (str, optional): keep items with `LastModified` greater than or equal to
+                given value. timestamp should be in `RFC 3339`, `ISO 8601` or any pendulum supported
+                [format](https://pendulum.eustace.io/docs/#parsing).
                 results using this as the beginning timestamp
-            - last_modified_end (str, optional): provide a timestamp in `RFC 3339`, `ISO 8601` or
-                any pendulum supported [format](https://pendulum.eustace.io/docs/#parsing) and filter
-                results using this as the end timestamp
+            - last_modified_end (str, optional): keep items with `LastModified` less than or equal to
+                given value. timestamp should be in `RFC 3339`, `ISO 8601` or any pendulum supported
+                [format](https://pendulum.eustace.io/docs/#parsing).
 
         Returns:
             - list[str]: A list of keys that match the given prefix.
