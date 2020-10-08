@@ -22,6 +22,7 @@ pip install 'prefect[github]'
 ```
 :::
 
+
 In this example we will walk through a potential workflow you may use when registering flows with
 [GitHub](/api/latest/environments/storage.html#github) storage. This example takes place in a GitHub
 repository with the following structure:
@@ -94,6 +95,15 @@ If you change any of the structure of your flow such as task names, rearrange ta
 will need to reregister that flow.
 :::
 
+::: tip GitLab users 
+This example applies to GitLab as well. To use GitLab storage, install the `gitlab` extra:
+
+```bash
+pip install 'prefect[gitlab]'
+```
+
+You can replace `GitHub` instances in the example above with `GitLab`, use the `"GITLAB_ACCESS_TOKEN"` secret rather than `"GITHUB_ACCESS_TOKEN"`, and then you may run the example as written.
+:::
 ### File based Docker storage
 
 ```python
