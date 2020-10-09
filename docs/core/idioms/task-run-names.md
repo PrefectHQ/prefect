@@ -11,7 +11,8 @@ example, easily showing which mapped task failed based on the input it received.
 
 ::: warning Backend Only
 This feature only works when running in the context of an [API backend](/orchestration/) run using
-something like the Prefect Core Server or Prefect Cloud.
+something like the [Prefect Server](/orchestration/server/overview.html) or
+[Prefect Cloud](https://cloud.prefect.io).
 :::
 
 In the example snippet below we have a flow that maps over a set of data returned from an upstream task
@@ -74,7 +75,7 @@ This callable will template the task run's name based on the `val` input it rece
 
 :::: tabs
 ::: tab "Functional API"
-```python
+```python{7}
 from prefect import task, Flow
 
 @task
@@ -93,7 +94,7 @@ with Flow("task_run_names") as flow:
 :::
 
 ::: tab "Imperative API"
-```python
+```python{15}
 from prefect import Task, Flow
 
 class GetValues(Task):
