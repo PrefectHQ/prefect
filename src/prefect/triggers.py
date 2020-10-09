@@ -185,7 +185,7 @@ def some_failed(
     Args:
         - at_least (Union[int, float], optional): the minimum number of
             upstream failures that must occur for this task to run.  If the
-            provided number is 1, it will be interpreted as a
+            provided number is less than 1, it will be interpreted as a
             percentage, otherwise as an absolute number.
         - at_most (Union[int, float], optional): the maximum number of upstream
            failures to allow for this task to run.  If the provided number is
