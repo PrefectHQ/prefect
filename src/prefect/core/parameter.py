@@ -32,7 +32,7 @@ class Parameter(Task):
 
     Args:
         - name (str): the Parameter name.
-        - default (any, optional): A default value for the parameter.
+        - default (any, optional): A default value for the parameter. Must be a JSON-Serializable type.
         - required (bool, optional): If True, the Parameter is required and the
             default value is ignored. Defaults to `False` if a `default` is
             provided, otherwise `True`.
