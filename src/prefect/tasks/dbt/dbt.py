@@ -68,7 +68,7 @@ class DbtShellTask(ShellTask):
         env: dict = None,
         environment: str = None,
         overwrite_profiles: bool = False,
-        profiles_dir: str = None,
+        profiles_dir: str = os.path.join(os.path.expanduser('~'), '.dbt'),
         set_profiles_envar: bool = True,
         dbt_kwargs: dict = None,
         helper_script: str = None,
