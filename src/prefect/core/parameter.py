@@ -1,5 +1,5 @@
 import pendulum
-from typing import TYPE_CHECKING, Any, Dict, Iterable
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Union, Optional
 
 import prefect
 from prefect.engine.serializers import DateTimeSerializer
@@ -18,6 +18,8 @@ no_default = type(
     (object,),
     dict.fromkeys(["__repr__", "__reduce__"], lambda s: "no_default"),
 )()
+
+JSONSerializableParameterValue = Optional[Union[type(no_default), str, int, float, bool, list, dict]]
 
 
 class Parameter(Task):
@@ -41,7 +43,7 @@ class Parameter(Task):
     def __init__(
         self,
         name: str,
-        default: Any = no_default,
+        default: JSONSerializableParameterValue = no_default,
         required: bool = None,
         tags: Iterable[str] = None,
     ):
