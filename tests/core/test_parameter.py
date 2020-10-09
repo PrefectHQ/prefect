@@ -1,10 +1,6 @@
-from decimal import Decimal
-
 import pendulum
-import pytest
-
 import prefect
-from marshmallow import ValidationError
+import pytest
 from prefect.core.flow import Flow
 from prefect.core.parameter import DateTimeParameter, Parameter
 from prefect.core.task import Task
@@ -146,37 +142,3 @@ class TestDateTimeParameter:
         state = self.dt_flow.run()
         assert state.result[self.dt].result is None
         assert state.result[self.x].result is None
-
-
-class NonNativeParameterDefaultValue:
-    pass
-
-
-@pytest.mark.parametrize("value", [
-    "string",  # string
-    5,  # int
-    5.5,  # float
-    True,  # bool
-    [1, "a", False],  # list
-    {"a": 1, "b": True, "c": "d"},  # dict
-    [{"a": 1}, {"a": 2}, {"a": 3}],  # composite
-    {"a": [1, "b", False], "c": "d"},  # composite
-])
-def test_native_parameter_default_value(create_flow_client, tmpdir, value):
-    @prefect.task()
-    def return_value(x):
-        return x
-
-    with Flow("test") as flow:
-        param = Parameter("param_decimal", required=False, default=value)
-        x = return_value(param)
-
-    flow.storage = prefect.environments.storage.Local(tmpdir)
-    flow.result = flow.storage.result
-
-    flow_id = create_flow_client.register(
-        flow,
-        compressed=False,
-        project_name="my-default-project",
-    )
-    assert flow_id
