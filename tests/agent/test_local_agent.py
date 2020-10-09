@@ -22,8 +22,8 @@ def test_local_agent_init(cloud_api):
         "s3-flow-storage",
         "gcs-flow-storage",
         "github-flow-storage",
-        "gitlab-flow-storage",
         "webhook-flow-storage",
+        "gitlab-flow-storage",
     }
     assert agent.name == "agent"
 
@@ -37,8 +37,8 @@ def test_local_agent_deduplicates_labels(cloud_api):
         "s3-flow-storage",
         "gcs-flow-storage",
         "github-flow-storage",
-        "gitlab-flow-storage",
         "webhook-flow-storage",
+        "gitlab-flow-storage",
     }
     assert len(agent.labels) == len(set(agent.labels))
 
@@ -64,8 +64,8 @@ def test_local_agent_config_options(cloud_api):
             "s3-flow-storage",
             "gcs-flow-storage",
             "github-flow-storage",
-            "gitlab-flow-storage",
             "webhook-flow-storage",
+            "gitlab-flow-storage",
             "test_label",
         }
 
@@ -91,8 +91,8 @@ def test_local_agent_config_options_hostname(cloud_api):
             "s3-flow-storage",
             "gcs-flow-storage",
             "github-flow-storage",
-            "gitlab-flow-storage",
             "webhook-flow-storage",
+            "gitlab-flow-storage",
         }
 
 
@@ -162,8 +162,8 @@ def test_populate_env_vars(cloud_api):
                     "gcs-flow-storage",
                     "s3-flow-storage",
                     "github-flow-storage",
-                    "gitlab-flow-storage",
                     "webhook-flow-storage",
+                    "gitlab-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
@@ -204,8 +204,8 @@ def test_populate_env_vars_includes_agent_labels(cloud_api):
                     "gcs-flow-storage",
                     "s3-flow-storage",
                     "github-flow-storage",
-                    "gitlab-flow-storage",
                     "webhook-flow-storage",
+                    "gitlab-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",

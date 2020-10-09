@@ -68,7 +68,8 @@ class GitLab(Storage):
             - flow_location (str): the location of a flow within this Storage; in this case,
                 a file path on a repository where a Flow file has been committed. Will use `path` if not
                 provided.
-            - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if not specified
+            - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if
+                not specified
 
         Returns:
             - Flow: the requested Flow
@@ -100,7 +101,8 @@ class GitLab(Storage):
             raise exc
         except GitlabGetError as exc:
             self.logger.error(
-                f"Error retrieving file contents at {flow_location} in {self.repo}@{ref}. Ensure the project and file exist."
+                f"Error retrieving file contents at {flow_location} in {self.repo}@{ref}. "
+                "Ensure the project and file exist."
             )
             raise exc
 
