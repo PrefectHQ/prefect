@@ -138,6 +138,31 @@ def patch_posts(monkeypatch):
 
 
 @pytest.fixture()
+def create_flow_client(patch_post, monkeypatch):
+    from prefect.utilities.configuration import set_temporary_config
+    from prefect import Client as PrefectClient
+
+    response = {
+        "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
+    }
+    patch_post(response)
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config(
+            {
+                "cloud.api": "http://my-cloud.foo",
+                "cloud.auth_token": "secret_token",
+                "backend": "cloud",
+            }
+    ):
+        client = PrefectClient()
+
+    return client
+
+@pytest.fixture()
 def runner_token(monkeypatch):
     monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())
     monkeypatch.setattr("prefect.agent.agent.Agent._register_agent", MagicMock())
