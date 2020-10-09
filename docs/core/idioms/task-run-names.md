@@ -6,7 +6,7 @@ The callable has the option to use values from not only task inputs but also eve
 [context](/api/latest/utilities/context.html) during the run. This mechanism operates in a similar
 fashion to how
 [result targets are templated](/core/concepts/persistence.html#output-caching-based-on-a-file-target).
-Providing a task run name callable is a great way to help identify errors that may occur in a flow, for
+Providing a callable task run name is a great way to help identify errors that may occur in a flow, for
 example, easily showing which mapped task failed based on the input it received.
 
 ::: warning Backend Only
