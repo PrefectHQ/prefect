@@ -1,9 +1,11 @@
 import pendulum
-import prefect
 import pytest
+
+import prefect
 from prefect.core.flow import Flow
 from prefect.core.parameter import DateTimeParameter, Parameter
 from prefect.core.task import Task
+from prefect.tasks.core.function import FunctionTask
 
 
 def test_create_parameter():
