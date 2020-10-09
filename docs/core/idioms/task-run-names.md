@@ -3,10 +3,10 @@
 Tasks in Prefect provide a way for dynamically naming task runs based on the inputs provided to them from
 upstream tasks. This is accomplished by providing a callable to the `task_run_name` kwarg on the task.
 The callable has the option to use values from not only task inputs but also everything available in
-[context](/api/latest/utilities/context.html) during the run. This mechanism oprates in a similar
+[context](/api/latest/utilities/context.html) during the run. This mechanism operates in a similar
 fashion to how
 [result targets are templated](/core/concepts/persistence.html#output-caching-based-on-a-file-target).
-Providing a task run name callable is a great way to help identify errors that may occur in a flow, for
+Providing a callable task run name is a great way to help identify errors that may occur in a flow, for
 example, easily showing which mapped task failed based on the input it received.
 
 ::: warning Backend Only
