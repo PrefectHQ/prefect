@@ -152,22 +152,17 @@ class NonNativeParameterDefaultValue:
     pass
 
 
-@pytest.mark.parametrize(("value", "fails", ), [
-    # Fails
-    (Decimal("5.5"), True),
-    (NonNativeParameterDefaultValue(), True),
-
-    # Succeed
-    ("string", False, ),  # string
-    (5, False, ),  # int
-    (5.5, False, ),  # float
-    (True, False, ),  # bool
-    ([1, "a", False], False),  # list
-    ({"a": 1, "b": True, "c": "d"}, False),  # dict
-    ([{"a": 1}, {"a": 2}, {"a": 3}], False),  # composite
-    ({"a": [1, "b", False], "c": "d"}, False),  # composite
+@pytest.mark.parametrize("value", [
+    "string",  # string
+    5,  # int
+    5.5,  # float
+    True,  # bool
+    [1, "a", False],  # list
+    {"a": 1, "b": True, "c": "d"},  # dict
+    [{"a": 1}, {"a": 2}, {"a": 3}],  # composite
+    {"a": [1, "b", False], "c": "d"},  # composite
 ])
-def test_native_parameter_default_value(create_flow_client, tmpdir, value, fails):
+def test_native_parameter_default_value(create_flow_client, tmpdir, value):
     @prefect.task()
     def return_value(x):
         return x
@@ -179,17 +174,9 @@ def test_native_parameter_default_value(create_flow_client, tmpdir, value, fails
     flow.storage = prefect.environments.storage.Local(tmpdir)
     flow.result = flow.storage.result
 
-    def call():
-        return create_flow_client.register(
-            flow,
-            compressed=False,
-            project_name="my-default-project",
-        )
-
-    if fails:
-        with pytest.raises(ValidationError):
-            call()
-
-    else:
-        flow_id = call()
-        assert flow_id
+    flow_id = create_flow_client.register(
+        flow,
+        compressed=False,
+        project_name="my-default-project",
+    )
+    assert flow_id
