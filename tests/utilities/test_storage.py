@@ -7,7 +7,11 @@ import prefect
 from prefect import Flow
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
-from prefect.utilities.storage import get_flow_image, extract_flow_from_file
+from prefect.utilities.storage import (
+    get_flow_image,
+    extract_flow_from_file,
+    extract_flow_from_module,
+)
 
 
 def test_get_flow_image_docker_storage():
@@ -89,3 +93,70 @@ def test_extract_flow_from_file_raises_on_run_register(tmpdir):
     with prefect.context({"loading_flow": True}):
         with pytest.warns(Warning):
             extract_flow_from_file(file_path=full_path)
+
+
+flow = Flow("test-module-loading")
+
+
+def test_extract_flow_from_module():
+    module_name = "tests.utilities.test_storage"
+
+    test_extract_flow_from_module.multi_level_flow = flow
+    test_extract_flow_from_module.not_a_flow = None
+    test_extract_flow_from_module.not_a_flow_factory = lambda: object()
+    test_extract_flow_from_module.invalid_callable = lambda _a, _b, **_kwargs: None
+
+    class FlowFactory:
+        @classmethod
+        def default_flow(cls):
+            return flow
+
+    test_extract_flow_from_module.callable_flow = FlowFactory.default_flow
+
+    default_flow = extract_flow_from_module(module_name)
+    attribute_flow = extract_flow_from_module(module_name, "flow")
+    module_flow = extract_flow_from_module(f"{module_name}:flow")
+    multi_level_flow = extract_flow_from_module(
+        f"{module_name}:test_extract_flow_from_module.multi_level_flow"
+    )
+    multi_level_arg_flow = extract_flow_from_module(
+        module_name, "test_extract_flow_from_module.multi_level_flow"
+    )
+    callable_flow = extract_flow_from_module(
+        f"{module_name}:test_extract_flow_from_module.callable_flow"
+    )
+
+    assert (
+        default_flow
+        == attribute_flow
+        == module_flow
+        == multi_level_flow
+        == multi_level_arg_flow
+        == callable_flow
+    )
+
+    with pytest.raises(AttributeError):
+        extract_flow_from_module("tests.utilities.test_storage:should_not_exist_flow")
+
+    with pytest.raises(AttributeError):
+        extract_flow_from_module(
+            "tests.utilities.test_storage", "should_not_exist_flow"
+        )
+
+    with pytest.raises(ValueError, match="without an attribute specifier or remove"):
+        extract_flow_from_module("tests.utilities.test_storage:flow", "flow")
+
+    with pytest.raises(ValueError, match="must return `prefect.Flow`"):
+        extract_flow_from_module(
+            f"{module_name}:test_extract_flow_from_module.not_a_flow"
+        )
+
+    with pytest.raises(ValueError, match="must return `prefect.Flow`"):
+        extract_flow_from_module(
+            f"{module_name}:test_extract_flow_from_module.not_a_flow_factory"
+        )
+
+    with pytest.raises(TypeError):
+        extract_flow_from_module(
+            f"{module_name}:test_extract_flow_from_module.invalid_callable"
+        )
