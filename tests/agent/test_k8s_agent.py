@@ -1091,7 +1091,6 @@ class TestK8sAgentRunConfig:
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
-            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
