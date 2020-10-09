@@ -1,7 +1,6 @@
-import os
-import tempfile
 from unittest.mock import MagicMock
 
+import pytest
 from click.testing import CliRunner
 
 from prefect.cli.register import register
@@ -21,26 +20,54 @@ def test_register_help():
     assert "Register flows" in result.output
 
 
-def test_register_flow():
+def test_register_flow_help():
     runner = CliRunner()
     result = runner.invoke(register, ["flow", "--help"])
     assert result.exit_code == 0
     assert "Register a flow" in result.output
 
 
-def test_register_flow_kwargs(monkeypatch, tmpdir):
-    monkeypatch.setattr("prefect.Client", MagicMock())
+@pytest.mark.parametrize("labels", [[], ["b", "c"]])
+@pytest.mark.parametrize("kind", ["run_config", "environment"])
+def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
+    client = MagicMock()
+    monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
 
-    contents = """from prefect import Flow\nf=Flow('test-flow')"""
+    if kind == "environment":
+        contents = (
+            "from prefect import Flow\n"
+            "from prefect.environments.execution import LocalEnvironment\n"
+            "from prefect.environments.storage import Local\n"
+            "f = Flow('test-flow', environment=LocalEnvironment(labels=['a']),\n"
+            "   storage=Local(add_default_labels=False))"
+        )
+    else:
+        contents = (
+            "from prefect import Flow\n"
+            "from prefect.run_configs import KubernetesRun\n"
+            "from prefect.environments.storage import Local\n"
+            "f = Flow('test-flow', run_config=KubernetesRun(labels=['a']),\n"
+            "   storage=Local(add_default_labels=False))"
+        )
 
-    full_path = os.path.join(tmpdir, "flow.py")
-
+    full_path = str(tmpdir.join("flow.py"))
     with open(full_path, "w") as f:
         f.write(contents)
 
+    args = ["flow", "--file", full_path, "--name", "test-flow", "--project", "project"]
+    for l in labels:
+        args.extend(["-l", l])
+
     runner = CliRunner()
-    result = runner.invoke(
-        register,
-        ["flow", "--file", full_path, "--name", "test-flow", "--project", "project"],
-    )
+    result = runner.invoke(register, args)
+    assert client.register.called
+    assert client.register.call_args[1]["project_name"] == "project"
+
+    # Check additional labels are set if specified
+    flow = client.register.call_args[1]["flow"]
+    if kind == "run_config":
+        assert flow.run_config.labels == {"a", *labels}
+    else:
+        assert flow.environment.labels == {"a", *labels}
+
     assert result.exit_code == 0
