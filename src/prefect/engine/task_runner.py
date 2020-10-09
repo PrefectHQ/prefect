@@ -829,7 +829,7 @@ class TaskRunner(Runner):
             if getattr(self.task, "log_stdout", False):
                 with redirect_stdout(
                     prefect.utilities.logging.RedirectToLog(self.logger)  # type: ignore
-                ):
+                ):  # type: ignore
                     value = timeout_handler(
                         self.task.run, timeout=self.task.timeout, **raw_inputs
                     )
