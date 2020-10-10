@@ -151,6 +151,8 @@ def test_task_creates_default_profile_if_none_exists():
             overwrite_profiles=False,
         )(command="ls")
     out = f.run()
-    default_profiles_path = os.path.exists(os.path.join(os.path.expanduser('~'), '.dbt'))
+    default_profiles_path = os.path.exists(
+        os.path.join(os.path.expanduser("~"), ".dbt")
+    )
     assert out.is_successful()
     assert default_profiles_path
