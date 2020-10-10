@@ -83,7 +83,7 @@ class DbtShellTask(ShellTask):
         self.overwrite_profiles = overwrite_profiles
         self.profiles_dir = profiles_dir
         self.set_profiles_envar = set_profiles_envar
-        self.dbt_kwargs = dbt_kwargs
+        self.dbt_kwargs = dbt_kwargs or {}
         super().__init__(
             **kwargs,
             command=command,
