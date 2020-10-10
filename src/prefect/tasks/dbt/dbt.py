@@ -70,7 +70,7 @@ class DbtShellTask(ShellTask):
         overwrite_profiles: bool = False,
         profiles_dir: str = None,
         set_profiles_envar: bool = True,
-        dbt_kwargs: dict = None,
+        dbt_kwargs: dict = {},
         helper_script: str = None,
         shell: str = "bash",
         return_all: bool = False,
