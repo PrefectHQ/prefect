@@ -58,7 +58,7 @@ class TestGetGitLabClient:
             with prefect.context(secrets=dict(GITLAB_ACCESS_TOKEN="ACCESS_TOKEN")):
                 get_gitlab_client()
 
-        assert gitlab.call_args[1]['private_token'] == "ACCESS_TOKEN"
+        assert gitlab.call_args[1]["private_token"] == "ACCESS_TOKEN"
 
     def test_prefers_passed_credentials_over_secrets(self, monkeypatch):
         gitlab = MagicMock()
@@ -67,7 +67,7 @@ class TestGetGitLabClient:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(GITlab_ACCESS_TOKEN="ACCESS_TOKEN")):
                 get_gitlab_client(credentials=desired_credentials)
-        assert gitlab.call_args[1]['private_token'] == "PROVIDED_KEY"
+        assert gitlab.call_args[1]["private_token"] == "PROVIDED_KEY"
 
     def test_creds_default_to_environment(self, monkeypatch):
         del os.environ["GITLAB_ACCESS_TOKEN"]
