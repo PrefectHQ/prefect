@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -56,7 +57,8 @@ class TestGetGitLabClient:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(GITLAB_ACCESS_TOKEN="ACCESS_TOKEN")):
                 get_gitlab_client()
-        assert gitlab.call_args.kwargs["private_token"] == "ACCESS_TOKEN"
+
+        assert gitlab.call_args[1]['private_token'] == "ACCESS_TOKEN"
 
     def test_prefers_passed_credentials_over_secrets(self, monkeypatch):
         gitlab = MagicMock()
@@ -65,26 +67,29 @@ class TestGetGitLabClient:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(GITlab_ACCESS_TOKEN="ACCESS_TOKEN")):
                 get_gitlab_client(credentials=desired_credentials)
-        assert gitlab.call_args.kwargs["private_token"] == "PROVIDED_KEY"
+        assert gitlab.call_args[1]['private_token'] == "PROVIDED_KEY"
 
     def test_creds_default_to_environment(self, monkeypatch):
+        del os.environ["GITLAB_ACCESS_TOKEN"]
         gitlab = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
         get_gitlab_client()
-        assert gitlab.call_args.kwargs["private_token"] is None
+
+        print(gitlab.call_args)
+        assert gitlab.call_args[1].get("private_token") is None
 
         monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "TOKEN")
         get_gitlab_client()
-        assert gitlab.call_args.kwargs["private_token"] == "TOKEN"
+        assert gitlab.call_args[1]["private_token"] == "TOKEN"
 
     def test_default_to_cloud(self, monkeypatch):
         gitlab = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
         get_gitlab_client()
-        assert gitlab.call_args.args[0] == "https://gitlab.com"
+        assert gitlab.call_args[0][0] == "https://gitlab.com"
 
     def test_specify_host(self, monkeypatch):
         gitlab = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
         get_gitlab_client(host="http://localhost:1234")
-        assert gitlab.call_args.args[0] == "http://localhost:1234"
+        assert gitlab.call_args[0][0] == "http://localhost:1234"
