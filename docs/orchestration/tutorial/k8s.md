@@ -8,7 +8,7 @@ In previous tutorials we used the Local Agent and Docker Agent to execute flow r
 
 ## Running a Kubernetes Agent
 
-In order to deploy your flow to Kubernetes the flow is required to have a Docker Storage with the image pushed to a registry that your Kubernetes cluster has access to.
+In order to deploy your flow to Kubernetes the flow is required to have a Docker Storage with the image pushed to a registry that your Kubernetes cluster has access to. In AWS deployments, S3 is not accessible by default to Amazon EKS. To enable use S3 by your kubernetes cluster on EKS, add the necessary permissions (AmazonS3FullAccess or AmazonS3ReadOnlyAccess) directly to the NodeInstanceRole used by aws-auth-cm.yaml after launching worker nodes and before applying the yaml file with kubectl.
 
 ```python
 import prefect
