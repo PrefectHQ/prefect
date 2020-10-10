@@ -70,7 +70,7 @@ class DbtShellTask(ShellTask):
         overwrite_profiles: bool = False,
         profiles_dir: str = None,
         set_profiles_envar: bool = True,
-        dbt_kwargs: dict = {},
+        dbt_kwargs: dict = None,
         helper_script: str = None,
         shell: str = "bash",
         return_all: bool = False,
@@ -83,7 +83,7 @@ class DbtShellTask(ShellTask):
         self.overwrite_profiles = overwrite_profiles
         self.profiles_dir = profiles_dir
         self.set_profiles_envar = set_profiles_envar
-        self.dbt_kwargs = dbt_kwargs
+        self.dbt_kwargs = dbt_kwargs or {}
         super().__init__(
             **kwargs,
             command=command,
