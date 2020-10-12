@@ -1,5 +1,9 @@
 import json
-import importlib.resources as resources
+
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    import importlib_resources as pkg_resources
 
 import boto3
 from botocore.exceptions import WaiterError
@@ -25,8 +29,12 @@ class AWSClientWait(Task):
     Args:
         - client (str, optional): The AWS client on which to wait (e.g., 'batch', 'ec2', etc)
         - waiter_name (str, optional): The name of the waiter to instantiate. Can be a boto-supported
-            waiter or one of prefect's custom waiters. You may also use a custom waiter name, if
-            you supply an accompanying waiter definition dict.
+            waiter or one of prefect's custom waiters. Currently, prefect offers three additional
+            waiters for AWS Batch: `"JobExists"` waits for a job to be instantiated, `"JobRunning"`
+            waits for a job to start running, and `"JobComplete"` waits for a job to finish. You can
+            find the definitions for all prefect-defined waiters [here](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/tasks/aws/waiters).  # noqa
+            You may also use a custom waiter name, if you supply an accompanying waiter definition
+            dict.
         - waiter_definition (dict, optional): A valid custom waiter model, as a dict. Note that if
             you supply a custom definition, it is assumed that the provided 'waiter_name' is
             contained within the waiter definition dict.
@@ -65,8 +73,12 @@ class AWSClientWait(Task):
         Args:
             - client (str): The AWS client on which to wait (e.g., 'batch', 'ec2', etc)
             - waiter_name (str, optional): The name of the waiter to instantiate. Can be a boto-supported
-                waiter or one of prefect's custom waiters. You may also use a custom waiter name, if
-                you supply an accompanying waiter definition dict.
+                waiter or one of prefect's custom waiters. Currently, prefect offers three additional
+                waiters for AWS Batch: `"JobExists"` waits for a job to be instantiated, `"JobRunning"`
+                waits for a job to start running, and `"JobComplete"` waits for a job to finish. You can
+                find the definitions for all prefect-defined waiters [here](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/tasks/aws/waiters).  # noqa
+                You may also use a custom waiter name, if you supply an accompanying waiter definition
+                dict.
             - waiter_definition (dict, optional): A valid custom waiter model, as a dict. Note that if
                 you supply a custom definition, it is assumed that the provided 'waiter_name' is
                 contained within the waiter definition dict.
@@ -115,7 +127,7 @@ class AWSClientWait(Task):
         """
         try:
             # Instantiate waiter from accompanying client json file
-            with resources.open_text(waiters, f"{client_str}.json") as handle:
+            with pkg_resources.open_text(waiters, f"{client_str}.json") as handle:
                 waiter_model = WaiterModel(json.load(handle))
 
             return create_waiter_with_client(waiter_name, waiter_model, boto_client)
