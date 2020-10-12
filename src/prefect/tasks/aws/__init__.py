@@ -13,6 +13,8 @@ try:
     )
     from prefect.tasks.aws.step_function import StepActivate
     from prefect.tasks.aws.secrets_manager import AWSSecretsManager
+    from prefect.tasks.aws.batch import BatchSubmit
+    from prefect.tasks.aws.client_waiter import AWSClientWait
 except ImportError:
     raise ImportError(
         'Using `prefect.tasks.aws` requires Prefect to be installed with the "aws" extra.'
