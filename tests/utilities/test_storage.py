@@ -101,7 +101,10 @@ flow = Flow("test-module-loading")
 def test_extract_flow_from_module():
     module_name = "tests.utilities.test_storage"
 
-    test_extract_flow_from_module.multi_level_flow = flow
+    multi_level_flow = Flow("test-module-loading-multilevel")
+    factory_flow = Flow("test-module-loading-callable")
+
+    test_extract_flow_from_module.multi_level_flow = multi_level_flow
     test_extract_flow_from_module.not_a_flow = None
     test_extract_flow_from_module.not_a_flow_factory = lambda: object()
     test_extract_flow_from_module.invalid_callable = lambda _a, _b, **_kwargs: None
@@ -109,14 +112,14 @@ def test_extract_flow_from_module():
     class FlowFactory:
         @classmethod
         def default_flow(cls):
-            return flow
+            return factory_flow
 
     test_extract_flow_from_module.callable_flow = FlowFactory.default_flow
 
     default_flow = extract_flow_from_module(module_name)
     attribute_flow = extract_flow_from_module(module_name, "flow")
     module_flow = extract_flow_from_module(f"{module_name}:flow")
-    multi_level_flow = extract_flow_from_module(
+    multi_level_default_flow = extract_flow_from_module(
         f"{module_name}:test_extract_flow_from_module.multi_level_flow"
     )
     multi_level_arg_flow = extract_flow_from_module(
@@ -126,14 +129,9 @@ def test_extract_flow_from_module():
         f"{module_name}:test_extract_flow_from_module.callable_flow"
     )
 
-    assert (
-        default_flow
-        == attribute_flow
-        == module_flow
-        == multi_level_flow
-        == multi_level_arg_flow
-        == callable_flow
-    )
+    assert flow == default_flow == attribute_flow == module_flow
+    assert multi_level_flow == multi_level_default_flow == multi_level_arg_flow
+    assert factory_flow == callable_flow
 
     with pytest.raises(AttributeError):
         extract_flow_from_module("tests.utilities.test_storage:should_not_exist_flow")

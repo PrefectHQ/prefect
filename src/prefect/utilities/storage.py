@@ -111,10 +111,10 @@ def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
         raise ValueError(
             "Provide either `module_str` without an attribute specifier or remove `flow_name`."
         )
-
-    module_name, flow_name = (
-        module_parts if len(module_parts) == 2 else [module_str, flow_name or ""]
-    )
+    elif len(module_parts) == 2:
+        module_name, flow_name = module_parts
+    else:
+        module_name = module_str
 
     module = importlib.import_module(module_name)
 
