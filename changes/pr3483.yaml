@@ -1,0 +1,2 @@
+feature:
+  - "Allow for schedules that emit custom Flow Run labels - [#3483](https://github.com/PrefectHQ/prefect/pull/3483)"
