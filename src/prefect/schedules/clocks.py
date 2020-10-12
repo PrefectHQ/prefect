@@ -258,7 +258,7 @@ class CronClock(Clock):
         # if there is a start date, advance to at least one second before the start (so that
         # the start date itself will be registered as a valid clock date)
         if self.start_date is not None:
-            after = max(after, self.start_date - timedelta(seconds=1))
+            after = max(after, self.start_date - timedelta(seconds=1))  # type: ignore
 
         assert isinstance(after, datetime)  # mypy assertion
         after = pendulum.instance(after)
