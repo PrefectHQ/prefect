@@ -1,0 +1,2 @@
+fix:
+  - "Raise a better error when calling `flow.register()` from within a `Flow` context - [#3467](https://github.com/PrefectHQ/prefect/pull/3467)"

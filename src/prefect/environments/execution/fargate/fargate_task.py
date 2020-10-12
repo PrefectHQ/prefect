@@ -285,7 +285,7 @@ class FargateTaskEnvironment(Environment, _RunMixin):
                     and key != "environment"
                 )
                 or (
-                    sorted([existing_task_definition.get(key)])
+                    sorted([existing_task_definition.get(key)])  # type: ignore
                     != sorted([task_definition_kwargs[key]])
                 )
                 and key == "environment"

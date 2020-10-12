@@ -197,22 +197,18 @@ class CloudFlowRunner(FlowRunner):
                         flow_run_version = flow_run_info.version
                         # If not already leaving context, raise KeyboardInterrupt in the main thread
                         if not exiting_context:
-                            if hasattr(signal, "raise_signal"):
-                                # New in python 3.8
-                                signal.raise_signal(signal.SIGINT)  # type: ignore
-                            else:
-                                if os.name == "nt":
-                                    # This doesn't actually send a signal, so it will only
-                                    # interrupt the next Python bytecode instruction - if the
-                                    # main thread is blocked in a c extension the interrupt
-                                    # won't be seen until that returns.
-                                    from _thread import interrupt_main
+                            if os.name == "nt":
+                                # This doesn't actually send a signal, so it will only
+                                # interrupt the next Python bytecode instruction - if the
+                                # main thread is blocked in a c extension the interrupt
+                                # won't be seen until that returns.
+                                from _thread import interrupt_main
 
-                                    interrupt_main()
-                                else:
-                                    signal.pthread_kill(
-                                        threading.main_thread().ident, signal.SIGINT  # type: ignore
-                                    )
+                                interrupt_main()
+                            else:
+                                signal.pthread_kill(
+                                    threading.main_thread().ident, signal.SIGINT  # type: ignore
+                                )
                         break
                     elif exiting_context:
                         break

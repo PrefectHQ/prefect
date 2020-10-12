@@ -1,0 +1,5 @@
+fix:
+  - "Fix default profile directory creation behavior - [#3037](https://github.com/PrefectHQ/prefect/issues/3037)"
+
+contributor:
+  - "[Zach McQuiston](https://github.com/zmac12)"
