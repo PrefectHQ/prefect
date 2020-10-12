@@ -184,6 +184,7 @@ class S3(Storage):
                                 self.bucket, err
                             )
                         )
+                        raise err
             else:
                 if not self.key:
                     raise ValueError(
