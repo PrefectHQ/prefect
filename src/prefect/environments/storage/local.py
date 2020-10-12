@@ -104,9 +104,9 @@ class Local(Storage):
             # otherwise the path is given in the module format
             else:
                 return extract_flow_from_module(module_str=flow_location)
-        except Exception as exc:
+        except Exception:
             self.logger.exception(f"Failed to load Flow from {flow_location}")
-            raise exc
+            raise
 
     def add_flow(self, flow: "Flow") -> str:
         """
