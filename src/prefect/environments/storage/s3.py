@@ -5,7 +5,6 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-import prefect
 from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
