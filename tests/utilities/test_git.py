@@ -70,12 +70,12 @@ class TestGetGitLabClient:
         assert gitlab.call_args[1]["private_token"] == "PROVIDED_KEY"
 
     def test_creds_default_to_environment(self, monkeypatch):
-        del os.environ["GITLAB_ACCESS_TOKEN"]
+        if "GITLAB_ACCESS_TOKEN" in os.environ:
+            del os.environ["GITLAB_ACCESS_TOKEN"]
+
         gitlab = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
         get_gitlab_client()
-
-        print(gitlab.call_args)
         assert gitlab.call_args[1].get("private_token") is None
 
         monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "TOKEN")
