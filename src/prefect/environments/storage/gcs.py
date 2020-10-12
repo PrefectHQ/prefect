@@ -36,6 +36,10 @@ class GCS(Storage):
             if not provided, the project will be inferred from your Google Cloud credentials.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
+        - script_path (str, optional): the path to a local script to upload when `stored_as_scipt` is set
+            to `True`. If not set then the value of `script_path` from `prefect.context` is used. If
+            neither are set then script will not be uploaded and users should manually place the script
+            file in the desired `key` location in a GCS bucket.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -45,6 +49,7 @@ class GCS(Storage):
         key: str = None,
         project: str = None,
         stored_as_script: bool = False,
+        script_path: str = None,
         **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
@@ -55,7 +60,12 @@ class GCS(Storage):
         self.project = project
 
         result = GCSResult(bucket=bucket)
-        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
+        super().__init__(
+            result=result,
+            stored_as_script=stored_as_script,
+            script_path=script_path,
+            **kwargs
+        )
 
     @property
     def default_labels(self) -> List[str]:
@@ -151,10 +161,24 @@ class GCS(Storage):
         self.run_basic_healthchecks()
 
         if self.stored_as_script:
-            if not self.key:
-                raise ValueError(
-                    "A `key` must be provided to show where flow `.py` file is stored in GCS."
-                )
+            if self.script_path:
+                for flow_name, flow in self._flows.items():
+                    self.logger.info(
+                        "Uploading script {} to {} in {}".format(
+                            self.script_path, self.flows[flow.name], self.bucket
+                        )
+                    )
+
+                    bucket = self._gcs_client.get_bucket(self.bucket)
+                    blob = bucket.blob(blob_name=self.flows[flow_name])
+                    with open(self.script_path) as file_obj:
+                        blob.upload_from_file(file_obj)
+            else:
+                if not self.key:
+                    raise ValueError(
+                        "A `key` must be provided to show where flow `.py` file is stored in GCS or "
+                        "provide a `script_path` pointing to a local script that contains the flow."
+                    )
             return self
 
         for flow_name, flow in self._flows.items():

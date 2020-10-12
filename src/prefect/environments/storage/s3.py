@@ -53,12 +53,16 @@ class S3(Storage):
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
-        self.script_path = script_path or prefect.context.get("script_path", None)
 
         self.client_options = client_options
 
         result = S3Result(bucket=bucket)
-        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
+        super().__init__(
+            result=result,
+            stored_as_script=stored_as_script,
+            script_path=script_path,
+            **kwargs,
+        )
 
     @property
     def default_labels(self) -> List[str]:
