@@ -11,9 +11,15 @@ class ClockEvent:
     Base class for events emitted by Clocks.
     """
 
-    def __init__(self, start_time: datetime, parameter_defaults: dict = None) -> None:
+    def __init__(
+        self,
+        start_time: datetime,
+        parameter_defaults: dict = None,
+        labels: List[str] = None,
+    ) -> None:
         self.start_time = start_time
         self.parameter_defaults = parameter_defaults or dict()
+        self.labels = labels or []
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, (ClockEvent, datetime)):
@@ -23,6 +29,7 @@ class ClockEvent:
         return (
             self.start_time == other.start_time
             and self.parameter_defaults == other.parameter_defaults
+            and self.labels == other.labels
         )
 
     def __gt__(self, other: Union[datetime, "ClockEvent"]) -> bool:
@@ -56,6 +63,8 @@ class Clock:
         - parameter_defaults (dict, optional): an optional dictionary of default Parameter
             values; if provided, these values will be passed as the Parameter values for all
             Flow Runs which are run on this clock's events
+        - labels (List[str], optional): a list of labels to apply to all flow runs generated
+            from this Clock
 
     """
 
@@ -64,6 +73,7 @@ class Clock:
         start_date: datetime = None,
         end_date: datetime = None,
         parameter_defaults: dict = None,
+        labels: List[str] = None,
     ):
         if start_date is not None:
             start_date = pendulum.instance(start_date)
@@ -72,6 +82,7 @@ class Clock:
         self.start_date = start_date
         self.end_date = end_date
         self.parameter_defaults = parameter_defaults or dict()
+        self.labels = labels or []
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
@@ -114,6 +125,8 @@ class IntervalClock(Clock):
         - parameter_defaults (dict, optional): an optional dictionary of default Parameter
             values; if provided, these values will be passed as the Parameter values for all
             Flow Runs which are run on this clock's events
+        - labels (List[str], optional): a list of labels to apply to all flow runs generated
+            from this Clock
 
     Raises:
         - TypeError: if start_date is not a datetime
@@ -126,6 +139,7 @@ class IntervalClock(Clock):
         start_date: datetime = None,
         end_date: datetime = None,
         parameter_defaults: dict = None,
+        labels: List[str] = None,
     ):
         if not isinstance(interval, timedelta):
             raise TypeError("Interval must be a timedelta.")
@@ -137,6 +151,7 @@ class IntervalClock(Clock):
             start_date=start_date,
             end_date=end_date,
             parameter_defaults=parameter_defaults,
+            labels=labels,
         )
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
@@ -217,6 +232,8 @@ class CronClock(Clock):
         - parameter_defaults (dict, optional): an optional dictionary of default Parameter
             values; if provided, these values will be passed as the Parameter values for all
             Flow Runs which are run on this clock's events
+        - labels (List[str], optional): a list of labels to apply to all flow runs generated
+            from this Clock
 
     Raises:
         - ValueError: if the cron string is invalid
@@ -228,6 +245,7 @@ class CronClock(Clock):
         start_date: datetime = None,
         end_date: datetime = None,
         parameter_defaults: dict = None,
+        labels: List[str] = None,
     ):
         # build cron object to check the cron string - will raise an error if it's invalid
         if not croniter.is_valid(cron):
@@ -237,6 +255,7 @@ class CronClock(Clock):
             start_date=start_date,
             end_date=end_date,
             parameter_defaults=parameter_defaults,
+            labels=labels,
         )
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
@@ -310,13 +329,21 @@ class DatesClock(Clock):
         - parameter_defaults (dict, optional): an optional dictionary of default Parameter
             values; if provided, these values will be passed as the Parameter values for all
             Flow Runs which are run on this clock's events
+        - labels (List[str], optional): a list of labels to apply to all flow runs generated
+            from this Clock
     """
 
-    def __init__(self, dates: List[datetime], parameter_defaults: dict = None):
+    def __init__(
+        self,
+        dates: List[datetime],
+        parameter_defaults: dict = None,
+        labels: List[str] = None,
+    ):
         super().__init__(
             start_date=min(dates),
             end_date=max(dates),
             parameter_defaults=parameter_defaults,
+            labels=labels,
         )
         self.dates = dates
 
