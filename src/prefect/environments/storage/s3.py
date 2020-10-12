@@ -5,6 +5,7 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
+import prefect
 from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
@@ -40,13 +41,15 @@ class S3(Storage):
         bucket: str,
         key: str = None,
         stored_as_script: bool = False,
+        script_path: str = None,
         client_options: dict = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
+        self.script_path = script_path or prefect.context.get("script_path", None)
 
         self.client_options = client_options
 
@@ -130,6 +133,10 @@ class S3(Storage):
             slugify(flow.name), slugify(pendulum.now("utc").isoformat())
         )
 
+        # Append .py extension when storing as script
+        if self.stored_as_script and not key.endswith(".py"):
+            key = key + ".py"
+
         self.flows[flow.name] = key
         self._flows[flow.name] = flow
         return key
@@ -150,10 +157,19 @@ class S3(Storage):
         self.run_basic_healthchecks()
 
         if self.stored_as_script:
-            if not self.key:
-                raise ValueError(
-                    "A `key` must be provided to show where flow `.py` file is stored in S3."
-                )
+            if self.script_path:
+                for flow_name, flow in self._flows.items():
+                    self.logger.info(
+                        f"Uploading script {self.script_path} to {self.flows[flow.name]} in {self.bucket}"
+                    )
+                    self._boto3_client.upload_file(
+                        self.script_path, self.bucket, self.flows[flow_name]
+                    )
+            else:
+                if not self.key:
+                    raise ValueError(
+                        "A `key` must be provided to show where flow `.py` file is stored in S3."
+                    )
             return self
 
         for flow_name, flow in self._flows.items():

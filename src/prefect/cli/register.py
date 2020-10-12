@@ -81,8 +81,8 @@ def flow(file, name, project, label):
     """
 
     # Don't run extra `run` and `register` functions inside file
-    with prefect.context({"loading_flow": True}):
-        file_path = os.path.abspath(file)
+    file_path = os.path.abspath(file)
+    with prefect.context({"loading_flow": True, "script_path": file_path}):
         flow = extract_flow_from_file(file_path=file_path, flow_name=name)
 
     if getattr(flow, "run_config", None) is not None:
