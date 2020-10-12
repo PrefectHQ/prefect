@@ -55,7 +55,10 @@ module.exports = {
   themeConfig: {
     algolia: {
       apiKey: '553c75634e1d4f09c84f7a513f9cc4f9',
-      indexName: 'prefect'
+      indexName: 'prefect',
+      algoliaOptions: {
+        hitsPerPage: 10
+      }
     },
     repo: 'PrefectHQ/prefect',
     docsDir: 'docs',
@@ -290,10 +293,7 @@ module.exports = {
         {
           title: 'Task Library',
           collapsable: true,
-          children: [
-            'task_library/overview',
-            'task_library/contributing'
-          ]
+          children: ['task_library/overview', 'task_library/contributing']
         },
         {
           title: 'Advanced Tutorials',
