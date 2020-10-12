@@ -1,0 +1,5 @@
+enhancement:
+    - "Add Gitlab storage - [#3461](https://github.com/PrefectHQ/prefect/pull/3461)"
+
+contributor:
+    - "[Max Del Giudice](https://github.com/madelgi)"
