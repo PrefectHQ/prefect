@@ -94,12 +94,12 @@ class GitLab(Storage):
         try:
             project = self._gitlab_client.projects.get(quote_plus(self.repo))
             contents = project.files.get(file_path=flow_location, ref=ref)
-        except GitlabAuthenticationError as exc:
+        except GitlabAuthenticationError:
             self.logger.error(
                 "Unable to authenticate Gitlab account. Please check your credentials."
             )
             raise
-        except GitlabGetError as exc:
+        except GitlabGetError:
             self.logger.error(
                 f"Error retrieving file contents at {flow_location} in {self.repo}@{ref}. "
                 "Ensure the project and file exist."
