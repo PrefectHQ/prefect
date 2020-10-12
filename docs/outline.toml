@@ -447,6 +447,7 @@ title = "Operator Tasks"
 module = "prefect.tasks.core.operators"
 classes = [
     "GetItem",
+    "GetAttr",
     "Add",
     "Sub",
     "Mul",

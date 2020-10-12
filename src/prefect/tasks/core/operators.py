@@ -5,7 +5,7 @@ indexing, and logical comparisons.
 In general, users will not instantiate these tasks by hand; they will automatically be
 applied when users apply inline Python operators to a task and another value.
 """
-
+from operator import attrgetter
 from typing import Any
 
 from prefect import Task
@@ -30,6 +30,28 @@ class GetItem(Task):
             - key (Any): the index to retrieve as `task_result[key]`
         """
         return task_result[key]
+
+
+class GetAttr(Task):
+    """
+    Helper task that retrieves a specific attribute of an upstream task's result.
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+    def run(self, task_result: Any, attr: Any) -> Any:  # type: ignore
+        """
+        Args:
+            - task_result (Any): a value
+            - attr (Any): the (possibly nested) attribute to retrieve as `task_result.attr`.
+                Nested attributes should be accessed via `.`-delimited strings.
+        """
+        return attrgetter(attr)(task_result)
 
 
 # ---------------------------------------------------------
