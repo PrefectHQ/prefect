@@ -32,6 +32,10 @@ class S3(Storage):
             is only useful when storing a single Flow using this storage object.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
+        - script_path (str, optional): the path to a local script to upload when `stored_as_scipt` is set
+            to `True`. If not set then the value of `script_path` from `prefect.context` is used. If
+            neither are set then script will not be uploaded and users should manually place the script
+            file in the desired `key` location in an S3 bucket.
         - client_options (dict, optional): Additional options for the `boto3` client.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
@@ -134,8 +138,8 @@ class S3(Storage):
         )
 
         # Append .py extension when storing as script
-        if self.stored_as_script and not key.endswith(".py"):
-            key = key + ".py"
+        # if self.stored_as_script and not key.endswith(".py"):
+        #     key = key + ".py"
 
         self.flows[flow.name] = key
         self._flows[flow.name] = flow
@@ -156,19 +160,32 @@ class S3(Storage):
         """
         self.run_basic_healthchecks()
 
+        from botocore.exceptions import ClientError
+
         if self.stored_as_script:
             if self.script_path:
                 for flow_name, flow in self._flows.items():
                     self.logger.info(
-                        f"Uploading script {self.script_path} to {self.flows[flow.name]} in {self.bucket}"
+                        "Uploading script {} to {} in {}".format(
+                            self.script_path, self.flows[flow.name], self.bucket
+                        )
                     )
-                    self._boto3_client.upload_file(
-                        self.script_path, self.bucket, self.flows[flow_name]
-                    )
+
+                    try:
+                        self._boto3_client.upload_file(
+                            self.script_path, self.bucket, self.flows[flow_name]
+                        )
+                    except ClientError as err:
+                        self.logger.error(
+                            "Error uploading Flow script to S3 bucket {}: {}".format(
+                                self.bucket, err
+                            )
+                        )
             else:
                 if not self.key:
                     raise ValueError(
-                        "A `key` must be provided to show where flow `.py` file is stored in S3."
+                        "A `key` must be provided to show where flow `.py` file is stored in S3 or "
+                        "provide a `script_path` pointing to a local script that contains the flow."
                     )
             return self
 
@@ -185,9 +202,6 @@ class S3(Storage):
             self.logger.info(
                 "Uploading {} to {}".format(self.flows[flow_name], self.bucket)
             )
-
-            # Upload stream to S3
-            from botocore.exceptions import ClientError
 
             try:
                 self._boto3_client.upload_fileobj(
