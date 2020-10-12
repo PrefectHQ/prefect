@@ -98,13 +98,13 @@ class GitLab(Storage):
             self.logger.error(
                 "Unable to authenticate Gitlab account. Please check your credentials."
             )
-            raise exc
+            raise
         except GitlabGetError as exc:
             self.logger.error(
                 f"Error retrieving file contents at {flow_location} in {self.repo}@{ref}. "
                 "Ensure the project and file exist."
             )
-            raise exc
+            raise
 
         return extract_flow_from_file(file_contents=contents.decode())
 
