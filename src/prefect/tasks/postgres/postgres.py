@@ -95,9 +95,9 @@ class PostgresExecute(Task):
             return executed
 
         # pass through error, and ensure connection is closed
-        except (Exception, pg.DatabaseError) as error:
+        except (Exception, pg.DatabaseError):
             conn.close()
-            raise error
+            raise
 
 
 class PostgresFetch(Task):
@@ -217,6 +217,6 @@ class PostgresFetch(Task):
             return records
 
         # pass through error, and ensure connection is closed
-        except (Exception, pg.DatabaseError) as error:
+        except (Exception, pg.DatabaseError):
             conn.close()
-            raise error
+            raise

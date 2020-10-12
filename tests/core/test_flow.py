@@ -2665,8 +2665,13 @@ class TestFlowRegister:
         assert "foo" in f.environment.labels
         assert len(f.environment.labels) == 2
 
-    def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+    def test_flow_register_errors_if_in_flow_context(self):
+        with pytest.raises(ValueError) as exc:
+            with Flow("test") as flow:
+                flow.register()
+        assert "`flow.register()` from within a `Flow` context manager" in str(
+            exc.value
+        )
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

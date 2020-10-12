@@ -122,12 +122,12 @@ def environment_dependency_check(flows: list):
         for dependency in required_imports:
             try:
                 importlib.import_module(dependency)
-            except ModuleNotFoundError:
+            except ModuleNotFoundError as exc:
                 raise ModuleNotFoundError(
                     "Using {} requires the `{}` dependency".format(
                         flow.environment.__class__.__name__, dependency
                     )
-                )
+                ) from exc
 
     print("Environment dependency check: OK")
 
