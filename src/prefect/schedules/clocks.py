@@ -202,7 +202,9 @@ class IntervalClock(Clock):
             if self.end_date and next_date > self.end_date:
                 break
             yield ClockEvent(
-                start_time=next_date, parameter_defaults=self.parameter_defaults
+                start_time=next_date,
+                parameter_defaults=self.parameter_defaults,
+                labels=self.labels,
             )
             interval += self.interval
 
@@ -316,7 +318,9 @@ class CronClock(Clock):
                 break
             dates.add(next_date)
             yield ClockEvent(
-                start_time=next_date, parameter_defaults=self.parameter_defaults
+                start_time=next_date,
+                parameter_defaults=self.parameter_defaults,
+                labels=self.labels,
             )
 
 
@@ -360,7 +364,11 @@ class DatesClock(Clock):
         if after is None:
             after = pendulum.now("UTC")
         yield from (
-            ClockEvent(start_time=date, parameter_defaults=self.parameter_defaults)
+            ClockEvent(
+                start_time=date,
+                parameter_defaults=self.parameter_defaults,
+                labels=self.labels,
+            )
             for date in sorted(self.dates)
             if date > after
         )
