@@ -9,7 +9,7 @@ try:
         SpacyNER,
         SpacyComponent,
     )
-except ImportError:
+except ImportError as exc:
     raise ImportError(
         'Using `prefect.tasks.spacy` requires Prefect to be installed with the "spacy" extra.'
-    )
+    ) from exc
