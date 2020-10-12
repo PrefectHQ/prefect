@@ -40,13 +40,13 @@ def boto_client(monkeypatch):
     yield boto_client
 
 
-def test_client_waiter_required_args():
+def test_required_args():
     waiter = AWSClientWait(waiter_name="JobRunning")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="An AWS client string"):
         waiter.run()
 
     waiter = AWSClientWait(client="batch")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="A waiter name"):
         waiter.run()
 
 
@@ -109,4 +109,3 @@ def test_prefect_batch_waiters_success(monkeypatch, boto_client):
         assert isinstance(args[1], WaiterModel)
         assert len(args[1].waiter_names) == 3
         assert args[1].version == 2
-        assert args[2] == "batch"

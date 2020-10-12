@@ -16,13 +16,23 @@ class AWSClientWait(Task):
     """
     Task for waiting on a long-running AWS job. Uses the underlying boto3 waiter functionality.
 
+    For authentication, there are two options: you can set the `AWS_CREDENTIALS` Prefect Secret
+    containing your AWS access keys which will be passed directly to the `boto3` client, or you
+    can [configure your flow's runtime
+    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    for `boto3`.
 
     Args:
         - client (str, optional): The AWS client on which to wait (e.g., 'batch', 'ec2', etc)
         - waiter_name (str, optional): The name of the waiter to instantiate. Can be a boto-supported
-            waiter or one of prefect's custom waiters
-        - waiter_definition (dict, optional): A valid custom waiter model, as a dict.
+            waiter or one of prefect's custom waiters. You may also use a custom waiter name, if
+            you supply an accompanying waiter definition dict.
+        - waiter_definition (dict, optional): A valid custom waiter model, as a dict. Note that if
+            you supply a custom definition, it is assumed that the provided 'waiter_name' is
+            contained within the waiter definition dict.
         - boto_kwargs (dict, optional): additional kekyword arguments to forward to the boto client.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
     """
 
     def __init__(
@@ -43,8 +53,8 @@ class AWSClientWait(Task):
     @defaults_from_attrs("client", "waiter_name", "waiter_definition")
     def run(
         self,
-        client: str,
-        waiter_name: str,
+        client: str = None,
+        waiter_name: str = None,
         waiter_definition: dict = None,
         waiter_kwargs: dict = None,
         credentials: str = None,
@@ -52,22 +62,14 @@ class AWSClientWait(Task):
         """
         Task for waiting on a long-running AWS job. Uses the underlying boto3 waiter functionality.
 
-
         Args:
             - client (str): The AWS client on which to wait (e.g., 'batch', 'ec2', etc)
-            - waiter_name (str): The name of the waiter to instantiate. In addition to the full list of
-                boto3-supported waiters, Prefect supports the following waiters:
-
-                    - "JobExists" (batch): Wait until an AWS batch job has been instantiated.
-                    - "JobRunning" (batch): Wait until an AWS batch job has begun running.
-                    - "JobComplete" (batch): Wait until an AWS batch job has completed successfully.
-
-                You may also use a custom waiter name, if you supply an accompanying waiter_definition
-                dict.
-
+            - waiter_name (str, optional): The name of the waiter to instantiate. Can be a boto-supported
+                waiter or one of prefect's custom waiters. You may also use a custom waiter name, if
+                you supply an accompanying waiter definition dict.
             - waiter_definition (dict, optional): A valid custom waiter model, as a dict. Note that if
                 you supply a custom definition, it is assumed that the provided 'waiter_name' is
-                contained within the waiter_definition dict.
+                contained within the waiter definition dict.
             - waiter_kwargs (dict, optional): Arguments to pass to the `waiter.wait(...)` method. Will
                 depend upon the specific waiter being called.
             - credentials (dict, optional): your AWS credentials passed from an upstream
@@ -76,8 +78,11 @@ class AWSClientWait(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
         """
-        if not (client and waiter_name):
-            raise ValueError("Must provide both a client and waiter_name.")
+        if not client:
+            raise ValueError("An AWS client string must be provided.")
+
+        if not waiter_name:
+            raise ValueError("A waiter name must be provided.")
 
         if not waiter_kwargs:
             waiter_kwargs = {}

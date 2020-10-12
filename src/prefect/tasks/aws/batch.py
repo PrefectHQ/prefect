@@ -45,9 +45,9 @@ class BatchSubmit(Task):
     @defaults_from_attrs("job_name", "job_definition", "job_queue")
     def run(
         self,
-        job_name: str,
-        job_definition: str,
-        job_queue: str,
+        job_name: str = None,
+        job_definition: str = None,
+        job_queue: str = None,
         batch_kwargs: dict = None,
         credentials: str = None,
     ):
@@ -67,10 +67,14 @@ class BatchSubmit(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
         """
-        if not (job_name and job_definition and job_queue):
-            raise ValueError(
-                "All three of job_name, job_definition, and job_queue must be provided."
-            )
+        if not job_name:
+            raise ValueError("A job name must be provided.")
+
+        if not job_definition:
+            raise ValueError("A job definition must be provided.")
+
+        if not job_queue:
+            raise ValueError("A job queue must be provided.")
 
         if not batch_kwargs:
             batch_kwargs = {}

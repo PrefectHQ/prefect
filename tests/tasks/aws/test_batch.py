@@ -19,15 +19,15 @@ class TestBatchSubmit:
 
     def test_required_arguments(self):
         task = BatchSubmit(job_definition="job_def", job_queue="queue123")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="A job name"):
             task.run()
 
         task = BatchSubmit(job_name="job_name", job_queue="queue123")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="A job definition"):
             task.run()
 
         task = BatchSubmit(job_definition="job_def", job_name="job_name")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="A job queue"):
             task.run()
 
     def test_submission_fail(self, batch_client):
