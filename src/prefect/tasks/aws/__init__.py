@@ -13,7 +13,7 @@ try:
     )
     from prefect.tasks.aws.step_function import StepActivate
     from prefect.tasks.aws.secrets_manager import AWSSecretsManager
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.aws` requires Prefect to be installed with the "aws" extra.'
-    )
+    ) from err
