@@ -1,2 +1,2 @@
 fix:
-  - "Fix `DaskKubernetesEnvironment` overwriting log level for custom specs - [#3231](https://github.com/PrefectHQ/prefect/issues/3231)"
+  - "Fix `DaskKubernetesEnvironment` overwriting log attributed for custom specs - [#3231](https://github.com/PrefectHQ/prefect/issues/3231)"
