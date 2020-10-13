@@ -9,12 +9,12 @@ from typing import Any
 try:
     from github import Github
 except ImportError:
-    Github = None
+    Github = None  # type: ignore
 
 try:
     from gitlab import Gitlab
 except ImportError:
-    Gitlab = None
+    Gitlab = None  # type: ignore
 
 
 def get_github_client(credentials: dict = None, **kwargs: Any) -> "Github":
