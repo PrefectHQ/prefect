@@ -32,7 +32,17 @@ if TYPE_CHECKING:
     from prefect.core import Edge
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
-DEFAULT_VALUE = object()
+
+
+# A sentinel value indicating no default was provided
+class NoDefault:
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "no_default"
+
+    def __reduce__(self) -> str:
+        return "no_default"
 
 
 def _validate_run_signature(run: Callable) -> None:
@@ -767,7 +777,7 @@ class Task(metaclass=SignatureValidator):
 
     # Accessors  ----------------------------------------------------------------
 
-    def get_item(self, item: Any, default: Any = DEFAULT_VALUE) -> "Task":
+    def get_item(self, item: Any, default: Any = NoDefault()) -> "Task":
         """
         Produces a Task that evaluates `self[key]` or returns the default value
 
@@ -779,11 +789,11 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task
         """
-        args = (self, item) if default is DEFAULT_VALUE else (self, item, default)
+        args = (self, item) if isinstance(default, NoDefault) else (self, item, default)
 
         return prefect.tasks.core.operators.GetItem().bind(*args)
 
-    def get_attr(self, item: str, default: Any = DEFAULT_VALUE) -> "Task":
+    def get_attr(self, item: str, default: Any = NoDefault()) -> "Task":
         """
         Produces a Task that evaluates `self.attr` or returns the default value
 
@@ -795,7 +805,7 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task
         """
-        args = (self, item) if default is DEFAULT_VALUE else (self, item, default)
+        args = (self, item) if isinstance(default, NoDefault) else (self, item, default)
 
         return prefect.tasks.core.operators.GetAttr().bind(*args)
 

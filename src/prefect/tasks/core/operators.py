@@ -8,10 +8,8 @@ applied when users apply inline Python operators to a task and another value.
 from operator import attrgetter
 from typing import Any
 
-from prefect import Task
+from prefect.core.task import Task, NoDefault
 from prefect.utilities.tasks import defaults_from_attrs
-
-DEFAULT_VALUE = object()
 
 
 class GetItem(Task):
@@ -24,12 +22,12 @@ class GetItem(Task):
         - **kwargs (Any): keyword arguments for the `Task` class
     """
 
-    def __init__(self, default: Any = DEFAULT_VALUE, *args: Any, **kwargs: Any):
+    def __init__(self, default: Any = NoDefault(), *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.default = default
 
     @defaults_from_attrs("default")
-    def run(self, task_result: Any, key: Any, default: Any = DEFAULT_VALUE) -> Any:  # type: ignore
+    def run(self, task_result: Any, key: Any, default: Any = NoDefault()) -> Any:  # type: ignore
         """
         Args:
             - task_result (Any): a value
@@ -39,7 +37,7 @@ class GetItem(Task):
         try:
             return task_result[key]
         except KeyError:
-            if default is DEFAULT_VALUE:
+            if isinstance(default, NoDefault):
                 raise
             return default
 
@@ -54,12 +52,12 @@ class GetAttr(Task):
         - **kwargs (Any): keyword arguments for the `Task` class
     """
 
-    def __init__(self, default: Any = DEFAULT_VALUE, *args: Any, **kwargs: Any):
+    def __init__(self, default: Any = NoDefault(), *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.default = default
 
     @defaults_from_attrs("default")
-    def run(self, task_result: Any, attr: Any, default: Any = DEFAULT_VALUE) -> Any:  # type: ignore
+    def run(self, task_result: Any, attr: Any, default: Any = NoDefault()) -> Any:  # type: ignore
         """
         Args:
             - task_result (Any): a value
@@ -70,7 +68,7 @@ class GetAttr(Task):
         try:
             return attrgetter(attr)(task_result)
         except AttributeError:
-            if default is DEFAULT_VALUE:
+            if isinstance(default, NoDefault):
                 raise
             return default
 

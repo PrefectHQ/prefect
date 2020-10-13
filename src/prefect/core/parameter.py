@@ -5,22 +5,15 @@ import prefect
 from prefect.engine.serializers import DateTimeSerializer
 import prefect.engine.signals
 import prefect.triggers
-from prefect.core.task import Task
+from prefect.core.task import Task, NoDefault
 from prefect.engine.results import PrefectResult
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
-# A sentinel value indicating no default was provided
-no_default = type(
-    "no_default",
-    (object,),
-    dict.fromkeys(["__repr__", "__reduce__"], lambda s: "no_default"),
-)()
-
 JSONSerializableParameterValue = Optional[
-    Union[type(no_default), str, int, float, bool, list, dict]
+    Union[NoDefault, str, int, float, bool, list, dict]
 ]
 
 
@@ -45,13 +38,13 @@ class Parameter(Task):
     def __init__(
         self,
         name: str,
-        default: JSONSerializableParameterValue = no_default,
+        default: JSONSerializableParameterValue = NoDefault(),
         required: bool = None,
         tags: Iterable[str] = None,
     ):
         if required is None:
-            required = default is no_default
-        if default is no_default:
+            required = isinstance(default, NoDefault)
+        if isinstance(default, NoDefault):
             default = None
         self.required = required
         self.default = default
@@ -137,7 +130,7 @@ class DateTimeParameter(Parameter):
         required: bool = True,
         tags: Iterable[str] = None,
     ) -> None:
-        default = no_default if required else None
+        default = NoDefault() if required else None
         super().__init__(name=name, default=default, required=required, tags=tags)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 
