@@ -126,7 +126,7 @@ class TestGCSStorage:
         bucket_mock.get_blob.assert_called_with("a-place")
         assert blob_mock.download_as_string.call_count == 1
 
-    def test_build_no_upload_if_file_and_no_script_path(self, google_client):
+    def test_build_no_upload_if_file_and_no_local_script_path(self, google_client):
         storage = GCS(bucket="awesome-bucket", stored_as_script=True)
 
         with pytest.raises(ValueError):
@@ -146,7 +146,7 @@ class TestGCSStorage:
         storage = GCS(
             bucket="awesome-bucket",
             stored_as_script=True,
-            script_path=f"{tmpdir}/flow.py",
+            local_script_path=f"{tmpdir}/flow.py",
             key="key",
         )
 

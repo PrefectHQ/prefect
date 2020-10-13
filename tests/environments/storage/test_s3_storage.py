@@ -130,7 +130,7 @@ def test_build_script_upload(monkeypatch):
     monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
 
     storage = S3(
-        bucket="bucket", stored_as_script=True, script_path="local.py", key="key"
+        bucket="bucket", stored_as_script=True, local_script_path="local.py", key="key"
     )
 
     f = Flow("test")

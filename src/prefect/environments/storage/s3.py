@@ -5,6 +5,7 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
+import prefect
 from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
@@ -31,10 +32,10 @@ class S3(Storage):
             is only useful when storing a single Flow using this storage object.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
-        - script_path (str, optional): the path to a local script to upload when `stored_as_script` is set
-            to `True`. If not set then the value of `script_path` from `prefect.context` is used. If
-            neither are set then script will not be uploaded and users should manually place the script
-            file in the desired `key` location in an S3 bucket.
+        - local_script_path (str, optional): the path to a local script to upload when `stored_as_script`
+            is set to `True`. If not set then the value of `local_script_path` from `prefect.context` is
+            used. If neither are set then script will not be uploaded and users should manually place the
+            script file in the desired `key` location in an S3 bucket.
         - client_options (dict, optional): Additional options for the `boto3` client.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
@@ -44,7 +45,7 @@ class S3(Storage):
         bucket: str,
         key: str = None,
         stored_as_script: bool = False,
-        script_path: str = None,
+        local_script_path: str = None,
         client_options: dict = None,
         **kwargs: Any,
     ) -> None:
@@ -52,6 +53,9 @@ class S3(Storage):
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
+        self.local_script_path = local_script_path or prefect.context.get(
+            "local_script_path", None
+        )
 
         self.client_options = client_options
 
@@ -59,7 +63,6 @@ class S3(Storage):
         super().__init__(
             result=result,
             stored_as_script=stored_as_script,
-            script_path=script_path,
             **kwargs,
         )
 
@@ -166,17 +169,17 @@ class S3(Storage):
         from botocore.exceptions import ClientError
 
         if self.stored_as_script:
-            if self.script_path:
+            if self.local_script_path:
                 for flow_name, flow in self._flows.items():
                     self.logger.info(
                         "Uploading script {} to {} in {}".format(
-                            self.script_path, self.flows[flow.name], self.bucket
+                            self.local_script_path, self.flows[flow.name], self.bucket
                         )
                     )
 
                     try:
                         self._boto3_client.upload_file(
-                            self.script_path, self.bucket, self.flows[flow_name]
+                            self.local_script_path, self.bucket, self.flows[flow_name]
                         )
                     except ClientError as err:
                         self.logger.error(
@@ -189,7 +192,8 @@ class S3(Storage):
                 if not self.key:
                     raise ValueError(
                         "A `key` must be provided to show where flow `.py` file is stored in S3 or "
-                        "provide a `script_path` pointing to a local script that contains the flow."
+                        "provide a `local_script_path` pointing to a local script that contains the "
+                        "flow."
                     )
             return self
 
