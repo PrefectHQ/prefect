@@ -29,7 +29,7 @@ class Storage(metaclass=ABCMeta):
             configuration at `flows.defaults.storage.add_default_labels`.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
-        - script_path (str, optional): the path to a local script to upload when `stored_as_scipt` is set
+        - script_path (str, optional): the path to a local script to upload when `stored_as_script` is set
             to `True`. If not set then the value of `script_path` from `prefect.context` is used. If
             neither are set then script will not be uploaded and users should manually place the script
             file in the desired location.
