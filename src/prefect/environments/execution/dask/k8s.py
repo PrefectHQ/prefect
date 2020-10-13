@@ -488,9 +488,17 @@ class DaskKubernetesEnvironment(Environment):
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
                 "value": "prefect.engine.executors.DaskExecutor",
             },
+        ]
+
+        # Logging env vars
+        log_vars = [
             {
                 "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                 "value": str(prefect.config.logging.log_to_cloud).lower(),
+            },
+            {
+                "name": "PREFECT__LOGGING__LEVEL",
+                "value": str(prefect.config.logging.level),
             },
             {
                 "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
@@ -505,6 +513,11 @@ class DaskKubernetesEnvironment(Environment):
             env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
 
         env.extend(env_values)
+
+        # Append logging env vars if not already present
+        for var in log_vars:
+            if not any(d.get("name") == var.get("name") for d in env):
+                env.append(var)
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
@@ -548,9 +561,17 @@ class DaskKubernetesEnvironment(Environment):
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
                 "value": "prefect.engine.executors.DaskExecutor",
             },
+        ]
+
+        # Logging env vars
+        log_vars = [
             {
                 "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                 "value": str(prefect.config.logging.log_to_cloud).lower(),
+            },
+            {
+                "name": "PREFECT__LOGGING__LEVEL",
+                "value": str(prefect.config.logging.level),
             },
             {
                 "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
@@ -565,6 +586,11 @@ class DaskKubernetesEnvironment(Environment):
             env = yaml_obj["spec"]["containers"][0]["env"]
 
         env.extend(env_values)
+
+        # Append logging env vars if not already present
+        for var in log_vars:
+            if not any(d.get("name") == var.get("name") for d in env):
+                env.append(var)
 
         # set image
         yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(

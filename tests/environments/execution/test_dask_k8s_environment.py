@@ -418,8 +418,9 @@ def test_populate_custom_worker_spec_yaml(log_flag):
     assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
     assert env[7]["value"] == str(log_flag).lower()
+    assert env[8]["value"] == "INFO"
     assert (
-        env[8]["value"]
+        env[9]["value"]
         == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive']"
     )
 
@@ -465,8 +466,9 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
     assert env[7]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[8]["value"] == "prefect.engine.executors.DaskExecutor"
     assert env[9]["value"] == str(log_flag).lower()
+    assert env[10]["value"] == "INFO"
     assert (
-        env[10]["value"]
+        env[11]["value"]
         == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive']"
     )
 
@@ -474,6 +476,87 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
         == "test1/test2:test3"
     )
+
+
+@pytest.mark.parametrize("log_flag", [True, False])
+def test_populate_custom_yaml_specs_with_logging_vars(log_flag):
+    environment = DaskKubernetesEnvironment()
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+    log_vars = [
+        {
+            "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+            "value": "YES",
+        },
+        {
+            "name": "PREFECT__LOGGING__LEVEL",
+            "value": "NO",
+        },
+        {
+            "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+            "value": "MAYBE",
+        },
+    ]
+
+    with open(path.join(file_path, "job.yaml")) as job_file:
+        job = yaml.safe_load(job_file)
+        job["spec"]["template"]["spec"]["containers"][0]["env"] = []
+        job["spec"]["template"]["spec"]["containers"][0]["env"].extend(log_vars)
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.auth_token": "auth_test",
+            "logging.log_to_cloud": log_flag,
+            "logging.extra_loggers": ["test_logger"],
+        }
+    ):
+        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+            yaml_obj = environment._populate_scheduler_spec_yaml(
+                yaml_obj=job, docker_name="test1/test2:test3"
+            )
+
+    assert yaml_obj["metadata"]["name"] == "prefect-dask-job-{}".format(
+        environment.identifier_label
+    )
+
+    env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert env[0]["value"] == "YES"
+    assert env[1]["value"] == "NO"
+    assert env[2]["value"] == "MAYBE"
+    assert len(env) == 12
+
+    # worker
+    with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
+        pod = yaml.safe_load(pod_file)
+        pod["spec"]["containers"][0]["env"] = []
+        pod["spec"]["containers"][0]["env"].extend(log_vars)
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.auth_token": "auth_test",
+            "logging.log_to_cloud": log_flag,
+            "logging.extra_loggers": ["test_logger"],
+        }
+    ):
+        with prefect.context(flow_run_id="id_test", image="my_image"):
+            yaml_obj = environment._populate_worker_spec_yaml(yaml_obj=pod)
+
+    assert (
+        yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+        == environment.identifier_label
+    )
+    assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
+
+    env = yaml_obj["spec"]["containers"][0]["env"]
+
+    assert env[0]["value"] == "YES"
+    assert env[1]["value"] == "NO"
+    assert env[2]["value"] == "MAYBE"
+    assert len(env) == 10
 
 
 def test_roundtrip_cloudpickle():
