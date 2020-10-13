@@ -19,7 +19,9 @@ no_default = type(
     dict.fromkeys(["__repr__", "__reduce__"], lambda s: "no_default"),
 )()
 
-JSONSerializableParameterValue = Optional[Union[type(no_default), str, int, float, bool, list, dict]]
+JSONSerializableParameterValue = Optional[
+    Union[type(no_default), str, int, float, bool, list, dict]
+]
 
 
 class Parameter(Task):
