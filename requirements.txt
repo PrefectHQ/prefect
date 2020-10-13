@@ -1,4 +1,4 @@
-click >= 7.0
+click >=7.0
 cloudpickle >=0.6.0
 croniter >= 0.3.24, <1.0
 dask >= 2.15.0
