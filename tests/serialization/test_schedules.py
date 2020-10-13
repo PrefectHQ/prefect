@@ -40,6 +40,24 @@ def test_serialize_schedule_with_parameters():
     assert all([isinstance(e, clocks.ClockEvent) for e in output])
 
 
+def test_serialize_schedule_with_labels():
+    dt = pendulum.datetime(2099, 1, 1)
+    s = schedules.Schedule(
+        clocks=[
+            clocks.IntervalClock(timedelta(hours=1), labels=["dev"]),
+            clocks.CronClock("0 8 * * *", labels=["prod"]),
+        ]
+    )
+    s2 = serialize_and_deserialize(s)
+
+    assert s2.clocks[0].labels == ["dev"]
+    assert s2.clocks[1].labels == ["prod"]
+
+    output = s2.next(3, after=dt, return_events=True)
+
+    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+
+
 def test_serialize_complex_schedule():
     dt = pendulum.datetime(2019, 1, 3)
     s = schedules.Schedule(

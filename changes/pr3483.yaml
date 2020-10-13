@@ -1,0 +1,5 @@
+feature:
+  - "Allow for schedules that emit custom Flow Run labels - [#3483](https://github.com/PrefectHQ/prefect/pull/3483)"
+
+enhancement:
+  - "Allow for passing labels to `client.create_flow_run` - [#3483](https://github.com/PrefectHQ/prefect/pull/3483)"
