@@ -119,6 +119,24 @@ Flows registered with this storage option will automatically be labeled with `"g
 GitHub storage uses a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) for authenticating with repositories.
 :::
 
+## GitLab
+
+[GitLab Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a GitLab repository as `.py` files.
+
+Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to GitLab as well.
+
+::: tip Sensible Defaults
+Flows registered with this storage option will automatically be labeled with `"gitlab-flow-storage"`; this helps prevents agents not explicitly authenticated with your GitLab repo from attempting to run this flow.
+:::
+
+:::tip GitLab Credentials
+GitLab storage uses a [personal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for authenticating with repositories.
+:::
+
+:::tip GitLab Server
+GitLab server users can point the `host` argument to their personal GitLab instance.
+:::
+
 ## Docker
 
 [Docker Storage](/api/latest/environments/storage.html#docker) is a storage option that puts flows inside of a Docker image and pushes them to a container registry. This method of Storage has deployment compatability with the [Docker Agent](/orchestration/agents/docker.html), [Kubernetes Agent](/orchestration/agents/kubernetes.html), and [Fargate Agent](/orchestration/agents/fargate.html).

@@ -7,7 +7,7 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook
+from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook, GitLab
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -23,6 +23,7 @@ def test_local_agent_init(cloud_api):
         "gcs-flow-storage",
         "github-flow-storage",
         "webhook-flow-storage",
+        "gitlab-flow-storage",
     }
     assert agent.name == "agent"
 
@@ -37,6 +38,7 @@ def test_local_agent_deduplicates_labels(cloud_api):
         "gcs-flow-storage",
         "github-flow-storage",
         "webhook-flow-storage",
+        "gitlab-flow-storage",
     }
     assert len(agent.labels) == len(set(agent.labels))
 
@@ -63,6 +65,7 @@ def test_local_agent_config_options(cloud_api):
             "gcs-flow-storage",
             "github-flow-storage",
             "webhook-flow-storage",
+            "gitlab-flow-storage",
             "test_label",
         }
 
@@ -89,6 +92,7 @@ def test_local_agent_config_options_hostname(cloud_api):
             "gcs-flow-storage",
             "github-flow-storage",
             "webhook-flow-storage",
+            "gitlab-flow-storage",
         }
 
 
@@ -159,6 +163,7 @@ def test_populate_env_vars(cloud_api):
                     "s3-flow-storage",
                     "github-flow-storage",
                     "webhook-flow-storage",
+                    "gitlab-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
@@ -200,6 +205,7 @@ def test_populate_env_vars_includes_agent_labels(cloud_api):
                     "s3-flow-storage",
                     "github-flow-storage",
                     "webhook-flow-storage",
+                    "gitlab-flow-storage",
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
@@ -629,3 +635,27 @@ def test_local_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
     assert heartbeat.call_count == 1
+
+
+def test_local_agent_deploy_processes_gitlab_storage(monkeypatch, cloud_api):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+    gitlab = GitLab("test/repo", path="path/to/flow.py")
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": gitlab.serialize(),
+                        "id": "foo",
+                    }
+                ),
+                "id": "id",
+            }
+        )
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
