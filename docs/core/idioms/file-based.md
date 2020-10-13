@@ -170,7 +170,7 @@ flow.storage = S3(
 flow.storage = GCS(
     bucket="my-flow-bucket",
     stored_as_script=True,
-    script_path="my_flow.py"  # Local file that you want uploaded to the bucket
+    local_script_path="my_flow.py"  # Local file that you want uploaded to the bucket
 )
 ```
 
