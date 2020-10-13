@@ -11,7 +11,8 @@
     "markdown-it-attrs": "^2.4.1",
     "markdown-it-checkbox": "^1.1.0",
     "netlify-identity-widget": "^1.6.0",
-    "vue-tweet-embed": "^2.4.0"
+    "vue-tweet-embed": "^2.4.0",
+    "vuepress-plugin-sitemap": "^2.3.1"
   },
   "scripts": {
     "docs:generate-api": "cd docs && python generate_docs.py",

@@ -50,12 +50,19 @@ module.exports = {
         githubLabels: ['docs'],
         twitter: true
       }
+    ],
+    [
+      'sitemap',
+      {
+        hostname: 'https://docs.prefect.io'
+      }
     ]
   ],
   themeConfig: {
     algolia: {
       apiKey: '553c75634e1d4f09c84f7a513f9cc4f9',
       indexName: 'prefect',
+      debug: true,
       algoliaOptions: {
         hitsPerPage: 10
       }
