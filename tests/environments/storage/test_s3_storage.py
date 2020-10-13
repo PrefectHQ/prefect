@@ -114,7 +114,7 @@ def test_upload_flow_to_s3(monkeypatch):
     assert f.name in storage
 
 
-def test_build_no_upload_if_file(monkeypatch):
+def test_build_no_upload_if_file_and_no_script(monkeypatch):
     storage = S3(bucket="bucket", stored_as_script=True)
 
     with pytest.raises(ValueError):
@@ -122,6 +122,30 @@ def test_build_no_upload_if_file(monkeypatch):
 
     storage = S3(bucket="bucket", stored_as_script=True, key="flow.py")
     assert storage == storage.build()
+
+
+def test_build_script_upload(monkeypatch):
+    client = MagicMock()
+    boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
+    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+
+    storage = S3(
+        bucket="bucket", stored_as_script=True, local_script_path="local.py", key="key"
+    )
+
+    f = Flow("test")
+    assert f.name not in storage
+    assert storage.add_flow(f)
+    assert storage.build()
+    assert f.name in storage
+
+    assert boto3.upload_file.called
+    assert boto3.upload_file.call_args[0] == ("local.py", "bucket", "key")
+
+    boto3.upload_file.side_effect = ClientError({}, None)
+
+    with pytest.raises(ClientError):
+        storage.build()
 
 
 def test_upload_flow_to_s3_client_error(monkeypatch):
