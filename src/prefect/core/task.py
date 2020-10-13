@@ -38,6 +38,10 @@ VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 class NoDefault:
     __slots__ = ()
 
+
+class SerializableNoDefault(NoDefault):
+    __slots__ = ()
+
     def __repr__(self) -> str:
         return "no_default"
 

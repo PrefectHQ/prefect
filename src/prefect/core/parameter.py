@@ -5,7 +5,7 @@ import prefect
 from prefect.engine.serializers import DateTimeSerializer
 import prefect.engine.signals
 import prefect.triggers
-from prefect.core.task import Task, NoDefault
+from prefect.core.task import Task, SerializableNoDefault
 from prefect.engine.results import PrefectResult
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 JSONSerializableParameterValue = Optional[
-    Union[NoDefault, str, int, float, bool, list, dict]
+    Union[SerializableNoDefault, str, int, float, bool, list, dict]
 ]
 
 
@@ -38,13 +38,13 @@ class Parameter(Task):
     def __init__(
         self,
         name: str,
-        default: JSONSerializableParameterValue = NoDefault(),
+        default: JSONSerializableParameterValue = SerializableNoDefault(),
         required: bool = None,
         tags: Iterable[str] = None,
     ):
         if required is None:
-            required = isinstance(default, NoDefault)
-        if isinstance(default, NoDefault):
+            required = isinstance(default, SerializableNoDefault)
+        if isinstance(default, SerializableNoDefault):
             default = None
         self.required = required
         self.default = default
@@ -130,7 +130,7 @@ class DateTimeParameter(Parameter):
         required: bool = True,
         tags: Iterable[str] = None,
     ) -> None:
-        default = NoDefault() if required else None
+        default = SerializableNoDefault() if required else None
         super().__init__(name=name, default=default, required=required, tags=tags)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 
