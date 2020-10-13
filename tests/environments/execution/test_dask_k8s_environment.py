@@ -418,9 +418,8 @@ def test_populate_custom_worker_spec_yaml(log_flag):
     assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
     assert env[7]["value"] == str(log_flag).lower()
-    assert env[8]["value"] == "INFO"
     assert (
-        env[9]["value"]
+        env[8]["value"]
         == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive']"
     )
 
@@ -466,9 +465,8 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
     assert env[7]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[8]["value"] == "prefect.engine.executors.DaskExecutor"
     assert env[9]["value"] == str(log_flag).lower()
-    assert env[10]["value"] == "INFO"
     assert (
-        env[11]["value"]
+        env[10]["value"]
         == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive']"
     )
 
