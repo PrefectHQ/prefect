@@ -59,14 +59,12 @@ class GCS(Storage):
         self.bucket = bucket
         self.key = key
         self.project = project
-        self.local_script_path = local_script_path or prefect.context.get("local_script_path", None)
+        self.local_script_path = local_script_path or prefect.context.get(
+            "local_script_path", None
+        )
 
         result = GCSResult(bucket=bucket)
-        super().__init__(
-            result=result,
-            stored_as_script=stored_as_script,
-            **kwargs
-        )
+        super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
     @property
     def default_labels(self) -> List[str]:
