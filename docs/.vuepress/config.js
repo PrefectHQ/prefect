@@ -19,6 +19,11 @@ const getChildren = function(parent_path, dir) {
     .sort()
 }
 
+const transformAlgoliaData = function(hits) {
+  console.log(hits)
+  return hits
+}
+
 module.exports = {
   title: 'Prefect Docs',
   description: "Don't Panic.",
@@ -65,7 +70,8 @@ module.exports = {
       debug: true,
       algoliaOptions: {
         hitsPerPage: 10
-      }
+      },
+      transformData: transformAlgoliaData
     },
     repo: 'PrefectHQ/prefect',
     docsDir: 'docs',
