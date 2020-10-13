@@ -19,7 +19,7 @@ class ClockEvent:
     ) -> None:
         self.start_time = start_time
         self.parameter_defaults = parameter_defaults or dict()
-        self.labels = labels or []
+        self.labels = labels
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, (ClockEvent, datetime)):
@@ -82,7 +82,7 @@ class Clock:
         self.start_date = start_date
         self.end_date = end_date
         self.parameter_defaults = parameter_defaults or dict()
-        self.labels = labels or []
+        self.labels = labels
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """

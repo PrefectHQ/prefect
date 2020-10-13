@@ -37,6 +37,7 @@ def test_serialize_schedule_with_parameters():
 
     output = s2.next(3, after=dt, return_events=True)
 
+    assert all([e.labels is None for e in output])
     assert all([isinstance(e, clocks.ClockEvent) for e in output])
 
 

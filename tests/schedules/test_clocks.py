@@ -33,7 +33,7 @@ class TestClockEvent:
 
         assert e.start_time == now
         assert e.parameter_defaults == dict()
-        assert e.labels == []
+        assert e.labels is None
 
     def test_clock_event_accepts_parameters(self):
         now = pendulum.now("UTC")
@@ -41,7 +41,7 @@ class TestClockEvent:
 
         assert e.start_time == now
         assert e.parameter_defaults == dict(x=42, z=[1, 2, 3])
-        assert e.labels == []
+        assert e.labels is None
 
     def test_clock_event_accepts_labels(self):
         now = pendulum.now("UTC")
@@ -117,7 +117,7 @@ class TestIntervalClock:
             start_date=pendulum.now("UTC"), interval=timedelta(days=1)
         )
         assert c.parameter_defaults == dict()
-        assert c.labels == []
+        assert c.labels is None
 
     def test_create_interval_clock_with_parameters(self):
         c = clocks.IntervalClock(
@@ -145,7 +145,7 @@ class TestIntervalClock:
         assert c.interval == timedelta(hours=1)
         assert c.end_date is None
         assert c.parameter_defaults == dict()
-        assert c.labels == []
+        assert c.labels is None
 
     def test_end_date(self):
         c = clocks.IntervalClock(
@@ -155,7 +155,7 @@ class TestIntervalClock:
         assert c.interval == timedelta(hours=1)
         assert c.end_date == pendulum.datetime(2020, 1, 1)
         assert c.parameter_defaults == dict()
-        assert c.labels == []
+        assert c.labels is None
 
     def test_interval_clock_interval_must_be_positive(self):
         with pytest.raises(ValueError, match="greater than 0"):
@@ -384,7 +384,7 @@ class TestCronClock:
     def test_create_cron_clock(self):
         c = clocks.CronClock("* * * * *")
         assert c.parameter_defaults == dict()
-        assert c.labels == []
+        assert c.labels is None
 
     def test_create_cron_clock_with_parameters(self):
         c = clocks.CronClock("* * * * *", parameter_defaults=dict(x=42))
@@ -625,7 +625,7 @@ class TestDatesClock:
         clock = clocks.DatesClock(dates=[now])
         assert clock.start_date == clock.end_date == now
         assert clock.parameter_defaults == dict()
-        assert clock.labels == []
+        assert clock.labels is None
 
     def test_create_dates_clock_multiple_dates(self):
         now = pendulum.now("UTC")
@@ -633,7 +633,7 @@ class TestDatesClock:
         assert clock.start_date == now
         assert clock.end_date == now.add(days=2)
         assert clock.parameter_defaults == dict()
-        assert clock.labels == []
+        assert clock.labels is None
 
     def test_create_dates_clock_multiple_dates_with_parameters(self):
         now = pendulum.now("UTC")
