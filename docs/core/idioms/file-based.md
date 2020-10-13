@@ -162,7 +162,7 @@ not set then a key will be automatically generated for the storage of the flow)
 flow.storage = S3(
     bucket="my-flow-bucket",
     stored_as_script=True,
-    script_path="my_flow.py"  # Local file that you want uploaded to the bucket
+    local_script_path="my_flow.py"  # Local file that you want uploaded to the bucket
 )
 
 # or
