@@ -1326,7 +1326,7 @@ class Client:
             }
         }
         result = self.graphql(
-            mutation, variables=dict(input=dict(task_run_id=task_run_id))
+            mutation, variables=dict(input=dict(flow_run_id=flow_run_id))
         )
         return result.data.cancel_flow_run.success
 
