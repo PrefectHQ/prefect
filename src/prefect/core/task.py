@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from prefect.core import Edge
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+DEFAULT_VALUE = object()
 
 
 def _validate_run_signature(run: Callable) -> None:
@@ -764,6 +765,40 @@ class Task(metaclass=SignatureValidator):
         """
         return prefect.serialization.task.TaskSchema().dump(self)
 
+    # Accessors  ----------------------------------------------------------------
+
+    def get_item(self, item: Any, default: Any = DEFAULT_VALUE) -> "Task":
+        """
+        Produces a Task that evaluates `self[key]` or returns the default value
+
+        Args:
+            - item (object): the object to use as an index for this task. It will be converted
+                to a Task if it isn't one already.
+            - default (object): the object to use as the default.
+
+        Returns:
+            - Task
+        """
+        args = (self, item) if default is DEFAULT_VALUE else (self, item, default)
+
+        return prefect.tasks.core.operators.GetItem().bind(*args)
+
+    def get_attr(self, item: str, default: Any = DEFAULT_VALUE) -> "Task":
+        """
+        Produces a Task that evaluates `self.attr` or returns the default value
+
+        Args:
+            - item (str): the (possibly nested) attribute to retrieve as `self.attr`.
+                Nested attributes should be accessed via `.`-delimited strings.
+            - default (object): the object to use as the default.
+
+        Returns:
+            - Task
+        """
+        args = (self, item) if default is DEFAULT_VALUE else (self, item, default)
+
+        return prefect.tasks.core.operators.GetAttr().bind(*args)
+
     # Operators  ----------------------------------------------------------------
 
     def is_equal(self, other: object) -> "Task":
@@ -827,7 +862,7 @@ class Task(metaclass=SignatureValidator):
         Produces a Task that evaluates `self[key]`
 
         Args:
-            - key (object): the object to use an an index for this task. It will be converted
+            - key (object): the object to use as an index for this task. It will be converted
                 to a Task if it isn't one already.
 
         Returns:

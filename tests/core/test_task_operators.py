@@ -14,6 +14,23 @@ class TestInteractionMethods:
         state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3)))
         assert state.result[z].result == 2
 
+    def test_getattr_default(self):
+        with Flow(name="test") as f:
+            x = Parameter("x")
+            a = GetAttr(default="foo")(x, "missing")
+            b = GetAttr()(x, "missing", "bar")
+            c = GetAttr()(x, "missing", default="baz")
+        state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3)))
+        assert state.result[a].result == "foo"
+        assert state.result[b].result == "bar"
+        assert state.result[c].result == "baz"
+
+    def test_getattr_missing(self):
+        with Flow(name="test") as f:
+            a = GetAttr()(Parameter("x"), "missing")
+        state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3)))
+        assert isinstance(state.result[a].result, AttributeError)
+
     def test_getattr_nested(self):
         with Flow(name="test") as f:
             z = GetAttr()(Parameter("x"), "a.b.c")
@@ -421,3 +438,29 @@ class TestNonMagicOperatorMethods:
         assert state.result[z].result is True
         state = f.run(parameters=dict(x=False))
         assert state.result[z].result is False
+
+    def test_get_item(self):
+        with Flow(name="test") as f:
+            p = Parameter("x")
+            x = p.get_item("b")
+            y = p.get_item("d", "default")
+            z = p.get_item("d", default=None)
+            a = p.get_item("missing")
+        state = f.run(parameters=dict(x=dict(a=1, b=2, c=3)))
+        assert state.result[x].result == 2
+        assert state.result[y].result == "default"
+        assert state.result[z].result is None
+        assert isinstance(state.result[a].result, KeyError)
+
+    def test_get_attr(self):
+        with Flow(name="test") as f:
+            p = Parameter("x")
+            x = p.get_attr("b")
+            y = p.get_attr("d", "default")
+            z = p.get_attr("d", default=None)
+            a = p.get_attr("missing")
+        state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3)))
+        assert state.result[x].result == 2
+        assert state.result[y].result == "default"
+        assert state.result[z].result is None
+        assert isinstance(state.result[a].result, AttributeError)
