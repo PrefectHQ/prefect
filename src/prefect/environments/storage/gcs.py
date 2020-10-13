@@ -40,7 +40,7 @@ class GCS(Storage):
         - local_script_path (str, optional): the path to a local script to upload when `stored_as_script`
             is set to `True`. If not set then the value of `local_script_path` from `prefect.context` is
             used. If neither are set then script will not be uploaded and users should manually place the
-            script file in the desired `key` location in an GCS bucket.
+            script file in the desired `key` location in a GCS bucket.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
