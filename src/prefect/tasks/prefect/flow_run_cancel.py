@@ -32,7 +32,7 @@ class CancelFlowRunTask(Task):
         Returns:
             - bool: Whether the flow run was canceled successfully or not
         """
-        flow_run_id = flow_run_id or prefect.context["flow_run_id"]
+        flow_run_id = flow_run_id or prefect.context.get("flow_run_id")
         if not flow_run_id:
             raise ValueError("Can't cancel a flow run without flow run ID.")
 
