@@ -254,6 +254,7 @@ export default {
       const routepath = pathname.replace(this.$site.base, '/')
       const _hash = decodeURIComponent(hash)
       this.$router.push(`${routepath}${_hash}`)
+      this.showResults = false
     },
     initialize(lang) {
       this.index = this.client.initIndex('prefect')
