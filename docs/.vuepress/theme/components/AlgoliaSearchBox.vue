@@ -114,6 +114,7 @@ export default {
   },
   data() {
     return {
+      client: algoliasearch('BH4D9OD16A', '553c75634e1d4f09c84f7a513f9cc4f9'),
       index: null,
       marvinImgSrc: null,
       hitsPerPage: 10,
@@ -157,8 +158,9 @@ export default {
     },
     async search() {
       if (!this.query) {
-        this.results = null
-        this.resultsGroups = null
+        console.log(this.query)
+        this.results = []
+        this.resultsGroups = []
         return
       }
 
@@ -289,7 +291,6 @@ export default {
     left unset
   }
 
-
   &::before
     content ""
     border-right 20px solid transparent
@@ -307,7 +308,8 @@ export default {
     }
 
 .group-result
-  display flex
+  display grid
+  grid-template-columns 100px auto
   line-height  1rem
   margin 10px auto
   padding 5px auto
@@ -318,20 +320,19 @@ export default {
   color rgba(0, 0, 0, 0.45)
   padding 10px 10px 10px 0
   text-align right
-  width 15%
   white-space initial !important
 
 .hits
-  width 100%
+  display inline-block
 
 .result-item
   cursor pointer
-  display block
   overflow hidden
   padding 10px 5px
   text-overflow ellipsis
   white-space nowrap
-  width 85%
+  max-width 85%
+  width 100%
   font-weight 500
   margin 5px 10px
 
