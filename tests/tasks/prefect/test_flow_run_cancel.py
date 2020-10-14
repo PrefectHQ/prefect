@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
+from prefect import Flow
 from prefect.tasks.prefect.flow_run_cancel import CancelFlowRunTask
 
 
@@ -16,6 +17,8 @@ def test_flow_run_cancel(monkeypatch):
     # Verify correct initialization
     assert task.flow_run_id == "id123"
     # Verify client called with arguments
-    task.run()
+    flow = Flow("TestContext")
+    flow.add_task(task)
+    flow.run()
     assert client.cancel_flow_run.called
     assert client.cancel_flow_run.call_args[0][0] == "id123"
