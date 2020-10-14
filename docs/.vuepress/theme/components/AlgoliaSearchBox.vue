@@ -4,6 +4,7 @@
       <input
         v-model="query"
         id="search-input"
+        ref="search"
         class="search-query"
         autocomplete="off"
         @click="showResults = true"
@@ -138,6 +139,14 @@ export default {
 
     this.initialize(this.$lang)
     this.placeholder = this.$site.themeConfig.searchPlaceholder || ''
+
+    // Adds the event listener for the / search shortcut
+    window.addEventListener('keyup', this.handleKeyboardShortcut)
+  },
+  beforeDestroy() {
+    // Removes the / search shortcut event listener when
+    // the component is destroyed
+    window.removeEventListener('keyup', this.handleKeyboardShortcut)
   },
   methods: {
     handleKeypress() {
@@ -156,9 +165,18 @@ export default {
         this.search()
       }
     },
+    handleKeyboardShortcut(e) {
+      if (
+        e.key &&
+        e.key === '/' &&
+        e.srcElement.tagName !== 'INPUT' &&
+        e.srcElement.tagName !== 'TEXTAREA'
+      ) {
+        this.$refs['search'].focus()
+      }
+    },
     async search() {
       if (!this.query) {
-        console.log(this.query)
         this.results = []
         this.resultsGroups = []
         return
@@ -171,8 +189,6 @@ export default {
 
       this.totalPages = results.nbPages
       this.totalResults = results.nbHits
-
-      console.log(results)
 
       const groups = []
       results.hits.forEach(hit => {
@@ -230,7 +246,6 @@ export default {
 
       this.results = results.hits
       this.resultsGroups = groups
-      console.log(groups)
     },
     navigateToResult(url) {
       const { pathname, hash } = new URL(url)
