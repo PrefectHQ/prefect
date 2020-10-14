@@ -5,7 +5,7 @@ import prefect
 from prefect.tasks.prefect.flow_run_cancel import CancelFlowRunTask
 
 
-def test_flow_run_rename_task(monkeypatch):
+def test_flow_run_cancel(monkeypatch):
     client = MagicMock()
     client.cancel_flow_run = MagicMock(return_value=True)
     monkeypatch.setattr(

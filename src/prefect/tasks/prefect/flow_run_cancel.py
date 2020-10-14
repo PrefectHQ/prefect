@@ -31,8 +31,8 @@ class CancelFlowRunTask(Task):
         """
         # if id is not provided, use current flow id
         if flow_run_id is None:
-            flow_run_id = prefect.context["flow_run_id"]
-        if flow_run_id is None:
+            flow_run_id = prefect.context.get("flow_run_id", "")
+        if flow_run_id is None or flow_run_id == "":
             raise ValueError("Can't delete a flow without flow ID. Provide flow ID.")
         client = Client()
         return client.cancel_flow_run(flow_run_id)
