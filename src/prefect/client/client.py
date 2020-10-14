@@ -778,8 +778,19 @@ class Client:
         )
 
         if not no_url:
+            # Query for flow group id
+            res = self.graphql(
+                {"query": {
+                    with_args("flow_by_pk", {"id": flow_id}): {
+                        "flow_group_id": ...
+                    }
+                }
+                }
+            )
+            flow_group_id = res.get("data").flow_by_pk.flow_group_id
+
             # Generate direct link to Cloud flow
-            flow_url = self.get_cloud_url("flow", flow_id)
+            flow_url = self.get_cloud_url("flow", flow_group_id)
 
             prefix = "└── "
 
