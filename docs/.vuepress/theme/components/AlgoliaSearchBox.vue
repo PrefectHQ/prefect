@@ -8,7 +8,7 @@
         autocomplete="off"
         @click="showResults = true"
         @blur="handleBlur"
-        @keyup="search"
+        @keyup="handleKeypress"
       />
     </form>
     <div v-if="showResults" class="results">
@@ -28,6 +28,22 @@
             <hr />
           </div>
         </transition>
+      </div>
+
+      <div v-if="resultsGroups.length" class="pagination">
+        <div class="pages">
+          Page {{ page + 1 }} of
+          {{ totalPages }}
+        </div>
+
+        <div class="buttons">
+          <div class="ripple" @click="decrementPage">
+            <span class="arrow left"></span>
+          </div>
+          <div class="ripple" @click="incrementPage">
+            <span class="arrow right"></span>
+          </div>
+        </div>
       </div>
 
       <div class="query-results-container">
@@ -84,10 +100,13 @@ export default {
     return {
       index: null,
       marvinImgSrc: null,
-      page: 1,
+      hitsPerPage: 10,
+      page: 0,
+      totalPages: 1,
       query: null,
       results: [],
       resultsGroups: [],
+      totalResults: 0,
       showResults: false
     }
   },
@@ -104,6 +123,22 @@ export default {
     this.placeholder = this.$site.themeConfig.searchPlaceholder || ''
   },
   methods: {
+    handleKeypress() {
+      this.page = 0
+      this.search()
+    },
+    incrementPage() {
+      if (this.page < this.totalPages - 1) {
+        this.page++
+        this.search()
+      }
+    },
+    decrementPage() {
+      if (this.page > 0) {
+        this.page--
+        this.search()
+      }
+    },
     async search() {
       if (!this.query) {
         this.results = null
@@ -112,9 +147,14 @@ export default {
       }
 
       const results = await this.index.search(this.query, {
-        hitsPerPage: 10,
+        hitsPerPage: this.hitsPerPage,
         page: this.page
       })
+
+      this.totalPages = results.nbPages
+      this.totalResults = results.nbHits
+
+      console.log(results)
 
       const groups = []
       results.hits.forEach(hit => {
@@ -230,6 +270,7 @@ export default {
   line-height  1rem
   margin 10px auto
   padding 5px auto
+  user-select none
 
 .group
   border-right 2px solid #27b1ff
@@ -293,6 +334,30 @@ export default {
 .algolia-docsearch-suggestion--highlight
     padding: 0 !important
     color: #3b8dff !important
+
+.pagination
+  display flex
+  justify-content flex-end
+
+  .pages
+    font-size 0.75rem
+    text-align right
+    line-height 0.75rem
+    margin-top auto
+    margin-bottom auto
+
+  .buttons
+    display flex
+
+  .buttons div
+    display flex
+    justify-content center
+    align-items center
+    border-radius 50%
+    cursor pointer
+    height 20px
+    margin auto 7.5px
+    width 20px
 
 
 .ripple
