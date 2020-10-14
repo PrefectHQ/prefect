@@ -1,4 +1,4 @@
-enhancement:
+task:
   - "Add cancel flow run task - [#3484](https://github.com/PrefectHQ/prefect/issues/3484)"
 
 contributor:

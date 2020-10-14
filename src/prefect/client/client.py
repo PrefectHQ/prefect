@@ -1310,9 +1310,11 @@ class Client:
 
     def cancel_flow_run(self, flow_run_id: str) -> bool:
         """
-        Cancel the flow by id
+        Cancel the flow run by id
+
         Args:
-            - flow_run_id (str): the id of the flow
+            - flow_run_id (str): the id of the flow run
+
         Returns:
             - bool: whether or not the flow run was canceled
         """
