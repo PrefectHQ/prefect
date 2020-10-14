@@ -27,7 +27,7 @@ class CancelFlowRunTask(Task):
     def run(self, flow_run_id: str = None) -> bool:
         """
         Args:
-            - flow_run_id (str, optional): The ID of the flow to cancel
+            - flow_run_id (str, optional): The ID of the flow run to cancel
 
         Returns:
             - bool: Boolean representing whether the flow run was canceled successfully or not
