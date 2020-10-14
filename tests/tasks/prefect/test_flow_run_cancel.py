@@ -12,13 +12,13 @@ def test_flow_run_cancel(monkeypatch):
     monkeypatch.setattr(
         "prefect.tasks.prefect.flow_run_cancel.Client", MagicMock(return_value=client)
     )
-    task = CancelFlowRunTask(flow_run_id="id123")
+    flow_cancel_task = CancelFlowRunTask(flow_run_id_to_cancel="id123")
 
     # Verify correct initialization
-    assert task.flow_run_id == "id123"
+    assert flow_cancel_task.flow_run_id_to_cancel == "id123"
     # Verify client called with arguments
     flow = Flow("TestContext")
-    flow.add_task(task)
+    flow.add_task(flow_cancel_task)
     flow.run()
     assert client.cancel_flow_run.called
     assert client.cancel_flow_run.call_args[0][0] == "id123"
