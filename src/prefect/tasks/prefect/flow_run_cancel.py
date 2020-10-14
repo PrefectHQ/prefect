@@ -7,8 +7,8 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class CancelFlowRunTask(Task):
     """
-    Task to cancel a flow run. If flow_run_id is not provided,
-    flow_run_id from prefect.context will be used by default
+    Task to cancel a flow run. If `flow_run_id` is not provided,
+    `flow_run_id` from `prefect.context` will be used by default
 
     Args:
         - flow_run_id (str, optional): The ID of the flow run to cancel
