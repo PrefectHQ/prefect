@@ -271,13 +271,22 @@ export default {
 
 .results
   background-color white
-  box-shadow 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)
+  filter: drop-shadow(0px 2px 2px rgba(130,130,130,1))
   position absolute
   padding 5px 10px
+  left 1.5rem
   top 3.25rem
-  left 2rem
   width 700px
   z-index 9999
+
+  &::before
+    content ""
+    border-right 20px solid transparent
+    border-bottom 20px solid white
+    position absolute
+    top -20px
+    left 0
+    width 0
 
 .group-result
   display flex
