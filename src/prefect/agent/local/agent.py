@@ -102,7 +102,8 @@ class LocalAgent(Agent):
                 "s3-flow-storage",
                 "github-flow-storage",
                 "webhook-flow-storage",
-            "gitlab-flow-storage",]
+                "gitlab-flow-storage",
+            ]
             for label in all_storage_labels:
                 if label not in self.labels:
                     self.labels.append(label)
