@@ -24,17 +24,17 @@ class CancelFlowRunTask(Task):
     def run(self, flow_run_id_to_cancel: str = None):
         """
         Args:
-            - flow_id_to_cancel (str, optional): The ID of the flow to cancel
+            - flow_run_id_to_cancel (str, optional): The ID of the flow to cancel
 
         Returns:
             - bool: Boolean representing whether the flow was canceled successfully or not
         """
         current_flow_run_id = prefect.context.get("flow_run_id", "")
-        if current_flow_run_id=="":
+        if current_flow_run_id == "":
             raise ValueError("Can't retrieve current flow ID.")
         # if id is not provided, use current flow id
         if self.flow_run_id_to_cancel is None:
             self.flow_run_id_to_cancel = prefect.context.get("flow_run_id", "")
-            
+
         client = Client()
         return client.cancel_flow_run(self.flow_run_id_to_cancel)
