@@ -97,7 +97,7 @@ jobs:
           command: pytest docs -vvrfEsx
 
   # test a standard install of prefect
-  # with all requriements pinned to their lowest allowed versions
+  # with all requirements pinned to their lowest allowed versions
   # to ensure our requirements.txt file is accurate
   test_lower_prefect:
     docker:
