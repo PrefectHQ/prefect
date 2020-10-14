@@ -31,7 +31,7 @@ jobs:
 
   check_static_analysis:
     docker:
-      - image: python:3.7
+      - image: python:3.8
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
