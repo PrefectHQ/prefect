@@ -1,2 +1,0 @@
-fix:
-  - "Fix task cancellation on Python 3.8 to properly interrupt long blocking calls - [#3474](https://github.com/PrefectHQ/prefect/pull/3474)"
