@@ -1,0 +1,422 @@
+<template>
+  <div class="container">
+    <form id="search-form" class="search-wrapper search-box" role="search">
+      <input
+        v-model="query"
+        id="search-input"
+        class="search-query"
+        autocomplete="off"
+        @click="showResults = true"
+        @blur="handleBlur"
+        @keyup="search"
+      />
+    </form>
+    <div v-if="showResults" class="results">
+      <div class="marvin" :class="{ small: query }">
+        <img :src="'/assets/marvin.jpg'" />
+        <transition name="fade">
+          <div v-if="!query">
+            There's only one life-form as intelligent as me within thirty
+            parsecs of here and that's me. What do you want?
+          </div>
+          <div v-else>
+            Fine, I'll use my immense brainpower to search for
+            <span class="algolia-docsearch-suggestion--highlight">{{
+              query
+            }}</span
+            >...
+            <hr />
+          </div>
+        </transition>
+      </div>
+
+      <div class="query-results-container">
+        <div
+          v-for="group in resultsGroups"
+          :key="group.group"
+          class="group-result"
+        >
+          <div class="group">
+            {{ group.category }}
+          </div>
+          <div class="hits">
+            <div
+              v-for="r in group.hits"
+              class="result-item ripple"
+              @click="navigateToResult(r.url)"
+            >
+              <div v-html="r.val1" />
+
+              <div
+                v-if="r.val2"
+                class="subtext"
+                v-html="r.isCode ? highlightCode(r.val2) : r.val2"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="results-footer">
+        <a
+          v-if="query"
+          href="https://www.algolia.com/docsearch"
+          target="_blank"
+        >
+          <img :src="'/assets/search-by-algolia-light-background.svg'" />
+        </a>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import algoliasearch from 'algoliasearch/dist/algoliasearch.umd.js'
+import { unescape } from 'lodash'
+import hljs from 'highlight.js/lib/core'
+import python from 'highlight.js/lib/languages/python'
+
+hljs.registerLanguage('python', python)
+
+export default {
+  name: 'AlgoliaSearchBox',
+  props: ['options'],
+  data() {
+    return {
+      index: null,
+      marvinImgSrc: null,
+      page: 1,
+      query: null,
+      results: [],
+      resultsGroups: [],
+      showResults: false
+    }
+  },
+  watch: {
+    $lang(newValue) {
+      this.update(newValue)
+    }
+  },
+  mounted() {
+    const marvin = new Image()
+    marvin.src = '/assets/marvin.jpg'
+
+    this.initialize(this.$lang)
+    this.placeholder = this.$site.themeConfig.searchPlaceholder || ''
+  },
+  methods: {
+    async search() {
+      if (!this.query) {
+        this.results = null
+        this.resultsGroups = null
+        return
+      }
+
+      const results = await this.index.search(this.query, {
+        hitsPerPage: 10,
+        page: this.page
+      })
+
+      const groups = []
+      results.hits.forEach(hit => {
+        let category
+        if (hit.url) {
+          const isCore = hit.url.includes('/core/')
+          const isOrchestration = hit.url.includes('/orchestration/')
+          const isAPI = hit.url.includes('/api/')
+          if (isCore) category = 'Core'
+          if (isOrchestration) category = 'Orchestration (Cloud/Server)'
+          if (isAPI) category = 'API Docs'
+        }
+
+        let categoryIndex = groups.findIndex(g => g.category == category)
+
+        if (categoryIndex > -1) {
+          groups[categoryIndex].hits.push(hit)
+        } else {
+          groups.push({
+            group: hit.hierarchy.lvl0,
+            hits: [hit],
+            category: category
+          })
+        }
+      })
+
+      groups.forEach(g =>
+        g.hits.forEach(hit => {
+          let val1, val2, isCode
+
+          Object.keys(hit.hierarchy).forEach(key => {
+            if (!hit.hierarchy[key]) return
+
+            if (!val1) {
+              val1 = hit._highlightResult.hierarchy[key].value
+              return
+            }
+
+            if (key == 'lvl6' && !val2) {
+              isCode = true
+              val2 = hit.hierarchy[key]
+
+              return
+            } else if (!val2) {
+              val2 = hit._highlightResult.hierarchy[key].value
+              return
+            }
+          })
+
+          hit.val1 = val1
+          hit.val2 = val2
+          hit.isCode = isCode
+        })
+      )
+
+      this.results = results.hits
+      this.resultsGroups = groups
+      console.log(groups)
+    },
+    navigateToResult(url) {
+      const { pathname, hash } = new URL(url)
+      const routepath = pathname.replace(this.$site.base, '/')
+      const _hash = decodeURIComponent(hash)
+      this.$router.push(`${routepath}${_hash}`)
+    },
+    initialize(lang) {
+      this.index = this.client.initIndex('prefect')
+    },
+    update(lang) {
+      this.initialize(lang)
+    },
+    highlightCode(code) {
+      const split = code.split('\n')
+      const line = split.find(l => l.includes(this.query))
+
+      if (!line) null
+
+      const decoded = decodeURI(unescape(line))
+      const highlightResult = hljs.highlight('python', unescape(decoded))
+
+      if (highlightResult.illegal) return unescape(line)
+      return highlightResult.value
+    },
+    handleBlur(event) {
+      console.log(event)
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        // this.showResults = false
+      }
+    }
+  }
+}
+</script>
+
+<style lang="styl">
+.container
+  position relative
+  outline none
+
+.query-results-container
+  max-height 60vh
+  overflow scroll
+
+.results
+  background-color white
+  box-shadow 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)
+  position absolute
+  padding 5px 10px
+  width 700px
+  z-index 9999
+
+.group-result
+  display flex
+  line-height  1rem
+  margin 10px auto
+  padding 5px auto
+
+.group
+  border-right 2px solid #27b1ff
+  color rgba(0, 0, 0, 0.45)
+  padding 10px 10px 10px 0
+  text-align right
+  width 100px
+  white-space initial !important
+
+.hits
+  width 100%
+
+.result-item
+  cursor pointer
+  display block
+  overflow hidden
+  padding 10px 5px
+  text-overflow ellipsis
+  white-space nowrap
+  width 600px
+  font-weight 500
+  margin 5px 10px
+
+.marvin
+  display flex
+  transition all 50ms
+
+  img
+    border-radius 50%
+    transition all 150ms
+    height 100px
+
+  &.small
+    img
+      height 50px
+
+  div
+    font-weight 500
+    line-height 1rem
+    padding 20px 20px
+    white-space initial !important
+    width 100%
+
+.subtext
+  color rgba(0, 0, 0, 0.45)
+  font-size 0.8rem
+  font-style italic
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+  width 100%
+
+.results-footer
+  justify-content flex-end
+  display flex
+
+  img
+    max-height 20px
+
+
+.algolia-docsearch-suggestion--highlight
+    padding: 0 !important
+    color: #3b8dff !important
+
+
+.ripple
+  background-position center
+  transition background 500ms
+  &:hover
+    background rgba(133, 146, 158, 0.15) radial-gradient(circle, transparent 1%, rgba(133, 146, 158, 0.05) 1%) center/15000%
+
+  &:active
+    background-color rgba(133, 146, 158, 0.05)
+    background-size 100%
+    transition background 50ms
+
+.fade-enter-active .fade-leave-active
+  transition opacity .5s
+
+.fade-enter .fade-leave-to
+  opacity 0
+
+
+.hljs
+  display block
+  overflow-x auto
+  color #657b83
+
+
+.hljs-comment,
+.hljs-quote
+  display initial !important
+  font-style italic
+  font-weight 700
+  color #a5b4be - 15%
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-comment
+  display block !important
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-addition
+  display initial !important
+  color #27b1ff
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-number,
+.hljs-string,
+.hljs-meta .hljs-meta-string,
+.hljs-literal,
+.hljs-doctag,
+.hljs-regexp
+  display initial !important
+  color #fe5196
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class
+  display initial !important
+  color #3b8dff
+  font-weight 700
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-attribute,
+.hljs-attr,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-class .hljs-title,
+.hljs-type
+  display initial !important
+  color #b58900
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-subst,
+.hljs-meta,
+.hljs-meta .hljs-keyword,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-link
+  display initial !important
+  color #fe5196
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-built_in,
+.hljs-deletion
+  display initial !important
+  color #dc322f
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-formula
+  display initial !important
+  background #eee8d5
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-emphasis
+  display initial !important
+  font-style italic
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.hljs-strong
+  display initial !important
+  font-weight bold
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+</style>

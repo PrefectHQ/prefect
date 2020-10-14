@@ -19,11 +19,6 @@ const getChildren = function(parent_path, dir) {
     .sort()
 }
 
-const transformAlgoliaData = function(hits) {
-  console.log(hits)
-  return hits
-}
-
 module.exports = {
   title: 'Prefect Docs',
   description: "Don't Panic.",
@@ -65,13 +60,7 @@ module.exports = {
   ],
   themeConfig: {
     algolia: {
-      apiKey: '553c75634e1d4f09c84f7a513f9cc4f9',
-      indexName: 'prefect',
-      debug: true,
-      algoliaOptions: {
-        hitsPerPage: 10
-      },
-      transformData: transformAlgoliaData
+      apiKey: '553c75634e1d4f09c84f7a513f9cc4f9'
     },
     repo: 'PrefectHQ/prefect',
     docsDir: 'docs',
