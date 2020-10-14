@@ -1,5 +1,5 @@
 <template>
-  <div class="container">
+  <div class="container" v-click-outside="handleBlur">
     <form id="search-form" class="search-wrapper search-box" role="search">
       <input
         v-model="query"
@@ -7,91 +7,93 @@
         class="search-query"
         autocomplete="off"
         @click="showResults = true"
-        @blur="handleBlur"
+        @focus="showResults = true"
         @keyup="handleKeypress"
       />
     </form>
-    <div v-if="showResults" class="results">
-      <div class="marvin" :class="{ small: query }">
-        <img :src="'/assets/marvin.jpg'" />
-        <transition name="fade">
-          <div v-if="!query">
-            There's only one life-form as intelligent as me within thirty
-            parsecs of here and that's me. What do you want?
-          </div>
-          <div v-else>
-            Fine, I'll use my immense brainpower to search for
-            <span class="algolia-docsearch-suggestion--highlight">{{
-              query
-            }}</span
-            >...
-            <hr />
-          </div>
-        </transition>
-      </div>
-
-      <div v-if="resultsGroups.length" class="pagination">
-        <div class="pages">
-          Page {{ page + 1 }} of
-          {{ totalPages }}
+    <transition name="fade" mode="out-in">
+      <div v-if="showResults" class="results">
+        <div class="marvin" :class="{ small: query }">
+          <img :src="'/assets/marvin.jpg'" />
+          <transition name="fade">
+            <div v-if="!query">
+              There's only one life-form as intelligent as me within thirty
+              parsecs of here and that's me. What do you want?
+            </div>
+            <div v-else>
+              Fine, I'll use my immense brainpower to search for
+              <span class="algolia-docsearch-suggestion--highlight">{{
+                query
+              }}</span
+              >...
+              <hr />
+            </div>
+          </transition>
         </div>
 
-        <div class="buttons">
-          <div class="ripple" @click="decrementPage">
-            <span class="arrow left"></span>
+        <div v-if="resultsGroups.length" class="pagination">
+          <div class="pages">
+            Page {{ page + 1 }} of
+            {{ totalPages }}
           </div>
-          <div class="ripple" @click="incrementPage">
-            <span class="arrow right"></span>
-          </div>
-        </div>
-      </div>
 
-      <div class="query-results-container">
-        <div
-          v-for="group in resultsGroups"
-          :key="group.group"
-          class="group-result"
-        >
-          <div class="group">
-            {{ group.category }}
-          </div>
-          <div class="hits">
-            <div
-              v-for="r in group.hits"
-              class="result-item ripple"
-              @click="navigateToResult(r.url)"
-            >
-              <div v-html="r.val1" />
-
-              <div
-                v-if="r.val2"
-                class="subtext"
-                v-html="r.isCode ? highlightCode(r.val2) : r.val2"
-              />
+          <div class="buttons">
+            <div class="ripple" @click="decrementPage">
+              <span class="arrow left"></span>
+            </div>
+            <div class="ripple" @click="incrementPage">
+              <span class="arrow right"></span>
             </div>
           </div>
         </div>
 
-        <transition name="fade">
-          <div v-if="query && !resultsGroups.length" style="padding: 0 25px">
-            I couldn't find anything while searching for
-            <span class="algolia-docsearch-suggestion--highlight">{{
-              query
-            }}</span
-            >... call that job satisfaction? 'Cos I don't.
+        <div class="query-results-container">
+          <div
+            v-for="group in resultsGroups"
+            :key="group.group"
+            class="group-result"
+          >
+            <div class="group">
+              {{ group.category }}
+            </div>
+            <div class="hits">
+              <div
+                v-for="r in group.hits"
+                class="result-item ripple"
+                @click="navigateToResult(r.url)"
+              >
+                <div v-html="r.val1" />
+
+                <div
+                  v-if="r.val2"
+                  class="subtext"
+                  v-html="r.isCode ? highlightCode(r.val2) : r.val2"
+                />
+              </div>
+            </div>
           </div>
-        </transition>
+
+          <transition name="fade">
+            <div v-if="query && !resultsGroups.length" style="padding: 0 25px">
+              I couldn't find anything while searching for
+              <span class="algolia-docsearch-suggestion--highlight">{{
+                query
+              }}</span
+              >... call that job satisfaction? 'Cos I don't.
+            </div>
+          </transition>
+        </div>
+        <div class="results-footer">
+          <a
+            v-if="query"
+            href="https://www.algolia.com/docsearch"
+            target="_blank"
+          >
+            <img :src="'/assets/search-by-algolia-light-background.svg'" />
+          </a>
+        </div>
       </div>
-      <div class="results-footer">
-        <a
-          v-if="query"
-          href="https://www.algolia.com/docsearch"
-          target="_blank"
-        >
-          <img :src="'/assets/search-by-algolia-light-background.svg'" />
-        </a>
-      </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -100,12 +102,16 @@ import algoliasearch from 'algoliasearch/dist/algoliasearch.umd.js'
 import { unescape } from 'lodash'
 import hljs from 'highlight.js/lib/core'
 import python from 'highlight.js/lib/languages/python'
+import vClickOutside from 'v-click-outside'
 
 hljs.registerLanguage('python', python)
 
 export default {
   name: 'AlgoliaSearchBox',
   props: ['options'],
+  directives: {
+    clickOutside: vClickOutside.directive
+  },
   data() {
     return {
       index: null,
@@ -248,11 +254,8 @@ export default {
       if (highlightResult.illegal) return unescape(line)
       return highlightResult.value
     },
-    handleBlur(event) {
-      console.log(event)
-      if (!event.currentTarget.contains(event.relatedTarget)) {
-        // this.showResults = false
-      }
+    handleBlur() {
+      this.showResults = false
     }
   }
 }
@@ -411,13 +414,6 @@ export default {
     background-color rgba(133, 146, 158, 0.05)
     background-size 100%
     transition background 50ms
-
-.fade-enter-active .fade-leave-active
-  transition opacity .5s
-
-.fade-enter .fade-leave-to
-  opacity 0
-
 
 .hljs
   display block
