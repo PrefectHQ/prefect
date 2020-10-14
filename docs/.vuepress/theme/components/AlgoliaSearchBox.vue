@@ -276,7 +276,8 @@ export default {
   padding 5px 10px
   left 1.5rem
   top 3.25rem
-  width 700px
+  max-width 700px
+  width auto
   z-index 9999
 
   &::before
@@ -300,7 +301,7 @@ export default {
   color rgba(0, 0, 0, 0.45)
   padding 10px 10px 10px 0
   text-align right
-  width 100px
+  width 15%
   white-space initial !important
 
 .hits
@@ -313,12 +314,13 @@ export default {
   padding 10px 5px
   text-overflow ellipsis
   white-space nowrap
-  width 600px
+  width 85%
   font-weight 500
   margin 5px 10px
 
 .marvin
   display flex
+  align-items center
   transition all 50ms
 
   img
@@ -335,7 +337,7 @@ export default {
   div
     font-weight 500
     line-height 1rem
-    padding 20px 20px
+    padding 0 20px
     white-space initial !important
     width 100%
 
