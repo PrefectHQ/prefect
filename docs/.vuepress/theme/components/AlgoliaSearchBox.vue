@@ -274,6 +274,8 @@ export default {
   box-shadow 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)
   position absolute
   padding 5px 10px
+  top 3.25rem
+  left 2rem
   width 700px
   z-index 9999
 
