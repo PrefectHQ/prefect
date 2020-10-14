@@ -71,6 +71,16 @@
             </div>
           </div>
         </div>
+
+        <transition name="fade">
+          <div v-if="query && !resultsGroups.length" style="padding: 0 25px">
+            I couldn't find anything while searching for
+            <span class="algolia-docsearch-suggestion--highlight">{{
+              query
+            }}</span
+            >... call that job satisfaction? 'Cos I don't.
+          </div>
+        </transition>
       </div>
       <div class="results-footer">
         <a
@@ -164,7 +174,7 @@ export default {
           const isOrchestration = hit.url.includes('/orchestration/')
           const isAPI = hit.url.includes('/api/')
           if (isCore) category = 'Core'
-          if (isOrchestration) category = 'Orchestration (Cloud/Server)'
+          if (isOrchestration) category = 'Cloud/Server Orchestration'
           if (isAPI) category = 'API Docs'
         }
 
@@ -252,6 +262,8 @@ export default {
 .container
   position relative
   outline none
+  white-space initial !important
+  line-height 1rem !important
 
 .query-results-container
   max-height 60vh
