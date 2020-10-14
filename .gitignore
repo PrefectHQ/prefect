@@ -105,6 +105,9 @@ celerybeat-schedule
 venv/
 ENV/
 
+# For those building a PyEnv using Pipenv
+Pipfile
+
 # Spyder project settings
 .spyderproject
 

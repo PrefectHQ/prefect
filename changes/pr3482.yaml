@@ -1,0 +1,2 @@
+enhancement:
+  - "Enable automatic script upload for file-based storage when using S3 and GCS - [#3482](https://github.com/PrefectHQ/prefect/pull/3482)"

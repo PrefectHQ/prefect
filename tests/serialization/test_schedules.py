@@ -37,6 +37,25 @@ def test_serialize_schedule_with_parameters():
 
     output = s2.next(3, after=dt, return_events=True)
 
+    assert all([e.labels is None for e in output])
+    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+
+
+def test_serialize_schedule_with_labels():
+    dt = pendulum.datetime(2099, 1, 1)
+    s = schedules.Schedule(
+        clocks=[
+            clocks.IntervalClock(timedelta(hours=1), labels=["dev"]),
+            clocks.CronClock("0 8 * * *", labels=["prod"]),
+        ]
+    )
+    s2 = serialize_and_deserialize(s)
+
+    assert s2.clocks[0].labels == ["dev"]
+    assert s2.clocks[1].labels == ["prod"]
+
+    output = s2.next(3, after=dt, return_events=True)
+
     assert all([isinstance(e, clocks.ClockEvent) for e in output])
 
 
