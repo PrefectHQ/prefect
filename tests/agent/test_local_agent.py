@@ -67,6 +67,20 @@ def test_local_agent_config_options(cloud_api):
         }
 
 
+def test_local_agent_config_no_storage_labels(cloud_api):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+    ):
+        agent = LocalAgent(
+            labels=["test_label"],
+            storage_labels=False,
+        )
+        assert set(agent.labels) == {
+            socket.gethostname(),
+            "test_label",
+        }
+
+
 @pytest.mark.parametrize("flag", [True, False])
 def test_local_agent_responds_to_logging_config(cloud_api, flag):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
