@@ -9,7 +9,7 @@ class CancelFlowRunTask(Task):
     Task to cancel a flow.
 
     Args:
-        - flow_id_to_cancel (str, optional): The ID of the flow to cancel
+        - flow_run_id_to_cancel (str, optional): The ID of the flow to cancel
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
