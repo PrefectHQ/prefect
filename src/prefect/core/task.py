@@ -39,16 +39,6 @@ class NoDefault:
     __slots__ = ()
 
 
-class SerializableNoDefault(NoDefault):
-    __slots__ = ()
-
-    def __repr__(self) -> str:
-        return "no_default"
-
-    def __reduce__(self) -> str:
-        return "no_default"
-
-
 def _validate_run_signature(run: Callable) -> None:
     func = getattr(run, "__wrapped__", run)
     try:
