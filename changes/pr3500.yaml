@@ -1,2 +1,0 @@
-enhancement:
-  - "Display flow group ID in registration output URL instead of flow ID to avoid redirect in UI - [#3500](https://github.com/PrefectHQ/prefect/pull/3500)"
