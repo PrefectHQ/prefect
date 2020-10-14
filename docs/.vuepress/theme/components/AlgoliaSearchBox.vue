@@ -15,7 +15,7 @@
     <transition name="fade" mode="out-in">
       <div v-if="showResults" class="results">
         <div class="marvin" :class="{ small: query }">
-          <img :src="'/assets/marvin.jpg'" />
+          <img :src="'/assets/marvin.jpg'" alt="Marvin Picture" />
           <transition name="fade">
             <div v-if="!query">
               There's only one life-form as intelligent as me within thirty
