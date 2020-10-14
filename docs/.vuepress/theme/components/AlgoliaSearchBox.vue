@@ -276,7 +276,8 @@ export default {
   padding 5px 10px
   left 1.5rem
   top 3.25rem
-  max-width 80vw
+  min-width 300px
+  max-width 50vw
   width 700px
   z-index 9999
 
