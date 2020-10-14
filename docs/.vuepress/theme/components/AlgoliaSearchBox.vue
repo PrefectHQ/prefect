@@ -49,7 +49,7 @@
         </div>
 
         <div class="query-results-container">
-          <div
+          <li
             v-for="group in resultsGroups"
             :key="group.group"
             class="group-result"
@@ -62,6 +62,8 @@
                 v-for="r in group.hits"
                 class="result-item ripple"
                 @click="navigateToResult(r.url)"
+                @keyup.enter="navigateToResult(r.url)"
+                tabindex="0"
               >
                 <div v-html="r.val1" />
 
@@ -72,7 +74,7 @@
                 />
               </div>
             </div>
-          </div>
+          </li>
 
           <transition name="fade">
             <div v-if="query && !resultsGroups.length" style="padding: 0 25px">
@@ -423,7 +425,10 @@ export default {
 .ripple
   background-position center
   transition background 500ms
-  &:hover
+  &:hover,
+  &:active,
+  &:focus
+    outline unset
     background rgba(133, 146, 158, 0.15) radial-gradient(circle, transparent 1%, rgba(133, 146, 158, 0.05) 1%) center/15000%
 
   &:active
