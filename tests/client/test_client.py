@@ -708,7 +708,7 @@ def test_set_flow_run_name(patch_posts, cloud_api):
 
 
 def test_cancel_flow_run(patch_posts, cloud_api):
-    mutation_resp = {"data": {"cancel_flow_run": {"success": True}}}
+    mutation_resp = {"data": {"cancel_flow_run": {"state": True}}}
 
     post = patch_posts(mutation_resp)
 
