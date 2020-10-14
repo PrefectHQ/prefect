@@ -22,7 +22,6 @@ pip install 'prefect[github]'
 ```
 :::
 
-
 In this example we will walk through a potential workflow you may use when registering flows with
 [GitHub](/api/latest/environments/storage.html#github) storage. This example takes place in a GitHub
 repository with the following structure:
@@ -81,7 +80,7 @@ Now that the file exists on the repo the flow needs to be registered with a Pref
 Core's server or Prefect Cloud).
 
 ```bash
-prefect register flow -f flows/my_flow.py
+prefect register flow -f flows/my_flow.py -p MyProject
 Result check: OK
 Flow: http://localhost:8080/flow/9f5f7bea-186e-44d1-a746-417239663614
 ```
@@ -95,7 +94,7 @@ If you change any of the structure of your flow such as task names, rearrange ta
 will need to reregister that flow.
 :::
 
-::: tip GitLab users 
+::: tip GitLab users
 This example applies to GitLab as well. To use GitLab storage, install the `gitlab` extra:
 
 ```bash
@@ -104,6 +103,7 @@ pip install 'prefect[gitlab]'
 
 You can replace `GitHub` instances in the example above with `GitLab`, use the `"GITLAB_ACCESS_TOKEN"` secret rather than `"GITHUB_ACCESS_TOKEN"`, and then you may run the example as written.
 :::
+
 ### File based Docker storage
 
 ```python
@@ -129,4 +129,54 @@ flow.storage = Docker(
     path="/location/in/image/my_flow.py",
     stored_as_script=True
 )
+```
+
+### File based cloud storage
+
+File based storage of flows is also supported for flows stored in S3 and GCS buckets. The following
+snippet shows S3 and GCS storage options where a flow is stored as a script and the `key` points to the
+specific file path in the bucket.
+
+```python
+flow.storage = S3(
+    bucket="my-flow-bucket",
+    stored_as_script=True,
+    key="flow_path/in_bucket.py"
+)
+
+# or
+
+flow.storage = GCS(
+    bucket="my-flow-bucket",
+    stored_as_script=True,
+    key="flow_path/in_bucket.py"
+)
+```
+
+Storing flows this way is similar to the git-based flow storage where users manually have to upload the
+flows to the buckets and then set a key to match. There is another option where flows scripts can be
+automatically uploaded to the buckets by providing a file path to the storage object. (Note: if `key` is
+not set then a key will be automatically generated for the storage of the flow)
+
+```python{4,12}
+flow.storage = S3(
+    bucket="my-flow-bucket",
+    stored_as_script=True,
+    local_script_path="my_flow.py"  # Local file that you want uploaded to the bucket
+)
+
+# or
+
+flow.storage = GCS(
+    bucket="my-flow-bucket",
+    stored_as_script=True,
+    local_script_path="my_flow.py"  # Local file that you want uploaded to the bucket
+)
+```
+
+The script location can also be provided when registering the flow through the
+[`register`](/api/latest/cli/register.html) CLI command through the `--file/-f` option:
+
+```bash
+prefect register flow -f my_flow.py -p MyProject
 ```

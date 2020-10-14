@@ -1,19 +1,33 @@
-import pendulum
+import enum
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Union, Optional
+
+import pendulum
 
 import prefect
 from prefect.engine.serializers import DateTimeSerializer
 import prefect.engine.signals
 import prefect.triggers
-from prefect.core.task import Task, SerializableNoDefault
+from prefect.core.task import Task
 from prefect.engine.results import PrefectResult
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
+# A sentinel value indicating no default was provided
+# mypy requires enums for typed sentinel values, so other
+# simpler solutions won't work :/
+class NoDefault(enum.Enum):
+    value = "no_default"
+
+    def __repr__(self) -> str:
+        return "<no default>"
+
+
+no_default = NoDefault.value
+
 JSONSerializableParameterValue = Optional[
-    Union[SerializableNoDefault, str, int, float, bool, list, dict]
+    Union[NoDefault, str, int, float, bool, list, dict]
 ]
 
 
@@ -38,13 +52,13 @@ class Parameter(Task):
     def __init__(
         self,
         name: str,
-        default: JSONSerializableParameterValue = SerializableNoDefault(),
+        default: JSONSerializableParameterValue = no_default,
         required: bool = None,
         tags: Iterable[str] = None,
     ):
         if required is None:
-            required = isinstance(default, SerializableNoDefault)
-        if isinstance(default, SerializableNoDefault):
+            required = default is no_default
+        if default is no_default:
             default = None
         self.required = required
         self.default = default
@@ -130,7 +144,7 @@ class DateTimeParameter(Parameter):
         required: bool = True,
         tags: Iterable[str] = None,
     ) -> None:
-        default = SerializableNoDefault() if required else None
+        default = no_default if required else None
         super().__init__(name=name, default=default, required=required, tags=tags)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 

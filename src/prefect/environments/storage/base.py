@@ -42,6 +42,7 @@ class Storage(metaclass=ABCMeta):
         self.result = result
         self.secrets = secrets or []
         self.stored_as_script = stored_as_script
+
         self._labels = labels or []
         if add_default_labels is None:
             self.add_default_labels = config.flows.defaults.storage.add_default_labels
