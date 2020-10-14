@@ -185,11 +185,11 @@ def some_failed(
     Args:
         - at_least (Union[int, float], optional): the minimum number of
             upstream failures that must occur for this task to run.  If the
-            provided number is less than 0, it will be interpreted as a
+            provided number is less than 1, it will be interpreted as a
             percentage, otherwise as an absolute number.
         - at_most (Union[int, float], optional): the maximum number of upstream
            failures to allow for this task to run.  If the provided number is
-           less than 0, it will be interpreted as a percentage, otherwise as an
+           less than 1, it will be interpreted as a percentage, otherwise as an
            absolute number."""
 
     def _some_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
@@ -243,11 +243,11 @@ def some_successful(
     Args:
         - at_least (Union[int, float], optional): the minimum number of
             upstream successes that must occur for this task to run.  If the
-            provided number is less than 0, it will be interpreted as a
+            provided number is less than 1, it will be interpreted as a
             percentage, otherwise as an absolute number.
         - at_most (Union[int, float], optional): the maximum number of upstream
             successes to allow for this task to run.  If the provided number is
-            less than 0, it will be interpreted as a percentage, otherwise as
+            less than 1, it will be interpreted as a percentage, otherwise as
             an absolute number.
     """
 
