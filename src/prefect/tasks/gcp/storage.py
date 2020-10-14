@@ -1,5 +1,6 @@
 import uuid
 import warnings
+from typing import Union
 
 from google.cloud.exceptions import NotFound
 
@@ -209,7 +210,7 @@ class GCSUpload(GCSBaseTask):
     )
     def run(
         self,
-        data: str,
+        data: Union(str, bytes),
         bucket: str = None,
         blob: str = None,
         project: str = None,
@@ -217,6 +218,8 @@ class GCSUpload(GCSBaseTask):
         encryption_key: str = None,
         create_bucket: bool = False,
         encryption_key_secret: str = None,
+        content_type: str = None,
+        content_encoding: str = None,
     ) -> str:
         """
         Run method for this Task.  Invoked by _calling_ this Task after initialization
@@ -226,7 +229,7 @@ class GCSUpload(GCSBaseTask):
         provided _either_ at initialization _or_ as arguments.
 
         Args:
-            - data (str): the data to upload; must already be represented as a string
+            - data (Union(str, bytes): the data to upload; can be either string or bytes
             - bucket (str, optional): the bucket name to upload to
             - blob (str, optional): blob name to upload to
                 a string beginning with `prefect-` and containing the Task Run ID will be used
@@ -241,6 +244,8 @@ class GCSUpload(GCSBaseTask):
                 if it does not exist, otherwise an Exception is raised. Defaults to `False`.
             - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
                 storing an optional `encryption_key` to be used when uploading the Blob.
+            - content_type (str, optional): HTTP ‘Content-Type’ header for this object.
+            - content_encoding (str, optional): HTTP ‘Content-Encoding’ header for this object.
 
         Raises:
             - google.cloud.exception.NotFound: if `create_bucket=False` and the bucket name is
@@ -264,7 +269,19 @@ class GCSUpload(GCSBaseTask):
             encryption_key=encryption_key,
             encryption_key_secret=encryption_key_secret,
         )
-        gcs_blob.upload_from_string(data)
+
+        # Upload
+        if type(data) == str:
+            gcs_blob.upload_from_string(data)
+        elif type(data) == bytes:
+            # Set content type and encoding if supplied.
+            # This is likely only desirable if uploading gzip data:
+            # https://cloud.google.com/storage/docs/metadata#content-encoding
+            if content_type:
+                gcs_blob.content_type = content_type
+            if content_encoding:
+                gcs_blob.content_encoding = content_encoding
+            gcs_blob.upload_from_file(data)
         return gcs_blob.name
 
 
