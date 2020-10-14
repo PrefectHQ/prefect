@@ -1308,6 +1308,26 @@ class Client:
 
         return result.data.set_task_run_name.success
 
+    def cancel_flow_run(self, flow_run_id: str) -> bool:
+        """
+        Cancel the flow by id
+        Args:
+            - flow_run_id (str): the id of the flow
+        Returns:
+            - bool: whether or not the flow run was canceled
+        """
+        mutation = {
+            "mutation($input: cancel_flow_run_id_input!)": {
+                "cancel_flow_run(input: $input)": {
+                    "success": True,
+                }
+            }
+        }
+        result = self.graphql(
+            mutation, variables=dict(input=dict(flow_run_id=flow_run_id))
+        )
+        return result.data.cancel_flow_run.success
+        
     def get_task_run_state(self, task_run_id: str) -> "prefect.engine.state.State":
         """
         Retrieves the current state for a task run.
