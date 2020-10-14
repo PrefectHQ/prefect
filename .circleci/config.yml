@@ -294,7 +294,10 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_extras]"
+          # All extras cannot be tested because they do not support 3.9 yet, until then
+          # we will just guarantee that we pass the core test suite
+          # See https://github.com/PrefectHQ/prefect/pull/3441#issuecomment-708419324
+          command: pip install .
 
       - run:
           name: Run tests
