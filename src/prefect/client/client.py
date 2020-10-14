@@ -1319,16 +1319,16 @@ class Client:
             - bool: whether or not the flow run was canceled
         """
         mutation = {
-            "mutation($input: cancel_flow_run_id_input!)": {
+            "mutation($input: cancel_flow_run_input!)": {
                 "cancel_flow_run(input: $input)": {
-                    "success": True,
+                    "state": True,
                 }
             }
         }
         result = self.graphql(
             mutation, variables=dict(input=dict(flow_run_id=flow_run_id))
         )
-        return result.data.cancel_flow_run.success
+        return result.data.cancel_flow_run.state
 
     def get_task_run_state(self, task_run_id: str) -> "prefect.engine.state.State":
         """
