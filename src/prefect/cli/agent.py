@@ -225,9 +225,9 @@ def start(
         --show-flow-logs, -f        Display logging output from flows run by the agent
                                     (available for Local and Docker agents only)
         --hostname-label            Add hostname to the Agent's labels
-                                        (Disable with --no-hostname-label option)
+                                        (Default to True. Disable with --no-hostname-label option)
         --storage-labels            Add all available storage label to the Agent
-                                        (Disable with --no-storage-labels option)
+                                        (Default to True. Disable with --no-storage-labels option)
 
     \b
     Docker Agent:
