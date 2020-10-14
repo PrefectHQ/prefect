@@ -55,6 +55,8 @@ class LocalAgent(Agent):
         - hostname_label (boolean, optional): a boolean specifying whether this agent should
             auto-label itself with the hostname of the machine it is running on.  Useful for
             flows which are stored on the local filesystem.
+        - storage_labels (boolean, optional): a boolean specifying whether this agent should
+            auto-label itself with all of the available storage options labels.
     """
 
     def __init__(
@@ -69,6 +71,7 @@ class LocalAgent(Agent):
         max_polls: int = None,
         agent_address: str = None,
         no_cloud_logs: bool = False,
+        storage_labels: bool = True,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
@@ -92,16 +95,17 @@ class LocalAgent(Agent):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
 
-        all_storage_labels = [
-            "azure-flow-storage",
-            "gcs-flow-storage",
-            "s3-flow-storage",
-            "github-flow-storage",
-            "webhook-flow-storage",
-        ]
-        for label in all_storage_labels:
-            if label not in self.labels:
-                self.labels.append(label)
+        if storage_labels:
+            all_storage_labels = [
+                "azure-flow-storage",
+                "gcs-flow-storage",
+                "s3-flow-storage",
+                "github-flow-storage",
+                "webhook-flow-storage",
+            ]
+            for label in all_storage_labels:
+                if label not in self.labels:
+                    self.labels.append(label)
 
         self.logger.debug(f"Import paths: {self.import_paths}")
         self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
