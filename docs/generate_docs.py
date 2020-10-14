@@ -284,6 +284,17 @@ def get_call_signature(obj):
 def format_signature(obj):
     standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
     add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
+
+    for name, val in kwargs:
+        if isinstance(val, MagicMock):
+            mock = val
+            stringified = mock._mock_name
+            while mock._mock_parent:
+                stringified = f"{mock._mock_parent._mock_name}.{stringified}"
+                mock = mock._mock_parent
+
+            val = stringified
+
     psig = ", ".join(
         standalone
         + varargs
@@ -291,6 +302,7 @@ def format_signature(obj):
         + [f"{name}={add_quotes(val)}" for name, val in kwargs]
         + varkwargs
     )
+
     return psig
 
 
