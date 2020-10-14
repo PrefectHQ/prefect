@@ -323,8 +323,10 @@ export default {
 
   img
     border-radius 50%
+    border 5px solid #27b1ff
     transition all 150ms
-    height 100px
+    height 85px
+
 
   &.small
     img
