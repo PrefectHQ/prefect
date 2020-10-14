@@ -1,0 +1,5 @@
+enhancement:
+  - "Allow Disabling Storage Labels - [#3503](https://github.com/PrefectHQ/prefect/pull/3503)"
+
+contributor:
+  - "[Raphael Riel](https://github.com/raphael-riel)"
