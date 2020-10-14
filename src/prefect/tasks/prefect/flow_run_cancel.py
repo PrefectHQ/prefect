@@ -23,7 +23,7 @@ class CancelFlowRunTask(Task):
         self.flow_run_id = flow_run_id
         super().__init__(**kwargs)
 
-    @default_from_attrs("flow_run_id")
+    @defaults_from_attrs("flow_run_id")
     def run(self, flow_run_id: str = None) -> bool:
         """
         Args:
