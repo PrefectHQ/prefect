@@ -45,7 +45,7 @@ class Local(Storage):
         validate: bool = True,
         path: str = None,
         stored_as_script: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
@@ -95,14 +95,18 @@ class Local(Storage):
             raise ValueError("No flow location provided")
 
         # check if the path given is a file path
-        if os.path.isfile(flow_location):
-            if self.stored_as_script:
-                return extract_flow_from_file(file_path=flow_location)
+        try:
+            if os.path.isfile(flow_location):
+                if self.stored_as_script:
+                    return extract_flow_from_file(file_path=flow_location)
+                else:
+                    return prefect.core.flow.Flow.load(flow_location)
+            # otherwise the path is given in the module format
             else:
-                return prefect.core.flow.Flow.load(flow_location)
-        # otherwise the path is given in the module format
-        else:
-            return extract_flow_from_module(module_str=flow_location)
+                return extract_flow_from_module(module_str=flow_location)
+        except Exception:
+            self.logger.exception(f"Failed to load Flow from {flow_location}")
+            raise
 
     def add_flow(self, flow: "Flow") -> str:
         """

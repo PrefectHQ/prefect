@@ -904,6 +904,7 @@ class Client:
         flow_id: str = None,
         context: dict = None,
         parameters: dict = None,
+        labels: List[str] = None,
         scheduled_start_time: datetime.datetime = None,
         idempotency_key: str = None,
         run_name: str = None,
@@ -918,6 +919,7 @@ class Client:
             - flow_id (str, optional): the id of the Flow you wish to schedule
             - context (dict, optional): the run context
             - parameters (dict, optional): a dictionary of parameter values to pass to the flow run
+            - labels (List[str], optional): a list of labels to apply to the flow run
             - scheduled_start_time (datetime, optional): the time to schedule the execution
                 for; if not provided, defaults to now
             - idempotency_key (str, optional): an idempotency key; if provided, this run will
@@ -951,6 +953,8 @@ class Client:
             inputs = dict(version_group_id=version_group_id)  # type: ignore
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
+        if labels is not None:
+            inputs.update(labels=labels)  # type: ignore
         if context is not None:
             inputs.update(context=context)  # type: ignore
         if idempotency_key is not None:

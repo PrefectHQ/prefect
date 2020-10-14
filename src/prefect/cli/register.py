@@ -54,7 +54,14 @@ def register():
     hidden=True,
     default=None,
 )
-def flow(file, name, project):
+@click.option(
+    "--label",
+    "-l",
+    required=False,
+    hidden=True,
+    multiple=True,
+)
+def flow(file, name, project, label):
     """
     Register a flow from a file. This call will pull a Flow object out of a `.py` file
     and call `flow.register` on it.
@@ -64,16 +71,23 @@ def flow(file, name, project):
         --file, -f      TEXT    The path to a local file which contains a flow  [required]
         --name, -n      TEXT    The `flow.name` to pull out of the file provided. If a name
                                 is not provided then the first flow object found will be registered.
-        --project       TEXT    The name of a Prefect project to register this flow
+        --project, -p   TEXT    The name of a Prefect project to register this flow
+        --label, -l     TEXT    A label to set on the flow, extending any existing labels.
+                                Multiple labels are supported, eg. `-l label1 -l label2`.
 
     \b
     Examples:
-        $ prefect register flow --file my_flow.py --name My-Flow
+        $ prefect register flow --file my_flow.py --name My-Flow -l label1 -l label2
     """
 
     # Don't run extra `run` and `register` functions inside file
-    with prefect.context({"loading_flow": True}):
-        file_path = os.path.abspath(file)
-        flow_obj = extract_flow_from_file(file_path=file_path, flow_name=name)
+    file_path = os.path.abspath(file)
+    with prefect.context({"loading_flow": True, "local_script_path": file_path}):
+        flow = extract_flow_from_file(file_path=file_path, flow_name=name)
 
-    flow_obj.register(project_name=project)
+    if getattr(flow, "run_config", None) is not None:
+        flow.run_config.labels.update(label)
+    else:
+        flow.environment.labels.update(label)
+
+    flow.register(project_name=project)

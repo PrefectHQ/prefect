@@ -1,0 +1,2 @@
+enhancement:
+  - "Support adding additional flow labels in `prefect register flow` - [#3465](https://github.com/PrefectHQ/prefect/pull/3465)"

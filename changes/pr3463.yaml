@@ -1,0 +1,4 @@
+enhancement:
+  - "Extend module storage capabilities - [#3463](https://github.com/PrefectHQ/prefect/pull/3463)"
+contributor:
+  - "[Michal Baumgartner](https://github.com/m1so)"
