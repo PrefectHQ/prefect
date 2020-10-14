@@ -1327,7 +1327,7 @@ class Client:
             mutation, variables=dict(input=dict(flow_run_id=flow_run_id))
         )
         return result.data.cancel_flow_run.success
-        
+
     def get_task_run_state(self, task_run_id: str) -> "prefect.engine.state.State":
         """
         Retrieves the current state for a task run.

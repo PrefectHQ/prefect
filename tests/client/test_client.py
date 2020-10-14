@@ -717,7 +717,7 @@ def test_cancel_flow_run(patch_posts, cloud_api):
 
     assert result == True
 
-    
+
 def test_get_flow_run_info(patch_post):
     response = {
         "flow_run_by_pk": {
