@@ -276,9 +276,15 @@ export default {
   padding 5px 10px
   left 1.5rem
   top 3.25rem
-  max-width 700px
-  width auto
+  max-width 80vw
+  width 700px
   z-index 9999
+
+  @media screen and (max-width: 720px) {
+    right 1.5rem
+    left unset
+  }
+
 
   &::before
     content ""
@@ -288,6 +294,13 @@ export default {
     top -20px
     left 0
     width 0
+
+    @media screen and (max-width: 720px) {
+      border-left 20px solid transparent
+      border-right unset
+      right 0
+      left unset
+    }
 
 .group-result
   display flex
