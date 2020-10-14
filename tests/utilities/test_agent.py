@@ -2,6 +2,7 @@ import pytest
 
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
+from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
@@ -58,7 +59,61 @@ def test_get_flow_image_raises_on_missing_info():
         }
     )
     with pytest.raises(ValueError):
-        image = get_flow_image(flow_run=flow_run)
+        get_flow_image(flow_run=flow_run)
+
+
+def test_get_flow_image_run_config_docker_storage():
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Docker(
+                        registry_url="test", image_name="name", image_tag="tag"
+                    ).serialize(),
+                    "run_config": KubernetesRun().serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+        }
+    )
+    image = get_flow_image(flow_run)
+    assert image == "test/name:tag"
+
+
+def test_get_flow_image_run_config_default_value_from_core_version():
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "core_version": "0.13.0",
+                    "storage": Local().serialize(),
+                    "run_config": KubernetesRun().serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+        }
+    )
+    image = get_flow_image(flow_run)
+    assert image == "prefecthq/prefect:all_extras-0.13.0"
+
+
+def test_get_flow_image_run_config_image_on_RunConfig():
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Local().serialize(),
+                    "run_config": KubernetesRun(image="myfancyimage").serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+        }
+    )
+    image = get_flow_image(flow_run)
+    assert image == "myfancyimage"
 
 
 @pytest.mark.parametrize(

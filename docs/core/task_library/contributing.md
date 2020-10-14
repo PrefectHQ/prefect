@@ -145,3 +145,22 @@ However, we do still encourage the contribution of unit tests! The unit tests fo
 library generally test that proper variables are set and used with accompanying mocks for the services
 that they interact with. For examples of how some of the other tasks in the task library are tested check
 out the [tasks testing directory](https://github.com/PrefectHQ/prefect/tree/master/tests/tasks).
+
+## Documentation
+
+Tasks in the task library follow Prefect's standard documentation practices as outlined in the development
+[page on Documentation](/core/development/documentation.html). This means that kwargs in the task's
+`__init__` and `run` function must be documented in the docstring. Check out any of the other
+[tasks in the task library](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/tasks) as a
+point of reference!
+
+In order for new tasks to appear in the API documentation they need to be added to the
+[`outline.toml`](https://github.com/PrefectHQ/prefect/blob/master/docs/outline.toml) file in the docs
+directory:
+
+```toml
+[pages.tasks.your_task]
+title = "Your Task"
+module = "prefect.tasks.your_task"
+classes = ["YourTask"]
+```

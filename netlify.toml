@@ -20,6 +20,10 @@
   from = "/guide/core_concepts/*"
   to = "/core/concepts/:splat"
 
+# redirect from /core/task_library/ to /core/task_library/overview
+[[redirects]]
+  from = "/core/task_library/"
+  to = "/core/task_library/overview.html"
 
 ## redirects for new Cloud / Server splits
 #

@@ -1,3 +1,5 @@
+import importlib
+from operator import attrgetter
 from typing import TYPE_CHECKING
 
 import prefect
@@ -82,3 +84,58 @@ def extract_flow_from_file(
                 return exec_vals[var]
 
     raise ValueError("No flow found in file.")
+
+
+def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
+    """
+    Extract a flow object from a python module.
+
+    Args:
+        - module_str (str): A module path pointing to a .py file containing a flow.
+            For example, 'myrepo.mymodule.myflow' where myflow.py contains the flow.
+            Additionally, `:` can be used to access module's attribute, for example,
+            'myrepo.mymodule.myflow:flow' or 'myrepo.mymodule.myflow:MyObj.newflow'.
+        - flow_name (str, optional): A specific name of a flow to extract from a file.
+            If not set then the first flow object retrieved from file will be returned.
+            The "first" flow object will be based on the dir(module) ordering, which
+            is alphabetical and capitalized letters come first.
+
+    Returns:
+        - Flow: A flow object extracted from a file
+    """
+
+    # load the module
+    module_parts = module_str.split(":", 2)
+
+    if len(module_parts) == 2 and flow_name is not None:
+        raise ValueError(
+            "Provide either `module_str` without an attribute specifier or remove `flow_name`."
+        )
+    elif len(module_parts) == 2:
+        module_name, flow_name = module_parts
+    else:
+        module_name = module_str
+
+    module = importlib.import_module(module_name)
+
+    # if flow_name is specified, grab it from the module
+    if flow_name:
+        attr = attrgetter(flow_name)(module)
+
+        if callable(attr):
+            attr = attr()
+
+        if isinstance(attr, prefect.Flow):
+            return attr
+        else:
+            raise ValueError(
+                f"{module_name}:{flow_name} must return `prefect.Flow`, not {type(attr)}."
+            )
+    # otherwise loop until we get a Flow object
+    else:
+        for var in dir(module):
+            attr = getattr(module, var)
+            if isinstance(attr, prefect.Flow):
+                return attr
+
+    raise ValueError("No flow found in module.")

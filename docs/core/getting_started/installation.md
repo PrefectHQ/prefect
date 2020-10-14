@@ -44,6 +44,7 @@ Examples of extra packages include:
 - `templates`: tools for working with string templates
 - `viz`: tools for visualizing Prefect flows
 - `aws`: tools for interacting with Amazon Web Services
+- `azure`: tools for interacting with Microsoft Azure
 - `google`: tools for interacting with Google Cloud Platform
 - `kubernetes`: tools for interacting with Kubernetes API objects
 - `twitter`: tools for interacting with the Twitter API
@@ -53,17 +54,27 @@ Examples of extra packages include:
 
 ## Running the local server and UI
 
-In addition to the [Prefect Cloud](https://www.prefect.io/cloud) platform, Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API.
+Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API. The local server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be installed. If you have [Docker Desktop](https://www.docker.com/products/docker-desktop) on your machine, you've got both of these.
 
-Before running the server for the first time, run `prefect backend server` to configure Prefect for local orchestration. Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
+::: tip Prefect Cloud
+Once you are ready to deploy into production, you can use [Prefect Cloud](https://www.prefect.io/cloud) to orchestrate your workflows. 
+:::
 
-To start the server, UI, and all required infrastructure, run:
+Before running the server for the first time, run:
+
+```
+prefect backend server
+``` 
+
+This configures Prefect for local orchestration, and saves the configuration in your local `~/.prefect` directory. 
+
+Next, to start the server, UI, and all required infrastructure, run:
 
 ```
 prefect server start
 ```
 
-Once all components are running, you can view the UI by visiting [http://localhost:8080](http://localhost:8080).
+Once all components are running, you can view the UI by opening a browser and visiting [http://localhost:8080](http://localhost:8080).
 
 Please note that executing flows from the server requires at least one Prefect Agent to be running: `prefect agent start`.
 
@@ -71,7 +82,7 @@ Finally, to register any flow with the server, call `flow.register()`. For more 
 
 ## Docker
 
-Prefect provides Docker images for master builds and versioned releases [here](https://hub.docker.com/r/prefecthq/prefect).
+If you want Prefect provides Docker images for master builds and versioned releases [here](https://hub.docker.com/r/prefecthq/prefect).
 
 To run the latest Prefect Docker image:
 

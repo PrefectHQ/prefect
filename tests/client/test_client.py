@@ -572,7 +572,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     with pytest.raises(ValueError) as exc:
         flow_id = client.register(flow, project_name="my-default-project")
     assert "not found" in str(exc.value)
-    assert "client.create_project" in str(exc.value)
+    assert "prefect create project 'my-default-project'" in str(exc.value)
 
 
 def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeypatch):
@@ -694,6 +694,17 @@ def test_client_register_flow_id_no_output(
 
     captured = capsys.readouterr()
     assert captured.out == "Result check: OK\n"
+
+
+def test_set_flow_run_name(patch_posts, cloud_api):
+    mutation_resp = {"data": {"set_flow_run_name": {"success": True}}}
+
+    post = patch_posts(mutation_resp)
+
+    client = Client()
+    result = client.set_flow_run_name(flow_run_id="74-salt", name="name")
+
+    assert result == True
 
 
 def test_get_flow_run_info(patch_post):
@@ -1035,6 +1046,17 @@ def test_get_task_run_info_with_error(patch_post):
         client.get_task_run_info(
             flow_run_id="74-salt", task_id="72-salt", map_index=None
         )
+
+
+def test_set_task_run_name(patch_posts, cloud_api):
+    mutation_resp = {"data": {"set_task_run_name": {"success": True}}}
+
+    post = patch_posts(mutation_resp)
+
+    client = Client()
+    result = client.set_task_run_name(task_run_id="76-salt", name="name")
+
+    assert result == True
 
 
 def test_get_task_run_state(patch_posts, cloud_api, runner_token):

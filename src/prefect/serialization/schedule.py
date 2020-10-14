@@ -42,6 +42,7 @@ class IntervalClockSchema(ObjectSchema):
     parameter_defaults = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
+    labels = fields.List(fields.Str(), allow_none=True)
 
     @post_dump
     def _interval_validation(self, data: dict, **kwargs: Any) -> dict:
@@ -74,6 +75,7 @@ class CronClockSchema(ObjectSchema):
     parameter_defaults = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
+    labels = fields.List(fields.Str(), allow_none=True)
 
 
 class DatesClockSchema(ObjectSchema):
@@ -84,6 +86,7 @@ class DatesClockSchema(ObjectSchema):
     parameter_defaults = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
+    labels = fields.List(fields.Str(), allow_none=True)
 
 
 class ClockSchema(OneOfSchema):

@@ -185,8 +185,8 @@ class JSONCompatible(fields.Field):
     def _validate_json(self, value: Any) -> None:
         try:
             json.dumps(value)
-        except TypeError:
-            raise ValidationError("Value is not JSON-compatible")
+        except TypeError as type_error:
+            raise ValidationError("Value is not JSON-compatible") from type_error
 
 
 class Nested(fields.Nested):
@@ -382,10 +382,10 @@ class StatefulFunctionReference(fields.Field):
 
         try:
             qual_name = to_qualified_name(value)
-        except Exception:
+        except Exception as exc:
             raise ValidationError(
                 f"Invalid function reference, function required, got {value}"
-            )
+            ) from exc
 
         # sort matches such that the longest / most specific match comes first
         valid_bases = sorted(

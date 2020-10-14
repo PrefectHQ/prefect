@@ -1,5 +1,7 @@
+import enum
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Union, Optional
+
 import pendulum
-from typing import TYPE_CHECKING, Any, Dict, Iterable
 
 import prefect
 from prefect.engine.serializers import DateTimeSerializer
@@ -13,11 +15,20 @@ if TYPE_CHECKING:
 
 
 # A sentinel value indicating no default was provided
-no_default = type(
-    "no_default",
-    (object,),
-    dict.fromkeys(["__repr__", "__reduce__"], lambda s: "no_default"),
-)()
+# mypy requires enums for typed sentinel values, so other
+# simpler solutions won't work :/
+class NoDefault(enum.Enum):
+    value = "no_default"
+
+    def __repr__(self) -> str:
+        return "<no default>"
+
+
+no_default = NoDefault.value
+
+JSONSerializableParameterValue = Optional[
+    Union[NoDefault, str, int, float, bool, list, dict]
+]
 
 
 class Parameter(Task):
@@ -30,7 +41,7 @@ class Parameter(Task):
 
     Args:
         - name (str): the Parameter name.
-        - default (any, optional): A default value for the parameter.
+        - default (any, optional): A default value for the parameter. Must be a JSON-Serializable type.
         - required (bool, optional): If True, the Parameter is required and the
             default value is ignored. Defaults to `False` if a `default` is
             provided, otherwise `True`.
@@ -41,7 +52,7 @@ class Parameter(Task):
     def __init__(
         self,
         name: str,
-        default: Any = no_default,
+        default: JSONSerializableParameterValue = no_default,
         required: bool = None,
         tags: Iterable[str] = None,
     ):

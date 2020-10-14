@@ -83,7 +83,7 @@ class DbtShellTask(ShellTask):
         self.overwrite_profiles = overwrite_profiles
         self.profiles_dir = profiles_dir
         self.set_profiles_envar = set_profiles_envar
-        self.dbt_kwargs = dbt_kwargs
+        self.dbt_kwargs = dbt_kwargs or {}
         super().__init__(
             **kwargs,
             command=command,
@@ -122,15 +122,22 @@ class DbtShellTask(ShellTask):
             - prefect.engine.signals.FAIL: if command has an exit code other
                 than 0
         """
+        DEFAULT_PROFILES_DIR = os.path.join(os.path.expanduser("~"), ".dbt")
         profiles_exists = False
         if os.getenv("DBT_PROFILES_DIR"):
-            dbt_profiles_dir = os.getenv("DBT_PROFILES_DIR")
+            dbt_profiles_dir = os.path.expanduser(
+                os.getenv("DBT_PROFILES_DIR", DEFAULT_PROFILES_DIR)
+            )
             profiles_exists = os.path.exists(
                 os.path.join(dbt_profiles_dir, "profiles.yml")
             )
         elif self.profiles_dir:
             profiles_exists = os.path.exists(
                 os.path.join(self.profiles_dir, "profiles.yml")
+            )
+        else:
+            profiles_exists = os.path.exists(
+                os.path.join(DEFAULT_PROFILES_DIR, "profiles.yml")
             )
 
         dbt_kwargs = {**self.dbt_kwargs, **(dbt_kwargs or {})}
@@ -143,7 +150,17 @@ class DbtShellTask(ShellTask):
                 }
             }
 
-            profile_path = os.path.join(self.profiles_dir, "profiles.yml")
+            if not self.profiles_dir:
+                try:
+                    os.mkdir(DEFAULT_PROFILES_DIR)
+                except OSError:
+                    self.logger.warning(
+                        "Creation of directory %s has failed" % DEFAULT_PROFILES_DIR
+                    )
+                profile_path = os.path.join(DEFAULT_PROFILES_DIR, "profiles.yml")
+                self.profiles_dir = DEFAULT_PROFILES_DIR
+            else:
+                profile_path = os.path.join(self.profiles_dir, "profiles.yml")
 
             with open(profile_path, "w+") as yaml_file:
                 yaml.dump(profile, yaml_file, default_flow_style=False)

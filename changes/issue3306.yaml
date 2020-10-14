@@ -1,0 +1,9 @@
+enhancement:
+    - "Use explicit exception chaining - [#3306](https://github.com/PrefectHQ/prefect/issues/3306)"
+
+contributor:
+    - "[Aaron Richter](https://github.com/rikturr)"
+    - "[Shalika Singhal](https://github.com/shalika10)"
+    - "[Bruno Casarotti](https://github.com/brunocasarotti)"
+    - "[Panagiotis Simakis](https://github.com/sp1thas)"
+    - "[heyitskevin](https://github.com/heyitskevin)"
