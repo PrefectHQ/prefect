@@ -71,7 +71,6 @@ def agent():
 )
 @click.option(
     "--storage-labels/--no-storage-labels",
-    type=bool,
     default=True,
     help="Add all storage labels to the LocalAgent",
     hidden=True,
