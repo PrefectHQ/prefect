@@ -51,7 +51,8 @@ def local():
 @pytest.fixture()
 def sync():
     "Synchronous dask (not dask.distributed) executor"
-    yield LocalDaskExecutor()
+    yield LocalDaskExecutor(scheduler="sync")
+
 
 
 @pytest.fixture(scope="session")
