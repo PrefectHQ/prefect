@@ -44,7 +44,7 @@ def mthread():
         # know if processes are being used before `flow.run` is called so we patch
         # the class with an indicator
         executor.__processes = False
-        yield
+        yield executor
 
 
 @pytest.fixture()
@@ -76,7 +76,7 @@ def mproc():
         # know if processes are being used before `flow.run` is called so we patch
         # the class with an indicator
         executor.__processes = True
-        yield
+        yield executor
 
 
 @pytest.fixture()
