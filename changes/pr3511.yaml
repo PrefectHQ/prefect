@@ -1,0 +1,5 @@
+fix:
+  - "Fix multiprocessing scheduler failure while running tasks with timeouts - [#3511](https://github.com/PrefectHQ/prefect/pull/3511)"
+
+contributor:
+  - "[Michael Adkins](https://github.com/madkinsz)"
