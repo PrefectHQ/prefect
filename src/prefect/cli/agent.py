@@ -226,7 +226,7 @@ def start(
                                     (available for Local and Docker agents only)
         --hostname-label            Add hostname to the Agent's labels
                                         (Default to True. Disable with --no-hostname-label option)
-        --storage-labels            Add all available storage label to the Agent
+        --storage-labels            Add all available storage labels to the Agent
                                         (Default to True. Disable with --no-storage-labels option)
 
     \b
