@@ -8,7 +8,6 @@ import sys
 import tempfile
 import time
 from unittest.mock import MagicMock, patch
-from contextlib import nullcontext
 
 import cloudpickle
 import pendulum
@@ -2976,8 +2975,7 @@ def test_timeout_actually_stops_execution(
         assert not os.path.exists(FILE)
 
         start_time = time.time()
-        with assert_daemon_warning if daemon_process else nullcontext():
-            state = flow.run(executor=executor)
+        state = flow.run(executor=executor)
         stop_time = time.time()
 
         # Sleep so 'invalid' will be written if the task is not killed, subtracting the
@@ -2986,12 +2984,18 @@ def test_timeout_actually_stops_execution(
 
         assert os.path.exists(FILE)
         with open(FILE, "r") as f:
-            # `invalid` should only be in the file if a daemon process was used
-            assert ("invalid" in f.read()) == daemon_process
+            # `invalid` should *only be in the file if a daemon process was used
+            assert ("invalid" in f.read()) == in_daemon_process
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
     assert isinstance(state.result[slow_fn].result, TimeoutError)
+    # We cannot capture the UserWarning because it is being run by a Dask worker
+    # but we can make sure the TimeoutError includes a note about it
+    assert (
+        "executed in a daemonic subprocess and will continue to run"
+        in str(state.result[slow_fn].result)
+    ) == in_daemon_process
 
 
 @pytest.mark.skip("Result handlers not yet deprecated")
