@@ -130,10 +130,12 @@ def multiprocessing_safe_retrieve_value(
         - **kwargs: Keyword arguments to pass to the function
         - _container (multiprocessing.Queue): A multiprocessing queue for the result
         - _ctx_dict (dict): The prefect.context dictionary
-        - _fn_pkl (bytes): A `cloudpickle` serialized copy of the function to call
+        - _fn_pkl (bytes): A `cloudpickle.dumps` serialized copy of the function to call
 
     Returns:
-        - None -- passes the return value or exception into the queue.
+        - None
+        Passes the serialized return value or exception into the queue
+        Serialized with `cloudpickle.dumps`
         Callers are expected to re-raise any exceptions.
     """
     try:
@@ -143,9 +145,10 @@ def multiprocessing_safe_retrieve_value(
             # the try-except anyway. If the given error message is confusing, we
             # can do an explicit check and provide more details
             val = fn(*args, **kwargs)
-        _container.put(val)
     except Exception as exc:
-        _container.put(exc)
+        val = exc
+
+    _container.put(cloudpickle.dumps(val))
 
 
 def multiprocessing_timeout(
@@ -191,7 +194,7 @@ def multiprocessing_timeout(
     # Handle the process result, if the queue is empty the function did not finish
     # before the timeout
     if not q.empty():
-        res = q.get()
+        res = cloudpickle.loads(q.get())
         if isinstance(res, Exception):
             raise res
         return res
