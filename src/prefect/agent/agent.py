@@ -555,9 +555,6 @@ class Agent:
                                 },
                             ],
                         },
-                        "order_by": {
-                            "scheduled_start_time": EnumValue("asc"),
-                        },
                     },
                 ): {
                     "id": True,
@@ -565,6 +562,7 @@ class Agent:
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,
+                    "scheduled_start_time": True,
                     "flow": {
                         "id",
                         "name",
@@ -591,7 +589,11 @@ class Agent:
         if target_flow_run_ids:
             self.logger.debug("Querying flow run metadata")
             result = self.client.graphql(query)
-            return result.data.flow_run  # type: ignore
+
+            # Return flow runs sorted by scheduled start time
+            return sorted(
+                result.data.flow_run, key=lambda flow_run: flow_run.scheduled_start_time
+            )
         else:
             return []
 
