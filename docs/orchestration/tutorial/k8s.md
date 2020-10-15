@@ -8,7 +8,7 @@ In previous tutorials we used the Local Agent and Docker Agent to execute flow r
 
 ## Running a Kubernetes Agent
 
-In order to deploy your flow to Kubernetes the flow is required to have a Docker Storage with the image pushed to a registry that your Kubernetes cluster has access to.
+S3 storage is not supported even for Kubernetes clusters running on AWS.
 
 ```python
 import prefect
