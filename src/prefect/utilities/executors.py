@@ -115,7 +115,7 @@ def multiprocessing_safe_retrieve_value(
     _container: multiprocessing.Queue,
     _ctx_dict: dict,
     _fn_pkl: bytes,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> None:
     """
     Gets the return value from a function and puts it in a multiprocessing-safe container
@@ -238,19 +238,16 @@ def timeout_handler(
         elif multiprocessing.current_process().daemon is False:
             return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
 
-        msg = (
-            "This task is running in a daemonic subprocess; "
-            "consequently Prefect can only enforce a soft timeout limit, i.e., "
-            "if your Task reaches its timeout limit it will enter a TimedOut state "
-            "but continue running in the background."
-        )
+        soft_timeout_reason = "in a daemonic subprocess"
     else:
-        msg = (
-            "This task is running on Windows; "
-            "consequently Prefect can only enforce a soft timeout limit, i.e., "
-            "if your Task reaches its timeout limit it will enter a TimedOut state "
-            "but continue running in the background."
-        )
+        soft_timeout_reason = "on Windows"
+
+    msg = (
+        f"This task is running {soft_timeout_reason}; "
+        "consequently Prefect can only enforce a soft timeout limit, i.e., "
+        "if your Task reaches its timeout limit it will enter a TimedOut state "
+        "but continue running in the background."
+    )
 
     warnings.warn(msg, stacklevel=2)
     executor = ThreadPoolExecutor()
@@ -266,7 +263,10 @@ def timeout_handler(
     try:
         return fut.result(timeout=timeout)
     except FutureTimeout as exc:
-        raise TimeoutError("Execution timed out.") from exc
+        raise TimeoutError(
+            f"Execution timed out but was executed {soft_timeout_reason} and will "
+            "continue to run in the background."
+        ) from exc
 
 
 class RecursiveCall(Exception):
