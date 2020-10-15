@@ -35,11 +35,16 @@ def prefect_home_dir():
 # ----------------
 @pytest.fixture(scope="session")
 def mthread():
-    "Multi-threaded executor"
+    "Multi-threaded executor using dask distributed"
     with Client(
         processes=False, scheduler_port=0, dashboard_address=":0", n_workers=2
     ) as client:
-        yield DaskExecutor(client.scheduler.address)
+        executor = DaskExecutor(client.scheduler.address)
+        # Since the cluster can't be inspected until the client is started we can't
+        # know if processes are being used before `flow.run` is called so we patch
+        # the class with an indicator
+        executor.__processes = False
+        yield
 
 
 @pytest.fixture()
@@ -59,24 +64,32 @@ def mproc_local():
     "Multiprocessing executor using local dask (not distributed cluster)"
     yield LocalDaskExecutor(scheduler="processes")
 
+
 @pytest.fixture(scope="session")
 def mproc():
-    "Multi-processing executor"
+    "Multi-processing executor using dask distributed"
     with Client(
         processes=True, scheduler_port=0, dashboard_address=":0", n_workers=2
     ) as client:
-        yield DaskExecutor(client.scheduler.address)
+        executor = DaskExecutor(client.scheduler.address)
+        # Since the cluster can't be inspected until the client is started we can't
+        # know if processes are being used before `flow.run` is called so we patch
+        # the class with an indicator
+        executor.__processes = True
+        yield
 
 
 @pytest.fixture()
-def _switch(mthread, local, sync, mproc):
+def _switch(mthread, local, sync, mproc, mproc_local):
     """
     A construct needed so we can parametrize the executor fixture.
 
     This isn't straightforward since each executor needs to be initialized
     in slightly different ways.
     """
-    execs = dict(mthread=mthread, local=local, sync=sync, mproc=mproc)
+    execs = dict(
+        mthread=mthread, local=local, sync=sync, mproc=mproc, mproc_local=mproc_local
+    )
     return lambda e: execs[e]
 
 
