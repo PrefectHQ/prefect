@@ -54,6 +54,10 @@ def sync():
     yield LocalDaskExecutor(scheduler="sync")
 
 
+@pytest.fixture()
+def mproc_local():
+    "Multiprocessing executor using local dask (not distributed cluster)"
+    yield LocalDaskExecutor(scheduler="processes")
 
 @pytest.fixture(scope="session")
 def mproc():
