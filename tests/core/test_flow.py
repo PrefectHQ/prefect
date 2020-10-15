@@ -2955,13 +2955,9 @@ def test_timeout_actually_stops_execution(
     # Determine if the executor is distributed and using daemonic processes which
     # cannot be cancelled and throw a warning instead. The `__processes` property
     # is injected in `conftest.py`
-    daemon_process = isinstance(
+    in_daemon_process = isinstance(
         executor, DaskExecutor
-    ) and executor.client.scheduler.address.startswith("inproc")
-    assert_daemon_warning = pytest.warns(
-        UserWarning,
-        match="daemonic subprocess .* can only enforce a soft timeout limit",
-    )
+    ) and not executor.address.startswith("inproc")
 
     with tempfile.TemporaryDirectory() as call_dir:
         # Note: a real file must be used in the case of "mthread"
