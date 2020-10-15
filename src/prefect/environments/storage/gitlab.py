@@ -30,7 +30,7 @@ class GitLab(Storage):
     - Call `prefect register -f flow.py` to register this flow with GitLab storage.
 
     Args:
-        - repo (str): the project path (i.e., '<namespace>/<project>') or ID
+        - repo (str): the project path (i.e., 'namespace/project') or ID
         - host (str, optional): If using Gitlab server, the server host. If not specified, defaults
             to Gitlab cloud.
         - path (str, optional): a path pointing to a flow file in the repo

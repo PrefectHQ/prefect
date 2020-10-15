@@ -1,4 +1,8 @@
+// import vClickOutside from 'v-click-outside'
+
 export default ({ Vue, router }) => {
+  // Vue.use(vClickOutside)
+
   if (window.location.hash) {
     document.onreadystatechange = () => {
       if (document.readyState == 'complete') {

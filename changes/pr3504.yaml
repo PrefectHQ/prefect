@@ -1,0 +1,5 @@
+enhancement:
+  - "Improve overall functionality of docs search, full list of changes [here](https://github.com/PrefectHQ/prefect/pull/3504#issue-503684023) - [#3504](https://github.com/PrefectHQ/prefect/pull/3504)"
+
+fix:
+  - "Fix API doc generation incorrectly compiling mocked imports - [#3504](https://github.com/PrefectHQ/prefect/pull/3504)"
