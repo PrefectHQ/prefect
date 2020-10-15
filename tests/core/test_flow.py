@@ -2928,7 +2928,9 @@ class TestSaveLoad:
     sys.platform == "win32" or sys.version_info.minor == 6,
     reason="Windows doesn't support any timeout logic",
 )
-@pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mthread", "mproc"], indirect=True
+)
 def test_timeout_actually_stops_execution(executor):
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
