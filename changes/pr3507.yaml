@@ -1,0 +1,4 @@
+enhancement:
+ - "Extended GCSUpload task to allow uploading of bytes/gzip data [#3507](https://github.com/PrefectHQ/prefect/issues/3507)
+contributor:
+ - "[andywaugh](https://github.com/andywaugh)"
