@@ -143,7 +143,7 @@ def test_query_flow_runs(monkeypatch, cloud_api):
         return_value=MagicMock(
             data=MagicMock(
                 get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
-                flow_run=[{"id": "id"}],
+                flow_run=[GraphQLResult({"id": "id", "scheduled_start_time": 1})],
             )
         )
     )
@@ -153,7 +153,7 @@ def test_query_flow_runs(monkeypatch, cloud_api):
 
     agent = Agent()
     flow_runs = agent.query_flow_runs()
-    assert flow_runs == [{"id": "id"}]
+    assert flow_runs == [GraphQLResult({"id": "id", "scheduled_start_time": 1})]
 
 
 def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, cloud_api):
@@ -161,7 +161,7 @@ def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, cloud_ap
         return_value=MagicMock(
             data=MagicMock(
                 get_runs_in_queue=MagicMock(flow_run_ids=["id1", "id2"]),
-                flow_run=[{"id1": "id1"}],
+                flow_run=[GraphQLResult({"id": "id", "scheduled_start_time": 1})],
             )
         )
     )
@@ -178,6 +178,30 @@ def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, cloud_ap
         'id: { _in: ["id1"] }'
         in list(gql_return.call_args_list[1][0][0]["query"].keys())[0]
     )
+
+
+def test_query_flow_runs_ordered_by_start_time(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
+                flow_run=[
+                    GraphQLResult({"id": "id2", "scheduled_start_time": 200}),
+                    GraphQLResult({"id": "id", "scheduled_start_time": 1}),
+                ],
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    agent = Agent()
+    flow_runs = agent.query_flow_runs()
+    assert flow_runs == [
+        GraphQLResult({"id": "id", "scheduled_start_time": 1}),
+        GraphQLResult({"id": "id2", "scheduled_start_time": 200}),
+    ]
 
 
 def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
@@ -345,6 +369,7 @@ def test_agent_process(monkeypatch, cloud_api):
                                     }
                                 )
                             ],
+                            "scheduled_start_time": 1,
                         }
                     )
                 ],
