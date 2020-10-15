@@ -21,7 +21,7 @@ from prefect.engine.state import Failed, Submitted
 from prefect.serialization import state
 from prefect.utilities.context import context
 from prefect.utilities.exceptions import AuthorizationError
-from prefect.utilities.graphql import EnumValue, GraphQLResult, with_args
+from prefect.utilities.graphql import GraphQLResult, with_args
 
 ascii_name = r"""
  ____            __           _        _                    _
