@@ -39,12 +39,7 @@ def mthread():
     with Client(
         processes=False, scheduler_port=0, dashboard_address=":0", n_workers=2
     ) as client:
-        executor = DaskExecutor(client.scheduler.address)
-        # Since the cluster can't be inspected until the client is started we can't
-        # know if processes are being used before `flow.run` is called so we patch
-        # the class with an indicator
-        executor.__processes = False
-        yield executor
+        yield DaskExecutor(client.scheduler.address)
 
 
 @pytest.fixture()
@@ -71,12 +66,7 @@ def mproc():
     with Client(
         processes=True, scheduler_port=0, dashboard_address=":0", n_workers=2
     ) as client:
-        executor = DaskExecutor(client.scheduler.address)
-        # Since the cluster can't be inspected until the client is started we can't
-        # know if processes are being used before `flow.run` is called so we patch
-        # the class with an indicator
-        executor.__processes = True
-        yield executor
+        yield DaskExecutor(client.scheduler.address)
 
 
 @pytest.fixture()
