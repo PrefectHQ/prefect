@@ -2963,7 +2963,7 @@ def test_timeout_actually_stops_execution(
         # Note: a real file must be used in the case of "mthread"
         FILE = os.path.join(call_dir, "test.txt")
 
-        @prefect.task(timeout=1)
+        @prefect.task(timeout=2)
         def slow_fn():
             with open(FILE, "w") as f:
                 f.write("called!")
