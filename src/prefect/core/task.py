@@ -1,5 +1,6 @@
 import collections.abc
 import copy
+import enum
 import inspect
 import warnings
 from datetime import timedelta
@@ -35,8 +36,13 @@ VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 
 # A sentinel value indicating no default was provided
-class NoDefault:
-    __slots__ = ()
+# mypy requires enums for typed sentinel values, so other
+# simpler solutions won't work :/
+class NoDefault(enum.Enum):
+    value = "no_default"
+
+    def __repr__(self) -> str:
+        return "<no default>"
 
 
 def _validate_run_signature(run: Callable) -> None:

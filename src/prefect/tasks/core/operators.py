@@ -22,12 +22,12 @@ class GetItem(Task):
         - **kwargs (Any): keyword arguments for the `Task` class
     """
 
-    def __init__(self, default: Any = NoDefault(), *args: Any, **kwargs: Any):
+    def __init__(self, default: Any = NoDefault.value, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.default = default
 
     @defaults_from_attrs("default")
-    def run(self, task_result: Any, key: Any, default: Any = NoDefault()) -> Any:  # type: ignore
+    def run(self, task_result: Any, key: Any, default: Any = NoDefault.value) -> Any:  # type: ignore
         """
         Args:
             - task_result (Any): a value
@@ -37,7 +37,7 @@ class GetItem(Task):
         try:
             return task_result[key]
         except KeyError:
-            if isinstance(default, NoDefault):
+            if default is NoDefault.value:
                 raise
             return default
 
@@ -52,12 +52,12 @@ class GetAttr(Task):
         - **kwargs (Any): keyword arguments for the `Task` class
     """
 
-    def __init__(self, default: Any = NoDefault(), *args: Any, **kwargs: Any):
+    def __init__(self, default: Any = NoDefault.value, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.default = default
 
     @defaults_from_attrs("default")
-    def run(self, task_result: Any, attr: Any, default: Any = NoDefault()) -> Any:  # type: ignore
+    def run(self, task_result: Any, attr: Any, default: Any = NoDefault.value) -> Any:  # type: ignore
         """
         Args:
             - task_result (Any): a value
@@ -68,7 +68,7 @@ class GetAttr(Task):
         try:
             return attrgetter(attr)(task_result)
         except AttributeError:
-            if isinstance(default, NoDefault):
+            if default is NoDefault.value:
                 raise
             return default
 
