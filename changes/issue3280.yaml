@@ -1,2 +1,0 @@
-fix:
-  - "Fix default behavior for dbt_kwargs in the dbt task to provide an empty string - [#3280](https://github.com/PrefectHQ/prefect/issues/3280)"

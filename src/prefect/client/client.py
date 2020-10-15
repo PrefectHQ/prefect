@@ -778,8 +778,18 @@ class Client:
         )
 
         if not no_url:
+            # Query for flow group id
+            res = self.graphql(
+                {
+                    "query": {
+                        with_args("flow_by_pk", {"id": flow_id}): {"flow_group_id": ...}
+                    }
+                }
+            )
+            flow_group_id = res.get("data").flow_by_pk.flow_group_id
+
             # Generate direct link to Cloud flow
-            flow_url = self.get_cloud_url("flow", flow_id)
+            flow_url = self.get_cloud_url("flow", flow_group_id)
 
             prefix = "└── "
 
@@ -1307,6 +1317,28 @@ class Client:
         )
 
         return result.data.set_task_run_name.success
+
+    def cancel_flow_run(self, flow_run_id: str) -> bool:
+        """
+        Cancel the flow run by id
+
+        Args:
+            - flow_run_id (str): the id of the flow run
+
+        Returns:
+            - bool: whether or not the flow run was canceled
+        """
+        mutation = {
+            "mutation($input: cancel_flow_run_input!)": {
+                "cancel_flow_run(input: $input)": {
+                    "state": True,
+                }
+            }
+        }
+        result = self.graphql(
+            mutation, variables=dict(input=dict(flow_run_id=flow_run_id))
+        )
+        return result.data.cancel_flow_run.state
 
     def get_task_run_state(self, task_run_id: str) -> "prefect.engine.state.State":
         """

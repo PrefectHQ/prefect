@@ -1,5 +1,0 @@
-enhancement:
-  - "Strict Type for default value of a Parameter - [#3466](https://github.com/PrefectHQ/prefect/pull/3466)"
-
-contributor:
-  - "[Raphael Riel](https://github.com/raphael-riel)"

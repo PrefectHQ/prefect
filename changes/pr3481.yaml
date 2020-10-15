@@ -1,4 +1,0 @@
-task:
-  - "Add GetAttr task - [#3481](https://github.com/PrefectHQ/prefect/pull/3481)"
-contributor:
-  - "[Michal Baumgartner](https://github.com/m1so)"

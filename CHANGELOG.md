@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.13.11 <Badge text="beta" type="success" />
+
+Released on October 14, 2020.
+
+### Features
+
+- Allow for schedules that emit custom Flow Run labels - [#3483](https://github.com/PrefectHQ/prefect/pull/3483)
+
+### Enhancements
+
+- Use explicit exception chaining - [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
+- S3List filtering using the LastModified value - [#3460](https://github.com/PrefectHQ/prefect/pull/3460)
+- Add Gitlab storage - [#3461](https://github.com/PrefectHQ/prefect/pull/3461)
+- Extend module storage capabilities - [#3463](https://github.com/PrefectHQ/prefect/pull/3463)
+- Support adding additional flow labels in `prefect register flow` - [#3465](https://github.com/PrefectHQ/prefect/pull/3465)
+- Strict Type for default value of a Parameter - [#3466](https://github.com/PrefectHQ/prefect/pull/3466)
+- Enable automatic script upload for file-based storage when using S3 and GCS - [#3482](https://github.com/PrefectHQ/prefect/pull/3482)
+- Allow for passing labels to `client.create_flow_run` - [#3483](https://github.com/PrefectHQ/prefect/pull/3483)
+- Display flow group ID in registration output URL instead of flow ID to avoid redirect in UI - [#3500](https://github.com/PrefectHQ/prefect/pull/3500)
+- Add informative error log when local storage fails to load flow - [#3475](https://github.com/PrefectHQ/prefect/pull/3475)
+
+### Task Library
+
+- Add cancel flow run task - [#3484](https://github.com/PrefectHQ/prefect/issues/3484)
+- Add new `BatchSubmit` task for submitting jobs to AWS batch - [#3366](https://github.com/PrefectHQ/prefect/pull/3366)
+- Add new `AWSClientWait` task for waiting on long-running AWS jobs - [#3366](https://github.com/PrefectHQ/prefect/pull/3366)
+- Add GetAttr task - [#3481](https://github.com/PrefectHQ/prefect/pull/3481)
+
+### Fixes
+
+- Fix default profile directory creation behavior - [#3037](https://github.com/PrefectHQ/prefect/issues/3037)
+- Fix `DaskKubernetesEnvironment` overwriting log attributes for custom specs - [#3231](https://github.com/PrefectHQ/prefect/issues/3231)
+- Fix default behavior for `dbt_kwargs` in the dbt task to provide an empty string - [#3280](https://github.com/PrefectHQ/prefect/issues/3280)
+- Fix containerDefinitions environment validation - [#3452](https://github.com/PrefectHQ/prefect/pull/3452)
+- Raise a better error when calling `flow.register()` from within a `Flow` context - [#3467](https://github.com/PrefectHQ/prefect/pull/3467)
+- Fix task cancellation on Python 3.8 to properly interrupt long blocking calls - [#3474](https://github.com/PrefectHQ/prefect/pull/3474)
+
+### Contributors
+
+- [Aaron Richter](https://github.com/rikturr)
+- [Alessandro Lollo](https://github.com/https://github.com/AlessandroLollo)
+- [Bruno Casarotti](https://github.com/brunocasarotti)
+- [Mariia Kerimova](https://github.com/mashun4ek)
+- [Max Del Giudice](https://github.com/madelgi)
+- [Michal Baumgartner](https://github.com/m1so)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+- [Raphael Riel](https://github.com/raphael-riel)
+- [Shalika Singhal](https://github.com/shalika10)
+- [Zach McQuiston](https://github.com/zmac12)
+- [heyitskevin](https://github.com/heyitskevin)
+
 ## 0.13.10 <Badge text="beta" type="success" />
 
 Released on October 6, 2020.
