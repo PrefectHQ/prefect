@@ -77,7 +77,6 @@ def agent():
 )
 @click.option(
     "--hostname-label/--no-hostname-label",
-    type=bool,
     default=True,
     help="Add hostname to the LocalAgent's labels",
     hidden=True,
