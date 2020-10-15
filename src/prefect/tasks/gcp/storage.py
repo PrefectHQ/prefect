@@ -210,7 +210,7 @@ class GCSUpload(GCSBaseTask):
     )
     def run(
         self,
-        data: Union(str, bytes),
+        data: Union[str, bytes],
         bucket: str = None,
         blob: str = None,
         project: str = None,
@@ -229,7 +229,7 @@ class GCSUpload(GCSBaseTask):
         provided _either_ at initialization _or_ as arguments.
 
         Args:
-            - data (Union(str, bytes): the data to upload; can be either string or bytes
+            - data (Union[str, bytes]): the data to upload; can be either string or bytes
             - bucket (str, optional): the bucket name to upload to
             - blob (str, optional): blob name to upload to
                 a string beginning with `prefect-` and containing the Task Run ID will be used
