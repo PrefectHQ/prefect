@@ -2982,7 +2982,7 @@ def test_timeout_actually_stops_execution(
 
         # Sleep so 'invalid' will be written if the task is not killed, subtracting the
         # actual runtime to speed up the test a little
-        time.sleep(max(0, SLEEP_TIME - (stop_time - start_time)))
+        time.sleep(max(1, SLEEP_TIME - (stop_time - start_time)))
 
         assert os.path.exists(FILE)
         with open(FILE, "r") as f:
