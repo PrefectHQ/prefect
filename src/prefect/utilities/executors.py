@@ -12,6 +12,8 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
+import cloudpickle
+
 import prefect
 
 if TYPE_CHECKING:
@@ -108,20 +110,61 @@ def main_thread_timeout(
         signal.alarm(0)
 
 
+def multiprocessing_safe_retrieve_value(
+    *args: Any,
+    _container: multiprocessing.Queue,
+    _ctx_dict: dict,
+    _fn_pkl: bytes,
+    **kwargs: Any
+) -> None:
+    """
+    Gets the return value from a function and puts it in a multiprocessing-safe container
+    Helper function for `multiprocessing_timeout`
+
+    Passing the function pre-serialized allows us to escape the limitations of the
+    python native pickler which will fail on tasks defined in scripts because of
+    a name mismatch.
+
+    Args:
+        - *args: Arguments to pass to the function
+        - **kwargs: Keyword arguments to pass to the function
+        - _container (multiprocessing.Queue): A multiprocessing queue for the result
+        - _ctx_dict (dict): The prefect.context dictionary
+        - _fn_pkl (bytes): A `cloudpickle` serialized copy of the function to call
+
+    Returns:
+        - None -- passes the return value or exception into the queue.
+        Callers are expected to re-raise any exceptions.
+    """
+    try:
+        with prefect.context(_ctx_dict):
+            fn = cloudpickle.loads(_fn_pkl)
+            # We could check if the `fn` is callable here but it will get caught by
+            # the try-except anyway. If the given error message is confusing, we
+            # can do an explicit check and provide more details
+            val = fn(*args, **kwargs)
+        _container.put(val)
+    except Exception as exc:
+        _container.put(exc)
+
+
 def multiprocessing_timeout(
     fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
     Implemented by spawning a new multiprocess.Process() and joining with timeout.
+
     Args:
         - fn (callable): the function to execute
         - *args (Any): arguments to pass to the function
-        - timeout (int): the length of time to allow for
-            execution before raising a `TimeoutError`, represented as an integer in seconds
+        - timeout (int): the length of time to allow for execution before raising a
+            `TimeoutError`, represented as an integer in seconds
         - **kwargs (Any): keyword arguments to pass to the function
+
     Returns:
         - the result of `f(*args, **kwargs)`
+
     Raises:
         - AssertionError: if run from a daemonic process
         - TimeoutError: if function execution exceeds the allowed timeout
@@ -130,24 +173,23 @@ def multiprocessing_timeout(
     if timeout is None:
         return fn(*args, **kwargs)
 
-    def retrieve_value(
-        *args: Any, _container: multiprocessing.Queue, _ctx_dict: dict, **kwargs: Any
-    ) -> None:
-        """Puts the return value in a multiprocessing-safe container"""
-        try:
-            with prefect.context(_ctx_dict):
-                val = fn(*args, **kwargs)
-            _container.put(val)
-        except Exception as exc:
-            _container.put(exc)
-
+    # Create a queue to pass the function return value back
     q = multiprocessing.Queue()  # type: multiprocessing.Queue
+
+    # Set internal kwargs for the helper function
     kwargs["_container"] = q
     kwargs["_ctx_dict"] = prefect.context.to_dict()
-    p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+    kwargs["_fn_pkl"] = cloudpickle.dumps(fn)
+
+    p = multiprocessing.Process(
+        target=multiprocessing_safe_retrieve_value, args=args, kwargs=kwargs
+    )
     p.start()
     p.join(timeout)
     p.terminate()
+
+    # Handle the process result, if the queue is empty the function did not finish
+    # before the timeout
     if not q.empty():
         res = q.get()
         if isinstance(res, Exception):
@@ -173,8 +215,8 @@ def timeout_handler(
     Args:
         - fn (callable): the function to execute
         - *args (Any): arguments to pass to the function
-        - timeout (int): the length of time to allow for
-            execution before raising a `TimeoutError`, represented as an integer in seconds
+        - timeout (int): the length of time to allow for execution before raising a
+            `TimeoutError`, represented as an integer in seconds
         - **kwargs (Any): keyword arguments to pass to the function
 
     Returns:
