@@ -56,7 +56,7 @@ class LocalAgent(Agent):
             auto-label itself with the hostname of the machine it is running on.  Useful for
             flows which are stored on the local filesystem.
         - storage_labels (boolean, optional): a boolean specifying whether this agent should
-            auto-label itself with all of the available storage options labels.
+            auto-label itself with all of the storage options labels.
     """
 
     def __init__(

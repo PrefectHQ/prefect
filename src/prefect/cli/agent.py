@@ -73,7 +73,7 @@ def agent():
     "--storage-labels/--no-storage-labels",
     type=bool,
     default=True,
-    help="Add all available storage labels to the LocalAgent",
+    help="Add all storage labels to the LocalAgent",
     hidden=True,
 )
 @click.option(
@@ -226,7 +226,7 @@ def start(
                                     (available for Local and Docker agents only)
         --hostname-label            Add hostname to the Agent's labels
                                         (Default to True. Disable with --no-hostname-label option)
-        --storage-labels            Add all available storage labels to the Agent
+        --storage-labels            Add all storage labels to the Agent
                                         (Default to True. Disable with --no-storage-labels option)
 
     \b
