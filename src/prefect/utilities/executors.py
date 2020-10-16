@@ -85,6 +85,7 @@ def run_with_thread_timeout(
     kwargs: dict = None,
     timeout: int = None,
     logger: Logger = None,
+    name: str = None,
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
@@ -98,6 +99,9 @@ def run_with_thread_timeout(
             `TimeoutError`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.executors.run_with_thread_timeout` namespace will be created.
+        - name (str): an optional name to attach to logs for this function run, defaults
+            to the name of the given function. Provides an interface for passing task
+            names for logs.
 
     Returns:
         - the result of `fn(*args, **kwargs)`
@@ -107,6 +111,7 @@ def run_with_thread_timeout(
         - ValueError: if run from outside the main thread
     """
     logger = logger or get_logger("prefect.executors.run_with_thread_timeout")
+    name = name or f"Function '{fn.__name__}'"
 
     if timeout is None:
         return fn(*args, **kwargs)
@@ -118,9 +123,9 @@ def run_with_thread_timeout(
         # Set the signal handler for alarms
         signal.signal(signal.SIGALRM, error_handler)
         # Raise the alarm if `timeout` seconds pass
-        logger.debug(f"Sending alarm with {timeout}s timeout...")
+        logger.debug(f"{name}: Sending alarm with {timeout}s timeout...")
         signal.alarm(timeout)
-        logger.debug(f"Calling function: {fn}")
+        logger.debug(f"{name}: Executing function...")
         return fn(*args, **kwargs)
     finally:
         signal.alarm(0)
@@ -177,6 +182,7 @@ def run_with_multiprocess_timeout(
     kwargs: dict = None,
     timeout: int = None,
     logger: Logger = None,
+    name: str = None,
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
@@ -190,6 +196,9 @@ def run_with_multiprocess_timeout(
             `TimeoutError`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.` namespace will be created.
+        - name (str): an optional name to attach to logs for this function run, defaults
+            to the name of the given function. Provides an interface for passing task
+            names for logs.
 
     Returns:
         - the result of `f(*args, **kwargs)`
@@ -199,6 +208,7 @@ def run_with_multiprocess_timeout(
         - TimeoutError: if function execution exceeds the allowed timeout
     """
     logger = logger or get_logger("prefect.executors.run_with_multiprocess_timeout")
+    name = name or f"Function '{fn.__name__}'"
 
     if timeout is None:
         return fn(*args, **kwargs)
@@ -218,22 +228,22 @@ def run_with_multiprocess_timeout(
     p = multiprocessing.Process(
         target=multiprocessing_safe_run_and_retrieve, args=(queue, payload)
     )
-    logger.debug(f"Sending {fn} execution to a new process...")
+    logger.debug(f"{name}: Sending execution to a new process...")
     p.start()
-    logger.debug("Waiting for process to return with {timeout}s timeout...")
+    logger.debug(f"{name}: Waiting for process to return with {timeout}s timeout...")
     p.join(timeout)
     p.terminate()
 
     # Handle the process result, if the queue is empty the function did not finish
     # before the timeout
-    logger.debug("Process closed, collecting function result...")
+    logger.debug(f"{name}: Run process closed, collecting result...")
     if not queue.empty():
         res = cloudpickle.loads(queue.get())
         if isinstance(res, Exception):
             raise res
         return res
     else:
-        raise TimeoutError("Execution timed out.")
+        raise TimeoutError(f"Execution timed out for {name}.")
 
 
 def run_task_with_timeout_handler(
@@ -285,13 +295,23 @@ def run_task_with_timeout_handler(
         if threading.current_thread() is threading.main_thread():
             logger.debug(f"Task '{name}': Attaching thread based timeout handler...")
             return run_with_thread_timeout(
-                task.run, args, kwargs, timeout=task.timeout, logger=logger
+                task.run,
+                args,
+                kwargs,
+                timeout=task.timeout,
+                logger=logger,
+                name=f"Task '{name}'",
             )
 
         elif multiprocessing.current_process().daemon is False:
             logger.debug(f"Task '{name}': Attaching process based timeout handler...")
             return run_with_multiprocess_timeout(
-                task.run, args, kwargs, timeout=task.timeout, logger=logger
+                task.run,
+                args,
+                kwargs,
+                timeout=task.timeout,
+                logger=logger,
+                name=f"Task '{name}'",
             )
 
         # We are in a daemonic process and cannot enforce a timeout
