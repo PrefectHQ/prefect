@@ -218,7 +218,10 @@ class KubernetesAgent(Agent):
         """
         Check status of jobs created by this agent, delete completed jobs and failed containers.
         """
-        self.manage_jobs()
+        try:
+            self.manage_jobs()
+        except Exception:
+            self.logger.error("Error while managing existing k8s jobs", exc_info=True)
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
