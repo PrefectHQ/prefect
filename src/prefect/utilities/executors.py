@@ -154,6 +154,9 @@ def multiprocessing_safe_run_and_retrieve(
             - args (list): Positional argument values to call the function with
             - kwargs (dict): Keyword arguments to call the function with
             - context (dict): The prefect context dictionary to use during execution
+            - name (str): an optional name to attach to logs for this function run,
+                defaults to the name of the given function. Provides an interface for
+                passing task names for logs.
 
     Returns:
         - None
@@ -162,17 +165,22 @@ def multiprocessing_safe_run_and_retrieve(
     """
     request = cloudpickle.loads(payload)
 
+    logger = get_logger("prefect.executors.multiprocessing_safe_run_and_retrieve")
+
     fn: Callable = request["fn"]
     context: dict = request.get("context", {})
     args: Sequence = request.get("args", [])
     kwargs: dict = request.get("kwargs", {})
+    name: dict = request.get("name", f"Function '{fn.__name__}'")
 
     try:
         with prefect.context(context):
+            logger.info(f"{name}: Executing...")
             return_val = fn(*args, **kwargs)
     except Exception as exc:
         return_val = exc
 
+    logger.info(f"{name}: Passing result back to main process...")
     queue.put(cloudpickle.dumps(return_val))
 
 
@@ -222,6 +230,7 @@ def run_with_multiprocess_timeout(
         "args": args,
         "kwargs": kwargs,
         "context": prefect.context.to_dict(),
+        "name": name,
     }
     payload = cloudpickle.dumps(request)
 
