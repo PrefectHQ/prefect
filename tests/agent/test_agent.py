@@ -637,3 +637,19 @@ def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
     assert heartbeat.call_count == 1
     assert agent_process.call_count == 1
     assert agent_connect.call_count == 1
+
+
+def test_catch_errors_in_heartbeat_thread(monkeypatch, runner_token, cloud_api, caplog):
+    """Check that errors in the heartbeat thread are caught, logged, and the thread keeps going"""
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", MagicMock())
+    monkeypatch.setattr(
+        "prefect.agent.agent.Agent.agent_connect", MagicMock(return_value="id")
+    )
+    heartbeat = MagicMock(side_effect=ValueError)
+    monkeypatch.setattr("prefect.agent.agent.Agent.heartbeat", heartbeat)
+    agent = Agent(max_polls=2)
+    agent.heartbeat_period = 0.1
+    agent.start()
+
+    assert heartbeat.call_count > 1
+    assert any("Error in agent heartbeat" in m for m in caplog.messages)
