@@ -248,24 +248,37 @@ class FargateTaskEnvironment(Environment, _RunMixin):
     def _validate_task_definition(
         self, existing_task_definition: dict, task_definition_kwargs: dict
     ) -> None:
+        givenContainerDefinitions = [
+            {
+                **task_definition,
+                "environment": {
+                    item["name"]: item["value"]
+                    for item in task_definition["environment"]
+                },
+            }
+            for task_definition in task_definition_kwargs["containerDefinitions"]
+        ]
+        expectedContainerDefinitions = [
+            {
+                **task_definition,
+                "environment": {
+                    item["name"]: item["value"]
+                    for item in task_definition["environment"]
+                },
+            }
+            for task_definition in existing_task_definition["containerDefinitions"]
+        ]
         containerDifferences = [
             "containerDefinition.{idx}.{key} -> Given: {given}, Expected: {expected}".format(
                 idx=idx,
                 key=key,
-                given=sorted([value]) if key == "environment" else value,
-                expected=sorted([existing_container_definition.get(key)])
-                if key == "environment"
-                else existing_container_definition.get(key),
+                given=value,
+                expected=existing_container_definition.get(key),
             )
             for idx, (
                 container_definition,
                 existing_container_definition,
-            ) in enumerate(
-                zip(
-                    task_definition_kwargs["containerDefinitions"],
-                    existing_task_definition["containerDefinitions"],
-                )
-            )
+            ) in enumerate(zip(givenContainerDefinitions, expectedContainerDefinitions))
             for key, value in container_definition.items()
             if value != existing_container_definition.get(key)
         ]
