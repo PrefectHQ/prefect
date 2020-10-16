@@ -240,6 +240,8 @@ def run_with_multiprocess_timeout(
     logger.debug(f"{name}: Sending execution to a new process...")
     p.start()
     logger.debug(f"{name}: Waiting for process to return with {timeout}s timeout...")
+    if not p.is_alive():
+        raise RuntimeError("Process is not alive!")
     p.join(timeout)
     p.terminate()
 
