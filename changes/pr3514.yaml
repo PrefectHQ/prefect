@@ -1,0 +1,5 @@
+fix:
+ - "Update Fargate task definition validation - [#3514](https://github.com/PrefectHQ/prefect/pull/3514)"
+
+contributor:
+  - "[Spencer Ellinor](https://github.com/zpencerq)"
