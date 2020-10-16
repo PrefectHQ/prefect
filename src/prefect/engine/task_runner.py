@@ -1,5 +1,6 @@
-from contextlib import redirect_stdout, nullcontext
+from contextlib import redirect_stdout
 from dask.base import tokenize
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -10,6 +11,7 @@ from typing import (
     Set,
     Tuple,
 )
+
 
 import pendulum
 
@@ -825,23 +827,27 @@ class TaskRunner(Runner):
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
-            # Create a stdout redirect if the task has log_stdout enabled
-            log_context = (
-                redirect_stdout(  # type: ignore
-                    prefect.utilities.logging.RedirectToLog(self.logger)
-                )
-                if getattr(self.task, "log_stdout", False)
-                else nullcontext()
+
+            # Note: Instead of using partial here, a contextlib.nullcontext could be
+            # used but this is not supported by py 3.6 so we will create this call
+            # then call it twice instead
+            run_task_with_timeout_handler = partial(
+                prefect.utilities.executors.run_task_with_timeout_handler,
+                task=self.task,
+                args=(),
+                kwargs=raw_inputs,
+                logger=self.logger,
             )
 
-            with log_context:  # type: ignore
-                # Run the task with handling for the `task.timeout` setting
-                value = prefect.utilities.executors.run_task_with_timeout_handler(
-                    task=self.task,
-                    args=(),
-                    kwargs=raw_inputs,
-                    logger=self.logger,
-                )
+            # Create a stdout redirect if the task has log_stdout enabled
+            if getattr(self.task, "log_stdout", False):
+                with redirect_stdout(  # type: ignore
+                    prefect.utilities.logging.RedirectToLog(self.logger)
+                ):
+                    value = run_task_with_timeout_handler()
+
+            else:
+                value = run_task_with_timeout_handler()
 
         # inform user of timeout
         except TimeoutError as exc:
