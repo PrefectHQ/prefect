@@ -51,7 +51,6 @@ def test_serialize_kubernetes_run(config):
         LocalRun(),
         LocalRun(
             env={"test": "foo"},
-            python_env="conda://prefect",
             working_dir="/path/to/dir",
             labels=["a", "b"],
         ),
@@ -61,6 +60,6 @@ def test_serialize_local_run(config):
     msg = RunConfigSchema().dump(config)
     config2 = RunConfigSchema().load(msg)
     assert sorted(config.labels) == sorted(config2.labels)
-    fields = ["env", "python_env", "working_dir"]
+    fields = ["env", "working_dir"]
     for field in fields:
         assert getattr(config, field) == getattr(config2, field)

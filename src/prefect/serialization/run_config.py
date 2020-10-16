@@ -27,7 +27,6 @@ class LocalRunSchema(RunConfigSchemaBase):
         object_class = LocalRun
 
     env = fields.Dict(keys=fields.String(), allow_none=True)
-    python_env = fields.String(allow_none=True)
     working_dir = fields.String(allow_none=True)
 
 

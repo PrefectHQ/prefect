@@ -1,3 +1,4 @@
+import os
 from typing import Iterable
 
 from prefect.run_configs.base import RunConfig
@@ -14,12 +15,6 @@ class LocalRun(RunConfig):
         - working_dir (str, optional): Working directory in which to start the
             process, must already exist. If not provided, will be run in the
             same directory as the agent.
-        - python_env (str, optional): The python environment to use to run the
-            process. Can be either a path to a python executable (on the
-            agent), a name or path to a conda environment (prefixed with
-            `conda://`), or a path to a virtual environment (prefixed
-            with `venv://`). If not provided, defaults to the same Python
-            environment running the local agent.
         - labels (Iterable[str], optional): an iterable of labels to apply to this
             run config. Labels are string identifiers used by Prefect Agents
             for selecting valid flow runs when polling for work
@@ -32,16 +27,16 @@ class LocalRun(RunConfig):
     flow.run_config = LocalRun()
     ```
 
-    Use a conda environment named "prefect":
+    Run in a specified working directory:
 
     ```python
-    flow.run_config = LocalRun(python_env="conda://prefect")
+    flow.run_config = LocalRun(working_dir="/path/to/working-directory")
     ```
 
-    Use a virtual environment located at `/opt/venvs/prefect`:
+    Set an environment variable in the flow run process:
 
     ```python
-    flow.run_config = LocalRun(python_env="venv:///opt/vents/prefect")
+    flow.run_config = LocalRun(env={"SOME_VAR": "value"})
     ```
     """
 
@@ -50,10 +45,10 @@ class LocalRun(RunConfig):
         *,
         env: dict = None,
         working_dir: str = None,
-        python_env: str = None,
         labels: Iterable[str] = None,
     ) -> None:
         super().__init__(labels=labels)
-        self.env = env
+        if working_dir is not None:
+            working_dir = os.path.abspath(working_dir)
         self.working_dir = working_dir
-        self.python_env = python_env
+        self.env = env
