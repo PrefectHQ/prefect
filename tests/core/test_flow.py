@@ -41,6 +41,8 @@ from prefect.engine.state import (
     TriggerFailed,
     TimedOut,
 )
+from prefect.environments.execution import LocalEnvironment
+from prefect.run_configs import LocalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
@@ -2579,6 +2581,7 @@ class TestFlowRegister:
         assert f.storage.image_tag == "BIG"
         assert f.environment.labels == set()
 
+    @pytest.mark.parametrize("kind", ["environment", "run_config"])
     @pytest.mark.parametrize(
         "storage",
         [
@@ -2588,15 +2591,19 @@ class TestFlowRegister:
             prefect.environments.storage.Azure(container="windows"),
         ],
     )
-    def test_flow_register_auto_labels_environment_if_labeled_storage_used(
-        self, monkeypatch, storage
+    def test_flow_register_auto_labels_if_labeled_storage_used(
+        self, monkeypatch, storage, kind
     ):
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(name="Test me!! I should get labeled", storage=storage)
+        if kind == "run_config":
+            obj = f.run_config = LocalRun(labels=["test-label"])
+        else:
+            obj = f.environment = LocalEnvironment(labels=["test-label"])
 
         f.register("My-project", build=False)
 
-        assert len(f.environment.labels) == 1
+        assert obj.labels == {"test-label", *storage.labels}
 
     @pytest.mark.parametrize(
         "storage",
@@ -3050,16 +3057,17 @@ def test_results_write_to_custom_formatters(tmpdir):
     }
 
 
-def test_run_agent_passes_environment_labels(monkeypatch):
+@pytest.mark.parametrize("kind", ["environment", "run_config"])
+def test_run_agent_passes_flow_labels(monkeypatch, kind):
     agent = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent", agent)
+    labels = ["test", "test", "test2"]
 
-    f = Flow(
-        "test",
-        environment=prefect.environments.LocalEnvironment(
-            labels=["test", "test", "test2"]
-        ),
-    )
+    f = Flow("test")
+    if kind == "run_config":
+        f.run_config = LocalRun(labels=labels)
+    else:
+        f.environment = LocalEnvironment(labels=labels)
     f.run_agent()
 
     assert type(agent.call_args[1]["labels"]) is list

@@ -1539,7 +1539,10 @@ class Flow:
             "logging.log_to_cloud": log_to_cloud,
         }
         with set_temporary_config(temp_config):
-            labels = list(self.environment.labels) if self.environment.labels else []
+            if self.run_config is not None:
+                labels = list(self.run_config.labels or ())
+            else:
+                labels = list(self.environment.labels or ())
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
@@ -1606,10 +1609,10 @@ class Flow:
             self.storage = get_default_storage_class()(**kwargs)
 
         # add auto-labels for various types of storage
-        self.environment.labels.update(self.storage.labels)
-
-        if labels:
-            self.environment.labels.update(labels)
+        for obj in [self.environment, self.run_config]:
+            if obj is not None:
+                obj.labels.update(self.storage.labels)
+                obj.labels.update(labels or ())
 
         # register the flow with a default result handler if one not provided
         if not self.result:
