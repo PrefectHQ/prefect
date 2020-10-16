@@ -1,0 +1,2 @@
+fix:
+  - "Fix `get flow-runs` and `describe flow-runs` CLI commands querying of removed `duration` field - [#3517](https://github.com/PrefectHQ/prefect/issues/3517)"
