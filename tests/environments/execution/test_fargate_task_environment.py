@@ -381,6 +381,181 @@ def test_validate_definition_not_changed_when_env_out_of_order(monkeypatch):
     assert not boto3_client.register_task_definition.called
 
 
+def test_validate_definition_not_changed_when_out_of_order_in_second_container(
+    monkeypatch,
+):
+    existing_task_definition = {
+        "containerDefinitions": [
+            {
+                "environment": [
+                    {
+                        "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                        "value": "prefect.engine.cloud.CloudFlowRunner",
+                    },
+                    {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                    {
+                        "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                        "value": "prefect.engine.cloud.CloudTaskRunner",
+                    },
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {
+                        "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                        "value": str(config.logging.extra_loggers),
+                    },
+                    # This is added first in _render_task_definition_kwargs, so it's at the end now
+                    {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
+                ],
+                "name": "flow-container",
+                "image": "test/image:tag",
+                "command": [
+                    "/bin/sh",
+                    "-c",
+                    "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'",
+                ],
+            },
+            {
+                "environment": [
+                    {
+                        "name": "foo",
+                        "value": "bar",
+                    },
+                    {
+                        "name": "foo2",
+                        "value": "bar2",
+                    },
+                    {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
+                    {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                    {
+                        "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                        "value": "prefect.engine.cloud.CloudFlowRunner",
+                    },
+                    {
+                        "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                        "value": "prefect.engine.cloud.CloudTaskRunner",
+                    },
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {
+                        "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                        "value": str(config.logging.extra_loggers),
+                    },
+                ],
+                "secrets": [
+                    {"name": "1", "valueFrom": "1"},
+                    {"name": "2", "valueFrom": "2"},
+                ],
+                "mountPoints": [
+                    {"sourceVolume": "1", "containerPath": "1", "readOnly": False},
+                    {"sourceVolume": "2", "containerPath": "2", "readOnly": False},
+                ],
+                "extraHosts": [
+                    {"hostname": "1", "ipAddress": "1"},
+                    {"hostname": "2", "ipAddress": "2"},
+                ],
+                "volumesFrom": [
+                    {"sourceContainer": "1", "readOnly": False},
+                    {"sourceContainer": "2", "readOnly": False},
+                ],
+                "ulimits": [
+                    {"name": "cpu", "softLimit": 1, "hardLimit": 1},
+                    {"name": "memlock", "softLimit": 2, "hardLimit": 2},
+                ],
+                "portMappings": [
+                    {"containerPort": 80, "hostPort": 80, "protocol": "tcp"},
+                    {"containerPort": 81, "hostPort": 81, "protocol": "tcp"},
+                ],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {},
+                    "secretOptions": [
+                        {"name": "1", "valueFrom": "1"},
+                        {"name": "2", "valueFrom": "2"},
+                    ],
+                },
+                "name": "some-other-container",
+                "image": "test/image:tag",
+                "command": [
+                    "/bin/sh",
+                ],
+            },
+        ],
+        "memory": 256,
+        "cpu": 512,
+    }
+
+    boto3_client = MagicMock()
+    boto3_client.describe_task_definition.return_value = {
+        "taskDefinition": existing_task_definition
+    }
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    environment = FargateTaskEnvironment(
+        memory=256,
+        cpu=512,
+        containerDefinitions=[
+            {},
+            {
+                "environment": [
+                    {
+                        "name": "foo2",
+                        "value": "bar2",
+                    },
+                    {
+                        "name": "foo",
+                        "value": "bar",
+                    },
+                ],
+                "secrets": [
+                    {"name": "2", "valueFrom": "2"},
+                    {"name": "1", "valueFrom": "1"},
+                ],
+                "mountPoints": [
+                    {"sourceVolume": "2", "containerPath": "2", "readOnly": False},
+                    {"sourceVolume": "1", "containerPath": "1", "readOnly": False},
+                ],
+                "extraHosts": [
+                    {"hostname": "2", "ipAddress": "2"},
+                    {"hostname": "1", "ipAddress": "1"},
+                ],
+                "volumesFrom": [
+                    {"sourceContainer": "2", "readOnly": False},
+                    {"sourceContainer": "1", "readOnly": False},
+                ],
+                "ulimits": [
+                    {"name": "memlock", "softLimit": 2, "hardLimit": 2},
+                    {"name": "cpu", "softLimit": 1, "hardLimit": 1},
+                ],
+                "portMappings": [
+                    {"containerPort": 81, "hostPort": 81, "protocol": "tcp"},
+                    {"containerPort": 80, "hostPort": 80, "protocol": "tcp"},
+                ],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {},
+                    "secretOptions": [
+                        {"name": "2", "valueFrom": "2"},
+                        {"name": "1", "valueFrom": "1"},
+                    ],
+                },
+                "name": "some-other-container",
+                "image": "test/image:tag",
+                "command": [
+                    "/bin/sh",
+                ],
+            },
+        ],
+    )
+
+    environment.setup(
+        Flow(
+            "test",
+            storage=Docker(registry_url="test", image_name="image", image_tag="tag"),
+        )
+    )
+
+    assert boto3_client.describe_task_definition.called
+    assert not boto3_client.register_task_definition.called
+
+
 def test_validate_definition_not_changed_when_names_are_in_arn(monkeypatch):
     existing_task_definition = {
         "containerDefinitions": [
