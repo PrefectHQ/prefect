@@ -200,6 +200,7 @@ class LocalAgent(Agent):
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - run_config (LocalRun, optional): The `run_config` for the flow, if any.
 
         Returns:
             - dict: a dictionary representing the populated environment variables
