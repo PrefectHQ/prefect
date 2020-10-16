@@ -110,7 +110,7 @@ def run_with_thread_timeout(
         - TimeoutError: if function execution exceeds the allowed timeout
         - ValueError: if run from outside the main thread
     """
-    logger = logger or get_logger("prefect.executors.run_with_thread_timeout")
+    logger = logger or get_logger("run_with_thread_timeout")
     name = name or f"Function '{fn.__name__}'"
 
     if timeout is None:
@@ -165,7 +165,7 @@ def multiprocessing_safe_run_and_retrieve(
     """
     request = cloudpickle.loads(payload)
 
-    logger = get_logger("prefect.executors.multiprocessing_safe_run_and_retrieve")
+    logger = get_logger("multiprocessing_safe_run_and_retrieve")
 
     fn: Callable = request["fn"]
     context: dict = request.get("context", {})
@@ -215,7 +215,7 @@ def run_with_multiprocess_timeout(
         - AssertionError: if run from a daemonic process
         - TimeoutError: if function execution exceeds the allowed timeout
     """
-    logger = logger or get_logger("prefect.executors.run_with_multiprocess_timeout")
+    logger = logger or get_logger("run_with_multiprocess_timeout")
     name = name or f"Function '{fn.__name__}'"
 
     if timeout is None:
@@ -291,7 +291,7 @@ def run_task_with_timeout_handler(
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
     """
-    logger = logger or get_logger("prefect.run_task_with_timeout_handler")
+    logger = logger or get_logger("run_task_with_timeout_handler")
     name = prefect.context.get("task_full_name", task.name)
 
     # if no timeout, just run the function
