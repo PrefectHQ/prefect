@@ -234,16 +234,15 @@ def run_with_multiprocess_timeout(
     }
     payload = cloudpickle.dumps(request)
 
-    p = multiprocessing.Process(
+    spawn_mp = multiprocessing.get_context("spawn")
+    exec_proc = spawn_mp.Process(
         target=multiprocessing_safe_run_and_retrieve, args=(queue, payload)
     )
     logger.debug(f"{name}: Sending execution to a new process...")
-    p.start()
+    exec_proc.start()
     logger.debug(f"{name}: Waiting for process to return with {timeout}s timeout...")
-    if not p.is_alive():
-        raise RuntimeError("Process is not alive!")
-    p.join(timeout)
-    p.terminate()
+    exec_proc.join(timeout)
+    exec_proc.terminate()
 
     # Handle the process result, if the queue is empty the function did not finish
     # before the timeout
