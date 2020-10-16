@@ -835,13 +835,11 @@ class TaskRunner(Runner):
             )
 
             with log_context:
-                # Always use the `timeout_handler` which will just call immediately
-                # if the timeout isn't set
-                value = prefect.utilities.executors.run_with_timeout_handler(
-                    fn=self.task.run,
+                # Run the task with handling for the `task.timeout` setting
+                value = prefect.utilities.executors.run_task_with_timeout_handler(
+                    task=self.task,
                     args=(),
                     kwargs=raw_inputs,
-                    timeout=self.task.timeout,
                     logger=self.logger,
                 )
 

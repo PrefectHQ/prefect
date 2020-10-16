@@ -236,15 +236,14 @@ def run_with_multiprocess_timeout(
         raise TimeoutError("Execution timed out.")
 
 
-def run_with_timeout_handler(
-    fn: Callable,
+def run_task_with_timeout_handler(
+    task: "Task",
     args: Sequence,
-    timeout: int = None,
     kwargs: dict = None,
     logger: Logger = None,
 ) -> Any:
     """
-    Helper function for implementing timeouts on function executions.
+    Helper function for implementing timeouts on task executions.
 
     The exact implementation varies depending on whether this function is being
     run in the main thread or a non-daemonic subprocess.  If this is run from a
@@ -252,14 +251,18 @@ def run_with_timeout_handler(
     and only a soft timeout is enforced, meaning a `TimeoutError` is raised at the
     appropriate time but the task continues running in the background.
 
+    The task is passed instead of a function so we can give better logs and messages.
+    If you need to run generic functions with timeout handlers,
+    `run_with_thread_timeout` or `run_with_multiprocess_timeout` can be called directly
+
     Args:
-        - fn (callable): the function to execute
+        - task (Task): the task to execute
+            `task.timeout` specifies the number of seconds to allow `task.run` to run
+            for before terminating
         - args (Sequence): arguments to pass to the function
         - kwargs (dict): keyword arguments to pass to the function
-        - timeout (int): the length of time to allow for execution before raising a
-            `TimeoutError`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
-            `prefect.run_with_timeout_handler` namespace will be created.
+            `prefect.run_task_with_timeout_handler` namespace will be created.
 
     Returns:
         - the result of `f(*args, **kwargs)`
@@ -267,12 +270,12 @@ def run_with_timeout_handler(
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
     """
-    logger = logger or get_logger("prefect.run_with_timeout_handler")
+    logger = logger or get_logger("prefect.run_task_with_timeout_handler")
+    name = prefect.context.get("task_full_name", task.name)
 
     # if no timeout, just run the function
-    if timeout is None:
-        logger.debug("Skipping timeout handler because timeout is not specified...")
-        return fn(*args, **kwargs)
+    if task.timeout is None:
+        return task.run(*args, **kwargs)
 
     # if we are running the main thread, use a signal to stop execution at the
     # appropriate time; else if we are running in a non-daemonic process, spawn
@@ -280,15 +283,15 @@ def run_with_timeout_handler(
     if not sys.platform.startswith("win"):
 
         if threading.current_thread() is threading.main_thread():
-            logger.debug("Selected thread based timeout handler")
+            logger.debug(f"Task '{name}': Attaching thread based timeout handler...")
             return run_with_thread_timeout(
-                fn, args, kwargs, timeout=timeout, logger=logger
+                task.run, args, kwargs, timeout=task.timeout, logger=logger
             )
 
         elif multiprocessing.current_process().daemon is False:
-            logger.debug("Selected multiprocessing based timeout handler")
+            logger.debug(f"Task '{name}': Attaching process based timeout handler...")
             return run_with_multiprocess_timeout(
-                fn, args, kwargs, timeout=timeout, logger=logger
+                task.run, args, kwargs, timeout=task.timeout, logger=logger
             )
 
         # We are in a daemonic process and cannot enforce a timeout
@@ -305,21 +308,21 @@ def run_with_timeout_handler(
     )
 
     logger.debug(
-        "Falling back to daemonic soft limit timeout handler because we are "
-        f"running {soft_timeout_reason}."
+        f"Task '{name}': Falling back to daemonic soft limit timeout handler because "
+        f"we are running {soft_timeout_reason}."
     )
     warnings.warn(msg, stacklevel=2)
     executor = ThreadPoolExecutor()
 
     def run_with_ctx(context: dict) -> Any:
         with prefect.context(context):
-            return fn(*args, **kwargs)
+            return task.run(*args, **kwargs)
 
     # Run the function in the background and then retrieve its result with a timeout
     fut = executor.submit(run_with_ctx, prefect.context.to_dict())
 
     try:
-        return fut.result(timeout=timeout)
+        return fut.result(timeout=task.timeout)
     except FutureTimeout as exc:
         raise TimeoutError(
             f"Execution timed out but was executed {soft_timeout_reason} and will "
