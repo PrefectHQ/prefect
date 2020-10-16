@@ -185,7 +185,7 @@ def multiprocessing_timeout(
 
     # Set internal kwargs for the helper function
     request = {
-        "func": fn,
+        "fn": fn,
         "args": args,
         "kwargs": kwargs,
         "context": prefect.context.to_dict(),
