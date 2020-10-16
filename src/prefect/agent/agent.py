@@ -524,7 +524,7 @@ class Agent:
                 "input": {
                     "before": now.isoformat(),
                     "labels": list(self.labels),
-                    "tenant_id": self.client._active_tenant_id,
+                    "tenant_id": self.client.active_tenant_id,
                 }
             },
         )

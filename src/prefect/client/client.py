@@ -91,7 +91,7 @@ class Client:
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
-        self._active_tenant_id = None
+        self._active_tenant_id: Optional[str] = None
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
@@ -102,28 +102,6 @@ class Client:
         self._api_token = api_token or prefect.context.config.cloud.get(
             "auth_token", None
         )
-
-        if prefect.config.backend == "cloud":
-            if not self._api_token:
-                # if no api token was passed, attempt to load state from local storage
-                settings = self._load_local_settings()
-                self._api_token = settings.get("api_token")
-
-                if self._api_token:
-                    self._active_tenant_id = settings.get("active_tenant_id")
-                if self._active_tenant_id:
-                    try:
-                        self.login_to_tenant(tenant_id=self._active_tenant_id)
-                    except AuthorizationError:
-                        # if an authorization error is raised, then the token is invalid and should
-                        # be cleared
-                        self.logout_from_tenant()
-        else:
-            # TODO: Separate put this functionality and clean up initial tenant access handling
-            if not self._active_tenant_id:
-                tenant_info = self.graphql({"query": {"tenant": {"id"}}})
-                if tenant_info.data.tenant:
-                    self._active_tenant_id = tenant_info.data.tenant[0].id
 
     def create_tenant(self, name: str, slug: str = None) -> str:
         """
@@ -240,6 +218,45 @@ class Client:
             return response.json()
         else:
             return {}
+
+    @property
+    def active_tenant_id(self) -> Optional[str]:
+        """
+        Return the tenant to contact the server.
+        If your tenant has not been set yet it will be initialized.
+        """
+        if self._active_tenant_id is None:
+            self._init_tenant()
+        return self._active_tenant_id
+
+    def _init_tenant(self) -> None:
+        """
+        Init the tenant to contact the server.
+
+        If your backend is set to cloud the tenant will be read from: $HOME/.prefect/settings.toml.
+
+        For the server backend it will try to retrieve the default tenant. If the server is
+        protected with auth like BasicAuth do not forget to `attach_headers` before any call.
+        """
+        if prefect.config.backend == "cloud":
+            if not self._api_token:
+                # if no api token was passed, attempt to load state from local storage
+                settings = self._load_local_settings()
+                self._api_token = settings.get("api_token")
+
+                if self._api_token:
+                    self._active_tenant_id = settings.get("active_tenant_id")
+                if self._active_tenant_id:
+                    try:
+                        self.login_to_tenant(tenant_id=self._active_tenant_id)
+                    except AuthorizationError:
+                        # if an authorization error is raised, then the token is invalid and should
+                        # be cleared
+                        self.logout_from_tenant()
+        else:
+            tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+            if tenant_info.data.tenant:
+                self._active_tenant_id = tenant_info.data.tenant[0].id
 
     def graphql(
         self,
@@ -902,7 +919,7 @@ class Client:
                 input=dict(
                     name=project_name,
                     description=project_description,
-                    tenant_id=self._active_tenant_id,
+                    tenant_id=self.active_tenant_id,
                 )
             ),
         )  # type: Any
@@ -1580,7 +1597,7 @@ class Client:
                     type=agent_type,
                     name=name,
                     labels=labels or [],
-                    tenant_id=self._active_tenant_id,
+                    tenant_id=self.active_tenant_id,
                     agent_config_id=agent_config_id,
                 )
             ),
