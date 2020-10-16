@@ -81,7 +81,7 @@ def run_with_heartbeat(
 
 def run_with_thread_timeout(
     fn: Callable,
-    args: Sequence,
+    args: Sequence = (),
     kwargs: Mapping = None,
     timeout: int = None,
     logger: Logger = None,
@@ -187,7 +187,7 @@ def multiprocessing_safe_run_and_retrieve(
 
 def run_with_multiprocess_timeout(
     fn: Callable,
-    args: Sequence,
+    args: Sequence = (),
     kwargs: Mapping = None,
     timeout: int = None,
     logger: Logger = None,
@@ -261,7 +261,7 @@ def run_with_multiprocess_timeout(
 
 def run_task_with_timeout_handler(
     task: "Task",
-    args: Sequence,
+    args: Sequence = (),
     kwargs: Mapping = None,
     logger: Logger = None,
 ) -> Any:
@@ -282,7 +282,7 @@ def run_task_with_timeout_handler(
         - task (Task): the task to execute
             `task.timeout` specifies the number of seconds to allow `task.run` to run
             for before terminating
-        - args (Sequence): arguments to pass to the function
+        - args (Sequence): arguments ``to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.run_task_with_timeout_handler` namespace will be created.
@@ -295,6 +295,7 @@ def run_task_with_timeout_handler(
     """
     logger = logger or get_logger("run_task_with_timeout_handler")
     name = prefect.context.get("task_full_name", task.name)
+    kwargs = kwargs or {}
 
     # if no timeout, just run the function
     if task.timeout is None:
