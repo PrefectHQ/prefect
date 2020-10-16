@@ -10,14 +10,15 @@ def test_no_args():
     assert config.labels == set()
 
 
-def test_all_args():
+def test_all_args(tmpdir):
+    working_dir = str(tmpdir)
     config = LocalRun(
         env={"hello": "world"},
-        working_dir="/path/to/dir",
+        working_dir=working_dir,
         labels=["a", "b"],
     )
     assert config.env == {"hello": "world"}
-    assert config.working_dir == "/path/to/dir"
+    assert config.working_dir == working_dir
     assert config.labels == {"a", "b"}
 
 

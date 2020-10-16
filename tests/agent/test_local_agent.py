@@ -186,12 +186,13 @@ def test_populate_env_vars_no_existing_python_path(monkeypatch):
     assert "paths" in env_vars["PYTHONPATH"]
 
 
-def test_populate_env_vars_from_run_config():
+def test_populate_env_vars_from_run_config(tmpdir):
     agent = LocalAgent(env_vars={"KEY1": "VAL1", "KEY2": "VAL2"})
+    working_dir = str(tmpdir)
 
     run = LocalRun(
         env={"KEY2": "OVERRIDE", "PREFECT__LOGGING__LEVEL": "TEST"},
-        working_dir="/test/dir",
+        working_dir=working_dir,
     )
 
     env_vars = agent.populate_env_vars(
@@ -207,7 +208,7 @@ def test_populate_env_vars_from_run_config():
     assert env_vars["KEY1"] == "VAL1"
     assert env_vars["KEY2"] == "OVERRIDE"
     assert env_vars["PREFECT__LOGGING__LEVEL"] == "TEST"
-    assert "/test/dir" in env_vars["PYTHONPATH"]
+    assert working_dir in env_vars["PYTHONPATH"]
 
 
 @pytest.mark.parametrize(
