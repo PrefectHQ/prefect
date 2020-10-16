@@ -22,7 +22,7 @@ from prefect.core.task import Task
 from prefect.tasks.core import constants
 from prefect.core.parameter import Parameter
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
-from prefect.engine.executors import LocalExecutor
+from prefect.engine.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
@@ -2928,8 +2928,12 @@ class TestSaveLoad:
     sys.platform == "win32" or sys.version_info.minor == 6,
     reason="Windows doesn't support any timeout logic",
 )
-@pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
-def test_timeout_actually_stops_execution(executor):
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mthread", "mproc_local", "mproc"], indirect=True
+)
+def test_timeout_actually_stops_execution(
+    executor,
+):
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
@@ -2943,15 +2947,25 @@ def test_timeout_actually_stops_execution(executor):
     # the task implementation" we got, but instead do a simple task (create a file) and sleep.
     # This will drastically reduce the brittleness of the test (but not completely).
 
+    # The amount of time to sleep before writing 'invalid' to the file
+    # lower values will decrease test time but increase chances of intermittent failure
+    SLEEP_TIME = 3
+
+    # Determine if the executor is distributed and using daemonic processes which
+    # cannot be cancelled and throw a warning instead.
+    in_daemon_process = isinstance(
+        executor, DaskExecutor
+    ) and not executor.address.startswith("inproc")
+
     with tempfile.TemporaryDirectory() as call_dir:
         # Note: a real file must be used in the case of "mthread"
         FILE = os.path.join(call_dir, "test.txt")
 
-        @prefect.task(timeout=1)
+        @prefect.task(timeout=2)
         def slow_fn():
             with open(FILE, "w") as f:
                 f.write("called!")
-            time.sleep(2)
+            time.sleep(SLEEP_TIME)
             with open(FILE, "a") as f:
                 f.write("invalid")
 
@@ -2962,15 +2976,25 @@ def test_timeout_actually_stops_execution(executor):
         start_time = time.time()
         state = flow.run(executor=executor)
         stop_time = time.time()
-        time.sleep(max(0, 3 - (stop_time - start_time)))
+
+        # Sleep so 'invalid' will be written if the task is not killed, subtracting the
+        # actual runtime to speed up the test a little
+        time.sleep(max(1, SLEEP_TIME - (stop_time - start_time)))
 
         assert os.path.exists(FILE)
         with open(FILE, "r") as f:
-            assert "invalid" not in f.read()
+            # `invalid` should *only be in the file if a daemon process was used
+            assert ("invalid" in f.read()) == in_daemon_process
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
     assert isinstance(state.result[slow_fn].result, TimeoutError)
+    # We cannot capture the UserWarning because it is being run by a Dask worker
+    # but we can make sure the TimeoutError includes a note about it
+    assert (
+        "executed in a daemonic subprocess and will continue to run"
+        in str(state.result[slow_fn].result)
+    ) == in_daemon_process
 
 
 @pytest.mark.skip("Result handlers not yet deprecated")

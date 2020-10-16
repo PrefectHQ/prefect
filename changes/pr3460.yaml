@@ -1,5 +1,0 @@
-enhancement:
-  - "S3List filtering using the LastModified value - [#3460](https://github.com/PrefectHQ/prefect/pull/3460)"
-
-contributor:
-  - "[Panagiotis Simakis](https://github.com/sp1thas)"

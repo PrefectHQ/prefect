@@ -1,5 +1,6 @@
 import collections.abc
 import copy
+import enum
 import inspect
 import warnings
 from datetime import timedelta
@@ -32,6 +33,16 @@ if TYPE_CHECKING:
     from prefect.core import Edge
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+
+
+# A sentinel value indicating no default was provided
+# mypy requires enums for typed sentinel values, so other
+# simpler solutions won't work :/
+class NoDefault(enum.Enum):
+    value = "no_default"
+
+    def __repr__(self) -> str:
+        return "<no default>"
 
 
 def _validate_run_signature(run: Callable) -> None:
@@ -827,7 +838,7 @@ class Task(metaclass=SignatureValidator):
         Produces a Task that evaluates `self[key]`
 
         Args:
-            - key (object): the object to use an an index for this task. It will be converted
+            - key (object): the object to use as an index for this task. It will be converted
                 to a Task if it isn't one already.
 
         Returns:

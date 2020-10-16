@@ -127,6 +127,7 @@ class Agent:
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
+        self.heartbeat_period = 60  # exposed for testing
 
         self.agent_address = agent_address or config.cloud.agent.get(
             "agent_address", ""
@@ -336,10 +337,20 @@ class Agent:
     def run_heartbeat_thread(self) -> None:
         def run() -> None:
             while True:
-                self.logger.debug("Running agent heartbeat...")
-                self.heartbeat()
-                self.logger.debug("Sleeping heartbeat for 60 seconds")
-                time.sleep(60)
+                try:
+                    self.logger.debug("Running agent heartbeat...")
+                    self.heartbeat()
+                except Exception:
+                    self.logger.error(
+                        "Error in agent heartbeat, will try again in %.1f seconds",
+                        self.heartbeat_period,
+                        exc_info=True,
+                    )
+                else:
+                    self.logger.debug(
+                        "Sleeping heartbeat for %.1f seconds", self.heartbeat_period
+                    )
+                time.sleep(self.heartbeat_period)
 
         self._heartbeat_thread = threading.Thread(
             name="heartbeat", target=run, daemon=True
@@ -554,7 +565,7 @@ class Agent:
                                     },
                                 },
                             ],
-                        }
+                        },
                     },
                 ): {
                     "id": True,
@@ -562,6 +573,7 @@ class Agent:
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,
+                    "scheduled_start_time": True,
                     "flow": {
                         "id",
                         "name",
@@ -588,7 +600,11 @@ class Agent:
         if target_flow_run_ids:
             self.logger.debug("Querying flow run metadata")
             result = self.client.graphql(query)
-            return result.data.flow_run  # type: ignore
+
+            # Return flow runs sorted by scheduled start time
+            return sorted(
+                result.data.flow_run, key=lambda flow_run: flow_run.scheduled_start_time
+            )
         else:
             return []
 

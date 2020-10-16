@@ -50,6 +50,12 @@ module.exports = {
         githubLabels: ['docs'],
         twitter: true
       }
+    ],
+    [
+      'sitemap',
+      {
+        hostname: 'https://docs.prefect.io'
+      }
     ]
   ],
   themeConfig: {
@@ -74,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.13.10)', link: '/api/latest/' },
+          { text: 'Latest (0.13.11)', link: '/api/latest/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
@@ -290,10 +296,7 @@ module.exports = {
         {
           title: 'Task Library',
           collapsable: true,
-          children: [
-            'task_library/overview',
-            'task_library/contributing'
-          ]
+          children: ['task_library/overview', 'task_library/contributing']
         },
         {
           title: 'Advanced Tutorials',

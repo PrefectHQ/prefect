@@ -10,6 +10,10 @@ from prefect.engine.executors import DaskExecutor, LocalDaskExecutor, LocalExecu
 from prefect.utilities import configuration
 
 
+# Set the prefect module to display debug level logs during tests
+prefect.utilities.logging.get_logger().setLevel("DEBUG")
+
+
 @pytest.fixture(autouse=True)
 def logging_heartbeat():
     with configuration.set_temporary_config({"cloud.logging_heartbeat": 0.15}):
@@ -35,7 +39,7 @@ def prefect_home_dir():
 # ----------------
 @pytest.fixture(scope="session")
 def mthread():
-    "Multi-threaded executor"
+    "Multi-threaded executor using dask distributed"
     with Client(
         processes=False, scheduler_port=0, dashboard_address=":0", n_workers=2
     ) as client:
@@ -51,12 +55,18 @@ def local():
 @pytest.fixture()
 def sync():
     "Synchronous dask (not dask.distributed) executor"
-    yield LocalDaskExecutor()
+    yield LocalDaskExecutor(scheduler="sync")
+
+
+@pytest.fixture()
+def mproc_local():
+    "Multiprocessing executor using local dask (not distributed cluster)"
+    yield LocalDaskExecutor(scheduler="processes")
 
 
 @pytest.fixture(scope="session")
 def mproc():
-    "Multi-processing executor"
+    "Multi-processing executor using dask distributed"
     with Client(
         processes=True, scheduler_port=0, dashboard_address=":0", n_workers=2
     ) as client:
@@ -64,14 +74,16 @@ def mproc():
 
 
 @pytest.fixture()
-def _switch(mthread, local, sync, mproc):
+def _switch(mthread, local, sync, mproc, mproc_local):
     """
     A construct needed so we can parametrize the executor fixture.
 
     This isn't straightforward since each executor needs to be initialized
     in slightly different ways.
     """
-    execs = dict(mthread=mthread, local=local, sync=sync, mproc=mproc)
+    execs = dict(
+        mthread=mthread, local=local, sync=sync, mproc=mproc, mproc_local=mproc_local
+    )
     return lambda e: execs[e]
 
 
