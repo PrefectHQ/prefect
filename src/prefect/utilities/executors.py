@@ -125,7 +125,7 @@ def run_with_thread_timeout(
         # Raise the alarm if `timeout` seconds pass
         logger.debug(f"{name}: Sending alarm with {timeout}s timeout...")
         signal.alarm(timeout)
-        logger.debug(f"{name}: Executing function...")
+        logger.debug(f"{name}: Executing function in main thread...")
         return fn(*args, **kwargs)
     finally:
         signal.alarm(0)
@@ -236,7 +236,7 @@ def run_with_multiprocess_timeout(
 
     # Handle the process result, if the queue is empty the function did not finish
     # before the timeout
-    logger.debug(f"{name}: Run process closed, collecting result...")
+    logger.debug(f"{name}: Execution process closed, collecting result...")
     if not queue.empty():
         res = cloudpickle.loads(queue.get())
         if isinstance(res, Exception):
@@ -293,6 +293,8 @@ def run_task_with_timeout_handler(
     if not sys.platform.startswith("win"):
 
         if threading.current_thread() is threading.main_thread():
+            # This case is typically when using the LocalDaskExecutor with a
+            # process-based scheduler because then each worker is in the main thread
             logger.debug(f"Task '{name}': Attaching thread based timeout handler...")
             return run_with_thread_timeout(
                 task.run,
@@ -304,6 +306,8 @@ def run_task_with_timeout_handler(
             )
 
         elif multiprocessing.current_process().daemon is False:
+            # This case is typically when using the LocalDaskExecutor with a
+            # thread-based scheduler or the DaskExecutor with processes disabled
             logger.debug(f"Task '{name}': Attaching process based timeout handler...")
             return run_with_multiprocess_timeout(
                 task.run,
@@ -315,6 +319,8 @@ def run_task_with_timeout_handler(
             )
 
         # We are in a daemonic process and cannot enforce a timeout
+        # This case is typically when using the distributed DaskExecutor with processes
+        # enabled
         soft_timeout_reason = "in a daemonic subprocess"
     else:
         # We are in windows and cannot enforce a timeout
