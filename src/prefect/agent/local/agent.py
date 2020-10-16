@@ -157,7 +157,7 @@ class LocalAgent(Agent):
                     type(run_config).__name__,
                 )
                 raise TypeError(
-                    "Unsupported RunConfig type: %s" % type(storage).__name__
+                    "Unsupported RunConfig type: %s" % type(run_config).__name__
                 )
         else:
             run_config = None

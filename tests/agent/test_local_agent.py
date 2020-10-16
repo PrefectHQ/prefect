@@ -257,7 +257,7 @@ def test_local_agent_deploy_raises_unsupported_storage(monkeypatch):
 
     agent = LocalAgent()
 
-    with pytest.raises(TypeError, match="Unsupported Storage type"):
+    with pytest.raises(TypeError, match="Unsupported Storage type: Docker"):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
@@ -311,7 +311,7 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     agent = LocalAgent()
 
-    with pytest.raises(TypeError, match="Unsupported RunConfig type"):
+    with pytest.raises(TypeError, match="Unsupported RunConfig type: Kubernetes"):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
