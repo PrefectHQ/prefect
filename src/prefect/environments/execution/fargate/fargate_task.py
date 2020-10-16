@@ -248,26 +248,68 @@ class FargateTaskEnvironment(Environment, _RunMixin):
     def _validate_task_definition(
         self, existing_task_definition: dict, task_definition_kwargs: dict
     ) -> None:
-        givenContainerDefinitions = [
-            {
-                **task_definition,
+        def format_container_definition(definition: dict) -> dict:
+            """
+            Reformat all object arrays in the containerDefinitions so
+            the keys are comparable for validation. Most of these won't apply
+            to the first container (overriden by Prefect) but it could apply to
+            other containers in the definition, so they are included here.
+
+            The keys that are overriden here are listed in:
+            https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#container_definitions
+
+            Essentially only the `object array` types need to be overridden since
+            they may be returned from AWS's API out of order.
+            """
+            return {
+                **definition,
                 "environment": {
                     item["name"]: item["value"]
-                    for item in task_definition["environment"]
+                    for item in definition.get("environment", [])
+                },
+                "secrets": {
+                    item["name"]: item["valueFrom"]
+                    for item in definition.get("secrets", [])
+                },
+                "mountPoints": {
+                    item["sourceVolume"]: item
+                    for item in definition.get("mountPoints", [])
+                },
+                "extraHosts": {
+                    item["hostname"]: item["ipAddress"]
+                    for item in definition.get("extraHosts", [])
+                },
+                "volumesFrom": {
+                    item["sourceContainer"]: item
+                    for item in definition.get("volumesFrom", [])
+                },
+                "ulimits": {
+                    item["name"]: item for item in definition.get("ulimits", [])
+                },
+                "portMappings": {
+                    item["containerPort"]: item
+                    for item in definition.get("portMappings", [])
+                },
+                "logConfiguration": {
+                    **definition.get("logConfiguration", {}),
+                    "secretOptions": {
+                        item["name"]: item["valueFrom"]
+                        for item in definition.get("logConfiguration", {}).get(
+                            "secretOptions", []
+                        )
+                    },
                 },
             }
-            for task_definition in task_definition_kwargs["containerDefinitions"]
+
+        givenContainerDefinitions = [
+            format_container_definition(container_definition)
+            for container_definition in task_definition_kwargs["containerDefinitions"]
         ]
         expectedContainerDefinitions = [
-            {
-                **task_definition,
-                "environment": {
-                    item["name"]: item["value"]
-                    for item in task_definition["environment"]
-                },
-            }
-            for task_definition in existing_task_definition["containerDefinitions"]
+            format_container_definition(container_definition)
+            for container_definition in existing_task_definition["containerDefinitions"]
         ]
+
         containerDifferences = [
             "containerDefinition.{idx}.{key} -> Given: {given}, Expected: {expected}".format(
                 idx=idx,
