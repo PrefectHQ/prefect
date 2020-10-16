@@ -221,8 +221,10 @@ def run_with_multiprocess_timeout(
     if timeout is None:
         return fn(*args, **kwargs)
 
+    spawn_mp = multiprocessing.get_context("spawn")
+
     # Create a queue to pass the function return value back
-    queue = multiprocessing.Queue()  # type: multiprocessing.Queue
+    queue = spawn_mp.Queue()  # type: multiprocessing.Queue
 
     # Set internal kwargs for the helper function
     request = {
@@ -234,24 +236,23 @@ def run_with_multiprocess_timeout(
     }
     payload = cloudpickle.dumps(request)
 
-    spawn_mp = multiprocessing.get_context("spawn")
-    exec_proc = spawn_mp.Process(
+    run_process = spawn_mp.Process(
         target=multiprocessing_safe_run_and_retrieve, args=(queue, payload)
     )
     logger.debug(f"{name}: Sending execution to a new process...")
-    exec_proc.start()
+    run_process.start()
     logger.debug(f"{name}: Waiting for process to return with {timeout}s timeout...")
-    exec_proc.join(timeout)
-    exec_proc.terminate()
+    run_process.join(timeout)
+    run_process.terminate()
 
     # Handle the process result, if the queue is empty the function did not finish
     # before the timeout
     logger.debug(f"{name}: Execution process closed, collecting result...")
     if not queue.empty():
-        res = cloudpickle.loads(queue.get())
-        if isinstance(res, Exception):
-            raise res
-        return res
+        result = cloudpickle.loads(queue.get())
+        if isinstance(result, Exception):
+            raise result
+        return result
     else:
         raise TimeoutError(f"Execution timed out for {name}.")
 
