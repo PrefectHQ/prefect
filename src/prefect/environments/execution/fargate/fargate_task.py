@@ -1,3 +1,4 @@
+import operator
 import os
 import warnings
 from typing import TYPE_CHECKING, Callable, List
@@ -301,18 +302,28 @@ class FargateTaskEnvironment(Environment, _RunMixin):
                 },
             }
 
-        givenContainerDefinitions = [
-            format_container_definition(container_definition)
-            for container_definition in task_definition_kwargs["containerDefinitions"]
-        ]
-        expectedContainerDefinitions = [
-            format_container_definition(container_definition)
-            for container_definition in existing_task_definition["containerDefinitions"]
-        ]
+        givenContainerDefinitions = sorted(
+            [
+                format_container_definition(container_definition)
+                for container_definition in task_definition_kwargs[
+                    "containerDefinitions"
+                ]
+            ],
+            key=operator.itemgetter("name"),
+        )
+        expectedContainerDefinitions = sorted(
+            [
+                format_container_definition(container_definition)
+                for container_definition in existing_task_definition[
+                    "containerDefinitions"
+                ]
+            ],
+            key=operator.itemgetter("name"),
+        )
 
         containerDifferences = [
             "containerDefinition.{idx}.{key} -> Given: {given}, Expected: {expected}".format(
-                idx=idx,
+                idx=container_definition.get("name", idx),
                 key=key,
                 given=value,
                 expected=existing_container_definition.get(key),
