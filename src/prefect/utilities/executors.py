@@ -10,7 +10,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence
 
 import cloudpickle
 
@@ -111,44 +111,48 @@ def main_thread_timeout(
 
 
 def multiprocessing_safe_retrieve_value(
-    *args: Any,
-    _container: multiprocessing.Queue,
-    _ctx_dict: dict,
-    _fn_pkl: bytes,
-    **kwargs: Any,
+    queue: multiprocessing.Queue,
+    payload: bytes,
 ) -> None:
     """
-    Gets the return value from a function and puts it in a multiprocessing-safe container
-    Helper function for `multiprocessing_timeout`
+    Gets the return value from a function and puts it in a multiprocessing-safe
+    container. Helper function for `multiprocessing_timeout`, must be defined top-level
+    so it can be pickled and sent to `multiprocessing.Process`
 
-    Passing the function pre-serialized allows us to escape the limitations of the
-    python native pickler which will fail on tasks defined in scripts because of
-    a name mismatch.
+    Passing the payload serialized allows us to escape the limitations of the python
+    native pickler which will fail on tasks defined in scripts because of name
+    mismatches. Whilst this particular example only affects the `func` arg, any of the
+    others could be affected by other pickle limitations as well.
 
     Args:
-        - *args: Arguments to pass to the function
-        - **kwargs: Keyword arguments to pass to the function
-        - _container (multiprocessing.Queue): A multiprocessing queue for the result
-        - _ctx_dict (dict): The prefect.context dictionary
-        - _fn_pkl (bytes): A `cloudpickle.dumps` serialized copy of the function to call
+        - queue (multiprocessing.Queue): The queue to pass the resulting payload to
+        - payload (bytes): A serialized dictionary containing the data required to run
+            the function. Should be serialized with `cloudpickle.dumps`
+            Expects the following keys:
+            - fn (Callable): The function to call
+            - args (list): Positional argument values to call the function with
+            - kwargs (dict): Keyword arguments to call the function with
+            - context (dict): The prefect context dictionary to use during execution
 
     Returns:
         - None
-        Passes the serialized return value or exception into the queue
-        Serialized with `cloudpickle.dumps`
-        Callers are expected to re-raise any exceptions.
+        Passes the serialized (with cloudpickle) return value or exception into the
+        queue. Callers are expected to re-raise any exceptions.
     """
-    try:
-        with prefect.context(_ctx_dict):
-            fn = cloudpickle.loads(_fn_pkl)
-            # We could check if the `fn` is callable here but it will get caught by
-            # the try-except anyway. If the given error message is confusing, we
-            # can do an explicit check and provide more details
-            val = fn(*args, **kwargs)
-    except Exception as exc:
-        val = exc
+    request = cloudpickle.loads(payload)
 
-    _container.put(cloudpickle.dumps(val))
+    fn: Callable = request["fn"]
+    context: dict = request.get("context", {})
+    args: Sequence = request.get("args", [])
+    kwargs: dict = request.get("kwargs", {})
+
+    try:
+        with prefect.context(context):
+            return_val = fn(*args, **kwargs)
+    except Exception as exc:
+        return_val = exc
+
+    queue.put(cloudpickle.dumps(return_val))
 
 
 def multiprocessing_timeout(
@@ -177,15 +181,19 @@ def multiprocessing_timeout(
         return fn(*args, **kwargs)
 
     # Create a queue to pass the function return value back
-    q = multiprocessing.Queue()  # type: multiprocessing.Queue
+    queue = multiprocessing.Queue()  # type: multiprocessing.Queue
 
     # Set internal kwargs for the helper function
-    kwargs["_container"] = q
-    kwargs["_ctx_dict"] = prefect.context.to_dict()
-    kwargs["_fn_pkl"] = cloudpickle.dumps(fn)
+    request = {
+        "func": fn,
+        "args": args,
+        "kwargs": kwargs,
+        "context": prefect.context.to_dict(),
+    }
+    payload = cloudpickle.dumps(request)
 
     p = multiprocessing.Process(
-        target=multiprocessing_safe_retrieve_value, args=args, kwargs=kwargs
+        target=multiprocessing_safe_retrieve_value, args=(queue, payload)
     )
     p.start()
     p.join(timeout)
@@ -193,8 +201,8 @@ def multiprocessing_timeout(
 
     # Handle the process result, if the queue is empty the function did not finish
     # before the timeout
-    if not q.empty():
-        res = cloudpickle.loads(q.get())
+    if not queue.empty():
+        res = cloudpickle.loads(queue.get())
         if isinstance(res, Exception):
             raise res
         return res
