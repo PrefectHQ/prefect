@@ -329,10 +329,13 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
     assert len(agent.processes) == 0
 
 
-@pytest.mark.parametrize("working_dir", [None, "/test/dir"])
-def test_local_agent_deploy_run_config_working_dir(monkeypatch, working_dir):
+@pytest.mark.parametrize("working_dir", [None, "existing"])
+def test_local_agent_deploy_run_config_working_dir(monkeypatch, working_dir, tmpdir):
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    if working_dir is not None:
+        working_dir = str(tmpdir)
 
     agent = LocalAgent()
 
@@ -353,6 +356,33 @@ def test_local_agent_deploy_run_config_working_dir(monkeypatch, working_dir):
     assert popen.called
     assert len(agent.processes) == 1
     assert popen.call_args[1]["cwd"] == working_dir
+
+
+def test_local_agent_deploy_run_config_missing_working_dir(monkeypatch, tmpdir):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    working_dir = str(tmpdir.join("missing"))
+
+    agent = LocalAgent()
+
+    with pytest.raises(ValueError, match="nonexistent `working_dir`"):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
+                {
+                    "id": "id",
+                    "flow": {
+                        "storage": Local().serialize(),
+                        "run_config": LocalRun(working_dir=working_dir).serialize(),
+                        "id": "foo",
+                        "core_version": "0.13.0",
+                    },
+                },
+            )
+        )
+
+    assert not popen.called
+    assert not agent.processes
 
 
 def test_generate_supervisor_conf():

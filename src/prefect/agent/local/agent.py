@@ -164,7 +164,11 @@ class LocalAgent(Agent):
 
         env = self.populate_env_vars(flow_run, run_config=run_config)
 
-        cwd = None if run_config is None else run_config.working_dir
+        working_dir = None if run_config is None else run_config.working_dir
+        if working_dir and not os.path.exists(working_dir):
+            msg = f"Flow run {flow_run.id} has a nonexistent `working_dir` configured: {working_dir}"
+            self.logger.error(msg)
+            raise ValueError(msg)
 
         stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
@@ -178,7 +182,7 @@ class LocalAgent(Agent):
             stdout=stdout,
             stderr=STDOUT,
             env=env,
-            cwd=cwd,
+            cwd=working_dir,
         )
 
         self.processes.add(p)
