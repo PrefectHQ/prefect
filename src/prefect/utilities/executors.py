@@ -243,8 +243,13 @@ def timeout_handler(
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
     """
+
+    logger = get_logger()
+    logger.info("Entering timeout handler selection...")
+
     # if no timeout, just run the function
     if timeout is None:
+        logger.info("Skipping timeout handler because timeout is empty...")
         return fn(*args, **kwargs)
 
     # if we are running the main thread, use a signal to stop execution at the
@@ -252,8 +257,10 @@ def timeout_handler(
     # a subprocess to kill at the appropriate time
     if not sys.platform.startswith("win"):
         if threading.current_thread() is threading.main_thread():
+            logger.info("Selected thread based timeout handler")
             return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
         elif multiprocessing.current_process().daemon is False:
+            logger.info("Selected multiprocessing based timeout handler")
             return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
 
         soft_timeout_reason = "in a daemonic subprocess"
@@ -267,6 +274,7 @@ def timeout_handler(
         "but continue running in the background."
     )
 
+    logger.info("Falling back to daemonic soft limit timeout handler")
     warnings.warn(msg, stacklevel=2)
     executor = ThreadPoolExecutor()
 
