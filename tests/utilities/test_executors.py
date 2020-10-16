@@ -10,22 +10,23 @@ import pytest
 import prefect
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.executors import (
-    timeout_handler,
+    run_with_thread_timeout,
+    run_task_with_timeout_handler,
     tail_recursive,
     RecursiveCall,
 )
 
 
-def test_timeout_handler_times_out():
+def test_run_with_thread_timeout_times_out():
     slow_fn = lambda: time.sleep(2)
     with pytest.raises(TimeoutError):
-        timeout_handler(slow_fn, timeout=1)
+        run_with_thread_timeout(slow_fn, timeout=1)
 
 
 @pytest.mark.skipif(
     sys.platform == "win32", reason="Windows doesn't support any timeout logic"
 )
-def test_timeout_handler_actually_stops_execution():
+def test_run_with_thread_timeout_actually_stops_execution():
     with tempfile.TemporaryDirectory() as call_dir:
         FILE = os.path.join(call_dir, "test.txt")
 
@@ -40,7 +41,7 @@ def test_timeout_handler_actually_stops_execution():
 
         with pytest.raises(TimeoutError):
             # allow for at most 3 writes
-            timeout_handler(slow_fn, timeout=1)
+            run_with_thread_timeout(slow_fn, timeout=1)
 
         time.sleep(0.5)
         with open(FILE, "r") as g:
@@ -49,73 +50,90 @@ def test_timeout_handler_actually_stops_execution():
     assert len(contents.split("\n")) <= 4
 
 
-def test_timeout_handler_passes_args_and_kwargs_and_returns():
+def test_run_with_thread_timeout_passes_args_and_kwargs_and_returns():
+    def just_return(x, y=None):
+        return x, y
+
+    assert run_with_thread_timeout(
+        just_return, args=[5], kwargs=dict(y="yellow"), timeout=1
+    ) == (
+        5,
+        "yellow",
+    )
+
+
+def test_run_with_thread_timeout_doesnt_swallow_bad_args():
     def do_nothing(x, y=None):
         return x, y
 
-    assert timeout_handler(do_nothing, 5, timeout=1, y="yellow") == (5, "yellow")
-
-
-def test_timeout_handler_doesnt_swallow_bad_args():
-    def do_nothing(x, y=None):
-        return x, y
+    with pytest.raises(TypeError):
+        run_with_thread_timeout(do_nothing, timeout=1)
 
     with pytest.raises(TypeError):
-        timeout_handler(do_nothing, timeout=1)
+        run_with_thread_timeout(do_nothing, args=[5], kwargs=dict(z=10), timeout=1)
 
     with pytest.raises(TypeError):
-        timeout_handler(do_nothing, 5, timeout=1, z=10)
+        run_with_thread_timeout(
+            do_nothing, args=[5], kwargs=dict(y="s", z=10), timeout=1
+        )
 
-    with pytest.raises(TypeError):
-        timeout_handler(do_nothing, 5, timeout=1, y="s", z=10)
 
-
-def test_timeout_handler_reraises():
+def test_run_with_thread_timeout_reraises():
     def do_something():
         raise ValueError("test")
 
     with pytest.raises(ValueError, match="test"):
-        timeout_handler(do_something, timeout=1)
+        run_with_thread_timeout(do_something, timeout=1)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
-def test_timeout_handler_allows_function_to_spawn_new_process():
+# Define a top-level helper function for a null-op process target, must be defined
+# as a non-local for the python native pickler
+def do_nothing():
+    return None
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_thread_timeout_allows_function_to_spawn_new_process():
     def my_process():
-        p = multiprocessing.Process(target=lambda: 5)
+        p = multiprocessing.Process(target=do_nothing())
         p.start()
         p.join()
         p.terminate()
 
-    assert timeout_handler(my_process, timeout=1) is None
+    assert run_with_thread_timeout(my_process, timeout=1) is None
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
-def test_timeout_handler_allows_function_to_spawn_new_thread():
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_thread_timeout_allows_function_to_spawn_new_thread():
     def my_thread():
         t = threading.Thread(target=lambda: 5)
         t.start()
         t.join()
 
-    assert timeout_handler(my_thread, timeout=1) is None
+    assert run_with_thread_timeout(my_thread, timeout=1) is None
 
 
-def test_timeout_handler_doesnt_do_anything_if_no_timeout(monkeypatch):
-    assert timeout_handler(lambda: 4, timeout=1) == 4
-    assert timeout_handler(lambda: 4) == 4
+def test_run_with_thread_timeout_doesnt_do_anything_if_no_timeout(monkeypatch):
+    assert run_with_thread_timeout(lambda: 4, timeout=1) == 4
+    assert run_with_thread_timeout(lambda: 4) == 4
 
 
-def test_timeout_handler_preserves_context():
+def test_run_with_thread_timeout_preserves_context():
     def my_fun(x, **kwargs):
         return prefect.context.get("test_key")
 
     with prefect.context(test_key=42):
-        res = timeout_handler(my_fun, 2, timeout=1)
+        res = run_with_thread_timeout(my_fun, args=[2], timeout=1)
 
     assert res == 42
 
 
-def test_timeout_handler_preserves_logging(caplog):
-    timeout_handler(prefect.Flow("logs").run, timeout=2)
+def test_run_with_thread_timeout_preserves_logging(caplog):
+    run_with_thread_timeout(prefect.Flow("logs").run, timeout=2)
     assert len(caplog.records) >= 2  # 1 INFO to start, 1 INFO to end
 
 
