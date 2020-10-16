@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence
 import cloudpickle
 
 import prefect
+from prefect.utilities.logging import get_logger
 
 if TYPE_CHECKING:
     import prefect.engine.runner
@@ -95,6 +96,7 @@ def main_thread_timeout(
         - TimeoutError: if function execution exceeds the allowed timeout
         - ValueError: if run from outside the main thread
     """
+    logger = get_logger("prefect.timeout_handler")
 
     if timeout is None:
         return fn(*args, **kwargs)
@@ -103,8 +105,13 @@ def main_thread_timeout(
         raise TimeoutError("Execution timed out.")
 
     try:
+        logger.debug("Setting up signal handler...")
+        # Set the signal handler for alarms
         signal.signal(signal.SIGALRM, error_handler)
+        # Raise the alarm if `timeout` seconds pass
+        logger.debug("Sending alarm with {timeout}s timeout...")
         signal.alarm(timeout)
+        logger.debug("Calling task function: {fn}...")
         return fn(*args, **kwargs)
     finally:
         signal.alarm(0)
