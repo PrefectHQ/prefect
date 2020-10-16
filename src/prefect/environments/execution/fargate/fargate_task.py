@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import Callable, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List
 
 import prefect
 from prefect import config
@@ -283,6 +283,22 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             if value != existing_container_definition.get(key)
         ]
 
+        arnDifferences = [
+            "{key} -> Given: {given}, Expected: {expected}".format(
+                key=key,
+                given=task_definition_kwargs[key],
+                expected=existing_task_definition.get(key),
+            )
+            for key in _DEFINITION_KWARG_LIST
+            if key.endswith("Arn")
+            and key in task_definition_kwargs
+            and (
+                existing_task_definition.get(key) != task_definition_kwargs[key]
+                and existing_task_definition.get(key, "").split("/")[-1]
+                != task_definition_kwargs[key]
+            )
+        ]
+
         otherDifferences = [
             "{key} -> Given: {given}, Expected: {expected}".format(
                 key=key,
@@ -291,21 +307,12 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             )
             for key in _DEFINITION_KWARG_LIST
             if key != "containerDefinitions"
+            and not key.endswith("Arn")
             and key in task_definition_kwargs
-            and (
-                (
-                    existing_task_definition.get(key) != task_definition_kwargs[key]
-                    and key != "environment"
-                )
-                or (
-                    sorted([existing_task_definition.get(key)])  # type: ignore
-                    != sorted([task_definition_kwargs[key]])
-                )
-                and key == "environment"
-            )
+            and existing_task_definition.get(key) != task_definition_kwargs[key]
         ]
 
-        differences = containerDifferences + otherDifferences
+        differences = containerDifferences + arnDifferences + otherDifferences
 
         if differences:
             raise ValueError(
