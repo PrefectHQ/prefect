@@ -2952,8 +2952,7 @@ def test_timeout_actually_stops_execution(
     SLEEP_TIME = 3
 
     # Determine if the executor is distributed and using daemonic processes which
-    # cannot be cancelled and throw a warning instead. The `__processes` property
-    # is injected in `conftest.py`
+    # cannot be cancelled and throw a warning instead.
     in_daemon_process = isinstance(
         executor, DaskExecutor
     ) and not executor.address.startswith("inproc")
