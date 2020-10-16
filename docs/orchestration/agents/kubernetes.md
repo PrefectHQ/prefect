@@ -165,7 +165,7 @@ You are now ready to run some flows!
 
 #### Permissions
 
-In AWS deployments using Amazon Elastic Kubernetes Service, S3 is not accessible by default to Amazon EKS. To enable S3 access by your kubernetes cluster on EKS, add the necessary permissions (AmazonS3FullAccess or AmazonS3ReadOnlyAccess) directly to the NodeInstanceRole used by aws-auth-cm.yaml after launching worker nodes and before applying aws-auth-cm.yaml with kubectl.
+If you are using Amazon EKS for your kubernetes deployment and you need S3 access, note that S3 is not accessible by default to Amazon EKS. To enable S3 access by your kubernetes cluster on EKS, add the necessary permissions (AmazonS3FullAccess or AmazonS3ReadOnlyAccess) directly to the NodeInstanceRole used by aws-auth-cm.yaml after launching worker nodes and before applying aws-auth-cm.yaml with kubectl.
 
 #### Labels
 
