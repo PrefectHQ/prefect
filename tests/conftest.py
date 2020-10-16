@@ -10,6 +10,10 @@ from prefect.engine.executors import DaskExecutor, LocalDaskExecutor, LocalExecu
 from prefect.utilities import configuration
 
 
+# Set the prefect module to display debug level logs during tests
+prefect.utilities.logging.get_logger().setLevel("DEBUG")
+
+
 @pytest.fixture(autouse=True)
 def logging_heartbeat():
     with configuration.set_temporary_config({"cloud.logging_heartbeat": 0.15}):
