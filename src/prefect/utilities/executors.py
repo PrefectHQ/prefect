@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Mapping
 
 import prefect
 from prefect.utilities.logging import get_logger
@@ -82,7 +82,7 @@ def run_with_heartbeat(
 def run_with_thread_timeout(
     fn: Callable,
     args: Sequence,
-    kwargs: dict = None,
+    kwargs: Mapping = None,
     timeout: int = None,
     logger: Logger = None,
     name: str = None,
@@ -94,7 +94,7 @@ def run_with_thread_timeout(
     Args:
         - fn (callable): the function to execute
         - args (Sequence): arguments to pass to the function
-        - kwargs (dict): keyword arguments to pass to the function
+        - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
             `TimeoutError`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
@@ -112,6 +112,7 @@ def run_with_thread_timeout(
     """
     logger = logger or get_logger("run_with_thread_timeout")
     name = name or f"Function '{fn.__name__}'"
+    kwargs = kwargs or {}
 
     if timeout is None:
         return fn(*args, **kwargs)
@@ -152,7 +153,7 @@ def multiprocessing_safe_run_and_retrieve(
             Expects the following keys:
             - fn (Callable): The function to call
             - args (list): Positional argument values to call the function with
-            - kwargs (dict): Keyword arguments to call the function with
+            - kwargs (Mapping): Keyword arguments to call the function with
             - context (dict): The prefect context dictionary to use during execution
             - name (str): an optional name to attach to logs for this function run,
                 defaults to the name of the given function. Provides an interface for
@@ -170,7 +171,7 @@ def multiprocessing_safe_run_and_retrieve(
     fn: Callable = request["fn"]
     context: dict = request.get("context", {})
     args: Sequence = request.get("args", [])
-    kwargs: dict = request.get("kwargs", {})
+    kwargs: Mapping = request.get("kwargs", {})
     name: dict = request.get("name", f"Function '{fn.__name__}'")
 
     try:
@@ -187,7 +188,7 @@ def multiprocessing_safe_run_and_retrieve(
 def run_with_multiprocess_timeout(
     fn: Callable,
     args: Sequence,
-    kwargs: dict = None,
+    kwargs: Mapping = None,
     timeout: int = None,
     logger: Logger = None,
     name: str = None,
@@ -199,7 +200,7 @@ def run_with_multiprocess_timeout(
     Args:
         - fn (callable): the function to execute
         - args (Sequence): arguments to pass to the function
-        - kwargs (dict): keyword arguments to pass to the function
+        - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
             `TimeoutError`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
@@ -217,6 +218,7 @@ def run_with_multiprocess_timeout(
     """
     logger = logger or get_logger("run_with_multiprocess_timeout")
     name = name or f"Function '{fn.__name__}'"
+    kwargs = kwargs or {}
 
     if timeout is None:
         return fn(*args, **kwargs)
@@ -260,7 +262,7 @@ def run_with_multiprocess_timeout(
 def run_task_with_timeout_handler(
     task: "Task",
     args: Sequence,
-    kwargs: dict = None,
+    kwargs: Mapping = None,
     logger: Logger = None,
 ) -> Any:
     """
@@ -281,7 +283,7 @@ def run_task_with_timeout_handler(
             `task.timeout` specifies the number of seconds to allow `task.run` to run
             for before terminating
         - args (Sequence): arguments to pass to the function
-        - kwargs (dict): keyword arguments to pass to the function
+        - kwargs (Mapping): keyword arguments to pass to the function
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.run_task_with_timeout_handler` namespace will be created.
 
@@ -296,7 +298,7 @@ def run_task_with_timeout_handler(
 
     # if no timeout, just run the function
     if task.timeout is None:
-        return task.run(*args, **kwargs)
+        return task.run(*args, **kwargs)  # type: ignore
 
     # if we are running the main thread, use a signal to stop execution at the
     # appropriate time; else if we are running in a non-daemonic process, spawn
@@ -353,7 +355,7 @@ def run_task_with_timeout_handler(
 
     def run_with_ctx(context: dict) -> Any:
         with prefect.context(context):
-            return task.run(*args, **kwargs)
+            return task.run(*args, **kwargs)  # type: ignore
 
     # Run the function in the background and then retrieve its result with a timeout
     fut = executor.submit(run_with_ctx, prefect.context.to_dict())

@@ -834,7 +834,7 @@ class TaskRunner(Runner):
                 else nullcontext()
             )
 
-            with log_context:
+            with log_context:  # type: ignore
                 # Run the task with handling for the `task.timeout` setting
                 value = prefect.utilities.executors.run_task_with_timeout_handler(
                     task=self.task,
