@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
+from prefect.run_configs import DockerRun
+from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
@@ -349,8 +351,22 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
+        if getattr(flow_run.flow, "run_config", None) is not None:
+            run_config = RunConfigSchema().load(flow_run.flow.run_config)
+            if not isinstance(run_config, DockerRun):
+                self.logger.error(
+                    "Flow run %s has a `run_config` of type `%s`, only `DockerRun` is supported",
+                    flow_run.id,
+                    type(run_config).__name__,
+                )
+                raise TypeError(
+                    "Unsupported RunConfig type: %s" % type(run_config).__name__
+                )
+        else:
+            run_config = None
+
         image = get_flow_image(flow_run=flow_run)
-        env_vars = self.populate_env_vars(flow_run=flow_run)
+        env_vars = self.populate_env_vars(flow_run, run_config=run_config)
 
         if not self.no_pull and len(image.split("/")) > 1:
             self.logger.info("Pulling image {}...".format(image))
@@ -444,12 +460,15 @@ class DockerAgent(Agent):
         proc.start()
         self.processes.append(proc)
 
-    def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
+    def populate_env_vars(
+        self, flow_run: GraphQLResult, run_config: DockerRun = None
+    ) -> dict:
         """
         Populate metadata and variables in the environment variables for a flow run
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - run_config (DockerRun, optional): The `run_config` for the flow, if any.
 
         Returns:
             - dict: a dictionary representing the populated environment variables
@@ -459,19 +478,39 @@ class DockerAgent(Agent):
         else:
             api = config.cloud.api
 
-        return {
-            "PREFECT__CLOUD__API": api,
-            "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
-            "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
-            "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
-            "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-            "PREFECT__LOGGING__LEVEL": config.logging.level,
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-            **self.env_vars,
-        }
+        env = {}
+        # Populate environment variables, later sources overriding
+
+        # 1. Logging config (optional)
+        # We only set this on non-DockerRun runs for backwards compatibility.
+        # In the future we don't want the agent to set logging config on a flow
+        # run unless explicitly asked.  We do this early on so later config
+        # sources can override
+        if run_config is None:
+            env.update({"PREFECT__LOGGING__LEVEL": config.logging.level})
+
+        # 2. Values set on the agent via `--env`
+        env.update(self.env_vars)
+
+        # 3. Values set on a DockerRun RunConfig (if present
+        if run_config is not None and run_config.env is not None:
+            env.update(run_config.env)
+
+        # 4. Non-overrideable required env vars
+        env.update(
+            {
+                "PREFECT__CLOUD__API": api,
+                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
+                "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
+                "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            }
+        )
+        return env
 
 
 if __name__ == "__main__":
