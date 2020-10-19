@@ -8,7 +8,7 @@ import smtplib
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import TYPE_CHECKING, Any, Callable, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Union, cast, Mapping
 
 from toolz import curry
 
@@ -125,7 +125,12 @@ def slack_message_formatter(
     tracked_obj: TrackedObjectType,
     state: "prefect.engine.state.State",
     backend_info: bool = True,
+    template: str = None,
+    template_vars: Mapping = None,
 ) -> dict:
+    template = template or f"{tracked_obj} is now in a {state} state"
+    template_vars = template_vars or {}
+
     # see https://api.slack.com/docs/message-attachments
     fields = []
     if isinstance(state.result, Exception):
@@ -144,8 +149,8 @@ def slack_message_formatter(
         "title": type(state).__name__,
         "fields": fields,
         #                "title_link": "https://www.prefect.io/",
-        "text": "{0} is now in a {1} state".format(
-            tracked_obj.name, type(state).__name__
+        "text": template.format(
+            tracked_obj=tracked_obj.name, state=type(state).__name__, **template_vars
         ),
         "footer": "Prefect notification",
     }
@@ -252,6 +257,8 @@ def slack_notifier(
     only_states: list = None,
     webhook_secret: str = None,
     backend_info: bool = True,
+    message_template: str = None,
+    message_vars: Mapping = None,
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.  Works as a
@@ -309,7 +316,9 @@ def slack_notifier(
     # the 'import prefect' time low
     import requests
 
-    form_data = slack_message_formatter(tracked_obj, new_state, backend_info)
+    form_data = slack_message_formatter(
+        tracked_obj, new_state, message_template, backend_info, message_vars
+    )
     r = requests.post(webhook_url, json=form_data)
     if not r.ok:
         raise ValueError("Slack notification for {} failed".format(tracked_obj))

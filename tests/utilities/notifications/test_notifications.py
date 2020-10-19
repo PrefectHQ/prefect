@@ -111,6 +111,17 @@ def test_formatter_formats_states_with_string_message(state):
     assert json.loads(json.dumps(orig)) == orig
 
 
+def test_formatter_formats_template_with_extra_variables():
+    orig = slack_message_formatter(
+        Task(),
+        Running(),
+        template="{state} with {foo} and {bar} but not foobar",
+        template_vars=dict(foo="foo!", bar=10, foobar="extra and unused"),
+    )
+    assert orig["attachments"][0]["text"] == "Running with foo! and 10 but not foobar"
+    assert json.loads(json.dumps(orig)) == orig
+
+
 @pytest.mark.parametrize(
     "state",
     [
