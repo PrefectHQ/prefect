@@ -172,7 +172,7 @@ def multiprocessing_safe_run_and_retrieve(
     context: dict = request.get("context", {})
     args: Sequence = request.get("args", [])
     kwargs: Mapping = request.get("kwargs", {})
-    name: dict = request.get("name", f"Function '{fn.__name__}'")
+    name: str = request.get("name", f"Function '{fn.__name__}'")
 
     try:
         with prefect.context(context):
