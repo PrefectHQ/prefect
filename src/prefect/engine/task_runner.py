@@ -831,7 +831,7 @@ class TaskRunner(Runner):
             # used but this is not supported by py 3.6 so we will create this call
             # then call it twice instead
             run_task_with_timeout_handler = partial(
-                prefect.utilities.executors.run_task_with_timeout_handler,
+                prefect.utilities.executors.run_task_with_timeout,
                 task=self.task,
                 args=(),
                 kwargs=raw_inputs,

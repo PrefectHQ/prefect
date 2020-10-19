@@ -259,7 +259,7 @@ def run_with_multiprocess_timeout(
         raise TimeoutError(f"Execution timed out for {name}.")
 
 
-def run_task_with_timeout_handler(
+def run_task_with_timeout(
     task: "Task",
     args: Sequence = (),
     kwargs: Mapping = None,
