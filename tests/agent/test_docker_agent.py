@@ -7,6 +7,7 @@ from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
+from prefect.run_configs import DockerRun, LocalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -105,7 +106,7 @@ def test_docker_agent_ping_exception(api):
         DockerAgent()
 
 
-def test_populate_env_vars_uses_user_provided_env_vars(api):
+def test_populate_env_vars_from_agent_config(api):
     agent = DockerAgent(env_vars=dict(AUTH_THING="foo"))
 
     env_vars = agent.populate_env_vars(
@@ -144,31 +145,39 @@ def test_populate_env_vars_includes_agent_labels(api):
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
     )
-
-    expected_vars = {
-        "PREFECT__CLOUD__API": "https://api.prefect.io",
-        "PREFECT__CLOUD__AGENT__LABELS": "['42', 'marvin']",
-        "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
-        "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
-        "PREFECT__CONTEXT__FLOW_ID": "foo",
-        "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-        "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
-        "PREFECT__LOGGING__LEVEL": "INFO",
-        "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-        "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-    }
-
-    assert env_vars == expected_vars
+    assert env_vars["PREFECT__CLOUD__AGENT__LABELS"] == "['42', 'marvin']"
 
 
 @pytest.mark.parametrize("flag", [True, False])
-def test_populate_env_vars_is_responsive_to_logging_config(flag, api):
+def test_populate_env_vars_sets_log_to_cloud(flag, api):
     agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
     )
     assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
+
+
+def test_populate_env_vars_from_run_config(api):
+    agent = DockerAgent(env_vars={"KEY1": "VAL1", "KEY2": "VAL2"})
+
+    run = DockerRun(
+        env={"KEY2": "OVERRIDE", "PREFECT__LOGGING__LEVEL": "TEST"},
+    )
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo", "run_config": run.serialize()},
+            }
+        ),
+        run,
+    )
+    assert env_vars["KEY1"] == "VAL1"
+    assert env_vars["KEY2"] == "OVERRIDE"
+    assert env_vars["PREFECT__LOGGING__LEVEL"] == "TEST"
 
 
 @pytest.mark.parametrize(
@@ -241,6 +250,67 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
     assert api.create_container.call_args[1]["command"] == "prefect execute flow-run"
     assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
     assert api.start.call_args[1]["container"] == "container_id"
+
+
+@pytest.mark.parametrize("image_on_run_config", [True, False])
+def test_docker_agent_deploy_flow_run_config(api, image_on_run_config):
+    if image_on_run_config:
+        storage = Local()
+        image = "on-run-config"
+        run = DockerRun(image=image, env={"TESTING": "VALUE"})
+    else:
+        storage = Docker(
+            registry_url="testing", image_name="on-storage", image_tag="tag"
+        )
+        image = "testing/on-storage:tag"
+        run = DockerRun(env={"TESTING": "VALUE"})
+
+    agent = DockerAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "storage": storage.serialize(),
+                        "run_config": run.serialize(),
+                        "core_version": "0.13.11",
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert api.create_container.called
+    assert api.create_container.call_args[0][0] == image
+    assert api.create_container.call_args[1]["environment"]["TESTING"] == "VALUE"
+
+
+def test_docker_agent_deploy_flow_unsupported_run_config(api):
+    agent = DockerAgent()
+
+    with pytest.raises(TypeError, match="Unsupported RunConfig type: LocalRun"):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "storage": Local().serialize(),
+                            "run_config": LocalRun().serialize(),
+                            "id": "foo",
+                            "core_version": "0.13.0",
+                        }
+                    ),
+                    "id": "id",
+                    "name": "name",
+                    "version": "version",
+                }
+            )
+        )
+
+    assert not api.pull.called
 
 
 def test_docker_agent_deploy_flow_storage_raises(monkeypatch, api):
