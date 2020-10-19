@@ -36,26 +36,27 @@ def test_timeout_handler_times_out(timeout_handler):
 def test_timeout_handler_actually_stops_execution(timeout_handler):
     with tempfile.TemporaryDirectory() as call_dir:
         FILE = os.path.join(call_dir, "test.txt")
-        TIMEOUT = 2
+        # Increase timeout for multiprocess because its startup time is slower and
+        # the file was not always created
+        TIMEOUT = 1 if timeout_handler is run_with_thread_timeout else 3
+        WRITES = 6
 
         def slow_fn():
-            "Runs for TIMEOUT * 2 seconds, writes to file 6 times"
-            iters = 0
-            while iters < 6:
-                time.sleep((TIMEOUT * 2) / 6)
+            "Runs for TIMEOUT * 2 seconds, writes to file WRITES times"
+            for _ in range(WRITES):
                 with open(FILE, "a") as f:
                     f.write("called\n")
-                iters += 1
+                time.sleep((TIMEOUT * 2) / WRITES)
 
         with pytest.raises(TimeoutError):
-            # We should get less than 6 writes -- roughly half expected
+            # We should get less than WRITES lines -- roughly half expected
             timeout_handler(slow_fn, timeout=TIMEOUT)
 
         time.sleep(0.5)
         with open(FILE, "r") as g:
             contents = g.read()
 
-    assert len(contents.split("\n")) <= 4
+    assert len(contents.split("\n")) < WRITES
 
 
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
