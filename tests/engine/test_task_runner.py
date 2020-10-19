@@ -307,6 +307,9 @@ def test_task_runner_accepts_dictionary_of_edges():
     sys.platform == "win32", reason="Windows doesn't support any timeout logic"
 )
 def test_timeout_actually_stops_execution():
+    # Note this replicates test coverage from
+    # `tests.core.test_flow.test_timeout_actually_stops_execution`
+
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real

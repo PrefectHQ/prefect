@@ -17,8 +17,9 @@ from prefect.utilities.executors import (
 )
 
 
-# We will test the low-level timeout handlers here and `run_task_with_timeout_handler`
+# We will test the low-level timeout handlers here and `run_task_with_timeout`
 # is covered in `tests.core.test_flow.test_timeout_actually_stops_execution`
+# and `tests.engine.test_task_runner.test_timeout_actually_stops_execution`
 TIMEOUT_HANDLERS = [run_with_thread_timeout, run_with_multiprocess_timeout]
 
 
