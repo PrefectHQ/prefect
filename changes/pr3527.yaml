@@ -1,0 +1,5 @@
+enhancement:
+  - "Add `LocalRun` implementation for `run_config` based flows - [#3527](https://github.com/PrefectHQ/prefect/pull/3527)"
+
+fix:
+  - "Add labels from `flow.storage` for `run_config` based flows - [#3527](https://github.com/PrefectHQ/prefect/pull/3527)"

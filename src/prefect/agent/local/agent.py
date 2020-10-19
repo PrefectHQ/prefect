@@ -6,8 +6,10 @@ from typing import Iterable, List
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import GCS, S3, Azure, Local, GitHub, GitLab, Webhook
+from prefect.environments.storage import Docker
+from prefect.run_configs import LocalRun
 from prefect.serialization.storage import StorageSchema
+from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.agent import get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
@@ -136,29 +138,37 @@ class LocalAgent(Agent):
         """
         self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
-        if not isinstance(
-            StorageSchema().load(flow_run.flow.storage),
-            (Local, Azure, GCS, S3, GitHub, GitLab, Webhook),
-        ):
+        storage = StorageSchema().load(flow_run.flow.storage)
+        if isinstance(storage, Docker):
             self.logger.error(
-                "Storage for flow run {} is not a supported type.".format(flow_run.id)
+                "Flow run %s has an unsupported storage type: `%s`",
+                flow_run.id,
+                type(storage).__name__,
             )
-            raise ValueError("Unsupported Storage type")
+            raise TypeError("Unsupported Storage type: %s" % type(storage).__name__)
 
-        env_vars = self.populate_env_vars(flow_run=flow_run)
-        current_env = os.environ.copy()
-        current_env.update(env_vars)
+        # If the flow is using a run_config, load it
+        if getattr(flow_run.flow, "run_config", None) is not None:
+            run_config = RunConfigSchema().load(flow_run.flow.run_config)
+            if not isinstance(run_config, LocalRun):
+                self.logger.error(
+                    "Flow run %s has a `run_config` of type `%s`, only `LocalRun` is supported",
+                    flow_run.id,
+                    type(run_config).__name__,
+                )
+                raise TypeError(
+                    "Unsupported RunConfig type: %s" % type(run_config).__name__
+                )
+        else:
+            run_config = None
 
-        python_path = []
-        if current_env.get("PYTHONPATH"):
-            python_path.append(current_env.get("PYTHONPATH"))
+        env = self.populate_env_vars(flow_run, run_config=run_config)
 
-        python_path.append(os.getcwd())
-
-        if self.import_paths:
-            python_path += self.import_paths
-
-        current_env["PYTHONPATH"] = ":".join(python_path)
+        working_dir = None if run_config is None else run_config.working_dir
+        if working_dir and not os.path.exists(working_dir):
+            msg = f"Flow run {flow_run.id} has a nonexistent `working_dir` configured: {working_dir}"
+            self.logger.error(msg)
+            raise ValueError(msg)
 
         stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
@@ -171,7 +181,8 @@ class LocalAgent(Agent):
             get_flow_run_command(flow_run).split(" "),
             stdout=stdout,
             stderr=STDOUT,
-            env=current_env,
+            env=env,
+            cwd=working_dir,
         )
 
         self.processes.add(p)
@@ -181,30 +192,65 @@ class LocalAgent(Agent):
 
         return "PID: {}".format(p.pid)
 
-    def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
+    def populate_env_vars(
+        self, flow_run: GraphQLResult, run_config: LocalRun = None
+    ) -> dict:
         """
         Populate metadata and variables in the environment variables for a flow run
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - run_config (LocalRun, optional): The `run_config` for the flow, if any.
 
         Returns:
             - dict: a dictionary representing the populated environment variables
         """
-        all_vars = {
-            "PREFECT__CLOUD__API": config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
-            "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
-            "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
-            "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-            "PREFECT__LOGGING__LEVEL": config.logging.level,
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-            **self.env_vars,
-        }
-        return {k: v for k, v in all_vars.items() if v is not None}
+        # Environment variables come from (later options override):
+
+        # 1. Local environment
+        env = os.environ.copy()
+
+        # 2. Logging config
+        env.update({"PREFECT__LOGGING__LEVEL": config.logging.level})
+
+        # 3. PYTHONPATH
+        # XXX: I'm 99% sure this isn't needed, a new Python process should
+        # always add the CWD as the first entry in sys.path
+        python_path = [
+            run_config.working_dir
+            if run_config is not None and run_config.working_dir
+            else os.getcwd()
+        ]
+        if os.environ.get("PYTHONPATH"):
+            python_path.append(os.environ["PYTHONPATH"])
+        if self.import_paths:
+            python_path.extend(self.import_paths)
+        env["PYTHONPATH"] = ":".join(python_path)
+
+        # 4. Values set on the agent via `--env`
+        env.update(self.env_vars)
+
+        # 5. Values set on a LocalRun RunConfig (if present
+        if run_config is not None and run_config.env is not None:
+            env.update(run_config.env)
+
+        # 6. Non-overrideable required env vars
+        env.update(
+            {
+                "PREFECT__CLOUD__API": config.cloud.api,
+                "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
+                "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
+                "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
+                "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            }
+        )
+
+        # Filter out None values
+        return {k: v for k, v in env.items() if v is not None}
 
     @staticmethod
     def generate_supervisor_conf(
