@@ -1,6 +1,7 @@
 import uuid
 import warnings
 from typing import Union
+import io
 
 from google.cloud.exceptions import NotFound
 
@@ -166,8 +167,7 @@ class GCSDownload(GCSBaseTask):
 
 class GCSUpload(GCSBaseTask):
     """
-    Task template for uploading data to Google Cloud Storage.  Requires the data already
-    be a string.
+    Task template for uploading data to Google Cloud Storage.  Data can be a string or bytes.
 
     Args:
         - bucket (str): default bucket name to upload to
@@ -281,7 +281,7 @@ class GCSUpload(GCSBaseTask):
                 gcs_blob.content_type = content_type
             if content_encoding:
                 gcs_blob.content_encoding = content_encoding
-            gcs_blob.upload_from_file(data)
+            gcs_blob.upload_from_file(io.BytesIO(data))
         return gcs_blob.name
 
 
