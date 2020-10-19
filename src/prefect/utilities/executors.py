@@ -110,7 +110,7 @@ def run_with_thread_timeout(
         - TimeoutError: if function execution exceeds the allowed timeout
         - ValueError: if run from outside the main thread
     """
-    logger = logger or get_logger("run_with_thread_timeout")
+    logger = logger or get_logger()
     name = name or f"Function '{fn.__name__}'"
     kwargs = kwargs or {}
 
@@ -166,7 +166,7 @@ def multiprocessing_safe_run_and_retrieve(
     """
     request = cloudpickle.loads(payload)
 
-    logger = get_logger("multiprocessing_safe_run_and_retrieve")
+    logger = get_logger()
 
     fn: Callable = request["fn"]
     context: dict = request.get("context", {})
@@ -216,7 +216,7 @@ def run_with_multiprocess_timeout(
         - AssertionError: if run from a daemonic process
         - TimeoutError: if function execution exceeds the allowed timeout
     """
-    logger = logger or get_logger("run_with_multiprocess_timeout")
+    logger = logger or get_logger()
     name = name or f"Function '{fn.__name__}'"
     kwargs = kwargs or {}
 
@@ -282,7 +282,7 @@ def run_task_with_timeout_handler(
         - task (Task): the task to execute
             `task.timeout` specifies the number of seconds to allow `task.run` to run
             for before terminating
-        - args (Sequence): arguments ``to pass to the function
+        - args (Sequence): arguments to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.run_task_with_timeout_handler` namespace will be created.
@@ -293,7 +293,7 @@ def run_task_with_timeout_handler(
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
     """
-    logger = logger or get_logger("run_task_with_timeout_handler")
+    logger = logger or get_logger()
     name = prefect.context.get("task_full_name", task.name)
     kwargs = kwargs or {}
 
