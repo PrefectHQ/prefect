@@ -158,30 +158,25 @@ def multiprocessing_safe_run_and_retrieve(
             - name (str): an optional name to attach to logs for this function run,
                 defaults to the name of the given function. Provides an interface for
                 passing task names for logs.
-
-    Returns:
-        - None
-        Passes the serialized (with cloudpickle) return value or exception into the
-        queue. Callers are expected to re-raise any exceptions.
+            - logger (Logger): the logger to use
     """
     request = cloudpickle.loads(payload)
-
-    logger = get_logger()
 
     fn: Callable = request["fn"]
     context: dict = request.get("context", {})
     args: Sequence = request.get("args", [])
     kwargs: Mapping = request.get("kwargs", {})
     name: str = request.get("name", f"Function '{fn.__name__}'")
+    logger: Logger = request.get("logger") or get_logger()
 
     try:
         with prefect.context(context):
-            logger.info(f"{name}: Executing...")
+            logger.debug(f"{name}: Executing...")
             return_val = fn(*args, **kwargs)
     except Exception as exc:
         return_val = exc
 
-    logger.info(f"{name}: Passing result back to main process...")
+    logger.debug(f"{name}: Passing result back to main process...")
     queue.put(cloudpickle.dumps(return_val))
 
 
@@ -235,6 +230,7 @@ def run_with_multiprocess_timeout(
         "kwargs": kwargs,
         "context": prefect.context.to_dict(),
         "name": name,
+        "logger": logger,
     }
     payload = cloudpickle.dumps(request)
 
