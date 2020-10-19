@@ -2126,7 +2126,7 @@ class TestLooping:
         logs = [
             log
             for log in caplog.records
-            if "TaskRunner" in log.name and "finished" in log.message
+            if "TaskRunner" in log.name and "Finished" in log.message
         ]
         assert len(logs) >= 1  # a finished log was in fact created
         assert len(logs) <= 2  # but not too many were issued
