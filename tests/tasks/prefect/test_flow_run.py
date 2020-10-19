@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.tasks.prefect.flow_run import FlowRunTask
+from prefect.tasks.prefect.flow_run import StartFlowRun
 
 
 @pytest.fixture()
@@ -21,10 +21,20 @@ def client(monkeypatch):
     yield cloud_client
 
 
-class TestFlowRunTaskCloud:
+def test_deprecated_old_name():
+    from prefect.tasks.prefect import FlowRunTask
+
+    with pytest.warns(UserWarning, match="StartFlowRun"):
+        task = FlowRunTask(name="My flow run")
+
+    assert isinstance(task, StartFlowRun)
+    assert task.name == "My flow run"
+
+
+class TestStartFlowRunCloud:
     def test_initialization(self, cloud_api):
         # verify that the task is initialized as expected
-        task = FlowRunTask(
+        task = StartFlowRun(
             name="My Flow Run Task",
             checkpoint=False,
             project_name="Test Project",
@@ -43,7 +53,7 @@ class TestFlowRunTaskCloud:
 
     def test_flow_run_task(self, client, cloud_api):
         # verify that create_flow_run was called
-        task = FlowRunTask(
+        task = StartFlowRun(
             project_name="Test Project",
             flow_name="Test Flow",
             parameters={"test": "ing"},
@@ -67,7 +77,7 @@ class TestFlowRunTaskCloud:
 
     def test_flow_run_task_with_flow_run_id(self, client, cloud_api):
         # verify that create_flow_run was called
-        task = FlowRunTask(
+        task = StartFlowRun(
             project_name="Test Project",
             flow_name="Test Flow",
             parameters={"test": "ing"},
@@ -88,7 +98,7 @@ class TestFlowRunTaskCloud:
 
     def test_idempotency_key_uses_map_index_if_present(self, client, cloud_api):
         # verify that create_flow_run was called
-        task = FlowRunTask(project_name="Test Project", flow_name="Test Flow")
+        task = StartFlowRun(project_name="Test Project", flow_name="Test Flow")
 
         # verify that run returns the new flow run ID
         with prefect.context(flow_run_id="test-id", map_index=4):
@@ -105,28 +115,28 @@ class TestFlowRunTaskCloud:
 
     def test_flow_run_task_without_flow_name(self, cloud_api):
         # verify that a ValueError is raised without a flow name
-        task = FlowRunTask(project_name="Test Project")
+        task = StartFlowRun(project_name="Test Project")
         with pytest.raises(ValueError, match="Must provide a flow name."):
             task.run()
 
     def test_flow_run_task_without_project_name(self, cloud_api):
         # verify that a ValueError is raised without a project name
-        task = FlowRunTask(flow_name="Test Flow")
+        task = StartFlowRun(flow_name="Test Flow")
         with pytest.raises(ValueError, match="Must provide a project name."):
             task.run()
 
     def test_flow_run_task_with_no_matching_flow(self, client, cloud_api):
         # verify a ValueError is raised if the client returns no flows
-        task = FlowRunTask(flow_name="Test Flow", project_name="Test Project")
+        task = StartFlowRun(flow_name="Test Flow", project_name="Test Project")
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
 
 
-class TestFlowRunTaskCoreServer:
+class TestStartFlowRunServer:
     def test_initialization(self, server_api):
         # verify that the task is initialized as expected
-        task = FlowRunTask(
+        task = StartFlowRun(
             name="My Flow Run Task",
             project_name="Demo",
             checkpoint=False,
@@ -144,7 +154,7 @@ class TestFlowRunTaskCoreServer:
 
     def test_flow_run_task(self, client, server_api):
         # verify that create_flow_run was called
-        task = FlowRunTask(
+        task = StartFlowRun(
             flow_name="Test Flow",
             project_name="Demo",
             parameters={"test": "ing"},
@@ -167,20 +177,20 @@ class TestFlowRunTaskCoreServer:
 
     def test_flow_run_task_without_flow_name(self, server_api):
         # verify that a ValueError is raised without a flow name
-        task = FlowRunTask()
+        task = StartFlowRun()
         with pytest.raises(ValueError, match="Must provide a flow name."):
             task.run()
 
     def test_flow_run_task_with_no_matching_flow(self, client, server_api):
         # verify a ValueError is raised if the client returns no flows
-        task = FlowRunTask(flow_name="Test Flow", project_name="Demo")
+        task = StartFlowRun(flow_name="Test Flow", project_name="Demo")
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
 
     def test_flow_run_task_with_flow_run_id(self, client, server_api):
         # verify that create_flow_run was called
-        task = FlowRunTask(
+        task = StartFlowRun(
             project_name="Test Project",
             flow_name="Test Flow",
             parameters={"test": "ing"},

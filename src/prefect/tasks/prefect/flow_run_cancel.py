@@ -1,11 +1,13 @@
+import warnings
+from typing import Any
+
+import prefect
 from prefect import Task
 from prefect.client import Client
-from typing import Any
-import prefect
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class CancelFlowRunTask(Task):
+class CancelFlowRun(Task):
     """
     Task to cancel a flow run. If `flow_run_id` is not provided,
     `flow_run_id` from `prefect.context` will be used by default
@@ -38,3 +40,13 @@ class CancelFlowRunTask(Task):
 
         client = Client()
         return client.cancel_flow_run(flow_run_id)
+
+
+class CancelFlowRunTask(CancelFlowRun):
+    def __new__(cls, *args, **kwargs):  # type: ignore
+        warnings.warn(
+            "`CancelFlowRunTask` has been renamed to `prefect.tasks.prefect.CancelFlowRun`,"
+            "please update your code accordingly",
+            stacklevel=2,
+        )
+        return super().__new__(cls)

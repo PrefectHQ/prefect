@@ -1,9 +1,18 @@
 import pytest
 from unittest.mock import MagicMock
 
-import prefect
 from prefect import Flow
-from prefect.tasks.prefect.flow_run_cancel import CancelFlowRunTask
+from prefect.tasks.prefect.flow_run_cancel import CancelFlowRun
+
+
+def test_deprecated_old_name():
+    from prefect.tasks.prefect import CancelFlowRunTask
+
+    with pytest.warns(UserWarning, match="`prefect.tasks.prefect.CancelFlowRun`"):
+        task = CancelFlowRunTask(flow_run_id="id123")
+
+    assert isinstance(task, CancelFlowRun)
+    assert task.flow_run_id == "id123"
 
 
 def test_flow_run_cancel(monkeypatch):
@@ -12,7 +21,7 @@ def test_flow_run_cancel(monkeypatch):
     monkeypatch.setattr(
         "prefect.tasks.prefect.flow_run_cancel.Client", MagicMock(return_value=client)
     )
-    flow_cancel_task = CancelFlowRunTask(flow_run_id="id123")
+    flow_cancel_task = CancelFlowRun(flow_run_id="id123")
 
     # Verify correct initialization
     assert flow_cancel_task.flow_run_id == "id123"
