@@ -11,10 +11,11 @@ import sys
 if sys.version_info < (3, 7):
 
     from contextlib import contextmanager
+    from typing import Iterator
 
     @contextmanager
-    def nullcontext():
-        pass
+    def nullcontext() -> Iterator[None]:
+        yield
 
 
 else:

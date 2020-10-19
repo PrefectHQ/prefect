@@ -1,5 +1,6 @@
 from contextlib import redirect_stdout
 from dask.base import tokenize
+from contextlib import AbstractContextManager
 from typing import (
     Any,
     Callable,
@@ -829,12 +830,10 @@ class TaskRunner(Runner):
 
             # Create a stdout redirect if the task has log_stdout enabled
             log_context = (
-                redirect_stdout(  # type: ignore
-                    prefect.utilities.logging.RedirectToLog(self.logger)
-                )
+                redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger))
                 if getattr(self.task, "log_stdout", False)
                 else nullcontext()
-            )
+            )  # type: AbstractContextManager
 
             with log_context:
                 value = prefect.utilities.executors.run_task_with_timeout(
