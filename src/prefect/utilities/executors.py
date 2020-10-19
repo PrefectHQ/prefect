@@ -307,8 +307,9 @@ def run_task_with_timeout(
     if not sys.platform.startswith("win"):
 
         if threading.current_thread() is threading.main_thread():
-            # This case is typically when using the LocalDaskExecutor with a
-            # process-based scheduler because then each worker is in the main thread
+            # This case is typically encountered when using a non-parallel or local
+            # multiprocess scheduler because then each worker is in the main
+            # thread
             logger.debug(f"Task '{name}': Attaching thread based timeout handler...")
             return run_with_thread_timeout(
                 task.run,
@@ -320,8 +321,8 @@ def run_task_with_timeout(
             )
 
         elif multiprocessing.current_process().daemon is False:
-            # This case is typically when using the LocalDaskExecutor with a
-            # thread-based scheduler or the DaskExecutor with processes disabled
+            # This case is typically encountered when using a multithread distributed
+            # executor
             logger.debug(f"Task '{name}': Attaching process based timeout handler...")
             return run_with_multiprocess_timeout(
                 task.run,
@@ -333,8 +334,8 @@ def run_task_with_timeout(
             )
 
         # We are in a daemonic process and cannot enforce a timeout
-        # This case is typically when using the distributed DaskExecutor with processes
-        # enabled
+        # This case is typically encountered when using a multiprocess distributed
+        # executor
         soft_timeout_reason = "in a daemonic subprocess"
     else:
         # We are in windows and cannot enforce a timeout
