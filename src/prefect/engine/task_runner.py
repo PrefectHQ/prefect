@@ -1,5 +1,6 @@
 from contextlib import redirect_stdout
 from dask.base import tokenize
+from contextlib import AbstractContextManager
 from typing import (
     Any,
     Callable,
@@ -40,6 +41,7 @@ from prefect.utilities.executors import (
     run_with_heartbeat,
     tail_recursive,
 )
+from prefect.utilities.compatibility import nullcontext
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -831,17 +833,20 @@ class TaskRunner(Runner):
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
-            timeout_handler = prefect.utilities.executors.timeout_handler
-            if getattr(self.task, "log_stdout", False):
-                with redirect_stdout(  # type: ignore
-                    prefect.utilities.logging.RedirectToLog(self.logger)
-                ):
-                    value = timeout_handler(
-                        self.task.run, timeout=self.task.timeout, **raw_inputs
-                    )
-            else:
-                value = timeout_handler(
-                    self.task.run, timeout=self.task.timeout, **raw_inputs
+
+            # Create a stdout redirect if the task has log_stdout enabled
+            log_context = (
+                redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger))
+                if getattr(self.task, "log_stdout", False)
+                else nullcontext()
+            )  # type: AbstractContextManager
+
+            with log_context:
+                value = prefect.utilities.executors.run_task_with_timeout(
+                    task=self.task,
+                    args=(),
+                    kwargs=raw_inputs,
+                    logger=self.logger,
                 )
 
         # inform user of timeout

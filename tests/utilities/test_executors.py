@@ -10,113 +10,180 @@ import pytest
 import prefect
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.executors import (
-    timeout_handler,
+    run_with_thread_timeout,
+    run_with_multiprocess_timeout,
     tail_recursive,
     RecursiveCall,
 )
 
 
-def test_timeout_handler_times_out():
-    slow_fn = lambda: time.sleep(2)
-    with pytest.raises(TimeoutError):
-        timeout_handler(slow_fn, timeout=1)
+# We will test the low-level timeout handlers here and `run_task_with_timeout`
+# is covered in `tests.core.test_flow.test_timeout_actually_stops_execution`
+# and `tests.engine.test_task_runner.test_timeout_actually_stops_execution`
+TIMEOUT_HANDLERS = [run_with_thread_timeout, run_with_multiprocess_timeout]
 
 
 @pytest.mark.skipif(
     sys.platform == "win32", reason="Windows doesn't support any timeout logic"
 )
-def test_timeout_handler_actually_stops_execution():
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_times_out(timeout_handler):
+    slow_fn = lambda: time.sleep(2)
+    with pytest.raises(TimeoutError):
+        timeout_handler(slow_fn, timeout=2)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_actually_stops_execution(timeout_handler):
     with tempfile.TemporaryDirectory() as call_dir:
         FILE = os.path.join(call_dir, "test.txt")
+        # Increase timeout for multiprocess because its startup time is slower and
+        # the file was not always created
+        TIMEOUT = 1 if timeout_handler is run_with_thread_timeout else 3
+        WRITES = 6
 
         def slow_fn():
-            "Runs for 1.5 seconds, writes to file 6 times"
-            iters = 0
-            while iters < 6:
-                time.sleep(0.26)
+            "Runs for TIMEOUT * 2 seconds, writes to file WRITES times"
+            for _ in range(WRITES):
                 with open(FILE, "a") as f:
                     f.write("called\n")
-                iters += 1
+                time.sleep((TIMEOUT * 2) / WRITES)
 
         with pytest.raises(TimeoutError):
-            # allow for at most 3 writes
-            timeout_handler(slow_fn, timeout=1)
+            # We should get less than WRITES lines -- roughly half expected
+            timeout_handler(slow_fn, timeout=TIMEOUT)
 
         time.sleep(0.5)
         with open(FILE, "r") as g:
             contents = g.read()
 
-    assert len(contents.split("\n")) <= 4
+    assert len(contents.split("\n")) < WRITES
 
 
-def test_timeout_handler_passes_args_and_kwargs_and_returns():
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_passes_args_and_kwargs_and_returns(timeout_handler):
+    def just_return(x, y=None):
+        return x, y
+
+    assert timeout_handler(
+        just_return, args=[5], kwargs=dict(y="yellow"), timeout=2
+    ) == (
+        5,
+        "yellow",
+    )
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_doesnt_swallow_bad_args(timeout_handler):
     def do_nothing(x, y=None):
         return x, y
 
-    assert timeout_handler(do_nothing, 5, timeout=1, y="yellow") == (5, "yellow")
-
-
-def test_timeout_handler_doesnt_swallow_bad_args():
-    def do_nothing(x, y=None):
-        return x, y
+    with pytest.raises(TypeError):
+        timeout_handler(do_nothing, timeout=2)
 
     with pytest.raises(TypeError):
-        timeout_handler(do_nothing, timeout=1)
+        timeout_handler(do_nothing, args=[5], kwargs=dict(z=10), timeout=2)
 
     with pytest.raises(TypeError):
-        timeout_handler(do_nothing, 5, timeout=1, z=10)
-
-    with pytest.raises(TypeError):
-        timeout_handler(do_nothing, 5, timeout=1, y="s", z=10)
+        timeout_handler(do_nothing, args=[5], kwargs=dict(y="s", z=10), timeout=2)
 
 
-def test_timeout_handler_reraises():
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_reraises(timeout_handler):
     def do_something():
         raise ValueError("test")
 
     with pytest.raises(ValueError, match="test"):
-        timeout_handler(do_something, timeout=1)
+        timeout_handler(do_something, timeout=2)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
-def test_timeout_handler_allows_function_to_spawn_new_process():
+# Define a top-level helper function for a null-op process target, must be defined
+# as a non-local for the python native pickler used within `my_process`
+def do_nothing():
+    return None
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_allows_function_to_spawn_new_process(timeout_handler):
     def my_process():
-        p = multiprocessing.Process(target=lambda: 5)
+        p = multiprocessing.Process(target=do_nothing())
         p.start()
         p.join()
         p.terminate()
 
-    assert timeout_handler(my_process, timeout=1) is None
+    assert timeout_handler(my_process, timeout=3) is None
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
-def test_timeout_handler_allows_function_to_spawn_new_thread():
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_allows_function_to_spawn_new_thread(timeout_handler):
     def my_thread():
         t = threading.Thread(target=lambda: 5)
         t.start()
         t.join()
 
-    assert timeout_handler(my_thread, timeout=1) is None
+    assert timeout_handler(my_thread, timeout=3) is None
 
 
-def test_timeout_handler_doesnt_do_anything_if_no_timeout(monkeypatch):
-    assert timeout_handler(lambda: 4, timeout=1) == 4
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_doesnt_do_anything_if_no_timeout(timeout_handler):
+    assert timeout_handler(lambda: 4, timeout=2) == 4
     assert timeout_handler(lambda: 4) == 4
 
 
-def test_timeout_handler_preserves_context():
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_preserves_context(timeout_handler):
     def my_fun(x, **kwargs):
         return prefect.context.get("test_key")
 
     with prefect.context(test_key=42):
-        res = timeout_handler(my_fun, 2, timeout=1)
+        res = timeout_handler(my_fun, args=[2], timeout=2)
 
     assert res == 42
 
 
-def test_timeout_handler_preserves_logging(caplog):
-    timeout_handler(prefect.Flow("logs").run, timeout=2)
-    assert len(caplog.records) >= 2  # 1 INFO to start, 1 INFO to end
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_thread_timeout_preserves_logging(caplog):
+    run_with_thread_timeout(prefect.Flow("logs").run, timeout=2)
+    assert len(caplog.messages) >= 2  # 1 INFO to start, 1 INFO to end
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_multiprocess_timeout_preserves_logging(capfd):
+    """
+    Requires fd capturing because the subprocess output won't be captured by caplog
+    """
+    run_with_multiprocess_timeout(prefect.Flow("logs").run, timeout=2)
+    stdout = capfd.readouterr().out
+    assert "Beginning Flow run" in stdout
+    assert "Flow run SUCCESS" in stdout
 
 
 def test_recursion_go_case():

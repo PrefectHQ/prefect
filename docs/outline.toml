@@ -545,7 +545,7 @@ functions = ["diagnostic_info", "flow_information", "system_information", "confi
 [pages.utilities.executors]
 title = "Executors"
 module = "prefect.utilities.executors"
-functions = ["timeout_handler"]
+functions = ["run_task_with_timeout"]
 
 [pages.utilities.gcp]
 title = "Google Utilities"
