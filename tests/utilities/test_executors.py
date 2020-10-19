@@ -23,6 +23,9 @@ from prefect.utilities.executors import (
 TIMEOUT_HANDLERS = [run_with_thread_timeout, run_with_multiprocess_timeout]
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_times_out(timeout_handler):
     slow_fn = lambda: time.sleep(2)
@@ -60,6 +63,9 @@ def test_timeout_handler_actually_stops_execution(timeout_handler):
     assert len(contents.split("\n")) < WRITES
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_passes_args_and_kwargs_and_returns(timeout_handler):
     def just_return(x, y=None):
@@ -73,6 +79,9 @@ def test_timeout_handler_passes_args_and_kwargs_and_returns(timeout_handler):
     )
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_doesnt_swallow_bad_args(timeout_handler):
     def do_nothing(x, y=None):
@@ -88,6 +97,9 @@ def test_timeout_handler_doesnt_swallow_bad_args(timeout_handler):
         timeout_handler(do_nothing, args=[5], kwargs=dict(y="s", z=10), timeout=2)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_reraises(timeout_handler):
     def do_something():
@@ -136,6 +148,9 @@ def test_timeout_handler_doesnt_do_anything_if_no_timeout(timeout_handler):
     assert timeout_handler(lambda: 4) == 4
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_preserves_context(timeout_handler):
     def my_fun(x, **kwargs):
@@ -147,11 +162,17 @@ def test_timeout_handler_preserves_context(timeout_handler):
     assert res == 42
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 def test_run_with_thread_timeout_preserves_logging(caplog):
     run_with_thread_timeout(prefect.Flow("logs").run, timeout=2)
     assert len(caplog.messages) >= 2  # 1 INFO to start, 1 INFO to end
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 def test_run_with_multiprocess_timeout_preserves_logging(capfd):
     """
     Requires fd capturing because the subprocess output won't be captured by caplog
