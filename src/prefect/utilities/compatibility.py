@@ -1,5 +1,5 @@
 """
-Functions that exist for compatability with different python versions. These should
+Functions that exist for compatibility with different python versions. These should
 only be used internally.
 """
 
@@ -20,4 +20,4 @@ if sys.version_info < (3, 7):
 
 else:
 
-    from contextlib import nullcontext
+    from contextlib import nullcontext  # noqa: F401

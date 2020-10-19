@@ -41,7 +41,7 @@ from prefect.utilities.executors import (
     run_with_heartbeat,
     tail_recursive,
 )
-from prefect.utilities.compatability import nullcontext
+from prefect.utilities.compatibility import nullcontext
 
 
 TaskRunnerInitializeResult = NamedTuple(
