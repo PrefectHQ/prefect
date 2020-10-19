@@ -317,7 +317,7 @@ def slack_notifier(
     import requests
 
     form_data = slack_message_formatter(
-        tracked_obj, new_state, message_template, backend_info, message_vars
+        tracked_obj, new_state, backend_info, message_template, message_vars
     )
     r = requests.post(webhook_url, json=form_data)
     if not r.ok:
