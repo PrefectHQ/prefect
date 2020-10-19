@@ -1,7 +1,7 @@
 from marshmallow import fields
 
 from prefect.utilities.serialization import JSONCompatible, OneOfSchema, ObjectSchema
-from prefect.run_configs import KubernetesRun, LocalRun
+from prefect.run_configs import KubernetesRun, LocalRun, DockerRun
 
 
 class RunConfigSchemaBase(ObjectSchema):
@@ -30,8 +30,17 @@ class LocalRunSchema(RunConfigSchemaBase):
     working_dir = fields.String(allow_none=True)
 
 
+class DockerRunSchema(RunConfigSchemaBase):
+    class Meta:
+        object_class = DockerRun
+
+    image = fields.String(allow_none=True)
+    env = fields.Dict(keys=fields.String(), allow_none=True)
+
+
 class RunConfigSchema(OneOfSchema):
     type_schemas = {
         "KubernetesRun": KubernetesRunSchema,
         "LocalRun": LocalRunSchema,
+        "DockerRun": DockerRunSchema,
     }
