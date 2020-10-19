@@ -126,7 +126,7 @@ def test_timeout_handler_allows_function_to_spawn_new_process(timeout_handler):
         p.join()
         p.terminate()
 
-    assert timeout_handler(my_process, timeout=2) is None
+    assert timeout_handler(my_process, timeout=3) is None
 
 
 @pytest.mark.skipif(
@@ -139,7 +139,7 @@ def test_timeout_handler_allows_function_to_spawn_new_thread(timeout_handler):
         t.start()
         t.join()
 
-    assert timeout_handler(my_thread, timeout=2) is None
+    assert timeout_handler(my_thread, timeout=3) is None
 
 
 @pytest.mark.skipif(
