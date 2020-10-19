@@ -142,6 +142,9 @@ def test_timeout_handler_allows_function_to_spawn_new_thread(timeout_handler):
     assert timeout_handler(my_thread, timeout=2) is None
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_doesnt_do_anything_if_no_timeout(timeout_handler):
     assert timeout_handler(lambda: 4, timeout=2) == 4
