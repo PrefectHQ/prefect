@@ -34,8 +34,6 @@ def test_default_flow_run_id(monkeypatch):
 
     task = RenameFlowRunTask(flow_run_name="a_new_name!")
 
-    # Verify correct initialization
-    assert task.flow_run_name == "a_new_name!"
 
     # Verify client called with arguments
     with prefect.context(flow_run_id="id123"):
