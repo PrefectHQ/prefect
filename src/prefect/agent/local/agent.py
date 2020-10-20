@@ -225,7 +225,7 @@ class LocalAgent(Agent):
             python_path.append(os.environ["PYTHONPATH"])
         if self.import_paths:
             python_path.extend(self.import_paths)
-        env["PYTHONPATH"] = ":".join(python_path)
+        env["PYTHONPATH"] = os.pathsep.join(python_path)
 
         # 4. Values set on the agent via `--env`
         env.update(self.env_vars)
