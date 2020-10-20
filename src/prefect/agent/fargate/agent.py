@@ -672,6 +672,18 @@ class FargateAgent(Agent):
                 "repositoryCredentials"
             ] = container_definitions_kwargs.get("repositoryCredentials", {})
 
+        # If networkMode is not provided, default to awsvpc
+        networkMode = flow_task_definition_kwargs[
+            "networkMode"] if "networkMode" in flow_task_definition_kwargs.keys() else "awsvpc"
+
+        # Remove networkMode if provided in flow task definition
+        try:
+            flow_task_definition_kwargs.pop("networkMode")
+        except KeyError:
+            self.logger.info("networkMode not passed in task definitions args, default to awsvpc")
+
+        self.logger.info(f"Task definition networkMode: {networkMode}")
+
         # Register task definition
         self.logger.debug(
             "Registering task definition {}".format(
@@ -680,8 +692,14 @@ class FargateAgent(Agent):
         )
         if self.launch_type:
             flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
+        try:
+            flow_task_definition_kwargs.pop("networkMode")
+        except KeyError:
+            self.logger.info("networkMode not passed in task definitions args")
+
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
+            networkMode=networkMode,
             containerDefinitions=container_definitions,
             **flow_task_definition_kwargs,
         )
@@ -796,12 +814,25 @@ class FargateAgent(Agent):
         # Register task definition
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
 
+        # If networkMode is not provided, default to awsvpc
+        networkMode = flow_task_definition_kwargs[
+            "networkMode"] if "networkMode" in flow_task_definition_kwargs.keys() else "awsvpc"
+
+        # Remove networkMode if provided in flow task definition
+        try:
+            flow_task_definition_kwargs.pop("networkMode")
+        except KeyError:
+            self.logger.info("networkMode not passed in task definitions args, default to awsvpc")
+
+        self.logger.info(f"Task definition networkMode: {networkMode}")
+
         if self.launch_type:
             flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
 
         self.logger.info("Testing task definition registration...")
         self.boto3_client.register_task_definition(
             family=task_name,
+            networkMode=networkMode,
             containerDefinitions=container_definitions,
             **flow_task_definition_kwargs,
         )

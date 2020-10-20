@@ -1296,6 +1296,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
             }
         ],
         family="name",
+        networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "PrefectFlowId", "value": "id"},
@@ -1677,6 +1678,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         ],
         cpu="256",
         family="name",
+        networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "test", "value": "test"},
