@@ -673,14 +673,19 @@ class FargateAgent(Agent):
             ] = container_definitions_kwargs.get("repositoryCredentials", {})
 
         # If networkMode is not provided, default to awsvpc
-        networkMode = flow_task_definition_kwargs[
-            "networkMode"] if "networkMode" in flow_task_definition_kwargs.keys() else "awsvpc"
+        networkMode = (
+            flow_task_definition_kwargs["networkMode"]
+            if "networkMode" in flow_task_definition_kwargs.keys()
+            else "awsvpc"
+        )
 
         # Remove networkMode if provided in flow task definition
         try:
             flow_task_definition_kwargs.pop("networkMode")
         except KeyError:
-            self.logger.info("networkMode not passed in task definitions args, default to awsvpc")
+            self.logger.info(
+                "networkMode not passed in task definitions args, default to awsvpc"
+            )
 
         self.logger.info(f"Task definition networkMode: {networkMode}")
 
@@ -815,14 +820,19 @@ class FargateAgent(Agent):
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
 
         # If networkMode is not provided, default to awsvpc
-        networkMode = flow_task_definition_kwargs[
-            "networkMode"] if "networkMode" in flow_task_definition_kwargs.keys() else "awsvpc"
+        networkMode = (
+            flow_task_definition_kwargs["networkMode"]
+            if "networkMode" in flow_task_definition_kwargs.keys()
+            else "awsvpc"
+        )
 
         # Remove networkMode if provided in flow task definition
         try:
             flow_task_definition_kwargs.pop("networkMode")
         except KeyError:
-            self.logger.info("networkMode not passed in task definitions args, default to awsvpc")
+            self.logger.info(
+                "networkMode not passed in task definitions args, default to awsvpc"
+            )
 
         self.logger.info(f"Task definition networkMode: {networkMode}")
 
