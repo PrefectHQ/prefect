@@ -394,7 +394,7 @@ class StatefulFunctionReference(fields.Field):
 
         if not valid_bases and self.reject_invalid:
             raise ValidationError(
-                "When running wth Prefect Cloud/Server, custom functions aren't supported "
+                "When running with Prefect Cloud/Server, custom functions aren't supported "
                 f"for `{type(obj).__name__}.{attr}`. Unable to serialize `{value!r}`."
             )
         else:
