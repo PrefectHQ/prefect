@@ -50,13 +50,9 @@ class RenameFlowRun(Task):
             rename_flow = FlowRenameTask(flow_name="A new flow run name")
             ```
         """
-        if flow_run_id is None:
-            flow_run_id = prefect.context.get("flow_run_id")
-
-            if not flow_run_id:
-                raise ValueError(
-                    "No flow run ID found in context. Must provide a flow run id."
-                )
+        flow_run_id = flow_run_id or prefect.context.get("flow_run_id")
+        if not flow_run_id:
+            raise ValueError("`flow_run_id` must be explicitly provided or available in the context")
         if flow_run_name is None:
             raise ValueError("Must provide a flow name.")
 
