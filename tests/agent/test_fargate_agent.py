@@ -83,6 +83,7 @@ def test_parse_task_definition_kwargs(monkeypatch, cloud_api):
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -295,6 +296,7 @@ def test_parse_task_definition_and_run_kwargs(monkeypatch, cloud_api):
     def_kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -323,6 +325,7 @@ def test_parse_task_definition_and_run_kwargs(monkeypatch, cloud_api):
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -389,6 +392,7 @@ def test_fargate_agent_config_options_init(monkeypatch, cloud_api):
     def_kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -424,6 +428,7 @@ def test_fargate_agent_config_options_init(monkeypatch, cloud_api):
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -487,6 +492,7 @@ def test_fargate_agent_config_env_vars(monkeypatch, cloud_api):
     def_kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -528,6 +534,7 @@ def test_fargate_agent_config_env_vars(monkeypatch, cloud_api):
     # Def / run args
     monkeypatch.setenv("taskRoleArn", "test")
     monkeypatch.setenv("executionRoleArn", "test")
+    monkeypatch.setenv("networkMode", "test")
     monkeypatch.setenv("volumes", "test")
     monkeypatch.setenv("placementConstraints", "test")
     monkeypatch.setenv("cpu", "test")
@@ -703,6 +710,7 @@ def test_deploy_flow_all_args(monkeypatch, cloud_api):
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -932,6 +940,7 @@ def test_deploy_flow_register_task_definition_all_args(
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "1",
@@ -1078,7 +1087,7 @@ def test_deploy_flow_register_task_definition_all_args(
     assert boto3_client.register_task_definition.call_args[1][
         "requiresCompatibilities"
     ] == ["FARGATE"]
-    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
+    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "test"
     assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
@@ -1098,6 +1107,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "1",
@@ -1191,7 +1201,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
     assert boto3_client.register_task_definition.call_args[1][
         "requiresCompatibilities"
     ] == ["FARGATE"]
-    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
+    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "test"
     assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
@@ -1287,7 +1297,6 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
             }
         ],
         family="name",
-        networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "PrefectFlowId", "value": "id"},
@@ -1669,7 +1678,6 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         ],
         cpu="256",
         family="name",
-        networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "test", "value": "test"},

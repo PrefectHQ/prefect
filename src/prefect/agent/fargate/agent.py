@@ -313,6 +313,7 @@ class FargateAgent(Agent):
         definition_kwarg_list = [
             "taskRoleArn",
             "executionRoleArn",
+            "networkMode",
             "volumes",
             "placementConstraints",
             "cpu",
@@ -682,7 +683,6 @@ class FargateAgent(Agent):
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
             containerDefinitions=container_definitions,
-            networkMode="awsvpc",
             **flow_task_definition_kwargs,
         )
 
@@ -803,7 +803,6 @@ class FargateAgent(Agent):
         self.boto3_client.register_task_definition(
             family=task_name,
             containerDefinitions=container_definitions,
-            networkMode="awsvpc",
             **flow_task_definition_kwargs,
         )
         self.logger.info("Task definition registration successful")
