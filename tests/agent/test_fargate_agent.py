@@ -1249,7 +1249,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent(enable_task_revisions=True)
+    agent = FargateAgent(enable_task_revisions=True, networkMode="test")
     agent.deploy_flow(
         GraphQLResult(
             {
@@ -1297,6 +1297,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
             }
         ],
         family="name",
+        networkMode="test",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "PrefectFlowId", "value": "id"},
@@ -1616,6 +1617,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
 
     agent = FargateAgent(
         enable_task_revisions=True,
+        networkMode="test",
         use_external_kwargs=True,
         external_kwargs_s3_bucket="test-bucket",
         external_kwargs_s3_key="prefect-artifacts/kwargs",
@@ -1678,6 +1680,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         ],
         cpu="256",
         family="name",
+        networkMode="test",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "test", "value": "test"},
