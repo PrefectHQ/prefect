@@ -369,6 +369,13 @@ class FargateAgent(Agent):
             if isinstance(task_definition_kwargs.get(key, ""), int):
                 task_definition_kwargs[key] = str(task_definition_kwargs[key])
 
+        # If networkMode is not provided, then default to awsvpc
+        task_definition_kwargs["networkMode"] = (
+            user_kwargs["networkMode"]
+            if "networkMode" in user_kwargs.keys()
+            else "awsvpc"
+        )
+
         task_run_kwargs = {}
         for key, item in user_kwargs.items():
             if key in run_kwarg_list:
