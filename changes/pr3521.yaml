@@ -1,2 +1,0 @@
-fix:
-  - "Fix bug in k8s where the resource-manager would sometimes silently crash on errors - [#3521](https://github.com/PrefectHQ/prefect/pull/3521)"

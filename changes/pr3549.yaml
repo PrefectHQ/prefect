@@ -1,2 +1,0 @@
-enhancement:
-  - "Raise a better error message when trying to register a flow with parameters with JSON-incompatible defaults - [#3549](https://github.com/PrefectHQ/prefect/pull/3549)"

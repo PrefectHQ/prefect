@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.13.12 <Badge text="beta" type="success" />
+
+Released on October 20, 2020.
+
+### Enhancements
+
+- Agents now submit flow runs in order of scheduled start times - [#3165](https://github.com/PrefectHQ/prefect/issues/3165)
+- Updating k8s tutorial docs to include instructions on how to provide access to S3 from kubernetes deployments on AWS - [#3200](https://github.com/PrefectHQ/prefect/issues/3200)
+- Adds option to specify default values for GetItem and GetAttr tasks - [#3489](https://github.com/PrefectHQ/prefect/pull/3489)
+- Allow disabling default storage labels for the `LocalAgent` - [#3503](https://github.com/PrefectHQ/prefect/pull/3503)
+- Improve overall functionality of docs search, full list of changes [here](https://github.com/PrefectHQ/prefect/pull/3504#issue-503684023) - [#3504](https://github.com/PrefectHQ/prefect/pull/3504)
+- Add `LocalRun` implementation for `run_config` based flows - [#3527](https://github.com/PrefectHQ/prefect/pull/3527)
+- Add `DockerRun` implementation for `run_config` based flows - [#3537](https://github.com/PrefectHQ/prefect/pull/3537)
+- Raise a better error message when trying to register a flow with a schedule using custom filter functions - [#3450](https://github.com/PrefectHQ/prefect/pull/3540)
+- `RenameFlowRunTask`: use default `flow_run_id` value from context - [#3548](https://github.com/PrefectHQ/prefect/pull/3548)
+- Raise a better error message when trying to register a flow with parameters with JSON-incompatible defaults - [#3549](https://github.com/PrefectHQ/prefect/pull/3549)
+
+### Task Library
+
+- Extended `GCSUpload` task to allow uploading of bytes/gzip data - [#3507](https://github.com/PrefectHQ/prefect/issues/3507)
+- Allow setting runtime `webook_secret` on `SlackTask` and kwarg for `webhook_secret` retrieved from `PrefectSecret` task - [#3522](https://github.com/PrefectHQ/prefect/pull/3522)
+
+### Fixes
+
+- Fix `get flow-runs` and `describe flow-runs` CLI commands querying of removed `duration` field - [#3517](https://github.com/PrefectHQ/prefect/issues/3517)
+- Fix multiprocess based timeout handler on linux - [#3526](https://github.com/PrefectHQ/prefect/pull/3526)
+- Fix API doc generation incorrectly compiling mocked imports - [#3504](https://github.com/PrefectHQ/prefect/pull/3504)
+- Fix multiprocessing scheduler failure while running tasks with timeouts - [#3511](https://github.com/PrefectHQ/prefect/pull/3511)
+- Update Fargate task definition validation - [#3514](https://github.com/PrefectHQ/prefect/pull/3514)
+- Fix bug in k8s where the resource-manager would sometimes silently crash on errors - [#3521](https://github.com/PrefectHQ/prefect/pull/3521)
+- Add labels from `flow.storage` for `run_config` based flows - [#3527](https://github.com/PrefectHQ/prefect/pull/3527)
+- Fix LocalAgent PYTHONPATH construction on Windows - [#3551](https://github.com/PrefectHQ/prefect/pull/3551)
+
+### Deprecations
+
+- `FlowRunTask`, `RenameFlowRunTask`, and `CancelFlowRunTask` have been renamed to `StartFlowRun`, `RenameFlowRun`, and `CancelFlowRun` respectively - [#3539](https://github.com/PrefectHQ/prefect/pull/3539)
+
+### Contributors
+
+- [Michal Baumgartner](https://github.com/m1so)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+- [Raphael Riel](https://github.com/raphael-riel)
+- [Spencer Ellinor](https://github.com/zpencerq)
+- [andywaugh](https://github.com/andywaugh)
+
 ## 0.13.11 <Badge text="beta" type="success" />
 
 Released on October 14, 2020.
