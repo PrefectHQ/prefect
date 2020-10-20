@@ -179,14 +179,23 @@ class JSONCompatible(fields.Field):
         self.validators.insert(0, self._validate_json)
 
     def _serialize(self, value, attr, obj, **kwargs):  # type: ignore
-        self._validate_json(value)
+        try:
+            json.dumps(value)
+        except TypeError:
+            raise ValidationError(
+                "When running with Prefect Cloud/Server, values for "
+                f"`{type(obj).__name__}.{attr}` must be JSON compatible. "
+                f"Unable to serialize `{value!r}`."
+            ) from None
         return super()._serialize(value, attr, obj, **kwargs)
 
     def _validate_json(self, value: Any) -> None:
         try:
             json.dumps(value)
-        except TypeError as type_error:
-            raise ValidationError("Value is not JSON-compatible") from type_error
+        except TypeError:
+            raise ValidationError(
+                f"Values must be JSON compatible, got `{value!r}`"
+            ) from None
 
 
 class Nested(fields.Nested):

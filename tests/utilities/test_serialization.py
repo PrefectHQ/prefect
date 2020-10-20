@@ -71,11 +71,15 @@ class TestJSONCompatibleField:
         assert serialized["j"] == value
 
     def test_validate_on_dump(self):
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(
+            marshmallow.ValidationError, match="must be JSON compatible"
+        ):
             self.Schema().dump({"j": lambda: 1})
 
     def test_validate_on_load(self):
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(
+            marshmallow.ValidationError, match="must be JSON compatible"
+        ):
             self.Schema().load({"j": lambda: 1})
 
 
