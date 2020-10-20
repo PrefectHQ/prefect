@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 
+import prefect
 from prefect.tasks.prefect.flow_run_rename import RenameFlowRun
 
 
@@ -55,7 +56,7 @@ def test_flow_run_id_defaults_from_context(monkeypatch):
 def test_missing_flow_run_id():
     task = RenameFlowRun()
     with pytest.raises(
-        ValueError, match="No flow run ID found in context. Must provide a flow run id."
+        ValueError, match="`flow_run_id` must be explicitly provided or available in the context"
     ):
         task.run(flow_run_name="a_new_name!")
 
