@@ -1,0 +1,2 @@
+fix:
+  - "Fix LocalAgent PYTHONPATH construction on Windows - [#3551](https://github.com/PrefectHQ/prefect/pull/3551)"
