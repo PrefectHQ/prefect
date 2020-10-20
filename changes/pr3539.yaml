@@ -1,0 +1,2 @@
+deprecation:
+  - "`FlowRunTask`, `RenameFlowRunTask`, and `CancelFlowRunTask` have been renamed to `StartFlowRun`, `RenameFlowRun`, and `CancelFlowRun` respectively - [#3539](https://github.com/PrefectHQ/prefect/pull/3539)"
