@@ -25,7 +25,7 @@ Released on October 20, 2020.
 ### Fixes
 
 - Fix `get flow-runs` and `describe flow-runs` CLI commands querying of removed `duration` field - [#3517](https://github.com/PrefectHQ/prefect/issues/3517)
-- Fix multiprocess based timeout handler on linux ` - [#3526](https://github.com/PrefectHQ/prefect/pull/3526)
+- Fix multiprocess based timeout handler on linux - [#3526](https://github.com/PrefectHQ/prefect/pull/3526)
 - Fix API doc generation incorrectly compiling mocked imports - [#3504](https://github.com/PrefectHQ/prefect/pull/3504)
 - Fix multiprocessing scheduler failure while running tasks with timeouts - [#3511](https://github.com/PrefectHQ/prefect/pull/3511)
 - Update Fargate task definition validation - [#3514](https://github.com/PrefectHQ/prefect/pull/3514)
