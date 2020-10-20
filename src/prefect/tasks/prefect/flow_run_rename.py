@@ -1,6 +1,7 @@
 import warnings
 from typing import Any
 
+import prefect
 from prefect import Task
 from prefect.client import Client
 from prefect.utilities.tasks import defaults_from_attrs
@@ -30,24 +31,30 @@ class RenameFlowRun(Task):
     def run(self, flow_run_id: str, flow_run_name: str) -> bool:
         """
         Args:
-            - flow_run_id (str, optional): The ID of the flow run to rename
+            - flow_run_id (str, optional): The ID of the flow run to rename. If `None`,
+                the `flow_run_id` from `prefect.context` will be used as default value
             - flow_run_name (str, optional): The new flow run name
 
         Returns:
             - bool: Boolean representing whether the flow run was renamed successfully or not.
 
         Raises:
-            - ValueError: If flow_run_id or name is not provided
+            - ValueError: If `flow_run_id` is not provided and `flow_run_id` does not exist
+                in `prefect.context`
+            - ValueError: If `flow_run_name` is not provided
 
         Example:
             ```python
             from prefect.tasks.prefect.flow_rename import FlowRenameTask
 
-            rename_flow = FlowRenameTask(flow_run_id="id123", flow_name="A new flow run name")
+            rename_flow = FlowRenameTask(flow_name="A new flow run name")
             ```
         """
-        if flow_run_id is None:
-            raise ValueError("Must provide a flow run ID.")
+        flow_run_id = flow_run_id or prefect.context.get("flow_run_id")
+        if not flow_run_id:
+            raise ValueError(
+                "`flow_run_id` must be explicitly provided or available in the context"
+            )
         if flow_run_name is None:
             raise ValueError("Must provide a flow name.")
 
