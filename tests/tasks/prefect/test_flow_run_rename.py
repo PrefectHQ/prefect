@@ -44,7 +44,6 @@ def test_flow_run_id_defaults_from_context(monkeypatch):
 
     task = RenameFlowRun(flow_run_name="a_new_name!")
 
-
     # Verify client called with arguments
     with prefect.context(flow_run_id="id123"):
         task.run()
@@ -56,7 +55,8 @@ def test_flow_run_id_defaults_from_context(monkeypatch):
 def test_missing_flow_run_id():
     task = RenameFlowRun()
     with pytest.raises(
-        ValueError, match="`flow_run_id` must be explicitly provided or available in the context"
+        ValueError,
+        match="`flow_run_id` must be explicitly provided or available in the context",
     ):
         task.run(flow_run_name="a_new_name!")
 
