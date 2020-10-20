@@ -41,7 +41,11 @@ def prefect_home_dir():
 def mthread():
     "Multi-threaded executor using dask distributed"
     with Client(
-        processes=False, scheduler_port=0, dashboard_address=":0", n_workers=2
+        processes=False,
+        scheduler_port=0,
+        dashboard_address=":0",
+        n_workers=1,
+        threads_per_worker=2,
     ) as client:
         yield DaskExecutor(client.scheduler.address)
 
