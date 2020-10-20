@@ -30,7 +30,7 @@ TIMEOUT_HANDLERS = [run_with_thread_timeout, run_with_multiprocess_timeout]
 def test_timeout_handler_times_out(timeout_handler):
     slow_fn = lambda: time.sleep(2)
     with pytest.raises(TimeoutError):
-        timeout_handler(slow_fn, timeout=2)
+        timeout_handler(slow_fn, timeout=1)
 
 
 @pytest.mark.skipif(
