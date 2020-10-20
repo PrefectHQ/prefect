@@ -276,7 +276,7 @@ classes = ["DatasetCreateFromDelimitedFiles",
 [pages.tasks.prefect]
 title = "Prefect Tasks"
 module = "prefect.tasks.prefect"
-classes = ["FlowRunTask", "RenameFlowRunTask", "CancelFlowRunTask"]
+classes = ["StartFlowRun", "RenameFlowRun", "CancelFlowRun"]
 
 [pages.tasks.github]
 title = "GitHub Tasks"

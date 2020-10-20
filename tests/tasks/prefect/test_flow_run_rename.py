@@ -1,8 +1,17 @@
 import pytest
 from unittest.mock import MagicMock
 
-import prefect
-from prefect.tasks.prefect.flow_run_rename import RenameFlowRunTask
+from prefect.tasks.prefect.flow_run_rename import RenameFlowRun
+
+
+def test_deprecated_old_name():
+    from prefect.tasks.prefect import RenameFlowRunTask
+
+    with pytest.warns(UserWarning, match="`prefect.tasks.prefect.RenameFlowRun`"):
+        task = RenameFlowRunTask(flow_run_id="id123")
+
+    assert isinstance(task, RenameFlowRun)
+    assert task.flow_run_id == "id123"
 
 
 def test_flow_run_rename_task(monkeypatch):
@@ -12,7 +21,7 @@ def test_flow_run_rename_task(monkeypatch):
         "prefect.tasks.prefect.flow_run_rename.Client", MagicMock(return_value=client)
     )
 
-    task = RenameFlowRunTask(flow_run_id="id123", flow_run_name="a_new_name!")
+    task = RenameFlowRun(flow_run_id="id123", flow_run_name="a_new_name!")
 
     # Verify correct initialization
     assert task.flow_run_id == "id123"
@@ -32,7 +41,7 @@ def test_default_flow_run_id(monkeypatch):
         "prefect.tasks.prefect.flow_run_rename.Client", MagicMock(return_value=client)
     )
 
-    task = RenameFlowRunTask(flow_run_name="a_new_name!")
+    task = RenameFlowRun(flow_run_name="a_new_name!")
 
     # Verify correct initialization
     assert task.flow_run_name == "a_new_name!"
@@ -46,7 +55,7 @@ def test_default_flow_run_id(monkeypatch):
 
 
 def test_missing_flow_run_id():
-    task = RenameFlowRunTask()
+    task = RenameFlowRun()
     with pytest.raises(
         ValueError, match="No flow run ID found in context. Must provide a flow run id."
     ):
@@ -54,6 +63,6 @@ def test_missing_flow_run_id():
 
 
 def test_missing_flow_run_name():
-    task = RenameFlowRunTask()
+    task = RenameFlowRun()
     with pytest.raises(ValueError, match="Must provide a flow name."):
         task.run(flow_run_id="id123")
