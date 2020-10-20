@@ -25,7 +25,7 @@ def test_flow_run_rename_task(monkeypatch):
     assert client.set_flow_run_name.call_args[0][1] == "a_new_name!"
 
 
-def test_default_flow_run_id(monkeypatch):
+def test_flow_run_id_defaults_from_context(monkeypatch):
     client = MagicMock()
     client.set_flow_run_name = MagicMock(return_value=True)
     monkeypatch.setattr(
