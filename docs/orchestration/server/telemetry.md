@@ -8,7 +8,8 @@ To opt-out of telemetry, add the following to a prefect server configuration fil
 # ~/.prefect_server/config.toml
 
 [telemetry]
-enabled = false
+    [server.telemetry]
+        enabled = false
 ```
 
 See [configuration](/core/concepts/configuration.md) for a complete overview of configuration.
