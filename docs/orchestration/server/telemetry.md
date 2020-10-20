@@ -5,7 +5,7 @@ Prefect Server sends usage telemetry and statistics to Prefect Technologies, Inc
 To opt-out of telemetry, add the following to a prefect server configuration file on the same machine as your Prefect Server instance (wherever you're calling `prefect server start`).
 
 ```toml
-# ~/.prefect_server/config.toml
+# ~/.prefect/config.toml
 
 [telemetry]
     [server.telemetry]
