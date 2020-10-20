@@ -126,6 +126,7 @@ Accepted kwargs for [`register_task_definition`](https://boto3.amazonaws.com/v1/
 ```
 taskRoleArn                 string
 executionRoleArn            string
+networkMode                 string
 volumes                     list
 placementConstraints        list
 cpu                         string
