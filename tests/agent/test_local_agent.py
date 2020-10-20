@@ -87,18 +87,22 @@ def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch):
     assert "IP" in agent.labels
 
 
-def test_populate_env_vars():
+def test_populate_env_vars(monkeypatch):
     agent = LocalAgent()
+
+    # The python path may be a single item and we want to ensure the correct separator
+    # is added so we will ensure PYTHONPATH has an item in it to start
+    if not os.environ.get("PYTHONPATH", ""):
+        monkeypatch.setenv("PYTHONPATH", "foobar")
 
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
     )
-    python_path = env_vars.pop("PYTHONPATH", "")
-    assert os.getcwd() in python_path
 
     expected = os.environ.copy()
     expected.update(
         {
+            "PYTHONPATH": os.getcwd() + os.pathsep + expected.get("PYTHONPATH", ""),
             "PREFECT__CLOUD__API": "https://api.prefect.io",
             "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
             "PREFECT__CLOUD__AGENT__LABELS": str(DEFAULT_AGENT_LABELS),
