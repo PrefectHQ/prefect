@@ -1,2 +1,0 @@
-enhancement:
-  - "Raise a better error message when trying to register a flow with a schedule using custom filter functions - [#3450](https://github.com/PrefectHQ/prefect/pull/3540)"

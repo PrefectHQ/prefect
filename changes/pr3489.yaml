@@ -1,4 +1,0 @@
-enhancement:
-  - "Adds option to specify default values for GetItem and GetAttr tasks - [#3489](https://github.com/PrefectHQ/prefect/pull/3489)"
-contributor:
-  - "[Michal Baumgartner](https://github.com/m1so)"

@@ -1,5 +1,0 @@
-enhancement:
-  - "`RenameFlowRunTask`: use default `flow_run_id` value from context - [#3548](https://github.com/PrefectHQ/prefect/pull/3548)"
-
-contributor:
-  - "[Panagiotis Simakis](https://github.com/sp1thas)"

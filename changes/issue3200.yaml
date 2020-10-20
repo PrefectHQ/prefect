@@ -1,2 +1,0 @@
-enhancement:
-  - "Updating k8s tutorial docs to include instructions on how to provide access to S3 from kubernetes deployments on AWS - [#3200](https://github.com/PrefectHQ/prefect/issues/3200)"
