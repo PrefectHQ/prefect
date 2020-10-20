@@ -93,12 +93,11 @@ def test_populate_env_vars():
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
     )
-    python_path = env_vars.pop("PYTHONPATH", "")
-    assert os.getcwd() in python_path
 
     expected = os.environ.copy()
     expected.update(
         {
+            "PYTHONPATH": os.getcwd() + os.pathsep + expected.get("PYTHONPATH", ""),
             "PREFECT__CLOUD__API": "https://api.prefect.io",
             "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
             "PREFECT__CLOUD__AGENT__LABELS": str(DEFAULT_AGENT_LABELS),
