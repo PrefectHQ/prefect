@@ -1,5 +1,6 @@
 from typing import Any
 
+import prefect
 from prefect import Task
 from prefect.client import Client
 from prefect.utilities.tasks import defaults_from_attrs
@@ -46,7 +47,12 @@ class RenameFlowRunTask(Task):
             ```
         """
         if flow_run_id is None:
-            raise ValueError("Must provide a flow run ID.")
+            flow_run_id = prefect.context.get("flow_run_id")
+
+            if not flow_run_id:
+                raise ValueError(
+                    "No flow run ID found in context. Must provide a flow run id."
+                )
         if flow_run_name is None:
             raise ValueError("Must provide a flow name.")
 
