@@ -38,7 +38,8 @@ class RenameFlowRunTask(Task):
             - bool: Boolean representing whether the flow run was renamed successfully or not.
 
         Raises:
-            - ValueError: If `flow_run_id` is not provided and `flow_run_id` does not exist in `prefect.context`
+            - ValueError: If `flow_run_id` is not provided and `flow_run_id` does not exist
+                in `prefect.context`
             - ValueError: If `flow_run_name` is not provided
 
         Example:
