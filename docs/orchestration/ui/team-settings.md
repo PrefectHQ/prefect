@@ -1,12 +1,15 @@
 # Team Settings <Badge text="Cloud"/>
 
-Teams in Cloud allow you to share your work among users. You can assign [a role](../concepts/roles.html) to each member of your team.  Each team member will also have their own (free) account.  
+Teams in Cloud allow you to share your work among users and to assign [roles](../concepts/roles.html).  Each team member will also have their own (free) Cloud Developer account.  
 
 ## Switching Teams
 
-To switch teams, head to the side-bar and click on your current team.  You will see all the teams you are part of as well as any outstanding invitations to join a new team. 
+To switch teams, head to the side-bar and click on your current team.  You can see all the teams you are part of as well as any outstanding invitations to join a new team. Click on the team you want to switch to. 
 
-![](/orchestration/ui/team-switch.png)
+<div class="add-shadow">
+  <img src="/orchestration/ui/team-switch.png">
+</div>
+
 
 ## Membership
 
@@ -31,3 +34,17 @@ Generate and manage `TENANT` and `RUNNER` scoped tokens for interacting programm
 Secrets allow you to store data that will only be provided to your flows at runtime.
 
 ![](/orchestration/ui/team-secrets.png)
+
+
+<style>
+.add-shadow  {
+    width: 90%;
+    max-height: auto;
+    border-radius: 10px;
+    vertical-align: bottom;
+    z-index: -1;
+    outline: 1;
+    box-shadow: 0px 20px 15px #3D4849;
+    margin-bottom: 50px
+}
+</style>
