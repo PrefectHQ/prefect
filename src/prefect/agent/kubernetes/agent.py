@@ -218,7 +218,10 @@ class KubernetesAgent(Agent):
         """
         Check status of jobs created by this agent, delete completed jobs and failed containers.
         """
-        self.manage_jobs()
+        try:
+            self.manage_jobs()
+        except Exception:
+            self.logger.error("Error while managing existing k8s jobs", exc_info=True)
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
@@ -448,11 +451,11 @@ class KubernetesAgent(Agent):
         container["args"] = [get_flow_run_command(flow_run)]
 
         # Populate environment variables from the following sources,
-        # with reverse precedence (later sources override).
-        # - Values in the job template
+        # with precedence:
+        # - Values required for flow execution, hardcoded below
+        # - Values set on the KubernetesRun object
         # - Values set using the `--env` CLI flag on the agent
-        # - Values set on the job configuration
-        # - Hardcoded values below, provided they're not already set
+        # - Values in the job template
         env = self.env_vars.copy()
         if run_config.env:
             env.update(run_config.env)
@@ -463,7 +466,6 @@ class KubernetesAgent(Agent):
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
-                "PREFECT__LOGGING__LEVEL": config.logging.level,
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",

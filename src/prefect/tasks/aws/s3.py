@@ -1,6 +1,7 @@
 import gzip
 import io
 import uuid
+import pendulum
 
 from prefect import Task
 from prefect.utilities.aws import get_boto_client
@@ -197,6 +198,8 @@ class S3List(Task):
         max_items: int = None,
         credentials: str = None,
         bucket: str = None,
+        last_modified_begin: str = None,
+        last_modified_end: str = None,
     ):
         """
         Task run method.
@@ -212,6 +215,12 @@ class S3List(Task):
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to list the files of
+            - last_modified_begin (str, optional): keep items with `LastModified` greater than
+                or equal to given value. timestamp should be in `RFC 3339`, `ISO 8601` or any
+                pendulum supported [format](https://pendulum.eustace.io/docs/#parsing).
+            - last_modified_end (str, optional): keep items with `LastModified` less than
+                or equal to given value. timestamp should be in `RFC 3339`, `ISO 8601` or any
+                pendulum supported [format](https://pendulum.eustace.io/docs/#parsing).
 
         Returns:
             - list[str]: A list of keys that match the given prefix.
@@ -227,8 +236,30 @@ class S3List(Task):
             Bucket=bucket, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
+        filters = []
+        filtered_results = None
+        # create the parts of JMESPath query
+        if last_modified_end:
+            filters.append(
+                "(to_string(LastModified) <= '\"{}\"')".format(
+                    pendulum.parse(last_modified_end).to_datetime_string()
+                )
+            )
+        if last_modified_begin:
+            filters.append(
+                "(to_string(LastModified) >= '\"{}\"')".format(
+                    pendulum.parse(last_modified_begin).to_datetime_string()
+                )
+            )
+
+        if filters:
+            # combine the parts and create the complete JMESPath query
+            filtered_results = results.search(
+                '{{"Contents": Contents[? {} ]}}'.format(" && ".join(filters))
+            )
+
         files = []
-        for page in results:
+        for page in filtered_results if filtered_results else results:
             files.extend(obj["Key"] for obj in page.get("Contents", []))
 
         return files

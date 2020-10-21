@@ -126,7 +126,7 @@ class TestGCSStorage:
         bucket_mock.get_blob.assert_called_with("a-place")
         assert blob_mock.download_as_string.call_count == 1
 
-    def test_build_no_upload_if_file(self, google_client):
+    def test_build_no_upload_if_file_and_no_local_script_path(self, google_client):
         storage = GCS(bucket="awesome-bucket", stored_as_script=True)
 
         with pytest.raises(ValueError):
@@ -134,6 +134,31 @@ class TestGCSStorage:
 
         storage = GCS(bucket="awesome-bucket", stored_as_script=True, key="myflow.py")
         assert storage == storage.build()
+
+    def test_upload_script_if_path(self, google_client, tmpdir):
+        blob_mock = MagicMock()
+        bucket_mock = MagicMock(blob=MagicMock(return_value=blob_mock))
+        google_client.return_value.get_bucket = MagicMock(return_value=bucket_mock)
+
+        with open(f"{tmpdir}/flow.py", "w") as tmpfile:
+            tmpfile.write("foo")
+
+        storage = GCS(
+            bucket="awesome-bucket",
+            stored_as_script=True,
+            local_script_path=f"{tmpdir}/flow.py",
+            key="key",
+        )
+
+        f = Flow("awesome-flow")
+        assert f.name not in storage
+        assert storage.add_flow(f)
+        assert f.name in storage
+        assert storage.build()
+
+        bucket_mock.blob.assert_called_with(blob_name=storage.flows[f.name])
+        blob_mock.upload_from_file.called
+        assert blob_mock.upload_from_file.call_args[0]
 
     def test_upload_single_flow_to_gcs(self, google_client):
         blob_mock = MagicMock()

@@ -1,5 +1,57 @@
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.results import LocalResult
+from prefect.tasks.core.operators import GetAttr
+from prefect.utilities.collections import DotDict
+
+
+class TestInteractionMethods:
+    # -----------------------------------------
+    # getattr
+
+    def test_getattr_constant(self):
+        with Flow(name="test") as f:
+            z = GetAttr()(Parameter("x"), "b")
+        state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3)))
+        assert state.result[z].result == 2
+
+    def test_getattr_default(self):
+        with Flow(name="test") as f:
+            x = Parameter("x")
+            a = GetAttr(default="foo")(x, "missing")
+            b = GetAttr()(x, "missing", "bar")
+            c = GetAttr()(x, "missing", default="baz")
+        state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3)))
+        assert state.result[a].result == "foo"
+        assert state.result[b].result == "bar"
+        assert state.result[c].result == "baz"
+
+    def test_getattr_missing(self):
+        with Flow(name="test") as f:
+            a = GetAttr()(Parameter("x"), "missing")
+        state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3)))
+        assert isinstance(state.result[a].result, AttributeError)
+
+    def test_getattr_nested(self):
+        with Flow(name="test") as f:
+            z = GetAttr()(Parameter("x"), "a.b.c")
+        state = f.run(parameters=dict(x=DotDict(a=DotDict(b=DotDict(c=1)))))
+        assert state.result[z].result == 1
+
+    def test_getattr_dynamic(self):
+        with Flow(name="test") as f:
+            z = GetAttr()(Parameter("x"), Parameter("y"))
+        state = f.run(parameters=dict(x=DotDict(a=1, b=2, c=3), y="b"))
+        assert state.result[z].result == 2
+
+    def test_getattr_preserves_result_info(self):
+        with Flow(name="test") as f:
+            p = Parameter("p")
+            z = GetAttr(checkpoint=False)(p, "foo")
+            y = GetAttr(checkpoint=True, result=LocalResult(dir="home"))(p, "bar")
+
+        assert z.checkpoint is False
+        assert isinstance(y.result, LocalResult)
+        assert y.result.dir.endswith("home")
 
 
 class TestMagicInteractionMethods:

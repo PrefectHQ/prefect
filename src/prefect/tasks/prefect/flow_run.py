@@ -1,4 +1,5 @@
 import time
+import warnings
 from typing import Any
 
 from prefect import context, Task
@@ -8,7 +9,7 @@ from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class FlowRunTask(Task):
+class StartFlowRun(Task):
     """
     Task used to kick off a flow run using Prefect Core's server or Prefect Cloud.  If multiple
     versions of the flow are found, this task will kick off the most recent unarchived version.
@@ -88,9 +89,9 @@ class FlowRunTask(Task):
 
         Example:
             ```python
-            from prefect.tasks.prefect.flow_run import FlowRunTask
+            from prefect.tasks.prefect.flow_run import StartFlowRun
 
-            kickoff_task = FlowRunTask(project_name="Hello, World!", flow_name="My Cloud Flow")
+            kickoff_task = StartFlowRun(project_name="Hello, World!", flow_name="My Cloud Flow")
             ```
 
         """
@@ -162,3 +163,13 @@ class FlowRunTask(Task):
                     f"{flow_run_id} finished in state {flow_run_state}"
                 )
                 raise exc
+
+
+class FlowRunTask(StartFlowRun):
+    def __new__(cls, *args, **kwargs):  # type: ignore
+        warnings.warn(
+            "`FlowRunTask` has been renamed to `prefect.tasks.prefect.StartFlowRun`,"
+            "please update your code accordingly",
+            stacklevel=2,
+        )
+        return super().__new__(cls)

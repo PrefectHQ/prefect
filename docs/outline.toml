@@ -225,7 +225,7 @@ classes = ["CloudFlowRunner", "CloudTaskRunner"]
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook"]
+classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab"]
 
 [pages.environments.execution]
 title = "Execution Environments"
@@ -235,7 +235,7 @@ classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "Fargate
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "KubernetesRun"]
+classes = ["RunConfig", "LocalRun", "DockerRun", "KubernetesRun"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -251,7 +251,7 @@ classes = ["WriteAirtableRow", "ReadAirtableRow"]
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
-classes = ["S3Download", "S3Upload", "S3List", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate", "AWSSecretsManager"]
+classes = ["S3Download", "S3Upload", "S3List", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate", "AWSSecretsManager", "BatchSubmit", "AWSClientWait"]
 
 [pages.tasks.azure]
 title = "Azure Tasks"
@@ -276,7 +276,7 @@ classes = ["DatasetCreateFromDelimitedFiles",
 [pages.tasks.prefect]
 title = "Prefect Tasks"
 module = "prefect.tasks.prefect"
-classes = ["FlowRunTask", "RenameFlowRunTask"]
+classes = ["StartFlowRun", "RenameFlowRun", "CancelFlowRun"]
 
 [pages.tasks.github]
 title = "GitHub Tasks"
@@ -447,6 +447,7 @@ title = "Operator Tasks"
 module = "prefect.tasks.core.operators"
 classes = [
     "GetItem",
+    "GetAttr",
     "Add",
     "Sub",
     "Mul",
@@ -544,7 +545,7 @@ functions = ["diagnostic_info", "flow_information", "system_information", "confi
 [pages.utilities.executors]
 title = "Executors"
 module = "prefect.utilities.executors"
-functions = ["timeout_handler"]
+functions = ["run_task_with_timeout"]
 
 [pages.utilities.gcp]
 title = "Google Utilities"

@@ -167,6 +167,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
             project_name="my-default-project",
             compressed=False,
             version_group_id=str(uuid.uuid4()),
+            no_url=True,
         )
 
 
@@ -221,6 +222,7 @@ def test_client_register_doesnt_raise_for_scheduled_params(
         project_name="my-default-project",
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
+        no_url=True,
     )
     assert flow_id == "long-id"
 
@@ -260,6 +262,7 @@ def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
         project_name="my-default-project",
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
+        no_url=True,
     )
     assert flow_id == "long-id"
 
@@ -310,6 +313,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result(
             project_name="my-default-project",
             compressed=compressed,
             version_group_id=str(uuid.uuid4()),
+            no_url=True,
         )
 
 
@@ -350,6 +354,7 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
         project_name="my-default-project",
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
+        no_url=True,
     )
     assert flow_id == "long-id"
 
@@ -385,7 +390,7 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     flow.result = flow.storage.result
 
     flow_id = client.register(
-        flow, project_name="my-default-project", compressed=compressed
+        flow, project_name="my-default-project", compressed=compressed, no_url=True
     )
 
     ## extract POST info
@@ -437,7 +442,11 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     flow.result = flow.storage.result
 
     flow_id = client.register(
-        flow, project_name="my-default-project", compressed=compressed, build=True
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        build=True,
+        no_url=True,
     )
 
     ## extract POST info
@@ -489,7 +498,11 @@ def test_client_register_default_all_extras_image(
     flow.result = flow.storage.result
 
     flow_id = client.register(
-        flow, project_name="my-default-project", compressed=compressed, build=True
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        build=True,
+        no_url=True,
     )
 
     ## extract POST info
@@ -540,7 +553,11 @@ def test_client_register_optionally_avoids_building_flow(
     flow.result = prefect.engine.result.Result()
 
     flow_id = client.register(
-        flow, project_name="my-default-project", build=False, compressed=compressed
+        flow,
+        project_name="my-default-project",
+        build=False,
+        compressed=compressed,
+        no_url=True,
     )
 
     ## extract POST info
@@ -570,7 +587,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     flow.result = prefect.engine.result.Result()
 
     with pytest.raises(ValueError) as exc:
-        flow_id = client.register(flow, project_name="my-default-project")
+        flow_id = client.register(flow, project_name="my-default-project", no_url=True)
     assert "not found" in str(exc.value)
     assert "prefect create project 'my-default-project'" in str(exc.value)
 
@@ -604,7 +621,9 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
             "(`retry_delay` must be provided if max_retries > 0)"
         ),
     ) as exc:
-        client.register(flow, project_name="my-default-project", build=False)
+        client.register(
+            flow, project_name="my-default-project", build=False, no_url=True
+        )
 
 
 @pytest.mark.parametrize("compressed", [True, False])
@@ -616,11 +635,16 @@ def test_client_register_flow_id_output(
             "data": {
                 "project": [{"id": "proj-id"}],
                 "create_flow_from_compressed_string": {"id": "long-id"},
+                "flow_by_pk": {"flow_group_id": "fg-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "create_flow": {"id": "long-id"},
+                "flow_by_pk": {"flow_group_id": "fg-id"},
+            }
         }
     patch_post(response)
 
@@ -648,7 +672,7 @@ def test_client_register_flow_id_output(
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert "Flow URL: https://cloud.prefect.io/tslug/flow/long-id\n" in captured.out
+    assert "Flow URL: https://cloud.prefect.io/tslug/flow/fg-id\n" in captured.out
 
 
 @pytest.mark.parametrize("compressed", [True, False])
@@ -703,6 +727,17 @@ def test_set_flow_run_name(patch_posts, cloud_api):
 
     client = Client()
     result = client.set_flow_run_name(flow_run_id="74-salt", name="name")
+
+    assert result == True
+
+
+def test_cancel_flow_run(patch_posts, cloud_api):
+    mutation_resp = {"data": {"cancel_flow_run": {"state": True}}}
+
+    post = patch_posts(mutation_resp)
+
+    client = Client()
+    result = client.cancel_flow_run(flow_run_id="74-salt")
 
     assert result == True
 

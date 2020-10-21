@@ -129,3 +129,30 @@ def test_shell_uses_dbt_envar(tmpdir, monkeypatch):
     missing_profiles_path = tmpdir.join("profiles.yml")
     assert out.is_successful()
     assert not os.path.exists(missing_profiles_path)
+
+
+def test_task_creates_default_profile_if_none_exists():
+    with Flow(name="test") as f:
+        task = DbtShellTask(
+            profile_name="default",
+            environment="test",
+            dbt_kwargs={
+                "type": "snowflake",
+                "threads": 1,
+                "account": "JH72176.us-east-1",
+                "user": "jane@company.com",
+                "role": "analyst",
+                "database": "staging",
+                "warehouse": "data_science",
+                "schema": "analysis",
+                "private_key_path": "/src/private_key.p8",
+                "private_key_passphrase": "password123",
+            },
+            overwrite_profiles=False,
+        )(command="ls")
+    out = f.run()
+    default_profiles_path = os.path.exists(
+        os.path.join(os.path.expanduser("~"), ".dbt")
+    )
+    assert out.is_successful()
+    assert default_profiles_path

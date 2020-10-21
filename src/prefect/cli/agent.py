@@ -70,6 +70,18 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--storage-labels/--no-storage-labels",
+    default=True,
+    help="Add all storage labels to the LocalAgent",
+    hidden=True,
+)
+@click.option(
+    "--hostname-label/--no-hostname-label",
+    default=True,
+    help="Add hostname to the LocalAgent's labels",
+    hidden=True,
+)
+@click.option(
     "--env",
     "-e",
     multiple=True,
@@ -165,6 +177,8 @@ def start(
     no_docker_interface,
     max_polls,
     agent_address,
+    storage_labels,
+    hostname_label,
 ):
     """
     Start an agent.
@@ -208,6 +222,10 @@ def start(
                                         e.g. `-p /root/my_scripts -p /utilities`
         --show-flow-logs, -f        Display logging output from flows run by the agent
                                     (available for Local and Docker agents only)
+        --hostname-label            Add hostname to the Agent's labels
+                                        (Default to True. Disable with --no-hostname-label option)
+        --storage-labels            Add all storage labels to the Agent
+                                        (Default to True. Disable with --no-storage-labels option)
 
     \b
     Docker Agent:
@@ -273,6 +291,8 @@ def start(
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
                 no_cloud_logs=no_cloud_logs,
+                hostname_label=hostname_label,
+                storage_labels=storage_labels,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(

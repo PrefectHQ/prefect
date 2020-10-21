@@ -357,7 +357,6 @@ class Flow:
         with prefect.context(flow=self, _unused_task_tracker=unused_task_tracker):
             yield self
 
-        # constants are not tracked at the flow level
         if unused_task_tracker.difference(self.tasks):
             warnings.warn(
                 "Tasks were created but not added to the flow: "
@@ -1540,7 +1539,10 @@ class Flow:
             "logging.log_to_cloud": log_to_cloud,
         }
         with set_temporary_config(temp_config):
-            labels = list(self.environment.labels) if self.environment.labels else []
+            if self.run_config is not None:
+                labels = list(self.run_config.labels or ())
+            else:
+                labels = list(self.environment.labels or ())
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
@@ -1582,6 +1584,19 @@ class Flow:
         Returns:
             - str: the ID of the flow that was registered
         """
+        if hasattr(self, "_ctx"):
+            raise ValueError(
+                "Don't call `flow.register()` from within a `Flow` context manager.\n\n"
+                "Do:\n\n"
+                "  with Flow(...) as flow:\n"
+                "      ...\n"
+                "  flow.register(...)\n\n"
+                "Don't:\n\n"
+                "  with Flow(...) as flow:\n"
+                "      ...\n"
+                "      flow.register(...)"
+            )
+
         if prefect.context.get("loading_flow", False):
             warnings.warn(
                 "Attempting to call `flow.register` during execution of flow file will lead "
@@ -1594,10 +1609,10 @@ class Flow:
             self.storage = get_default_storage_class()(**kwargs)
 
         # add auto-labels for various types of storage
-        self.environment.labels.update(self.storage.labels)
-
-        if labels:
-            self.environment.labels.update(labels)
+        for obj in [self.environment, self.run_config]:
+            if obj is not None:
+                obj.labels.update(self.storage.labels)
+                obj.labels.update(labels or ())
 
         # register the flow with a default result handler if one not provided
         if not self.result:

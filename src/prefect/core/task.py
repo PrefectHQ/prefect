@@ -1,5 +1,6 @@
 import collections.abc
 import copy
+import enum
 import inspect
 import warnings
 from datetime import timedelta
@@ -32,6 +33,16 @@ if TYPE_CHECKING:
     from prefect.core import Edge
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+
+
+# A sentinel value indicating no default was provided
+# mypy requires enums for typed sentinel values, so other
+# simpler solutions won't work :/
+class NoDefault(enum.Enum):
+    value = "no_default"
+
+    def __repr__(self) -> str:
+        return "<no default>"
 
 
 def _validate_run_signature(run: Callable) -> None:
@@ -148,13 +159,13 @@ class Task(metaclass=SignatureValidator):
             attempting to use either state or data from tasks that didn't run. If
             `False`, the task's trigger will be called as normal, with skips
             considered successes. Defaults to `True`.
-        - cache_for (timedelta, optional, DEPRECATED): The amount of time to maintain a cache
+        - cache_for (timedelta, optional): The amount of time to maintain a cache
             of the outputs of this task.  Useful for situations where the containing Flow
             will be rerun multiple times, but this task doesn't need to be.
-        - cache_validator (Callable, optional, DEPRECATED): Validator that will determine
+        - cache_validator (Callable, optional): Validator that will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
-        - cache_key (str, optional, DEPRECATED): if provided, a `cache_key`
+        - cache_key (str, optional): if provided, a `cache_key`
             serves as a unique identifier for this Task's cache, and can be shared
             across both Tasks _and_ Flows; if not provided, the Task's _name_ will
             be used if running locally, or the Task's database ID if running in
@@ -827,7 +838,7 @@ class Task(metaclass=SignatureValidator):
         Produces a Task that evaluates `self[key]`
 
         Args:
-            - key (object): the object to use an an index for this task. It will be converted
+            - key (object): the object to use as an index for this task. It will be converted
                 to a Task if it isn't one already.
 
         Returns:

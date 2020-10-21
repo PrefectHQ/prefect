@@ -1,5 +1,6 @@
 from contextlib import redirect_stdout
 from dask.base import tokenize
+from contextlib import AbstractContextManager
 from typing import (
     Any,
     Callable,
@@ -40,6 +41,7 @@ from prefect.utilities.executors import (
     run_with_heartbeat,
     tail_recursive,
 )
+from prefect.utilities.compatibility import nullcontext
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -309,7 +311,7 @@ class TaskRunner(Runner):
             raise exc
 
         except Exception as exc:
-            msg = "Task '{name}': unexpected error while running task: {exc}".format(
+            msg = "Task '{name}': Unexpected error while running task: {exc}".format(
                 name=context["task_full_name"], exc=repr(exc)
             )
             self.logger.exception(msg)
@@ -325,7 +327,8 @@ class TaskRunner(Runner):
             # that any run-context, including task-run-ids, are respected
             with prefect.context(context):
                 self.logger.info(
-                    "Task '{name}': finished task run for task with final state: '{state}'".format(
+                    "Task '{name}': Finished task run for task with final state: "
+                    "'{state}'".format(
                         name=context["task_full_name"], state=type(state).__name__
                     )
                 )
@@ -361,7 +364,8 @@ class TaskRunner(Runner):
 
         if not all(s.is_finished() for s in all_states):
             self.logger.debug(
-                "Task '{name}': not all upstream states are finished; ending run.".format(
+                "Task '{name}': Not all upstream states are finished; "
+                "ending run.".format(
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
@@ -504,7 +508,8 @@ class TaskRunner(Runner):
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
             self.logger.exception(
-                "Task '{name}': unexpected error while evaluating task trigger: {exc}".format(
+                "Task '{name}': Unexpected error while evaluating task trigger: "
+                "{exc}".format(
                     exc=repr(exc),
                     name=prefect.context.get("task_full_name", self.task.name),
                 )
@@ -564,7 +569,7 @@ class TaskRunner(Runner):
         # this task is already finished
         elif state.is_finished():
             self.logger.debug(
-                "Task '{name}': task is already finished.".format(
+                "Task '{name}': Task is already finished.".format(
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
@@ -573,7 +578,8 @@ class TaskRunner(Runner):
         # this task is not pending
         else:
             self.logger.debug(
-                "Task '{name}' is not ready to run or state was unrecognized ({state}).".format(
+                "Task '{name}': Task is not ready to run or state was unrecognized "
+                "({state}).".format(
                     name=prefect.context.get("task_full_name", self.task.name),
                     state=state,
                 )
@@ -601,7 +607,8 @@ class TaskRunner(Runner):
             # handle case where no start_time is set
             if state.start_time is None:
                 self.logger.debug(
-                    "Task '{name}' is scheduled without a known start_time; ending run.".format(
+                    "Task '{name}' is scheduled without a known start_time; "
+                    "ending run.".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )
@@ -610,7 +617,8 @@ class TaskRunner(Runner):
             # handle case where start time is in the future
             elif state.start_time and state.start_time > pendulum.now("utc"):
                 self.logger.debug(
-                    "Task '{name}': start_time has not been reached; ending run.".format(
+                    "Task '{name}': start_time has not been reached; "
+                    "ending run.".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )
@@ -622,8 +630,8 @@ class TaskRunner(Runner):
         self, state: State, upstream_states: Dict[Edge, State]
     ) -> Dict[str, Result]:
         """
-        Given the task's current state and upstream states, generates the inputs for this task.
-        Upstream state result values are used.
+        Given the task's current state and upstream states, generates the inputs for
+        this task. Upstream state result values are used.
 
         Args:
             - state (State): the task's current state.
@@ -753,7 +761,7 @@ class TaskRunner(Runner):
 
         if self.task.cache_for is not None:
             self.logger.warning(
-                "Task '{name}': can't use cache because it "
+                "Task '{name}': Can't use cache because it "
                 "is now invalid".format(
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
@@ -778,7 +786,7 @@ class TaskRunner(Runner):
         """
         if not state.is_pending():
             self.logger.debug(
-                "Task '{name}': can't set state to Running because it "
+                "Task '{name}': Can't set state to Running because it "
                 "isn't Pending; ending run.".format(
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
@@ -809,7 +817,7 @@ class TaskRunner(Runner):
         """
         if not state.is_running():
             self.logger.debug(
-                "Task '{name}': can't run task because it's not in a "
+                "Task '{name}': Can't run task because it's not in a "
                 "Running state; ending run.".format(
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
@@ -825,17 +833,20 @@ class TaskRunner(Runner):
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
-            timeout_handler = prefect.utilities.executors.timeout_handler
-            if getattr(self.task, "log_stdout", False):
-                with redirect_stdout(
-                    prefect.utilities.logging.RedirectToLog(self.logger)  # type: ignore
-                ):
-                    value = timeout_handler(
-                        self.task.run, timeout=self.task.timeout, **raw_inputs
-                    )
-            else:
-                value = timeout_handler(
-                    self.task.run, timeout=self.task.timeout, **raw_inputs
+
+            # Create a stdout redirect if the task has log_stdout enabled
+            log_context = (
+                redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger))
+                if getattr(self.task, "log_stdout", False)
+                else nullcontext()
+            )  # type: AbstractContextManager
+
+            with log_context:
+                value = prefect.utilities.executors.run_task_with_timeout(
+                    task=self.task,
+                    args=(),
+                    kwargs=raw_inputs,
+                    logger=self.logger,
                 )
 
         # inform user of timeout

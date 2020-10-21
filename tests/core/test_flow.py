@@ -22,7 +22,7 @@ from prefect.core.task import Task
 from prefect.tasks.core import constants
 from prefect.core.parameter import Parameter
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
-from prefect.engine.executors import LocalExecutor
+from prefect.engine.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
@@ -41,6 +41,8 @@ from prefect.engine.state import (
     TriggerFailed,
     TimedOut,
 )
+from prefect.environments.execution import LocalEnvironment
+from prefect.run_configs import LocalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
@@ -2579,6 +2581,7 @@ class TestFlowRegister:
         assert f.storage.image_tag == "BIG"
         assert f.environment.labels == set()
 
+    @pytest.mark.parametrize("kind", ["environment", "run_config"])
     @pytest.mark.parametrize(
         "storage",
         [
@@ -2588,15 +2591,19 @@ class TestFlowRegister:
             prefect.environments.storage.Azure(container="windows"),
         ],
     )
-    def test_flow_register_auto_labels_environment_if_labeled_storage_used(
-        self, monkeypatch, storage
+    def test_flow_register_auto_labels_if_labeled_storage_used(
+        self, monkeypatch, storage, kind
     ):
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(name="Test me!! I should get labeled", storage=storage)
+        if kind == "run_config":
+            obj = f.run_config = LocalRun(labels=["test-label"])
+        else:
+            obj = f.environment = LocalEnvironment(labels=["test-label"])
 
         f.register("My-project", build=False)
 
-        assert len(f.environment.labels) == 1
+        assert obj.labels == {"test-label", *storage.labels}
 
     @pytest.mark.parametrize(
         "storage",
@@ -2665,8 +2672,13 @@ class TestFlowRegister:
         assert "foo" in f.environment.labels
         assert len(f.environment.labels) == 2
 
-    def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+    def test_flow_register_errors_if_in_flow_context(self):
+        with pytest.raises(ValueError) as exc:
+            with Flow("test") as flow:
+                flow.register()
+        assert "`flow.register()` from within a `Flow` context manager" in str(
+            exc.value
+        )
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():
@@ -2923,8 +2935,12 @@ class TestSaveLoad:
     sys.platform == "win32" or sys.version_info.minor == 6,
     reason="Windows doesn't support any timeout logic",
 )
-@pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
-def test_timeout_actually_stops_execution(executor):
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mthread", "mproc_local", "mproc"], indirect=True
+)
+def test_timeout_actually_stops_execution(
+    executor,
+):
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
@@ -2938,15 +2954,25 @@ def test_timeout_actually_stops_execution(executor):
     # the task implementation" we got, but instead do a simple task (create a file) and sleep.
     # This will drastically reduce the brittleness of the test (but not completely).
 
+    # The amount of time to sleep before writing 'invalid' to the file
+    # lower values will decrease test time but increase chances of intermittent failure
+    SLEEP_TIME = 3
+
+    # Determine if the executor is distributed and using daemonic processes which
+    # cannot be cancelled and throw a warning instead.
+    in_daemon_process = isinstance(
+        executor, DaskExecutor
+    ) and not executor.address.startswith("inproc")
+
     with tempfile.TemporaryDirectory() as call_dir:
         # Note: a real file must be used in the case of "mthread"
         FILE = os.path.join(call_dir, "test.txt")
 
-        @prefect.task(timeout=1)
+        @prefect.task(timeout=2)
         def slow_fn():
             with open(FILE, "w") as f:
                 f.write("called!")
-            time.sleep(2)
+            time.sleep(SLEEP_TIME)
             with open(FILE, "a") as f:
                 f.write("invalid")
 
@@ -2957,15 +2983,25 @@ def test_timeout_actually_stops_execution(executor):
         start_time = time.time()
         state = flow.run(executor=executor)
         stop_time = time.time()
-        time.sleep(max(0, 3 - (stop_time - start_time)))
+
+        # Sleep so 'invalid' will be written if the task is not killed, subtracting the
+        # actual runtime to speed up the test a little
+        time.sleep(max(1, SLEEP_TIME - (stop_time - start_time)))
 
         assert os.path.exists(FILE)
         with open(FILE, "r") as f:
-            assert "invalid" not in f.read()
+            # `invalid` should *only be in the file if a daemon process was used
+            assert ("invalid" in f.read()) == in_daemon_process
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
     assert isinstance(state.result[slow_fn].result, TimeoutError)
+    # We cannot capture the UserWarning because it is being run by a Dask worker
+    # but we can make sure the TimeoutError includes a note about it
+    assert (
+        "executed in a daemonic subprocess and will continue to run"
+        in str(state.result[slow_fn].result)
+    ) == in_daemon_process
 
 
 @pytest.mark.skip("Result handlers not yet deprecated")
@@ -3021,16 +3057,17 @@ def test_results_write_to_custom_formatters(tmpdir):
     }
 
 
-def test_run_agent_passes_environment_labels(monkeypatch):
+@pytest.mark.parametrize("kind", ["environment", "run_config"])
+def test_run_agent_passes_flow_labels(monkeypatch, kind):
     agent = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent", agent)
+    labels = ["test", "test", "test2"]
 
-    f = Flow(
-        "test",
-        environment=prefect.environments.LocalEnvironment(
-            labels=["test", "test", "test2"]
-        ),
-    )
+    f = Flow("test")
+    if kind == "run_config":
+        f.run_config = LocalRun(labels=labels)
+    else:
+        f.environment = LocalEnvironment(labels=labels)
     f.run_agent()
 
     assert type(agent.call_args[1]["labels"]) is list
