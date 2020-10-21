@@ -697,10 +697,6 @@ class FargateAgent(Agent):
         )
         if self.launch_type:
             flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
-        try:
-            flow_task_definition_kwargs.pop("networkMode")
-        except KeyError:
-            self.logger.info("networkMode not passed in task definitions args")
 
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
