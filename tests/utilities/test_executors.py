@@ -44,9 +44,9 @@ def test_timeout_handler_actually_stops_execution(timeout_handler, tmpdir):
         wait_time = 1.5
         max_overhead = 0.1
     else:
-        timeout = 1.5
-        wait_time = 2
-        max_overhead = 1
+        timeout = 2.5
+        wait_time = 3
+        max_overhead = 2
 
     def slow_fn(start_path, finish_path, wait_time):
         with open(start_path, "wb"):
