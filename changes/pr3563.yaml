@@ -1,5 +1,5 @@
 fix:
-  - "Fix CloudHandler failing on bytes - [#3563](https://github.com/PrefectHQ/prefect/pull/3563)"
+  - "Tasks with `log_stdout=True` work with non-utf8 output - [#3563](https://github.com/PrefectHQ/prefect/pull/3563)"
 
 contributor:
   - "[Raphael Riel](https://github.com/raphael-riel)"
