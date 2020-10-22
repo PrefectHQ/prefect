@@ -56,7 +56,7 @@ class BlobStorageDownload(Task):
         # get Azure credentials
         azure_credentials = Secret(azure_credentials_secret).get()
 
-        blob_service = azure.storage.blob.BlockBlobService(conn_str=azure_credentials)
+        blob_service = azure.storage.blob.BlobServiceClient.from_connection_string(conn_str=azure_credentials)
 
         client = blob_service.get_blob_client(container=container, blob=blob_name)
         content_string = client.download_blob().content_as_text()
@@ -116,7 +116,7 @@ class BlobStorageUpload(Task):
         # get Azure credentials
         azure_credentials = Secret(azure_credentials_secret).get()
 
-        blob_service = azure.storage.blob.BlockBlobService(conn_str=azure_credentials)
+        blob_service = azure.storage.blob.BlobServiceClient.from_connection_string(conn_str=azure_credentials)
 
         # create key if not provided
         if blob_name is None:
