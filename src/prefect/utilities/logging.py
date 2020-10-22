@@ -15,7 +15,7 @@ import sys
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, Union
 
 import pendulum
 
@@ -305,7 +305,7 @@ class RedirectToLog:
     def __init__(self, logger: logging.Logger = None) -> None:
         self.stdout_logger = logger or get_logger("stdout")
 
-    def write(self, s: str) -> None:
+    def write(self, s: Union[str, bytes]) -> None:
         """
         Write message from stdout to a prefect logger.
         Note: blank newlines will not be logged.
