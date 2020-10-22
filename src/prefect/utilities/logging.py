@@ -313,6 +313,10 @@ class RedirectToLog:
         Args:
             s (str): the message from stdout to be logged
         """
+        if not isinstance(s, str):
+            # stdout is expecting str
+            raise TypeError(f"string argument expected, got {type(s)}")
+
         if s.strip():
             self.stdout_logger.info(s)
 

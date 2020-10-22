@@ -1,9 +1,11 @@
+import contextlib
 import datetime
 import json
 import logging
 import time
 from unittest.mock import MagicMock
 
+import click
 import pytest
 
 from prefect import context, utilities
@@ -476,5 +478,18 @@ def test_redirect_to_log(caplog):
 
     logs = [r.message for r in caplog.records if r.levelname == "INFO"]
     assert logs == ["TEST1", "TEST2"]
+
+    log_stdout.flush()
+
+
+def test_redirect_to_log_is_textwriter(caplog):
+    log_stdout = utilities.logging.RedirectToLog()
+    with contextlib.redirect_stdout(log_stdout):
+        click.secho("There is color on this line", fg="red")
+        click.secho("Standard")
+    log_stdout.flush()
+
+    logs = [r.message for r in caplog.records if r.levelname == "INFO"]
+    assert logs == ["There is color on this line\n", "Standard\n"]
 
     log_stdout.flush()
