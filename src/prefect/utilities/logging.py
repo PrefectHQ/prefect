@@ -15,7 +15,7 @@ import sys
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any, Union
+from typing import Any
 
 import pendulum
 
