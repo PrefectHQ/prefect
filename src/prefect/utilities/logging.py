@@ -305,7 +305,7 @@ class RedirectToLog:
     def __init__(self, logger: logging.Logger = None) -> None:
         self.stdout_logger = logger or get_logger("stdout")
 
-    def write(self, s: Union[str, bytes]) -> None:
+    def write(self, s: str) -> None:
         """
         Write message from stdout to a prefect logger.
         Note: blank newlines will not be logged.
@@ -313,11 +313,9 @@ class RedirectToLog:
         Args:
             s (str): the message from stdout to be logged
         """
-        if isinstance(s, bytes):
-            # stdout output may contain escape sequences to control cursor, color, etc.
-            #   When it's the case, the line will be encoded as bytes.
-            #   It need to be converted back to something CloudHandler can work with.
-            s = str(s, "utf-8", "ignore")
+        if not isinstance(s, str):
+            # stdout is expecting str
+            raise TypeError(f"string argument expected, got {type(s)}")
 
         if s.strip():
             self.stdout_logger.info(s)

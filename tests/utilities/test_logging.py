@@ -478,18 +478,3 @@ def test_redirect_to_log(caplog):
     assert logs == ["TEST1", "TEST2"]
 
     log_stdout.flush()
-
-
-def test_redirect_to_log_when_bytes(caplog):
-    log_stdout = utilities.logging.RedirectToLog()
-    print()
-    log_stdout.write("TEST_is_not_bytes")
-    log_stdout.write(b"")
-    log_stdout.write(b"\x20")  # will map to space, which need to be discarded
-    log_stdout.write("hello world".encode("utf-8"))
-    log_stdout.write(b"\x61\x62\x63")
-
-    logs = [r.message for r in caplog.records if r.levelname == "INFO"]
-    assert logs == ["TEST_is_not_bytes", "hello world", "abc"]
-
-    log_stdout.flush()
