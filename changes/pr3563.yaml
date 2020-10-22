@@ -1,0 +1,5 @@
+fix:
+  - "Fix CloudHandler failing on bytes - [#3563](https://github.com/PrefectHQ/prefect/pull/3563)"
+
+contributor:
+  - "[Raphael Riel](https://github.com/raphael-riel)"
