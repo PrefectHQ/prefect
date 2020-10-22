@@ -317,7 +317,7 @@ class RedirectToLog:
             # stdout output may contain escape sequences to control cursor, color, etc.
             #   When it's the case, the line will be encoded as bytes.
             #   It need to be converted back to something CloudHandler can work with.
-            s = str(s, 'utf-8', 'ignore')
+            s = str(s, "utf-8", "ignore")
 
         if s.strip():
             self.stdout_logger.info(s)
