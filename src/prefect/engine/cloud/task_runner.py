@@ -268,7 +268,7 @@ class CloudTaskRunner(TaskRunner):
                     ):
                         try:
                             return candidate_state.load_result(self.result)
-                        except Exception as exc:
+                        except Exception:
                             location = getattr(
                                 candidate_state._result, "location", None
                             )
