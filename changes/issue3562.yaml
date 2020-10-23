@@ -1,0 +1,5 @@
+fix:
+  - "Use `BlobServiceClient` instead of `BlockBlobService` to connect to azure blob in azure tasks - [#3562](https://github.com/PrefectHQ/prefect/pull/3562)"
+
+contributor:
+  - "[Kfir Stri](https://github.com/kfirstri)"
