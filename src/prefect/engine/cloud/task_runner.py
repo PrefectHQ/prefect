@@ -269,8 +269,12 @@ class CloudTaskRunner(TaskRunner):
                         try:
                             return candidate_state.load_result(self.result)
                         except Exception as exc:
+                            location = getattr(
+                                candidate_state._result, "location", None
+                            )
                             self.logger.warning(
-                                f"Failed to load cached state data from {candidate_state._result.location}."
+                                f"Failed to load cached state data from {location}.",
+                                exc_info=True,
                             )
 
                 self.logger.debug(
