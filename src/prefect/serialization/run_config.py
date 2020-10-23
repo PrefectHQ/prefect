@@ -1,7 +1,7 @@
 from marshmallow import fields
 
 from prefect.utilities.serialization import JSONCompatible, OneOfSchema, ObjectSchema
-from prefect.run_configs import KubernetesRun, LocalRun, DockerRun
+from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun
 
 
 class RunConfigSchemaBase(ObjectSchema):
@@ -20,6 +20,18 @@ class KubernetesRunSchema(RunConfigSchemaBase):
     cpu_request = fields.String(allow_none=True)
     memory_limit = fields.String(allow_none=True)
     memory_request = fields.String(allow_none=True)
+
+
+class ECSRunSchema(RunConfigSchemaBase):
+    class Meta:
+        object_class = ECSRun
+
+    task_definition = fields.String(allow_none=True)
+    image = fields.String(allow_none=True)
+    env = fields.Dict(keys=fields.String(), allow_none=True)
+    cpu = fields.String(allow_none=True)
+    memory = fields.String(allow_none=True)
+    run_task_kwargs = JSONCompatible(allow_none=True)
 
 
 class LocalRunSchema(RunConfigSchemaBase):
@@ -41,6 +53,7 @@ class DockerRunSchema(RunConfigSchemaBase):
 class RunConfigSchema(OneOfSchema):
     type_schemas = {
         "KubernetesRun": KubernetesRunSchema,
+        "ECSRun": ECSRunSchema,
         "LocalRun": LocalRunSchema,
         "DockerRun": DockerRunSchema,
     }
