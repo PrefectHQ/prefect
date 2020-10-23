@@ -266,7 +266,12 @@ class CloudTaskRunner(TaskRunner):
                         sanitized_inputs,
                         prefect.context.get("parameters"),
                     ):
-                        return candidate_state.load_result(self.result)
+                        try:
+                            return candidate_state.load_result(self.result)
+                        except Exception as exc:
+                            self.logger.warning(
+                                f"Failed to load cached state data from {candidate_state._result.location}."
+                            )
 
                 self.logger.debug(
                     "Task '{name}': can't use cache because no candidate Cached states "
