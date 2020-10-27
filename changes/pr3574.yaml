@@ -1,0 +1,5 @@
+enhancement:
+  - "Add option to select `cursor_type` for MySQLFetch task - [#3574](https://github.com/PrefectHQ/prefect/pull/3574)"
+
+contributor:
+  - "[Michael Marinaccio](https://github.com/mmarinaccio)"
