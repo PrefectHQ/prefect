@@ -1,5 +1,0 @@
-enhancement:
-  - "Allows to schedule flow runs at an arbitrary time with StartFlowRun"
-
-contributor:
-  - "[Lukáš Novotný](https://github.com/novotl)"
