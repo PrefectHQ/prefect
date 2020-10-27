@@ -1,6 +1,6 @@
 # Changelog
 
-## Please, call me `BlobServiceClient` - `BlockBlobService` was my father's name <Badge text="beta" type="success" />
+## 0.13.13  <Badge text="beta" type="success" />
 
 Released on October 27, 2020.
 
