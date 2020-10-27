@@ -108,6 +108,7 @@ class MySQLFetch(Task):
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset of the query, defaults to "utf8mb4"
+        - cursor_type (str, optional): cursor type you want to use (defaults to standard Cursor class)
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -124,6 +125,7 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
+        cursor_type: str = "cursor",
         **kwargs: Any
     ):
         self.db_name = db_name
@@ -136,9 +138,10 @@ class MySQLFetch(Task):
         self.query = query
         self.commit = commit
         self.charset = charset
+        self.cursor_type = cursor_type
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_count", "query", "commit", "charset")
+    @defaults_from_attrs("fetch", "fetch_count", "query", "commit", "charset", "cursor_type")
     def run(
         self,
         query: str,
@@ -146,6 +149,7 @@ class MySQLFetch(Task):
         fetch_count: int = 10,
         commit: bool = False,
         charset: str = "utf8mb4",
+        cursor_type: str = "cursor",
     ) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
@@ -158,6 +162,7 @@ class MySQLFetch(Task):
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
+            - cursor_type (str, optional): cursor type you want to use (defaults to standard Cursor class)
 
         Returns:
             - results (tuple or list of tuples): records from provided query
@@ -173,6 +178,16 @@ class MySQLFetch(Task):
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'all')"
             )
 
+        if cursor_type not in {"cursor", "dict_cursor"}:
+            raise ValueError(
+                f"Unsupported cursor_type '{cursor_type}'. Please choose one of the following - ('cursor', 'dict_cursor')"
+            )
+
+        if cursor_type == "cursor":
+            cursor_class = pymysql.cursors.Cursor
+        else:
+            cursor_class = pymysql.cursors.DictCursor
+
         conn = pymysql.connect(
             host=self.host,
             user=self.user,
@@ -180,6 +195,7 @@ class MySQLFetch(Task):
             db=self.db_name,
             charset=self.charset,
             port=self.port,
+            cursorclass=cursor_class
         )
 
         try:

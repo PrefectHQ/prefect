@@ -31,3 +31,11 @@ class TestMySQLFetch:
             match="The 'fetch' parameter must be one of the following - \('one', 'many', 'all'\)",
         ):
             task.run(query="SELECT * FROM some_table", fetch="not a valid parameter")
+
+    def test_bad_cursor_type_param_raises(self):
+        task = MySQLFetch(db_name="test", user="test", password="test", host="test", cursor_type="cursor")
+        with pytest.raises(
+            ValueError,
+            match="Unsupported cursor_type 'invalid cursor'. Please choose one of the following - \('cursor', 'dict_cursor'\)",
+        ):
+            task.run(query="SELECT * FROM some_table", cursor_type="invalid cursor")
