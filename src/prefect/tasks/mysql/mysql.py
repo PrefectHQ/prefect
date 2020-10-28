@@ -34,7 +34,7 @@ class MySQLExecute(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self.db_name = db_name
         self.user = user
@@ -126,7 +126,7 @@ class MySQLFetch(Task):
         commit: bool = False,
         charset: str = "utf8mb4",
         cursor_type: Union[str, Callable] = "cursor",
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self.db_name = db_name
         self.user = user
@@ -141,7 +141,9 @@ class MySQLFetch(Task):
         self.cursor_type = cursor_type
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_count", "query", "commit", "charset", "cursor_type")
+    @defaults_from_attrs(
+        "fetch", "fetch_count", "query", "commit", "charset", "cursor_type"
+    )
     def run(
         self,
         query: str,
@@ -180,16 +182,18 @@ class MySQLFetch(Task):
 
         cursor_types = {
             "cursor": pymysql.cursors.Cursor,
-            "dictcursor": pymysql.cursors.DictCursor
+            "dictcursor": pymysql.cursors.DictCursor,
         }
 
         if callable(cursor_type):
             cursor_class = cursor_type
         else:
             cursor_class = cursor_types.get(cursor_type.lower())
-        
+
         if cursor_class is None or cursor_class not in cursor_types.values():
-            raise TypeError(f"'cursor_type' should be one of ('cursor', 'dictcursor') or the callable equivalent, got {cursor_type}")
+            raise TypeError(
+                f"'cursor_type' should be one of ('cursor', 'dictcursor') or the callable equivalent, got {cursor_type}"
+            )
 
         conn = pymysql.connect(
             host=self.host,
@@ -198,7 +202,7 @@ class MySQLFetch(Task):
             db=self.db_name,
             charset=self.charset,
             port=self.port,
-            cursorclass=cursor_class
+            cursorclass=cursor_class,
         )
 
         try:

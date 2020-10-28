@@ -34,11 +34,23 @@ class TestMySQLFetch:
             task.run(query="SELECT * FROM some_table", fetch="not a valid parameter")
 
     def test_construction_with_cursor_type_str(self):
-        task = MySQLFetch(db_name="test", user="test", password="test", host="test", cursor_type='dictcursor')
+        task = MySQLFetch(
+            db_name="test",
+            user="test",
+            password="test",
+            host="test",
+            cursor_type="dictcursor",
+        )
         assert task.cursor_type == "dictcursor"
 
     def test_construction_with_cursor_type_class(self):
-        task = MySQLFetch(db_name="test", user="test", password="test", host="test", cursor_type=pymysql.cursors.DictCursor)
+        task = MySQLFetch(
+            db_name="test",
+            user="test",
+            password="test",
+            host="test",
+            cursor_type=pymysql.cursors.DictCursor,
+        )
         assert task.cursor_type == pymysql.cursors.DictCursor
 
     def test_unsupported_cursor_type_str_param_raises(self):
@@ -57,4 +69,6 @@ class TestMySQLFetch:
             TypeError,
             match=f"'cursor_type' should be one of \('cursor', 'dictcursor'\) or the callable equivalent, got {cursor_type}",
         ):
-            task.run(query="SELECT * FROM some_table", cursor_type=pymysql.cursors.SSCursor)
+            task.run(
+                query="SELECT * FROM some_table", cursor_type=pymysql.cursors.SSCursor
+            )
