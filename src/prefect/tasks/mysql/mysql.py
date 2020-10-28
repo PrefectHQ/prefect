@@ -3,7 +3,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 import pymysql.cursors
 import logging
-from typing import Any
+from typing import Any, Callable, Union
 
 
 class MySQLExecute(Task):
@@ -108,7 +108,7 @@ class MySQLFetch(Task):
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset of the query, defaults to "utf8mb4"
-        - cursor_type (str, optional): cursor type you want to use (defaults to standard Cursor class)
+        - cursor_type (Union[str, Callable], optional): cursor type you want to use (defaults to standard Cursor class)
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -125,7 +125,7 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        cursor_type: str = "cursor",
+        cursor_type: Union[str, Callable] = "cursor",
         **kwargs: Any
     ):
         self.db_name = db_name
@@ -149,7 +149,7 @@ class MySQLFetch(Task):
         fetch_count: int = 10,
         commit: bool = False,
         charset: str = "utf8mb4",
-        cursor_type: str = "cursor",
+        cursor_type: Union[str, Callable] = "cursor",
     ) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
@@ -162,7 +162,7 @@ class MySQLFetch(Task):
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
-            - cursor_type (str, optional): cursor type you want to use (defaults to standard Cursor class)
+            - cursor_type (Union[str, Callable], optional): cursor type you want to use (defaults to standard Cursor class)
 
         Returns:
             - results (tuple or list of tuples): records from provided query
