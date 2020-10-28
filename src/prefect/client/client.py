@@ -1668,7 +1668,9 @@ class Client:
 
         result = self.graphql(
             mutation,
-            variables=dict(input=dict(task_run_artifact_id=task_run_artifact_id, data=data)),
+            variables=dict(
+                input=dict(task_run_artifact_id=task_run_artifact_id, data=data)
+            ),
         )
 
         return result.data.update_task_run_artifact.success
