@@ -1611,3 +1611,87 @@ class Client:
 
         result = self.graphql(query)  # type: Any
         return result.data.agent_config[0].settings
+
+    def create_task_run_artifact(
+        self, task_run_id: str, kind: str, data: dict, tenant_id: str = None
+    ) -> str:
+        """
+        Create an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_id (str): the task run id
+            - kind (str): the artifact kind
+            - data (dict): the artifact data
+            - tenant_id (str, optional): the tenant id that this artifact belongs to. Defaults
+                to the tenant ID linked to the task run
+
+        Returns:
+            - str: the task run artifact ID
+        """
+        mutation = {
+            "mutation($input: create_task_run_artifact_input!)": {
+                "create_task_run_artifact(input: $input)": {"id"}
+            }
+        }
+
+        result = self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(
+                    task_run_id=task_run_id, kind=kind, data=data, tenant_id=tenant_id
+                )
+            ),
+        )
+
+        artifact_id = result.data.create_task_run_artifact.id
+        if not artifact_id:
+            raise ValueError("Error creating task run artifact")
+
+        return artifact_id
+
+    def update_task_run_artifact(self, task_run_artifact_id: str, data: dict) -> bool:
+        """
+        Update an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_artifact_id (str): the task run artifact id
+            - data (dict): the artifact data
+
+        Returns:
+            - bool: if the artifact update was successful
+        """
+        mutation = {
+            "mutation($input: update_task_run_artifact_input!)": {
+                "update_task_run_artifact(input: $input)": {"success"}
+            }
+        }
+
+        result = self.graphql(
+            mutation,
+            variables=dict(input=dict(task_run_artifact_id=task_run_artifact_id, data=data)),
+        )
+
+        return result.data.update_task_run_artifact.success
+
+    def delete_task_run_artifact(self, task_run_artifact_id: str) -> bool:
+        """
+        Delete an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_artifact_id (str): the task run artifact id
+
+        Returns:
+            - bool: if the artifact deletion was successful
+        """
+        mutation = {
+            "mutation($input: delete_task_run_artifact_input!)": {
+                "delete_task_run_artifact(input: $input)": {"success"}
+            }
+        }
+
+        result = self.graphql(
+            mutation,
+            variables=dict(input=dict(task_run_artifact_id=task_run_artifact_id)),
+        )
+
+        return result.data.delete_task_run_artifact.success
