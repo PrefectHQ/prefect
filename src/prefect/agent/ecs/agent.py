@@ -200,8 +200,10 @@ class ECSAgent(Agent):
             )["Subnets"]
             if subnets:
                 config = {
-                    "subnets": [s["SubnetId"] for s in subnets],
-                    "assignPublicIp": "ENABLED",
+                    "awsvpcConfiguration": {
+                        "subnets": [s["SubnetId"] for s in subnets],
+                        "assignPublicIp": "ENABLED",
+                    }
                 }
                 self.logger.debug("Using networkConfiguration=%r", config)
                 return config
@@ -267,7 +269,7 @@ class ECSAgent(Agent):
         # Get kwargs to pass to run_task
         kwargs = self.get_run_task_kwargs(flow_run, run_config)
 
-        resp = self.ecs_client.run_task(task_definition=taskdef_arn, **kwargs)
+        resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
         if resp.get("tasks"):
             task_arn = resp["tasks"][0]["taskArn"]
             self.logger.debug("Started task %r for flow run %r", task_arn, flow_run.id)
@@ -347,7 +349,7 @@ class ECSAgent(Agent):
         container["image"] = get_flow_image(flow_run)
 
         # Set flow run command
-        container["command"] = [get_flow_run_command(flow_run)]
+        container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
 
         # Populate static environment variables from the following sources,
         # with precedence:
@@ -365,10 +367,15 @@ class ECSAgent(Agent):
         container["environment"] = container_env
 
         # Set resource requirements, if provided
+        # Also ensure that cpu/memory are strings not integers
         if run_config.cpu:
-            taskdef["cpu"] = run_config.cpu
-        elif run_config.memory:
-            taskdef["memory"] = run_config.memory
+            taskdef["cpu"] = str(run_config.cpu)
+        elif "cpu" in taskdef:
+            taskdef["cpu"] = str(taskdef["cpu"])
+        if run_config.memory:
+            taskdef["memory"] = str(run_config.memory)
+        elif "memory" in taskdef:
+            taskdef["memory"] = str(taskdef["memory"])
 
         return taskdef
 
@@ -376,8 +383,10 @@ class ECSAgent(Agent):
         self, flow_run: GraphQLResult, run_config: ECSRun
     ) -> Dict[str, Any]:
         out = deepcopy(self.run_task_kwargs)
-        out["launchType"] = self.launch_type
-        out["cluster"] = self.cluster
+        if self.launch_type:
+            out["launchType"] = self.launch_type
+        if self.cluster:
+            out["cluster"] = self.cluster
 
         overrides = out.setdefault("overrides", {})
         container_overrides = overrides.setdefault("containerOverrides", [])
@@ -403,6 +412,7 @@ class ECSAgent(Agent):
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]
