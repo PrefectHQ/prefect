@@ -108,7 +108,8 @@ class MySQLFetch(Task):
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset of the query, defaults to "utf8mb4"
-        - cursor_type (Union[str, Callable], optional): cursor type you want to use (defaults to standard Cursor class)
+        - cursor_type (Union[str, Callable], optional): The cursor type to use.
+            Can be `'cursor'` (the default), `'dictcursor'`, or a full cursor class.
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -164,7 +165,8 @@ class MySQLFetch(Task):
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
-            - cursor_type (Union[str, Callable], optional): cursor type you want to use (defaults to standard Cursor class)
+            - cursor_type (Union[str, Callable], optional): The cursor type to use.
+                Can be `'cursor'` (the default), `'dictcursor'`, or a full cursor class.
 
         Returns:
             - results (tuple or list of tuples): records from provided query
