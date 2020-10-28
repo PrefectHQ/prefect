@@ -90,13 +90,23 @@ def test_serialize_docker_run(config):
     [
         ECSRun(),
         ECSRun(
-            task_definition="my-definition",
+            task_definition_path="s3://bucket/test.yaml",
             image="myimage",
             env={"test": "foo"},
             cpu="1 vcpu",
             memory="1 GB",
             run_task_kwargs={"overrides": {"taskRoleArn": "example"}},
             labels=["a", "b"],
+        ),
+        ECSRun(
+            task_definition={
+                "containerDefinitions": [
+                    {
+                        "name": "flow",
+                        "environment": [{"name": "TEST", "value": "VALUE"}],
+                    }
+                ]
+            }
         ),
     ],
 )
@@ -106,6 +116,7 @@ def test_serialize_ecs_run(config):
     assert sorted(config.labels) == sorted(config2.labels)
     fields = [
         "task_definition",
+        "task_definition_path",
         "image",
         "env",
         "cpu",
