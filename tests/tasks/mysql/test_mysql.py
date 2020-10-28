@@ -1,4 +1,5 @@
 import pytest
+import pymysql
 
 from prefect.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 
@@ -32,10 +33,28 @@ class TestMySQLFetch:
         ):
             task.run(query="SELECT * FROM some_table", fetch="not a valid parameter")
 
-    def test_bad_cursor_type_param_raises(self):
-        task = MySQLFetch(db_name="test", user="test", password="test", host="test", cursor_type="cursor")
+    def test_construction_with_cursor_type_str(self):
+        task = MySQLFetch(db_name="test", user="test", password="test", host="test", cursor_type='dictcursor')
+        assert task.cursor_type == "dictcursor"
+
+    def test_construction_with_cursor_type_class(self):
+        task = MySQLFetch(db_name="test", user="test", password="test", host="test", cursor_type=pymysql.cursors.DictCursor)
+        assert task.cursor_type == pymysql.cursors.DictCursor
+
+    def test_unsupported_cursor_type_str_param_raises(self):
+        cursor_type = "sscursor"
+        task = MySQLFetch(db_name="test", user="test", password="test", host="test")
         with pytest.raises(
-            ValueError,
-            match="Unsupported cursor_type 'invalid cursor'. Please choose one of the following - \('cursor', 'dict_cursor'\)",
+            TypeError,
+            match=f"'cursor_type' should be one of \('cursor', 'dictcursor'\) or the callable equivalent, got {cursor_type}",
         ):
-            task.run(query="SELECT * FROM some_table", cursor_type="invalid cursor")
+            task.run(query="SELECT * FROM some_table", cursor_type=cursor_type)
+
+    def test_unsupported_cursor_type_class_param_raises(self):
+        cursor_type = pymysql.cursors.SSCursor
+        task = MySQLFetch(db_name="test", user="test", password="test", host="test")
+        with pytest.raises(
+            TypeError,
+            match=f"'cursor_type' should be one of \('cursor', 'dictcursor'\) or the callable equivalent, got {cursor_type}",
+        ):
+            task.run(query="SELECT * FROM some_table", cursor_type=pymysql.cursors.SSCursor)

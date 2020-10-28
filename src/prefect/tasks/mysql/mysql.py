@@ -178,15 +178,18 @@ class MySQLFetch(Task):
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'all')"
             )
 
-        if cursor_type not in {"cursor", "dict_cursor"}:
-            raise ValueError(
-                f"Unsupported cursor_type '{cursor_type}'. Please choose one of the following - ('cursor', 'dict_cursor')"
-            )
+        cursor_types = {
+            "cursor": pymysql.cursors.Cursor,
+            "dictcursor": pymysql.cursors.DictCursor
+        }
 
-        if cursor_type == "cursor":
-            cursor_class = pymysql.cursors.Cursor
+        if callable(cursor_type):
+            cursor_class = cursor_type
         else:
-            cursor_class = pymysql.cursors.DictCursor
+            cursor_class = cursor_types.get(cursor_type.lower())
+        
+        if cursor_class is None or cursor_class not in cursor_types.values():
+            raise TypeError(f"'cursor_type' should be one of ('cursor', 'dictcursor') or the callable equivalent, got {cursor_type}")
 
         conn = pymysql.connect(
             host=self.host,
