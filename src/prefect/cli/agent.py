@@ -622,10 +622,10 @@ def ecs():
     help="The launch type to use, defaults to FARGATE",
 )
 @click.option(
-    "--default-task-definition",
+    "--task-definition",
     help=(
-        "The default task definition to use for flow runs that don't specify a "
-        "`task_definition` directly. Defaults to `prefect-default`."
+        "Path to a task definition template to use when defining new tasks "
+        "instead of the default."
     ),
 )
 @click.option(
@@ -651,7 +651,7 @@ def start(
     log_level,
     cluster,
     launch_type,
-    default_task_definition,
+    task_definition,
     run_task_option,
 ):
     """Start an ECS agent"""
@@ -675,7 +675,7 @@ def start(
             max_polls=max_polls,
             agent_address=agent_address,
             no_cloud_logs=no_cloud_logs,
-            default_task_definition=default_task_definition,
+            task_definition_path=task_definition,
             cluster=cluster,
             launch_type=launch_type,
             run_task_kwargs=run_task_kwargs,
