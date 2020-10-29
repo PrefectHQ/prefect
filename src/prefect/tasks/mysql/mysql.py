@@ -109,7 +109,8 @@ class MySQLFetch(Task):
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset of the query, defaults to "utf8mb4"
         - cursor_type (Union[str, Callable], optional): The cursor type to use.
-            Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`, or a full cursor class.
+            Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
+            or a full cursor class.
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -166,7 +167,8 @@ class MySQLFetch(Task):
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
             - cursor_type (Union[str, Callable], optional): The cursor type to use.
-                Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`, or a full cursor class.
+                Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
+                or a full cursor class.
 
         Returns:
             - results (tuple or list of tuples): records from provided query
@@ -200,7 +202,8 @@ class MySQLFetch(Task):
 
         if not cursor_class:
             raise TypeError(
-                f"'cursor_type' should be one of {list(cursor_types.keys())} or a full cursor class, got {cursor_type}"
+                f"'cursor_type' should be one of {list(cursor_types.keys())} or a "
+                f"full cursor class, got {cursor_type}"
             )
 
         conn = pymysql.connect(
