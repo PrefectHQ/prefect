@@ -63,7 +63,7 @@ class TestMySQLFetch:
         ):
             task.run(query="SELECT * FROM some_table", cursor_type=cursor_type)
 
-    def test_bad_cursor_type_param_raises(self):
+    def test_bad_cursor_type_param_type_raises(self):
         cursor_type = ["cursor"]
 
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
