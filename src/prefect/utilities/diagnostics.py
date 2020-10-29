@@ -25,11 +25,14 @@ def system_information() -> dict:
 
 def config_overrides(include_secret_names: bool = False) -> dict:
     """
-    Get user configuration overrides
+    Get user configuration keys that differ from the default configuration. Will only
+    return an indication if a key is set and differs from the defaults, values are
+    *not* returned.
 
     Args:
-        - include_secret_names (bool, optional): toggle output of Secret names, defaults to False.
-            Note: Secret values are never returned, only their names.
+        - include_secret_names (bool, optional): toggle inclusion of secret config keys
+            in the output. Note that secret values are never returned, only their names
+            when this is `True`. Defaults to `False`.
 
     Returns:
         - dict: a dictionary containing names of user configuration overrides
