@@ -1,0 +1,2 @@
+feature:
+  - "`flow.register` accepts an idempotency key to prevent excessive flow versions from being created - [#3590](https://github.com/PrefectHQ/prefect/pull/3590)"
