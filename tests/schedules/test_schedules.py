@@ -40,7 +40,7 @@ def test_create_schedule_emits_events_if_asked():
     assert all([isinstance(e, clocks.ClockEvent) for e in output])
     assert all([e.parameter_defaults == dict() for e in output])
 
-    output == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
+    assert output == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
 
 
 def test_create_schedule_multiple_overlapping_clocks():
