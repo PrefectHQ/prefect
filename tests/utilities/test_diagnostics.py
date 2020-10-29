@@ -50,7 +50,7 @@ def test_config_overrides_excludes_all_default_matches(monkeypatch):
 
 def test_config_overrides_excludes_some_default_matches(monkeypatch, tmpdir):
     # Load and modify the default config
-    default_config = prefect.configuration.load_configuration(
+    default_config = prefect.configuration.load_toml(
         prefect.configuration.DEFAULT_CONFIG
     )
     default_config["debug"] = True
