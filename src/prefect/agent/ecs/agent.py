@@ -19,6 +19,53 @@ DEFAULT_TASK_DEFINITION_PATH = os.path.join(
 )
 
 
+def merge_run_task_kwargs(opts1: dict, opts2: dict) -> dict:
+    """Merge two `run_task_kwargs` dicts, given precedence to `opts2`.
+
+    Values are merged with the following heuristics:
+
+    - Anything outside of `overrides.containerOverrides` is merged directly,
+      with precedence given to `opts2`
+    - Dicts in the `overrides.containerOverrides` list are matched on their
+      `"name"` fields, then merged directly (with precedence given to `opts2`).
+
+    Args:
+        - opts1 (dict): A dict of kwargs for `run_task`
+        - opts2 (dict): A second dict of kwargs for `run_task`.
+
+    Returns:
+        - dict: A merged dict of kwargs
+    """
+
+    out = deepcopy(opts1)
+
+    # Everything except 'overrides' merge directly
+    for k, v in opts2.items():
+        if k != "overrides":
+            out[k] = v
+
+    # Everything in `overrides` except `containerOverrides` merge directly
+    overrides = opts2.get("overrides", {})
+    if overrides:
+        out_overrides = out.setdefault("overrides", {})
+        for k, v in overrides.items():
+            if k != "containerOverrides":
+                out_overrides[k] = v
+
+    # Entries in `containerOverrides` are paired by name, and then merged
+    container_overrides = overrides.get("containerOverrides")
+    if container_overrides:
+        out_container_overrides = out_overrides.setdefault("containerOverrides", [])
+        for entry in container_overrides:
+            for out_entry in out_container_overrides:
+                if out_entry.get("name") == entry.get("name"):
+                    out_entry.update(entry)
+                    break
+            else:
+                out_container_overrides.append(entry)
+    return out
+
+
 class ECSAgent(Agent):
     """
     Agent which deploys flow runs as ECS tasks.
@@ -399,12 +446,18 @@ class ECSAgent(Agent):
     def get_run_task_kwargs(
         self, flow_run: GraphQLResult, run_config: ECSRun
     ) -> Dict[str, Any]:
+        # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
         if self.launch_type:
             out["launchType"] = self.launch_type
         if self.cluster:
             out["cluster"] = self.cluster
 
+        # Apply run-config kwargs, if any
+        if run_config.run_task_kwargs:
+            out = merge_run_task_kwargs(out, run_config.run_task_kwargs)
+
+        # Find or create the flow container overrides
         overrides = out.setdefault("overrides", {})
         container_overrides = overrides.setdefault("containerOverrides", [])
         for container in container_overrides:
