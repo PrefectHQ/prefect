@@ -70,10 +70,6 @@ class ECSAgent(Agent):
     """
     Agent which deploys flow runs as ECS tasks.
 
-    **Note**: if AWS authentication kwargs such as `aws_access_key_id` and
-    `aws_secret_access_key` are not provided they will be read from the
-    environment.
-
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID
             that can be used to set configuration based on an agent from a
@@ -166,12 +162,11 @@ class ECSAgent(Agent):
         )
 
         from botocore.config import Config
+        from prefect.utilities.aws import get_boto_client
 
         self.cluster = cluster
         self.launch_type = launch_type.upper() if launch_type else "FARGATE"
         self.task_role_arn = task_role_arn
-        self.run_task_kwargs_path = run_task_kwargs_path
-        self.task_definition_path = task_definition_path or DEFAULT_TASK_DEFINITION_PATH
 
         # Load boto configuration. We want to use the standard retry mode by
         # default (which isn't boto's default due to backwards compatibility).
@@ -192,37 +187,36 @@ class ECSAgent(Agent):
             config=boto_config,
         )  # type: Dict[str, Any]
 
-    def on_startup(self) -> None:
-        from prefect.utilities.aws import get_boto_client
-
         self.ecs_client = get_boto_client("ecs", **self.boto_kwargs)
         self.rgtag_client = get_boto_client(
             "resourcegroupstaggingapi", **self.boto_kwargs
         )
 
         # Load default task definition
+        if not task_definition_path:
+            task_definition_path = DEFAULT_TASK_DEFINITION_PATH
         try:
             self.task_definition = yaml.safe_load(
-                read_bytes_from_path(self.task_definition_path)
+                read_bytes_from_path(task_definition_path)
             )
         except Exception:
             self.logger.error(
                 "Failed to load default task definition from %r",
-                self.task_definition_path,
+                task_definition_path,
                 exc_info=True,
             )
             raise
 
         # Load default run_task kwargs
-        if self.run_task_kwargs_path:
+        if run_task_kwargs_path:
             try:
                 self.run_task_kwargs = yaml.safe_load(
-                    read_bytes_from_path(self.run_task_kwargs_path)
+                    read_bytes_from_path(run_task_kwargs_path)
                 )
             except Exception:
                 self.logger.error(
                     "Failed to load default `run_task` kwargs from %r",
-                    self.run_task_kwargs_path,
+                    run_task_kwargs_path,
                     exc_info=True,
                 )
                 raise
@@ -242,9 +236,9 @@ class ECSAgent(Agent):
         ):
             self.run_task_kwargs[
                 "networkConfiguration"
-            ] = self.get_default_network_configuration()
+            ] = self.infer_network_configuration()
 
-    def get_default_network_configuration(self) -> dict:
+    def infer_network_configuration(self) -> dict:
         from prefect.utilities.aws import get_boto_client
 
         self.logger.debug("Inferring default `networkConfiguration`...")
@@ -270,7 +264,7 @@ class ECSAgent(Agent):
 
         msg = (
             "Failed to infer default networkConfiguration, please explicitly "
-            "configure using `--run-param networkConfiguration=...`"
+            "configure using `--run-task-kwargs`"
         )
         self.logger.error(msg)
         raise ValueError(msg)
