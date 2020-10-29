@@ -54,21 +54,21 @@ class TestMySQLFetch:
         assert task.cursor_type == pymysql.cursors.DictCursor
 
     def test_unsupported_cursor_type_str_param_raises(self):
-        cursor_type = "sscursor"
+        cursor_type = "unsupportedcursor"
+
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
         with pytest.raises(
             TypeError,
-            match=f"'cursor_type' should be one of \('cursor', 'dictcursor'\) or the callable equivalent, got {cursor_type}",
+            match=f"'cursor_type' should be one of \['cursor', 'dictcursor', 'sscursor', 'ssdictcursor'\] or a full cursor class, got {cursor_type}",
         ):
             task.run(query="SELECT * FROM some_table", cursor_type=cursor_type)
 
-    def test_unsupported_cursor_type_class_param_raises(self):
-        cursor_type = pymysql.cursors.SSCursor
+    def test_bad_cursor_type_param_raises(self):
+        cursor_type = ["cursor"]
+
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
         with pytest.raises(
             TypeError,
-            match=f"'cursor_type' should be one of \('cursor', 'dictcursor'\) or the callable equivalent, got {cursor_type}",
+            match=f"'cursor_type' must be of type str or a full cursor class, got {type(cursor_type)}",
         ):
-            task.run(
-                query="SELECT * FROM some_table", cursor_type=pymysql.cursors.SSCursor
-            )
+            task.run(query="SELECT * FROM some_table", cursor_type=["cursor"])

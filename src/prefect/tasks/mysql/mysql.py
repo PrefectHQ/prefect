@@ -109,7 +109,7 @@ class MySQLFetch(Task):
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset of the query, defaults to "utf8mb4"
         - cursor_type (Union[str, Callable], optional): The cursor type to use.
-            Can be `'cursor'` (the default), `'dictcursor'`, or a full cursor class.
+            Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`, or a full cursor class.
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -166,7 +166,7 @@ class MySQLFetch(Task):
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
             - cursor_type (Union[str, Callable], optional): The cursor type to use.
-                Can be `'cursor'` (the default), `'dictcursor'`, or a full cursor class.
+                Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`, or a full cursor class.
 
         Returns:
             - results (tuple or list of tuples): records from provided query
@@ -185,16 +185,22 @@ class MySQLFetch(Task):
         cursor_types = {
             "cursor": pymysql.cursors.Cursor,
             "dictcursor": pymysql.cursors.DictCursor,
+            "sscursor": pymysql.cursors.SSCursor,
+            "ssdictcursor": pymysql.cursors.SSDictCursor,
         }
 
         if callable(cursor_type):
             cursor_class = cursor_type
-        else:
+        elif isinstance(cursor_type, str):
             cursor_class = cursor_types.get(cursor_type.lower())
-
-        if cursor_class is None or cursor_class not in cursor_types.values():
+        else:
             raise TypeError(
-                f"'cursor_type' should be one of ('cursor', 'dictcursor') or the callable equivalent, got {cursor_type}"
+                f"'cursor_type' must be of type str or a full cursor class, got {type(cursor_type)}"
+            )
+
+        if not cursor_class:
+            raise TypeError(
+                f"'cursor_type' should be one of {list(cursor_types.keys())} or a full cursor class, got {cursor_type}"
             )
 
         conn = pymysql.connect(
