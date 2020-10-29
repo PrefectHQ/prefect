@@ -629,14 +629,8 @@ def ecs():
     ),
 )
 @click.option(
-    "--run-task-option",
-    "-r",
-    multiple=True,
-    help=(
-        "Additional options to pass to `run_task` for all flows. Can be passed "
-        "multiple times to configure multiple options. Structured values "
-        "can be passed as JSON."
-    ),
+    "--run-task-kwargs",
+    help="Path to a yaml file containing extra kwargs to pass to `run_task`",
 )
 def start(
     token,
@@ -652,14 +646,13 @@ def start(
     cluster,
     launch_type,
     task_definition,
-    run_task_option,
+    run_task_kwargs,
 ):
     """Start an ECS agent"""
-    from prefect.agent.ecs.agent import ECSAgent, parse_run_task_options
+    from prefect.agent.ecs.agent import ECSAgent
 
     labels = list(set(label))
     env_vars = dict(zip(e.split("=", 2) for e in env))
-    run_task_kwargs = parse_run_task_options(run_task_option)
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
@@ -675,9 +668,9 @@ def start(
             max_polls=max_polls,
             agent_address=agent_address,
             no_cloud_logs=no_cloud_logs,
-            task_definition_path=task_definition,
             cluster=cluster,
             launch_type=launch_type,
-            run_task_kwargs=run_task_kwargs,
+            task_definition_path=task_definition,
+            run_task_kwargs_path=run_task_kwargs,
         )
         agent.start()

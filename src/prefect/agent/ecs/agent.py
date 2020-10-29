@@ -1,5 +1,4 @@
 import os
-import json
 from copy import deepcopy
 from typing import Iterable, Dict, Any
 
@@ -18,34 +17,6 @@ from prefect.utilities.graphql import GraphQLResult
 DEFAULT_TASK_DEFINITION_PATH = os.path.join(
     os.path.dirname(__file__), "task_definition.yaml"
 )
-
-
-def parse_run_task_options(opts: list) -> dict:
-    """Parse `--run-task-option` inputs to `prefect agent start`.
-
-    Args:
-        - opts (list): A list of strings formatted as `"{key}={value}"`,
-            where value may be a JSON-compatible value.
-
-    Returns:
-        - dict: the parsed parameters
-    """
-    run_task_kwargs = {}
-    for item in opts:
-        try:
-            key, value = item.split("=")
-        except Exception:
-            raise ValueError(f"Malformed --run-task-option `{item}`") from None
-        try:
-            value = json.loads(value)
-        except Exception as exc:
-            # If it looks like a list/dict then it's poorly formatted
-            if any(c in value for c in "{}[]"):
-                raise ValueError(
-                    f"Error parsing --run-task-option value `{item}`: {str(exc)}"
-                ) from None
-        run_task_kwargs[key] = value
-    return run_task_kwargs
 
 
 class ECSAgent(Agent):
@@ -79,6 +50,9 @@ class ECSAgent(Agent):
         - task_definition_path (str, optional): Path to a task definition
             template to use when defining new tasks. If not provided, the
             default template will be used.
+        - run_task_kwargs_path (str, optional): Path to a `yaml` file
+            containing default kwargs to pass to `ECS.client.run_task`. May be
+            a local path, or a remote path on e.g. `s3`.
         - aws_access_key_id (str, optional): AWS access key id for connecting
             the boto3 client. If not provided, will be loaded from your
             environment (via either the `AWS_ACCESS_KEY_ID` environment
@@ -103,8 +77,6 @@ class ECSAgent(Agent):
             `"default"` if not provided.
         - launch_type (str, optional): The launch type to use, either
             `"FARGATE"` (default) or `"EC2"`.
-        - run_task_kwargs (dict, optional): Extra keyword arguments to pass to
-            `run_task` when starting a task.
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
@@ -124,13 +96,13 @@ class ECSAgent(Agent):
         agent_address: str = None,
         no_cloud_logs: bool = False,
         task_definition_path: str = None,
+        run_task_kwargs_path: str = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
         cluster: str = None,
         launch_type: str = None,
-        run_task_kwargs: dict = None,
         botocore_config: dict = None,
     ) -> None:
         super().__init__(
@@ -147,7 +119,7 @@ class ECSAgent(Agent):
 
         self.cluster = cluster
         self.launch_type = launch_type.upper() if launch_type else "FARGATE"
-        self.run_task_kwargs = run_task_kwargs.copy() if run_task_kwargs else {}
+        self.run_task_kwargs_path = run_task_kwargs_path
         self.task_definition_path = task_definition_path or DEFAULT_TASK_DEFINITION_PATH
 
         # Load boto configuration. We want to use the standard retry mode by
@@ -176,6 +148,35 @@ class ECSAgent(Agent):
         self.rgtag_client = get_boto_client(
             "resourcegroupstaggingapi", **self.boto_kwargs
         )
+
+        # Load default task definition
+        try:
+            self.task_definition = yaml.safe_load(
+                read_bytes_from_path(self.task_definition_path)
+            )
+        except Exception:
+            self.logger.error(
+                "Failed to load default task definition from %r",
+                self.task_definition_path,
+                exc_info=True,
+            )
+            raise
+
+        # Load default run_task kwargs
+        if self.run_task_kwargs_path:
+            try:
+                self.run_task_kwargs = yaml.safe_load(
+                    read_bytes_from_path(self.run_task_kwargs_path)
+                )
+            except Exception:
+                self.logger.error(
+                    "Failed to load default `run_task` kwargs from %r",
+                    self.run_task_kwargs_path,
+                    exc_info=True,
+                )
+                raise
+        else:
+            self.run_task_kwargs = {}
 
         if self.launch_type == "FARGATE" and not self.run_task_kwargs.get(
             "networkConfiguration"
@@ -308,15 +309,15 @@ class ECSAgent(Agent):
     ) -> Dict[str, Any]:
         if run_config.task_definition:
             taskdef = deepcopy(run_config.task_definition)
-        else:
-            task_definition_path = (
-                run_config.task_definition_path or self.task_definition_path
-            )
+        elif run_config.task_definition_path:
             self.logger.debug(
-                "Loading task definition template from %r", task_definition_path
+                "Loading task definition template from %r",
+                run_config.task_definition_path,
             )
-            template_bytes = read_bytes_from_path(task_definition_path)
+            template_bytes = read_bytes_from_path(run_config.task_definition_path)
             taskdef = yaml.safe_load(template_bytes)
+        else:
+            taskdef = deepcopy(self.task_definition)
 
         slug = slugify.slugify(
             flow_run.flow.name,
