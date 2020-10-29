@@ -49,14 +49,14 @@ def config_overrides(include_secret_names: bool = False) -> dict:
     default_config = dict()
     default_config_path = prefect.configuration.DEFAULT_CONFIG
     if default_config_path and os.path.isfile(default_config_path):
-        default_config = prefect.configuration.load_toml(default_config_path)
+        default_config = prefect.configuration.load_configuration(default_config_path)
 
     user_config = dict()  # type: ignore
     user_config_path = prefect.configuration.USER_CONFIG
     if user_config_path and os.path.isfile(
         str(prefect.configuration.interpolate_env_vars(user_config_path))
     ):
-        user_config = prefect.configuration.load_toml(user_config_path)
+        user_config = prefect.configuration.load_configuration(user_config_path)
 
     # Create some shorter names for fully specified imports avoiding circular
     # dependencies in the utilities
