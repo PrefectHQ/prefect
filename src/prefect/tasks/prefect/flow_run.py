@@ -1,4 +1,5 @@
 import time
+import datetime
 import warnings
 from typing import Any
 
@@ -27,6 +28,8 @@ class StartFlowRun(Task):
         - wait (bool, optional): whether to wait the triggered flow run's state; if True, this
             task will wait until the flow run is complete, and then reflect the corresponding
             state as the state of this task.  Defaults to `False`.
+        - scheduled_start_time (datetime, optional): the time to schedule the execution
+                for; if not provided, defaults to now
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -38,6 +41,7 @@ class StartFlowRun(Task):
         wait: bool = False,
         new_flow_context: dict = None,
         run_name: str = None,
+        scheduled_start_time: datetime.datetime = None,
         **kwargs: Any,
     ):
         self.flow_name = flow_name
@@ -46,12 +50,18 @@ class StartFlowRun(Task):
         self.new_flow_context = new_flow_context
         self.run_name = run_name
         self.wait = wait
+        self.scheduled_start_time = scheduled_start_time
         if flow_name:
             kwargs.setdefault("name", f"Flow {flow_name}")
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "flow_name", "project_name", "parameters", "new_flow_context", "run_name"
+        "flow_name",
+        "project_name",
+        "parameters",
+        "new_flow_context",
+        "run_name",
+        "scheduled_start_time",
     )
     def run(
         self,
@@ -61,6 +71,7 @@ class StartFlowRun(Task):
         idempotency_key: str = None,
         new_flow_context: dict = None,
         run_name: str = None,
+        scheduled_start_time: datetime.datetime = None,
     ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
@@ -79,6 +90,8 @@ class StartFlowRun(Task):
                 or rerun with the same inputs.  If not provided, the current flow run ID will be used.
             - new_flow_context (dict, optional): the optional run context for the new flow run
             - run_name (str, optional): name to be set for the flow run
+            - scheduled_start_time (datetime, optional): the time to schedule the execution
+                for; if not provided, defaults to now
 
         Returns:
             - str: the ID of the newly-scheduled flow run
@@ -148,6 +161,7 @@ class StartFlowRun(Task):
             idempotency_key=idem_key or idempotency_key,
             context=new_flow_context,
             run_name=run_name,
+            scheduled_start_time=scheduled_start_time,
         )
 
         self.logger.debug(f"Flow Run {flow_run_id} created.")

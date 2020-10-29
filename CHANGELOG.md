@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.13.13  <Badge text="beta" type="success" />
+
+Released on October 27, 2020.
+
+### Enhancements
+
+- Don't stop execution if the task runner fails to load a cached result - [#3378](https://github.com/PrefectHQ/prefect/issues/3378)
+- Add option to specify `networkMode` for tasks created by the Fargate Agent - [#3546](https://github.com/PrefectHQ/prefect/pull/3546)
+- Allows to schedule flow runs at an arbitrary time with StartFlowRun - [#3573](https://github.com/PrefectHQ/prefect/pull/3573)
+
+### Fixes
+
+- Use `BlobServiceClient` instead of `BlockBlobService` to connect to azure blob in azure tasks - [#3562](https://github.com/PrefectHQ/prefect/pull/3562)
+- Tasks with `log_stdout=True` work with non-utf8 output - [#3563](https://github.com/PrefectHQ/prefect/pull/3563)
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Kfir Stri](https://github.com/kfirstri)
+- [Lukáš Novotný](https://github.com/novotl)
+- [Natalie Smith](https://github.com/thatgalnatalie)
+- [Raphael Riel](https://github.com/raphael-riel)
+
 ## 0.13.12 <Badge text="beta" type="success" />
 
 Released on October 20, 2020.

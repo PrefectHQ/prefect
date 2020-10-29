@@ -1,2 +1,0 @@
-enhancement:
-  - "Don't stop execution if the task runner fails to load a cached result - [#3378](https://github.com/PrefectHQ/prefect/issues/3378)"
