@@ -1,7 +1,20 @@
+from typing import Union
+
 from prefect import context, Client
 
 
-def create_link(link: str) -> str:
+def running_with_backend() -> bool:
+    """
+    Determine if running in context of a backend. This is always true when running
+    using the `CloudTaskRunner`.
+
+    Returns:
+        - bool: if `running_with_backend` is set in context
+    """
+    return bool(context.get("running_with_backend"))
+
+
+def create_link(link: str) -> Union[str, None]:
     """
     Create a link artifact
 
@@ -14,6 +27,9 @@ def create_link(link: str) -> str:
     Returns:
         - str: the task run artifact ID
     """
+    if not running_with_backend():
+        return None
+
     client = Client()
     return client.create_task_run_artifact(
         task_run_id=context.get("task_run_id"), kind="link", data={"link": link}
@@ -35,6 +51,9 @@ def update_link(task_run_artifact_id: str, link: str) -> bool:
     Returns:
         - bool: whether or not the request was successful
     """
+    if not running_with_backend():
+        return False
+
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
@@ -57,6 +76,9 @@ def delete_link(task_run_artifact_id: str) -> bool:
     Returns:
         - bool: whether or not the request was successful
     """
+    if not running_with_backend():
+        return False
+
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
@@ -64,7 +86,7 @@ def delete_link(task_run_artifact_id: str) -> bool:
     return client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
 
 
-def create_markdown(markdown: str) -> str:
+def create_markdown(markdown: str) -> Union[str, None]:
     """
     Create a markdown artifact
 
@@ -77,6 +99,9 @@ def create_markdown(markdown: str) -> str:
     Returns:
         - str: the task run artifact ID
     """
+    if not running_with_backend():
+        return None
+
     client = Client()
     return client.create_task_run_artifact(
         task_run_id=context.get("task_run_id"),
@@ -100,6 +125,9 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> bool:
     Returns:
         - bool: whether or not the request was successful
     """
+    if not running_with_backend():
+        return False
+
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
@@ -122,6 +150,9 @@ def delete_markdown(task_run_artifact_id: str) -> bool:
     Returns:
         - bool: whether or not the request was successful
     """
+    if not running_with_backend():
+        return False
+
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
