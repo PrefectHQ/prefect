@@ -95,6 +95,7 @@ def test_serialize_docker_run(config):
             env={"test": "foo"},
             cpu="1 vcpu",
             memory="1 GB",
+            task_role_arn="my-task-role",
             run_task_kwargs={"overrides": {"taskRoleArn": "example"}},
             labels=["a", "b"],
         ),
@@ -121,6 +122,7 @@ def test_serialize_ecs_run(config):
         "env",
         "cpu",
         "memory",
+        "task_role_arn",
         "run_task_kwargs",
     ]
     for field in fields:

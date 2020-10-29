@@ -51,6 +51,9 @@ class ECSRun(RunConfig):
             with units (e.g. `"1 GB"`). Note that ECS imposes strict limits on
             what values this can take, see the [ECS documentation][2] for more
             information.
+        - task_role_arn (str, optional): The name or full ARN for the IAM role
+            to use for this task. If not provided, the default on the agent
+            will be used (if configured).
         - run_task_kwargs (dict, optional): Additional keyword arguments to
             pass to `run_task` when starting this task. See the
             [ECS.Client.run_task][3] docs for more information.
@@ -103,6 +106,7 @@ ecs.html#ECS.Client.run_task
         env: dict = None,
         cpu: Union[int, str] = None,
         memory: Union[int, str] = None,
+        task_role_arn: str = None,
         run_task_kwargs: dict = None,
         labels: Iterable[str] = None,
     ) -> None:
@@ -130,4 +134,5 @@ ecs.html#ECS.Client.run_task
         self.env = env
         self.cpu = cpu
         self.memory = memory
+        self.task_role_arn = task_role_arn
         self.run_task_kwargs = run_task_kwargs

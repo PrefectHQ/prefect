@@ -622,6 +622,10 @@ def ecs():
     help="The launch type to use, defaults to FARGATE",
 )
 @click.option(
+    "--task-role-arn",
+    help="The default task role ARN to use for ECS tasks started by this agent.",
+)
+@click.option(
     "--task-definition",
     help=(
         "Path to a task definition template to use when defining new tasks "
@@ -645,6 +649,7 @@ def start(
     log_level,
     cluster,
     launch_type,
+    task_role_arn,
     task_definition,
     run_task_kwargs,
 ):
@@ -670,6 +675,7 @@ def start(
             no_cloud_logs=no_cloud_logs,
             cluster=cluster,
             launch_type=launch_type,
+            task_role_arn=task_role_arn,
             task_definition_path=task_definition,
             run_task_kwargs_path=run_task_kwargs,
         )

@@ -77,6 +77,8 @@ class ECSAgent(Agent):
             `"default"` if not provided.
         - launch_type (str, optional): The launch type to use, either
             `"FARGATE"` (default) or `"EC2"`.
+        - task_role_arn (str, optional): The default task role ARN to use when
+            registering ECS tasks created by this agent.
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
@@ -103,6 +105,7 @@ class ECSAgent(Agent):
         region_name: str = None,
         cluster: str = None,
         launch_type: str = None,
+        task_role_arn: str = None,
         botocore_config: dict = None,
     ) -> None:
         super().__init__(
@@ -119,6 +122,7 @@ class ECSAgent(Agent):
 
         self.cluster = cluster
         self.launch_type = launch_type.upper() if launch_type else "FARGATE"
+        self.task_role_arn = task_role_arn
         self.run_task_kwargs_path = run_task_kwargs_path
         self.task_definition_path = task_definition_path or DEFAULT_TASK_DEFINITION_PATH
 
@@ -178,6 +182,14 @@ class ECSAgent(Agent):
         else:
             self.run_task_kwargs = {}
 
+        # If `task_role_arn` is configured on the agent, add it to the default
+        # template. The agent default `task_role_arn` is only applied if using
+        # the agent's default template.
+        if self.task_role_arn:
+            self.task_definition["taskRoleArn"] = self.task_role_arn
+
+        # If running on fargate, auto-configure `networkConfiguration` for the
+        # user if they didn't configure it themselves.
         if self.launch_type == "FARGATE" and not self.run_task_kwargs.get(
             "networkConfiguration"
         ):
@@ -351,6 +363,10 @@ class ECSAgent(Agent):
 
         # Set flow run command
         container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
+
+        # Set taskRoleArn if configured
+        if run_config.task_role_arn:
+            taskdef["taskRoleArn"] = run_config.task_role_arn
 
         # Populate static environment variables from the following sources,
         # with precedence:
