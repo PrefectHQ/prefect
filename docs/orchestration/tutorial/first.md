@@ -37,13 +37,20 @@ flow.register(project_name="Hello, World!")
 Registration only sends data about the existence and format of your flow; **no actual code from the flow is sent to the Prefect API**. Your code remains safe, secure, and private in your own infrastructure!
 :::
 
-:::tip De-duplicating registration
-Each call to `flow.register()` will bump the version of the flow in the UI. 
+:::tip Deduplicating registration calls
+Each call to `flow.register()` will bump the version of the flow in the backend.
 If you are registering flows using automation, you may want to pass an `idempotency_key` which will only create a new version when the key changes.
 For example:
 ```python
-MY_INTERNAL_FLOW_VERSION = "1.0.1"  # This needs to be manually bumped for re-registration
-flow.register(project_name="Hello, World!", idempotency_key=MY_INTERNAL_FLOW_VERSION)
+MY_INTERNAL_FLOW_VERSION = "1.0.1"
+# This constant needs to be manually bumped for re-registration
+# and could instead be generated from the last commit to the
+# flow file or another indicator
+
+flow.register(
+   project_name="Hello, World!",
+   idempotency_key=MY_INTERNAL_FLOW_VERSION
+)
 ```
 :::
 
