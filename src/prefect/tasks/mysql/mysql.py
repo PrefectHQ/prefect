@@ -196,9 +196,7 @@ class MySQLFetch(Task):
         elif isinstance(cursor_type, str):
             cursor_class = cursor_types.get(cursor_type.lower())
         else:
-            raise TypeError(
-                f"'cursor_type' must be of type str or a full cursor class, got {type(cursor_type)}"
-            )
+            cursor_class = None
 
         if not cursor_class:
             raise TypeError(
