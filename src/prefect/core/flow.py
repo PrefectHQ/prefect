@@ -1556,6 +1556,7 @@ class Flow:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         no_url: bool = False,
+        idempotency_key: str = None,
         **kwargs: Any,
     ) -> Union[str, None]:
         """
@@ -1577,6 +1578,10 @@ class Flow:
                 Flow's project and name will be used.
             - no_url (bool, optional): if `True`, the stdout from this function will not
                 contain the URL link to the newly-registered flow in the Cloud UI
+            - idempotency_key (str, optional): an optional idempotency key for this flow
+                to prevent multiple sequential creations within the version group. For
+                example, if flow.register(idempotency_key="foo") is called twice only
+                one flow will be registered.
             - **kwargs (Any): if instantiating a Storage object from default settings, these
                 keyword arguments will be passed to the initialization method of the default
                 Storage class
@@ -1627,6 +1632,7 @@ class Flow:
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
             no_url=no_url,
+            idempotency_key=idempotency_key,
         )
         return registered_flow
 
