@@ -17,7 +17,7 @@ Once the agent submits the flow run for execution, the agent returns to waiting 
 If for any reason the agent encounters an issue deploying the flow run for execution then it will mark that flow run as `Failed` with the message set to the error it encountered.
 
 :::tip Agent tracking
-Agents are tracked and uniquely identified by Prefect Cloud or Prefect Server through a combination of agent name, labels, token (<Badge text="Cloud"/>), and Core Version. Prefect doesn't talk to agents but instead rely on agents to talk to Prefect, including by identifying themselves and their settings. This means that independent agent process with the same configuration will be interpreted by Prefect to be the same agent; changing any piece of the configuration will tell Prefect to track these agents independently.
+Agents are tracked and uniquely identified by Prefect Cloud or Prefect Server through a combination of agent name, labels, token (<Badge text="Cloud"/>), and Core Version. Prefect doesn't talk to agents but instead relies on agents to talk to it, which means agents identify themselves and communicate their settings. Independent agent process with the same configuration will be interpreted by Prefect to be the same agent; changing any piece of the configuration will tell Prefect to track these agents independently.
 :::
 
 ### Installation
