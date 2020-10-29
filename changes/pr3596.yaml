@@ -1,0 +1,5 @@
+enhancement:
+  - "allow use of multiple image pull secrets in KubernetesAgent, DaskKubernetesEnvironment - [#3596](https://github.com/PrefectHQ/prefect/pull/3596)"
+
+contributor:
+  - "[James Lamb](https://github.com/jameslamb)"

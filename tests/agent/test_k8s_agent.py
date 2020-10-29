@@ -273,7 +273,9 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
         )
         assert job["spec"]["template"]["spec"]["serviceAccountName"] == "svc_name"
 
-        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [{"name": "my-secret"}]
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
+            {"name": "my-secret"}
+        ]
 
 
 def test_k8s_agent_replace_yaml_respects_multiple_image_secrets(monkeypatch, cloud_api):
@@ -307,11 +309,9 @@ def test_k8s_agent_replace_yaml_respects_multiple_image_secrets(monkeypatch, clo
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
-        expected_secrets = [
-            {"name": "some-secret"},
-            {"name": "other-secret"}
-        ]
+        expected_secrets = [{"name": "some-secret"}, {"name": "other-secret"}]
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == expected_secrets
+
 
 def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
     get_jobs = MagicMock(return_value=[])

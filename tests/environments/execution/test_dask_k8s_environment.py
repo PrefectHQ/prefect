@@ -324,10 +324,7 @@ def test_populate_job_yaml_multiple_image_secrets():
                 yaml_obj=job, docker_name="test1/test2:test3"
             )
 
-    expected_secrets = [
-        dict(name="good-secret"),
-        dict(name="dangerous-secret")
-    ]
+    expected_secrets = [dict(name="good-secret"), dict(name="dangerous-secret")]
     assert yaml_obj["spec"]["template"]["spec"]["imagePullSecrets"] == expected_secrets
 
 
@@ -424,7 +421,7 @@ def test_populate_worker_pod_yaml_with_multiple_image_pull_secrets():
 
     assert yaml_obj["spec"]["imagePullSecrets"] == [
         dict(name="some-secret"),
-        dict(name="another-one")
+        dict(name="another-one"),
     ]
 
 

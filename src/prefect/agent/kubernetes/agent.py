@@ -375,9 +375,13 @@ class KubernetesAgent(Agent):
                 # where prefect would only overwrite the first entry in
                 # imagePullSecrets
                 if idx == 0:
-                    job["spec"]["template"]["spec"]["imagePullSecrets"][0] = {"name": secret_name}
+                    job["spec"]["template"]["spec"]["imagePullSecrets"][0] = {
+                        "name": secret_name
+                    }
                 else:
-                    job["spec"]["template"]["spec"]["imagePullSecrets"].append({"name": secret_name})
+                    job["spec"]["template"]["spec"]["imagePullSecrets"].append(
+                        {"name": secret_name}
+                    )
         else:
             del job["spec"]["template"]["spec"]["imagePullSecrets"]
 
