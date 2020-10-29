@@ -79,8 +79,9 @@ class DaskKubernetesEnvironment(Environment):
         - scheduler_spec_file (str, optional): Path to a scheduler spec YAML file
         - worker_spec_file (str, optional): Path to a worker spec YAML file
         - image_pull_secret (str, optional): optional name of an `imagePullSecret` to use for
-            the scheduler and worker pods. For more information go
-            [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
+            the scheduler and worker pods. To specify multiple image pull secrets, provide a comma-delimited
+            string with no spaces, like `"some-secret,other-secret"`.
+            For more information go [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
             `Warning`:  `image_pull_secret` if provided won't be appended to your custom
             `worker_spec_file` or `scheduler_spec_file`. If you want it, don't forget to add it in
             your spec files.
@@ -389,7 +390,9 @@ class DaskKubernetesEnvironment(Environment):
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
         elif self.image_pull_secret:
             pod_spec["imagePullSecrets"] = []
-            pod_spec["imagePullSecrets"].append({"name": self.image_pull_secret})
+            secrets = self.image_pull_secret.split(",")
+            for secret_name in secrets:
+                pod_spec["imagePullSecrets"].append({"name": secret_name})
 
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
@@ -432,7 +435,9 @@ class DaskKubernetesEnvironment(Environment):
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
         elif self.image_pull_secret:
             pod_spec["imagePullSecrets"] = []
-            pod_spec["imagePullSecrets"].append({"name": self.image_pull_secret})
+            secrets = self.image_pull_secret.split(",")
+            for secret_name in secrets:
+                pod_spec["imagePullSecrets"].append({"name": secret_name})
 
         # set image
         yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
