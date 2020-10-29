@@ -5,6 +5,9 @@ def create_link(link: str) -> str:
     """
     Create a link artifact
 
+    Note: The functionality here is experimental, and may change between
+    versions without notice. Use at your own risk.
+
     Args:
         - link (str): the link to post
 
@@ -21,6 +24,9 @@ def update_link(task_run_artifact_id: str, link: str) -> bool:
     """
     Update an existing link artifact. This function will replace the current link
     artifact with the new link provided.
+
+    Note: The functionality here is experimental, and may change between
+    versions without notice. Use at your own risk.
 
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
@@ -42,6 +48,9 @@ def delete_link(task_run_artifact_id: str) -> bool:
     """
     Delete an existing link artifact
 
+    Note: The functionality here is experimental, and may change between
+    versions without notice. Use at your own risk.
+
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
 
@@ -58,6 +67,9 @@ def delete_link(task_run_artifact_id: str) -> bool:
 def create_markdown(markdown: str) -> str:
     """
     Create a markdown artifact
+
+    Note: The functionality here is experimental, and may change between
+    versions without notice. Use at your own risk.
 
     Args:
         - markdown (str): the markdown to post
@@ -78,6 +90,9 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> bool:
     Update an existing markdown artifact. This function will replace the current markdown
     artifact with the new markdown provided.
 
+    Note: The functionality here is experimental, and may change between
+    versions without notice. Use at your own risk.
+
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - markdown (str): the new markdown to update the artifact with
@@ -97,6 +112,9 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> bool:
 def delete_markdown(task_run_artifact_id: str) -> bool:
     """
     Delete an existing markdown artifact
+
+    Note: The functionality here is experimental, and may change between
+    versions without notice. Use at your own risk.
 
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
