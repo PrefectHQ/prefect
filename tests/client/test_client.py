@@ -263,6 +263,7 @@ def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
         no_url=True,
+        idempotency_key="foo",
     )
     assert flow_id == "long-id"
 
