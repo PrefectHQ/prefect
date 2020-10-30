@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import click
 import pytest
+import pytz
 
 from prefect import context, utilities
 
@@ -29,14 +30,26 @@ def test_root_logger_level_responds_to_config():
         logger.handlers = []
 
 
-@pytest.mark.parametrize("datefmt", ["%Y", "%Y -- %D"])
-def test_root_logger_datefmt_responds_to_config(caplog, datefmt):
+@pytest.mark.parametrize(
+    "datefmt, display_tz",
+    [
+        ("%Y", "UTC"),
+        ("%Y -- %D", "UTC"),
+        ("%Y-%m-%d %H%z", "UTC"),
+        ("%Y-%m-%d %H%z", "US/Eastern"),
+    ],
+)
+def test_root_logger_datefmt_responds_to_config(caplog, datefmt, display_tz):
     try:
-        with utilities.configuration.set_temporary_config({"logging.datefmt": datefmt}):
+        with utilities.configuration.set_temporary_config(
+            {"logging.datefmt": datefmt, "logging.display_tz": display_tz}
+        ):
             logger = utilities.logging.configure_logging(testing=True)
             logger.error("badness")
             logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert logs[0].asctime == datetime.datetime.utcnow().strftime(datefmt)
+            assert logs[0].asctime == datetime.datetime.now(
+                pytz.timezone(display_tz)
+            ).strftime(datefmt)
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)

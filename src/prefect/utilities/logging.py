@@ -33,16 +33,44 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 )
 
 
+class PrefectFormatter(logging.Formatter):
+    """
+    Custom formatter implementing timezone localization.
+    Creates a logger with a `StreamHandler` that has level and formatting
+    set from `prefect.config`.
+
+    Args:
+        - display_tz (str): Typically set from `prefect.config`, used by `formatTime`
+        method for display in log records.
+    """
+
+    def __init__(self, *args, display_tz: str = "UTC", **kwargs) -> None:
+        self.display_tz = display_tz
+        super().__init__(*args, **kwargs)
+
+    def converter(self, timestamp: float) -> pendulum.DateTime:
+        return pendulum.from_timestamp(timestamp, tz=self.display_tz)
+
+    def formatTime(self, record, datefmt=None) -> str:
+        dt = self.converter(record.created)
+        if datefmt:
+            s = dt.strftime(datefmt)
+        else:
+            s = dt.isoformat()
+        return s
+
+
 class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
         super().__init__(sys.stdout)
         self.client = None
         self.logger = logging.getLogger("CloudHandler")
         handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(
-            context.config.logging.format, context.config.logging.datefmt
+        formatter = PrefectFormatter(
+            context.config.logging.format,
+            context.config.logging.datefmt,
+            display_tz=context.config.logging.display_tz,
         )
-        formatter.converter = time.gmtime  # type: ignore
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         self.logger.setLevel(context.config.logging.level)
@@ -214,10 +242,11 @@ def _create_logger(name: str) -> logging.Logger:
 
     logger = logging.getLogger(name)
     handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(
-        context.config.logging.format, context.config.logging.datefmt
+    formatter = PrefectFormatter(
+        context.config.logging.format,
+        context.config.logging.datefmt,
+        display_tz=context.config.logging.display_tz,
     )
-    formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(context.config.logging.level)

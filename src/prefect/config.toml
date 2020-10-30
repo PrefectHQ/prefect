@@ -93,6 +93,9 @@ format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 # e.g., log_attributes = "['context_var']"
 log_attributes = "[]"
 
+# name of the timezone in which to display log timestamps
+display_tz = "UTC"
+
 # the timestamp format
 datefmt = "%Y-%m-%d %H:%M:%S%z"
 
