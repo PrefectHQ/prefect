@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional
 
 from prefect import context, Client
 
@@ -14,7 +14,7 @@ def running_with_backend() -> bool:
     return bool(context.get("running_with_backend"))
 
 
-def create_link(link: str) -> Union[str, None]:
+def create_link(link: str) -> Optional[str]:
     """
     Create a link artifact
 
@@ -86,7 +86,7 @@ def delete_link(task_run_artifact_id: str) -> bool:
     return client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
 
 
-def create_markdown(markdown: str) -> Union[str, None]:
+def create_markdown(markdown: str) -> Optional[str]:
     """
     Create a markdown artifact
 

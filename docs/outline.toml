@@ -516,7 +516,7 @@ title = "Fargate Agent"
 module = "prefect.agent.fargate"
 classes = ["FargateAgent"]
 
-[pages.artifacts]
+[pages.artifacts.artifacts]
 title = "Artifacts"
 module = "prefect.artifacts"
 functions = [
