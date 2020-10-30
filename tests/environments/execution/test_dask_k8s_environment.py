@@ -341,7 +341,7 @@ def test_populate_worker_pod_yaml_with_private_registry():
         ):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
-    yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")
+    assert yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")
 
 
 def test_populate_worker_pod_yaml_with_image_pull_secret():
@@ -360,7 +360,7 @@ def test_populate_worker_pod_yaml_with_image_pull_secret():
         ):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
-    yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="mysecret")
+    assert yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="mysecret")
 
 
 def test_initialize_environment_with_spec_populates(monkeypatch):
