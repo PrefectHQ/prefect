@@ -656,8 +656,8 @@ def start(
     """Start an ECS agent"""
     from prefect.agent.ecs.agent import ECSAgent
 
-    labels = list(set(label))
-    env_vars = dict(zip(e.split("=", 2) for e in env))
+    labels = sorted(set(label))
+    env_vars = dict(e.split("=", 2) for e in env)
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,

@@ -3,6 +3,8 @@ from unittest.mock import MagicMock
 from click.testing import CliRunner
 import pytest
 
+import prefect
+from prefect.cli import cli
 from prefect.cli.agent import agent
 
 pytest.importorskip("boto3")
@@ -10,18 +12,13 @@ pytest.importorskip("botocore")
 pytest.importorskip("kubernetes")
 
 
-def test_agent_init():
-    runner = CliRunner()
-    result = runner.invoke(agent)
+@pytest.mark.parametrize(
+    "cmd", ["agent", "agent start", "agent install", "agent ecs", "agent ecs start"]
+)
+def test_help(cmd):
+    args = cmd.split()
+    result = CliRunner().invoke(cli, args + ["-h"])
     assert result.exit_code == 0
-    assert "Manage Prefect agents." in result.output
-
-
-def test_agent_help():
-    runner = CliRunner()
-    result = runner.invoke(agent, ["--help"])
-    assert result.exit_code == 0
-    assert "Manage Prefect agents." in result.output
 
 
 def test_agent_start_fails_no_token(cloud_api):
@@ -361,7 +358,7 @@ def test_agent_install_fails_non_valid_agent(cloud_api):
     assert "fake_agent is not a supported agent for `install`" in result.output
 
 
-def test_agent_install_k8s_asses_args(cloud_api):
+def test_agent_install_k8s_passes_args(cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         agent,
@@ -450,12 +447,12 @@ def test_agent_install_k8s_no_resource_manager(cloud_api):
     assert "TEST_TOKEN" in result.output
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
-    assert not "resource-manager" in result.output
+    assert "resource-manager" not in result.output
     assert "rbac" in result.output
     assert "secret-test" in result.output
 
 
-def test_agent_install_local_asses_args(cloud_api):
+def test_agent_install_local_passes_args(cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         agent,
@@ -477,3 +474,72 @@ def test_agent_install_local_asses_args(cloud_api):
     assert "test_label1" in result.output
     assert "test_label2" in result.output
     assert "my_path" in result.output
+
+
+def test_ecs_agent_start(monkeypatch):
+    agent_obj = MagicMock()
+
+    def check_config(*args, **kwargs):
+        assert prefect.config.cloud.agent.auth_token == "TEST-TOKEN"
+        assert prefect.config.cloud.agent.level == "DEBUG"
+        assert prefect.config.cloud.api == "TEST-API"
+        return agent_obj
+
+    ecs_agent = MagicMock(side_effect=check_config)
+    monkeypatch.setattr("prefect.agent.ecs.agent.ECSAgent", ecs_agent)
+
+    result = CliRunner().invoke(
+        agent,
+        [
+            "ecs",
+            "start",
+            "--token",
+            "TEST-TOKEN",
+            "--api",
+            "TEST-API",
+            "--agent-config-id",
+            "TEST-AGENT-CONFIG-ID",
+            "--name",
+            "TEST-NAME",
+            "-l",
+            "label1",
+            "-l",
+            "label2",
+            "-e",
+            "KEY1=VALUE1",
+            "-e",
+            "KEY2=VALUE2",
+            "--max-polls",
+            "10",
+            "--agent-address",
+            "127.0.0.1:8080",
+            "--log-level",
+            "debug",
+            "--cluster",
+            "TEST-CLUSTER",
+            "--launch-type",
+            "EC2",
+            "--task-role-arn",
+            "TEST-TASK-ROLE-ARN",
+            "--task-definition",
+            "task-definition-path.yaml",
+            "--run-task-kwargs",
+            "run-task-kwargs-path.yaml",
+        ],
+    )
+    kwargs = ecs_agent.call_args[1]
+    assert kwargs == {
+        "agent_config_id": "TEST-AGENT-CONFIG-ID",
+        "name": "TEST-NAME",
+        "labels": ["label1", "label2"],
+        "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
+        "max_polls": 10,
+        "agent_address": "127.0.0.1:8080",
+        "no_cloud_logs": False,
+        "cluster": "TEST-CLUSTER",
+        "launch_type": "EC2",
+        "task_role_arn": "TEST-TASK-ROLE-ARN",
+        "task_definition_path": "task-definition-path.yaml",
+        "run_task_kwargs_path": "run-task-kwargs-path.yaml",
+    }
+    assert agent_obj.start.called
