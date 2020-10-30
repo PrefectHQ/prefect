@@ -112,7 +112,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Install zsh for tests
-          command: apt update && apt install -y zsh
+          command: apt-get update && apt-get install -y zsh
 
       - run:
           name: Create lower bound requirements file
