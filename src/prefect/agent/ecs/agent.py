@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import Iterable, Dict, Any
+from typing import Iterable, Dict, Optional, Any
 
 import slugify
 import yaml
@@ -89,7 +89,7 @@ class ECSAgent(Agent):
             Currently this is just health checks for use by an orchestration
             layer. Leave blank for no api server (default).
         - no_cloud_logs (bool, optional): Disable logging to a Prefect backend
-            for this agent and all deployed flow runs
+            for this agent and all deployed flow runs. Defaults to `False`.
         - task_definition_path (str, optional): Path to a task definition
             template to use when defining new tasks. If not provided, the
             default template will be used.
@@ -312,7 +312,7 @@ class ECSAgent(Agent):
 
         # Check if a task definition already exists
         taskdef_arn = self.lookup_task_definition_arn(flow_run)
-        if not taskdef_arn:
+        if taskdef_arn is None:
             # Register a new task definition
             self.logger.debug(
                 "Registering new task definition for flow %s", flow_run.flow.id
@@ -359,15 +359,15 @@ class ECSAgent(Agent):
             "prefect:flow-version": str(flow_run.flow.version),
         }
 
-    def lookup_task_definition_arn(self, flow_run: GraphQLResult) -> str:
+    def lookup_task_definition_arn(self, flow_run: GraphQLResult) -> Optional[str]:
         """Lookup an existing task definition ARN for a flow run.
 
         Args:
             - flow_run (GraphQLResult): the flow run
 
         Returns:
-            - str: the task definition ARN. Returns `""` if no existing
-                definition is found.
+            - Optional[str]: the task definition ARN. Returns `None` if no
+                existing definition is found.
         """
         tags = self.get_task_definition_tags(flow_run)
 
@@ -380,9 +380,9 @@ class ECSAgent(Agent):
             )
             if res["ResourceTagMappingList"]:
                 return res["ResourceTagMappingList"][0]["ResourceARN"]
-            return ""
+            return None
         except ClientError:
-            return ""
+            return None
 
     def generate_task_definition(
         self, flow_run: GraphQLResult, run_config: ECSRun

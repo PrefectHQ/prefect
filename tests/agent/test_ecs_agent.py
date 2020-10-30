@@ -516,14 +516,14 @@ def test_lookup_task_definition_arn(aws, kind):
         aws.resourcegroupstaggingapi.get_resources.return_value = {
             "ResourceTagMappingList": []
         }
-        expected = ""
+        expected = None
     else:
         from botocore.exceptions import ClientError
 
         aws.resourcegroupstaggingapi.get_resources.side_effect = ClientError(
             {}, "GetResources"
         )
-        expected = ""
+        expected = None
 
     flow_run = GraphQLResult({"flow": GraphQLResult({"id": "flow-id", "version": 1})})
     agent = ECSAgent()
