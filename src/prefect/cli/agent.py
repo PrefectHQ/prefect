@@ -549,3 +549,134 @@ def install(
             show_flow_logs=show_flow_logs,
         )
         click.echo(conf)
+
+
+@agent.group()
+def ecs():
+    """Manage Prefect ECS agents."""
+
+
+# TODO: this duplicates the CLI parameters from the `start` command above.
+# When the other agents are ported over to `prefect agent <type> start`
+# we'll deduplicate this logic.
+@ecs.command()
+@click.option(
+    "--token", "-t", required=False, help="A Prefect Cloud API token with RUNNER scope."
+)
+@click.option("--api", "-a", required=False, help="A Prefect API URL.")
+@click.option(
+    "--agent-config-id",
+    help="An agent ID to link this agent instance with",
+)
+@click.option(
+    "--name",
+    "-n",
+    help="A name to use for the agent",
+)
+@click.option(
+    "--label",
+    "-l",
+    multiple=True,
+    help="Labels the agent will use to query for flow runs.",
+)
+@click.option(
+    "--env",
+    "-e",
+    multiple=True,
+    help="Environment variables to set on each submitted flow run.",
+)
+@click.option(
+    "--max-polls",
+    help=(
+        "Maximum number of times the agent should poll the Prefect API for flow "
+        "runs. Default is no limit"
+    ),
+    type=int,
+)
+@click.option(
+    "--agent-address",
+    help="Address to serve internal api server at. Defaults to no server.",
+    type=str,
+)
+@click.option(
+    "--no-cloud-logs",
+    is_flag=True,
+    help="Turn off logging for all flows run through this agent.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
+    default=None,
+    help=(
+        "The agent log level to use. Defaults to the value configured in your "
+        "environment."
+    ),
+)
+@click.option(
+    "--cluster",
+    help="The cluster to use. If not provided, your default cluster will be used",
+)
+@click.option(
+    "--launch-type",
+    type=click.Choice(["FARGATE", "EC2"], case_sensitive=False),
+    help="The launch type to use, defaults to FARGATE",
+)
+@click.option(
+    "--task-role-arn",
+    help="The default task role ARN to use for ECS tasks started by this agent.",
+)
+@click.option(
+    "--task-definition",
+    help=(
+        "Path to a task definition template to use when defining new tasks "
+        "instead of the default."
+    ),
+)
+@click.option(
+    "--run-task-kwargs",
+    help="Path to a yaml file containing extra kwargs to pass to `run_task`",
+)
+def start(
+    token,
+    api,
+    agent_config_id,
+    name,
+    label,
+    env,
+    max_polls,
+    agent_address,
+    no_cloud_logs,
+    log_level,
+    cluster,
+    launch_type,
+    task_role_arn,
+    task_definition,
+    run_task_kwargs,
+):
+    """Start an ECS agent"""
+    from prefect.agent.ecs.agent import ECSAgent
+
+    labels = sorted(set(label))
+    env_vars = dict(e.split("=", 2) for e in env)
+
+    tmp_config = {
+        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+        "cloud.agent.level": log_level or config.cloud.agent.level,
+        "cloud.api": api or config.cloud.api,
+    }
+    with set_temporary_config(tmp_config):
+        agent = ECSAgent(
+            agent_config_id=agent_config_id,
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
+            cluster=cluster,
+            launch_type=launch_type,
+            task_role_arn=task_role_arn,
+            task_definition_path=task_definition,
+            run_task_kwargs_path=run_task_kwargs,
+        )
+        agent.start()

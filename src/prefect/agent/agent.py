@@ -280,6 +280,10 @@ class Agent:
             self.cleanup()
 
     def setup(self) -> None:
+        print(ascii_name)
+
+        self.on_startup()
+
         self.agent_connect()
 
         if self.agent_address:
@@ -357,6 +361,13 @@ class Agent:
         )
         self._heartbeat_thread.start()
 
+    def on_startup(self) -> None:
+        """
+        Invoked when the agent is starting up.
+
+        Intended as a hook for child classes to optionally implement.
+        """
+
     def on_shutdown(self) -> None:
         """
         Invoked when the event loop is exiting and the agent is shutting down. Intended
@@ -367,7 +378,6 @@ class Agent:
         """
         Verify agent connection to Prefect API by querying
         """
-        print(ascii_name)
         self.logger.info(
             "Starting {} with labels {}".format(type(self).__name__, self.labels)
         )

@@ -1,0 +1,5 @@
+networkMode: awsvpc
+cpu: 1024
+memory: 2048
+containerDefinitions:
+  - name: flow
