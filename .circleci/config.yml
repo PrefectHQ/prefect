@@ -31,7 +31,7 @@ jobs:
 
   check_static_analysis:
     docker:
-      - image: python:3.7
+      - image: python:3.7-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -65,7 +65,7 @@ jobs:
       - run:
           name: Ensure 'import prefect' is under 1 second
           command: |
-            apt update && apt install jq bc -y
+            apt-get update && apt-get install jq bc -y
 
             # generate pycache
             python -c 'import prefect'
@@ -81,7 +81,7 @@ jobs:
 
   check_documentation:
     docker:
-      - image: python:3.7
+      - image: python:3.7-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -101,7 +101,7 @@ jobs:
   # to ensure our requirements.txt file is accurate
   test_lower_prefect:
     docker:
-      - image: python:3.6
+      - image: python:3.6-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -112,7 +112,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Install zsh for tests
-          command: apt-get update && apt-get install -y zsh
+          command: apt update && apt install -y zsh
 
       - run:
           name: Create lower bound requirements file
@@ -144,7 +144,7 @@ jobs:
   # caused by many package dependency options
   test_vanilla_prefect:
     docker:
-      - image: python:3.7
+      - image: python:3.7-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -180,7 +180,7 @@ jobs:
 
   test_36:
     docker:
-      - image: python:3.6
+      - image: python:3.6-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -215,7 +215,7 @@ jobs:
 
   test_37:
     docker:
-      - image: python:3.7
+      - image: python:3.7-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -244,7 +244,7 @@ jobs:
 
   test_38:
     docker:
-      - image: python:3.8
+      - image: python:3.8-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -273,7 +273,7 @@ jobs:
 
   upload_coverage:
     docker:
-      - image: python:3.7
+      - image: python:3.7-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -465,7 +465,7 @@ jobs:
 
     steps:
       - setup_remote_docker:
-          version: 18.09.3
+          version: 18.09.9
       - promote_image:
           IMAGE_NAME: apollo
           VERSION: core-${CIRCLE_TAG}
@@ -478,7 +478,7 @@ jobs:
 
   release_to_pypi:
     docker:
-      - image: python:3.7
+      - image: python:3.7-slim
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
