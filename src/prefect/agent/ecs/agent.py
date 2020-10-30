@@ -298,7 +298,7 @@ class ECSAgent(Agent):
                 "Flow run %s has a null `run_config`, only `ECSRun` is supported",
                 flow_run.id,
             )
-            raise TypeError("Flow is missing a `run_config`")
+            raise ValueError("Flow is missing a `run_config`")
 
         # Check if a task definition already exists
         taskdef_arn = self.lookup_task_definition_arn(flow_run)

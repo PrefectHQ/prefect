@@ -10,7 +10,7 @@ from prefect.agent.ecs.agent import (
     DEFAULT_TASK_DEFINITION_PATH,
 )
 from prefect.environments.storage import Local, Docker
-from prefect.run_configs import ECSRun
+from prefect.run_configs import ECSRun, LocalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
@@ -171,6 +171,10 @@ class TestAgentTaskDefinitionPath:
         agent = ECSAgent()
         assert agent.task_definition == default_task_definition
 
+    def test_task_definition_path_read_errors(self, tmpdir):
+        with pytest.raises(Exception):
+            ECSAgent(task_definition_path=str(tmpdir.join("missing.yaml")))
+
     def test_task_definition_path_local(self, tmpdir):
         task_definition = {"networkMode": "awsvpc", "cpu": 2048, "memory": 4096}
         path = str(tmpdir.join("task.yaml"))
@@ -196,6 +200,10 @@ class TestAgentRunTaskKwargsPath:
     def test_run_task_kwargs_path_default(self):
         agent = ECSAgent(launch_type="EC2")
         assert agent.run_task_kwargs == {}
+
+    def test_run_task_kwargs_path_read_errors(self, tmpdir):
+        with pytest.raises(Exception):
+            ECSAgent(run_task_kwargs_path=str(tmpdir.join("missing.yaml")))
 
     def test_run_task_kwargs_path_local(self, tmpdir):
         run_task_kwargs = {"overrides": {"taskRoleArn": "my-task-role"}}
@@ -281,7 +289,7 @@ class TestGenerateTaskDefinition:
 
     @pytest.mark.parametrize("use_path", [False, True])
     def test_generate_task_definition_uses_run_config_task_definition(
-        self, use_path, tmpdir
+        self, use_path, monkeypatch
     ):
         task_definition = {
             "tags": [{"key": "mykey", "value": "myvalue"}],
@@ -290,10 +298,12 @@ class TestGenerateTaskDefinition:
         }
 
         if use_path:
-            path = str(tmpdir.join("test.yaml"))
-            with open(path, "w") as f:
-                yaml.safe_dump(task_definition, f)
-            run_config = ECSRun(task_definition_path=path)
+            data = yaml.safe_dump(task_definition)
+            run_config = ECSRun(task_definition_path="s3://test/path.yaml")
+            monkeypatch.setattr(
+                "prefect.agent.ecs.agent.read_bytes_from_path",
+                MagicMock(wraps=read_bytes_from_path, return_value=data),
+            )
         else:
             run_config = ECSRun(task_definition=task_definition)
 
@@ -493,3 +503,111 @@ class TestGetRunTaskKwargs:
             "CUSTOM3": "OVERRIDE3",  # run-config envs override agent
             "CUSTOM4": "VALUE4",
         }
+
+
+@pytest.mark.parametrize("kind", ["exists", "missing", "error"])
+def test_lookup_task_definition_arn(aws, kind):
+    if kind == "exists":
+        aws.resourcegroupstaggingapi.get_resources.return_value = {
+            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
+        }
+        expected = "my-taskdef-arn"
+    elif kind == "missing":
+        aws.resourcegroupstaggingapi.get_resources.return_value = {
+            "ResourceTagMappingList": []
+        }
+        expected = ""
+    else:
+        from botocore.exceptions import ClientError
+
+        aws.resourcegroupstaggingapi.get_resources.side_effect = ClientError(
+            {}, "GetResources"
+        )
+        expected = ""
+
+    flow_run = GraphQLResult({"flow": GraphQLResult({"id": "flow-id", "version": 1})})
+    agent = ECSAgent()
+
+    res = agent.lookup_task_definition_arn(flow_run)
+    assert res == expected
+    kwargs = aws.resourcegroupstaggingapi.get_resources.call_args[1]
+    assert sorted(kwargs["TagFilters"], key=lambda x: x["Key"]) == [
+        {"Key": "prefect:flow-id", "Values": ["flow-id"]},
+        {"Key": "prefect:flow-version", "Values": ["1"]},
+    ]
+    assert kwargs["ResourceTypeFilters"] == ["ecs:task-definition"]
+
+
+class TestDeployFlow:
+    def deploy_flow(self, run_config, **kwargs):
+        agent = ECSAgent(**kwargs)
+        flow_run = GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Local().serialize(),
+                        "run_config": run_config.serialize() if run_config else None,
+                        "id": "flow-id",
+                        "version": 1,
+                        "name": "Test Flow",
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "flow-run-id",
+            }
+        )
+        return agent.deploy_flow(flow_run)
+
+    def test_deploy_flow_errors_if_not_ecs_run_config(self):
+        with pytest.raises(TypeError, match="Unsupported RunConfig"):
+            self.deploy_flow(LocalRun())
+
+    def test_deploy_flow_errors_if_missing_run_config(self):
+        with pytest.raises(ValueError, match="Flow is missing a `run_config`"):
+            self.deploy_flow(None)
+
+    def test_deploy_flow_registers_taskdef_if_not_found(self, aws):
+        aws.resourcegroupstaggingapi.get_resources.return_value = {
+            "ResourceTagMappingList": []
+        }
+        aws.ecs.register_task_definition.return_value = {
+            "taskDefinition": {"taskDefinitionArn": "my-taskdef-arn"}
+        }
+        aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
+
+        res = self.deploy_flow(ECSRun(run_task_kwargs={"enableECSManagedTags": True}))
+        assert aws.ecs.register_task_definition.called
+        assert (
+            aws.ecs.register_task_definition.call_args[1]["family"]
+            == "prefect-test-flow"
+        )
+        assert aws.ecs.run_task.called
+        assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
+        assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
+        assert "my-task-arn" in res
+
+    def test_deploy_flow_does_not_register_taskdef_if_found(self, aws):
+        aws.resourcegroupstaggingapi.get_resources.return_value = {
+            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
+        }
+        aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
+
+        res = self.deploy_flow(ECSRun(run_task_kwargs={"enableECSManagedTags": True}))
+        assert not aws.ecs.register_task_definition.called
+        assert aws.ecs.run_task.called
+        assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
+        assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
+        assert "my-task-arn" in res
+
+    def test_deploy_flow_run_task_fails(self, aws):
+        aws.resourcegroupstaggingapi.get_resources.return_value = {
+            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
+        }
+        aws.ecs.run_task.return_value = {
+            "tasks": [],
+            "failures": [{"reason": "my-reason"}],
+        }
+        with pytest.raises(ValueError) as exc:
+            self.deploy_flow(ECSRun())
+        assert aws.ecs.run_task.called
+        assert "my-reason" in str(exc.value)
