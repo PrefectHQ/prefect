@@ -99,8 +99,8 @@ class ECSAgent(Agent):
         - aws_access_key_id (str, optional): AWS access key id for connecting
             the boto3 client. If not provided, will be loaded from your
             environment (via either the `AWS_ACCESS_KEY_ID` environment
-            variable, or the `~/.aws/config` file). See [the boto3 credentials
-            docs][1] for more information.
+            variable, or the `~/.aws/config` file). See
+            [the boto3 credentials docs][1] for more information.
         - aws_secret_access_key (str, optional): AWS secret access key for
             connecting the boto3 client. If not provided, will be loaded from
             your environment (via either the `AWS_SECRET_ACCESS_KEY`
@@ -125,6 +125,7 @@ class ECSAgent(Agent):
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
+
 
     [1]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
 
@@ -239,6 +240,15 @@ class ECSAgent(Agent):
             ] = self.infer_network_configuration()
 
     def infer_network_configuration(self) -> dict:
+        """Infer default values for `networkConfiguration`.
+
+        This is called when running on `FARGATE` with no `networkConfiguration`
+        specified in the default `run_task_kwargs`. This makes it easier to get
+        setup, as usually the default is what you want.
+
+        Returns:
+            - dict: Inferred `networkConfiguration`
+        """
         from prefect.utilities.aws import get_boto_client
 
         self.logger.debug("Inferring default `networkConfiguration`...")
@@ -271,7 +281,7 @@ class ECSAgent(Agent):
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
-        Deploy flow runs on to a k8s cluster as jobs
+        Deploy a flow run as an ECS task.
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
@@ -336,12 +346,29 @@ class ECSAgent(Agent):
         )
 
     def get_task_definition_tags(self, flow_run: GraphQLResult) -> dict:
+        """Get required task definition tags from a flow run.
+
+        Args:
+            - flow_run (GraphQLResult): the flow run
+
+        Returns:
+            - dict: a dict of tags to use
+        """
         return {
             "prefect:flow-id": flow_run.flow.id,
             "prefect:flow-version": str(flow_run.flow.version),
         }
 
     def lookup_task_definition_arn(self, flow_run: GraphQLResult) -> str:
+        """Lookup an existing task definition ARN for a flow run.
+
+        Args:
+            - flow_run (GraphQLResult): the flow run
+
+        Returns:
+            - str: the task definition ARN. Returns `""` if no existing
+                definition is found.
+        """
         tags = self.get_task_definition_tags(flow_run)
 
         from botocore.exceptions import ClientError
@@ -360,6 +387,15 @@ class ECSAgent(Agent):
     def generate_task_definition(
         self, flow_run: GraphQLResult, run_config: ECSRun
     ) -> Dict[str, Any]:
+        """Generate an ECS task definition from a flow run
+
+        Args:
+            - flow_run (GraphQLResult): A flow run object
+            - run_config (ECSRun): The flow's run config
+
+        Returns:
+            - dict: a dictionary representation of an ECS task definition
+        """
         if run_config.task_definition:
             taskdef = deepcopy(run_config.task_definition)
         elif run_config.task_definition_path:
@@ -440,6 +476,15 @@ class ECSAgent(Agent):
     def get_run_task_kwargs(
         self, flow_run: GraphQLResult, run_config: ECSRun
     ) -> Dict[str, Any]:
+        """Generate kwargs to pass to `ECS.client.run_task` for a flow run
+
+        Args:
+            - flow_run (GraphQLResult): A flow run object
+            - run_config (ECSRun): The flow's run config
+
+        Returns:
+            - dict: kwargs to pass to `ECS.client.run_task`
+        """
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
         if self.launch_type:

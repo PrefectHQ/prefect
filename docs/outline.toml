@@ -516,6 +516,11 @@ title = "Fargate Agent"
 module = "prefect.agent.fargate"
 classes = ["FargateAgent"]
 
+[pages.agent.ecs]
+title = "ECS Agent"
+module = "prefect.agent.ecs"
+classes = ["ECSAgent"]
+
 [pages.utilities.collections]
 title = "Collections"
 module = "prefect.utilities.collections"

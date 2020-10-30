@@ -169,7 +169,7 @@ def format_lists(doc):
         for item, descr in list_items:
             block += f"{li_tag}`{item}`:{descr}</li>"
         list_block = f"{ul_tag}{block}</ul>"
-        doc = doc.replace(items + "\n\n", list_block, 1).replace(items, list_block, 1)
+        doc = doc.replace(items + "\n", list_block, 1).replace(items, list_block, 1)
     return doc.replace("\n\nRaises:", "Raises:")
 
 
