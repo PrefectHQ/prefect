@@ -1,0 +1,2 @@
+fix:
+  - "Fix issue with reducer task retries - [#3519](https://github.com/PrefectHQ/prefect/issues/3519)"
