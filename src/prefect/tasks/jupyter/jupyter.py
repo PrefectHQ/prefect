@@ -1,12 +1,8 @@
-from typing import List, Tuple
-
+import nbconvert
 import nbformat
-from nbformat import NotebookNode
+import papermill as pm
 
 from prefect import Task
-import papermill as pm
-import nbconvert
-
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -44,7 +40,16 @@ class JupyterTask(Task):
 
     @defaults_from_attrs("notebook_path", "notebook_params", "as_html")
     def run(self, notebook_path: str = None, notebook_params: dict = None, as_html: bool = None) -> str:
-        nb: NotebookNode = pm.execute_notebook(
+        """
+        Run a Jupyter notebook and output as HTML or JSON
+
+        Args:
+        - notebook_path (string, optional): path to fetch the notebook from; can also be
+            a cloud storage path
+        - notebook_params (dict, optional): dictionary of parameters to use for the notebook
+        - as_html (bool, optional): whether to output as HTML
+        """
+        nb: nbformat.NotebookNode = pm.execute_notebook(
             notebook_path,
             "-",
             parameters=notebook_params,
