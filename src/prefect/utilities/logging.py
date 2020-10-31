@@ -45,20 +45,28 @@ class PrefectFormatter(logging.Formatter):
         method for display in log records.
     """
 
-    def __init__(self, *args, display_tz: str = "UTC", **kwargs) -> None:
+    def __init__(self, *args: Any, display_tz: str = "UTC", **kwargs: Any) -> None:
         self.display_tz = display_tz
         super().__init__(*args, **kwargs)
 
     def converter(self, timestamp: float) -> pendulum.DateTime:
+        """
+        Return timezone-aware timestamp using specified timezone.
+        Default `converter` implementation returns a `struct_time` object,
+        which does not readily support timezones.
+        """
         return pendulum.from_timestamp(timestamp, tz=self.display_tz)
 
-    def formatTime(self, record, datefmt=None) -> str:
+    def formatTime(self, record: logging.LogRecord, datefmt: str = None) -> str:
+        """
+        Return the creation time of the specified LogRecord as formatted text.
+
+        Differs from `logging.Formatter` implementation due to the need to
+        call `datetime.strftime` instead of `time.strftime`.
+        """
         dt = self.converter(record.created)
-        if datefmt:
-            s = dt.strftime(datefmt)
-        else:
-            s = dt.isoformat()
-        return s
+        formatted_time = dt.strftime(datefmt) if datefmt else dt.isoformat()
+        return formatted_time
 
 
 class CloudHandler(logging.StreamHandler):
