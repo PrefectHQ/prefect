@@ -48,10 +48,12 @@ class JupyterTask(Task):
             notebook_path,
             "-",
             parameters=notebook_params,
+            kernel_name=self.kernel_name
         )
         if as_html:
             html_exporter = nbconvert.HTMLExporter()
             (body, resources) = html_exporter.from_notebook_node(nb)
             return body
-        else:  # return JSON format
-            return nbformat.writes(nb)
+
+        # return JSON format
+        return nbformat.writes(nb)
