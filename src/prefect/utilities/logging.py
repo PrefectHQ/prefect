@@ -15,7 +15,7 @@ import sys
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any, Optional
+from typing import Any, Union
 
 import pendulum
 
@@ -49,7 +49,7 @@ class PrefectFormatter(logging.Formatter):
         self.display_tz = display_tz
         super().__init__(*args, **kwargs)
 
-    def converter(self, timestamp: Optional[float]) -> pendulum.DateTime:  # type: ignore
+    def converter(self, timestamp: Union[int, float]) -> pendulum.DateTime:  # type: ignore
         """
         Return timezone-aware timestamp using specified timezone.
         Default `converter` implementation returns a `struct_time` object,
