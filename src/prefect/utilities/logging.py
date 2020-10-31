@@ -40,7 +40,8 @@ class PrefectFormatter(logging.Formatter):
     set from `prefect.config`.
 
     Args:
-        - display_tz (str): Typically set from `prefect.config`, used by `formatTime`
+        - display_tz (str): Timezone name in tzdata/IANA format.
+        Typically set from `prefect.config`, used by `formatTime`
         method for display in log records.
     """
 

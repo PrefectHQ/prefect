@@ -93,7 +93,8 @@ format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 # e.g., log_attributes = "['context_var']"
 log_attributes = "[]"
 
-# name of the timezone in which to display log timestamps
+# name of the timezone in which to display log timestamps, in tzdata/IANA format
+# For list of valid timezones, see `pytzdata.timezones`
 display_tz = "UTC"
 
 # the timestamp format
