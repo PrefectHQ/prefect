@@ -98,9 +98,10 @@ class Client:
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
 
-        # store api token
-        self._api_token = api_token or prefect.context.config.cloud.get(
-            "auth_token", None
+        self._api_token = (
+            api_token
+            or prefect.context.config.cloud.get("auth_token", None)
+            or self._load_local_settings().get("api_token")
         )
 
     def create_tenant(self, name: str, slug: str = None) -> str:
@@ -239,20 +240,16 @@ class Client:
         protected with auth like BasicAuth do not forget to `attach_headers` before any call.
         """
         if prefect.config.backend == "cloud":
-            if not self._api_token:
-                # if no api token was passed, attempt to load state from local storage
-                settings = self._load_local_settings()
-                self._api_token = settings.get("api_token")
-
-                if self._api_token:
-                    self._active_tenant_id = settings.get("active_tenant_id")
-                if self._active_tenant_id:
-                    try:
-                        self.login_to_tenant(tenant_id=self._active_tenant_id)
-                    except AuthorizationError:
-                        # if an authorization error is raised, then the token is invalid and should
-                        # be cleared
-                        self.logout_from_tenant()
+            # if no api token was passed, attempt to load state from local storage
+            settings = self._load_local_settings()
+            self._active_tenant_id = settings.get("active_tenant_id")
+            if self._active_tenant_id:
+                try:
+                    self.login_to_tenant(tenant_id=self._active_tenant_id)
+                except AuthorizationError:
+                    # if an authorization error is raised, then the token is invalid and should
+                    # be cleared
+                    self.logout_from_tenant()
         else:
             tenant_info = self.graphql({"query": {"tenant": {"id"}}})
             if tenant_info.data.tenant:
