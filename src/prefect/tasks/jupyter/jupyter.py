@@ -25,12 +25,12 @@ class JupyterTask(Task):
     """
 
     def __init__(
-            self,
-            notebook_path: str = None,
-            notebook_params: dict = None,
-            as_html: bool = True,
-            kernel_name: str = None,
-            **kwargs
+        self,
+        notebook_path: str = None,
+        notebook_params: dict = None,
+        as_html: bool = True,
+        kernel_name: str = None,
+        **kwargs
     ):
         self.notebook_path = notebook_path
         self.notebook_params = notebook_params
@@ -39,7 +39,12 @@ class JupyterTask(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("notebook_path", "notebook_params", "as_html")
-    def run(self, notebook_path: str = None, notebook_params: dict = None, as_html: bool = None) -> str:
+    def run(
+        self,
+        notebook_path: str = None,
+        notebook_params: dict = None,
+        as_html: bool = None,
+    ) -> str:
         """
         Run a Jupyter notebook and output as HTML or JSON
 
@@ -50,10 +55,7 @@ class JupyterTask(Task):
         - as_html (bool, optional): whether to output as HTML
         """
         nb: nbformat.NotebookNode = pm.execute_notebook(
-            notebook_path,
-            "-",
-            parameters=notebook_params,
-            kernel_name=self.kernel_name
+            notebook_path, "-", parameters=notebook_params, kernel_name=self.kernel_name
         )
         if as_html:
             html_exporter = nbconvert.HTMLExporter()

@@ -26,4 +26,3 @@ def test_jupyter_json_output():
     output = task.run()
     nbobject = json.loads(output)  # try loading the JSON string
     assert "a*b=10" in output
-
