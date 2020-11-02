@@ -2,7 +2,9 @@ import collections
 import collections.abc
 import copy
 import functools
+import hashlib
 import inspect
+import json
 import os
 import tempfile
 import time
@@ -1462,6 +1464,21 @@ class Flow:
         serialized.update(schema(only=["storage"]).dump({"storage": storage}))
 
         return serialized
+
+    def serialized_hash(self, build: bool = False) -> str:
+        """
+        Generate a deterministic hash of the serialized flow. This is useful for
+        determining if the flow has changed. If this hash is equal to a previous hash,
+        no new information would be passed to the server on a call to `flow.register()`
+
+        Args:
+            - build (bool, optional):  if `True`, the flow's environment is built
+                prior to serialization. Passed through to `Flow.serialize()`.
+
+        Returns:
+            - str: the hash of the serialized flow
+        """
+        return hashlib.sha256(json.dumps(self.serialize(build)).encode()).hexdigest()
 
     # Diagnostics  ----------------------------------------------------------------
 
