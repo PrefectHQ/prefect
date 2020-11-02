@@ -9,8 +9,8 @@ from prefect.utilities.tasks import defaults_from_attrs
 class JupyterTask(Task):
     """
     Task for running Jupyter Notebooks.
-    In order to parametrize the notebook, you need to mark the parameters cell as described
-        in the papermill documentation: https://papermill.readthedocs.io/en/latest/usage-parameterize.html
+    In order to parametrize the notebook, you need to mark the parameters cell as described in
+        the papermill documentation: https://papermill.readthedocs.io/en/latest/usage-parameterize.html
 
     Args:
         - notebook_path (string, optional): path to fetch the notebook from.
