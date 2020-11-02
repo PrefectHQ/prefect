@@ -1,10 +1,6 @@
 import json
 
-import pytest
-
 from prefect.tasks.jupyter import JupyterTask
-
-pytest.importorskip("papermill")
 
 
 def test_jupyter_html_output():
