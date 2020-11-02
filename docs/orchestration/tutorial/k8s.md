@@ -30,7 +30,7 @@ flow.register(project_name="Hello, World!")
 The Kubernetes Agent can be run directly on your machine if you are currently authenticated with a Kubernetes cluster.
 
 ```bash
-prefect agent start kubernetes
+prefect agent kubernetes start
 ```
 
 :::tip Runner Token <Badge text="Cloud"/>
@@ -76,7 +76,7 @@ roleRef:
 For a high availability set up you should install the Kubernetes Agent into your cluster.
 
 ```bash
-prefect agent install kubernetes -t <YOUR_RUNNER_TOKEN> --rbac | kubectl apply -f -
+prefect agent kubernetes install -t <YOUR_RUNNER_TOKEN> --rbac | kubectl apply -f -
 ```
 
 Once the Agent has been created on your cluster it create Jobs on that cluster for each flow run. For more information on the Kubernetes Agent visit the [documentation](/orchestration/agents/kubernetes.html).

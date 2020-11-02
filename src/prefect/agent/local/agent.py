@@ -21,7 +21,7 @@ class LocalAgent(Agent):
 
     Optional import paths may be specified to append dependency modules to the PATH:
     ```
-    prefect agent start local --import-path "/usr/local/my_module" --import-path "~/other_module"
+    prefect agent local start --import-path "/usr/local/my_module" --import-path "~/other_module"
 
     # Now the local scripts/packages my_module and other_module will be importable in
     # the flow's subprocess
@@ -29,7 +29,7 @@ class LocalAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's subprocess:
     ```
-    prefect agent start local --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent local start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     Args:
