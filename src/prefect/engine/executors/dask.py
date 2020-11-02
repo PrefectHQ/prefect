@@ -245,6 +245,7 @@ class DaskExecutor(Executor):
 
         Creates a `dask.distributed.Client` and yields it.
         """
+        import multiprocessing.popen_spawn_posix  # fix for https://github.com/dask/distributed/issues/4168
         from distributed import Client
 
         try:

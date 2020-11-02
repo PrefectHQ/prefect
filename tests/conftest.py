@@ -3,6 +3,7 @@ import tempfile
 from unittest.mock import MagicMock
 
 import pytest
+import multiprocessing.popen_spawn_posix  # fix for https://github.com/dask/distributed/issues/4168
 from distributed import Client
 
 import prefect
