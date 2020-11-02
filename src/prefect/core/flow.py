@@ -1578,10 +1578,9 @@ class Flow:
                 Flow's project and name will be used.
             - no_url (bool, optional): if `True`, the stdout from this function will not
                 contain the URL link to the newly-registered flow in the Cloud UI
-            - idempotency_key (str, optional): an optional idempotency key for this flow
-                to prevent multiple sequential creations within the version group. For
-                example, if flow.register(idempotency_key="foo") is called twice only
-                one flow will be registered.
+            - idempotency_key (str, optional): a key that, if matching the most recent
+                registration call for this flow group, will prevent the creation of
+                another flow version and return the existing flow id instead.
             - **kwargs (Any): if instantiating a Storage object from default settings, these
                 keyword arguments will be passed to the initialization method of the default
                 Storage class
