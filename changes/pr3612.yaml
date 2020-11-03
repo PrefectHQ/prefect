@@ -1,0 +1,5 @@
+enhancement:
+  - "Extra croniter keyword arguments can be passed to CronClock and CronSchedule  - [#3612](https://github.com/PrefectHQ/prefect/pull/3612)"
+
+contributor:
+  - "[Panagiotis Simakis](https://github.com/sp1thas)"

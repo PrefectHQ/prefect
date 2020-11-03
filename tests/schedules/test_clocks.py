@@ -395,8 +395,10 @@ class TestCronClock:
         assert c.labels == ["dev", "foo"]
 
     def test_create_cron_clock_with_croniter_kwargs(self):
-        c = clocks.CronClock("* * * * *", croniter_kwargs={'day_or': False, 'ret_type': .1})
-        assert c.croniter_kwargs == {'day_or': False, 'ret_type': .1}
+        c = clocks.CronClock(
+            "* * * * *", croniter_kwargs={"day_or": False, "ret_type": 0.1}
+        )
+        assert c.croniter_kwargs == {"day_or": False, "ret_type": 0.1}
 
     def test_create_cron_clock_with_invalid_cron_string_raises_error(self):
         with pytest.raises(Exception):
@@ -451,7 +453,9 @@ class TestCronClock:
 
     def test_cron_clock_events_with_croniter_kwargs(self):
         every_day = "0 0 * * *"
-        c = clocks.CronClock(every_day, croniter_kwargs={'day_or': False, 'ret_type': .1})
+        c = clocks.CronClock(
+            every_day, croniter_kwargs={"day_or": False, "ret_type": 0.1}
+        )
         output = islice(c.events(), 3)
         assert all([isinstance(e, clocks.ClockEvent) for e in output])
 
@@ -462,7 +466,7 @@ class TestCronClock:
         ]
 
     def test_cron_clock_events_with_invalid_croniter_kwargs_raises_error(self):
-        c = clocks.CronClock("* * * * *", croniter_kwargs={'invalid_arg': True})
+        c = clocks.CronClock("* * * * *", croniter_kwargs={"invalid_arg": True})
         with pytest.raises(Exception):
             islice(c.events(), 1)
 
