@@ -267,7 +267,10 @@ def CronSchedule(
     return Schedule(
         clocks=[
             prefect.schedules.clocks.CronClock(
-                cron=cron, start_date=start_date, end_date=end_date, croniter_kwargs=croniter_kwargs
+                cron=cron,
+                start_date=start_date,
+                end_date=end_date,
+                croniter_kwargs=croniter_kwargs,
             )
         ]
     )

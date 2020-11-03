@@ -76,6 +76,9 @@ class CronClockSchema(ObjectSchema):
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
+    croniter_kwargs = fields.Dict(
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
 
 
 class DatesClockSchema(ObjectSchema):
