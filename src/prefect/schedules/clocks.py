@@ -236,6 +236,8 @@ class CronClock(Clock):
             Flow Runs which are run on this clock's events
         - labels (List[str], optional): a list of labels to apply to all flow runs generated
             from this Clock
+        - croniter_kwargs (dict, optional): an optional dictionary with extra croniter
+            keyword arguments
 
     Raises:
         - ValueError: if the cron string is invalid
