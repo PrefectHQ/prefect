@@ -248,11 +248,13 @@ class CronClock(Clock):
         end_date: datetime = None,
         parameter_defaults: dict = None,
         labels: List[str] = None,
+        croniter_kwargs: dict = None,
     ):
         # build cron object to check the cron string - will raise an error if it's invalid
         if not croniter.is_valid(cron):
             raise ValueError("Invalid cron string: {}".format(cron))
         self.cron = cron
+        self.croniter_kwargs = croniter_kwargs if croniter_kwargs else {}
         super().__init__(
             start_date=start_date,
             end_date=end_date,
@@ -303,7 +305,7 @@ class CronClock(Clock):
         if after_localized.microsecond:
             after_localized = after_localized + timedelta(seconds=1)
 
-        cron = croniter(self.cron, after_localized)
+        cron = croniter(self.cron, after_localized, **self.croniter_kwargs)
         dates = set()  # type: Set[datetime]
 
         while True:

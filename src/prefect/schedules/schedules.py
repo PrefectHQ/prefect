@@ -236,7 +236,10 @@ def IntervalSchedule(
 
 
 def CronSchedule(
-    cron: str, start_date: datetime = None, end_date: datetime = None
+    cron: str,
+    start_date: datetime = None,
+    end_date: datetime = None,
+    croniter_kwargs: dict = None,
 ) -> Schedule:
     """
     Cron clock.
@@ -255,6 +258,8 @@ def CronSchedule(
         - cron (str): a valid cron string
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
+        - croniter_kwargs (dict, optional): an optional dictionary with extra croniter
+            keyword arguments
 
     Raises:
         - ValueError: if the cron string is invalid
@@ -262,7 +267,7 @@ def CronSchedule(
     return Schedule(
         clocks=[
             prefect.schedules.clocks.CronClock(
-                cron=cron, start_date=start_date, end_date=end_date
+                cron=cron, start_date=start_date, end_date=end_date, croniter_kwargs=croniter_kwargs
             )
         ]
     )
