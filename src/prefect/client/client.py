@@ -330,6 +330,18 @@ class Client:
             )
 
         # Check if request returned a successful status
+        if response.status_code == 400:
+            try:
+                msg = (
+                    f"400 Client Error: Bad Request for url: {url}\n\n"
+                    f"This is likely caused by a poorly formatted GraphQL query or mutation. "
+                    f"GraphQL sent:\n\n{parse_graphql(params)}"
+                )
+                raise ClientError(msg)
+            except ClientError:
+                raise
+            except:
+                pass
         response.raise_for_status()
         return response
 
