@@ -1,0 +1,3 @@
+deprecation:
+  - "Deprecate `prefect agent start <kind>` in favor of `prefect agent <kind> start` - [#3610](https://github.com/PrefectHQ/prefect/pull/3610)"
+  - "Deprecate `prefect agent install <kind>` in favor of `prefect agent <kind> install` - [#3610](https://github.com/PrefectHQ/prefect/pull/3610)"

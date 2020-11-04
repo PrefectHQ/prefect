@@ -38,13 +38,13 @@ class KubernetesAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's job:
     ```
-    prefect agent start kubernetes --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent kubernetes start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     These can also be used to control the k8s job spec that describes the flow run jobs.
     For example, to set the k8s secret used to pull images from a non-public registry:
     ```
-    prefect agent start kubernetes --env IMAGE_PULL_SECRETS=my-img-pull-secret
+    prefect agent kubernetes start --env IMAGE_PULL_SECRETS=my-img-pull-secret
     ```
 
     For details on the available environment variables for customizing the job spec,
@@ -52,7 +52,7 @@ class KubernetesAgent(Agent):
 
     Specifying a namespace for the agent will create flow run jobs in that namespace:
     ```
-    prefect agent start kubernetes --namespace dev
+    prefect agent kubernetes start --namespace dev
     ```
 
     Args:
