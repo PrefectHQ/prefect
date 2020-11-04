@@ -340,7 +340,7 @@ class Client:
                 raise ClientError(msg)
             except ClientError:
                 raise
-            except:
+            except Exception:
                 pass
         response.raise_for_status()
         return response
