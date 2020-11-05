@@ -239,7 +239,7 @@ def CronSchedule(
     cron: str,
     start_date: datetime = None,
     end_date: datetime = None,
-    croniter_kwargs: dict = None,
+    day_or: bool = None,
 ) -> Schedule:
     """
     Cron clock.
@@ -258,8 +258,11 @@ def CronSchedule(
         - cron (str): a valid cron string
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
-        - croniter_kwargs (dict, optional): an optional dictionary with extra croniter
-            keyword arguments
+        - day_or (bool, optional): Control how croniter handles `day` and `day_of_week` entries.
+            Default option is the cron behaviour, which connects those values using OR.
+            If the switch is set to False, the values are connected using AND. This behaves like
+            fcron and enables you to e.g. define a job that executes each 2nd friday of a month
+            by setting the days of month and the weekday.
 
     Raises:
         - ValueError: if the cron string is invalid
@@ -267,10 +270,7 @@ def CronSchedule(
     return Schedule(
         clocks=[
             prefect.schedules.clocks.CronClock(
-                cron=cron,
-                start_date=start_date,
-                end_date=end_date,
-                croniter_kwargs=croniter_kwargs,
+                cron=cron, start_date=start_date, end_date=end_date, day_or=day_or
             )
         ]
     )

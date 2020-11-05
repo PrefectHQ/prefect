@@ -29,7 +29,7 @@ class CronScheduleSchema(ObjectSchema):
     start_date = DateTimeTZ(allow_none=True)
     end_date = DateTimeTZ(allow_none=True)
     cron = fields.String(required=True)
-    croniter_kwargs = fields.Dict(allow_none=True)
+    day_or = fields.Boolean(allow_none=True)
 
 
 class OneTimeScheduleSchema(ObjectSchema):

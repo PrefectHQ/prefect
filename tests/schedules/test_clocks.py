@@ -394,11 +394,9 @@ class TestCronClock:
         c = clocks.CronClock("* * * * *", labels=["dev", "foo"])
         assert c.labels == ["dev", "foo"]
 
-    def test_create_cron_clock_with_croniter_kwargs(self):
-        c = clocks.CronClock(
-            "* * * * *", croniter_kwargs={"day_or": False, "ret_type": 0.1}
-        )
-        assert c.croniter_kwargs == {"day_or": False, "ret_type": 0.1}
+    def test_create_cron_clock_with_day_or(self):
+        c = clocks.CronClock("* * * * *", day_or=False)
+        assert c.day_or is False
 
     def test_create_cron_clock_with_invalid_cron_string_raises_error(self):
         with pytest.raises(Exception):
@@ -451,24 +449,19 @@ class TestCronClock:
             start_date.add(days=3),
         ]
 
-    def test_cron_clock_events_with_croniter_kwargs(self):
-        every_day = "0 0 * * *"
-        c = clocks.CronClock(
-            every_day, croniter_kwargs={"day_or": False, "ret_type": 0.1}
-        )
+    def test_cron_clock_events_with_day_or(self):
+        """At first tuesday of each month. Check if cron work as
+        expected using day_or parameter.
+        """
+        every_day = "0 0 1-7 * 2"
+        c = clocks.CronClock(every_day, day_or=False)
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-
-        assert output == [
-            pendulum.today("UTC").add(days=1),
-            pendulum.today("UTC").add(days=2),
-            pendulum.today("UTC").add(days=3),
+        first_event, next_events = output[0], output[1:]
+        # one event every month
+        assert [event.start_time.month for event in next_events] == [
+            first_event.start_time.add(months=1).month,
+            first_event.start_time.add(months=2).month,
         ]
-
-    def test_cron_clock_events_with_invalid_croniter_kwargs_raises_error(self):
-        c = clocks.CronClock("* * * * *", croniter_kwargs={"invalid_arg": True})
-        with pytest.raises(Exception):
-            islice(c.events(), 1)
 
     def test_cron_clock_start_daylight_savings_time(self):
         """

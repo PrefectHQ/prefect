@@ -236,8 +236,11 @@ class CronClock(Clock):
             Flow Runs which are run on this clock's events
         - labels (List[str], optional): a list of labels to apply to all flow runs generated
             from this Clock
-        - croniter_kwargs (dict, optional): an optional dictionary with extra croniter
-            keyword arguments
+        - day_or (bool, optional): Control how croniter handles `day` and `day_of_week` entries.
+            Default option is the cron behaviour, which connects those values using OR.
+            If the switch is set to False, the values are connected using AND. This behaves like
+            fcron and enables you to e.g. define a job that executes each 2nd friday of a month
+            by setting the days of month and the weekday.
 
     Raises:
         - ValueError: if the cron string is invalid
@@ -250,13 +253,13 @@ class CronClock(Clock):
         end_date: datetime = None,
         parameter_defaults: dict = None,
         labels: List[str] = None,
-        croniter_kwargs: dict = None,
+        day_or: bool = None,
     ):
         # build cron object to check the cron string - will raise an error if it's invalid
         if not croniter.is_valid(cron):
             raise ValueError("Invalid cron string: {}".format(cron))
         self.cron = cron
-        self.croniter_kwargs = croniter_kwargs if croniter_kwargs else {}
+        self.day_or = day_or
         super().__init__(
             start_date=start_date,
             end_date=end_date,
@@ -307,7 +310,7 @@ class CronClock(Clock):
         if after_localized.microsecond:
             after_localized = after_localized + timedelta(seconds=1)
 
-        cron = croniter(self.cron, after_localized, **self.croniter_kwargs)
+        cron = croniter(self.cron, after_localized, day_or=self.day_or)
         dates = set()  # type: Set[datetime]
 
         while True:
