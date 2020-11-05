@@ -40,12 +40,12 @@ class DockerAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's container:
     ```
-    prefect agent start docker --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent docker start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     The default Docker daemon may be overridden by providing a different `base_url`:
     ```
-    prefect agent start docker --base-url "tcp://0.0.0.0:2375"
+    prefect agent docker start --base-url "tcp://0.0.0.0:2375"
     ```
 
     Args:

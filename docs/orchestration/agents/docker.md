@@ -13,7 +13,7 @@ The Docker Agent requires an accessible Docker daemon. So if you are using this 
 ### Usage
 
 ```
-$ prefect agent start docker
+$ prefect agent docker start
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
@@ -33,7 +33,7 @@ The Docker Agent can be started either through the Prefect CLI or by importing t
 ::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
-- command argument `prefect agent start docker -t MY_TOKEN`
+- command argument `prefect agent docker start -t MY_TOKEN`
 - environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
 - token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
 

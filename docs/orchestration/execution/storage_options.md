@@ -234,7 +234,7 @@ Make sure that the agent's labels match the desired labels for the flow storage 
 
 ```bash
 # starting a kubernetes agent that will pull flows stored in S3
-prefect agent start kubernetes -l s3-flow-storage
+prefect agent kubernetes start -l s3-flow-storage
 ```
 
 ::: tip Default Labels
