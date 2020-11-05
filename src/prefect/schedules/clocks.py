@@ -237,7 +237,7 @@ class CronClock(Clock):
         - labels (List[str], optional): a list of labels to apply to all flow runs generated
             from this Clock
         - day_or (bool, optional): Control how croniter handles `day` and `day_of_week` entries.
-            Default option is the cron behaviour, which connects those values using OR.
+            Defaults to True, matching cron which connects those values using OR.
             If the switch is set to False, the values are connected using AND. This behaves like
             fcron and enables you to e.g. define a job that executes each 2nd friday of a month
             by setting the days of month and the weekday.
