@@ -1118,3 +1118,13 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     assert client.set_task_run_name.called
     assert client.set_task_run_name.call_args[1]["name"] == "name"
     assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+
+    task = Task(name="test", task_run_name="config")
+    runner = CloudTaskRunner(task=task)
+    runner.task_run_id = "id"
+
+    runner.set_task_run_name(task_inputs={})
+
+    assert client.set_task_run_name.called
+    assert client.set_task_run_name.call_args[1]["name"] == "config"
+    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
