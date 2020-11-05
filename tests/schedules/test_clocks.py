@@ -394,9 +394,10 @@ class TestCronClock:
         c = clocks.CronClock("* * * * *", labels=["dev", "foo"])
         assert c.labels == ["dev", "foo"]
 
-    def test_create_cron_clock_with_day_or(self):
-        c = clocks.CronClock("* * * * *", day_or=False)
-        assert c.day_or is False
+    @pytest.mark.parametrize("input_day_or,expected_day_or", [(True, True), (False, False), (None, False)])
+    def test_create_cron_clock_with_day_or(self, input_day_or, expected_day_or):
+        c = clocks.CronClock("* * * * *", day_or=input_day_or)
+        assert c.day_or is expected_day_or
 
     def test_create_cron_clock_with_invalid_cron_string_raises_error(self):
         with pytest.raises(Exception):
