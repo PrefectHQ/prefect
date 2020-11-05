@@ -259,7 +259,7 @@ class CronClock(Clock):
         if not croniter.is_valid(cron):
             raise ValueError("Invalid cron string: {}".format(cron))
         self.cron = cron
-        self.day_or = day_or
+        self.day_or = True if day_or is None else day_or
         super().__init__(
             start_date=start_date,
             end_date=end_date,
