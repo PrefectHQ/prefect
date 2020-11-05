@@ -310,7 +310,7 @@ class CronClock(Clock):
         if after_localized.microsecond:
             after_localized = after_localized + timedelta(seconds=1)
 
-        cron = croniter(self.cron, after_localized, day_or=self.day_or)
+        cron = croniter(self.cron, after_localized, day_or=self.day_or)  # type: ignore
         dates = set()  # type: Set[datetime]
 
         while True:
