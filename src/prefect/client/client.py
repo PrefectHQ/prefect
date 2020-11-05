@@ -101,8 +101,11 @@ class Client:
         self._api_token = (
             api_token
             or prefect.context.config.cloud.get("auth_token", None)
-            or self._load_local_settings().get("api_token")
         )
+
+        # Initialize the tenant and api token if not yet set
+        if not self._api_token and prefect.config.backend == "cloud":
+            self._init_tenant()
 
     def create_tenant(self, name: str, slug: str = None) -> str:
         """
@@ -242,6 +245,10 @@ class Client:
         if prefect.config.backend == "cloud":
             # if no api token was passed, attempt to load state from local storage
             settings = self._load_local_settings()
+
+            if not self._api_token:
+                self._api_token = settings.get("api_token")
+
             self._active_tenant_id = settings.get("active_tenant_id")
             if self._active_tenant_id:
                 try:
