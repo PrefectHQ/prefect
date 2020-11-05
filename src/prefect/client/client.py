@@ -91,7 +91,7 @@ class Client:
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
-        self._active_tenant_id: Optional[str] = None
+        self._active_tenant_id = None
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
@@ -529,7 +529,7 @@ class Client:
             - str: the access token
         """
         if not self._access_token:
-            return self._api_token
+            return self._api_token  # type: ignore
 
         expiration = self._access_token_expires_at or pendulum.now()
         if self._refresh_token and pendulum.now().add(seconds=30) > expiration:
@@ -620,7 +620,7 @@ class Client:
             )  # type: ignore
             self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
 
-        self._active_tenant_id = tenant_id
+        self._active_tenant_id = tenant_id  # type: ignore
 
         # save the tenant setting
         settings = self._load_local_settings()
