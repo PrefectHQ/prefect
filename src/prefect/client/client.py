@@ -98,9 +98,8 @@ class Client:
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
 
-        self._api_token = (
-            api_token
-            or prefect.context.config.cloud.get("auth_token", None)
+        self._api_token = api_token or prefect.context.config.cloud.get(
+            "auth_token", None
         )
 
         # Initialize the tenant and api token if not yet set
@@ -248,8 +247,9 @@ class Client:
 
             if not self._api_token:
                 self._api_token = settings.get("api_token")
+            if self._api_token:
+                self._active_tenant_id = settings.get("active_tenant_id")
 
-            self._active_tenant_id = settings.get("active_tenant_id")
             if self._active_tenant_id:
                 try:
                     self.login_to_tenant(tenant_id=self._active_tenant_id)
