@@ -394,7 +394,9 @@ class TestCronClock:
         c = clocks.CronClock("* * * * *", labels=["dev", "foo"])
         assert c.labels == ["dev", "foo"]
 
-    @pytest.mark.parametrize("input_day_or,expected_day_or", [(True, True), (False, False), (None, True)])
+    @pytest.mark.parametrize(
+        "input_day_or,expected_day_or", [(True, True), (False, False), (None, True)]
+    )
     def test_create_cron_clock_with_day_or(self, input_day_or, expected_day_or):
         c = clocks.CronClock("* * * * *", day_or=input_day_or)
         assert c.day_or is expected_day_or
