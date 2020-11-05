@@ -1,2 +1,0 @@
-enhancement:
-  - "Add new `ECSAgent` and `ECSRun` run config - [#3585](https://github.com/PrefectHQ/prefect/pull/3585)"

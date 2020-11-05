@@ -1,2 +1,0 @@
-enhancement:
-  - "Improve error message when API responds with 400 status code - [#3615](https://github.com/PrefectHQ/prefect/pull/3615)"
