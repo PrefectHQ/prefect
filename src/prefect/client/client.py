@@ -330,6 +330,18 @@ class Client:
             )
 
         # Check if request returned a successful status
+        if response.status_code == 400:
+            msg = (
+                f"400 Client Error: Bad Request for url: {url}\n\n"
+                f"This is likely caused by a poorly formatted GraphQL query or mutation."
+            )
+            try:
+                msg += f" GraphQL sent:\n\n{parse_graphql(params)}"
+            except Exception:
+                # failed to format, raise below
+                pass
+            finally:
+                raise ClientError(msg)
         response.raise_for_status()
         return response
 
@@ -650,6 +662,7 @@ class Client:
         version_group_id: str = None,
         compressed: bool = True,
         no_url: bool = False,
+        idempotency_key: str = None,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -669,6 +682,9 @@ class Client:
                 `True` compressed
             - no_url (bool, optional): if `True`, the stdout from this function will not
                 contain the URL link to the newly-registered flow in the Cloud UI
+            - idempotency_key (optional, str): a key that, if matching the most recent
+                registration call for this flow group, will prevent the creation of
+                another flow version and return the existing flow id instead.
 
         Returns:
             - str: the ID of the newly-registered flow
@@ -766,6 +782,7 @@ class Client:
                     serialized_flow=serialized_flow,
                     set_schedule_active=set_schedule_active,
                     version_group_id=version_group_id,
+                    idempotency_key=idempotency_key,
                 )
             ),
             retry_on_api_error=False,

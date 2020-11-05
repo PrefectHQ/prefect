@@ -1,0 +1,3 @@
+feature:
+  - "`flow.register` accepts an idempotency key to prevent excessive flow versions from being created - [#3590](https://github.com/PrefectHQ/prefect/pull/3590)"
+  - "Added `flow.serialized_hash()` for easy generation of hash keys from the serialized flow - [#3590](https://github.com/PrefectHQ/prefect/pull/3590)"

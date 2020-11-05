@@ -62,7 +62,7 @@ flow.register(project_name="Hello, World!")
 This flow is registered with the Prefect API with the actual flow code stored in your local `~/.prefect/flows` directory. We can now start a local agent from the CLI and tell it to look for scheduled runs for the _Welcome Flow_.
 
 ```
-$ prefect agent start -t TOKEN -l welcome-flow
+$ prefect agent local start -t TOKEN -l welcome-flow
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
@@ -82,7 +82,7 @@ The agent is started with the `-l/--label` _welcome-flow_. All flows stored loca
 ::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
-- command argument `prefect agent start -t MY_TOKEN`
+- command argument `prefect agent local start -t MY_TOKEN`
 - environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
 - token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
   :::
@@ -92,35 +92,22 @@ There are a few ways in which you can specify a `RUNNER` API token:
 The Prefect CLI provides commands for installing agents on their respective platforms.
 
 ```
-$ prefect agent install --help
-Usage: prefect agent install [OPTIONS] NAME
+$ prefect agent local install --help
+Usage: prefect agent local install [OPTIONS]
 
-  Install an agent. Outputs configuration text which can be used to install
-  on various platforms. The Prefect image version will default to your local
-  `prefect.__version__`
-
-  Arguments:
-      name                        TEXT    The name of an agent to install (e.g. `kubernetes`, `local`)
-
-  Options:
-      --token, -t                 TEXT    A Prefect Cloud API token
-      --label, -l                 TEXT    Labels the agent will use to query for flow runs
-                                          Multiple values supported e.g. `-l label1 -l label2`
-
-  Kubernetes Agent Options:
-      --api, -a                   TEXT    A Prefect Cloud API URL
-      --namespace, -n             TEXT    Agent namespace to launch workloads
-      --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
-      --resource-manager                  Enable resource manager on install
-      --rbac                              Enable default RBAC on install
-
-  Local Agent Options:
-      --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
-                                          Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
-      --show-flow-logs, -f                Display logging output from flows run by the agent
+  Generate a supervisord.conf file for a Local agent
 
 Options:
-  -h, --help  Show this message and exit.
+  -t, --token TEXT        A Prefect Cloud API token with RUNNER scope.
+  -l, --label TEXT        Labels the agent will use to query for flow runs.
+  -e, --env TEXT          Environment variables to set on each submitted flow
+                          run.
+
+  -p, --import-path TEXT  Import paths the local agent will add to all flow
+                          runs.
+
+  -f, --show-flow-logs    Display logging output from flows run by the agent.
+  -h, --help              Show this message and exit.
 ```
 
 The local agent installation outputs a file for [Supervisor](http://supervisord.org/installing.html) to manage the process. Since you're already using Prefect, Supervisor can be quickly and easily installed with `pip install supervisor`. For more information on Supervisor installation visit their [documentation](http://supervisord.org/installing.html).
@@ -128,7 +115,7 @@ The local agent installation outputs a file for [Supervisor](http://supervisord.
 The Prefect CLI has an installation command for the local agent which will output a `supervisord.conf` file that you can save and run using Supervisor. To see the contents of what this file will look like run the following command:
 
 ```bash
-$ prefect agent install local --token $YOUR_RUNNER_TOKEN
+$ prefect agent local install --token $YOUR_RUNNER_TOKEN
 ```
 
 This will give you output that you can provide to Supervisor in order to run your local agent. To run this for the first time save this output to a file called `supervisord.conf` and run the following command to start your local agent from the `supervisord.conf` file:

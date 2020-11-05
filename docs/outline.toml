@@ -31,7 +31,7 @@ classes = ["Secret"]
 [pages.cli.agent]
 title = "agent"
 module = "prefect.cli.agent"
-commands = ["start", "install"]
+commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
 
 [pages.cli.auth]
 title = "auth"

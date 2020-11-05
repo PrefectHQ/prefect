@@ -31,12 +31,12 @@ class FargateAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's Fargate task:
     ```
-    prefect agent start fargate --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent fargate start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     boto3 kwargs being provided to the Fargate Agent:
     ```
-    prefect agent start fargate \\
+    prefect agent fargate start \\
         networkConfiguration="{\\
             'awsvpcConfiguration': {\\
                 'assignPublicIp': 'ENABLED',\\
