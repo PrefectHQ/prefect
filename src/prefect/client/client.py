@@ -1687,51 +1687,51 @@ class Client:
 
         return artifact_id
 
-    def update_task_run_artifact(self, task_run_artifact_id: str, data: dict) -> bool:
+    def update_task_run_artifact(self, task_run_artifact_id: str, data: dict) -> None:
         """
         Update an artifact that corresponds to a specific task run
 
         Args:
             - task_run_artifact_id (str): the task run artifact id
             - data (dict): the artifact data
-
-        Returns:
-            - bool: if the artifact update was successful
         """
+        if task_run_artifact_id is None:
+            raise ValueError(
+                "The ID of an existing task run artifact must be provided."
+            )
+
         mutation = {
             "mutation($input: update_task_run_artifact_input!)": {
                 "update_task_run_artifact(input: $input)": {"success"}
             }
         }
 
-        result = self.graphql(
+        self.graphql(
             mutation,
             variables=dict(
                 input=dict(task_run_artifact_id=task_run_artifact_id, data=data)
             ),
         )
 
-        return result.data.update_task_run_artifact.success
-
-    def delete_task_run_artifact(self, task_run_artifact_id: str) -> bool:
+    def delete_task_run_artifact(self, task_run_artifact_id: str) -> None:
         """
         Delete an artifact that corresponds to a specific task run
 
         Args:
             - task_run_artifact_id (str): the task run artifact id
-
-        Returns:
-            - bool: if the artifact deletion was successful
         """
+        if task_run_artifact_id is None:
+            raise ValueError(
+                "The ID of an existing task run artifact must be provided."
+            )
+
         mutation = {
             "mutation($input: delete_task_run_artifact_input!)": {
                 "delete_task_run_artifact(input: $input)": {"success"}
             }
         }
 
-        result = self.graphql(
+        self.graphql(
             mutation,
             variables=dict(input=dict(task_run_artifact_id=task_run_artifact_id)),
         )
-
-        return result.data.delete_task_run_artifact.success

@@ -1426,13 +1426,8 @@ def test_artifacts_client_functions(patch_post, cloud_api):
     )
     assert artifact_id == "artifact_id"
 
-    success = client.update_task_run_artifact(
-        task_run_artifact_id="tra_id", data={"new": "data"}
-    )
-    assert success
-
-    success = client.delete_task_run_artifact(task_run_artifact_id="tra_id")
-    assert success
+    client.update_task_run_artifact(task_run_artifact_id="tra_id", data={"new": "data"})
+    client.delete_task_run_artifact(task_run_artifact_id="tra_id")
 
     response = {
         "data": {
@@ -1446,3 +1441,9 @@ def test_artifacts_client_functions(patch_post, cloud_api):
         client.create_task_run_artifact(
             task_run_id="tr_id", kind="kind", data={"test": "data"}, tenant_id="t_id"
         )
+
+    with pytest.raises(ValueError):
+        client.update_task_run_artifact(task_run_artifact_id=None, data={"new": "data"})
+
+    with pytest.raises(ValueError):
+        client.delete_task_run_artifact(task_run_artifact_id=None)

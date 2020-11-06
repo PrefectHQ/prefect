@@ -51,33 +51,10 @@ def update_link(task_run_artifact_id: str, link: str) -> None:
     if not running_with_backend():
         return
 
-    if task_run_artifact_id is None:
-        raise ValueError("The ID of an existing task run artifact must be provided.")
-
     client = Client()
     client.update_task_run_artifact(
         task_run_artifact_id=task_run_artifact_id, data={"link": link}
     )
-
-
-def delete_link(task_run_artifact_id: str) -> None:
-    """
-    Delete an existing link artifact
-
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
-    Args:
-        - task_run_artifact_id (str): the ID of an existing task run artifact
-    """
-    if not running_with_backend():
-        return
-
-    if task_run_artifact_id is None:
-        raise ValueError("The ID of an existing task run artifact must be provided.")
-
-    client = Client()
-    client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
 
 
 def create_markdown(markdown: str) -> Optional[str]:
@@ -119,18 +96,15 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
     if not running_with_backend():
         return
 
-    if task_run_artifact_id is None:
-        raise ValueError("The ID of an existing task run artifact must be provided.")
-
     client = Client()
     client.update_task_run_artifact(
         task_run_artifact_id=task_run_artifact_id, data={"markdown": markdown}
     )
 
 
-def delete_markdown(task_run_artifact_id: str) -> None:
+def delete_artifact(task_run_artifact_id: str) -> None:
     """
-    Delete an existing markdown artifact
+    Delete an existing artifact
 
     Note: The functionality here is experimental, and may change between
     versions without notice. Use at your own risk.
@@ -140,9 +114,6 @@ def delete_markdown(task_run_artifact_id: str) -> None:
     """
     if not running_with_backend():
         return
-
-    if task_run_artifact_id is None:
-        raise ValueError("The ID of an existing task run artifact must be provided.")
 
     client = Client()
     client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
