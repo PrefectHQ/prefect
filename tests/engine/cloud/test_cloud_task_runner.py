@@ -1123,7 +1123,6 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
 def test_task_runner_set_task_name_same_as_prefect_context(client):
     @prefect.task(name="hey", task_run_name=lambda **kwargs: kwargs["config"])
     def test_task(config):
-        print(config)
         return
 
     edge = Edge(Task(), Task(), key="config")
