@@ -36,7 +36,7 @@ def create_link(link: str) -> Optional[str]:
     )
 
 
-def update_link(task_run_artifact_id: str, link: str) -> bool:
+def update_link(task_run_artifact_id: str, link: str) -> None:
     """
     Update an existing link artifact. This function will replace the current link
     artifact with the new link provided.
@@ -47,9 +47,6 @@ def update_link(task_run_artifact_id: str, link: str) -> bool:
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - link (str): the new link to update the artifact with
-
-    Returns:
-        - bool: whether or not the request was successful
     """
     if not running_with_backend():
         return False
@@ -58,12 +55,12 @@ def update_link(task_run_artifact_id: str, link: str) -> bool:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
     client = Client()
-    return client.update_task_run_artifact(
+    client.update_task_run_artifact(
         task_run_artifact_id=task_run_artifact_id, data={"link": link}
     )
 
 
-def delete_link(task_run_artifact_id: str) -> bool:
+def delete_link(task_run_artifact_id: str) -> None:
     """
     Delete an existing link artifact
 
@@ -72,9 +69,6 @@ def delete_link(task_run_artifact_id: str) -> bool:
 
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
-
-    Returns:
-        - bool: whether or not the request was successful
     """
     if not running_with_backend():
         return False
@@ -83,7 +77,7 @@ def delete_link(task_run_artifact_id: str) -> bool:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
     client = Client()
-    return client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
+    client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
 
 
 def create_markdown(markdown: str) -> Optional[str]:
@@ -110,7 +104,7 @@ def create_markdown(markdown: str) -> Optional[str]:
     )
 
 
-def update_markdown(task_run_artifact_id: str, markdown: str) -> bool:
+def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
     """
     Update an existing markdown artifact. This function will replace the current markdown
     artifact with the new markdown provided.
@@ -121,9 +115,6 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> bool:
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - markdown (str): the new markdown to update the artifact with
-
-    Returns:
-        - bool: whether or not the request was successful
     """
     if not running_with_backend():
         return False
@@ -132,12 +123,12 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> bool:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
     client = Client()
-    return client.update_task_run_artifact(
+    client.update_task_run_artifact(
         task_run_artifact_id=task_run_artifact_id, data={"markdown": markdown}
     )
 
 
-def delete_markdown(task_run_artifact_id: str) -> bool:
+def delete_markdown(task_run_artifact_id: str) -> None:
     """
     Delete an existing markdown artifact
 
@@ -146,9 +137,6 @@ def delete_markdown(task_run_artifact_id: str) -> bool:
 
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
-
-    Returns:
-        - bool: whether or not the request was successful
     """
     if not running_with_backend():
         return False
@@ -157,4 +145,4 @@ def delete_markdown(task_run_artifact_id: str) -> bool:
         raise ValueError("The ID of an existing task run artifact must be provided.")
 
     client = Client()
-    return client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
+    client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
