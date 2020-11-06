@@ -202,14 +202,12 @@ class Task(metaclass=SignatureValidator):
             the Prefect logger. Defaults to `False`.
         - task_run_name (Union[str, Callable], optional): a name to set for this task at runtime.
             `task_run_name` strings can be templated formatting strings which will be
-            formatted at runtime with values from `prefect.context`, task inputs, and parameters.
+            formatted at runtime with values from task arguments, `prefect.context`, and flow
+            parameters (in the case of a name conflict between these, earlier values take precedence).
             If a callable function is provided, it should have signature `callable(**kwargs) -> str`
             and at write time all formatting kwargs will be passed and a fully formatted location is
             expected as the return value. The callable can be used for string formatting logic that
-            `.format(**kwargs)` doesn't support. The conflict occurred when prefect context
-            variables(such as `config` or `parameters`, etc.) shadowed task input variable under
-            the same name. The issue is solved by adding prefect context values if task doesn't
-            have argument of the same name. **Note**: this only works for tasks running against a
+            `.format(**kwargs)` doesn't support. **Note**: this only works for tasks running against a
             backend API.
 
     Raises:
