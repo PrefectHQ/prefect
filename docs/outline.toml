@@ -377,6 +377,11 @@ title = "Jira Tasks"
 module = "prefect.tasks.jira"
 classes = ["JiraTask", "JiraServiceDeskTask"]
 
+[pages.tasks.jupyter]
+title = "Jupyter Tasks"
+module = "prefect.tasks.jupyter"
+classes = ["ExecuteNotebook"]
+
 [pages.tasks.monday]
 title = "Monday Tasks"
 module = "prefect.tasks.monday"
