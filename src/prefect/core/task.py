@@ -206,10 +206,11 @@ class Task(metaclass=SignatureValidator):
             If a callable function is provided, it should have signature `callable(**kwargs) -> str`
             and at write time all formatting kwargs will be passed and a fully formatted location is
             expected as the return value. The callable can be used for string formatting logic that
-            `.format(**kwargs)` doesn't support. **Note**: this only works for tasks running against a
-            backend API. The conflict occured when task input variable named as one of prefect
-            context varialbes (such as `config` or `parameters`, etc.). The issue is solved by adding
-            prefect context values if task doesn't have argument of the same name.
+            `.format(**kwargs)` doesn't support. The conflict occurred when prefect context 
+            variables(such as `config` or `parameters`, etc.) shadowed task input variable under 
+            the same name. The issue is solved by adding prefect context values if task doesn't 
+            have argument of the same name. **Note**: this only works for tasks running against a
+            backend API.
 
     Raises:
         - TypeError: if `tags` is of type `str`
