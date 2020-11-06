@@ -1,0 +1,2 @@
+fix:
+  - "Task arguments take precedence when generating `task_run_name` - [#3605](https://github.com/PrefectHQ/prefect/issues/3605)"
