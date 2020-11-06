@@ -17,7 +17,7 @@ def client(monkeypatch):
 
 def test_running_with_backend():
     with context(running_with_backend=False):
-        assert artifacts.running_with_backend() == False
+        assert artifacts._running_with_backend() == False
 
 
 def test_create_link(client, running_with_backend):

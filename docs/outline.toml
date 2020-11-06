@@ -533,10 +533,9 @@ module = "prefect.artifacts"
 functions = [
     "create_link",
     "update_link",
-    "delete_link",
     "create_markdown",
     "update_markdown",
-    "delete_markdown"
+    "delete_artifact"
 ]
 
 [pages.utilities.collections]

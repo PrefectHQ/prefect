@@ -3,13 +3,13 @@ from typing import Optional
 from prefect import context, Client
 
 
-def running_with_backend() -> bool:
+def _running_with_backend() -> bool:
     """
     Determine if running in context of a backend. This is always true when running
     using the `CloudTaskRunner`.
 
     Returns:
-        - bool: if `running_with_backend` is set in context
+        - bool: if `_running_with_backend` is set in context
     """
     return bool(context.get("running_with_backend"))
 
@@ -27,7 +27,7 @@ def create_link(link: str) -> Optional[str]:
     Returns:
         - str: the task run artifact ID
     """
-    if not running_with_backend():
+    if not _running_with_backend():
         return None
 
     client = Client()
@@ -48,7 +48,7 @@ def update_link(task_run_artifact_id: str, link: str) -> None:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - link (str): the new link to update the artifact with
     """
-    if not running_with_backend():
+    if not _running_with_backend():
         return
 
     client = Client()
@@ -70,7 +70,7 @@ def create_markdown(markdown: str) -> Optional[str]:
     Returns:
         - str: the task run artifact ID
     """
-    if not running_with_backend():
+    if not _running_with_backend():
         return None
 
     client = Client()
@@ -93,7 +93,7 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - markdown (str): the new markdown to update the artifact with
     """
-    if not running_with_backend():
+    if not _running_with_backend():
         return
 
     client = Client()
@@ -112,7 +112,7 @@ def delete_artifact(task_run_artifact_id: str) -> None:
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
     """
-    if not running_with_backend():
+    if not _running_with_backend():
         return
 
     client = Client()
