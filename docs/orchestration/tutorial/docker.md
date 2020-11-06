@@ -46,7 +46,7 @@ flow.storage = Docker(registry_url="gcr.io/<project_id>/")
 Start the Docker Agent to executing Flow Runs scheduled by the Prefect API:
 
 ```bash
-prefect agent start docker
+prefect agent docker start
 ```
 
 :::tip Runner Token <Badge text="Cloud"/>

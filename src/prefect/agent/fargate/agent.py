@@ -31,12 +31,12 @@ class FargateAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's Fargate task:
     ```
-    prefect agent start fargate --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent fargate start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     boto3 kwargs being provided to the Fargate Agent:
     ```
-    prefect agent start fargate \\
+    prefect agent fargate start \\
         networkConfiguration="{\\
             'awsvpcConfiguration': {\\
                 'assignPublicIp': 'ENABLED',\\
@@ -313,6 +313,7 @@ class FargateAgent(Agent):
         definition_kwarg_list = [
             "taskRoleArn",
             "executionRoleArn",
+            "networkMode",
             "volumes",
             "placementConstraints",
             "cpu",
@@ -671,6 +672,11 @@ class FargateAgent(Agent):
                 "repositoryCredentials"
             ] = container_definitions_kwargs.get("repositoryCredentials", {})
 
+        # If networkMode is not provided, default to awsvpc
+        networkMode = flow_task_definition_kwargs.pop("networkMode", "awsvpc")
+
+        self.logger.debug(f"Task definition networkMode: {networkMode}")
+
         # Register task definition
         self.logger.debug(
             "Registering task definition {}".format(
@@ -679,10 +685,11 @@ class FargateAgent(Agent):
         )
         if self.launch_type:
             flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
+
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
+            networkMode=networkMode,
             containerDefinitions=container_definitions,
-            networkMode="awsvpc",
             **flow_task_definition_kwargs,
         )
 
@@ -796,14 +803,17 @@ class FargateAgent(Agent):
         # Register task definition
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
 
+        # If networkMode is not provided, default to awsvpc
+        networkMode = flow_task_definition_kwargs.pop("networkMode", "awsvpc")
+
         if self.launch_type:
             flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
 
         self.logger.info("Testing task definition registration...")
         self.boto3_client.register_task_definition(
             family=task_name,
+            networkMode=networkMode,
             containerDefinitions=container_definitions,
-            networkMode="awsvpc",
             **flow_task_definition_kwargs,
         )
         self.logger.info("Task definition registration successful")

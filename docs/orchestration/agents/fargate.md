@@ -15,7 +15,7 @@ When running the Fargate you may optionally provide `AWS_ACCESS_KEY_ID`, `AWS_SE
 ### Usage
 
 ```
-$ prefect agent start fargate
+$ prefect agent fargate start
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
@@ -35,7 +35,7 @@ The Fargate Agent can be started either through the Prefect CLI or by importing 
 ::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
-- command argument `prefect agent start fargate -t MY_TOKEN`
+- command argument `prefect agent fargate start -t MY_TOKEN`
 - environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
 - token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
 
@@ -52,7 +52,7 @@ $ export AWS_ACCESS_KEY_ID=MY_ACCESS
 $ export AWS_SECRET_ACCESS_KEY=MY_SECRET
 $ export AWS_SESSION_TOKEN=MY_SESSION
 $ export REGION_NAME=MY_REGION
-$ prefect agent start fargate
+$ prefect agent fargate start
 ```
 
 In a Python process:
@@ -126,6 +126,7 @@ Accepted kwargs for [`register_task_definition`](https://boto3.amazonaws.com/v1/
 ```
 taskRoleArn                 string
 executionRoleArn            string
+networkMode                 string
 volumes                     list
 placementConstraints        list
 cpu                         string
@@ -479,7 +480,7 @@ $ export cpu=256
 $ export memory=512
 $ export networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
 
-$ prefect agent start fargate
+$ prefect agent fargate start
 ```
 
 :::warning Outbound Traffic
@@ -488,14 +489,14 @@ If you encounter issues with Fargate raising errors in cases of client timeouts 
 
 #### Prefect CLI Using Kwargs
 
-All configuration options for the Fargate Agent can also be provided to the `prefect agent start fargate` CLI command. They must match the camel casing used by boto3 but both the single kwarg as well as with the standard prefix of `--` are accepted. This means that `taskRoleArn=""` is the same as `--taskRoleArn=""`.
+All configuration options for the Fargate Agent can also be provided to the `prefect agent fargate start` CLI command. They must match the camel casing used by boto3 but both the single kwarg as well as with the standard prefix of `--` are accepted. This means that `taskRoleArn=""` is the same as `--taskRoleArn=""`.
 
 ```bash
 $ export AWS_ACCESS_KEY_ID=...
 $ export AWS_SECRET_ACCESS_KEY=...
 $ export REGION_NAME=us-east-1
 
-$ prefect agent start fargate cpu=256 memory=512 networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
+$ prefect agent fargate start cpu=256 memory=512 networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
 ```
 
 Kwarg values can also be provided through environment variables. This is useful in situations where case sensitive environment variables are desired or when using templating tools like Terraform to deploy your Agent.
@@ -508,5 +509,5 @@ $ export CPU=256
 $ export MEMORY=512
 $ export NETWORK_CONFIGURATION="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
 
-$ prefect agent start fargate cpu=$CPU memory=$MEMORY networkConfiguration=$NETWORK_CONFIGURATION
+$ prefect agent fargate start cpu=$CPU memory=$MEMORY networkConfiguration=$NETWORK_CONFIGURATION
 ```

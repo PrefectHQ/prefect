@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.13.14 <Badge text="beta" type="success" />
+
+Released on November 5, 2020.
+
+### Features
+
+- `flow.register` accepts an idempotency key to prevent excessive flow versions from being created - [#3590](https://github.com/PrefectHQ/prefect/pull/3590)
+- Added `flow.serialized_hash()` for easy generation of hash keys from the serialized flow - [#3590](https://github.com/PrefectHQ/prefect/pull/3590)
+
+### Enhancements
+
+- Add option to select `cursor_type` for MySQLFetch task - [#3574](https://github.com/PrefectHQ/prefect/pull/3574)
+- Add new `ECSAgent` and `ECSRun` run config - [#3585](https://github.com/PrefectHQ/prefect/pull/3585)
+- Display exception information on `prefect create project` failure - [#3589](https://github.com/PrefectHQ/prefect/pull/3589)
+- `prefect diagnostics` no longer displays keys that have values matching the default config - [#3593](https://github.com/PrefectHQ/prefect/pull/3593)
+- Allow use of multiple image pull secrets in `KubernetesAgent`, `DaskKubernetesEnvironment` - [#3596](https://github.com/PrefectHQ/prefect/pull/3596)
+- Added FROM to explicitly chain exceptions in src/prefect/tasks/twitter - [#3602](https://github.com/PrefectHQ/prefect/pull/3602)
+- Add UTC offset to default logging.datefmt; logging timestamp converter now follows Python default behavior  - [#3607](https://github.com/PrefectHQ/prefect/pull/3607)
+- Improve error message when API responds with 400 status code - [#3615](https://github.com/PrefectHQ/prefect/pull/3615)
+
+### Deprecations
+
+- Deprecate `prefect agent start <kind>` in favor of `prefect agent <kind> start` - [#3610](https://github.com/PrefectHQ/prefect/pull/3610)
+- Deprecate `prefect agent install <kind>` in favor of `prefect agent <kind> install` - [#3610](https://github.com/PrefectHQ/prefect/pull/3610)
+
+### Contributors
+
+- [Billy McMonagle](https://github.com/speedyturkey)
+- [James Lamb](https://github.com/jameslamb)
+- [Juan Calderon-Perez](https://github.com/gabrielcalderon)
+- [Michael Marinaccio](https://github.com/mmarinaccio)
+
+## 0.13.13  <Badge text="beta" type="success" />
+
+Released on October 27, 2020.
+
+### Enhancements
+
+- Don't stop execution if the task runner fails to load a cached result - [#3378](https://github.com/PrefectHQ/prefect/issues/3378)
+- Add option to specify `networkMode` for tasks created by the Fargate Agent - [#3546](https://github.com/PrefectHQ/prefect/pull/3546)
+- Allows to schedule flow runs at an arbitrary time with StartFlowRun - [#3573](https://github.com/PrefectHQ/prefect/pull/3573)
+
+### Fixes
+
+- Use `BlobServiceClient` instead of `BlockBlobService` to connect to azure blob in azure tasks - [#3562](https://github.com/PrefectHQ/prefect/pull/3562)
+- Tasks with `log_stdout=True` work with non-utf8 output - [#3563](https://github.com/PrefectHQ/prefect/pull/3563)
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Kfir Stri](https://github.com/kfirstri)
+- [Lukáš Novotný](https://github.com/novotl)
+- [Natalie Smith](https://github.com/thatgalnatalie)
+- [Raphael Riel](https://github.com/raphael-riel)
+
 ## 0.13.12 <Badge text="beta" type="success" />
 
 Released on October 20, 2020.

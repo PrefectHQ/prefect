@@ -13,7 +13,7 @@ from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs, duration_only
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult, NoResult
-from prefect.engine.results import PrefectResult, SecretResult
+from prefect.engine.results import PrefectResult, SecretResult, LocalResult
 
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN
@@ -251,6 +251,32 @@ def test_task_runner_validates_cached_states_if_task_has_caching(client):
     assert res.is_successful()
     assert res.is_cached()
     assert res.result == 42
+
+
+def test_task_runner_treats_unfound_files_as_invalid_caches(client, tmpdir):
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1), result_handler=JSONResultHandler()
+    )
+    def cached_task():
+        return 42
+
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=LocalResult(location=str(tmpdir / "made_up_data.prefect")),
+    )
+    old_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(days=1),
+        result=Result(13, JSONResultHandler()),
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
+
+    res = CloudTaskRunner(task=cached_task).run()
+    assert client.get_latest_cached_states.called
+    assert res.is_successful()
+    assert res.is_cached()
+    assert res.result == 13
 
 
 class TestCheckTaskCached:

@@ -101,7 +101,7 @@ There are a few ways in which you can give a `RUNNER` token to an agent. Each me
 - Provide the token when the agent is started via the CLI. This method means the token will need to be provided each time the agent is started.
 
 ```
-$ prefect agent start -t TOKEN_VALUE
+$ prefect agent <AGENT TYPE> start -t TOKEN_VALUE
 ```
 
 - Specify the token as an environment variable. This method means the token will only be available to processes which have the variable set.

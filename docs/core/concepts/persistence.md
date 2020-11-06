@@ -80,7 +80,7 @@ The default setting in Prefect Core is that checkpointing is globally turned _of
 
 You can combine the concepts of persistent output and skipping task execution by configuring a task to skip execution based on the presence of a persisted `Result`. Many workflow authors may recognize this from tools like Make or Luigi, where tasks define "targets" (usually files on disk) and task computation is avoided in favor of using the data from the target if the target exists.
 
-To enable this behavior for a task, provide the target location to the task's `target` kwarg along with the `result` and `checkpointing` kwargs necessary to enable checkpointing. Whenever this task is run, it will first check to see if the storage backend configured by the result has a file matching the name of the target, and if so, will enter a `Cached` state with the data from the target file as the task's return value. If it has not been cached, the output of the task will be written to the `target` location and be available as a cache for future runs of this task, even between running Python processes.
+To enable this behavior for a task, provide the target location to the task's `target` kwarg along with the `result` and `checkpoint` kwargs necessary to enable checkpointing. Whenever this task is run, it will first check to see if the storage backend configured by the result has a file matching the name of the target, and if so, will enter a `Cached` state with the data from the target file as the task's return value. If it has not been cached, the output of the task will be written to the `target` location and be available as a cache for future runs of this task, even between running Python processes.
 
 ```python
 from prefect.engine.results import LocalResult

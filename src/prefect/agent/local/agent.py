@@ -21,7 +21,7 @@ class LocalAgent(Agent):
 
     Optional import paths may be specified to append dependency modules to the PATH:
     ```
-    prefect agent start local --import-path "/usr/local/my_module" --import-path "~/other_module"
+    prefect agent local start --import-path "/usr/local/my_module" --import-path "~/other_module"
 
     # Now the local scripts/packages my_module and other_module will be importable in
     # the flow's subprocess
@@ -29,7 +29,7 @@ class LocalAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's subprocess:
     ```
-    prefect agent start local --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent local start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     Args:
@@ -256,6 +256,7 @@ class LocalAgent(Agent):
     def generate_supervisor_conf(
         token: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
     ) -> str:
@@ -266,6 +267,8 @@ class LocalAgent(Agent):
             - token (str, optional): A `RUNNER` token to give the agent
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - env_vars (dict, optional): a dictionary of environment variables and values that
+                will be set on each flow run that this agent submits for execution
             - import_paths (List[str], optional): system paths which will be provided to each
                 Flow's runtime environment; useful for Flows which import from locally hosted
                 scripts or packages
@@ -279,6 +282,7 @@ class LocalAgent(Agent):
         # Use defaults if not provided
         token = token or ""
         labels = labels or []
+        env_vars = env_vars or {}
         import_paths = import_paths or []
 
         with open(
@@ -289,16 +293,11 @@ class LocalAgent(Agent):
         add_opts = ""
         add_opts += "-t {token} ".format(token=token) if token else ""
         add_opts += "-f " if show_flow_logs else ""
-        add_opts += (
-            " ".join("-l {label} ".format(label=label) for label in labels)
-            if labels
-            else ""
+        add_opts += " ".join("-l {label} ".format(label=label) for label in labels)
+        add_opts += " ".join(
+            "-e {k}={v} ".format(k=k, v=v) for k, v in env_vars.items()
         )
-        add_opts += (
-            " ".join("-p {path}".format(path=path) for path in import_paths)
-            if import_paths
-            else ""
-        )
+        add_opts += " ".join("-p {path}".format(path=path) for path in import_paths)
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf
 

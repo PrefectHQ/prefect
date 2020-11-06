@@ -23,6 +23,16 @@ def test_fargate_agent_init(monkeypatch, cloud_api):
     assert agent.boto3_client
 
 
+def test_fargate_agent_init_with_network_mode(monkeypatch, cloud_api):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent(networkMode="bridge")
+    assert agent
+    assert agent.boto3_client
+    assert agent.task_definition_kwargs["networkMode"] == "bridge"
+
+
 def test_fargate_agent_config_options_default(monkeypatch, cloud_api):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
@@ -78,11 +88,12 @@ def test_parse_task_definition_kwargs(monkeypatch, cloud_api):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
-    agent = FargateAgent()
+    agent = FargateAgent(networkMode="bridge")
 
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
+        "networkMode": "bridge",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -111,7 +122,7 @@ def test_parse_task_definition_kwargs_errors(monkeypatch, cloud_api):
     agent = FargateAgent()
 
     kwarg_dict = {
-        "placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev",
+        "placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev"
     }
 
     (

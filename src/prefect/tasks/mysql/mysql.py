@@ -3,7 +3,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 import pymysql.cursors
 import logging
-from typing import Any
+from typing import Any, Callable, Union
 
 
 class MySQLExecute(Task):
@@ -34,7 +34,7 @@ class MySQLExecute(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self.db_name = db_name
         self.user = user
@@ -108,6 +108,9 @@ class MySQLFetch(Task):
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset of the query, defaults to "utf8mb4"
+        - cursor_type (Union[str, Callable], optional): The cursor type to use.
+            Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
+            or a full cursor class.
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -124,7 +127,8 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        **kwargs: Any
+        cursor_type: Union[str, Callable] = "cursor",
+        **kwargs: Any,
     ):
         self.db_name = db_name
         self.user = user
@@ -136,9 +140,12 @@ class MySQLFetch(Task):
         self.query = query
         self.commit = commit
         self.charset = charset
+        self.cursor_type = cursor_type
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_count", "query", "commit", "charset")
+    @defaults_from_attrs(
+        "fetch", "fetch_count", "query", "commit", "charset", "cursor_type"
+    )
     def run(
         self,
         query: str,
@@ -146,6 +153,7 @@ class MySQLFetch(Task):
         fetch_count: int = 10,
         commit: bool = False,
         charset: str = "utf8mb4",
+        cursor_type: Union[str, Callable] = "cursor",
     ) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
@@ -158,6 +166,9 @@ class MySQLFetch(Task):
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
+            - cursor_type (Union[str, Callable], optional): The cursor type to use.
+                Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
+                or a full cursor class.
 
         Returns:
             - results (tuple or list of tuples): records from provided query
@@ -173,6 +184,26 @@ class MySQLFetch(Task):
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'all')"
             )
 
+        cursor_types = {
+            "cursor": pymysql.cursors.Cursor,
+            "dictcursor": pymysql.cursors.DictCursor,
+            "sscursor": pymysql.cursors.SSCursor,
+            "ssdictcursor": pymysql.cursors.SSDictCursor,
+        }
+
+        if callable(cursor_type):
+            cursor_class = cursor_type
+        elif isinstance(cursor_type, str):
+            cursor_class = cursor_types.get(cursor_type.lower())
+        else:
+            cursor_class = None
+
+        if not cursor_class:
+            raise TypeError(
+                f"'cursor_type' should be one of {list(cursor_types.keys())} or a "
+                f"full cursor class, got {cursor_type}"
+            )
+
         conn = pymysql.connect(
             host=self.host,
             user=self.user,
@@ -180,6 +211,7 @@ class MySQLFetch(Task):
             db=self.db_name,
             charset=self.charset,
             port=self.port,
+            cursorclass=cursor_class,
         )
 
         try:

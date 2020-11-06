@@ -98,32 +98,13 @@ class Client:
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
 
-        # store api token
         self._api_token = api_token or prefect.context.config.cloud.get(
             "auth_token", None
         )
 
-        if prefect.config.backend == "cloud":
-            if not self._api_token:
-                # if no api token was passed, attempt to load state from local storage
-                settings = self._load_local_settings()
-                self._api_token = settings.get("api_token")
-
-                if self._api_token:
-                    self._active_tenant_id = settings.get("active_tenant_id")
-                if self._active_tenant_id:
-                    try:
-                        self.login_to_tenant(tenant_id=self._active_tenant_id)
-                    except AuthorizationError:
-                        # if an authorization error is raised, then the token is invalid and should
-                        # be cleared
-                        self.logout_from_tenant()
-        else:
-            # TODO: Separate put this functionality and clean up initial tenant access handling
-            if not self._active_tenant_id:
-                tenant_info = self.graphql({"query": {"tenant": {"id"}}})
-                if tenant_info.data.tenant:
-                    self._active_tenant_id = tenant_info.data.tenant[0].id
+        # Initialize the tenant and api token if not yet set
+        if not self._api_token and prefect.config.backend == "cloud":
+            self._init_tenant()
 
     def create_tenant(self, name: str, slug: str = None) -> str:
         """
@@ -241,6 +222,46 @@ class Client:
         else:
             return {}
 
+    @property
+    def active_tenant_id(self) -> Optional[str]:
+        """
+        Return the tenant to contact the server.
+        If your tenant has not been set yet it will be initialized.
+        """
+        if self._active_tenant_id is None:
+            self._init_tenant()
+        return self._active_tenant_id
+
+    def _init_tenant(self) -> None:
+        """
+        Init the tenant to contact the server.
+
+        If your backend is set to cloud the tenant will be read from: $HOME/.prefect/settings.toml.
+
+        For the server backend it will try to retrieve the default tenant. If the server is
+        protected with auth like BasicAuth do not forget to `attach_headers` before any call.
+        """
+        if prefect.config.backend == "cloud":
+            # if no api token was passed, attempt to load state from local storage
+            settings = self._load_local_settings()
+
+            if not self._api_token:
+                self._api_token = settings.get("api_token")
+            if self._api_token:
+                self._active_tenant_id = settings.get("active_tenant_id")
+
+            if self._active_tenant_id:
+                try:
+                    self.login_to_tenant(tenant_id=self._active_tenant_id)
+                except AuthorizationError:
+                    # if an authorization error is raised, then the token is invalid and should
+                    # be cleared
+                    self.logout_from_tenant()
+        else:
+            tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+            if tenant_info.data.tenant:
+                self._active_tenant_id = tenant_info.data.tenant[0].id
+
     def graphql(
         self,
         query: Any,
@@ -330,6 +351,18 @@ class Client:
             )
 
         # Check if request returned a successful status
+        if response.status_code == 400:
+            msg = (
+                f"400 Client Error: Bad Request for url: {url}\n\n"
+                f"This is likely caused by a poorly formatted GraphQL query or mutation."
+            )
+            try:
+                msg += f" GraphQL sent:\n\n{parse_graphql(params)}"
+            except Exception:
+                # failed to format, raise below
+                pass
+            finally:
+                raise ClientError(msg)
         response.raise_for_status()
         return response
 
@@ -496,7 +529,7 @@ class Client:
             - str: the access token
         """
         if not self._access_token:
-            return self._api_token
+            return self._api_token  # type: ignore
 
         expiration = self._access_token_expires_at or pendulum.now()
         if self._refresh_token and pendulum.now().add(seconds=30) > expiration:
@@ -587,7 +620,7 @@ class Client:
             )  # type: ignore
             self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
 
-        self._active_tenant_id = tenant_id
+        self._active_tenant_id = tenant_id  # type: ignore
 
         # save the tenant setting
         settings = self._load_local_settings()
@@ -650,6 +683,7 @@ class Client:
         version_group_id: str = None,
         compressed: bool = True,
         no_url: bool = False,
+        idempotency_key: str = None,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -669,6 +703,9 @@ class Client:
                 `True` compressed
             - no_url (bool, optional): if `True`, the stdout from this function will not
                 contain the URL link to the newly-registered flow in the Cloud UI
+            - idempotency_key (optional, str): a key that, if matching the most recent
+                registration call for this flow group, will prevent the creation of
+                another flow version and return the existing flow id instead.
 
         Returns:
             - str: the ID of the newly-registered flow
@@ -766,6 +803,7 @@ class Client:
                     serialized_flow=serialized_flow,
                     set_schedule_active=set_schedule_active,
                     version_group_id=version_group_id,
+                    idempotency_key=idempotency_key,
                 )
             ),
             retry_on_api_error=False,
@@ -902,7 +940,7 @@ class Client:
                 input=dict(
                     name=project_name,
                     description=project_description,
-                    tenant_id=self._active_tenant_id,
+                    tenant_id=self.active_tenant_id,
                 )
             ),
         )  # type: Any
@@ -1580,7 +1618,7 @@ class Client:
                     type=agent_type,
                     name=name,
                     labels=labels or [],
-                    tenant_id=self._active_tenant_id,
+                    tenant_id=self.active_tenant_id,
                     agent_config_id=agent_config_id,
                 )
             ),
