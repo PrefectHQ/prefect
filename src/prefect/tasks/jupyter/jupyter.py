@@ -29,7 +29,7 @@ class ExecuteNotebook(Task):
         self,
         path: str = None,
         parameters: dict = None,
-        output_format: str = 'json',
+        output_format: str = "json",
         kernel_name: str = None,
         **kwargs
     ):
@@ -59,9 +59,9 @@ class ExecuteNotebook(Task):
         nb: nbformat.NotebookNode = pm.execute_notebook(
             path, "-", parameters=parameters, kernel_name=self.kernel_name
         )
-        if output_format == 'json':
+        if output_format == "json":
             return nbformat.writes(nb)
-        if output_format == 'html':
+        if output_format == "html":
             html_exporter = nbconvert.HTMLExporter()
             (body, resources) = html_exporter.from_notebook_node(nb)
             return body
