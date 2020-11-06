@@ -1,23 +1,23 @@
 import json
 
-from prefect.tasks.jupyter import JupyterTask
+from prefect.tasks.jupyter import ExecuteNotebook
 
 
 def test_jupyter_html_output():
-    task = JupyterTask(
+    task = ExecuteNotebook(
         "tests/tasks/jupyter/sample_notebook.ipynb",
-        notebook_params=dict(a=5),
-        as_html=True,
+        parameters=dict(a=5),
+        output_format='html',
     )
     output = task.run()
     assert "a*b=10" in output
 
 
 def test_jupyter_json_output():
-    task = JupyterTask(
+    task = ExecuteNotebook(
         "tests/tasks/jupyter/sample_notebook.ipynb",
-        notebook_params=dict(a=5),
-        as_html=False,
+        parameters=dict(a=5),
+        output_format='json',
     )
     output = task.run()
     _ = json.loads(output)  # try loading the JSON string
