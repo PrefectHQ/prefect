@@ -380,7 +380,7 @@ classes = ["JiraTask", "JiraServiceDeskTask"]
 [pages.tasks.jupyter]
 title = "Jupyter Tasks"
 module = "prefect.tasks.jupyter"
-classes = ["JupyterTask"]
+classes = ["ExecuteNotebook"]
 
 [pages.tasks.monday]
 title = "Monday Tasks"
