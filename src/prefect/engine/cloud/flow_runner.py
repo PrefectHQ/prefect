@@ -265,7 +265,8 @@ class CloudFlowRunner(FlowRunner):
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
         """
-        context = context or {}
+        context = (context or {}).copy()
+        context.update(running_with_backend=True)
 
         end_state = super().run(
             state=state,

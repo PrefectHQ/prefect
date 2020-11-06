@@ -521,10 +521,22 @@ title = "Fargate Agent"
 module = "prefect.agent.fargate"
 classes = ["FargateAgent"]
 
+
 [pages.agent.ecs]
 title = "ECS Agent"
 module = "prefect.agent.ecs"
 classes = ["ECSAgent"]
+
+[pages.artifacts.artifacts]
+title = "Artifacts"
+module = "prefect.artifacts"
+functions = [
+    "create_link",
+    "update_link",
+    "create_markdown",
+    "update_markdown",
+    "delete_artifact"
+]
 
 [pages.utilities.collections]
 title = "Collections"
