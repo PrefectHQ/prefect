@@ -697,8 +697,8 @@ class TaskRunner(Runner):
             raw_inputs = {k: r.value for k, r in inputs.items()}
             formatting_kwargs = {
                 **prefect.context.get("parameters", {}).copy(),
-                **raw_inputs,
                 **prefect.context,
+                **raw_inputs,
             }
 
             if not isinstance(target, str):
@@ -875,8 +875,8 @@ class TaskRunner(Runner):
             try:
                 formatting_kwargs = {
                     **prefect.context.get("parameters", {}).copy(),
-                    **raw_inputs,
                     **prefect.context,
+                    **raw_inputs,
                 }
                 result = self.result.write(value, **formatting_kwargs)
             except NotImplementedError:
@@ -958,8 +958,8 @@ class TaskRunner(Runner):
                         raw_inputs = {k: r.value for k, r in inputs.items()}
                         formatting_kwargs = {
                             **prefect.context.get("parameters", {}).copy(),
-                            **raw_inputs,
                             **prefect.context,
+                            **raw_inputs,
                         }
                         loop_result = self.result.write(
                             loop_result.value, **formatting_kwargs

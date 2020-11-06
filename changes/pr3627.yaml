@@ -1,0 +1,2 @@
+fix:
+  - "Task arguments take precedence when generating templated targets and locations - [#3627](https://github.com/PrefectHQ/prefect/pull/3627)"
