@@ -179,6 +179,12 @@ def server_api():
         yield
 
 
+@pytest.fixture()
+def running_with_backend():
+    with prefect.context({"running_with_backend": True}):
+        yield
+
+
 # ----------------
 # set up platform fixtures
 # for every test that performs OS dependent logic

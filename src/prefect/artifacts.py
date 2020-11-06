@@ -49,7 +49,7 @@ def update_link(task_run_artifact_id: str, link: str) -> None:
         - link (str): the new link to update the artifact with
     """
     if not running_with_backend():
-        return False
+        return
 
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
@@ -71,7 +71,7 @@ def delete_link(task_run_artifact_id: str) -> None:
         - task_run_artifact_id (str): the ID of an existing task run artifact
     """
     if not running_with_backend():
-        return False
+        return
 
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
@@ -117,7 +117,7 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
         - markdown (str): the new markdown to update the artifact with
     """
     if not running_with_backend():
-        return False
+        return
 
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
@@ -139,7 +139,7 @@ def delete_markdown(task_run_artifact_id: str) -> None:
         - task_run_artifact_id (str): the ID of an existing task run artifact
     """
     if not running_with_backend():
-        return False
+        return
 
     if task_run_artifact_id is None:
         raise ValueError("The ID of an existing task run artifact must be provided.")
