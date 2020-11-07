@@ -1177,6 +1177,23 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.location.endswith("2.txt")
 
+    def test_result_formatting_with_templated_inputs_inputs_take_precedence(
+        self, tmpdir
+    ):
+        result = LocalResult(dir=tmpdir, location="{config}.txt")
+
+        @prefect.task(checkpoint=True, result=result, slug="1234567")
+        def fn(config):
+            return config
+
+        edge = Edge(Task(), fn, key="config")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state._result.location.endswith("2.txt")
+
     def test_result_formatting_with_input_named_value(self, tmpdir):
         result = LocalResult(dir=tmpdir, location="{value}.txt")
 
