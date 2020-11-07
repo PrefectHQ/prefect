@@ -1,0 +1,5 @@
+fix:
+  - "Parsing backslashes in environment variable values without escape - [#3603](https://github.com/PrefectHQ/prefect/issues/3603)"
+
+contributor:
+  - "[Joël Luijmes](https://github.com/joelluijmes)"
