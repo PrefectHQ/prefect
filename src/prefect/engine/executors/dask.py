@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+import sys
 import warnings
 import weakref
 from contextlib import contextmanager
@@ -245,7 +246,9 @@ class DaskExecutor(Executor):
 
         Creates a `dask.distributed.Client` and yields it.
         """
-        import multiprocessing.popen_spawn_posix  # fix for https://github.com/dask/distributed/issues/4168
+        if sys.platform != "win32":
+            # fix for https://github.com/dask/distributed/issues/4168
+            import multiprocessing.popen_spawn_posix  # noqa
         from distributed import Client
 
         try:
