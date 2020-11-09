@@ -1,13 +1,41 @@
 # Storage
 
-Prefect includes a variety of `Storage` options for saving flows.
+`Storage` objects define where a Flow should be stored. Examples include things
+like `Local` storage (which uses the local filesystem) or `S3` (which stores
+flows remotely on AWS S3). Flows themselves are never stored directly in
+Prefect's backend; only a reference to the storage location is persisted. This
+helps keep your flow's code secure, as the Prefect servers never have direct
+access.
+
+To configure a Flow's storage, you can either specify the `storage` as part of
+the `Flow` constructor, or set it as an attribute later before calling
+`flow.register`. For example, to configure a flow to use `Local` storage:
+
+```python
+from prefect import Flow
+from prefect.environments.storage import Local
+
+# Set storage as part of the constructor
+with Flow("example", storage=Local()) as flow:
+    ...
+
+# OR set storage as an attribute later
+with Flow("example") as flow:
+    ...
+
+flow.storage = Local()
+```
+
+Prefect has a number of different `Storage` implementations - we'll briefly
+cover each below. See [the API
+documentation](/api/latest/environments/storage.md) for more information.
 
 ## Local
 
-[Local Storage](/api/latest/environments/storage.html#local) is the default
+[Local Storage](/api/latest/environments/storage.md#local) is the default
 `Storage` option for all flows. Flows using local storage are stored as files
 in the local filesystem. This means they can only be run by a [local
-agent](/orchestration/agents/local.html) running on the same machine.
+agent](/orchestration/agents/local.md) running on the same machine.
 
 ```python
 from prefect import Flow
@@ -29,7 +57,7 @@ any task results in the same file location.
 
 ## AWS S3
 
-[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that
+[S3 Storage](/api/latest/environments/storage.md#s3) is a storage option that
 uploads flows to an AWS S3 bucket.
 
 ```python
@@ -60,7 +88,7 @@ proper AWS credential configuration.
 
 ## Azure Blob Storage
 
-[Azure Storage](/api/latest/environments/storage.html#azure) is a storage
+[Azure Storage](/api/latest/environments/storage.md#azure) is a storage
 option that uploads flows to an Azure Blob container.
 
 ```python
@@ -99,7 +127,7 @@ the class directly.
 
 ## Google Cloud Storage
 
-[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option
+[GCS Storage](/api/latest/environments/storage.md#gcs) is a storage option
 that uploads flows to a Google Cloud Storage bucket.
 
 ```python
@@ -131,7 +159,7 @@ the proper Google Application Credentials configuration.
 
 ## GitHub
 
-[GitHub Storage](/api/latest/environments/storage.html#github) is a storage
+[GitHub Storage](/api/latest/environments/storage.md#github) is a storage
 option for referencing flows stored in a GitHub repository as `.py` files.
 
 ```python
@@ -149,7 +177,7 @@ flow = Flow(
 ```
 
 For a detailed look on how to use GitHub storage visit the [Using file based
-storage](/core/idioms/file-based.html) idiom.
+storage](/core/idioms/file-based.md) idiom.
 
 :::tip Sensible Defaults
 Flows registered with this storage option will automatically be labeled with
@@ -165,7 +193,7 @@ for authenticating with repositories.
 
 ## GitLab
 
-[GitLab Storage](/api/latest/environments/storage.html#gitlab) is a storage
+[GitLab Storage](/api/latest/environments/storage.md#gitlab) is a storage
 option for referencing flows stored in a GitHub repository as `.py` files.
 
 ```python
@@ -183,7 +211,7 @@ flow = Flow(
 ```
 
 Much of the GitHub example in the [file based
-storage](/core/idioms/file-based.html) documentation applies to GitLab as well.
+storage](/core/idioms/file-based.md) documentation applies to GitLab as well.
 
 :::tip Sensible Defaults
 Flows registered with this storage option will automatically be labeled with
@@ -204,12 +232,12 @@ instance.
 
 ## Docker
 
-[Docker Storage](/api/latest/environments/storage.html#docker) is a storage
+[Docker Storage](/api/latest/environments/storage.md#docker) is a storage
 option that puts flows inside of a Docker image and pushes them to a container
 registry. This method of Storage has deployment compatability with the [Docker
-Agent](/orchestration/agents/docker.html), [Kubernetes
-Agent](/orchestration/agents/kubernetes.html), and [Fargate
-Agent](/orchestration/agents/fargate.html).
+Agent](/orchestration/agents/docker.md), [Kubernetes
+Agent](/orchestration/agents/kubernetes.md), and [Fargate
+Agent](/orchestration/agents/fargate.md).
 
 ```python
 from prefect import Flow
@@ -243,7 +271,7 @@ permissions to pull from that same registry.
 
 ## Webhook
 
-[Webhook Storage](/api/latest/environments/storage.html#webhook) is a storage
+[Webhook Storage](/api/latest/environments/storage.md#webhook) is a storage
 option that stores and retrieves flows with HTTP requests. This type of storage
 can be used with any type of agent, and is intended to be a flexible way to
 integrate Prefect with your existing ecosystem, including your own file storage
@@ -292,7 +320,7 @@ flow = Flow(
 Template strings in `${}` are used to reference sensitive information. Given
 `${SOME_TOKEN}`, this storage object will first look in environment variable
 `SOME_TOKEN` and then fall back to [Prefect
-secrets](/core/concepts/secrets.html) `SOME_TOKEN`. Because this resolution is
+secrets](/core/concepts/secrets.md) `SOME_TOKEN`. Because this resolution is
 at runtime, this storage option never has your sensitive information stored in
 it and that sensitive information is never sent to Prefect Cloud.
 
