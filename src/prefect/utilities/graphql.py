@@ -289,6 +289,20 @@ def with_args(field: Any, arguments: Any) -> str:
     return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
 
 
+def format_graphql_error(response_text: str) -> str:
+    content = json.loads(response_text)
+    errors = content.get("errors", [])
+    lines = []
+    for error in errors:
+        message = error.get("message", "No error message")
+        extensions = error.get("extensions", {})
+        # Other extensions are possible but we will only include the minimum for now
+        # since stack traces and other info are likely not passed
+        code = extensions.get("code", "UNKNOWN_ERROR")
+        lines.append(f"{code}: {message}")
+    return "\n".join(lines)
+
+
 def compress(input: Any) -> str:
     """
     Convenience function for compressing something before sending

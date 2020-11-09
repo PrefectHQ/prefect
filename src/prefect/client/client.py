@@ -19,6 +19,7 @@ except ImportError:
 import pendulum
 import toml
 from slugify import slugify
+from requests import HTTPError
 
 import prefect
 from prefect.utilities.exceptions import (
@@ -32,6 +33,7 @@ from prefect.utilities.graphql import (
     compress,
     parse_graphql,
     with_args,
+    format_graphql_error,
 )
 from prefect.utilities.logging import create_diagnostic_logger
 
@@ -351,19 +353,36 @@ class Client:
             )
 
         # Check if request returned a successful status
-        if response.status_code == 400:
-            msg = (
-                f"400 Client Error: Bad Request for url: {url}\n\n"
-                f"This is likely caused by a poorly formatted GraphQL query or mutation."
-            )
-            try:
-                msg += f" GraphQL sent:\n\n{parse_graphql(params)}"
-            except Exception:
-                # failed to format, raise below
-                pass
-            finally:
-                raise ClientError(msg)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPError as exc:
+            if "Client Error" in str(exc):
+                # Create a custom-formatted response for client errors
+                msg = f"{exc}\n\n"
+
+                try:
+                    msg += format_graphql_error(response.text) + "\n\n"
+                except Exception:
+                    # Fallback to a general message
+                    msg += (
+                        "This is likely caused by a poorly formatted GraphQL query or "
+                        "mutation.\n\n"
+                    )
+
+                try:
+                    graphql_sent = parse_graphql(params).replace("\n", "\n\t")
+                except Exception:
+                    # failed to format, raise below
+                    graphql_sent = None
+                if graphql_sent is not None:
+                    msg += f"GraphQL sent:\n\n\t{graphql_sent}"
+
+                raise ClientError(msg) from exc
+
+            else:
+                # Server-side errors will be raised without modification
+                raise
+
         return response
 
     def _request(
