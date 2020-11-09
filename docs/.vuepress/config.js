@@ -211,6 +211,14 @@ module.exports = {
           ]
         },
         {
+          title: 'Deployment',
+          collapsable: true,
+          children: [
+            'deployment/overview',
+            'deployment/storage'
+          ]
+        },
+        {
           title: 'Execution Environments',
           collapsable: true,
           children: [
