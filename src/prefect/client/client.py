@@ -914,16 +914,22 @@ class Client:
             slug = res.get("data").tenant[0].slug
         return slug
 
-    def create_project(self, project_name: str, project_description: str = None) -> str:
+    def create_project(
+        self,
+        project_name: str,
+        project_description: str = None,
+        skip_if_exists: bool = False,
+    ) -> str:
         """
         Create a new Project
 
         Args:
             - project_name (str): the project that should contain this flow
             - project_description (str, optional): the project description
+            - skip_if_exists (bool, optional): skip creating the project if it already exists
 
         Returns:
-            - str: the ID of the newly-created project
+            - str: the ID of the newly-created project or an empty string if it already exists
 
         Raises:
             - ClientError: if the project creation failed
@@ -934,16 +940,21 @@ class Client:
             }
         }
 
-        res = self.graphql(
-            project_mutation,
-            variables=dict(
-                input=dict(
-                    name=project_name,
-                    description=project_description,
-                    tenant_id=self.active_tenant_id,
-                )
-            ),
-        )  # type: Any
+        try:
+            res = self.graphql(
+                project_mutation,
+                variables=dict(
+                    input=dict(
+                        name=project_name,
+                        description=project_description,
+                        tenant_id=self.active_tenant_id,
+                    )
+                ),
+            )  # type: Any
+        except ClientError as exc:
+            if skip_if_exists and "'Uniqueness violation.'" in str(exc):
+                return ""
+            raise
 
         return res.data.create_project.id
 
