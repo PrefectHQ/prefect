@@ -247,7 +247,7 @@ class DaskExecutor(Executor):
         Creates a `dask.distributed.Client` and yields it.
         """
         if sys.platform != "win32":
-            # fix for https://github.com/dask/distributed/issues/4168
+            # Fix for https://github.com/dask/distributed/issues/4168
             import multiprocessing.popen_spawn_posix  # noqa
         from distributed import Client
 
