@@ -1,0 +1,2 @@
+enhancement:
+  - "Checkpoint all iterations of Looped tasks - [#3619](https://github.com/PrefectHQ/prefect/issues/3619)"
