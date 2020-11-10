@@ -593,14 +593,17 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     assert "prefect create project 'my-default-project'" in str(exc.value)
 
 
-def test_client_create_project_that_already_exists(patch_post, monkeypatch):
-    patch_post(
-        {
-            "errors": [
-                {"message": "Uniqueness violation.", "path": ["create_project"]}
-            ],
-            "data": {"create_project": None},
-        }
+def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
+    patch_posts(
+        [
+            {
+                "errors": [
+                    {"message": "Uniqueness violation.", "path": ["create_project"]}
+                ],
+                "data": {"create_project": None},
+            },
+            {"data": {"project": [{"id": "proj-id"}]}},
+        ]
     )
 
     monkeypatch.setattr(
@@ -612,7 +615,7 @@ def test_client_create_project_that_already_exists(patch_post, monkeypatch):
     project_id = client.create_project(
         project_name="my-default-project", skip_if_exists=True
     )
-    assert project_id == ""
+    assert project_id == "proj-id"
 
 
 def test_client_create_project_that_already_exists_without_skipping(

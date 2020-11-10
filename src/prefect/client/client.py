@@ -929,7 +929,7 @@ class Client:
             - skip_if_exists (bool, optional): skip creating the project if it already exists
 
         Returns:
-            - str: the ID of the newly-created project or an empty string if it already exists
+            - str: the ID of the newly-created or pre-existing project
 
         Raises:
             - ClientError: if the project creation failed
@@ -953,7 +953,15 @@ class Client:
             )  # type: Any
         except ClientError as exc:
             if skip_if_exists and "'Uniqueness violation.'" in str(exc):
-                return ""
+                project_query = {
+                    "query": {
+                        with_args(
+                            "project", {"where": {"name": {"_eq": project_name}}}
+                        ): {"id": True}
+                    }
+                }
+                res = self.graphql(project_query)
+                return res.data.project[0].id
             raise
 
         return res.data.create_project.id

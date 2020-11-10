@@ -62,8 +62,4 @@ def project(name, description, skip_if_exists):
         click.secho("Error creating project", fg="red")
         return
 
-    if project_id:
-        message = "{} created".format(name)
-    else:
-        message = "skipped creating {} as it already exists".format(name)
-    click.secho(message, fg="green")
+    click.secho("{} created".format(name), fg="green")
