@@ -827,6 +827,7 @@ class TaskRunner(Runner):
 
         value = None
         raw_inputs = {k: r.value for k, r in inputs.items()}
+        new_state = None
         try:
             self.logger.debug(
                 "Task '{name}': Calling task.run() method...".format(
@@ -859,11 +860,10 @@ class TaskRunner(Runner):
         except signals.LOOP as exc:
             new_state = exc.state
             assert isinstance(new_state, Looped)
-            new_state.result = self.result.from_value(value=new_state.result)
+            value = new_state.result
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
-            return new_state
 
         # checkpoint tasks if a result is present, except for when the user has opted out by
         # disabling checkpointing
@@ -883,6 +883,10 @@ class TaskRunner(Runner):
                 result = self.result.from_value(value=value)
         else:
             result = self.result.from_value(value=value)
+
+        if new_state is not None:
+            new_state.result = result
+            return new_state
 
         state = Success(result=result, message="Task run succeeded.")
         return state

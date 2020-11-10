@@ -2165,7 +2165,7 @@ class TestLooping:
         assert state.result == 3
 
     @pytest.mark.parametrize("checkpoint", [True, None])
-    def test_looping_only_checkpoints_the_final_result(self, checkpoint):
+    def test_looping_checkpoints_all_iterations(self, checkpoint):
         class Handler(ResultHandler):
             data = []
 
@@ -2189,7 +2189,7 @@ class TestLooping:
         state = TaskRunner(my_task).run(context={"checkpointing": True})
         assert state.is_successful()
         assert state.result == 3
-        assert handler.data == [3]
+        assert handler.data == [1, 2, 3]
 
     def test_looping_works_with_retries(self):
         @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))
