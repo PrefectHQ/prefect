@@ -46,10 +46,7 @@ def project(name, description):
 
     """
     try:
-        Client().create_project(
-            project_name=name,
-            project_description=description,
-        )
+        Client().create_project(project_name=name, project_description=description)
     except ClientError as exc:
         click.echo(f"{type(exc).__name__}: {exc}")
         click.secho("Error creating project", fg="red")
