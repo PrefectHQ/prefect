@@ -15,11 +15,14 @@ def test_create_github_storage():
 
 
 def test_create_github_storage_init_args():
-    storage = GitHub(repo="test/repo", path="flow.py", secrets=["auth"])
+    storage = GitHub(
+        repo="test/repo", path="flow.py", ref="my_branch", secrets=["auth"]
+    )
     assert storage
     assert storage.flows == dict()
     assert storage.repo == "test/repo"
     assert storage.path == "flow.py"
+    assert storage.ref == "my_branch"
     assert storage.secrets == ["auth"]
 
 
@@ -87,5 +90,5 @@ def test_get_flow_github(monkeypatch):
     assert f.name not in storage
     flow_location = storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(flow_location, ref="my_branch")
     assert new_flow.run()
