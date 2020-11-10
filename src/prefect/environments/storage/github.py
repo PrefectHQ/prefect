@@ -31,14 +31,18 @@ class GitHub(Storage):
     Args:
         - repo (str): the name of a GitHub repository to store this Flow
         - path (str, optional): a path pointing to a flow file in the repo
+        - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if not specified
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
-    def __init__(self, repo: str, path: str = None, **kwargs: Any) -> None:
+    def __init__(
+        self, repo: str, path: str = None, ref: str = None, **kwargs: Any
+    ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
         self.path = path
+        self.ref = ref
 
         super().__init__(**kwargs)
 
@@ -46,7 +50,7 @@ class GitHub(Storage):
     def default_labels(self) -> List[str]:
         return ["github-flow-storage"]
 
-    def get_flow(self, flow_location: str = None) -> "Flow":
+    def get_flow(self, flow_location: str = None, ref: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
         If the Flow is not found an error will be logged and `None` will be returned.
@@ -55,6 +59,8 @@ class GitHub(Storage):
             - flow_location (str): the location of a flow within this Storage; in this case,
                 a file path on a repository where a Flow file has been committed. Will use `path` if not
                 provided.
+            - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if not
+                specified
 
         Returns:
             - Flow: the requested Flow
@@ -76,7 +82,7 @@ class GitHub(Storage):
         repo = self._github_client.get_repo(self.repo)
 
         try:
-            contents = repo.get_contents(flow_location)
+            contents = repo.get_contents(flow_location, ref=ref or self.ref)
             decoded_contents = contents.decoded_content
         except UnknownObjectException as exc:
             self.logger.error(
