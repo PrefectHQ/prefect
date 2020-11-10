@@ -31,15 +31,10 @@ def create():
 @create.command(hidden=True)
 @click.argument("name", required=True)
 @click.option("--description", "-d", help="Project description to create", hidden=True)
-@click.option(
-    "--skip-if-exists",
-    is_flag=True,
-    help="Skip creating the project if it already exists",
-    hidden=True,
-)
-def project(name, description, skip_if_exists):
+def project(name, description):
     """
-    Create projects with the Prefect API that organize flows.
+    Create projects with the Prefect API that organize flows. Does nothing if
+    the project already exists.
 
     \b
     Arguments:
@@ -48,14 +43,12 @@ def project(name, description, skip_if_exists):
     \b
     Options:
         --description, -d   TEXT    A project description
-        --skip-if-exists            Skip creating the project if it already exists
 
     """
     try:
         Client().create_project(
             project_name=name,
             project_description=description,
-            skip_if_exists=skip_if_exists,
         )
     except ClientError as exc:
         click.echo(f"{type(exc).__name__}: {exc}")

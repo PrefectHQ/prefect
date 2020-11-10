@@ -612,32 +612,8 @@ def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
 
     with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
         client = Client()
-    project_id = client.create_project(
-        project_name="my-default-project", skip_if_exists=True
-    )
+    project_id = client.create_project(project_name="my-default-project")
     assert project_id == "proj-id"
-
-
-def test_client_create_project_that_already_exists_without_skipping(
-    patch_post, monkeypatch
-):
-    patch_post(
-        {
-            "errors": [
-                {"message": "Uniqueness violation.", "path": ["create_project"]}
-            ],
-            "data": {"create_project": None},
-        }
-    )
-
-    monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
-    )
-
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
-        client = Client()
-    with pytest.raises(ClientError, match="'Uniqueness violation.'"):
-        client.create_project(project_name="my-default-project", skip_if_exists=False)
 
 
 def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeypatch):

@@ -914,19 +914,13 @@ class Client:
             slug = res.get("data").tenant[0].slug
         return slug
 
-    def create_project(
-        self,
-        project_name: str,
-        project_description: str = None,
-        skip_if_exists: bool = False,
-    ) -> str:
+    def create_project(self, project_name: str, project_description: str = None) -> str:
         """
-        Create a new Project
+        Create a new project if a project with the name provided does not already exist
 
         Args:
-            - project_name (str): the project that should contain this flow
+            - project_name (str): the project that should be created
             - project_description (str, optional): the project description
-            - skip_if_exists (bool, optional): skip creating the project if it already exists
 
         Returns:
             - str: the ID of the newly-created or pre-existing project
@@ -952,7 +946,7 @@ class Client:
                 ),
             )  # type: Any
         except ClientError as exc:
-            if skip_if_exists and "'Uniqueness violation.'" in str(exc):
+            if "'Uniqueness violation.'" in str(exc):
                 project_query = {
                     "query": {
                         with_args(

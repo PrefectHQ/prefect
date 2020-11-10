@@ -1,5 +1,5 @@
 enhancement:
-  - "Adds `skip_if_exists parameter` to `Client.create_project` and `--skip-if-exists` flag to `prefect create project` so that users can skip creating projects that already exist. - [#3630](https://github.com/PrefectHQ/prefect/pull/3630)"
+  - `Client.create_project` and `prefect create project` will skip creating the project if the project already exists. - [#3630](https://github.com/PrefectHQ/prefect/pull/3630)"
 
 contributor:
   - "[Amanda Wee](https://github.com/amanda-wee)"

@@ -51,7 +51,7 @@ def test_create_project_description(patch_post, cloud_api):
     assert "test created" in result.output
 
 
-def test_create_project_skip_if_exists(patch_posts):
+def test_create_project_that_already_exists(patch_posts):
     patch_posts(
         [
             {
@@ -65,6 +65,6 @@ def test_create_project_skip_if_exists(patch_posts):
     )
 
     runner = CliRunner()
-    result = runner.invoke(create, ["project", "test", "--skip-if-exists"])
+    result = runner.invoke(create, ["project", "test"])
     assert result.exit_code == 0
     assert "test created" in result.output
