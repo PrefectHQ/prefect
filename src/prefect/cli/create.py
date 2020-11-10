@@ -52,7 +52,7 @@ def project(name, description, skip_if_exists):
 
     """
     try:
-        project_id = Client().create_project(
+        Client().create_project(
             project_name=name,
             project_description=description,
             skip_if_exists=skip_if_exists,
