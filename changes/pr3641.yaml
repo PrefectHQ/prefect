@@ -1,0 +1,2 @@
+enhancement:
+  - "`PrefectSecret` and `EnvVarSecret` tasks no longer require secret names be provided at flow creation time - [#3641](https://github.com/PrefectHQ/prefect/pull/3641)"
