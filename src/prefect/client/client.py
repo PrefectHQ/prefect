@@ -919,14 +919,14 @@ class Client:
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
-        Create a new Project
+        Create a new project if a project with the name provided does not already exist
 
         Args:
-            - project_name (str): the project that should contain this flow
+            - project_name (str): the project that should be created
             - project_description (str, optional): the project description
 
         Returns:
-            - str: the ID of the newly-created project
+            - str: the ID of the newly-created or pre-existing project
 
         Raises:
             - ClientError: if the project creation failed
@@ -937,16 +937,29 @@ class Client:
             }
         }
 
-        res = self.graphql(
-            project_mutation,
-            variables=dict(
-                input=dict(
-                    name=project_name,
-                    description=project_description,
-                    tenant_id=self.active_tenant_id,
-                )
-            ),
-        )  # type: Any
+        try:
+            res = self.graphql(
+                project_mutation,
+                variables=dict(
+                    input=dict(
+                        name=project_name,
+                        description=project_description,
+                        tenant_id=self.active_tenant_id,
+                    )
+                ),
+            )  # type: Any
+        except ClientError as exc:
+            if "'Uniqueness violation.'" in str(exc):
+                project_query = {
+                    "query": {
+                        with_args(
+                            "project", {"where": {"name": {"_eq": project_name}}}
+                        ): {"id": True}
+                    }
+                }
+                res = self.graphql(project_query)
+                return res.data.project[0].id
+            raise
 
         return res.data.create_project.id
 
