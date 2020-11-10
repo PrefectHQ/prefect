@@ -33,7 +33,7 @@ from prefect.utilities.graphql import (
     compress,
     parse_graphql,
     with_args,
-    format_graphql_error,
+    format_graphql_request_error,
 )
 from prefect.utilities.logging import create_diagnostic_logger
 
@@ -356,32 +356,21 @@ class Client:
         try:
             response.raise_for_status()
         except HTTPError as exc:
-            if "Client Error" in str(exc):
-                # Create a custom-formatted response for client errors
-                msg = f"{exc}\n\n"
-
+            if response.status_code == 400 and "query" in params:
+                # Create a custom-formatted err message for graphql errors which always
+                # return a 400 status code and have "query" in the parameter dict
                 try:
-                    msg += format_graphql_error(response.text) + "\n\n"
+                    graphql_msg = format_graphql_request_error(response)
                 except Exception:
                     # Fallback to a general message
-                    msg += (
+                    graphql_msg = (
                         "This is likely caused by a poorly formatted GraphQL query or "
-                        "mutation.\n\n"
+                        "mutation but the response could not be parsed for more details"
                     )
+                raise ClientError(f"{exc}\n\n{graphql_msg}") from exc
 
-                try:
-                    graphql_sent = parse_graphql(params).replace("\n", "\n\t")
-                except Exception:
-                    # failed to format, raise below
-                    graphql_sent = None
-                if graphql_sent is not None:
-                    msg += f"GraphQL sent:\n\n\t{graphql_sent}"
-
-                raise ClientError(msg) from exc
-
-            else:
-                # Server-side errors will be raised without modification
-                raise
+            # Server-side and non-graphql errors will be raised without modification
+            raise
 
         return response
 

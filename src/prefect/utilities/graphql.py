@@ -5,6 +5,7 @@ import textwrap
 import uuid
 from collections.abc import KeysView, ValuesView
 from typing import Any
+from requests import Response
 
 from box import Box
 
@@ -289,18 +290,43 @@ def with_args(field: Any, arguments: Any) -> str:
     return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
 
 
-def format_graphql_error(response_text: str) -> str:
-    content = json.loads(response_text)
-    errors = content.get("errors", [])
-    lines = []
+def format_graphql_request_error(response: Response) -> str:
+
+    params = json.loads(response.request.body)
+    query = parse_graphql(params.get("query", {}))
+    variables = parse_graphql(params.get("variables", {}))
+
+    text = json.loads(response.text)
+    errors = text.get("errors", [])
+    error_msgs = ""
     for error in errors:
-        message = error.get("message", "No error message")
+        message = error.get("message", "No error message supplied.")
         extensions = error.get("extensions", {})
         # Other extensions are possible but we will only include the minimum for now
         # since stack traces and other info are likely not passed
         code = extensions.get("code", "UNKNOWN_ERROR")
-        lines.append(f"{code}: {message}")
-    return "\n".join(lines)
+        error_msgs += f"{code}: {message}\n"
+
+        error_prefix = (
+            "The following error messages were provided by the GraphQL server:\n"
+            if error_msgs
+            else "The server did not provide any error messages."
+        )
+
+    return textwrap.dedent(
+        f"""
+        {error_prefix}
+        {error_msgs}
+
+        The GraphQL query was:
+        
+        {query}
+
+        The passed variables were:
+
+        {variables}
+        """
+    )
 
 
 def compress(input: Any) -> str:
