@@ -795,17 +795,20 @@ class Client:
 
         if compressed:
             serialized_flow = compress(serialized_flow)
+
+        inputs = dict(
+            project_id=(project[0].id if project else None),
+            serialized_flow=serialized_flow,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+        )
+        # Add newly added inputs only when set for backwards compatibility
+        if idempotency_key is not None:
+            inputs.update(idempotency_key=idempotency_key)
+
         res = self.graphql(
             create_mutation,
-            variables=dict(
-                input=dict(
-                    project_id=(project[0].id if project else None),
-                    serialized_flow=serialized_flow,
-                    set_schedule_active=set_schedule_active,
-                    version_group_id=version_group_id,
-                    idempotency_key=idempotency_key,
-                )
-            ),
+            variables=dict(input=inputs),
             retry_on_api_error=False,
         )  # type: Any
 
