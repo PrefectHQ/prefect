@@ -1,9 +1,11 @@
+import contextlib
 import datetime
 import json
 import logging
 import time
 from unittest.mock import MagicMock
 
+import click
 import pytest
 
 from prefect import context, utilities
@@ -34,7 +36,7 @@ def test_root_logger_datefmt_responds_to_config(caplog, datefmt):
             logger = utilities.logging.configure_logging(testing=True)
             logger.error("badness")
             logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert logs[0].asctime == datetime.datetime.utcnow().strftime(datefmt)
+            assert logs[0].asctime == datetime.datetime.now().strftime(datefmt)
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
@@ -476,5 +478,18 @@ def test_redirect_to_log(caplog):
 
     logs = [r.message for r in caplog.records if r.levelname == "INFO"]
     assert logs == ["TEST1", "TEST2"]
+
+    log_stdout.flush()
+
+
+def test_redirect_to_log_is_textwriter(caplog):
+    log_stdout = utilities.logging.RedirectToLog()
+    with contextlib.redirect_stdout(log_stdout):
+        click.secho("There is color on this line", fg="red")
+        click.secho("Standard")
+    log_stdout.flush()
+
+    logs = [r.message for r in caplog.records if r.levelname == "INFO"]
+    assert logs == ["There is color on this line\n", "Standard\n"]
 
     log_stdout.flush()

@@ -124,6 +124,7 @@ class GitHubSchema(ObjectSchema):
         object_class = GitHub
 
     repo = fields.String(allow_none=False)
+    ref = fields.String(allow_none=False)
     path = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)

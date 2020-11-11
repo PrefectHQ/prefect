@@ -90,7 +90,7 @@ Built-in trigger functions include:
 - `any_successful`: Tasks will run if at least one upstream task succeeded.
 - `any_failed`: Tasks will run if at least one upstream task failed.
 - `all_finished`: Tasks will run as long as all upstream tasks finished. This is equivalent to "always run", because Prefect tasks are only evaluated when their upstream tasks finish.
-- `manual_only`: This trigger is unique in that in won't let the task run at all. Tasks will always enter a `Paused` state when the `manual_only` trigger runs. Users can cause those tasks to run by explicitly putting them in a `Resume` state. Therefore, this trigger is a useful way to introduce a mandatory break into a workflow.
+- `manual_only`: This trigger is unique in that it won't let the task run at all. Tasks will always enter a `Paused` state when the `manual_only` trigger runs. Users can cause those tasks to run by explicitly putting them in a `Resume` state. Therefore, this trigger is a useful way to introduce a mandatory break into a workflow.
 
 Users can also supply any function that has the following signature, though we encourage users to put custom logic in the task's `run()` method instead:
 

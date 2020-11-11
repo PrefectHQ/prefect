@@ -167,6 +167,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
             project_name="my-default-project",
             compressed=False,
             version_group_id=str(uuid.uuid4()),
+            no_url=True,
         )
 
 
@@ -221,6 +222,7 @@ def test_client_register_doesnt_raise_for_scheduled_params(
         project_name="my-default-project",
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
+        no_url=True,
     )
     assert flow_id == "long-id"
 
@@ -260,6 +262,8 @@ def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
         project_name="my-default-project",
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
+        no_url=True,
+        idempotency_key="foo",
     )
     assert flow_id == "long-id"
 
@@ -310,6 +314,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result(
             project_name="my-default-project",
             compressed=compressed,
             version_group_id=str(uuid.uuid4()),
+            no_url=True,
         )
 
 
@@ -350,6 +355,7 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
         project_name="my-default-project",
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
+        no_url=True,
     )
     assert flow_id == "long-id"
 
@@ -385,7 +391,7 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     flow.result = flow.storage.result
 
     flow_id = client.register(
-        flow, project_name="my-default-project", compressed=compressed
+        flow, project_name="my-default-project", compressed=compressed, no_url=True
     )
 
     ## extract POST info
@@ -437,7 +443,11 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     flow.result = flow.storage.result
 
     flow_id = client.register(
-        flow, project_name="my-default-project", compressed=compressed, build=True
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        build=True,
+        no_url=True,
     )
 
     ## extract POST info
@@ -489,7 +499,11 @@ def test_client_register_default_all_extras_image(
     flow.result = flow.storage.result
 
     flow_id = client.register(
-        flow, project_name="my-default-project", compressed=compressed, build=True
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        build=True,
+        no_url=True,
     )
 
     ## extract POST info
@@ -540,7 +554,11 @@ def test_client_register_optionally_avoids_building_flow(
     flow.result = prefect.engine.result.Result()
 
     flow_id = client.register(
-        flow, project_name="my-default-project", build=False, compressed=compressed
+        flow,
+        project_name="my-default-project",
+        build=False,
+        compressed=compressed,
+        no_url=True,
     )
 
     ## extract POST info
@@ -570,9 +588,32 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     flow.result = prefect.engine.result.Result()
 
     with pytest.raises(ValueError) as exc:
-        flow_id = client.register(flow, project_name="my-default-project")
+        flow_id = client.register(flow, project_name="my-default-project", no_url=True)
     assert "not found" in str(exc.value)
     assert "prefect create project 'my-default-project'" in str(exc.value)
+
+
+def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
+    patch_posts(
+        [
+            {
+                "errors": [
+                    {"message": "Uniqueness violation.", "path": ["create_project"]}
+                ],
+                "data": {"create_project": None},
+            },
+            {"data": {"project": [{"id": "proj-id"}]}},
+        ]
+    )
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+        client = Client()
+    project_id = client.create_project(project_name="my-default-project")
+    assert project_id == "proj-id"
 
 
 def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeypatch):
@@ -604,7 +645,9 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
             "(`retry_delay` must be provided if max_retries > 0)"
         ),
     ) as exc:
-        client.register(flow, project_name="my-default-project", build=False)
+        client.register(
+            flow, project_name="my-default-project", build=False, no_url=True
+        )
 
 
 @pytest.mark.parametrize("compressed", [True, False])
@@ -616,11 +659,16 @@ def test_client_register_flow_id_output(
             "data": {
                 "project": [{"id": "proj-id"}],
                 "create_flow_from_compressed_string": {"id": "long-id"},
+                "flow_by_pk": {"flow_group_id": "fg-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "create_flow": {"id": "long-id"},
+                "flow_by_pk": {"flow_group_id": "fg-id"},
+            }
         }
     patch_post(response)
 
@@ -648,7 +696,7 @@ def test_client_register_flow_id_output(
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert "Flow URL: https://cloud.prefect.io/tslug/flow/long-id\n" in captured.out
+    assert "Flow URL: https://cloud.prefect.io/tslug/flow/fg-id\n" in captured.out
 
 
 @pytest.mark.parametrize("compressed", [True, False])
@@ -703,6 +751,17 @@ def test_set_flow_run_name(patch_posts, cloud_api):
 
     client = Client()
     result = client.set_flow_run_name(flow_run_id="74-salt", name="name")
+
+    assert result == True
+
+
+def test_cancel_flow_run(patch_posts, cloud_api):
+    mutation_resp = {"data": {"cancel_flow_run": {"state": True}}}
+
+    post = patch_posts(mutation_resp)
+
+    client = Client()
+    result = client.cancel_flow_run(flow_run_id="74-salt")
 
     assert result == True
 
@@ -1370,3 +1429,44 @@ def test_get_agent_config(patch_post, cloud_api):
 
         agent_config = client.get_agent_config(agent_config_id="id")
         assert agent_config == {"yes": "no"}
+
+
+def test_artifacts_client_functions(patch_post, cloud_api):
+    response = {
+        "data": {
+            "create_task_run_artifact": {"id": "artifact_id"},
+            "update_task_run_artifact": {"success": True},
+            "delete_task_run_artifact": {"success": True},
+        }
+    }
+
+    patch_post(response)
+
+    client = Client()
+
+    artifact_id = client.create_task_run_artifact(
+        task_run_id="tr_id", kind="kind", data={"test": "data"}, tenant_id="t_id"
+    )
+    assert artifact_id == "artifact_id"
+
+    client.update_task_run_artifact(task_run_artifact_id="tra_id", data={"new": "data"})
+    client.delete_task_run_artifact(task_run_artifact_id="tra_id")
+
+    response = {
+        "data": {
+            "create_task_run_artifact": {"id": None},
+        }
+    }
+
+    patch_post(response)
+
+    with pytest.raises(ValueError):
+        client.create_task_run_artifact(
+            task_run_id="tr_id", kind="kind", data={"test": "data"}, tenant_id="t_id"
+        )
+
+    with pytest.raises(ValueError):
+        client.update_task_run_artifact(task_run_artifact_id=None, data={"new": "data"})
+
+    with pytest.raises(ValueError):
+        client.delete_task_run_artifact(task_run_artifact_id=None)

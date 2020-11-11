@@ -1,0 +1,5 @@
+enhancement:
+  - "`Client.create_project` and `prefect create project` will skip creating the project if the project already exists. - [#3630](https://github.com/PrefectHQ/prefect/pull/3630)"
+
+contributor:
+  - "[Amanda Wee](https://github.com/amanda-wee)"

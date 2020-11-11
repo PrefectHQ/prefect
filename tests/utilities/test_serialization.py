@@ -71,11 +71,15 @@ class TestJSONCompatibleField:
         assert serialized["j"] == value
 
     def test_validate_on_dump(self):
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(
+            marshmallow.ValidationError, match="must be JSON compatible"
+        ):
             self.Schema().dump({"j": lambda: 1})
 
     def test_validate_on_load(self):
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(
+            marshmallow.ValidationError, match="must be JSON compatible"
+        ):
             self.Schema().load({"j": lambda: 1})
 
 
@@ -240,7 +244,9 @@ class TestStatefulFunctionReferenceField:
         assert serialized["f"]["kwargs"] == {"x": 1, "y": 2, "z": 99}
 
     def test_serialize_invalid_fn(self):
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(
+            marshmallow.ValidationError, match="custom functions aren't supported"
+        ):
             self.Schema().dump(dict(f=fn2))
 
     def test_serialize_invalid_fn_without_validation(self):
@@ -283,7 +289,9 @@ class TestStatefulFunctionReferenceField:
             def __call__(self, a, b):
                 return a + b
 
-        with pytest.raises(marshmallow.ValidationError, match="function required"):
+        with pytest.raises(
+            marshmallow.ValidationError, match="custom functions aren't supported"
+        ):
             self.Schema().dump(dict(f=Foo()))
 
     def test_serialize_none(self):

@@ -285,6 +285,17 @@ def test_flow_runner_loads_context_from_cloud(monkeypatch):
     assert res.context["a"] == 1
 
 
+def test_flow_runner_puts_running_with_backend_in_context(client):
+    @prefect.task()
+    def whats_in_ctx():
+        assert prefect.context.get("running_with_backend")
+
+    flow = prefect.Flow(name="test", tasks=[whats_in_ctx])
+    res = CloudFlowRunner(flow=flow).run()
+
+    assert res.is_successful()
+
+
 def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
     flow = prefect.Flow(name="test")
     date = pendulum.parse("19860920")

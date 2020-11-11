@@ -293,11 +293,11 @@ def test_format_list_on_normal_doc():
         '<li class="args">'
         "`x (bool)`: it's x\n        </li>"
         '<li class="args">'
-        "`y (bool)`: it's y</li></ul>    "
+        "`y (bool)`: it's y</li></ul>\n    "
         'Returns:\n        <ul class="args">'
         '<li class="args">whatever you want</li></ul>'
         '\n\n    Raises:\n        <ul class="args">'
-        '<li class="args">`NotImplementedError`: because it doesnt exist</li></ul>    '
+        '<li class="args">`NotImplementedError`: because it doesnt exist</li></ul>\n    '
         'References:\n        <ul class="args">'
         '<li class="args">`Example`: https://example.com\n    </li></ul>'
         ""

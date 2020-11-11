@@ -38,13 +38,13 @@ class KubernetesAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's job:
     ```
-    prefect agent start kubernetes --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent kubernetes start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     These can also be used to control the k8s job spec that describes the flow run jobs.
     For example, to set the k8s secret used to pull images from a non-public registry:
     ```
-    prefect agent start kubernetes --env IMAGE_PULL_SECRETS=my-img-pull-secret
+    prefect agent kubernetes start --env IMAGE_PULL_SECRETS=my-img-pull-secret
     ```
 
     For details on the available environment variables for customizing the job spec,
@@ -52,7 +52,7 @@ class KubernetesAgent(Agent):
 
     Specifying a namespace for the agent will create flow run jobs in that namespace:
     ```
-    prefect agent start kubernetes --namespace dev
+    prefect agent kubernetes start --namespace dev
     ```
 
     Args:
@@ -218,7 +218,10 @@ class KubernetesAgent(Agent):
         """
         Check status of jobs created by this agent, delete completed jobs and failed containers.
         """
-        self.manage_jobs()
+        try:
+            self.manage_jobs()
+        except Exception:
+            self.logger.error("Error while managing existing k8s jobs", exc_info=True)
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
@@ -300,7 +303,10 @@ class KubernetesAgent(Agent):
         - `IMAGE_PULL_POLICY`: policy for pulling images. Defaults to `"IfNotPresent"`.
         - `IMAGE_PULL_SECRETS`: name of an existing k8s secret that can be used to pull
                 images. This is necessary if your flow uses an image that is in a non-public
-                container registry, such as Amazon ECR.
+                container registry, such as Amazon ECR, or in a public registry that requires
+                authentication to avoid hitting rate limits. To specify multiple image pull
+                secrets, provide a comma-delimited string with no spaces, like
+                `"some-secret,other-secret"`.
         - `SERVICE_ACCOUNT_NAME`: name of a service account to run the job as.
                 By default, none is specified.
         - `YAML_TEMPLATE`: a path to where the YAML template should be loaded from. defaults
@@ -363,9 +369,19 @@ class KubernetesAgent(Agent):
         # Use image pull secrets if provided
         image_pull_secrets = os.getenv("IMAGE_PULL_SECRETS")
         if image_pull_secrets:
-            job["spec"]["template"]["spec"]["imagePullSecrets"][0][
-                "name"
-            ] = image_pull_secrets
+            secrets = image_pull_secrets.split(",")
+            for idx, secret_name in enumerate(secrets):
+                # this check preserves behavior from previous releases,
+                # where prefect would only overwrite the first entry in
+                # imagePullSecrets
+                if idx == 0:
+                    job["spec"]["template"]["spec"]["imagePullSecrets"][0] = {
+                        "name": secret_name
+                    }
+                else:
+                    job["spec"]["template"]["spec"]["imagePullSecrets"].append(
+                        {"name": secret_name}
+                    )
         else:
             del job["spec"]["template"]["spec"]["imagePullSecrets"]
 

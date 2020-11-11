@@ -6,8 +6,10 @@ from typing import Iterable, List
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import GCS, S3, Azure, Local, GitHub, GitLab, Webhook
+from prefect.environments.storage import Docker
+from prefect.run_configs import LocalRun
 from prefect.serialization.storage import StorageSchema
+from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.agent import get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
@@ -19,7 +21,7 @@ class LocalAgent(Agent):
 
     Optional import paths may be specified to append dependency modules to the PATH:
     ```
-    prefect agent start local --import-path "/usr/local/my_module" --import-path "~/other_module"
+    prefect agent local start --import-path "/usr/local/my_module" --import-path "~/other_module"
 
     # Now the local scripts/packages my_module and other_module will be importable in
     # the flow's subprocess
@@ -27,7 +29,7 @@ class LocalAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's subprocess:
     ```
-    prefect agent start local --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent local start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     Args:
@@ -55,6 +57,8 @@ class LocalAgent(Agent):
         - hostname_label (boolean, optional): a boolean specifying whether this agent should
             auto-label itself with the hostname of the machine it is running on.  Useful for
             flows which are stored on the local filesystem.
+        - storage_labels (boolean, optional): a boolean specifying whether this agent should
+            auto-label itself with all of the storage options labels.
     """
 
     def __init__(
@@ -69,6 +73,7 @@ class LocalAgent(Agent):
         max_polls: int = None,
         agent_address: str = None,
         no_cloud_logs: bool = False,
+        storage_labels: bool = True,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
@@ -92,17 +97,18 @@ class LocalAgent(Agent):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
 
-        all_storage_labels = [
-            "azure-flow-storage",
-            "gcs-flow-storage",
-            "s3-flow-storage",
-            "github-flow-storage",
-            "webhook-flow-storage",
-            "gitlab-flow-storage",
-        ]
-        for label in all_storage_labels:
-            if label not in self.labels:
-                self.labels.append(label)
+        if storage_labels:
+            all_storage_labels = [
+                "azure-flow-storage",
+                "gcs-flow-storage",
+                "s3-flow-storage",
+                "github-flow-storage",
+                "webhook-flow-storage",
+                "gitlab-flow-storage",
+            ]
+            for label in all_storage_labels:
+                if label not in self.labels:
+                    self.labels.append(label)
 
         self.logger.debug(f"Import paths: {self.import_paths}")
         self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
@@ -132,29 +138,37 @@ class LocalAgent(Agent):
         """
         self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
-        if not isinstance(
-            StorageSchema().load(flow_run.flow.storage),
-            (Local, Azure, GCS, S3, GitHub, GitLab, Webhook),
-        ):
+        storage = StorageSchema().load(flow_run.flow.storage)
+        if isinstance(storage, Docker):
             self.logger.error(
-                "Storage for flow run {} is not a supported type.".format(flow_run.id)
+                "Flow run %s has an unsupported storage type: `%s`",
+                flow_run.id,
+                type(storage).__name__,
             )
-            raise ValueError("Unsupported Storage type")
+            raise TypeError("Unsupported Storage type: %s" % type(storage).__name__)
 
-        env_vars = self.populate_env_vars(flow_run=flow_run)
-        current_env = os.environ.copy()
-        current_env.update(env_vars)
+        # If the flow is using a run_config, load it
+        if getattr(flow_run.flow, "run_config", None) is not None:
+            run_config = RunConfigSchema().load(flow_run.flow.run_config)
+            if not isinstance(run_config, LocalRun):
+                self.logger.error(
+                    "Flow run %s has a `run_config` of type `%s`, only `LocalRun` is supported",
+                    flow_run.id,
+                    type(run_config).__name__,
+                )
+                raise TypeError(
+                    "Unsupported RunConfig type: %s" % type(run_config).__name__
+                )
+        else:
+            run_config = None
 
-        python_path = []
-        if current_env.get("PYTHONPATH"):
-            python_path.append(current_env.get("PYTHONPATH"))
+        env = self.populate_env_vars(flow_run, run_config=run_config)
 
-        python_path.append(os.getcwd())
-
-        if self.import_paths:
-            python_path += self.import_paths
-
-        current_env["PYTHONPATH"] = ":".join(python_path)
+        working_dir = None if run_config is None else run_config.working_dir
+        if working_dir and not os.path.exists(working_dir):
+            msg = f"Flow run {flow_run.id} has a nonexistent `working_dir` configured: {working_dir}"
+            self.logger.error(msg)
+            raise ValueError(msg)
 
         stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
@@ -167,7 +181,8 @@ class LocalAgent(Agent):
             get_flow_run_command(flow_run).split(" "),
             stdout=stdout,
             stderr=STDOUT,
-            env=current_env,
+            env=env,
+            cwd=working_dir,
         )
 
         self.processes.add(p)
@@ -177,35 +192,71 @@ class LocalAgent(Agent):
 
         return "PID: {}".format(p.pid)
 
-    def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
+    def populate_env_vars(
+        self, flow_run: GraphQLResult, run_config: LocalRun = None
+    ) -> dict:
         """
         Populate metadata and variables in the environment variables for a flow run
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - run_config (LocalRun, optional): The `run_config` for the flow, if any.
 
         Returns:
             - dict: a dictionary representing the populated environment variables
         """
-        all_vars = {
-            "PREFECT__CLOUD__API": config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
-            "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
-            "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
-            "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-            "PREFECT__LOGGING__LEVEL": config.logging.level,
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-            **self.env_vars,
-        }
-        return {k: v for k, v in all_vars.items() if v is not None}
+        # Environment variables come from (later options override):
+
+        # 1. Local environment
+        env = os.environ.copy()
+
+        # 2. Logging config
+        env.update({"PREFECT__LOGGING__LEVEL": config.logging.level})
+
+        # 3. PYTHONPATH
+        # XXX: I'm 99% sure this isn't needed, a new Python process should
+        # always add the CWD as the first entry in sys.path
+        python_path = [
+            run_config.working_dir
+            if run_config is not None and run_config.working_dir
+            else os.getcwd()
+        ]
+        if os.environ.get("PYTHONPATH"):
+            python_path.append(os.environ["PYTHONPATH"])
+        if self.import_paths:
+            python_path.extend(self.import_paths)
+        env["PYTHONPATH"] = os.pathsep.join(python_path)
+
+        # 4. Values set on the agent via `--env`
+        env.update(self.env_vars)
+
+        # 5. Values set on a LocalRun RunConfig (if present
+        if run_config is not None and run_config.env is not None:
+            env.update(run_config.env)
+
+        # 6. Non-overrideable required env vars
+        env.update(
+            {
+                "PREFECT__CLOUD__API": config.cloud.api,
+                "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
+                "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
+                "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
+                "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            }
+        )
+
+        # Filter out None values
+        return {k: v for k, v in env.items() if v is not None}
 
     @staticmethod
     def generate_supervisor_conf(
         token: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
     ) -> str:
@@ -216,6 +267,8 @@ class LocalAgent(Agent):
             - token (str, optional): A `RUNNER` token to give the agent
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - env_vars (dict, optional): a dictionary of environment variables and values that
+                will be set on each flow run that this agent submits for execution
             - import_paths (List[str], optional): system paths which will be provided to each
                 Flow's runtime environment; useful for Flows which import from locally hosted
                 scripts or packages
@@ -229,6 +282,7 @@ class LocalAgent(Agent):
         # Use defaults if not provided
         token = token or ""
         labels = labels or []
+        env_vars = env_vars or {}
         import_paths = import_paths or []
 
         with open(
@@ -239,16 +293,11 @@ class LocalAgent(Agent):
         add_opts = ""
         add_opts += "-t {token} ".format(token=token) if token else ""
         add_opts += "-f " if show_flow_logs else ""
-        add_opts += (
-            " ".join("-l {label} ".format(label=label) for label in labels)
-            if labels
-            else ""
+        add_opts += " ".join("-l {label} ".format(label=label) for label in labels)
+        add_opts += " ".join(
+            "-e {k}={v} ".format(k=k, v=v) for k, v in env_vars.items()
         )
-        add_opts += (
-            " ".join("-p {path}".format(path=path) for path in import_paths)
-            if import_paths
-            else ""
-        )
+        add_opts += " ".join("-p {path}".format(path=path) for path in import_paths)
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf
 

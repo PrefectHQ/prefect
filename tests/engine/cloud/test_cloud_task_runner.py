@@ -13,7 +13,7 @@ from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs, duration_only
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult, NoResult
-from prefect.engine.results import PrefectResult, SecretResult
+from prefect.engine.results import PrefectResult, SecretResult, LocalResult
 
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN
@@ -64,6 +64,7 @@ def client(monkeypatch):
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states: states
         ),
+        set_task_run_name=MagicMock(),
     )
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
@@ -251,6 +252,32 @@ def test_task_runner_validates_cached_states_if_task_has_caching(client):
     assert res.is_successful()
     assert res.is_cached()
     assert res.result == 42
+
+
+def test_task_runner_treats_unfound_files_as_invalid_caches(client, tmpdir):
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1), result_handler=JSONResultHandler()
+    )
+    def cached_task():
+        return 42
+
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=LocalResult(location=str(tmpdir / "made_up_data.prefect")),
+    )
+    old_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(days=1),
+        result=Result(13, JSONResultHandler()),
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
+
+    res = CloudTaskRunner(task=cached_task).run()
+    assert client.get_latest_cached_states.called
+    assert res.is_successful()
+    assert res.is_cached()
+    assert res.result == 13
 
 
 class TestCheckTaskCached:
@@ -1053,7 +1080,6 @@ def test_task_runner_handles_version_lock_error(monkeypatch):
 
 
 def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
-
     client = MagicMock()
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
@@ -1092,3 +1118,16 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     assert client.set_task_run_name.called
     assert client.set_task_run_name.call_args[1]["name"] == "name"
     assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+
+
+def test_task_runner_set_task_name_same_as_prefect_context(client):
+    @prefect.task(name="hey", task_run_name=lambda **kwargs: kwargs["config"])
+    def test_task(config):
+        return
+
+    edge = Edge(Task(), Task(), key="config")
+    state = Success(result="any_value")
+    res = CloudTaskRunner(task=test_task).run(upstream_states={edge: state})
+
+    assert client.set_task_run_name.call_count == 1
+    assert client.set_task_run_name.call_args[1]["name"] == "any_value"

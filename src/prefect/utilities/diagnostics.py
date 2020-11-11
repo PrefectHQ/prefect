@@ -25,11 +25,14 @@ def system_information() -> dict:
 
 def config_overrides(include_secret_names: bool = False) -> dict:
     """
-    Get user configuration overrides
+    Get user configuration keys that differ from the default configuration. Will only
+    return an indication if a key is set and differs from the defaults, values are
+    *not* returned.
 
     Args:
-        - include_secret_names (bool, optional): toggle output of Secret names, defaults to False.
-            Note: Secret values are never returned, only their names.
+        - include_secret_names (bool, optional): toggle inclusion of secret config keys
+            in the output. Note that secret values are never returned, only their names
+            when this is `True`. Defaults to `False`.
 
     Returns:
         - dict: a dictionary containing names of user configuration overrides
@@ -45,13 +48,42 @@ def config_overrides(include_secret_names: bool = False) -> dict:
             }
         return True
 
+    # Load the default config to compare values
+    default_config = dict()
+    default_config_path = prefect.configuration.DEFAULT_CONFIG
+    if default_config_path and os.path.isfile(default_config_path):
+        default_config = prefect.configuration.load_toml(default_config_path)
+
     user_config = dict()  # type: ignore
     user_config_path = prefect.configuration.USER_CONFIG
     if user_config_path and os.path.isfile(
         str(prefect.configuration.interpolate_env_vars(user_config_path))
     ):
         user_config = prefect.configuration.load_toml(user_config_path)
-        user_config = _replace_values(user_config)
+
+    # Create some shorter names for fully specified imports avoiding circular
+    # dependencies in the utilities
+    dict_to_flatdict = prefect.utilities.collections.dict_to_flatdict
+    flatdict_to_dict = prefect.utilities.collections.flatdict_to_dict
+
+    # Drop keys from `user_config` that have values identical to `default_config`
+    # converting to flat dictionaries for ease of comparison
+    user_config = dict_to_flatdict(user_config)
+    default_config = dict_to_flatdict(default_config)
+
+    # Collect keys to drop in a list so we aren't dropping keys during iteration
+    keys_to_drop = [
+        key
+        for key, val in user_config.items()
+        if key in default_config and val == default_config[key]
+    ]
+
+    for key in keys_to_drop:
+        user_config.pop(key)
+
+    # Restore to a nested dictionary then replace values with bools
+    user_config = flatdict_to_dict(user_config)
+    user_config = _replace_values(user_config)
 
     return dict(config_overrides=user_config)
 

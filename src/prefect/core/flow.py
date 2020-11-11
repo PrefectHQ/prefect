@@ -2,7 +2,9 @@ import collections
 import collections.abc
 import copy
 import functools
+import hashlib
 import inspect
+import json
 import os
 import tempfile
 import time
@@ -1463,6 +1465,21 @@ class Flow:
 
         return serialized
 
+    def serialized_hash(self, build: bool = False) -> str:
+        """
+        Generate a deterministic hash of the serialized flow. This is useful for
+        determining if the flow has changed. If this hash is equal to a previous hash,
+        no new information would be passed to the server on a call to `flow.register()`
+
+        Args:
+            - build (bool, optional):  if `True`, the flow's environment is built
+                prior to serialization. Passed through to `Flow.serialize()`.
+
+        Returns:
+            - str: the hash of the serialized flow
+        """
+        return hashlib.sha256(json.dumps(self.serialize(build)).encode()).hexdigest()
+
     # Diagnostics  ----------------------------------------------------------------
 
     def diagnostics(self, include_secret_names: bool = False) -> str:
@@ -1539,7 +1556,10 @@ class Flow:
             "logging.log_to_cloud": log_to_cloud,
         }
         with set_temporary_config(temp_config):
-            labels = list(self.environment.labels) if self.environment.labels else []
+            if self.run_config is not None:
+                labels = list(self.run_config.labels or ())
+            else:
+                labels = list(self.environment.labels or ())
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
@@ -1553,6 +1573,7 @@ class Flow:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         no_url: bool = False,
+        idempotency_key: str = None,
         **kwargs: Any,
     ) -> Union[str, None]:
         """
@@ -1574,6 +1595,9 @@ class Flow:
                 Flow's project and name will be used.
             - no_url (bool, optional): if `True`, the stdout from this function will not
                 contain the URL link to the newly-registered flow in the Cloud UI
+            - idempotency_key (str, optional): a key that, if matching the most recent
+                registration call for this flow group, will prevent the creation of
+                another flow version and return the existing flow id instead.
             - **kwargs (Any): if instantiating a Storage object from default settings, these
                 keyword arguments will be passed to the initialization method of the default
                 Storage class
@@ -1606,10 +1630,10 @@ class Flow:
             self.storage = get_default_storage_class()(**kwargs)
 
         # add auto-labels for various types of storage
-        self.environment.labels.update(self.storage.labels)
-
-        if labels:
-            self.environment.labels.update(labels)
+        for obj in [self.environment, self.run_config]:
+            if obj is not None:
+                obj.labels.update(self.storage.labels)
+                obj.labels.update(labels or ())
 
         # register the flow with a default result handler if one not provided
         if not self.result:
@@ -1624,6 +1648,7 @@ class Flow:
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
             no_url=no_url,
+            idempotency_key=idempotency_key,
         )
         return registered_flow
 

@@ -307,6 +307,9 @@ def test_task_runner_accepts_dictionary_of_edges():
     sys.platform == "win32", reason="Windows doesn't support any timeout logic"
 )
 def test_timeout_actually_stops_execution():
+    # Note this replicates test coverage from
+    # `tests.core.test_flow.test_timeout_actually_stops_execution`
+
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
@@ -1167,6 +1170,23 @@ class TestRunTaskStep:
             return x + 1
 
         edge = Edge(Task(), fn, key="x")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state._result.location.endswith("2.txt")
+
+    def test_result_formatting_with_templated_inputs_inputs_take_precedence(
+        self, tmpdir
+    ):
+        result = LocalResult(dir=tmpdir, location="{config}.txt")
+
+        @prefect.task(checkpoint=True, result=result, slug="1234567")
+        def fn(config):
+            return config
+
+        edge = Edge(Task(), fn, key="config")
         with set_temporary_config({"flows.checkpointing": True}):
             new_state = TaskRunner(task=fn).run(
                 state=None, upstream_states={edge: Success(result=Result(2))}
@@ -2126,7 +2146,7 @@ class TestLooping:
         logs = [
             log
             for log in caplog.records
-            if "TaskRunner" in log.name and "finished" in log.message
+            if "TaskRunner" in log.name and "Finished" in log.message
         ]
         assert len(logs) >= 1  # a finished log was in fact created
         assert len(logs) <= 2  # but not too many were issued
@@ -2145,7 +2165,7 @@ class TestLooping:
         assert state.result == 3
 
     @pytest.mark.parametrize("checkpoint", [True, None])
-    def test_looping_only_checkpoints_the_final_result(self, checkpoint):
+    def test_looping_checkpoints_all_iterations(self, checkpoint):
         class Handler(ResultHandler):
             data = []
 
@@ -2169,7 +2189,7 @@ class TestLooping:
         state = TaskRunner(my_task).run(context={"checkpointing": True})
         assert state.is_successful()
         assert state.result == 3
-        assert handler.data == [3]
+        assert handler.data == [1, 2, 3]
 
     def test_looping_works_with_retries(self):
         @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))

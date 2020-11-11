@@ -1,5 +1,6 @@
 import collections.abc
 import copy
+import enum
 import inspect
 import warnings
 from datetime import timedelta
@@ -32,6 +33,16 @@ if TYPE_CHECKING:
     from prefect.core import Edge
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+
+
+# A sentinel value indicating no default was provided
+# mypy requires enums for typed sentinel values, so other
+# simpler solutions won't work :/
+class NoDefault(enum.Enum):
+    value = "no_default"
+
+    def __repr__(self) -> str:
+        return "<no default>"
 
 
 def _validate_run_signature(run: Callable) -> None:
@@ -191,7 +202,8 @@ class Task(metaclass=SignatureValidator):
             the Prefect logger. Defaults to `False`.
         - task_run_name (Union[str, Callable], optional): a name to set for this task at runtime.
             `task_run_name` strings can be templated formatting strings which will be
-            formatted at runtime with values from `prefect.context`, task inputs, and parameters.
+            formatted at runtime with values from task arguments, `prefect.context`, and flow
+            parameters (in the case of a name conflict between these, earlier values take precedence).
             If a callable function is provided, it should have signature `callable(**kwargs) -> str`
             and at write time all formatting kwargs will be passed and a fully formatted location is
             expected as the return value. The callable can be used for string formatting logic that
@@ -827,7 +839,7 @@ class Task(metaclass=SignatureValidator):
         Produces a Task that evaluates `self[key]`
 
         Args:
-            - key (object): the object to use an an index for this task. It will be converted
+            - key (object): the object to use as an index for this task. It will be converted
                 to a Task if it isn't one already.
 
         Returns:

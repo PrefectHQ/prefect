@@ -1,5 +1,0 @@
-task:
-    - "Add new `BatchSubmit` task for submitting jobs to AWS batch - [#3366](https://github.com/PrefectHQ/prefect/pull/3366)"
-    - "Add new `AWSClientWait` task for waiting on long-running AWS jobs - [#3366](https://github.com/PrefectHQ/prefect/pull/3366)"
-contributor:
-    - "[Max Del Giudice](https://github.com/madelgi)"

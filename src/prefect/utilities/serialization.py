@@ -179,14 +179,23 @@ class JSONCompatible(fields.Field):
         self.validators.insert(0, self._validate_json)
 
     def _serialize(self, value, attr, obj, **kwargs):  # type: ignore
-        self._validate_json(value)
+        try:
+            json.dumps(value)
+        except TypeError:
+            raise ValidationError(
+                "When running with Prefect Cloud/Server, values for "
+                f"`{type(obj).__name__}.{attr}` must be JSON compatible. "
+                f"Unable to serialize `{value!r}`."
+            ) from None
         return super()._serialize(value, attr, obj, **kwargs)
 
     def _validate_json(self, value: Any) -> None:
         try:
             json.dumps(value)
-        except TypeError as type_error:
-            raise ValidationError("Value is not JSON-compatible") from type_error
+        except TypeError:
+            raise ValidationError(
+                f"Values must be JSON compatible, got `{value!r}`"
+            ) from None
 
 
 class Nested(fields.Nested):
@@ -382,19 +391,21 @@ class StatefulFunctionReference(fields.Field):
 
         try:
             qual_name = to_qualified_name(value)
-        except Exception as exc:
-            raise ValidationError(
-                f"Invalid function reference, function required, got {value}"
-            ) from exc
+        except Exception:
+            valid_bases = []
+        else:
+            # sort matches such that the longest / most specific match comes first
+            valid_bases = sorted(
+                [fn for fn in self.valid_functions if qual_name.startswith(fn)],
+                key=lambda k: len(k),
+                reverse=True,
+            )
 
-        # sort matches such that the longest / most specific match comes first
-        valid_bases = sorted(
-            [fn for fn in self.valid_functions if qual_name.startswith(fn)],
-            key=lambda k: len(k),
-            reverse=True,
-        )
         if not valid_bases and self.reject_invalid:
-            raise ValidationError("Invalid function reference: {}".format(value))
+            raise ValidationError(
+                "When running with Prefect Cloud/Server, custom functions aren't supported "
+                f"for `{type(obj).__name__}.{attr}`. Unable to serialize `{value!r}`."
+            )
         else:
             base_name = next(filter(None, valid_bases)) if valid_bases else qual_name
 

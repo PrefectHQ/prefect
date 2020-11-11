@@ -27,7 +27,6 @@ import toml
 import toolz
 from slugify import slugify
 
-import prefect
 from tokenizer import format_code
 
 OUTLINE_PATH = os.path.join(os.path.dirname(__file__), "outline.toml")
@@ -169,7 +168,7 @@ def format_lists(doc):
         for item, descr in list_items:
             block += f"{li_tag}`{item}`:{descr}</li>"
         list_block = f"{ul_tag}{block}</ul>"
-        doc = doc.replace(items + "\n\n", list_block, 1).replace(items, list_block, 1)
+        doc = doc.replace(items + "\n", list_block, 1).replace(items, list_block, 1)
     return doc.replace("\n\nRaises:", "Raises:")
 
 
@@ -218,35 +217,49 @@ def create_methods_table(members, title):
 def create_commands_table(commands):
     import click
 
-    table = ""
+    full_commands = []
     for cmd in commands:
+        full_commands.append((cmd.name, cmd))
+        if hasattr(cmd, "commands"):
+            for subcommand in sorted(cmd.commands):
+                full_commands.append(
+                    (f"{cmd.name} {subcommand}", cmd.commands[subcommand])
+                )
+
+    table = ""
+    for name, cmd in full_commands:
         with click.Context(cmd) as ctx:
-            table += f"<h3>{cmd.name}</h3>\n"
-            help_text = cmd.get_help(ctx).split("\n", 2)[2]
+            table += format_command_doc(name, ctx, cmd)
+    return table
 
-            options = help_text.split("Options:")
-            arguments = options[0].split("Arguments:")
-            if len(arguments) > 1:
-                table += arguments[0]
 
-                block = (
-                    "<pre><code>"
-                    + "Arguments:"
-                    + arguments[1].replace("\n", "<br>").replace("*", r"\*")
-                    + "</code></pre>"
-                )
-                table += block
-            else:
-                table += options[0]
+def format_command_doc(name, ctx, cmd):
+    table = f"<h3>{name}</h3>\n"
+    help_text = cmd.get_help(ctx).split("\n", 2)[2]
 
-            if len(options) > 2:
-                block = (
-                    "<pre><code>"
-                    + "Options:"
-                    + options[1].replace("\n", "<br>").replace("*", r"\*")
-                    + "</code></pre>"
-                )
-                table += block
+    options = help_text.split("Options:")
+    arguments = options[0].split("Arguments:")
+    if len(arguments) > 1:
+        table += arguments[0]
+
+        block = (
+            "<pre><code>"
+            + "Arguments:"
+            + arguments[1].replace("\n", "<br>").replace("*", r"\*")
+            + "</code></pre>"
+        )
+        table += block
+    else:
+        table += options[0]
+
+    if len(options) > 1:
+        block = (
+            "<pre><code>"
+            + "Options:"
+            + options[1].replace("\n", "<br>").replace("*", r"\*")
+            + "</code></pre>"
+        )
+        table += block
     return table
 
 
@@ -284,6 +297,17 @@ def get_call_signature(obj):
 def format_signature(obj):
     standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
     add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
+
+    for name, val in kwargs:
+        if isinstance(val, MagicMock):
+            mock = val
+            stringified = mock._mock_name
+            while mock._mock_parent:
+                stringified = f"{mock._mock_parent._mock_name}.{stringified}"
+                mock = mock._mock_parent
+
+            val = stringified
+
     psig = ", ".join(
         standalone
         + varargs
@@ -291,6 +315,7 @@ def format_signature(obj):
         + [f"{name}={add_quotes(val)}" for name, val in kwargs]
         + varkwargs
     )
+
     return psig
 
 
@@ -413,7 +438,7 @@ if __name__ == "__main__":
         shutil.rmtree("api/latest", ignore_errors=True)
         os.makedirs("api/latest", exist_ok=True)
 
-        ## UPDATE README
+        # UPDATE README
         with open("api/latest/README.md", "w+") as f:
             f.write(
                 textwrap.dedent(
@@ -435,7 +460,8 @@ if __name__ == "__main__":
 
                 # API Reference
 
-                This API reference is automatically generated from Prefect's source code and unit-tested to ensure it's up to date.
+                This API reference is automatically generated from Prefect's source code
+                and unit-tested to ensure it's up to date.
 
                 """
             )
@@ -447,7 +473,7 @@ if __name__ == "__main__":
                 f.write(readme)
                 f.write(auto_generated_footer)
 
-        ## UPDATE CHANGELOG
+        # UPDATE CHANGELOG
         with open("api/latest/changelog.md", "w+") as f:
             f.write(
                 textwrap.dedent(

@@ -273,6 +273,45 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
         )
         assert job["spec"]["template"]["spec"]["serviceAccountName"] == "svc_name"
 
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
+            {"name": "my-secret"}
+        ]
+
+
+def test_k8s_agent_replace_yaml_respects_multiple_image_secrets(monkeypatch, cloud_api):
+    get_jobs = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
+        get_jobs,
+    )
+
+    monkeypatch.setenv("IMAGE_PULL_SECRETS", "some-secret,other-secret")
+    monkeypatch.setenv("IMAGE_PULL_POLICY", "custom_policy")
+
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Docker(
+                        registry_url="test", image_name="name", image_tag="tag"
+                    ).serialize(),
+                    "environment": LocalEnvironment().serialize(),
+                    "id": "new_id",
+                    "core_version": "0.13.0",
+                }
+            ),
+            "id": "id",
+        }
+    )
+
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+    ):
+        agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
+        job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
+        expected_secrets = [{"name": "some-secret"}, {"name": "other-secret"}]
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == expected_secrets
+
 
 def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
     get_jobs = MagicMock(return_value=[])

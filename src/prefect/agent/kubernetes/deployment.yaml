@@ -21,7 +21,7 @@ spec:
           image: prefecthq/prefect:latest
           imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
-          args: ["prefect agent start kubernetes"]
+          args: ["prefect agent kubernetes start"]
           env:
             - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
               value: ""

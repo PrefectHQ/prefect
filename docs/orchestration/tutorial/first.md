@@ -37,6 +37,18 @@ flow.register(project_name="Hello, World!")
 Registration only sends data about the existence and format of your flow; **no actual code from the flow is sent to the Prefect API**. Your code remains safe, secure, and private in your own infrastructure!
 :::
 
+:::tip Deduplicating registration calls
+Each call to `flow.register()` will bump the version of the flow in the backend.
+If you are registering flows using automation, you may want to pass an `idempotency_key` which will only create a new version when the key changes.
+For example, we can take advantage of the hash of the serialized flow to only register a new version of the flow when it has changed:
+```python
+flow.register(
+   project_name="Hello, World!",
+   idempotency_key=flow.serialized_hash(),
+)
+```
+:::
+
 ## Run Flow with the Prefect API
 
 Now that your flow is registered with the Prefect API, we will use an Agent to watch for flow runs that are scheduled by the Prefect API and execute them accordingly.

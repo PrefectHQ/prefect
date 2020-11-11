@@ -12,6 +12,12 @@ class LocalResult(Result):
     """
     Result that is written to and retrieved from the local file system.
 
+    **Note**: "local" refers to where the flow's tasks execute, which is not
+    necessarily the same as the place that `flow.run()` runs from. So, for
+    example, if you use a `LocalEnvironment` with a `DaskExecutor` pointed at
+    a remote Dask cluster, `LocalResult` files will be written to the Dask
+    workers' file system.
+
     **Note**: If this result raises a `PermissionError` that could mean it is attempting
     to write results to a directory that it is not permissioned for. In that case it may be
     helpful to specify a specific `dir` for that result instance.

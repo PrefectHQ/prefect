@@ -8,7 +8,8 @@ applied when users apply inline Python operators to a task and another value.
 from operator import attrgetter
 from typing import Any
 
-from prefect import Task
+from prefect.core.task import Task, NoDefault
+from prefect.utilities.tasks import defaults_from_attrs
 
 
 class GetItem(Task):
@@ -16,20 +17,29 @@ class GetItem(Task):
     Helper task that retrieves a specific index of an upstream task's result.
 
     Args:
+        - default (Any): the object to use as the default
         - *args (Any): positional arguments for the `Task` class
         - **kwargs (Any): keyword arguments for the `Task` class
     """
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, default: Any = NoDefault.value, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
+        self.default = default
 
-    def run(self, task_result: Any, key: Any) -> Any:  # type: ignore
+    @defaults_from_attrs("default")
+    def run(self, task_result: Any, key: Any, default: Any = NoDefault.value) -> Any:  # type: ignore
         """
         Args:
             - task_result (Any): a value
             - key (Any): the index to retrieve as `task_result[key]`
+            - default (Any): the object to use as the default
         """
-        return task_result[key]
+        try:
+            return task_result[key]
+        except KeyError:
+            if default is NoDefault.value:
+                raise
+            return default
 
 
 class GetAttr(Task):
@@ -37,21 +47,30 @@ class GetAttr(Task):
     Helper task that retrieves a specific attribute of an upstream task's result.
 
     Args:
+        - default (Any): the object to use as the default
         - *args (Any): positional arguments for the `Task` class
         - **kwargs (Any): keyword arguments for the `Task` class
     """
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, default: Any = NoDefault.value, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
+        self.default = default
 
-    def run(self, task_result: Any, attr: Any) -> Any:  # type: ignore
+    @defaults_from_attrs("default")
+    def run(self, task_result: Any, attr: Any, default: Any = NoDefault.value) -> Any:  # type: ignore
         """
         Args:
             - task_result (Any): a value
             - attr (Any): the (possibly nested) attribute to retrieve as `task_result.attr`.
                 Nested attributes should be accessed via `.`-delimited strings.
+            - default (Any): the object to use as the default
         """
-        return attrgetter(attr)(task_result)
+        try:
+            return attrgetter(attr)(task_result)
+        except AttributeError:
+            if default is NoDefault.value:
+                raise
+            return default
 
 
 # ---------------------------------------------------------

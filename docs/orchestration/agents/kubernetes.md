@@ -44,7 +44,7 @@ roleRef:
 ### Usage
 
 ```
-$ prefect agent start kubernetes
+$ prefect agent kubernetes start
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
@@ -70,7 +70,7 @@ The Kubernetes Agent can be started either through the Prefect CLI or by importi
 ::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
-- command argument `prefect agent start kubernetes -t MY_TOKEN`
+- command argument `prefect agent kubernetes start -t MY_TOKEN`
 - environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
 - token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
 
@@ -81,57 +81,41 @@ There are a few ways in which you can specify a `RUNNER` API token:
 The Prefect CLI provides commands for installing agents on their respective platforms.
 
 ```
-$ prefect agent install --help
-Usage: prefect agent install [OPTIONS] NAME
+$ prefect agent kubernetes install --help
+Usage: prefect agent kubernetes install [OPTIONS]
 
-  Install an agent. Outputs configuration text which can be used to install
-  on various platforms. The Prefect image version will default to your local
-  `prefect.__version__`
-
-  Arguments:
-      name                        TEXT    The name of an agent to install (e.g.
-                                          `kubernetes`, `local`)
-
-  Options:
-      --token, -t                 TEXT    A Prefect Cloud API token
-      --label, -l                 TEXT    Labels the agent will use to query for flow runs
-                                          Multiple values supported e.g. `-l label1 -l label2`
-      --env, -e                   TEXT    Environment variables to set on each submitted flow
-                                          run. Note that equal signs in environment variable
-                                          values are not currently supported from the CLI.
-                                          Multiple values supported e.g. `-e AUTH=token -e
-                                          PKG_SETTING=true`
-
-  Kubernetes Agent Options:
-      --api, -a                   TEXT    A Prefect API URL
-      --namespace, -n             TEXT    Agent namespace to launch workloads
-      --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
-      --resource-manager                  Enable resource manager on install
-      --rbac                              Enable default RBAC on install
-      --latest                            Use the `latest` Prefect image
-      --mem-request               TEXT    Requested memory for Prefect init job
-      --mem-limit                 TEXT    Limit memory for Prefect init job
-      --cpu-request               TEXT    Requested CPU for Prefect init job
-      --cpu-limit                 TEXT    Limit CPU for Prefect init job
-      --image-pull-policy         TEXT    imagePullPolicy for Prefect init job
-      --service-account-name      TEXT    Name of Service Account for Prefect init job
-      --backend                   TEST    Prefect backend to use for this agent
-                                          Defaults to the backend currently set in config.
-
-  Local Agent Options:
-      --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
-                                          Multiple values supported e.g. `-p /root/my_scripts
-                                          -p /utilities`
-      --show-flow-logs, -f                Display logging output from flows run by the agent
+  Generate a supervisord.conf file for a Local agent
 
 Options:
-  -h, --help  Show this message and exit.
+  -t, --token TEXT               A Prefect Cloud API token with RUNNER scope.
+  -l, --label TEXT               Labels the agent will use to query for flow
+                                 runs.
+
+  -e, --env TEXT                 Environment variables to set on each
+                                 submitted flow run.
+
+  -a, --api TEXT                 A Prefect API URL.
+  -n, --namespace TEXT           Agent namespace to launch workloads.
+  -i, --image-pull-secrets TEXT  Name of image pull secrets to use for
+                                 workloads.
+
+  --resource-manager             Enable resource manager.
+  --rbac                         Enable default RBAC.
+  --latest                       Use the latest Prefect image.
+  --mem-request TEXT             Requested memory for Prefect init job.
+  --mem-limit TEXT               Limit memory for Prefect init job.
+  --cpu-request TEXT             Requested CPU for Prefect init job.
+  --cpu-limit TEXT               Limit CPU for Prefect init job.
+  --image-pull-policy TEXT       imagePullPolicy for Prefect init job
+  --service-account-name TEXT    Name of Service Account for Prefect init job
+  -b, --backend TEXT             Prefect backend to use for this agent.
+  -h, --help                     Show this message and exit.
 ```
 
 Running the following command will install the Prefect Agent on your cluster:
 
 ```
-$ prefect agent install kubernetes -t MY_TOKEN | kubectl apply -f -
+$ prefect agent kubernetes install -t MY_TOKEN | kubectl apply -f -
 ```
 
 :::tip RBAC
@@ -163,12 +147,16 @@ prefect-agent-845798bb59-s7wxg   1/1     Running   0          5s
 
 You are now ready to run some flows!
 
+#### Permissions
+
+If you are using Amazon EKS for your kubernetes deployment and you need S3 access, note that S3 is not accessible by default to Amazon EKS. To enable S3 access by your kubernetes cluster on EKS, add the necessary permissions (AmazonS3FullAccess or AmazonS3ReadOnlyAccess) directly to the NodeInstanceRole used by aws-auth-cm.yaml after launching worker nodes and before applying aws-auth-cm.yaml with kubectl.
+
 #### Labels
 
 To specify a set of labels for a Kubernetes Agent during install you may specify various `--label` arguments.
 
 ```
-$ prefect agent install kubernetes -t MY_TOKEN --label dev --label staging
+$ prefect agent kubernetes install -t MY_TOKEN --label dev --label staging
 ```
 
 This will update the `PREFECT__CLOUD__AGENT__LABELS` environment variable on the Agent deployment YAML to include a string representation of a the list of labels. This means that providing the `dev` and `staging` labels above would be represented as:
