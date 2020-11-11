@@ -1,2 +1,0 @@
-enhancement:
-  - "Add `ref` option to GitHub storage for specifying branches other than master - [#3638](https://github.com/PrefectHQ/prefect/issues/3638)"
