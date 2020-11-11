@@ -1,5 +1,0 @@
-enhancement:
-  - "Allow for setting `Client` headers before loading tenant when running with Prefect Server - [#3515](https://github.com/PrefectHQ/prefect/issues/3515)"
-
-contributor:
-  - "[Emilien Garreau](https://github.com/EmGarr)"

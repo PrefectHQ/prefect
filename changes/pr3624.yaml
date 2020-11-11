@@ -1,2 +1,0 @@
-fix:
-  - "Fix breaking change in flow registration with old server versions - [#3624](https://github.com/PrefectHQ/prefect/pull/3624)"
