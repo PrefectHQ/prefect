@@ -23,7 +23,7 @@ Released on November 11, 2020.
 
 - Fix issue with retrying mapped pipelines on dask - [#3519](https://github.com/PrefectHQ/prefect/issues/3519)
 - Task arguments take precedence when generating `task_run_name` - [#3605](https://github.com/PrefectHQ/prefect/issues/3605)
-- Fix breaking change in flow registration with old server versions - [#3624](https://github.com/PrefectHQ/prefect/pull/3624)
+- Fix breaking change in flow registration with old server versions - [#3642](https://github.com/PrefectHQ/prefect/pull/3642)
 - Task arguments take precedence when generating templated targets and locations - [#3627](https://github.com/PrefectHQ/prefect/pull/3627)
 
 ### Breaking Changes
