@@ -1154,3 +1154,34 @@ class TestFlatMap:
             state.result[z].message
             == "At least one upstream state has an unmappable result."
         )
+
+
+def test_mapped_retries_regenerate_child_pipelines():
+    """
+    This test sets up a situation analogous to one found in Cloud: if a reduce task fails, and a user
+    retries it in the future, we want to make sure that the mapped children pipelines are correctly
+    regenerated.  When run against Cloud, these child tasks will correctly query for their states and
+    the run will proceed with the correct data.
+
+    This test mimics this scenario by running this flow with a provided set of states that only contain
+    metadata about the runs with no actual data to reference.  The child runs should still be produced
+    based only on the n_map_states attribute of the parent.
+    """
+    idt = IdTask()
+    ll = ListTask()
+    with Flow("test") as flow:
+        mapped = idt.map(ll)
+        reduced = idt(mapped)
+
+    flow_state = flow.run()
+    assert flow_state.is_successful()
+    assert flow_state.result[mapped].is_mapped()
+    assert flow_state.result[reduced].is_successful()
+    assert flow_state.result[reduced].result == [1, 2, 3]
+
+    second_pass_states = {mapped: Mapped(n_map_states=3), ll: Success(result=Result())}
+
+    new_state = flow.run(task_states=second_pass_states)
+    assert new_state.is_successful()
+    assert new_state.result[mapped].is_mapped()
+    assert new_state.result[reduced].is_successful()

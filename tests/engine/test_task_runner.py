@@ -1891,6 +1891,23 @@ class TestCheckTaskReadyToMapStep:
             )
         assert exc.value.state.is_mapped()
 
+    @pytest.mark.parametrize("state", [Pending(), Mapped(), Scheduled()])
+    def test_run_mapped_returns_cached_inputs_if_rerun(self, state):
+        """
+        This is important to communicate result information back to the
+        FlowRunner for regenerating the mapped children.
+        """
+        result = LocalResult(value="y")
+        edge = Edge(Task(), Task(), key="x")
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=state, upstream_states={edge: Success(result=result)}
+            )
+        if state.is_mapped():
+            assert exc.value.state.cached_inputs == dict(x=result)
+        else:
+            assert exc.value.state.cached_inputs == dict()
+
     def test_run_mapped_returns_failed_if_no_success_upstream(self):
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task=Task()).check_task_ready_to_map(

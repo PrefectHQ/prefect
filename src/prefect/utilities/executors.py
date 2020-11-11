@@ -506,21 +506,14 @@ def prepare_upstream_states_for_mapping(
                         not state.is_mapped()
                         or upstream_state._result != prefect.engine.result.NoResult
                     ):
-                        # this line should never be hit due to a check
-                        # in the TaskRunner when evaluating the mapped parent
                         if not hasattr(upstream_state.result, "__getitem__"):
-                            raise TypeError(
-                                (
-                                    "Cannot map over unsubscriptable object of type {t}: {val}..."
-                                ).format(
-                                    t=type(upstream_state.result),
-                                    val=repr(upstream_state.result)[:10],
-                                )
-                            )
-                        upstream_result = upstream_state._result.from_value(  # type: ignore
-                            upstream_state.result[i]
-                        )
+                            value = None
+                        else:
+                            value = upstream_state.result[i]
+                        upstream_result = upstream_state._result.from_value(value)  # type: ignore
                         states[edge].result = upstream_result
+                        if state.map_states and i >= len(state.map_states):  # type: ignore
+                            raise IndexError()
                     elif state.is_mapped():
                         if i >= len(state.map_states):  # type: ignore
                             raise IndexError()
