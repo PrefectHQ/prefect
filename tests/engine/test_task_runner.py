@@ -1177,6 +1177,23 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.location.endswith("2.txt")
 
+    def test_result_formatting_with_templated_inputs_inputs_take_precedence(
+        self, tmpdir
+    ):
+        result = LocalResult(dir=tmpdir, location="{config}.txt")
+
+        @prefect.task(checkpoint=True, result=result, slug="1234567")
+        def fn(config):
+            return config
+
+        edge = Edge(Task(), fn, key="config")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state._result.location.endswith("2.txt")
+
     def test_result_formatting_with_input_named_value(self, tmpdir):
         result = LocalResult(dir=tmpdir, location="{value}.txt")
 
@@ -2148,7 +2165,7 @@ class TestLooping:
         assert state.result == 3
 
     @pytest.mark.parametrize("checkpoint", [True, None])
-    def test_looping_only_checkpoints_the_final_result(self, checkpoint):
+    def test_looping_checkpoints_all_iterations(self, checkpoint):
         class Handler(ResultHandler):
             data = []
 
@@ -2172,7 +2189,7 @@ class TestLooping:
         state = TaskRunner(my_task).run(context={"checkpointing": True})
         assert state.is_successful()
         assert state.result == 3
-        assert handler.data == [3]
+        assert handler.data == [1, 2, 3]
 
     def test_looping_works_with_retries(self):
         @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))

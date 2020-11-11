@@ -263,6 +263,7 @@ def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
         no_url=True,
+        idempotency_key="foo",
     )
     assert flow_id == "long-id"
 
@@ -1405,3 +1406,44 @@ def test_get_agent_config(patch_post, cloud_api):
 
         agent_config = client.get_agent_config(agent_config_id="id")
         assert agent_config == {"yes": "no"}
+
+
+def test_artifacts_client_functions(patch_post, cloud_api):
+    response = {
+        "data": {
+            "create_task_run_artifact": {"id": "artifact_id"},
+            "update_task_run_artifact": {"success": True},
+            "delete_task_run_artifact": {"success": True},
+        }
+    }
+
+    patch_post(response)
+
+    client = Client()
+
+    artifact_id = client.create_task_run_artifact(
+        task_run_id="tr_id", kind="kind", data={"test": "data"}, tenant_id="t_id"
+    )
+    assert artifact_id == "artifact_id"
+
+    client.update_task_run_artifact(task_run_artifact_id="tra_id", data={"new": "data"})
+    client.delete_task_run_artifact(task_run_artifact_id="tra_id")
+
+    response = {
+        "data": {
+            "create_task_run_artifact": {"id": None},
+        }
+    }
+
+    patch_post(response)
+
+    with pytest.raises(ValueError):
+        client.create_task_run_artifact(
+            task_run_id="tr_id", kind="kind", data={"test": "data"}, tenant_id="t_id"
+        )
+
+    with pytest.raises(ValueError):
+        client.update_task_run_artifact(task_run_artifact_id=None, data={"new": "data"})
+
+    with pytest.raises(ValueError):
+        client.delete_task_run_artifact(task_run_artifact_id=None)

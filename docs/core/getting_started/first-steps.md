@@ -205,7 +205,7 @@ You can use the URL returned from the `register()` call to navigate directly to 
 Start a [local agent](/orchestration/agents/local.md) that can communicate between the server and your flow code.
 
 ```bash
-prefect agent start
+prefect agent local start
 ```
 
 And then trigger your flow from the UI using the ["Run" button](/orchestration/ui/flow.md#run)! You will see the agent pick up your work:

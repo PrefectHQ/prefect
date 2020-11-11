@@ -344,9 +344,9 @@ class CloudTaskRunner(TaskRunner):
         if task_run_name:
             raw_inputs = {k: r.value for k, r in task_inputs.items()}
             formatting_kwargs = {
-                **prefect.context.get("parameters", {}).copy(),
-                **raw_inputs,
+                **prefect.context.get("parameters", {}),
                 **prefect.context,
+                **raw_inputs,
             }
 
             if not isinstance(task_run_name, str):

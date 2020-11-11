@@ -16,39 +16,23 @@ Once the agent submits the flow run for execution, the agent returns to waiting 
 
 If for any reason the agent encounters an issue deploying the flow run for execution then it will mark that flow run as `Failed` with the message set to the error it encountered.
 
+:::tip Agent tracking
+Agents are tracked and uniquely identified by Prefect Cloud or Prefect Server through a combination of agent name, labels, token <Badge text="Cloud"/>, and Core Version.
+
+Prefect doesn't talk to agents but instead relies on agents to talk to it, which means agents identify themselves and communicate their settings. Independent agent processes with the same configurations will be interpreted by Prefect as the same agent; changing any piece of the configuration will tell Prefect to track these agents independently.
+:::
+
 ### Installation
 
 If Prefect is already [installed](../../core/getting_started/installation.html) no additional work is required to begin using Prefect agents!
 
 ### Usage
 
-Prefect agents can easily be configured through the CLI.
+Prefect agents can be started via the CLI, using `prefect agent <AGENT TYPE> start`. For example:
 
 ```
-$ prefect agent
-Usage: prefect agent [OPTIONS] COMMAND [ARGS]...
-
-  Manage Prefect agents.
-
-  Usage:
-      $ prefect agent [COMMAND]
-
-  Arguments:
-      start       Start a Prefect agent
-      install     Output platform-specific agent installation configs
-
-  Examples:
-      $ prefect agent start
-      ...agent begins running in process...
-
-      $ prefect agent start kubernetes --token MY_TOKEN
-      ...agent begins running in process...
-
-      $ prefect agent install kubernetes --token MY_TOKEN --namespace metrics
-      ...k8s yaml output...
-
-Options:
-  -h, --help  Show this message and exit.
+$ prefect agent local start
+...
 ```
 
 All Prefect Agents are also extendable as Python objects and can be used programatically!
@@ -80,7 +64,7 @@ DockerAgent(labels=["dev", "staging"]).start()
 - Arguments to the CLI:
 
 ```
-$ prefect agent start --label dev --label staging
+$ prefect agent <AGENT TYPE> start --label dev --label staging
 ```
 
 - As an environment variable:
@@ -97,7 +81,7 @@ Setting labels through the `PREFECT__CLOUD__AGENT__LABELS` environment variable 
 
 Agents can optionally run a private HTTP server for use as a health check.
 Health checks can be used by common orchestration services (e.g.
-``supervisord``, ``docker``, ``kubernetes``, ...) to check that the agent is
+`supervisord`, `docker`, `kubernetes`, ...) to check that the agent is
 running properly and take actions (such as restarting the agent) if it's not.
 
 A few ways to enable:
@@ -105,7 +89,7 @@ A few ways to enable:
 - Passing an argument to the CLI:
 
 ```
-$ prefect agent start --agent-address http://localhost:8080
+$ prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
 ```
 
 - Setting an environment variable:
@@ -114,8 +98,8 @@ $ prefect agent start --agent-address http://localhost:8080
 $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
 ```
 
-- Setting ``cloud.agent.agent_address`` in your [configuration](../../core/concepts/configuration.html):
+- Setting `cloud.agent.agent_address` in your [configuration](../../core/concepts/configuration.html):
 
-If enabled, the HTTP health check will be available via the ``/api/health``
-route at the configured agent address. This route returns ``200 OK`` if the
+If enabled, the HTTP health check will be available via the `/api/health`
+route at the configured agent address. This route returns `200 OK` if the
 agent is running and health, and will error otherwise.

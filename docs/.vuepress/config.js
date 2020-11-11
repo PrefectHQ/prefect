@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.13.13)', link: '/api/latest/' },
+          { text: 'Latest (0.13.14)', link: '/api/latest/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
@@ -150,6 +150,11 @@ module.exports = {
           title: 'prefect.agent',
           collapsable: true,
           children: getChildren('docs/api/latest', 'agent')
+        },
+        {
+          title: 'prefect.artifacts',
+          collapsable: true,
+          children: getChildren('docs/api/latest', 'artifacts')
         },
         {
           title: 'prefect.utilities',

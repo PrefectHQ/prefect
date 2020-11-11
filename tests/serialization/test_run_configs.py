@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.run_configs import KubernetesRun, LocalRun, DockerRun
+from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun
 from prefect.serialization.run_config import RunConfigSchema
 
 
@@ -81,5 +81,49 @@ def test_serialize_docker_run(config):
     config2 = RunConfigSchema().load(msg)
     assert sorted(config.labels) == sorted(config2.labels)
     fields = ["env", "image"]
+    for field in fields:
+        assert getattr(config, field) == getattr(config2, field)
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        ECSRun(),
+        ECSRun(
+            task_definition_path="s3://bucket/test.yaml",
+            image="myimage",
+            env={"test": "foo"},
+            cpu="1 vcpu",
+            memory="1 GB",
+            task_role_arn="my-task-role",
+            run_task_kwargs={"overrides": {"taskRoleArn": "example"}},
+            labels=["a", "b"],
+        ),
+        ECSRun(
+            task_definition={
+                "containerDefinitions": [
+                    {
+                        "name": "flow",
+                        "environment": [{"name": "TEST", "value": "VALUE"}],
+                    }
+                ]
+            }
+        ),
+    ],
+)
+def test_serialize_ecs_run(config):
+    msg = RunConfigSchema().dump(config)
+    config2 = RunConfigSchema().load(msg)
+    assert sorted(config.labels) == sorted(config2.labels)
+    fields = [
+        "task_definition",
+        "task_definition_path",
+        "image",
+        "env",
+        "cpu",
+        "memory",
+        "task_role_arn",
+        "run_task_kwargs",
+    ]
     for field in fields:
         assert getattr(config, field) == getattr(config2, field)

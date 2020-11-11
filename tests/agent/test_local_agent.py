@@ -394,12 +394,16 @@ def test_generate_supervisor_conf():
     agent = LocalAgent()
 
     conf = agent.generate_supervisor_conf(
-        token="token", labels=["label"], import_paths=["path"]
+        token="token",
+        labels=["label"],
+        import_paths=["path"],
+        env_vars={"TESTKEY": "TESTVAL"},
     )
 
     assert "-t token" in conf
     assert "-l label" in conf
     assert "-p path" in conf
+    assert "-e TESTKEY=TESTVAL" in conf
 
 
 @pytest.mark.parametrize(

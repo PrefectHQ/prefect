@@ -550,7 +550,7 @@ class TaskRunner(Runner):
         # are generated
         elif state.is_mapped():
             self.logger.debug(
-                "Task '%s': task is mapped, but run will proceed so children are generated.",
+                "Task '%s': task is already mapped, but run will proceed so children are generated.",
                 prefect.context.get("task_full_name", self.task.name),
             )
             return state
@@ -697,8 +697,8 @@ class TaskRunner(Runner):
             raw_inputs = {k: r.value for k, r in inputs.items()}
             formatting_kwargs = {
                 **prefect.context.get("parameters", {}).copy(),
-                **raw_inputs,
                 **prefect.context,
+                **raw_inputs,
             }
 
             if not isinstance(target, str):
@@ -827,6 +827,7 @@ class TaskRunner(Runner):
 
         value = None
         raw_inputs = {k: r.value for k, r in inputs.items()}
+        new_state = None
         try:
             self.logger.debug(
                 "Task '{name}': Calling task.run() method...".format(
@@ -859,11 +860,10 @@ class TaskRunner(Runner):
         except signals.LOOP as exc:
             new_state = exc.state
             assert isinstance(new_state, Looped)
-            new_state.result = self.result.from_value(value=new_state.result)
+            value = new_state.result
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
-            return new_state
 
         # checkpoint tasks if a result is present, except for when the user has opted out by
         # disabling checkpointing
@@ -875,14 +875,18 @@ class TaskRunner(Runner):
             try:
                 formatting_kwargs = {
                     **prefect.context.get("parameters", {}).copy(),
-                    **raw_inputs,
                     **prefect.context,
+                    **raw_inputs,
                 }
                 result = self.result.write(value, **formatting_kwargs)
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
             result = self.result.from_value(value=value)
+
+        if new_state is not None:
+            new_state.result = result
+            return new_state
 
         state = Success(result=result, message="Task run succeeded.")
         return state
@@ -958,8 +962,8 @@ class TaskRunner(Runner):
                         raw_inputs = {k: r.value for k, r in inputs.items()}
                         formatting_kwargs = {
                             **prefect.context.get("parameters", {}).copy(),
-                            **raw_inputs,
                             **prefect.context,
+                            **raw_inputs,
                         }
                         loop_result = self.result.write(
                             loop_result.value, **formatting_kwargs

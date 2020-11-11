@@ -38,6 +38,39 @@ def test_config_overrides_populated(monkeypatch):
         assert config_overrides["config_overrides"] == {"debug": True}
 
 
+def test_config_overrides_excludes_all_default_matches(monkeypatch):
+    monkeypatch.setattr(
+        "prefect.configuration.USER_CONFIG", prefect.configuration.DEFAULT_CONFIG
+    )
+
+    config_overrides = diagnostics.config_overrides()
+
+    assert config_overrides["config_overrides"] == {}
+
+
+def test_config_overrides_excludes_some_default_matches(monkeypatch, tmpdir):
+    # Load and modify the default config
+    default_config = prefect.configuration.load_toml(
+        prefect.configuration.DEFAULT_CONFIG
+    )
+    default_config["debug"] = True
+    default_config["cloud"]["agent"]["name"] = "foo"
+
+    # Write it as a new user config
+    user_config_path = str(tmpdir.join("config.toml"))
+    file = open(user_config_path, "w+")
+    toml.dump(default_config, file)
+    file.close()
+    monkeypatch.setattr("prefect.configuration.USER_CONFIG", user_config_path)
+
+    config_overrides = diagnostics.config_overrides()
+
+    assert config_overrides["config_overrides"] == {
+        "debug": True,
+        "cloud": {"agent": {"name": True}},
+    }
+
+
 def test_config_overrides_secrets(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
         file = open("{}/config.toml".format(tempdir), "w+")

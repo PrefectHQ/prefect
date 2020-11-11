@@ -31,7 +31,7 @@ classes = ["Secret"]
 [pages.cli.agent]
 title = "agent"
 module = "prefect.cli.agent"
-commands = ["start", "install"]
+commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
 
 [pages.cli.auth]
 title = "auth"
@@ -235,7 +235,7 @@ classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "Fargate
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "LocalRun", "DockerRun", "KubernetesRun"]
+classes = ["RunConfig", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -377,6 +377,11 @@ title = "Jira Tasks"
 module = "prefect.tasks.jira"
 classes = ["JiraTask", "JiraServiceDeskTask"]
 
+[pages.tasks.jupyter]
+title = "Jupyter Tasks"
+module = "prefect.tasks.jupyter"
+classes = ["ExecuteNotebook"]
+
 [pages.tasks.monday]
 title = "Monday Tasks"
 module = "prefect.tasks.monday"
@@ -515,6 +520,23 @@ classes = ["KubernetesAgent"]
 title = "Fargate Agent"
 module = "prefect.agent.fargate"
 classes = ["FargateAgent"]
+
+
+[pages.agent.ecs]
+title = "ECS Agent"
+module = "prefect.agent.ecs"
+classes = ["ECSAgent"]
+
+[pages.artifacts.artifacts]
+title = "Artifacts"
+module = "prefect.artifacts"
+functions = [
+    "create_link",
+    "update_link",
+    "create_markdown",
+    "update_markdown",
+    "delete_artifact"
+]
 
 [pages.utilities.collections]
 title = "Collections"

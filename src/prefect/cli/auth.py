@@ -114,7 +114,7 @@ def logout():
     )
 
     client = Client()
-    tenant_id = client._active_tenant_id
+    tenant_id = client.active_tenant_id
 
     if not tenant_id:
         click.secho("No tenant currently active", fg="red")
@@ -135,7 +135,7 @@ def list_tenants():
     client = Client()
 
     tenants = client.get_available_tenants()
-    active_tenant_id = client._active_tenant_id
+    active_tenant_id = client.active_tenant_id
 
     output = []
     for item in tenants:

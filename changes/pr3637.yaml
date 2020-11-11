@@ -1,0 +1,5 @@
+enhancement:
+  - "Update deployments extension to AppsV1Api - [#3637](https://github.com/PrefectHQ/prefect/pull/3637)"
+
+contributor:
+  - "[Brad McElroy](https://github.com/limx0)"

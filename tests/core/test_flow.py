@@ -1836,6 +1836,56 @@ class TestSerialize:
             s_build = f.serialize(build=True)
 
 
+class TestSerializedHash:
+    def test_is_same_with_same_flow(self):
+        f = Flow("test")
+        assert f.serialized_hash() == f.serialized_hash()
+
+    def test_is_same_with_copied_flow(self):
+        f = Flow("test")
+        assert f.serialized_hash() == f.copy().serialized_hash()
+
+    def test_is_consistent_after_storage_build(self):
+        f = Flow("foo", storage=prefect.environments.storage.Local())
+        key = f.serialized_hash(build=True)
+        assert key == f.serialized_hash()
+        assert key == f.serialized_hash(build=True)
+        assert key == f.copy().serialized_hash()
+
+    def test_is_different_before_and_after_storage_build(self):
+        f = Flow("foo", storage=prefect.environments.storage.Local())
+        assert f.copy().serialized_hash() != f.serialized_hash(build=True)
+
+    def test_is_different_with_different_flow_name(self):
+        assert Flow("foo").serialized_hash() != Flow("bar").serialized_hash()
+
+    def test_is_different_with_modified_flow_name(self):
+        f1 = Flow("foo")
+        f2 = f1.copy()
+        f2.name = "bar"
+        assert f1.serialized_hash() != f2.serialized_hash()
+
+    def test_is_different_with_modified_flow_storage(self):
+        f1 = Flow("foo", storage=prefect.environments.storage.Local())
+        f2 = f1.copy()
+        f2.storage = prefect.environments.storage.Docker()
+        assert f1.serialized_hash() != f2.serialized_hash()
+
+    def test_is_different_with_different_flow_tasks(self):
+        @task()
+        def foo():
+            return 1
+
+        @task()
+        def bar():
+            return 2
+
+        assert (
+            Flow("test", tasks=[foo]).serialized_hash()
+            != Flow("test", tasks=[bar]).serialized_hash()
+        )
+
+
 @pytest.mark.usefixtures("clear_context_cache")
 class TestFlowRunMethod:
     @pytest.fixture

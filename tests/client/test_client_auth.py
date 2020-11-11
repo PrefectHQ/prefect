@@ -76,6 +76,7 @@ class TestClientConfig:
                     toml.dump(dict(api_token="FILE_TOKEN"), f)
 
                 client = Client()
+                client._init_tenant()
         assert client._api_token == "FILE_TOKEN"
 
     def test_client_token_priotizes_config_over_file(selfmonkeypatch, cloud_api):
@@ -121,12 +122,14 @@ class TestClientConfig:
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp}):
                 client = Client(api_token="a")
+                client._init_tenant()
                 client.save_api_token()
 
                 client = Client(api_token="b")
                 assert client._api_token == "b"
-
-                assert Client()._api_token == "a"
+                client_local_api = Client()
+                client_local_api._init_tenant()
+                assert client_local_api._api_token == "a"
 
 
 class TestTenantAuth:
@@ -256,11 +259,13 @@ class TestTenantAuth:
         assert client._active_tenant_id is None
         client.login_to_tenant(tenant_id=tenant_id)
         client.save_api_token()
-        assert client._active_tenant_id == tenant_id
+        assert client.active_tenant_id == tenant_id
 
         # new client loads the active tenant and token
-        assert Client()._active_tenant_id == tenant_id
-        assert Client()._api_token == "abc"
+        client_load_active_tenant = Client()
+        # The tenant is initialized by calling the property active_tenant_id
+        assert client_load_active_tenant.active_tenant_id == tenant_id
+        assert client_load_active_tenant._api_token == "abc"
 
     def test_login_to_client_doesnt_reload_active_tenant_when_token_isnt_loaded(
         self, patch_post, cloud_api
@@ -459,6 +464,7 @@ class TestTenantAuth:
 
         # this initialization will fail with the patched error
         client = Client()
+        client._init_tenant()
         settings = client._load_local_settings()
         assert "active_tenant_id" not in settings
 
