@@ -45,6 +45,7 @@ services:
       PREFECT_SERVER__DATABASE__CONNECTION_URL: ${DB_CONNECTION_URL}
       PREFECT_SERVER__HASURA__ADMIN_SECRET: ${PREFECT_SERVER__HASURA__ADMIN_SECRET:-hasura-secret-admin-secret}
       PREFECT_SERVER__HASURA__HOST: hasura
+      PREFECT_CORE_VERSION: ${PREFECT_CORE_VERSION:-"UNKNOWN"}
     networks:
       - prefect-server
     restart: "always"
