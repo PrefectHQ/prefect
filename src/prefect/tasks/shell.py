@@ -1,15 +1,23 @@
 import os
 import tempfile
 from subprocess import PIPE, STDOUT, Popen
-from typing import Any
+from typing import Any, TypedDict, List, Union, Optional
 
 import prefect
 from prefect.utilities.tasks import defaults_from_attrs
 
 
+class ShellResult(TypedDict):
+    output: List[str]
+    returncode: int
+
+
 class ShellTask(prefect.Task):
     """
     Task for running arbitrary shell commands.
+
+    NOTE: This task combines stderr and stdout because reading from both
+          streams without blocking is tricky.
 
     Args:
         - command (string, optional): shell command to be executed; can also be
@@ -25,8 +33,11 @@ class ShellTask(prefect.Task):
             should return all lines of stdout as a list, or just the last line
             as a string; defaults to `False`
         - log_stderr (bool, optional): boolean specifying whether this task
-            should log the output from stderr in the case of a non-zero exit code;
+            should log the output in the case of a non-zero exit code;
             defaults to `False`
+        - stream_output (bool, optional): specifies whether this task should log
+            the output as it occurs. If enabled, `log_stderr` will be ignored as the
+            output will have already been logged. defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -52,6 +63,7 @@ class ShellTask(prefect.Task):
         shell: str = "bash",
         return_all: bool = False,
         log_stderr: bool = False,
+        stream_output: bool = False,
         **kwargs: Any
     ):
         self.command = command
@@ -59,11 +71,17 @@ class ShellTask(prefect.Task):
         self.helper_script = helper_script
         self.shell = shell
         self.return_all = return_all
+
+        # TODO: log_stderr should be deprecated and renamed for clarity this may be
+        #       worth retaining here for compat reasons and using a new task instead
         self.log_stderr = log_stderr
+        self.stream_output = stream_output
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env")
-    def run(self, command: str = None, env: dict = None) -> str:
+    def run(
+        self, command: str = None, env: dict = None
+    ) -> Optional[Union[str, List[str]]]:
         """
         Run the shell command.
 
@@ -101,26 +119,34 @@ class ShellTask(prefect.Task):
                 [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
             ) as sub_process:
                 lines = []
-                line = None
                 for raw_line in iter(sub_process.stdout.readline, b""):
                     line = raw_line.decode("utf-8").rstrip()
-                    if self.return_all:
-                        lines.append(line)
-                    else:
-                        # if we're returning all, we don't log every line
+                    lines.append(line)
+
+                    if self.stream_output:
                         self.logger.debug(line)
+
                 sub_process.wait()
                 if sub_process.returncode:
                     msg = "Command failed with exit code {}".format(
                         sub_process.returncode,
                     )
+
                     self.logger.error(msg)
 
-                    if self.log_stderr:
+                    if self.log_stderr and not self.stream_output:
                         self.logger.error("\n".join(lines))
 
-                    raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
-        if self.return_all:
-            return lines
-        else:
-            return line
+                    # Return a exit code and lines so the failure can be inspected
+                    raise prefect.engine.signals.FAIL(
+                        msg,
+                        result=ShellResult(
+                            output=lines, returncode=sub_process.returncode
+                        ),
+                    )
+
+        # TODO: This task should be updated to return a ShellResult but we may
+        #       want to create a new task so we do not break compatability
+        if not lines:
+            return None
+        return lines if self.return_all else lines[-1]
