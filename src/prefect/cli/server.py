@@ -325,6 +325,9 @@ def start(
         )
         env.update(PREFECT_SERVER_DB_CMD=cmd)
 
+    # Pass the Core version so the Server API can return it
+    env.update(PREFECT_CORE_VERSION=prefect.__version__)
+
     proc = None
     try:
         if not skip_pull:
