@@ -506,8 +506,6 @@ def prepare_upstream_states_for_mapping(
                         not state.is_mapped()
                         or upstream_state._result != prefect.engine.result.NoResult
                     ):
-                        # this line should never be hit due to a check
-                        # in the TaskRunner when evaluating the mapped parent
                         if not hasattr(upstream_state.result, "__getitem__"):
                             value = None
                         else:
