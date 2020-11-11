@@ -14,8 +14,8 @@ Released on November 11, 2020.
 - Checkpoint all iterations of Looped tasks - [#3619](https://github.com/PrefectHQ/prefect/issues/3619)
 - Add `ref` option to GitHub storage for specifying branches other than master - [#3638](https://github.com/PrefectHQ/prefect/issues/3638)
 - Added `ExecuteNotebook` task for running Jupyter notebooks - [#3599](https://github.com/PrefectHQ/prefect/pull/3599)
-- pass `day_or` croniter argument to CronClock and CronSchedule  - [#3612](https://github.com/PrefectHQ/prefect/pull/3612)
-- `Client.create_project` and `prefect create project` will skip creating the project if the project already exists. - [#3630](https://github.com/PrefectHQ/prefect/pull/3630)
+- Pass `day_or` croniter argument to CronClock and CronSchedule  - [#3612](https://github.com/PrefectHQ/prefect/pull/3612)
+- `Client.create_project` and `prefect create project` will skip creating the project if the project already exists - [#3630](https://github.com/PrefectHQ/prefect/pull/3630)
 - Update deployments extension to AppsV1Api - [#3637](https://github.com/PrefectHQ/prefect/pull/3637)
 - `PrefectSecret` and `EnvVarSecret` tasks no longer require secret names be provided at flow creation time - [#3641](https://github.com/PrefectHQ/prefect/pull/3641)
 
