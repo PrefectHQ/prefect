@@ -438,7 +438,7 @@ class TaskRunner(Runner):
             if len(state.map_states) == 0 and state.n_map_states > 0:  # type: ignore
                 state.map_states = [None] * state.n_map_states  # type: ignore
             state.cached_inputs = {
-                edge.key: state._result
+                edge.key: state._result  # type: ignore
                 for edge, state in upstream_states.items()
                 if edge.key
             }
