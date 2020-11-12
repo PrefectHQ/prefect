@@ -1726,8 +1726,6 @@ class TestReplace:
         state = f.run()
         assert state.is_successful()
         assert state.result[res].result == [55, 56, 1, 2]
-    
-    
 
 
 class TestGetTasks:
