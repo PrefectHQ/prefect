@@ -1648,6 +1648,16 @@ class TestReplace:
 
         with pytest.raises(ValueError):
             f.edges_to(t1)
+    
+    def test_replace_leaves_unset_reference_tasks_alone(self):
+        with Flow(name="test") as f:
+            t1 = Task(name="t1")()
+            t2 = Task(name="t2")(upstream_tasks=[t1])
+        t3 = Task(name="t3")
+        f.replace(t1, t3)
+        t4 = Task(name="t4")
+        f.add_task(t4)
+        assert f.reference_tasks() == {t2, t4}
 
     def test_replace_update_slugs(self):
         flow = Flow("test")
@@ -1716,6 +1726,8 @@ class TestReplace:
         state = f.run()
         assert state.is_successful()
         assert state.result[res].result == [55, 56, 1, 2]
+    
+    
 
 
 class TestGetTasks:
