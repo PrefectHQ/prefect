@@ -1648,7 +1648,7 @@ class TestReplace:
 
         with pytest.raises(ValueError):
             f.edges_to(t1)
-    
+
     def test_replace_leaves_unset_reference_tasks_alone(self):
         with Flow(name="test") as f:
             t1 = Task(name="t1")()
