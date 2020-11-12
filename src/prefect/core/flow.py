@@ -1478,7 +1478,9 @@ class Flow:
         Returns:
             - str: the hash of the serialized flow
         """
-        return hashlib.sha256(json.dumps(self.serialize(build)).encode()).hexdigest()
+        return hashlib.sha256(
+            json.dumps(self.serialize(build), sort_keys=True).encode()
+        ).hexdigest()
 
     # Diagnostics  ----------------------------------------------------------------
 
