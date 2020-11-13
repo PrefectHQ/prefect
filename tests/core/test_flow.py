@@ -1883,10 +1883,11 @@ class TestSerializedHash:
         hashes = []
         for _ in range(2):
             result = subprocess.run(
-                [sys.executable, script], capture_output=True, check=True
+                [sys.executable, script], stdout=subprocess.PIPE, check=True
             )
             hashes.append(result.stdout)
 
+        assert hashes[0]  # Ensure we don't have an empty string or None
         assert len(set(hashes)) == 1
 
     def test_is_different_with_modified_flow_name(self):
