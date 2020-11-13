@@ -6,9 +6,6 @@ from prefect.run_configs.base import RunConfig
 class DockerRun(RunConfig):
     """Configure a flow-run to run as a Docker container.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     Args:
         - image (str, optional): The image to use
         - env (dict, optional): Additional environment variables to set in the

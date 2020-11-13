@@ -18,9 +18,6 @@ def create_link(link: str) -> Optional[str]:
     """
     Create a link artifact
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     Args:
         - link (str): the link to post
 
@@ -41,9 +38,6 @@ def update_link(task_run_artifact_id: str, link: str) -> None:
     Update an existing link artifact. This function will replace the current link
     artifact with the new link provided.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - link (str): the new link to update the artifact with
@@ -60,9 +54,6 @@ def update_link(task_run_artifact_id: str, link: str) -> None:
 def create_markdown(markdown: str) -> Optional[str]:
     """
     Create a markdown artifact
-
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
 
     Args:
         - markdown (str): the markdown to post
@@ -86,9 +77,6 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
     Update an existing markdown artifact. This function will replace the current markdown
     artifact with the new markdown provided.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - markdown (str): the new markdown to update the artifact with
@@ -105,9 +93,6 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
 def delete_artifact(task_run_artifact_id: str) -> None:
     """
     Delete an existing artifact
-
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
 
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
