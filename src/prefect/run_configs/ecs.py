@@ -9,9 +9,6 @@ from prefect.utilities.filesystems import parse_path
 class ECSRun(RunConfig):
     """Configure a flow-run to run as an ECS Task.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     ECS Tasks are composed of task definitions and runtime parameters.
 
     Task definitions can be configured using either the `task_definition` or
