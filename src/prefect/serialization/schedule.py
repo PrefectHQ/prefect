@@ -43,6 +43,7 @@ class IntervalClockSchema(ObjectSchema):
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
+    flow_run_name_template = fields.Str(allow_none=True)
 
     @post_dump
     def _interval_validation(self, data: dict, **kwargs: Any) -> dict:
@@ -76,6 +77,7 @@ class CronClockSchema(ObjectSchema):
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
+    flow_run_name_template = fields.Str(allow_none=True)
     day_or = fields.Boolean(allow_none=True)
 
 
@@ -88,6 +90,7 @@ class DatesClockSchema(ObjectSchema):
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
+    flow_run_name_template = fields.Str(allow_none=True)
 
 
 class ClockSchema(OneOfSchema):

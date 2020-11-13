@@ -16,10 +16,12 @@ class ClockEvent:
         start_time: datetime,
         parameter_defaults: dict = None,
         labels: List[str] = None,
+        flow_run_name_template: str = None,
     ) -> None:
         self.start_time = start_time
         self.parameter_defaults = parameter_defaults or dict()
         self.labels = labels
+        self.flow_run_name_template = flow_run_name_template
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, (ClockEvent, datetime)):
@@ -65,6 +67,8 @@ class Clock:
             Flow Runs which are run on this clock's events
         - labels (List[str], optional): a list of labels to apply to all flow runs generated
             from this Clock
+        - flow_run_name_template (str, optional): a templated string referencing any parameterized
+            values which the scheduler can use to create scheduled flow runs
 
     """
 
@@ -74,6 +78,7 @@ class Clock:
         end_date: datetime = None,
         parameter_defaults: dict = None,
         labels: List[str] = None,
+        flow_run_name_template: str = None,
     ):
         if start_date is not None:
             start_date = pendulum.instance(start_date)
@@ -83,6 +88,7 @@ class Clock:
         self.end_date = end_date
         self.parameter_defaults = parameter_defaults or dict()
         self.labels = labels
+        self.flow_run_name_template = flow_run_name_template
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
@@ -140,6 +146,7 @@ class IntervalClock(Clock):
         end_date: datetime = None,
         parameter_defaults: dict = None,
         labels: List[str] = None,
+        flow_run_name_template: str = None,
     ):
         if not isinstance(interval, timedelta):
             raise TypeError("Interval must be a timedelta.")
@@ -147,11 +154,13 @@ class IntervalClock(Clock):
             raise ValueError("Interval must be greater than 0.")
 
         self.interval = interval
+
         super().__init__(
             start_date=start_date,
             end_date=end_date,
             parameter_defaults=parameter_defaults,
             labels=labels,
+            flow_run_name_template=flow_run_name_template,
         )
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
@@ -205,6 +214,7 @@ class IntervalClock(Clock):
                 start_time=next_date,
                 parameter_defaults=self.parameter_defaults,
                 labels=self.labels,
+                flow_run_name_template=self.flow_run_name_template,
             )
             interval += self.interval
 
@@ -254,17 +264,21 @@ class CronClock(Clock):
         parameter_defaults: dict = None,
         labels: List[str] = None,
         day_or: bool = None,
+        flow_run_name_template: str = None,
     ):
         # build cron object to check the cron string - will raise an error if it's invalid
         if not croniter.is_valid(cron):
             raise ValueError("Invalid cron string: {}".format(cron))
         self.cron = cron
         self.day_or = True if day_or is None else day_or
+
+        print(f'Creating clock with flow run template {flow_run_name_template}')
         super().__init__(
             start_date=start_date,
             end_date=end_date,
             parameter_defaults=parameter_defaults,
             labels=labels,
+            flow_run_name_template=flow_run_name_template,
         )
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
@@ -328,6 +342,7 @@ class CronClock(Clock):
                 start_time=next_date,
                 parameter_defaults=self.parameter_defaults,
                 labels=self.labels,
+                flow_run_name_template=self.flow_run_name_template,
             )
 
 
@@ -349,12 +364,14 @@ class DatesClock(Clock):
         dates: List[datetime],
         parameter_defaults: dict = None,
         labels: List[str] = None,
+        flow_run_name_template: str = None,
     ):
         super().__init__(
             start_date=min(dates),
             end_date=max(dates),
             parameter_defaults=parameter_defaults,
             labels=labels,
+            flow_run_name_template=flow_run_name_template,
         )
         self.dates = dates
 
@@ -375,6 +392,7 @@ class DatesClock(Clock):
                 start_time=date,
                 parameter_defaults=self.parameter_defaults,
                 labels=self.labels,
+                flow_run_name_template=self.flow_run_name_template,
             )
             for date in sorted(self.dates)
             if date > after

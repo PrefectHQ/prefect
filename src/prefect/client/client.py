@@ -8,6 +8,7 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urljoin
+from pprint import pprint
 
 # if simplejson is installed, `requests` defaults to using it instead of json
 # this allows the client to gracefully handle either json or simplejson
