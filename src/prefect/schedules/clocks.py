@@ -133,6 +133,9 @@ class IntervalClock(Clock):
             Flow Runs which are run on this clock's events
         - labels (List[str], optional): a list of labels to apply to all flow runs generated
             from this Clock
+        - flow_run_name_template (str, optional): a templated string referencing any parameterized
+            values which the scheduler can use to create scheduled flow runs
+
 
     Raises:
         - TypeError: if start_date is not a datetime
@@ -246,6 +249,8 @@ class CronClock(Clock):
             Flow Runs which are run on this clock's events
         - labels (List[str], optional): a list of labels to apply to all flow runs generated
             from this Clock
+        - flow_run_name_template (str, optional): a templated string referencing any parameterized
+            values which the scheduler can use to create scheduled flow runs
         - day_or (bool, optional): Control how croniter handles `day` and `day_of_week` entries.
             Defaults to True, matching cron which connects those values using OR.
             If the switch is set to False, the values are connected using AND. This behaves like
@@ -272,7 +277,7 @@ class CronClock(Clock):
         self.cron = cron
         self.day_or = True if day_or is None else day_or
 
-        print(f'Creating clock with flow run template {flow_run_name_template}')
+        print(f"Creating clock with flow run template {flow_run_name_template}")
         super().__init__(
             start_date=start_date,
             end_date=end_date,
@@ -357,6 +362,9 @@ class DatesClock(Clock):
             Flow Runs which are run on this clock's events
         - labels (List[str], optional): a list of labels to apply to all flow runs generated
             from this Clock
+        - flow_run_name_template (str, optional): a templated string referencing any parameterized
+            values which the scheduler can use to create scheduled flow runs
+
     """
 
     def __init__(
