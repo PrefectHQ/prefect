@@ -537,6 +537,7 @@ functions = [
     "update_markdown",
     "delete_artifact"
 ]
+experimental = true
 
 [pages.utilities.collections]
 title = "Collections"
