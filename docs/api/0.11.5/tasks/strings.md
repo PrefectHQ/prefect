@@ -11,7 +11,7 @@ This task contains a template which is formatted with the results of any upstrea
 
 Variables from `prefect.context` are also available for formatting.
 
-**Args**:     <ul class="args"><li class="args">`template (str, optional)`: the optional _default_ template string to format at runtime;         can also be provided as a keyword to `run`, which takes precendence over this default.     </li><li class="args">`**kwargs (optional)`: additional keyword arguments to pass to the         standard Task constructor</li></ul>**Example**:
+**Args**:     <ul class="args"><li class="args">`template (str, optional)`: the optional _default_ template string to format at runtime;         can also be provided as a keyword to `run`, which takes precedence over this default.     </li><li class="args">`**kwargs (optional)`: additional keyword arguments to pass to the         standard Task constructor</li></ul>**Example**:
 
 
 ```python
@@ -49,7 +49,7 @@ This task contains a Jinja template which is formatted with the results of any u
 
 Variables from `prefect.context` will also be used for rendering.
 
-**Args**:     <ul class="args"><li class="args">`template (str, optional)`: the optional _default_ template string to render at runtime;         can also be provided as a keyword to `run`, which takes precendence over this default.     </li><li class="args">`**kwargs (optional)`: additional keyword arguments to pass to the         standard Task constructor</li></ul>**Example**:
+**Args**:     <ul class="args"><li class="args">`template (str, optional)`: the optional _default_ template string to render at runtime;         can also be provided as a keyword to `run`, which takes precedence over this default.     </li><li class="args">`**kwargs (optional)`: additional keyword arguments to pass to the         standard Task constructor</li></ul>**Example**:
 
 
 ```python
