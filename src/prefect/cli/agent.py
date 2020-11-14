@@ -616,13 +616,14 @@ def start(
         retrieved_agent = _agents.get(agent_option, None)
 
         if not retrieved_agent:
-            click.secho("{} is not a valid agent".format(agent_option), fg="red")
+            click.secho("{} is not a valid agent".format(agent_option), fg="red", err=True)
             return
 
         click.secho(
             f"Warning: `prefect agent start {agent_option}` is deprecated, use "
             f"`prefect agent {agent_option} start` instead",
             fg="yellow",
+            err=True
         )
 
         env_vars = dict()
@@ -870,13 +871,14 @@ def install(
     retrieved_agent = supported_agents.get(name, None)
 
     if not retrieved_agent:
-        click.secho("{} is not a supported agent for `install`".format(name), fg="red")
+        click.secho("{} is not a supported agent for `install`".format(name), fg="red", err=True)
         return
 
     click.secho(
         f"Warning: `prefect agent install {name}` is deprecated, use "
         f"`prefect agent {name} install` instead",
         fg="yellow",
+        err=True
     )
 
     env_vars = dict()
