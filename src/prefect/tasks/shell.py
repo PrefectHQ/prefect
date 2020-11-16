@@ -118,10 +118,13 @@ class ShellTask(prefect.Task):
             with Popen(
                 [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
             ) as sub_process:
+                line = None
                 lines = []
                 for raw_line in iter(sub_process.stdout.readline, b""):
                     line = raw_line.decode("utf-8").rstrip()
-                    lines.append(line)
+
+                    if self.return_all:
+                        lines.append(line)
 
                     if self.stream_output:
                         self.logger.debug(line)
@@ -135,18 +138,17 @@ class ShellTask(prefect.Task):
                     self.logger.error(msg)
 
                     if self.log_stderr and not self.stream_output:
-                        self.logger.error("\n".join(lines))
+                        self.logger.error("\n".join(lines) if self.return_all else line)
 
                     # Return a exit code and lines so the failure can be inspected
                     raise prefect.engine.signals.FAIL(
                         msg,
                         result=ShellResult(
-                            output=lines, returncode=sub_process.returncode
+                            output=lines if self.return_all else line,
+                            returncode=sub_process.returncode,
                         ),
                     )
 
         # TODO: This task should be updated to return a ShellResult but we may
         #       want to create a new task so we do not break compatability
-        if not lines:
-            return None
-        return lines if self.return_all else lines[-1]
+        return lines if self.return_all else line
