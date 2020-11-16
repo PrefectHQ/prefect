@@ -188,7 +188,11 @@ class TestPullImageTask(DockerLoggingTestingUtilityMixin):
         task = PullImage(repository="original")
 
         api = MagicMock()
-        expected_docker_output = "A real output from docker's api"
+        expected_docker_output = [
+            {"status": "Pulling"},
+            {"status": "Digest"},
+            {"status": "Test"},
+        ]
 
         api.return_value.pull = MagicMock(return_value=expected_docker_output)
         monkeypatch.setattr("docker.APIClient", api)
