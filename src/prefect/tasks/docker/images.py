@@ -184,7 +184,9 @@ class PullImage(Task):
             return api_result
         except HTTPError as exc:
             self.logger.exception(exc)
-            raise HTTPError("Can't pull the image, check a repository name or image tag.")
+            raise HTTPError(
+                "Can't pull the image, check a repository name or image tag."
+            )
 
 
 class PushImage(Task):
