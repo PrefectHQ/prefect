@@ -157,6 +157,7 @@ class PullImage(Task):
 
         Raises:
             - ValueError: if `repository` is `None`
+            - HTTPError: if image doesn't exist or provided repository/tag is not correct
         """
         if not repository:
             raise ValueError("A repository to pull the image from must be specified.")
@@ -164,15 +165,26 @@ class PullImage(Task):
         # 'import docker' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low
         import docker
+        from requests.exceptions import HTTPError
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
         self.logger.debug(f"Pulling image {repository}:{tag}")
-        api_result = client.pull(
-            repository=repository, tag=tag, **(extra_docker_kwargs or dict())
-        )
-
-        self.logger.debug(f"Pulled image {repository}:{tag}")
-        return api_result
+        try:
+            api_result = client.pull(
+                repository=repository,
+                tag=tag,
+                stream=True,
+                decode=True,
+                **(extra_docker_kwargs or dict()),
+            )
+            for line in api_result:
+                if line.get("status"):
+                    self.logger.debug(line.get("status"))
+            self.logger.debug(f"Pulled image {repository}:{tag}")
+            return api_result
+        except HTTPError as exc:
+            self.logger.exception(exc)
+            raise HTTPError("Can't pull the image, check a repository name or image tag.")
 
 
 class PushImage(Task):
@@ -542,4 +554,6 @@ class BuildImage(Task):
             for line in resp.split(b"\r\n")
             if line
         ]
+        for line in output:
+            self.logger.debug(line.get("stream")) if line.get("stream") else None
         return output
