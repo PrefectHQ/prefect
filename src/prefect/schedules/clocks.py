@@ -277,7 +277,6 @@ class CronClock(Clock):
         self.cron = cron
         self.day_or = True if day_or is None else day_or
 
-        print(f"Creating clock with flow run template {flow_run_name_template}")
         super().__init__(
             start_date=start_date,
             end_date=end_date,
