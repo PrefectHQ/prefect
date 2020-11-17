@@ -2440,6 +2440,8 @@ class TestFlowRunMethod:
 
         f.run()
 
+        assert all(s.is_successful() for s in flow_state.result[res].map_states)
+
         first_run = storage["y"][0]
         second_run = storage["y"][1]
         third_run = storage["y"][2]
