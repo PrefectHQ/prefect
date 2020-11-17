@@ -492,7 +492,7 @@ class FlowRunner(Runner):
                     )
 
                 # handle mapped tasks
-                if any([edge.mapped for edge in upstream_states.keys()]):
+                if any(edge.mapped for edge in upstream_states.keys()):
 
                     # wait on upstream states to determine the width of the pipeline
                     # this is the key to depth-first execution

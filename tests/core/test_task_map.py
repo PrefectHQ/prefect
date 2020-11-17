@@ -89,7 +89,7 @@ def test_map_spawns_new_tasks(executor):
     assert m.is_mapped()
     assert isinstance(m.map_states, list)
     assert len(m.map_states) == 3
-    assert all([isinstance(ms, Success) for ms in m.map_states])
+    assert all(isinstance(ms, Success) for ms in m.map_states)
     assert m.result == [2, 3, 4]
 
 
@@ -486,7 +486,7 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
 
     s = f.run(executor=executor)
     assert s.is_failed()
-    assert all([sub.is_failed() for sub in s.result[res].map_states])
+    assert all(sub.is_failed() for sub in s.result[res].map_states)
     assert all(
         [
             isinstance(sub, prefect.engine.state.TriggerFailed)

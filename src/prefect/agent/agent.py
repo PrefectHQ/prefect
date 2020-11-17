@@ -140,7 +140,7 @@ class Agent:
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
-        if not any([isinstance(h, logging.StreamHandler) for h in logger.handlers]):
+        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
             ch = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(context.config.logging.format)
             formatter.converter = time.gmtime  # type: ignore
