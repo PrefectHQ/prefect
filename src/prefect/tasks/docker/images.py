@@ -109,6 +109,7 @@ class PullImage(Task):
         - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
             Docker call (cf. method `pull`). See
             https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - stream_logs (bool, optional): Adds debug logs with pull status info from Docker
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -119,17 +120,19 @@ class PullImage(Task):
         tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         extra_docker_kwargs: dict = None,
+        stream_logs: bool = False,
         **kwargs: Any,
     ):
         self.repository = repository
         self.tag = tag
         self.docker_server_url = docker_server_url
         self.extra_docker_kwargs = extra_docker_kwargs
+        self.stream_logs = stream_logs
 
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "repository", "tag", "docker_server_url", "extra_docker_kwargs"
+        "repository", "tag", "docker_server_url", "extra_docker_kwargs", "stream_logs"
     )
     def run(
         self,
@@ -137,6 +140,7 @@ class PullImage(Task):
         tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         extra_docker_kwargs: dict = None,
+        stream_logs: bool = False,
     ) -> str:
         """
         Task run method.
@@ -151,6 +155,7 @@ class PullImage(Task):
             - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
                 Docker call (cf. method `pull`). See
                 https://docker-py.readthedocs.io/en/stable/api.html for more details
+            - stream_logs (bool, optional): Adds debug logs with pull status info from Docker
 
         Returns:
             - str: The output from Docker for pulling the image
@@ -169,24 +174,29 @@ class PullImage(Task):
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
         self.logger.debug(f"Pulling image {repository}:{tag}")
+        lines = []
         try:
             api_result = client.pull(
                 repository=repository,
                 tag=tag,
-                stream=True,
+                stream=stream_logs,
                 decode=True,
                 **(extra_docker_kwargs or dict()),
             )
+            if isinstance(api_result, str):
+                return "".join(line for line in api_result.split("\r"))
             for line in api_result:
-                if line.get("status"):
-                    self.logger.debug(line.get("status"))
+                status_line = line.get("status")
+                if status_line and stream_logs:
+                    self.logger.debug(status_line)
+                lines.append(str(line))
             self.logger.debug(f"Pulled image {repository}:{tag}")
-            return api_result
+            return "\n".join(lines)
         except HTTPError as exc:
             self.logger.exception(exc)
             raise HTTPError(
                 "Can't pull the image, check a repository name or image tag."
-            )
+            ) from exc
 
 
 class PushImage(Task):
@@ -458,6 +468,7 @@ class BuildImage(Task):
         - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
             Docker call (cf. method `build`). See
             https://docker-py.readthedocs.io/en/stable/api.html for more details
+        - stream_logs (bool, optional): Adds debug logs with build image status info from Docker
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task
             constructor
     """
@@ -471,6 +482,7 @@ class BuildImage(Task):
         forcerm: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
         extra_docker_kwargs: dict = None,
+        stream_logs: bool = False,
         **kwargs: Any,
     ):
         self.path = path
@@ -480,6 +492,7 @@ class BuildImage(Task):
         self.forcerm = forcerm
         self.docker_server_url = docker_server_url
         self.extra_docker_kwargs = extra_docker_kwargs
+        self.stream_logs = stream_logs
 
         super().__init__(**kwargs)
 
@@ -491,6 +504,7 @@ class BuildImage(Task):
         "forcerm",
         "docker_server_url",
         "extra_docker_kwargs",
+        "stream_logs",
     )
     def run(
         self,
@@ -501,6 +515,7 @@ class BuildImage(Task):
         forcerm: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
         extra_docker_kwargs: dict = None,
+        stream_logs: bool = False,
     ) -> None:
         """
         Task run method.
@@ -518,6 +533,7 @@ class BuildImage(Task):
             - extra_docker_kwargs (dict, optional): Extra keyword arguments to pass through to the
                 Docker call (cf. method `build`). See
                 https://docker-py.readthedocs.io/en/stable/api.html for more details
+            - stream_logs (bool, optional): Adds debug logs with build image status info from Docker
 
         Returns:
             - List[dict]: a cleaned dictionary of the output of `client.build`
@@ -556,6 +572,9 @@ class BuildImage(Task):
             for line in resp.split(b"\r\n")
             if line
         ]
-        for line in output:
-            self.logger.debug(line.get("stream")) if line.get("stream") else None
+        if self.stream_logs:
+            for line in output:
+                stream_line = line.get("stream")
+                if stream_line and stream_line != "\n":
+                    self.logger.debug(stream_line)
         return output
