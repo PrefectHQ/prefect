@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.13.16 <Badge text="beta" type="success" />
+
+Released on November 17, 2020.
+
+### Enhancements
+
+- Experimental support for Python 3.9 - [#3411](https://github.com/PrefectHQ/prefect/pull/3411)
+
+### Fixes
+
+- Fixes Flow.replace freezing reference tasks - [#3655](https://github.com/PrefectHQ/prefect/issues/3655)
+- Fixed bug where `flow.serialized_hash()` could return inconsistent values across new python instances - [#3654](https://github.com/PrefectHQ/prefect/pull/3654)
+
+### Contributors
+
+- [Ben Fogelson](https://github.com/benfogelson)
+
 ## 0.13.15 <Badge text="beta" type="success" />
 
 Released on November 11, 2020.
