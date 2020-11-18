@@ -1,2 +1,0 @@
-fix:
-  - "Fixed bug where `flow.serialized_hash()` could return inconsistent values across new python instances - [#3654](https://github.com/PrefectHQ/prefect/pull/3654)"
