@@ -1,4 +1,4 @@
-from typing import Any, Set
+from typing import Any, List
 
 from marshmallow import fields, post_load, utils
 
@@ -16,18 +16,24 @@ from prefect.utilities.serialization import (
 )
 
 
-def get_parameters(obj: prefect.Flow, context: dict) -> Set:
+def get_parameters(obj: prefect.Flow, context: dict) -> List:
     if isinstance(obj, prefect.Flow):
-        return {p for p in obj.tasks if isinstance(p, prefect.core.parameter.Parameter)}
+        params = {
+            p for p in obj.tasks if isinstance(p, prefect.core.parameter.Parameter)
+        }
     else:
-        return utils.get_value(obj, "parameters")
+        params = utils.get_value(obj, "parameters")
+
+    return sorted(params, key=lambda p: p.slug)
 
 
-def get_reference_tasks(obj: prefect.Flow, context: dict) -> Set:
+def get_reference_tasks(obj: prefect.Flow, context: dict) -> List:
     if isinstance(obj, prefect.Flow):
-        return obj._reference_tasks
+        tasks = obj._reference_tasks
     else:
-        return utils.get_value(obj, "reference_tasks")
+        tasks = utils.get_value(obj, "reference_tasks")
+
+    return sorted(tasks, key=lambda t: t.slug)
 
 
 class FlowSchema(ObjectSchema):

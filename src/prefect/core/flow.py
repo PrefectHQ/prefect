@@ -1444,6 +1444,14 @@ class Flow:
         flow_copy = self.copy()
         for task, slug in flow_copy.slugs.items():
             task.slug = slug
+
+        # Convert tasks and edges from sets to sorted lists for determinism
+        flow_copy.tasks = sorted(list(flow_copy.tasks), key=lambda t: t.slug)
+        flow_copy.edges = sorted(
+            list(flow_copy.edges),
+            key=lambda e: f"{e.upstream_task.slug}-{e.downstream_task.slug}",
+        )
+
         serialized = schema(exclude=["storage"]).dump(flow_copy)
 
         if build:
@@ -1485,11 +1493,6 @@ class Flow:
             - str: the hash of the serialized flow
         """
         serialized_flow = self.serialize(build)
-
-        # Sort the tasks by slug name for determinism
-        serialized_flow["tasks"] = sorted(
-            serialized_flow["tasks"], key=lambda task: task["slug"]
-        )
 
         return hashlib.sha256(
             json.dumps(serialized_flow, sort_keys=True).encode()
