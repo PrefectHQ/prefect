@@ -1472,6 +1472,11 @@ class Flow:
         determining if the flow has changed. If this hash is equal to a previous hash,
         no new information would be passed to the server on a call to `flow.register()`
 
+        Note that this will not always detect code changes since the task code is not
+        included in the serialized flow sent to the server. That said, as long as the
+        flow is "built" during registration, the code changes will be in effect when you
+        run your flow even if a new version is not registered with the server.
+
         Args:
             - build (bool, optional):  if `True`, the flow's environment is built
                 prior to serialization. Passed through to `Flow.serialize()`.
@@ -1479,9 +1484,12 @@ class Flow:
         Returns:
             - str: the hash of the serialized flow
         """
-        return hashlib.sha256(
-            json.dumps(self.serialize(build), sort_keys=True).encode()
-        ).hexdigest()
+        serialized_flow = self.serialize(build)
+        # Sort all the characters from the serialized flow json to get a unique key for
+        # this flow. This eliminates all concerns about the order of items in sets
+        # within the serialized flow but retains a unique key.
+        key = "".join(sorted(json.dumps(serialized_flow)))
+        return hashlib.sha256(key.encode()).hexdigest()
 
     # Diagnostics  ----------------------------------------------------------------
 
