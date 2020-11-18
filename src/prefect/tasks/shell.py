@@ -1,15 +1,10 @@
 import os
 import tempfile
 from subprocess import PIPE, STDOUT, Popen
-from typing import Any, TypedDict, List, Union, Optional
+from typing import Any, List, Union, Optional
 
 import prefect
 from prefect.utilities.tasks import defaults_from_attrs
-
-
-class ShellResult(TypedDict):
-    output: List[str]
-    returncode: int
 
 
 class ShellTask(prefect.Task):
@@ -32,9 +27,10 @@ class ShellTask(prefect.Task):
         - return_all (bool, optional): boolean specifying whether this task
             should return all lines of stdout as a list, or just the last line
             as a string; defaults to `False`
-        - log_stderr (bool, optional): boolean specifying whether this task
-            should log the output in the case of a non-zero exit code;
-            defaults to `False`
+        - log_stderr (bool, optional): boolean specifying whether this task should log
+            the output in the case of a non-zero exit code; defaults to `False`. This
+             actually logs both stderr and stdout and will only log the last line of
+             output unless `return_all` is `True`
         - stream_output (bool, optional): specifies whether this task should log
             the output as it occurs. If enabled, `log_stderr` will be ignored as the
             output will have already been logged. defaults to `False`
@@ -71,9 +67,6 @@ class ShellTask(prefect.Task):
         self.helper_script = helper_script
         self.shell = shell
         self.return_all = return_all
-
-        # TODO: log_stderr should be deprecated and renamed for clarity this may be
-        #       worth retaining here for compat reasons and using a new task instead
         self.log_stderr = log_stderr
         self.stream_output = stream_output
         super().__init__(**kwargs)
@@ -94,8 +87,8 @@ class ShellTask(prefect.Task):
                 the subprocess
 
         Returns:
-            - stdout (string): if `return_all` is `False` (the default), only
-                the last line of stdout is returned, otherwise all lines are
+            - output (string): if `return_all` is `False` (the default), only
+                the last line of output is returned, otherwise all lines are
                 returned, which is useful for passing result of shell command
                 to other downstream tasks. If there is no output, `None` is
                 returned.
@@ -140,15 +133,9 @@ class ShellTask(prefect.Task):
                     if self.log_stderr and not self.stream_output:
                         self.logger.error("\n".join(lines) if self.return_all else line)
 
-                    # Return a exit code and lines so the failure can be inspected
                     raise prefect.engine.signals.FAIL(
                         msg,
-                        result=ShellResult(
-                            output=lines if self.return_all else line,
-                            returncode=sub_process.returncode,
-                        ),
+                        result=lines if self.return_all else line,
                     )
 
-        # TODO: This task should be updated to return a ShellResult but we may
-        #       want to create a new task so we do not break compatability
         return lines if self.return_all else line

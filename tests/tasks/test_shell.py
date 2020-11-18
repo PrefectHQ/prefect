@@ -110,10 +110,10 @@ def test_shell_logs_non_zero_exit(caplog):
 
 def test_shell_attaches_result_to_failure(caplog):
     def assert_fail_result(task, state):
-        assert state.result["returncode"] == 1
-        assert state.result["output"] == [
-            "foo" "ls: surely_a_dir_that_doesnt_exist: No such file or directory"
-        ]
+        assert (
+            state.result == "foo"
+            "ls: surely_a_dir_that_doesnt_exist: No such file or directory"
+        )
 
     with Flow(name="test") as f:
         task = ShellTask(on_failure=assert_fail_result)(
