@@ -10,6 +10,7 @@ import time
 import subprocess
 import textwrap
 from unittest.mock import MagicMock, patch
+from random import shuffle
 
 import cloudpickle
 import pendulum
@@ -1899,6 +1900,24 @@ class TestSerializedHash:
 
         assert hashes[0]  # Ensure we don't have an empty string or None
         assert len(set(hashes)) == 1
+
+    def test_is_same_with_many_tasks(self):
+        def my_fake_task():
+            pass
+
+        tasks = [task(my_fake_task) for _ in range(5)]
+
+        def make_flow():
+            with Flow("example-flow") as flow:
+                shuffle(tasks)  # Shuffle for a higher likelihood of failure
+                for fake_task in tasks:
+                    fake_task()
+            return flow
+
+        flows = [make_flow() for _ in range(10)]
+
+        hashes = {flow.serialized_hash() for flow in flows}
+        assert len(hashes) == 1
 
     def test_is_different_with_modified_flow_name(self):
         f1 = Flow("foo")
