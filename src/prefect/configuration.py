@@ -206,11 +206,6 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
                 if "__" not in env_var:
                     continue
 
-                # env vars with escaped characters are interpreted as literal "\", which
-                # Python helpfully escapes with a second "\". This step makes sure that
-                # escaped characters are properly interpreted.
-                value = cast(str, env_var_value.encode().decode("unicode_escape"))
-
                 # place the env var in the flat config as a compound key
                 if env_var_option.upper().startswith("CONTEXT__SECRETS"):
                     formatted_option = env_var_option.split("__")
@@ -224,7 +219,7 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
                     )
 
                 flat_config[config_option] = string_to_type(
-                    cast(str, interpolate_env_vars(value))
+                    cast(str, interpolate_env_vars(env_var_value))
                 )
 
     # interpolate any env vars referenced

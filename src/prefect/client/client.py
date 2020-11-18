@@ -795,17 +795,20 @@ class Client:
 
         if compressed:
             serialized_flow = compress(serialized_flow)
+
+        inputs = dict(
+            project_id=(project[0].id if project else None),
+            serialized_flow=serialized_flow,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+        )
+        # Add newly added inputs only when set for backwards compatibility
+        if idempotency_key is not None:
+            inputs.update(idempotency_key=idempotency_key)
+
         res = self.graphql(
             create_mutation,
-            variables=dict(
-                input=dict(
-                    project_id=(project[0].id if project else None),
-                    serialized_flow=serialized_flow,
-                    set_schedule_active=set_schedule_active,
-                    version_group_id=version_group_id,
-                    idempotency_key=idempotency_key,
-                )
-            ),
+            variables=dict(input=inputs),
             retry_on_api_error=False,
         )  # type: Any
 
@@ -916,14 +919,14 @@ class Client:
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
-        Create a new Project
+        Create a new project if a project with the name provided does not already exist
 
         Args:
-            - project_name (str): the project that should contain this flow
+            - project_name (str): the project that should be created
             - project_description (str, optional): the project description
 
         Returns:
-            - str: the ID of the newly-created project
+            - str: the ID of the newly-created or pre-existing project
 
         Raises:
             - ClientError: if the project creation failed
@@ -934,16 +937,29 @@ class Client:
             }
         }
 
-        res = self.graphql(
-            project_mutation,
-            variables=dict(
-                input=dict(
-                    name=project_name,
-                    description=project_description,
-                    tenant_id=self.active_tenant_id,
-                )
-            ),
-        )  # type: Any
+        try:
+            res = self.graphql(
+                project_mutation,
+                variables=dict(
+                    input=dict(
+                        name=project_name,
+                        description=project_description,
+                        tenant_id=self.active_tenant_id,
+                    )
+                ),
+            )  # type: Any
+        except ClientError as exc:
+            if "'Uniqueness violation.'" in str(exc):
+                project_query = {
+                    "query": {
+                        with_args(
+                            "project", {"where": {"name": {"_eq": project_name}}}
+                        ): {"id": True}
+                    }
+                }
+                res = self.graphql(project_query)
+                return res.data.project[0].id
+            raise
 
         return res.data.create_project.id
 
@@ -1649,3 +1665,89 @@ class Client:
 
         result = self.graphql(query)  # type: Any
         return result.data.agent_config[0].settings
+
+    def create_task_run_artifact(
+        self, task_run_id: str, kind: str, data: dict, tenant_id: str = None
+    ) -> str:
+        """
+        Create an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_id (str): the task run id
+            - kind (str): the artifact kind
+            - data (dict): the artifact data
+            - tenant_id (str, optional): the tenant id that this artifact belongs to. Defaults
+                to the tenant ID linked to the task run
+
+        Returns:
+            - str: the task run artifact ID
+        """
+        mutation = {
+            "mutation($input: create_task_run_artifact_input!)": {
+                "create_task_run_artifact(input: $input)": {"id"}
+            }
+        }
+
+        result = self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(
+                    task_run_id=task_run_id, kind=kind, data=data, tenant_id=tenant_id
+                )
+            ),
+        )
+
+        artifact_id = result.data.create_task_run_artifact.id
+        if not artifact_id:
+            raise ValueError("Error creating task run artifact")
+
+        return artifact_id
+
+    def update_task_run_artifact(self, task_run_artifact_id: str, data: dict) -> None:
+        """
+        Update an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_artifact_id (str): the task run artifact id
+            - data (dict): the artifact data
+        """
+        if task_run_artifact_id is None:
+            raise ValueError(
+                "The ID of an existing task run artifact must be provided."
+            )
+
+        mutation = {
+            "mutation($input: update_task_run_artifact_input!)": {
+                "update_task_run_artifact(input: $input)": {"success"}
+            }
+        }
+
+        self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(task_run_artifact_id=task_run_artifact_id, data=data)
+            ),
+        )
+
+    def delete_task_run_artifact(self, task_run_artifact_id: str) -> None:
+        """
+        Delete an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_artifact_id (str): the task run artifact id
+        """
+        if task_run_artifact_id is None:
+            raise ValueError(
+                "The ID of an existing task run artifact must be provided."
+            )
+
+        mutation = {
+            "mutation($input: delete_task_run_artifact_input!)": {
+                "delete_task_run_artifact(input: $input)": {"success"}
+            }
+        }
+
+        self.graphql(
+            mutation,
+            variables=dict(input=dict(task_run_artifact_id=task_run_artifact_id)),
+        )

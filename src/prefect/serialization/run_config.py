@@ -28,6 +28,7 @@ class ECSRunSchema(RunConfigSchemaBase):
 
     task_definition_path = fields.String(allow_none=True)
     task_definition = JSONCompatible(allow_none=True)
+    task_definition_arn = fields.String(allow_none=True)
     image = fields.String(allow_none=True)
     env = fields.Dict(keys=fields.String(), allow_none=True)
     cpu = fields.String(allow_none=True)

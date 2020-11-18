@@ -581,9 +581,9 @@ class TestBuildImageTask(DockerLoggingTestingUtilityMixin):
         monkeypatch.setattr("docker.APIClient", api)
 
         return_value = task.run(path="test")
-        assert all([isinstance(value, dict) for value in return_value])
-        assert all([len(value) >= 1 for value in return_value])
-        assert all([key for value in return_value for key in value])
+        assert all(isinstance(value, dict) for value in return_value)
+        assert all(len(value) >= 1 for value in return_value)
+        assert all(key for value in return_value for key in value)
 
     def test_image_is_replaced(self, monkeypatch):
         task = BuildImage(path="original")

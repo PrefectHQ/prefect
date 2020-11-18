@@ -506,7 +506,7 @@ class TestGetRunTaskKwargs:
 
 
 @pytest.mark.parametrize("kind", ["exists", "missing", "error"])
-def test_lookup_task_definition_arn(aws, kind):
+def test_get_task_definition_arn(aws, kind):
     if kind == "exists":
         aws.resourcegroupstaggingapi.get_resources.return_value = {
             "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
@@ -525,10 +525,11 @@ def test_lookup_task_definition_arn(aws, kind):
         )
         expected = None
 
+    run_config = ECSRun()
     flow_run = GraphQLResult({"flow": GraphQLResult({"id": "flow-id", "version": 1})})
     agent = ECSAgent()
 
-    res = agent.lookup_task_definition_arn(flow_run)
+    res = agent.get_task_definition_arn(flow_run, run_config)
     assert res == expected
     kwargs = aws.resourcegroupstaggingapi.get_resources.call_args[1]
     assert sorted(kwargs["TagFilters"], key=lambda x: x["Key"]) == [
@@ -536,6 +537,15 @@ def test_lookup_task_definition_arn(aws, kind):
         {"Key": "prefect:flow-version", "Values": ["1"]},
     ]
     assert kwargs["ResourceTypeFilters"] == ["ecs:task-definition"]
+
+
+def test_get_task_definition_arn_provided_task_definition_arn():
+    run_config = ECSRun(task_definition_arn="my-taskdef-arn")
+    flow_run = GraphQLResult({"flow": GraphQLResult({"id": "flow-id", "version": 1})})
+    agent = ECSAgent()
+
+    res = agent.get_task_definition_arn(flow_run, run_config)
+    assert res == "my-taskdef-arn"
 
 
 class TestDeployFlow:
@@ -597,6 +607,15 @@ class TestDeployFlow:
         assert aws.ecs.run_task.called
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
         assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
+        assert "my-task-arn" in res
+
+    def test_deploy_flow_uses_provided_task_definition_arn(self, aws):
+        aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
+
+        res = self.deploy_flow(ECSRun(task_definition_arn="my-taskdef-arn"))
+        assert not aws.ecs.register_task_definition.called
+        assert aws.ecs.run_task.called
+        assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
         assert "my-task-arn" in res
 
     def test_deploy_flow_run_task_fails(self, aws):

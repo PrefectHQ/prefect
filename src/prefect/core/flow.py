@@ -333,12 +333,13 @@ class Flow:
                 validate=False,
             )
 
-        # update auxiliary task collections
-        ref_tasks = self.reference_tasks()
-        new_refs = [t for t in ref_tasks if t != old] + (
-            [new] if old in ref_tasks else []
-        )
-        self.set_reference_tasks(new_refs)
+        if self._reference_tasks:
+            # update auxiliary task collections
+            ref_tasks = self.reference_tasks()
+            new_refs = [t for t in ref_tasks if t != old] + (
+                [new] if old in ref_tasks else []
+            )
+            self.set_reference_tasks(new_refs)
 
         if validate:
             self.validate()
@@ -1478,7 +1479,9 @@ class Flow:
         Returns:
             - str: the hash of the serialized flow
         """
-        return hashlib.sha256(json.dumps(self.serialize(build)).encode()).hexdigest()
+        return hashlib.sha256(
+            json.dumps(self.serialize(build), sort_keys=True).encode()
+        ).hexdigest()
 
     # Diagnostics  ----------------------------------------------------------------
 

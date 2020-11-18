@@ -593,6 +593,29 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     assert "prefect create project 'my-default-project'" in str(exc.value)
 
 
+def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
+    patch_posts(
+        [
+            {
+                "errors": [
+                    {"message": "Uniqueness violation.", "path": ["create_project"]}
+                ],
+                "data": {"create_project": None},
+            },
+            {"data": {"project": [{"id": "proj-id"}]}},
+        ]
+    )
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+        client = Client()
+    project_id = client.create_project(project_name="my-default-project")
+    assert project_id == "proj-id"
+
+
 def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeypatch):
     patch_post({"data": {"project": [{"id": "proj-id"}]}})
 
@@ -1406,3 +1429,44 @@ def test_get_agent_config(patch_post, cloud_api):
 
         agent_config = client.get_agent_config(agent_config_id="id")
         assert agent_config == {"yes": "no"}
+
+
+def test_artifacts_client_functions(patch_post, cloud_api):
+    response = {
+        "data": {
+            "create_task_run_artifact": {"id": "artifact_id"},
+            "update_task_run_artifact": {"success": True},
+            "delete_task_run_artifact": {"success": True},
+        }
+    }
+
+    patch_post(response)
+
+    client = Client()
+
+    artifact_id = client.create_task_run_artifact(
+        task_run_id="tr_id", kind="kind", data={"test": "data"}, tenant_id="t_id"
+    )
+    assert artifact_id == "artifact_id"
+
+    client.update_task_run_artifact(task_run_artifact_id="tra_id", data={"new": "data"})
+    client.delete_task_run_artifact(task_run_artifact_id="tra_id")
+
+    response = {
+        "data": {
+            "create_task_run_artifact": {"id": None},
+        }
+    }
+
+    patch_post(response)
+
+    with pytest.raises(ValueError):
+        client.create_task_run_artifact(
+            task_run_id="tr_id", kind="kind", data={"test": "data"}, tenant_id="t_id"
+        )
+
+    with pytest.raises(ValueError):
+        client.update_task_run_artifact(task_run_artifact_id=None, data={"new": "data"})
+
+    with pytest.raises(ValueError):
+        client.delete_task_run_artifact(task_run_artifact_id=None)

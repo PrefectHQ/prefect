@@ -236,6 +236,7 @@ classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "Fargate
 title = "Run Configuration"
 module = "prefect.run_configs"
 classes = ["RunConfig", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+experimental = true
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -521,10 +522,24 @@ title = "Fargate Agent"
 module = "prefect.agent.fargate"
 classes = ["FargateAgent"]
 
+
 [pages.agent.ecs]
 title = "ECS Agent"
 module = "prefect.agent.ecs"
 classes = ["ECSAgent"]
+experimental = true
+
+[pages.artifacts.artifacts]
+title = "Artifacts"
+module = "prefect.artifacts"
+functions = [
+    "create_link",
+    "update_link",
+    "create_markdown",
+    "update_markdown",
+    "delete_artifact"
+]
+experimental = true
 
 [pages.utilities.collections]
 title = "Collections"

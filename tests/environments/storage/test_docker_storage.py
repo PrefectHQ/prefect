@@ -746,7 +746,7 @@ def test_pull_image(capsys, monkeypatch):
     captured = capsys.readouterr()
     printed_lines = [line for line in captured.out.split("\n") if line != ""]
 
-    assert any(["100 test\r" in line for line in printed_lines])
+    assert any("100 test\r" in line for line in printed_lines)
 
 
 def test_pull_image_raises_if_error_encountered(monkeypatch):
@@ -775,7 +775,7 @@ def test_push_image(capsys, monkeypatch):
     captured = capsys.readouterr()
     printed_lines = [line for line in captured.out.split("\n") if line != ""]
 
-    assert any(["100 test\r" in line for line in printed_lines])
+    assert any("100 test\r" in line for line in printed_lines)
 
 
 def test_push_image_raises_if_error_encountered(monkeypatch):

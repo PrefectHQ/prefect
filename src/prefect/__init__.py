@@ -8,6 +8,7 @@ from prefect.client import Client
 import prefect.schedules
 import prefect.triggers
 import prefect.environments
+import prefect.artifacts
 
 from prefect.core import Task, Flow, Parameter
 import prefect.engine

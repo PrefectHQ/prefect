@@ -64,6 +64,7 @@ def client(monkeypatch):
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states: states
         ),
+        set_task_run_name=MagicMock(),
     )
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
@@ -1079,7 +1080,6 @@ def test_task_runner_handles_version_lock_error(monkeypatch):
 
 
 def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
-
     client = MagicMock()
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
@@ -1118,3 +1118,16 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     assert client.set_task_run_name.called
     assert client.set_task_run_name.call_args[1]["name"] == "name"
     assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+
+
+def test_task_runner_set_task_name_same_as_prefect_context(client):
+    @prefect.task(name="hey", task_run_name=lambda **kwargs: kwargs["config"])
+    def test_task(config):
+        return
+
+    edge = Edge(Task(), Task(), key="config")
+    state = Success(result="any_value")
+    res = CloudTaskRunner(task=test_task).run(upstream_states={edge: state})
+
+    assert client.set_task_run_name.call_count == 1
+    assert client.set_task_run_name.call_args[1]["name"] == "any_value"

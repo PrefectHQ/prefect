@@ -33,7 +33,8 @@ def create():
 @click.option("--description", "-d", help="Project description to create", hidden=True)
 def project(name, description):
     """
-    Create projects with the Prefect API that organize flows.
+    Create projects with the Prefect API that organize flows. Does nothing if
+    the project already exists.
 
     \b
     Arguments:
