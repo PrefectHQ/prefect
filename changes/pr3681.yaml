@@ -1,0 +1,2 @@
+enhancement:
+  - "Add `task_definition_arn` to `ECSRun` run-config - [#3681](https://github.com/PrefectHQ/prefect/pull/3681)"
