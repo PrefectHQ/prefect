@@ -310,8 +310,7 @@ class ECSAgent(Agent):
             )
             raise ValueError("Flow is missing a `run_config`")
 
-        # Check if a task definition already exists
-        taskdef_arn = self.lookup_task_definition_arn(flow_run)
+        taskdef_arn = self.get_task_definition_arn(flow_run, run_config)
         if taskdef_arn is None:
             # Register a new task definition
             self.logger.debug(
@@ -359,16 +358,22 @@ class ECSAgent(Agent):
             "prefect:flow-version": str(flow_run.flow.version),
         }
 
-    def lookup_task_definition_arn(self, flow_run: GraphQLResult) -> Optional[str]:
-        """Lookup an existing task definition ARN for a flow run.
+    def get_task_definition_arn(
+        self, flow_run: GraphQLResult, run_config: ECSRun
+    ) -> Optional[str]:
+        """Get an existing task definition ARN for a flow run.
 
         Args:
             - flow_run (GraphQLResult): the flow run
+            - run_config (ECSRun): The flow's run config
 
         Returns:
             - Optional[str]: the task definition ARN. Returns `None` if no
                 existing definition is found.
         """
+        if run_config.task_definition_arn is not None:
+            return run_config.task_definition_arn
+
         tags = self.get_task_definition_tags(flow_run)
 
         from botocore.exceptions import ClientError

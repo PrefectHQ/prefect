@@ -109,6 +109,7 @@ def test_serialize_docker_run(config):
                 ]
             }
         ),
+        ECSRun(task_definition_arn="my-task-definition"),
     ],
 )
 def test_serialize_ecs_run(config):
@@ -118,6 +119,7 @@ def test_serialize_ecs_run(config):
     fields = [
         "task_definition",
         "task_definition_path",
+        "task_definition_arn",
         "image",
         "env",
         "cpu",
