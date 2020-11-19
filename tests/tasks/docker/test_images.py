@@ -63,7 +63,7 @@ class TestListImagesTask(DockerLoggingTestingUtilityMixin):
             docker_server_url="test",
         )
         assert task.repository_name == "test"
-        assert task.all_layers == True
+        assert task.all_layers is True
         assert task.filters == {"name": "test"}
         assert task.docker_server_url == "test"
 
@@ -355,7 +355,7 @@ class TestRemoveImageTask(DockerLoggingTestingUtilityMixin):
     def test_filled_initialization(self):
         task = RemoveImage(image="test", force=True, docker_server_url="test")
         assert task.image == "test"
-        assert task.force == True
+        assert task.force is True
         assert task.docker_server_url == "test"
 
     def test_empty_image_raises_error(self):
@@ -445,7 +445,7 @@ class TestTagImageTask(DockerLoggingTestingUtilityMixin):
         assert task.image == "test"
         assert task.repository == "test"
         assert task.tag == "test"
-        assert task.force == True
+        assert task.force is True
         assert task.docker_server_url == "test"
 
     def test_empty_image_raises_error(self):
@@ -557,9 +557,9 @@ class TestBuildImageTask(DockerLoggingTestingUtilityMixin):
         )
         assert task.path == "test"
         assert task.tag == "test"
-        assert task.nocache == True
+        assert task.nocache is True
         assert not task.rm
-        assert task.forcerm == True
+        assert task.forcerm is True
         assert task.docker_server_url == "test"
 
     def test_empty_path_raises_error(self):

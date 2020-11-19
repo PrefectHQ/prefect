@@ -92,7 +92,7 @@ class TestS3Result:
         session.Session().client = _client
         result = S3Result(bucket="bob", location="stuff")
         result = result.format()
-        assert result.exists("stuff") == False
+        assert result.exists("stuff") is False
 
     def test_s3_result_exists(self, session):
         import botocore
@@ -111,4 +111,4 @@ class TestS3Result:
         session.Session().client = _client
         result = S3Result(bucket="bob", location="stuff")
         result = result.format()
-        assert result.exists("stuff") == True
+        assert result.exists("stuff") is True

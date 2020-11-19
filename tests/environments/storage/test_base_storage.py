@@ -95,4 +95,4 @@ class TestStorageLabels:
             assert inst.add_default_labels == config_value
 
     def test_add_default_labels_default_true(self, inst):
-        assert inst.add_default_labels == True
+        assert inst.add_default_labels is True
