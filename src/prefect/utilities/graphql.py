@@ -19,6 +19,13 @@ def lowercase_first_letter(s: str) -> str:
     return s
 
 
+def multiline_indent(string: str, spaces: int) -> str:
+    """
+    Utility to indent all but the first line in a string to the specified level
+    """
+    return string.replace("\n", "\n" + " " * spaces)
+
+
 class GraphQLResult(Box):
     def __repr__(self) -> str:
         try:
@@ -309,14 +316,15 @@ def format_graphql_request_error(response: Response) -> str:
 
     text = json.loads(response.text)
     errors = text.get("errors", [])
-    error_msgs = ""
+    error_msgs = []
     for error in errors:
         message = error.get("message", "No error message supplied.")
         extensions = error.get("extensions", {})
         # Other extensions are possible but we will only include the minimum for now
         # since stack traces and other info are likely not passed
         code = extensions.get("code", "UNKNOWN_ERROR")
-        error_msgs += f"{code}: {message}\n"
+        # Wrap the error message at 80 characters and indent extra lines
+        error_msgs.append(multiline_indent(textwrap.fill(f"{code}: {message}", 80), 4))
 
     error_prefix = (
         "The following error messages were provided by the GraphQL server:\n"
@@ -324,17 +332,21 @@ def format_graphql_request_error(response: Response) -> str:
         else "The server did not provide any error messages."
     )
 
+    error_paragraph = "\n".join(error_msgs)
+
     return textwrap.dedent(
         f"""
-        {error_prefix}{error_msgs}
+        {error_prefix}
+
+            {multiline_indent(error_paragraph, 12)}
 
         The GraphQL query was:
         
-        {query}
+            {multiline_indent(query, 12)}
 
         The passed variables were:
 
-        {variables}
+            {multiline_indent(variables, 12)}
         """
     )
 
