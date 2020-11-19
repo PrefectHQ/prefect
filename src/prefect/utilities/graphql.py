@@ -309,8 +309,7 @@ def format_graphql_request_error(response: Response) -> str:
     Returns:
         A formatted string
     """
-
-    params = json.loads(response.request.body)
+    params = json.loads(response.request.body or "")
     query = parse_graphql(params.get("query", {}))
     variables = parse_graphql(params.get("variables", {}))
 
@@ -337,7 +336,6 @@ def format_graphql_request_error(response: Response) -> str:
     return textwrap.dedent(
         f"""
         {error_prefix}
-
             {multiline_indent(error_paragraph, 12)}
 
         The GraphQL query was:

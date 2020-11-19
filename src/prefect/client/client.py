@@ -367,7 +367,7 @@ class Client:
                         "This is likely caused by a poorly formatted GraphQL query or "
                         "mutation but the response could not be parsed for more details"
                     )
-                raise ClientError(f"{exc}\n\n{graphql_msg}") from exc
+                raise ClientError(f"{exc}\n{graphql_msg}") from exc
 
             # Server-side and non-graphql errors will be raised without modification
             raise
