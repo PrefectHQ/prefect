@@ -10,6 +10,14 @@ from prefect.engine import signals
 __all__ = ("resource_manager", "ResourceManager")
 
 
+class ResourceInitTask(Task):
+    """Initialize a resource manager class"""
+
+    def __init__(self, resource_class: Callable, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.run = resource_class
+
+
 class ResourceSetupTask(Task):
     """Setup a resource with its resource manager"""
 
@@ -188,9 +196,11 @@ class ResourceManager:
         self.name = name
         self.init_task_kwargs.setdefault("name", name)
         self.setup_task_kwargs.setdefault("name", f"{name}.setup")
+        self.setup_task_kwargs.setdefault("checkpoint", False)
         self.cleanup_task_kwargs.setdefault("name", f"{name}.cleanup")
         self.cleanup_task_kwargs.setdefault("trigger", resource_cleanup_trigger)
         self.cleanup_task_kwargs.setdefault("skip_on_upstream_skip", False)
+        self.cleanup_task_kwargs.setdefault("checkpoint", False)
 
     def __call__(self, *args: Any, flow: Flow = None, **kwargs: Any) -> ResourceContext:
         if flow is None:
@@ -198,7 +208,7 @@ class ResourceManager:
             if flow is None:
                 raise ValueError("Could not infer an active Flow context.")
 
-        init_task = prefect.task(self.resource_class, **self.init_task_kwargs)(  # type: ignore
+        init_task = ResourceInitTask(self.resource_class, **self.init_task_kwargs)(  # type: ignore
             *args, flow=flow, **kwargs
         )
 

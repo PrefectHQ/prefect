@@ -1,0 +1,2 @@
+enhancement:
+  - "Rerun `resource_manager` tasks when restarting flows from failed - [#3689](https://github.com/PrefectHQ/prefect/pull/3689)"
