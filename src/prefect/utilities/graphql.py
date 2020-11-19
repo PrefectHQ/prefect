@@ -291,6 +291,17 @@ def with_args(field: Any, arguments: Any) -> str:
 
 
 def format_graphql_request_error(response: Response) -> str:
+    """
+    Given a http response that contains a graphql error, parse the error messages
+    and create a nicely formatted string summary
+
+    Args:
+        response (requests.Response): The HTTP response with the errors, should have
+            returned a 400
+
+    Returns:
+        A formatted string
+    """
 
     params = json.loads(response.request.body)
     query = parse_graphql(params.get("query", {}))
@@ -307,16 +318,15 @@ def format_graphql_request_error(response: Response) -> str:
         code = extensions.get("code", "UNKNOWN_ERROR")
         error_msgs += f"{code}: {message}\n"
 
-        error_prefix = (
-            "The following error messages were provided by the GraphQL server:\n"
-            if error_msgs
-            else "The server did not provide any error messages."
-        )
+    error_prefix = (
+        "The following error messages were provided by the GraphQL server:\n"
+        if error_msgs
+        else "The server did not provide any error messages."
+    )
 
     return textwrap.dedent(
         f"""
-        {error_prefix}
-        {error_msgs}
+        {error_prefix}{error_msgs}
 
         The GraphQL query was:
         
