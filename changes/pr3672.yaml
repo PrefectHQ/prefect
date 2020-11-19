@@ -1,0 +1,2 @@
+enhancement:
+  - "Add debug logging for Docker tasks PullImage and BuildImage" - [#3672](https://github.com/PrefectHQ/prefect/pull/3672)"

@@ -198,6 +198,28 @@ class TestPullImageTask(DockerLoggingTestingUtilityMixin):
             result = task.run(repository="test")
             assert result == expected_docker_output
 
+    def test_returns_pull_value_with_stream_logs(self, monkeypatch, caplog):
+
+        task = PullImage()
+
+        api = MagicMock()
+        expected_docker_output = [
+            {"status": "Pulling"},
+            {"status": "Digest"},
+            {"status": "Test"},
+        ]
+        expected_result = (
+            "{'status': 'Pulling'}\n{'status': 'Digest'}\n{'status': 'Test'}"
+        )
+
+        api.return_value.pull = MagicMock(return_value=expected_docker_output)
+        monkeypatch.setattr("docker.APIClient", api)
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+
+            result = task.run(repository="original", stream_logs=True)
+            assert result == expected_result
+
     def test_logs_twice_on_success(self, monkeypatch, caplog):
         tag = "A very specific tag for an image"
         repository = "An even more specific repository"
