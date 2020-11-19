@@ -356,7 +356,7 @@ class Client:
         try:
             response.raise_for_status()
         except HTTPError as exc:
-            if response.status_code == 400 and "query" in params:
+            if response.status_code == 400 and params and "query" in params:
                 # Create a custom-formatted err message for graphql errors which always
                 # return a 400 status code and have "query" in the parameter dict
                 try:
