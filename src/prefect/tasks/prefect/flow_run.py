@@ -2,8 +2,10 @@ import time
 import datetime
 import warnings
 from typing import Any
+from urllib.parse import urlparse
 
 from prefect import context, Task
+from prefect.artifacts import create_link
 from prefect.client import Client
 from prefect.engine.signals import signal_from_state
 from prefect.utilities.graphql import EnumValue, with_args
@@ -29,7 +31,7 @@ class StartFlowRun(Task):
             task will wait until the flow run is complete, and then reflect the corresponding
             state as the state of this task.  Defaults to `False`.
         - scheduled_start_time (datetime, optional): the time to schedule the execution
-                for; if not provided, defaults to now
+            for; if not provided, defaults to now
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -165,6 +167,10 @@ class StartFlowRun(Task):
         )
 
         self.logger.debug(f"Flow Run {flow_run_id} created.")
+
+        self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
+        run_link = client.get_cloud_url("flow-run", flow_run_id)
+        create_link(urlparse(run_link).path)
 
         if not self.wait:
             return flow_run_id

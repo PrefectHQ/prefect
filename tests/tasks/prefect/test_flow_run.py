@@ -15,9 +15,14 @@ def client(monkeypatch):
             )
         ),
         create_flow_run=MagicMock(return_value="xyz890"),
+        get_cloud_url=MagicMock(return_value="https://api.prefect.io/flow/run/url"),
+        create_task_run_artifact=MagicMock(return_value="id"),
     )
     monkeypatch.setattr(
         "prefect.tasks.prefect.flow_run.Client", MagicMock(return_value=cloud_client)
+    )
+    monkeypatch.setattr(
+        "prefect.artifacts.Client", MagicMock(return_value=cloud_client)
     )
     yield cloud_client
 
@@ -160,6 +165,20 @@ class TestStartFlowRunCloud:
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
+
+    def test_flow_run_link_artifact(self, client, cloud_api):
+        task = StartFlowRun(
+            project_name="Test Project",
+            flow_name="Test Flow",
+            parameters={"test": "ing"},
+            run_name="test-run",
+        )
+        with prefect.context(running_with_backend=True, task_run_id="trid"):
+            task.run()
+
+            client.create_task_run_artifact.assert_called_once_with(
+                data={"link": "/flow/run/url"}, kind="link", task_run_id="trid"
+            )
 
 
 class TestStartFlowRunServer:
