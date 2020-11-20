@@ -481,7 +481,13 @@ def test_extra_dockerfile_commands():
 
 
 def test_dockerfile_env_vars(tmpdir):
-    env_vars = OrderedDict([("FOO", 1), ("BAR", "Hello world!")])
+    env_vars = OrderedDict(
+        [
+            ("NUM", 1),
+            ("STR_WITH_SPACES", "Hello world!"),
+            ("STR_WITH_QUOTES", 'Hello "friend"'),
+        ]
+    )
     storage = Docker(
         env_vars=env_vars,
     )
@@ -491,7 +497,10 @@ def test_dockerfile_env_vars(tmpdir):
     with open(dpath, "r") as dockerfile:
         output = dockerfile.read()
 
-    assignments = [f'{var}="{val}"' for var, val in env_vars.items()]
+    def literal(val):
+        return str(val).replace('"', '\\"')
+
+    assignments = [f'{var}="{literal(val)}"' for var, val in env_vars.items()]
     expected = "ENV " + " \\ \n".join(assignments)
 
     assert expected in output
