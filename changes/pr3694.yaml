@@ -1,2 +1,2 @@
 fix:
-  - "Quote Docker storage environment variable values - [#3694](https://github.com/PrefectHQ/prefect/pull/3694)"
+  - "Fix automatic quoting of Docker storage environment variable values - [#3694](https://github.com/PrefectHQ/prefect/pull/3694)"
