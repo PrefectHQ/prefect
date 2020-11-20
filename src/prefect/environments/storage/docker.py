@@ -464,7 +464,7 @@ class Docker(Storage):
         if self.env_vars:
             white_space = " " * 4
             env_vars = "ENV " + " \\ \n{}".format(white_space).join(
-                '{k}="{v}"'.format(k=k, v=v) for k, v in self.env_vars.items()
+                f"{k}={v!r}" for k, v in self.env_vars.items()
             )
 
         # Copy user specified files into the image
