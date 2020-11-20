@@ -108,6 +108,34 @@ def test_shell_logs_non_zero_exit(caplog):
     assert "Command failed" in error_log[0].message
 
 
+def test_shell_attaches_result_to_failure(caplog):
+    def assert_fail_result(task, state):
+        assert (
+            state.result == "foo"
+            "ls: surely_a_dir_that_doesnt_exist: No such file or directory"
+        )
+
+    with Flow(name="test") as f:
+        task = ShellTask(on_failure=assert_fail_result)(
+            command="echo foo && ls surely_a_dir_that_doesnt_exist"
+        )
+    out = f.run()
+    assert out.is_failed()
+
+
+@pytest.mark.parametrize("stream_output", [True, False])
+def test_shell_respects_stream_output(caplog, stream_output):
+
+    with Flow(name="test") as f:
+        ShellTask(stream_output=stream_output)(
+            command="echo foo && echo bar",
+        )
+    f.run()
+
+    stdout_in_log = "foo" in caplog.messages and "bar" in caplog.messages
+    assert stdout_in_log == stream_output
+
+
 def test_shell_logs_stderr_on_non_zero_exit(caplog):
     with Flow(name="test") as f:
         task = ShellTask(log_stderr=True, return_all=True)(
