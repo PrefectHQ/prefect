@@ -32,7 +32,7 @@ class StartFlowRun(Task):
         - scheduled_start_time (datetime, optional): the time to schedule the execution
             for; if not provided, defaults to now
         - create_link_artifact (bool, optional): create a link artifact that links to the
-            created flow run page in the UI. Defaults to `False`.
+            created flow run page in the UI. Defaults to `True`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -45,7 +45,7 @@ class StartFlowRun(Task):
         new_flow_context: dict = None,
         run_name: str = None,
         scheduled_start_time: datetime.datetime = None,
-        create_link_artifact: bool = False,
+        create_link_artifact: bool = True,
         **kwargs: Any,
     ):
         self.flow_name = flow_name
@@ -78,7 +78,7 @@ class StartFlowRun(Task):
         new_flow_context: dict = None,
         run_name: str = None,
         scheduled_start_time: datetime.datetime = None,
-        create_link_artifact: bool = False,
+        create_link_artifact: bool = True,
     ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
@@ -100,7 +100,7 @@ class StartFlowRun(Task):
             - scheduled_start_time (datetime, optional): the time to schedule the execution
                 for; if not provided, defaults to now
             - create_link_artifact (bool, optional): create a link artifact that links to the
-                created flow run page in the UI. Defaults to `False`.
+                created flow run page in the UI. Defaults to `True`.
 
         Returns:
             - str: the ID of the newly-scheduled flow run
@@ -177,7 +177,7 @@ class StartFlowRun(Task):
 
         if create_link_artifact:
             self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
-            run_link = client.get_cloud_url("flow-run", flow_run_id)
+            run_link = client.get_cloud_url("flow-run", flow_run_id, hostname=False)
             create_link(run_link)
 
         if not self.wait:

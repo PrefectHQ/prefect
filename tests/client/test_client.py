@@ -1347,6 +1347,29 @@ def test_get_cloud_url_as_user(patch_post, cloud_api):
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
+def test_get_cloud_url_no_hostname(patch_post, cloud_api):
+    response = {
+        "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
+    }
+
+    patch_post(response)
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://api.prefect.io",
+            "cloud.auth_token": "secret_token",
+            "backend": "cloud",
+        }
+    ):
+        client = Client()
+
+        url = client.get_cloud_url(subdirectory="flow", id="id", hostname=False)
+        assert url == "/tslug/flow/id"
+
+        url = client.get_cloud_url(subdirectory="flow-run", id="id2", hostname=False)
+        assert url == "/tslug/flow-run/id2"
+
+
 def test_get_cloud_url_not_as_user(patch_post, cloud_api):
     response = {"data": {"tenant": [{"slug": "tslug"}]}}
 
