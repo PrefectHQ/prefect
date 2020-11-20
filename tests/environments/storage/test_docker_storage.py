@@ -3,6 +3,7 @@ import re
 import sys
 import tempfile
 from unittest.mock import MagicMock
+from collections import OrderedDict
 
 import cloudpickle
 import pendulum
@@ -477,6 +478,23 @@ def test_extra_dockerfile_commands():
         assert "COPY {} /path/test_file.txt".format(
             'RUN echo "I\'m a little tea pot"\n' in output
         ), output
+
+
+def test_dockerfile_env_vars(tmpdir):
+    env_vars = OrderedDict([("FOO", 1), ("BAR", "Hello world!")])
+    storage = Docker(
+        env_vars=env_vars,
+    )
+    storage.add_flow(Flow("foo"))
+    dpath = storage.create_dockerfile_object(directory=str(tmpdir))
+
+    with open(dpath, "r") as dockerfile:
+        output = dockerfile.read()
+
+    assignments = [f'{var}="{val}"' for var, val in env_vars.items()]
+    expected = "ENV " + " \\ \n".join(assignments)
+
+    assert expected in output
 
 
 def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
