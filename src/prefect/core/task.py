@@ -1,6 +1,7 @@
 import collections.abc
 import copy
 import enum
+import functools
 import inspect
 import warnings
 from datetime import timedelta
@@ -79,10 +80,45 @@ def _validate_run_signature(run: Callable) -> None:
         raise ValueError(msg)
 
 
-class SignatureValidator(type):
-    def __new__(cls, name: str, parents: tuple, methods: dict) -> "SignatureValidator":
+class TaskMetaclass(type):
+    """A metaclass for enforcing two checks on a task:
+
+    - Checks that the `run` method has a valid signature
+    - Adds a check to the `__init__` method that no tasks are passed as arguments
+    """
+
+    def __new__(cls, name: str, parents: tuple, methods: dict) -> "TaskMetaclass":
         run = methods.get("run", lambda: None)
         _validate_run_signature(run)
+
+        if "__init__" in methods:
+            old_init = methods["__init__"]
+
+            # Theoretically we could do this by defining a `__new__` method for
+            # the `Task` class that handles this check, but unfortunately if a
+            # class defines `__new__`, `inspect.signature` will use the
+            # signature for `__new__` regardless of the signature for
+            # `__init__`. This basically kills all type completions or type
+            # hints for the `Task` constructors. As such, we handle it in the
+            # metaclass
+            @functools.wraps(old_init)
+            def init(self: Any, *args: Any, **kwargs: Any) -> None:
+                if any(isinstance(a, Task) for a in args + tuple(kwargs.values())):
+                    cls_name = type(self).__name__
+                    warnings.warn(
+                        f"A Task was passed as an argument to {cls_name}, you likely want to "
+                        f"first initialize {cls_name} with any static (non-Task) arguements, "
+                        "then call the initialized task with any dynamic (Task) arguements instead. "
+                        "For example:\n\n"
+                        f"  my_task = {cls_name}(...)  # static (non-Task) args go here\n"
+                        f"  res = my_task(...)  # dynamic (Task) args go here\n\n"
+                        "see https://docs.prefect.io/core/concepts/flows.html#apis for more info.",
+                        stacklevel=2,
+                    )
+                old_init(self, *args, **kwargs)
+
+            methods = methods.copy()
+            methods["__init__"] = init
 
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
@@ -104,7 +140,7 @@ class instance_property:
         return self.func(obj)
 
 
-class Task(metaclass=SignatureValidator):
+class Task(metaclass=TaskMetaclass):
     """
     The Task class which is used as the full representation of a unit of work.
 
@@ -485,7 +521,7 @@ class Task(metaclass=SignatureValidator):
         task_args: dict = None,
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -522,7 +558,7 @@ class Task(metaclass=SignatureValidator):
         mapped: bool = False,
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -584,7 +620,7 @@ class Task(metaclass=SignatureValidator):
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
         task_args: dict = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments that should _not_ be
