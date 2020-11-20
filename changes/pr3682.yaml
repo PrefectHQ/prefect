@@ -1,2 +1,2 @@
 fix:
-  - "Serialize flow tasks, edges, etc. in deterministic order for `serialized_hash` - [#3682](https://github.com/PrefectHQ/prefect/pull/3682)"
+  - "Make `serialized_hash` handle unordered task sets correctly - [#3682](https://github.com/PrefectHQ/prefect/pull/3682)"
