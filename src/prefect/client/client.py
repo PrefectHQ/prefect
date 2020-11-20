@@ -876,7 +876,7 @@ class Client:
         """
 
         # Search for matching cloud API because we can't guarantee that the backend config is set
-        using_cloud_api = bool(re.search(".prefect.io", prefect.config.cloud.api))
+        using_cloud_api = ".prefect.io" in prefect.config.cloud.api
         tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
 
         # For various API versions parse out `api-` for direct UI link
