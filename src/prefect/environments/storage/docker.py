@@ -461,11 +461,23 @@ class Docker(Storage):
         Returns:
             - str: the absolute file path to the Dockerfile
         """
+        # Either load the base commands from the specified dockerfile or define a FROM
+        if self.dockerfile:
+            with open(self.dockerfile, "r") as contents:
+                base_commands = contents.read()
+        else:
+            base_commands = "FROM {base_image}".format(base_image=self.base_image)
+
         # Generate single pip install command for python dependencies
         pip_installs = "RUN pip install "
         if self.python_dependencies:
             for dependency in self.python_dependencies:
                 pip_installs += "{} ".format(dependency)
+
+        # Write all extra commands that should be run in the image
+        installation_commands = ""
+        for cmd in self.installation_commands:
+            installation_commands += "RUN {}\n".format(cmd)
 
         # Generate ENV variables to load into the image
         env_vars = ""
@@ -518,12 +530,7 @@ class Docker(Storage):
                     "A `path` must be provided to show where flow `.py` file is stored in the image."
                 )
 
-        # Write all extra commands that should be run in the image
-        installation_commands = ""
-        for cmd in self.installation_commands:
-            installation_commands += "RUN {}\n".format(cmd)
-
-        # Write final user commands that should be run in the image
+        # Write final extra user commands that should be run in the image
         final_commands = (
             ""
             if self.extra_dockerfile_commands is None
@@ -540,22 +547,16 @@ class Docker(Storage):
         with open(healthcheck_loc, "w") as health_file:
             health_file.write(healthcheck)
 
-        # Either load the base commands from the specified dockerfile or define a FROM
-        if self.dockerfile:
-            with open(self.dockerfile, "r") as contents:
-                base_commands = contents.read()
-        else:
-            base_commands = "FROM {base_image}".format(base_image=self.base_image)
-
+        # Escape the healthcheck location
         healthcheck_loc = (
             healthcheck_loc.replace("\\", "/") if self.dockerfile else "healthcheck.py"
         )
 
-        flow_file_paths = ", ".join(['"{}"'.format(k) for k in self.flows.values()])
-        python_version = (sys.version_info.major, sys.version_info.minor)
-
+        # Generate the command to run the healthcheck
         healthcheck_run = ""
         if not self.ignore_healthchecks:
+            flow_file_paths = ", ".join(['"{}"'.format(k) for k in self.flows.values()])
+            python_version = (sys.version_info.major, sys.version_info.minor)
             healthcheck_run = (
                 f"RUN python {self.prefect_directory}/healthcheck.py "
                 f"'[{flow_file_paths}]' '{python_version}'"
