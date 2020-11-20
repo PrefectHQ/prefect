@@ -1,0 +1,2 @@
+fix:
+  - "Docker storage build error logs were not always displayed - [#3693](https://github.com/PrefectHQ/prefect/pull/3693)"

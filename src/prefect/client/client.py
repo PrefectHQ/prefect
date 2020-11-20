@@ -870,25 +870,23 @@ class Client:
         # returns "https://cloud.prefect.io/my-tenant-slug/flow-run/424242-ca-94611-111-55"
         ```
         """
-        # Generate direct link to UI
-        if prefect.config.backend == "cloud":
-            tenant_slug = self.get_default_tenant_slug(as_user=as_user)
-        else:
-            tenant_slug = ""
 
+        # Search for matching cloud API because we can't guarantee that the backend config is set
+        using_cloud_api = ".prefect.io" in prefect.config.cloud.api
+        tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
+
+        # For various API versions parse out `api-` for direct UI link
         base_url = (
-            re.sub("api-", "", prefect.config.cloud.api)
-            if re.search("api-", prefect.config.cloud.api)
-            else re.sub("api", "cloud", prefect.config.cloud.api)
+            (
+                re.sub("api-", "", prefect.config.cloud.api)
+                if re.search("api-", prefect.config.cloud.api)
+                else re.sub("api", "cloud", prefect.config.cloud.api)
+            )
+            if using_cloud_api
+            else prefect.config.server.ui.endpoint
         )
 
-        full_url = prefect.config.cloud.api
-        if tenant_slug:
-            full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
-        elif prefect.config.backend == "server":
-            full_url = "/".join([prefect.config.server.ui.endpoint, subdirectory, id])
-
-        return full_url
+        return "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
 
     def get_default_tenant_slug(self, as_user: bool = True) -> str:
         """

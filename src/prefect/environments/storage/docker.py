@@ -653,9 +653,14 @@ class Docker(Storage):
         for item in generator:
             item = item.decode("utf-8")
             for line in item.split("\n"):
-                if line:
-                    output = json.loads(line).get("stream") or json.loads(line).get(
-                        "errorDetail", {}
-                    ).get("message")
-                    if output and output != "\n":
-                        print(output.strip("\n"))
+                if not line:
+                    continue
+                parsed = json.loads(line)
+                # Parse several possible schemas
+                output = (
+                    parsed.get("stream")
+                    or parsed.get("message")
+                    or parsed.get("errorDetail", {}).get("message")
+                ).strip("\n")
+                if output:
+                    print(output)
