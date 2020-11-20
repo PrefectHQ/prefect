@@ -98,7 +98,7 @@ def _infer_run_nout(run: Callable) -> Optional[int]:
     else:
         origin = getattr(ret_type, "__origin__", None)
 
-    if origin is tuple:
+    if origin in (typing.Tuple, tuple):
         # Plain Tuple is a variable-length tuple
         if ret_type in (typing.Tuple, tuple):
             return None
