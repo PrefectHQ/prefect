@@ -169,7 +169,7 @@ class StartFlowRun(Task):
         self.logger.debug(f"Flow Run {flow_run_id} created.")
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
-        run_link = client.get_cloud_url("flow-run", flow_run_id, hostname=False)
+        run_link = client.get_cloud_url("flow-run", flow_run_id)
         create_link(urlparse(run_link).path)
 
         if not self.wait:
