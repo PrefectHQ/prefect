@@ -391,7 +391,8 @@ class Docker(Storage):
             dockerfile_path = self.create_dockerfile_object(directory=tempdir)
             client = self._get_client()
 
-            # Verify that a registry url has been provided for images that should be pushed
+            # Verify that a registry url has been provided for images that should be
+            # pushed
             if self.registry_url:
                 full_name = str(PurePosixPath(self.registry_url, self.image_name))
             elif push is True:
