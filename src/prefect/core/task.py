@@ -635,7 +635,7 @@ class Task(metaclass=SignatureValidator):
         keyword_tasks: Mapping[str, object] = None,
         mapped: bool = False,
         validate: bool = None,
-    ) -> None:
+    ) -> "Task":
         """
         Set dependencies for a flow either specified or in the current context using this task
 
@@ -653,7 +653,7 @@ class Task(metaclass=SignatureValidator):
                 configuration file.
 
         Returns:
-            - None
+            - self
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
@@ -673,9 +673,11 @@ class Task(metaclass=SignatureValidator):
             mapped=mapped,
         )
 
+        return self
+
     def set_upstream(
         self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
-    ) -> None:
+    ) -> "Task":
         """
         Sets the provided task as an upstream dependency of this task.
 
@@ -690,7 +692,7 @@ class Task(metaclass=SignatureValidator):
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
         Returns:
-            - None
+            - self
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
@@ -701,9 +703,11 @@ class Task(metaclass=SignatureValidator):
         else:
             self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
+        return self
+
     def set_downstream(
         self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
-    ) -> None:
+    ) -> "Task":
         """
         Sets the provided task as a downstream dependency of this task.
 
@@ -715,6 +719,9 @@ class Task(metaclass=SignatureValidator):
                 will be passed to the downstream task's `run()` method under this keyword argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
+        Returns:
+            - self
+
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
@@ -725,6 +732,8 @@ class Task(metaclass=SignatureValidator):
             )  # type: ignore
         else:
             task.set_dependencies(flow=flow, upstream_tasks=[self], mapped=mapped)
+
+        return self
 
     def inputs(self) -> Dict[str, Dict]:
         """

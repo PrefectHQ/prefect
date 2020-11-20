@@ -529,6 +529,21 @@ class TestDependencies:
             t2.set_upstream(t1, **props)
             assert Edge(t1, t2, **props) in f.edges
 
+    def test_set_dependencies_stream_allows_chaining(self):
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        with Flow(name="test") as f:
+            t1_result = t1()
+            t2_result = t2()
+            t3_result = t3()
+
+            assert t1_result.set_downstream(t2_result) is t1_result
+            assert t3_result.set_upstream(t2_result) is t3_result
+            assert (
+                t3_result.set_dependencies(f, upstream_tasks=[t1_result]) is t3_result
+            )
+
 
 class TestSerialization:
     def test_serialization(self):
