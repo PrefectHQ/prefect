@@ -23,6 +23,14 @@ if TYPE_CHECKING:
     import docker
 
 
+def multiline_indent(string: str, spaces: int) -> str:
+    """
+    Utility to indent all but the first line in a string to the specified level,
+    especially useful in textwrap.dedent calls where multiline strings are formatted in
+    """
+    return string.replace("\n", "\n" + " " * spaces)
+
+
 class Docker(Storage):
     """
     Docker storage provides a mechanism for storing Prefect flows in Docker
@@ -462,10 +470,9 @@ class Docker(Storage):
         # Generate ENV variables to load into the image
         env_vars = ""
         if self.env_vars:
-            white_space = " " * 4
-            env_vars = "ENV " + " \\ \n{}".format(white_space).join(
-                f"{k}={v!r}" for k, v in self.env_vars.items()
-            )
+            # Format with repr to get proper quoting
+            formatted_vars = [f"{k}={v!r}" for k, v in self.env_vars.items()]
+            env_vars = "ENV " + " \\\n    ".join(formatted_vars)
 
         # Copy user specified files into the image
         copy_files = ""
@@ -520,7 +527,7 @@ class Docker(Storage):
         final_commands = (
             ""
             if self.extra_dockerfile_commands is None
-            else str.join("\n", self.extra_dockerfile_commands)
+            else "\n".join(self.extra_dockerfile_commands)
         )
 
         # Write a healthcheck script into the image
@@ -533,59 +540,46 @@ class Docker(Storage):
         with open(healthcheck_loc, "w") as health_file:
             health_file.write(healthcheck)
 
+        # Either load the base commands from the specified dockerfile or define a FROM
         if self.dockerfile:
             with open(self.dockerfile, "r") as contents:
-                base_commands = textwrap.indent("\n" + contents.read(), prefix=" " * 16)
+                base_commands = contents.read()
         else:
             base_commands = "FROM {base_image}".format(base_image=self.base_image)
 
-        file_contents = textwrap.dedent(
-            """\
-            {base_commands}
-
-            RUN pip install pip --upgrade
-            {installation_commands}
-            {pip_installs}
-
-            RUN mkdir -p {prefect_dir}/
-            {copy_flows}
-            COPY {healthcheck_loc} {prefect_dir}/healthcheck.py
-            {copy_files}
-
-            {env_vars}
-            {final_commands}
-            """.format(
-                base_commands=base_commands,
-                installation_commands=installation_commands,
-                pip_installs=pip_installs,
-                copy_flows=copy_flows,
-                healthcheck_loc=healthcheck_loc.replace("\\", "/")
-                if self.dockerfile
-                else "healthcheck.py",
-                copy_files=copy_files,
-                env_vars=env_vars,
-                prefect_dir=self.prefect_directory,
-                final_commands=final_commands,
-            )
+        healthcheck_loc = (
+            healthcheck_loc.replace("\\", "/") if self.dockerfile else "healthcheck.py"
         )
 
-        # append the line that runs the healthchecks
-        # skip over for now if storing flow as file
-        if not self.ignore_healthchecks:
-            file_contents += textwrap.dedent(
-                """
+        flow_file_paths = ", ".join(['"{}"'.format(k) for k in self.flows.values()])
+        python_version = (sys.version_info.major, sys.version_info.minor)
 
-                RUN python {prefect_dir}/healthcheck.py '[{flow_file_paths}]' '{python_version}'
-                """.format(
-                    flow_file_paths=", ".join(
-                        ['"{}"'.format(k) for k in self.flows.values()]
-                    ),
-                    python_version=(sys.version_info.major, sys.version_info.minor),
-                    prefect_dir=self.prefect_directory,
-                )
+        healthcheck_run = ""
+        if not self.ignore_healthchecks:
+            healthcheck_run = (
+                f"RUN python {self.prefect_directory}/healthcheck.py "
+                f"'[{flow_file_paths}]' '{python_version}'"
             )
 
-        file_contents = "\n".join(line.lstrip() for line in file_contents.split("\n"))
+        file_contents = textwrap.dedent(
+            f"""
+            {multiline_indent(base_commands, 12)}
+
+            RUN pip install pip --upgrade
+            {multiline_indent(installation_commands, 12)}
+            {pip_installs}
+
+            RUN mkdir -p {self.prefect_directory}/
+            {multiline_indent(copy_flows, 12)}
+            COPY {healthcheck_loc} {self.prefect_directory}/healthcheck.py
+            {multiline_indent(copy_files, 12)}
+
+            {multiline_indent(env_vars, 12)}
+            {multiline_indent(final_commands, 12)}
+            {healthcheck_run}
+            """
+        )
+
         dockerfile_path = os.path.join(directory, "Dockerfile")
         with open(dockerfile_path, "w+") as dockerfile:
             dockerfile.write(file_contents)

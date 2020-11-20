@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import tempfile
+import textwrap
 from unittest.mock import MagicMock
 from collections import OrderedDict
 
@@ -486,6 +487,7 @@ def test_dockerfile_env_vars(tmpdir):
             ("NUM", 1),
             ("STR_WITH_SPACES", "Hello world!"),
             ("STR_WITH_QUOTES", 'Hello "friend"'),
+            ("STR_WITH_SINGLE_QUOTES", "'foo'"),
         ]
     )
     storage = Docker(
@@ -497,11 +499,14 @@ def test_dockerfile_env_vars(tmpdir):
     with open(dpath, "r") as dockerfile:
         output = dockerfile.read()
 
-    def literal(val):
-        return str(val).replace('"', '\\"')
-
-    assignments = [f'{var}="{literal(val)}"' for var, val in env_vars.items()]
-    expected = "ENV " + " \\ \n".join(assignments)
+    expected = textwrap.dedent(
+        """
+        ENV NUM=1 \\
+            STR_WITH_SPACES='Hello world!' \\
+            STR_WITH_QUOTES='Hello "friend"' \\
+            STR_WITH_SINGLE_QUOTES="'foo'" \\
+        """
+    )
 
     assert expected in output
 
@@ -651,7 +656,6 @@ def test_create_dockerfile_from_everything(no_docker_host_var):
                 python_dependencies=["test"],
                 image_name="test4",
                 image_tag="test5",
-                env_vars={"test": "1"},
                 files={os.path.join(tempdir_outside, "test"): "./test2"},
                 base_url="test_url",
             )
@@ -666,16 +670,6 @@ def test_create_dockerfile_from_everything(no_docker_host_var):
 
             assert "FROM test3" in output
             assert "COPY test ./test2" in output
-
-            # ensure there is a "ENV ... test=1" in the output
-            results = re.search(
-                r"ENV(\s+[a-zA-Z0-9_]*\=[^\\]*\\\s*$)*\s*(?P<result>test=1)",
-                output,
-                re.MULTILINE,
-            )
-            assert results != None
-            assert results.group("result") == "test=1"
-
             assert "COPY healthcheck.py /opt/prefect/healthcheck.py" in output
             assert "COPY test.flow /opt/prefect/flows/test.prefect" in output
             assert "COPY other.flow /opt/prefect/flows/other.prefect" in output
