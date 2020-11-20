@@ -462,7 +462,7 @@ class Docker(Storage):
         # Generate ENV variables to load into the image
         env_vars = ""
         if self.env_vars:
-            white_space = " " * 20
+            white_space = " " * 4
             env_vars = "ENV " + " \\ \n{}".format(white_space).join(
                 '{k}="{v}"'.format(k=k, v=v) for k, v in self.env_vars.items()
             )
