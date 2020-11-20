@@ -36,7 +36,23 @@ def get_reference_tasks(obj: prefect.Flow, context: dict) -> List:
     return sorted(tasks, key=lambda t: t.slug)
 
 
+def get_tasks(obj: prefect.Flow, context: dict) -> List:
+    return list(sorted(obj.tasks, key=lambda t: t.slug))
+
+
+def get_edges(obj: prefect.Flow, context: dict) -> List:
+    return list(
+        sorted(
+            obj.edges,
+            key=lambda e: f"{e.upstream_task.slug}-{e.downstream_task.slug}",
+        )
+    )
+
+
 class FlowSchema(ObjectSchema):
+    # All nested 'many' types that are stored as a `Set` in the `Flow` must be sorted
+    # using a `value_selection_fn` so `Flow.serialized_hash()` is deterministic
+
     class Meta:
         object_class = lambda: prefect.core.Flow
         exclude_fields = ["type", "parameters"]
@@ -50,8 +66,8 @@ class FlowSchema(ObjectSchema):
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
     schedule = fields.Nested(ScheduleSchema, allow_none=True)
     parameters = Nested(ParameterSchema, value_selection_fn=get_parameters, many=True)
-    tasks = fields.Nested(TaskSchema, many=True)
-    edges = fields.Nested(EdgeSchema, many=True)
+    tasks = Nested(TaskSchema, value_selection_fn=get_tasks, many=True)
+    edges = Nested(EdgeSchema, value_selection_fn=get_edges, many=True)
     reference_tasks = Nested(
         TaskSchema, value_selection_fn=get_reference_tasks, many=True, only=["slug"]
     )

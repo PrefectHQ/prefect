@@ -1445,18 +1445,6 @@ class Flow:
         for task, slug in flow_copy.slugs.items():
             task.slug = slug
 
-        # Convert tasks and edges from sets to sorted lists for determinism
-        # mypy will complain that t.slug is `Optional[str]` but we have enforced this
-        # above so it should be safe. We also need to ignore types here because we are
-        # pushing a list into a `Set` typed attribute
-        flow_copy.tasks = sorted(
-            list(flow_copy.tasks), key=lambda t: t.slug  # type: ignore
-        )  # type: ignore
-        flow_copy.edges = sorted(
-            list(flow_copy.edges),
-            key=lambda e: f"{e.upstream_task.slug}-{e.downstream_task.slug}",
-        )  # type: ignore
-
         serialized = schema(exclude=["storage"]).dump(flow_copy)
 
         if build:
