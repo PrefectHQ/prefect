@@ -92,11 +92,23 @@ def _infer_run_nout(run: Callable) -> Optional[int]:
         return None
     if ret_type is inspect.Parameter.empty:
         return None
-    if typing.get_origin(ret_type) is tuple:
+    # New in python 3.8
+    if hasattr(typing, "get_origin"):
+        origin = typing.get_origin(ret_type)
+    else:
+        origin = getattr(ret_type, "__origin__", None)
+
+    if origin is tuple:
         # Plain Tuple is a variable-length tuple
         if ret_type in (typing.Tuple, tuple):
             return None
-        args = typing.get_args(ret_type)
+
+        # New in python 3.8
+        if hasattr(typing, "get_args"):
+            args = typing.get_args(ret_type)
+        else:
+            args = getattr(ret_type, "__args__", ())
+
         # Empty tuple type has a type arg of the empty tuple
         if len(args) == 1 and args[0] == ():
             return 0
