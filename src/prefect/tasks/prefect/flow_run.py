@@ -2,6 +2,7 @@ import time
 import datetime
 import warnings
 from typing import Any
+from urllib.parse import urlparse
 
 from prefect import context, Task
 from prefect.artifacts import create_link
@@ -31,8 +32,6 @@ class StartFlowRun(Task):
             state as the state of this task.  Defaults to `False`.
         - scheduled_start_time (datetime, optional): the time to schedule the execution
             for; if not provided, defaults to now
-        - create_link_artifact (bool, optional): create a link artifact that links to the
-            created flow run page in the UI. Defaults to `True`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -45,7 +44,6 @@ class StartFlowRun(Task):
         new_flow_context: dict = None,
         run_name: str = None,
         scheduled_start_time: datetime.datetime = None,
-        create_link_artifact: bool = True,
         **kwargs: Any,
     ):
         self.flow_name = flow_name
@@ -55,7 +53,6 @@ class StartFlowRun(Task):
         self.run_name = run_name
         self.wait = wait
         self.scheduled_start_time = scheduled_start_time
-        self.create_link_artifact = create_link_artifact
         if flow_name:
             kwargs.setdefault("name", f"Flow {flow_name}")
         super().__init__(**kwargs)
@@ -67,7 +64,6 @@ class StartFlowRun(Task):
         "new_flow_context",
         "run_name",
         "scheduled_start_time",
-        "create_link_artifact",
     )
     def run(
         self,
@@ -78,7 +74,6 @@ class StartFlowRun(Task):
         new_flow_context: dict = None,
         run_name: str = None,
         scheduled_start_time: datetime.datetime = None,
-        create_link_artifact: bool = True,
     ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
@@ -99,8 +94,6 @@ class StartFlowRun(Task):
             - run_name (str, optional): name to be set for the flow run
             - scheduled_start_time (datetime, optional): the time to schedule the execution
                 for; if not provided, defaults to now
-            - create_link_artifact (bool, optional): create a link artifact that links to the
-                created flow run page in the UI. Defaults to `True`.
 
         Returns:
             - str: the ID of the newly-scheduled flow run
@@ -175,10 +168,9 @@ class StartFlowRun(Task):
 
         self.logger.debug(f"Flow Run {flow_run_id} created.")
 
-        if create_link_artifact:
-            self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
-            run_link = client.get_cloud_url("flow-run", flow_run_id, hostname=False)
-            create_link(run_link)
+        self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
+        run_link = client.get_cloud_url("flow-run", flow_run_id, hostname=False)
+        create_link(urlparse(run_link).path)
 
         if not self.wait:
             return flow_run_id

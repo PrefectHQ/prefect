@@ -846,9 +846,7 @@ class Client:
 
         return flow_id
 
-    def get_cloud_url(
-        self, subdirectory: str, id: str, as_user: bool = True, hostname: bool = True
-    ) -> str:
+    def get_cloud_url(self, subdirectory: str, id: str, as_user: bool = True) -> str:
         """
         Convenience method for creating Prefect Cloud URLs for a given subdirectory.
 
@@ -857,8 +855,6 @@ class Client:
             - id (str): the ID of the page
             - as_user (bool, optional): whether this query is being made from a USER scoped token;
                 defaults to `True`. Only used internally for queries made from RUNNERs
-            - hostname (bool, optional): whether or not to include the hostname in the URL. e.g.
-                `cloud.prefect.io` or `localhost:8080`. Defaults to `True`
 
         Returns:
             - str: the URL corresponding to the appropriate base URL, tenant slug, subdirectory
@@ -880,17 +876,15 @@ class Client:
         tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
 
         # For various API versions parse out `api-` for direct UI link
-        base_url = ""
-        if hostname:
-            base_url = (
-                (
-                    re.sub("api-", "", prefect.config.cloud.api)
-                    if re.search("api-", prefect.config.cloud.api)
-                    else re.sub("api", "cloud", prefect.config.cloud.api)
-                )
-                if using_cloud_api
-                else prefect.config.server.ui.endpoint
+        base_url = (
+            (
+                re.sub("api-", "", prefect.config.cloud.api)
+                if re.search("api-", prefect.config.cloud.api)
+                else re.sub("api", "cloud", prefect.config.cloud.api)
             )
+            if using_cloud_api
+            else prefect.config.server.ui.endpoint
+        )
 
         return "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
 

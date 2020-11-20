@@ -1,5 +1,5 @@
 task:
-  - "Add option to `StartFlowRun` task to create link artifact for started flow run - [#3692](https://github.com/PrefectHQ/prefect/pull/3692)"
+  - "Add enhancement to `StartFlowRun` task to create link artifact for started flow run - [#3692](https://github.com/PrefectHQ/prefect/pull/3692)"
 
 enhancement:
-  - "Add option to toggle hostname in Client `get_cloud_url` function - [#3692](https://github.com/PrefectHQ/prefect/pull/3692)"
+  - "Always use tenant slug in output of Client `get_cloud_url` function - [#3692](https://github.com/PrefectHQ/prefect/pull/3692)"
