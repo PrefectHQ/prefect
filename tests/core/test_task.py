@@ -1,6 +1,5 @@
 import inspect
 import logging
-import uuid
 from datetime import timedelta
 from typing import Any
 
@@ -9,7 +8,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.result_handlers import JSONResultHandler
 from prefect.engine.results import PrefectResult, LocalResult
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
@@ -83,7 +82,7 @@ class TestCreateTask:
 
     def test_create_task_with_timeout(self):
         t1 = Task()
-        assert t1.timeout == None
+        assert t1.timeout is None
 
         with pytest.raises(TypeError):
             Task(timeout=0.5)
@@ -419,14 +418,16 @@ class TestTaskCopy:
         t1 = Task()
         t2 = Task()
 
-        with Flow(name="test"):
+        with Flow(name="test") as flow:
             t1.set_dependencies(downstream_tasks=[t2])
-            with pytest.warns(UserWarning):
-                t1.copy()
+            with pytest.warns(UserWarning, match="You are making a copy"):
+                flow.add_task(t1.copy())
 
-            with Flow(name="test"):
-                # no dependencies in this flow
-                t1.copy()
+        with Flow(name="test") as flow:
+            with pytest.warns(None) as rec:
+                flow.add_task(t1.copy())
+            # no dependencies in this flow
+            assert len(rec) == 0
 
     def test_copy_changes_slug(self):
         t1 = Task(slug="test")
@@ -482,7 +483,6 @@ class TestDependencies:
             assert Edge(t1, t2) in f.edges
 
     def test_set_downstream_no_flow(self):
-        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         with pytest.raises(ValueError, match="No Flow was passed"):
@@ -513,7 +513,6 @@ class TestDependencies:
             assert Edge(t1, t2) in f.edges
 
     def test_set_upstream_no_flow(self):
-        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         with pytest.raises(ValueError, match="No Flow was passed"):
@@ -587,9 +586,9 @@ class TestSerialization:
 class TestTaskArgs:
     def test_task_args_raises_for_non_attrs(self):
         t = Task()
-        with Flow(name="test") as f:
+        with Flow(name="test"):
             with pytest.raises(AttributeError, match="foo"):
-                res = t(task_args={"foo": "bar"})
+                t(task_args={"foo": "bar"})
 
     @pytest.mark.parametrize(
         "attr,val",
@@ -606,7 +605,7 @@ class TestTaskArgs:
     def test_task_args_sets_new_attrs(self, attr, val):
         t = Task()
         with Flow(name="test") as f:
-            res = t(task_args={attr: val})
+            t(task_args={attr: val})
 
         assert getattr(f.tasks.pop(), attr) == val
 
@@ -625,7 +624,7 @@ class TestTaskArgs:
     def test_task_args_sets_new_attrs_on_mapped_tasks(self, attr, val):
         t = Task()
         with Flow(name="test") as f:
-            res = t.map(upstream_tasks=[1, 2, 3, 4], task_args={attr: val})
+            t.map(upstream_tasks=[1, 2, 3, 4], task_args={attr: val})
 
         tasks = f.get_tasks(name="Task")
         assert all(getattr(tt, attr) == val for tt in tasks)
@@ -642,8 +641,8 @@ class TestTaskArgs:
     def test_task_check_mapped_args_are_subscriptable_in_advance(self):
         t = Task()
         with pytest.raises(TypeError):
-            with Flow(name="test") as f:
-                res = t.map({1, 2, 3, 4})
+            with Flow(name="test"):
+                t.map({1, 2, 3, 4})
 
 
 @pytest.mark.skip("Result handlers not yet deprecated")
@@ -662,3 +661,21 @@ def test_cache_options_show_deprecation():
         UserWarning, match=r"all cache_\* options on a Task will be deprecated*"
     ):
         Task(cache_key=object())
+
+
+def test_passing_task_to_task_constructor_raises_helpful_warning():
+    class MyTask(Task):
+        def __init__(self, a, b, **kwargs):
+            self.a = a
+            self.b = b
+            super().__init__(**kwargs)
+
+    with Flow("test") as flow:
+        a = Task()()
+        with pytest.warns(
+            UserWarning, match="A Task was passed as an argument to MyTask"
+        ):
+            t = MyTask(1, a)()
+        # Warning doesn't stop normal operation
+        assert t.a == 1
+        assert t.b == a
