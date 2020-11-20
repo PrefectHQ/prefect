@@ -3,6 +3,7 @@ import copy
 import enum
 import functools
 import inspect
+import typing
 import warnings
 from datetime import timedelta
 from typing import (
@@ -11,6 +12,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -78,6 +80,45 @@ def _validate_run_signature(run: Callable) -> None:
         )
         msg += " These are reserved keyword arguments."
         raise ValueError(msg)
+
+
+def _infer_run_nout(run: Callable) -> Optional[int]:
+    """Infer the number of outputs for a callable from its type annotations.
+
+    Returns `None` if infererence failed, or if the type has variable-length.
+    """
+    try:
+        ret_type = inspect.signature(run).return_annotation
+    except Exception:
+        return None
+    if ret_type is inspect.Parameter.empty:
+        return None
+    # New in python 3.8
+    if hasattr(typing, "get_origin"):
+        origin = typing.get_origin(ret_type)
+    else:
+        origin = getattr(ret_type, "__origin__", None)
+
+    if origin in (typing.Tuple, tuple):
+        # Plain Tuple is a variable-length tuple
+        if ret_type in (typing.Tuple, tuple):
+            return None
+
+        # New in python 3.8
+        if hasattr(typing, "get_args"):
+            args = typing.get_args(ret_type)
+        else:
+            args = getattr(ret_type, "__args__", ())
+
+        # Empty tuple type has a type arg of the empty tuple
+        if len(args) == 1 and args[0] == ():
+            return 0
+        # Variable-length tuples have Ellipsis as the 2nd arg
+        if len(args) == 2 and args[1] == Ellipsis:
+            return None
+        # All other Tuples are length-of args
+        return len(args)
+    return None
 
 
 class TaskMetaclass(type):
@@ -245,14 +286,15 @@ class Task(metaclass=TaskMetaclass):
             expected as the return value. The callable can be used for string formatting logic that
             `.format(**kwargs)` doesn't support. **Note**: this only works for tasks running against a
             backend API.
+        - nout (int, optional): for tasks that return multiple results, the number of outputs
+            to expect. If not provided, will be inferred from the task return annotation, if
+            possible.  Note that `nout=1` implies the task returns a tuple of
+            one value (leave as `None` for non-tuple return types).
 
     Raises:
         - TypeError: if `tags` is of type `str`
         - TypeError: if `timeout` is not of type `int`
     """
-
-    # Tasks are not iterable, though they do have a __getitem__ method
-    __iter__ = None
 
     def __init__(
         self,
@@ -275,6 +317,7 @@ class Task(metaclass=TaskMetaclass):
         result: "Result" = None,
         target: Union[str, Callable] = None,
         task_run_name: Union[str, Callable] = None,
+        nout: int = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug
@@ -381,6 +424,10 @@ class Task(metaclass=TaskMetaclass):
         self.auto_generated = False
 
         self.log_stdout = log_stdout
+
+        if nout is None:
+            nout = _infer_run_nout(self.run)
+        self.nout = nout
 
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget
@@ -878,6 +925,15 @@ class Task(metaclass=TaskMetaclass):
         return prefect.tasks.core.operators.Or().bind(self, other)
 
     # Magic Method Interactions  ----------------------------------------------------
+
+    def __iter__(self) -> Iterator:
+        if self.nout is None:
+            raise TypeError(
+                "Task is not iterable. If your task returns multiple results, "
+                "pass `nout` to the task decorator/constructor, or provide a "
+                "`Tuple` return-type annotation to your task."
+            )
+        return (self[i] for i in range(self.nout))
 
     def __getitem__(self, key: Any) -> "Task":
         """

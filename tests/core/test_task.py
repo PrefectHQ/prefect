@@ -1,7 +1,7 @@
 import inspect
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import Any, Tuple
 
 import pytest
 
@@ -658,6 +658,60 @@ class TestTaskArgs:
         with pytest.raises(TypeError):
             with Flow(name="test"):
                 t.map({1, 2, 3, 4})
+
+
+class TestTaskNout:
+    def test_nout_defaults_to_none(self):
+        @task
+        def test(self):
+            pass
+
+        assert test.nout is None
+
+    def test_nout_provided_explicitly(self):
+        @task(nout=2)
+        def test(self):
+            pass
+
+        assert test.nout == 2
+
+    @pytest.mark.parametrize(
+        "ret_type, nout",
+        [
+            (int, None),
+            (Tuple, None),
+            (Tuple[()], 0),
+            (Tuple[int, ...], None),
+            (Tuple[int, int], 2),
+            (Tuple[int, float, str], 3),
+        ],
+    )
+    def test_nout_inferred_from_signature(self, ret_type, nout):
+        @task
+        def test(a) -> ret_type:
+            pass
+
+        assert test.nout == nout
+
+    def test_nout_none_not_iterable(self):
+        @task
+        def test(a):
+            return a + 1, a - 1
+
+        with Flow("test"):
+            with pytest.raises(TypeError, match="Task is not iterable"):
+                a, b = test(1)
+
+    def test_nout_provided_is_iterable(self):
+        @task(nout=2)
+        def test(a):
+            return a + 1, a - 1
+
+        with Flow("test") as flow:
+            a, b = test(1)
+        res = flow.run()
+        assert res.result[a].result == 2
+        assert res.result[b].result == 0
 
 
 @pytest.mark.skip("Result handlers not yet deprecated")
