@@ -22,6 +22,7 @@ def client(monkeypatch):
     )
     yield cloud_client
 
+
 @pytest.fixture()
 def artifacts_client(monkeypatch):
     c = MagicMock(
@@ -176,7 +177,7 @@ class TestStartFlowRunCloud:
             flow_name="Test Flow",
             parameters={"test": "ing"},
             run_name="test-run",
-            create_link_artifact=True
+            create_link_artifact=True,
         )
         with prefect.context(running_with_backend=True, task_run_id="trid"):
             task.run(create_link_artifact=False)
@@ -186,11 +187,8 @@ class TestStartFlowRunCloud:
             task.run()
 
             artifacts_client.create_task_run_artifact.assert_called_once_with(
-                data={"link": "flow/run/url"},
-                kind="link",
-                task_run_id="trid"
+                data={"link": "flow/run/url"}, kind="link", task_run_id="trid"
             )
-
 
 
 class TestStartFlowRunServer:

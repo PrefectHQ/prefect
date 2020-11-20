@@ -1,0 +1,2 @@
+task:
+  - "Add option to `StartFlowRun` task to create link artifact for started flow run - [#3692](https://github.com/PrefectHQ/prefect/pull/3692)"
