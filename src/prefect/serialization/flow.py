@@ -44,7 +44,7 @@ def get_edges(obj: prefect.Flow, context: dict) -> List:
     return list(
         sorted(
             obj.edges,
-            key=lambda e: f"{e.upstream_task.slug}-{e.downstream_task.slug}",
+            key=lambda e: (e.upstream_task.slug, e.downstream_task.slug),
         )
     )
 
