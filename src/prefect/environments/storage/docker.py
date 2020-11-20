@@ -519,9 +519,11 @@ class Docker(Storage):
                 with open(flow_path, "wb") as f:
                     cloudpickle.dump(self._flows[flow_name], f)
                 copy_flows += "COPY {source} {dest}\n".format(
-                    source=flow_path.replace("\\", "/")
-                    if self.dockerfile
-                    else "{}.flow".format(clean_name),
+                    source=(
+                        flow_path.replace("\\", "/")
+                        if self.dockerfile
+                        else "{}.flow".format(clean_name)
+                    ),
                     dest=flow_location,
                 )
         else:
