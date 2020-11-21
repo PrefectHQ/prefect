@@ -427,6 +427,24 @@ class FlowRunner(Runner):
                 ):
                     task_states[task] = task_state = Success(result=task.value)
 
+                # Always restart completed resource setup/cleanup tasks unless
+                # they were explicitly cached.
+                # TODO: we only need to rerun these tasks if any pending
+                # downstream tasks depend on them.
+                if (
+                    isinstance(
+                        task,
+                        (
+                            prefect.tasks.core.resource_manager.ResourceSetupTask,
+                            prefect.tasks.core.resource_manager.ResourceCleanupTask,
+                        ),
+                    )
+                    and task_state is not None
+                    and task_state.is_finished()
+                    and not task_state.is_cached()
+                ):
+                    task_states[task] = task_state = Pending()
+
                 # if the state is finished, don't run the task, just use the provided state if
                 # the state is cached / mapped, we still want to run the task runner pipeline
                 # steps to either ensure the cache is still valid / or to recreate the mapped
@@ -492,7 +510,7 @@ class FlowRunner(Runner):
                     )
 
                 # handle mapped tasks
-                if any([edge.mapped for edge in upstream_states.keys()]):
+                if any(edge.mapped for edge in upstream_states.keys()):
 
                     # wait on upstream states to determine the width of the pipeline
                     # this is the key to depth-first execution

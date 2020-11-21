@@ -209,7 +209,7 @@ class TestDatastoreUpload:
         datastore = MagicMock()
         path = ["foo/bar", "my/path"]
 
-        assert not any([os.path.isdir(path_item) for path_item in path])
+        assert not any(os.path.isdir(path_item) for path_item in path)
         task = DatastoreUpload(datastore=datastore, path=path)
 
         task.run()

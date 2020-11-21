@@ -174,8 +174,8 @@ class TestIntervalClock:
             timedelta(days=1), start_date=start_date, parameter_defaults=params
         )
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.parameter_defaults == params for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.parameter_defaults == params for e in output)
         assert output == [
             today.add(days=1),
             today.add(days=2),
@@ -191,8 +191,8 @@ class TestIntervalClock:
             timedelta(days=1), start_date=start_date, labels=labels
         )
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.labels == labels for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.labels == labels for e in output)
         assert output == [
             today.add(days=1),
             today.add(days=2),
@@ -272,7 +272,7 @@ class TestIntervalClockDaylightSavingsTime:
             timedelta(minutes=1, seconds=15), start_date=start_date
         )
         next_4 = islice(c.events(after=current_date), 4)
-        assert all([d > current_date for d in next_4])
+        assert all(d > current_date for d in next_4)
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_hourly_daylight_savings_time_forward_with_UTC(
@@ -417,8 +417,8 @@ class TestCronClock:
         c = clocks.CronClock(every_day, parameter_defaults=params)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.parameter_defaults == params for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.parameter_defaults == params for e in output)
 
         assert output == [
             pendulum.today("UTC").add(days=1),
@@ -432,8 +432,8 @@ class TestCronClock:
         c = clocks.CronClock(every_day, labels=labels)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.labels == labels for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.labels == labels for e in output)
 
         assert output == [
             pendulum.today("UTC").add(days=1),
@@ -686,8 +686,8 @@ class TestDatesClock:
         c = clocks.DatesClock([start_date], parameter_defaults=params)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.parameter_defaults == params for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.parameter_defaults == params for e in output)
 
         assert output == [start_date]
         assert islice(c.events(), 1) == [start_date]
@@ -699,8 +699,8 @@ class TestDatesClock:
         c = clocks.DatesClock([start_date], labels=labels)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.labels == labels for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.labels == labels for e in output)
 
         assert output == [start_date]
         assert islice(c.events(), 1) == [start_date]

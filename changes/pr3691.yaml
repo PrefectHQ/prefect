@@ -1,0 +1,2 @@
+enhancement:
+  - "Raise nice warning if user passes `Task` instance to `Task` constructor, rather than when calling the `Task` (or using `Task.map`/`Task.set_dependencies`) - [#3691](https://github.com/PrefectHQ/prefect/pull/3691)"

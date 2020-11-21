@@ -10,7 +10,7 @@ from distributed.deploy import Cluster
 
 from prefect.environments.execution import DaskCloudProviderEnvironment
 
-from dask_cloudprovider import FargateCluster
+from dask_cloudprovider.aws import FargateCluster
 
 
 def test_create_environment():

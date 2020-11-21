@@ -8,9 +8,6 @@ from prefect.run_configs.base import RunConfig
 class KubernetesRun(RunConfig):
     """Configure a flow-run to run as a Kubernetes Job.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     Kubernetes jobs are configured by filling in a job template at runtime. A
     job template can be specified either as a path (to be read in at runtime)
     or an in-memory object (which will be stored along with the flow in Prefect

@@ -613,16 +613,19 @@ def start(
         tmp_config["cloud.api"] = api
 
     with set_temporary_config(tmp_config):
-        retrieved_agent = _agents.get(agent_option, None)
+        retrieved_agent = _agents.get(agent_option)
 
         if not retrieved_agent:
-            click.secho("{} is not a valid agent".format(agent_option), fg="red")
+            click.secho(
+                "{} is not a valid agent".format(agent_option), fg="red", err=True
+            )
             return
 
         click.secho(
             f"Warning: `prefect agent start {agent_option}` is deprecated, use "
             f"`prefect agent {agent_option} start` instead",
             fg="yellow",
+            err=True,
         )
 
         env_vars = dict()
@@ -867,16 +870,19 @@ def install(
         "local": "prefect.agent.local.LocalAgent",
     }
 
-    retrieved_agent = supported_agents.get(name, None)
+    retrieved_agent = supported_agents.get(name)
 
     if not retrieved_agent:
-        click.secho("{} is not a supported agent for `install`".format(name), fg="red")
+        click.secho(
+            "{} is not a supported agent for `install`".format(name), fg="red", err=True
+        )
         return
 
     click.secho(
         f"Warning: `prefect agent install {name}` is deprecated, use "
         f"`prefect agent {name} install` instead",
         fg="yellow",
+        err=True,
     )
 
     env_vars = dict()

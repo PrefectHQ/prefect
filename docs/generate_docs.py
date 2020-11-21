@@ -8,6 +8,7 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
     - "title" -> (str, optional): title of page
     - "top-level-doc" -> (object, optional): module object that contains the
         docstring that will be displayed at the top of the generated page
+    - "experimental" -> (bool = False, optional): whether or not to display the "Experimental" flag at the top of the page
 
 On a development installation of Prefect, run `python generate_docs.py` from inside the `docs/` folder.
 """
@@ -66,6 +67,7 @@ def load_outline(
                 classes=[],
                 functions=[],
                 commands=[],
+                experimental=data.get("experimental", False),
             )
             module = importlib.import_module(data["module"])
             page["top-level-doc"] = module
@@ -266,57 +268,41 @@ def format_command_doc(name, ctx, cmd):
 @preprocess(remove_partial=False)
 def get_call_signature(obj):
     assert callable(obj), f"{obj} is not callable, cannot format signature."
-    # collect data
     try:
-        sig = inspect.getfullargspec(obj)
-    except TypeError:  # if obj is exception
-        sig = inspect.getfullargspec(obj.__init__)
-    args, defaults = sig.args, sig.defaults or []
-    kwonly, kwonlydefaults = sig.kwonlyargs or [], sig.kwonlydefaults or {}
-    varargs, varkwargs = sig.varargs, sig.varkw
+        sig = inspect.signature(obj)
+    except Exception:
+        sig = inspect.signature(obj.__init__)
+    items = []
+    for n, p in enumerate(sig.parameters.values()):
+        # drop self or cls from methods
+        if n == 0 and p.name in ("self", "cls"):
+            continue
+        if p.kind == inspect.Parameter.VAR_POSITIONAL:
+            items.append(f"*{p.name}")
+        elif p.kind == inspect.Parameter.VAR_KEYWORD:
+            items.append(f"**{p.name}")
+        elif p.default is not inspect.Parameter.empty:
+            default = p.default
+            if isinstance(default, MagicMock):
+                mock = default
+                default = mock._mock_name
+                while mock._mock_parent:
+                    default = f"{mock._mock_parent._mock_name}.{default}"
+                    mock = mock._mock_parent
+            elif isinstance(default, str):
+                # force double quotes
+                default = f'"{default}"'
+            else:
+                default = repr(default)
+            items.append((p.name, default))
+        else:
+            items.append(p.name)
+    return items
 
-    if args == []:
-        standalone, kwargs = [], []
-    else:
-        if args[0] in ["cls", "self"]:
-            args = args[1:]  # remove cls or self from displayed signature
 
-        standalone = args[: -len(defaults)] if defaults else args  # true args
-        kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs
-
-    varargs = [f"*{varargs}"] if varargs else []
-    varkwargs = [f"**{varkwargs}"] if varkwargs else []
-    if kwonly:
-        kwargs.extend([(kw, default) for kw, default in kwonlydefaults.items()])
-        kwonly = [k for k in kwonly if k not in kwonlydefaults]
-
-    return standalone, varargs, kwonly, kwargs, varkwargs
-
-
-@preprocess(remove_partial=False)
 def format_signature(obj):
-    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
-    add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
-
-    for name, val in kwargs:
-        if isinstance(val, MagicMock):
-            mock = val
-            stringified = mock._mock_name
-            while mock._mock_parent:
-                stringified = f"{mock._mock_parent._mock_name}.{stringified}"
-                mock = mock._mock_parent
-
-            val = stringified
-
-    psig = ", ".join(
-        standalone
-        + varargs
-        + kwonly
-        + [f"{name}={add_quotes(val)}" for name, val in kwargs]
-        + varkwargs
-    )
-
-    return psig
+    items = get_call_signature(obj)
+    return ", ".join(a if isinstance(a, str) else f"{a[0]}={a[1]}" for a in items)
 
 
 @preprocess
@@ -507,7 +493,37 @@ if __name__ == "__main__":
                 f.write(front_matter)
                 title = page.get("title")
                 if title:  # this would be a good place to have assignments
-                    f.write(f"# {title}\n---\n")
+                    experimental = page.get("experimental")
+                    if experimental:
+                        f.write(
+                            f"""# {title}\n
+::: warning Experimental
+<div class="experimental-warning">
+<svg
+    aria-hidden="true"
+    focusable="false"
+    role="img"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 448 512"
+    >
+<path
+fill="#e90"
+d="M437.2 403.5L320 215V64h8c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24H120c-13.3 0-24 10.7-24 24v16c0 13.3 10.7 24 24 24h8v151L10.8 403.5C-18.5 450.6 15.3 512 70.9 512h306.2c55.7 0 89.4-61.5 60.1-108.5zM137.9 320l48.2-77.6c3.7-5.2 5.8-11.6 5.8-18.4V64h64v160c0 6.9 2.2 13.2 5.8 18.4l48.2 77.6h-172z"
+>
+</path>
+</svg>
+
+<div>
+The functionality here is experimental, and may change between versions without notice. Use at your own risk.
+</div>
+</div>
+:::
+
+---\n
+"""
+                        )
+                    else:
+                        f.write(f"# {title}\n---\n")
 
                 top_doc_obj = page.get("top-level-doc")
                 if top_doc_obj is not None:

@@ -1,2 +1,0 @@
-feature:
-  - "Add API for storing task run artifacts in the backend - [#3581](https://github.com/PrefectHQ/prefect/pull/3581)"

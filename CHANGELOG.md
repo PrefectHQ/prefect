@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.13.16 <Badge text="beta" type="success" />
+
+Released on November 17, 2020.
+
+### Enhancements
+
+- Experimental support for Python 3.9 - [#3411](https://github.com/PrefectHQ/prefect/pull/3411)
+
+### Fixes
+
+- Fixes Flow.replace freezing reference tasks - [#3655](https://github.com/PrefectHQ/prefect/issues/3655)
+- Fixed bug where `flow.serialized_hash()` could return inconsistent values across new python instances - [#3654](https://github.com/PrefectHQ/prefect/pull/3654)
+
+### Contributors
+
+- [Ben Fogelson](https://github.com/benfogelson)
+
+## 0.13.15 <Badge text="beta" type="success" />
+
+Released on November 11, 2020.
+
+### Features
+
+- Add API for storing task run artifacts in the backend - [#3581](https://github.com/PrefectHQ/prefect/pull/3581)
+
+### Enhancements
+
+- Allow for setting `Client` headers before loading tenant when running with Prefect Server - [#3515](https://github.com/PrefectHQ/prefect/issues/3515)
+- Checkpoint all iterations of Looped tasks - [#3619](https://github.com/PrefectHQ/prefect/issues/3619)
+- Add `ref` option to GitHub storage for specifying branches other than master - [#3638](https://github.com/PrefectHQ/prefect/issues/3638)
+- Added `ExecuteNotebook` task for running Jupyter notebooks - [#3599](https://github.com/PrefectHQ/prefect/pull/3599)
+- Pass `day_or` croniter argument to CronClock and CronSchedule  - [#3612](https://github.com/PrefectHQ/prefect/pull/3612)
+- `Client.create_project` and `prefect create project` will skip creating the project if the project already exists - [#3630](https://github.com/PrefectHQ/prefect/pull/3630)
+- Update deployments extension to AppsV1Api - [#3637](https://github.com/PrefectHQ/prefect/pull/3637)
+- `PrefectSecret` and `EnvVarSecret` tasks no longer require secret names be provided at flow creation time - [#3641](https://github.com/PrefectHQ/prefect/pull/3641)
+
+### Fixes
+
+- Fix issue with retrying mapped pipelines on dask - [#3519](https://github.com/PrefectHQ/prefect/issues/3519)
+- Task arguments take precedence when generating `task_run_name` - [#3605](https://github.com/PrefectHQ/prefect/issues/3605)
+- Fix breaking change in flow registration with old server versions - [#3642](https://github.com/PrefectHQ/prefect/pull/3642)
+- Task arguments take precedence when generating templated targets and locations - [#3627](https://github.com/PrefectHQ/prefect/pull/3627)
+
+### Breaking Changes
+
+- Environment variable config values now parse without requiring escaping backslashes - [#3603](https://github.com/PrefectHQ/prefect/issues/3603)
+
+### Contributors
+
+- [Amanda Wee](https://github.com/amanda-wee)
+- [Avi Aminov](https://github.com/bachsh)
+- [Brad McElroy](https://github.com/limx0)
+- [Emilien Garreau](https://github.com/EmGarr)
+- [Joël Luijmes](https://github.com/joelluijmes)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+
 ## 0.13.14 <Badge text="beta" type="success" />
 
 Released on November 5, 2020.

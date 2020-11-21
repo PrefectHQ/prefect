@@ -7,6 +7,8 @@ import random
 import sys
 import tempfile
 import time
+import subprocess
+import textwrap
 from unittest.mock import MagicMock, patch
 
 import cloudpickle
@@ -1649,6 +1651,16 @@ class TestReplace:
         with pytest.raises(ValueError):
             f.edges_to(t1)
 
+    def test_replace_leaves_unset_reference_tasks_alone(self):
+        with Flow(name="test") as f:
+            t1 = Task(name="t1")()
+            t2 = Task(name="t2")(upstream_tasks=[t1])
+        t3 = Task(name="t3")
+        f.replace(t1, t3)
+        t4 = Task(name="t4")
+        f.add_task(t4)
+        assert f.reference_tasks() == {t2, t4}
+
     def test_replace_update_slugs(self):
         flow = Flow("test")
         p1, p2 = Parameter("p"), Parameter("p")
@@ -1858,6 +1870,35 @@ class TestSerializedHash:
 
     def test_is_different_with_different_flow_name(self):
         assert Flow("foo").serialized_hash() != Flow("bar").serialized_hash()
+
+    def test_is_same_in_new_python_instance(self, tmpdir):
+        contents = textwrap.dedent(
+            """
+        from prefect import task, Flow
+
+        @task
+        def dummy_task():
+            return "nothing interesting"
+
+        with Flow("example-flow") as flow:
+            dummy_task()
+
+        if __name__ == "__main__":
+            print(flow.serialized_hash())
+        """
+        )
+        script = tmpdir.join("flow.py")
+        script.write_text(contents, encoding="utf-8")
+
+        hashes = []
+        for _ in range(2):
+            result = subprocess.run(
+                [sys.executable, script], stdout=subprocess.PIPE, check=True
+            )
+            hashes.append(result.stdout)
+
+        assert hashes[0]  # Ensure we don't have an empty string or None
+        assert len(set(hashes)) == 1
 
     def test_is_different_with_modified_flow_name(self):
         f1 = Flow("foo")

@@ -430,8 +430,18 @@ class TaskRunner(Runner):
             - ENDRUN: either way, we dont continue past this point
         """
         if state.is_mapped():
+            # this indicates we are executing a re-run of a mapped pipeline;
+            # in this case, we populate both `map_states` and `cached_inputs`
+            # to ensure the flow runner can properly regenerate the child tasks,
+            # regardless of whether we mapped over an exchanged piece of data
+            # or a non-data-exchanging upstream dependency
             if len(state.map_states) == 0 and state.n_map_states > 0:  # type: ignore
                 state.map_states = [None] * state.n_map_states  # type: ignore
+            state.cached_inputs = {
+                edge.key: state._result  # type: ignore
+                for edge, state in upstream_states.items()
+                if edge.key
+            }
             raise ENDRUN(state)
 
         # we can't map if there are no success states with iterables upstream
