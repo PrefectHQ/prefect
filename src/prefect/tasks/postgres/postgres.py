@@ -100,6 +100,104 @@ class PostgresExecute(Task):
             raise
 
 
+class PostgresExecuteMany(Task):
+    """
+    Task for executing many queries against a Postgres database.
+
+    Args:
+        - db_name (str): name of Postgres database
+        - user (str): user name used to authenticate
+        - host (str): database host address
+        - port (int, optional): port used to connect to Postgres database, defaults to 5432 if
+            not provided
+        - query (str, optional): query to execute against database
+            is query string
+        - data (List[tuple], optional): list of values to use in query, must be specified using placeholder
+        - commit (bool, optional): set to True to commit transaction, defaults to false
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        db_name: str,
+        user: str,
+        host: str,
+        port: int = 5432,
+        query: str = None,
+        data: list = None,
+        commit: bool = False,
+        **kwargs
+    ):
+        self.db_name = db_name
+        self.user = user
+        self.host = host
+        self.port = port
+        self.query = query
+        self.data = data
+        self.commit = commit
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("query", "data", "commit")
+    def run(
+        self,
+        query: str = None,
+        data: list = None,
+        commit: bool = False,
+        password: str = None,
+    ):
+        """
+        Task run method. Executes a query against Postgres database.
+
+        Args:
+            - query (str, optional): query to execute against database
+            - data (list): list of values to use in query, must be specified using placeholder
+            - commit (bool, optional): set to True to commit transaction, defaults to false
+            - password (str): password used to authenticate; should be provided from a `Secret` task
+
+        Returns:
+            - None
+
+        Raises:
+            - ValueError: if query parameter is None or a blank string
+            - DatabaseError: if exception occurs when executing the query
+        """
+        if not query:
+            raise ValueError("A query string must be provided")
+
+        if not data:
+            raise ValueError("A data list must be provided")
+
+        # connect to database, open cursor
+        # allow psycopg2 to pass through any exceptions raised
+        conn = pg.connect(
+            dbname=self.db_name,
+            user=self.user,
+            password=password,
+            host=self.host,
+            port=self.port,
+        )
+
+        # try to execute query
+        # context manager automatically rolls back failed transactions
+        try:
+            with conn:
+                with conn.cursor() as cursor:
+                    executed = cursor.executemany(query=query, vars_list=data)
+                    if commit:
+                        conn.commit()
+                    else:
+                        conn.rollback()
+
+            conn.close()
+            return executed
+
+        # pass through error, and ensure connection is closed
+        except (Exception, pg.DatabaseError):
+            conn.close()
+            raise
+
+
 class PostgresFetch(Task):
     """
     Task for fetching results of query from Postgres database.

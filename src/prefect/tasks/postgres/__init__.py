@@ -4,7 +4,11 @@ the psycopg2 library.
 """
 
 try:
-    from prefect.tasks.postgres.postgres import PostgresExecute, PostgresFetch
+    from prefect.tasks.postgres.postgres import (
+        PostgresExecute,
+        PostgresExecuteMany,
+        PostgresFetch,
+    )
 except ImportError:
     raise ImportError(
         'Using `prefect.tasks.postgres` requires Prefect to be installed with the "postgres" extra.'
