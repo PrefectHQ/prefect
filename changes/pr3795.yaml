@@ -1,0 +1,5 @@
+enhancement:
+  - "Add a new postgres task PostgresExecuteMany"
+
+contributor:
+  - "[Faris ALSaleem](https://github.com/FarisALSaleem)"
