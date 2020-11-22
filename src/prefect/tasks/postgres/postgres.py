@@ -112,7 +112,8 @@ class PostgresExecuteMany(Task):
             not provided
         - query (str, optional): query to execute against database
             is query string
-        - data (List[tuple], optional): list of values to use in query, must be specified using placeholder
+        - data (List[tuple], optional): list of values to use in query, must be specified using
+            placeholder
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
