@@ -1,0 +1,5 @@
+fix:
+   - "Fix log filtering in tests - [#3702](https://github.com/PrefectHQ/prefect/pull/3702)"
+
+contributor:
+   - "[Takayuki Hirayama](https://github.com/yukihira1992)"
