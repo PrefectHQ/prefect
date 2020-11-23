@@ -216,26 +216,12 @@ module.exports = {
           ]
         },
         {
-          title: 'Deployment',
+          title: 'Flow Run Configuration',
           collapsable: true,
           children: [
-            'deployment/overview',
-            'deployment/storage',
-            'deployment/run_configs'
-          ]
-        },
-        {
-          title: 'Execution Environments',
-          collapsable: true,
-          children: [
-            'execution/overview',
-            'execution/storage_options',
-            'execution/local_environment',
-            'execution/dask_cloud_provider_environment',
-            'execution/dask_k8s_environment',
-            'execution/k8s_job_environment',
-            'execution/fargate_task_environment',
-            'execution/custom_environment'
+            'flow_config/overview',
+            'flow_config/storage',
+            'flow_config/run_configs'
           ]
         },
         {
@@ -247,6 +233,20 @@ module.exports = {
             'agents/docker',
             'agents/kubernetes',
             'agents/fargate'
+          ]
+        },
+        {
+          title: 'Legacy Environments',
+          collapsable: true,
+          children: [
+            'execution/overview',
+            'execution/storage_options',
+            'execution/local_environment',
+            'execution/dask_cloud_provider_environment',
+            'execution/dask_k8s_environment',
+            'execution/k8s_job_environment',
+            'execution/fargate_task_environment',
+            'execution/custom_environment'
           ]
         },
         {
