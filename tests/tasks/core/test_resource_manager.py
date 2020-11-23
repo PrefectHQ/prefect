@@ -41,18 +41,26 @@ def test_resource_manager_default_init():
     assert manager.name == "MyResource"
     assert manager.resource_class == MyResource
     assert manager.init_task_kwargs == {"name": "MyResource"}
-    assert manager.setup_task_kwargs == {"name": "MyResource.setup"}
+    assert manager.setup_task_kwargs == {
+        "name": "MyResource.setup",
+        "checkpoint": False,
+    }
     assert manager.cleanup_task_kwargs == {
         "name": "MyResource.cleanup",
         "trigger": resource_cleanup_trigger,
         "skip_on_upstream_skip": False,
+        "checkpoint": False,
     }
 
 
 def test_resource_manager_init_overrides():
     init_task_kwargs = {"name": "init_name", "tags": ["init"]}
-    setup_task_kwargs = {"name": "setup_name", "tags": ["setup"]}
-    cleanup_task_kwargs = {"name": "cleanup_name", "tags": ["cleanup"]}
+    setup_task_kwargs = {"name": "setup_name", "tags": ["setup"], "checkpoint": True}
+    cleanup_task_kwargs = {
+        "name": "cleanup_name",
+        "tags": ["cleanup"],
+        "checkpoint": True,
+    }
 
     manager = resource_manager(
         MyResource,
@@ -252,6 +260,47 @@ def test_resource_manager_execution_with_failure_in_manager(kind):
         assert state.result[a].is_successful()
         assert on_setup.called
         assert on_cleanup.call_args == ((100,), {})
+
+
+def test_resource_tasks_always_rerun_on_flow_restart():
+    @resource_manager
+    class Resource:
+        def __init__(self):
+            nonlocal init_run
+            init_run = True
+
+        def setup(self):
+            nonlocal setup_run
+            setup_run = True
+            return 1
+
+        def cleanup(self, val):
+            nonlocal cleanup_run
+            cleanup_run = True
+
+    with Flow("test") as flow:
+        context = Resource()
+        with context as resource:
+            a = inc(resource)
+            b = inc(resource)
+            c = add(a, b)
+
+    # rerun from partial completion
+    task_states = {
+        context.init_task: Success(result=Resource.resource_class()),
+        context.setup_task: Success(),
+        context.cleanup_task: Success(),
+        a: Success(result=2),
+    }
+    init_run = setup_run = cleanup_run = False
+    res = flow.run(task_states=task_states)
+    assert res.is_successful()
+    assert res.result[a].result == 2
+    assert res.result[b].result == 2
+    assert res.result[c].result == 4
+    assert not init_run  # existing result used
+    assert setup_run  # setup re-run
+    assert cleanup_run  # cleanup re-run
 
 
 def test_resource_cleanup_trigger():

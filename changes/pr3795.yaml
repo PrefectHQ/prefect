@@ -1,0 +1,5 @@
+task:
+  - "Add a new postgres task `PostgresExecuteMany` - [#3703](https://github.com/PrefectHQ/prefect/pull/3703)"
+
+contributor:
+  - "[Faris ALSaleem](https://github.com/FarisALSaleem)"

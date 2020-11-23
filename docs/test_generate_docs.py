@@ -48,15 +48,8 @@ def consistency_check(obj, obj_name):
     except ValueError:
         doc_args = set()
 
-    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
-    actual_args = (
-        set()
-        .union(standalone)
-        .union(varargs)
-        .union([k for k, v in kwonly])
-        .union([k for k, v in kwargs])
-        .union(varkwargs)
-    )
+    items = get_call_signature(obj)
+    actual_args = {(a if isinstance(a, str) else a[0]) for a in items}
 
     undocumented = actual_args.difference(doc_args)
     # If the sig contains **kwargs, any keyword is valid

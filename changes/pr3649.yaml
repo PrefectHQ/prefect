@@ -1,0 +1,3 @@
+enhancement:
+  - "ShellTask returns output on failure - [#3649](https://github.com/PrefectHQ/prefect/pull/3649)"
+  - "ShellTask allows streaming of output independently of the number of lines returned - [#3649](https://github.com/PrefectHQ/prefect/pull/3649)"
