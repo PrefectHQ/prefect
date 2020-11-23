@@ -148,11 +148,11 @@ class PostgresExecuteMany(Task):
         password: str = None,
     ):
         """
-        Task run method. Executes a query against Postgres database.
+        Task run method. Executes many queries against Postgres database.
 
         Args:
             - query (str, optional): query to execute against database
-            - data (list): list of values to use in query, must be specified using placeholder
+            - data (List[tuple], optional): list of values to use in query, must be specified using placeholder
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
 
