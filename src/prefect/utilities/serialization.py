@@ -241,9 +241,6 @@ class SortedList(fields.List):
         - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
     """
 
-    def __init__(self, cls_or_instance: Union[fields.Field, type], **kwargs: Any):
-        super().__init__(cls_or_instance, **kwargs)
-
     def _serialize(self, value, attr, obj, **kwargs):
         return sorted(super()._serialize(value, attr, obj, **kwargs))
 
