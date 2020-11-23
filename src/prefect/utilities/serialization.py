@@ -4,7 +4,7 @@ import inspect
 import json
 import sys
 import types
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List
 
 import marshmallow_oneofschema
 import pendulum
