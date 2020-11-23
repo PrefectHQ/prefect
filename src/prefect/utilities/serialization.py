@@ -4,7 +4,7 @@ import inspect
 import json
 import sys
 import types
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Union
 
 import marshmallow_oneofschema
 import pendulum
@@ -229,6 +229,23 @@ class Nested(fields.Nested):
         if value is missing:
             return value
         return super()._serialize(value, attr, obj, **kwargs)
+
+
+class SortedList(fields.List):
+    """
+    An extension of the Marshmallow List field that sorts the serialized object for
+    determinism
+
+    Args:
+        - cls_or_instance (type): the inner field class
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
+    """
+
+    def __init__(self, cls_or_instance: Union[fields.Field, type], **kwargs: Any):
+        super().__init__(cls_or_instance, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return sorted(super()._serialize(value, attr, obj, **kwargs))
 
 
 class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
