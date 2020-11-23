@@ -10,13 +10,9 @@ Visit the [Concept](/orchestration/concepts/api.html) docs for actions such as w
 
 To learn more about Prefect agents, [flow affinity](/orchestration/agents/overview.html#flow-affinity-labels) via labels, or find information on platform specific agents visit the [agent](/orchestration/agents/overview.html) documentation.
 
-## Storage Options
+## Flow Configuration
 
-Store your flows in the cloud using Azure, GCS, or S3! For more information visit the [Storage Options](/orchestration/execution/storage_options.html) documentation.
-
-## Execution Environments
-
-For information related to execution environments take a look at the [execution](/orchestration/execution/overview.html) documentation.
+For information on all the options for configuring a flow for deployment, see the [Flow Run Configuration](/orchestration/flow_config.md) documentation.
 
 ## Deployment Recipes
 
