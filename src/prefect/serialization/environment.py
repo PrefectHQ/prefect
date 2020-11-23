@@ -16,7 +16,7 @@ from prefect.utilities.serialization import (
     OneOfSchema,
     to_qualified_name,
     JSONCompatible,
-
+    SortedList,
 )
 
 
@@ -24,7 +24,7 @@ class BaseEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = Environment
 
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -32,7 +32,7 @@ class LocalEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = LocalEnvironment
 
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -41,7 +41,7 @@ class DaskKubernetesEnvironmentSchema(ObjectSchema):
         object_class = DaskKubernetesEnvironment
 
     docker_secret = fields.String(allow_none=True)
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
     private_registry = fields.Boolean(allow_none=False)
     min_workers = fields.Int()
@@ -52,7 +52,7 @@ class FargateTaskEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = FargateTaskEnvironment
 
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -60,7 +60,7 @@ class KubernetesJobEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = KubernetesJobEnvironment
 
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -70,7 +70,7 @@ class RemoteEnvironmentSchema(ObjectSchema):
 
     executor = fields.String(allow_none=True)
     executor_kwargs = fields.Dict(allow_none=True)
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -79,7 +79,7 @@ class RemoteDaskEnvironmentSchema(ObjectSchema):
         object_class = RemoteDaskEnvironment
 
     address = fields.String()
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -88,7 +88,7 @@ class CustomEnvironmentSchema(ObjectSchema):
         object_class = lambda: Environment
         exclude_fields = ["type"]
 
-    labels = List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
     type = fields.Function(
