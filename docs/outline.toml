@@ -400,7 +400,7 @@ classes = ["EmailTask", "SlackTask", "PushbulletTask"]
 [pages.tasks.postgres]
 title = "Postgres Tasks"
 module = "prefect.tasks.postgres"
-classes = ["PostgresExecute", "PostgresFetch"]
+classes = ["PostgresExecute", "PostgresExecuteMany", "PostgresFetch"]
 
 [pages.tasks.redis]
 title = "Redis Tasks"
