@@ -152,7 +152,8 @@ class PostgresExecuteMany(Task):
 
         Args:
             - query (str, optional): query to execute against database
-            - data (List[tuple], optional): list of values to use in query, must be specified using placeholder
+            - data (List[tuple], optional): list of values to use in query, must be specified using
+                placeholder
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
 
