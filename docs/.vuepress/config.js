@@ -220,7 +220,8 @@ module.exports = {
           collapsable: true,
           children: [
             'deployment/overview',
-            'deployment/storage'
+            'deployment/storage',
+            'deployment/run_configs'
           ]
         },
         {
