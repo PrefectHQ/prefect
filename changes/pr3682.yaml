@@ -1,0 +1,2 @@
+fix:
+  - "Make `serialized_hash` handle unordered task sets correctly - [#3682](https://github.com/PrefectHQ/prefect/pull/3682)"
