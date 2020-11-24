@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from marshmallow import fields, post_load, utils
+from marshmallow import fields, post_load, utils, missing
 
 import prefect
 from prefect.serialization.edge import EdgeSchema
@@ -24,6 +24,9 @@ def get_parameters(obj: prefect.Flow, context: dict) -> List:
     else:
         params = utils.get_value(obj, "parameters")
 
+    if params is missing:
+        return params
+
     return sorted(params, key=lambda p: p.slug)
 
 
@@ -33,17 +36,36 @@ def get_reference_tasks(obj: prefect.Flow, context: dict) -> List:
     else:
         tasks = utils.get_value(obj, "reference_tasks")
 
+    if tasks is missing:
+        return tasks
+
     return sorted(tasks, key=lambda t: t.slug)
 
 
 def get_tasks(obj: prefect.Flow, context: dict) -> List:
-    return list(sorted(obj.tasks, key=lambda t: t.slug))
+    if isinstance(obj, prefect.Flow):
+        tasks = obj.tasks
+    else:
+        tasks = utils.get_value(obj, "tasks")
+
+    if tasks is missing:
+        return tasks
+
+    return list(sorted(tasks, key=lambda t: t.slug))
 
 
 def get_edges(obj: prefect.Flow, context: dict) -> List:
+    if isinstance(obj, prefect.Flow):
+        edges = obj.edges
+    else:
+        edges = utils.get_value(obj, "edges")
+
+    if edges is missing:
+        return edges
+
     return list(
         sorted(
-            obj.edges,
+            edges,
             key=lambda e: (e.upstream_task.slug, e.downstream_task.slug),
         )
     )
