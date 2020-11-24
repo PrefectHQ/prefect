@@ -313,8 +313,8 @@ def format_graphql_request_error(response: Response) -> str:
     query = parse_graphql(params.get("query", {}))
     variables = parse_graphql(params.get("variables", {}))
 
-    text = json.loads(response.text)
-    errors = text.get("errors", [])
+    content = response.json()
+    errors = content.get("errors", [])
     error_msgs = []
     for error in errors:
         message = error.get("message", "No error message supplied.")
