@@ -339,7 +339,7 @@ def format_graphql_request_error(response: Response) -> str:
             {multiline_indent(error_paragraph, 12)}
 
         The GraphQL query was:
-        
+
             {multiline_indent(query, 12)}
 
         The passed variables were:
