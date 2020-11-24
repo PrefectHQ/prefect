@@ -122,6 +122,64 @@ def test_graphql_errors_get_raised(patch_post):
         client.graphql("query: {}")
 
 
+class TestClientGraphQLErrorHandling:
+    @pytest.fixture()
+    def patch_post_response(self, monkeypatch):
+        response = requests.Response()
+        response.status_code = 400
+        session = MagicMock()
+        session.return_value.post = MagicMock(return_value=response)
+        monkeypatch.setattr("requests.Session", session)
+
+    def test_graphql_errors_calls_formatter_and_displays(
+        patch_post_response, monkeypatch
+    ):
+        formatter = MagicMock(return_value="Formatted graphql message")
+        monkeypatch.setattr(
+            "prefect.client.client.format_graphql_request_error", formatter
+        )
+
+        with set_temporary_config(
+            {
+                "cloud.api": "http://my-cloud.foo",
+                "cloud.auth_token": "secret_token",
+                "backend": "cloud",
+            }
+        ):
+            client = Client()
+
+        with pytest.raises(ClientError, match="Formatted graphql message"):
+            client.graphql({"query": "foo"})
+
+        formatter.assert_called_once()
+
+    def test_graphql_errors_allow_formatter_to_fail(patch_post_response, monkeypatch):
+        def erroring_formatter():
+            raise Exception("Bad formatter")
+
+        monkeypatch.setattr(
+            "prefect.client.client.format_graphql_request_error", erroring_formatter
+        )
+
+        with set_temporary_config(
+            {
+                "cloud.api": "http://my-cloud.foo",
+                "cloud.auth_token": "secret_token",
+                "backend": "cloud",
+            }
+        ):
+            client = Client()
+
+        with pytest.raises(
+            ClientError,
+            match=(
+                "This is likely caused by a poorly formatted GraphQL query or "
+                "mutation but the response could not be parsed for more details"
+            ),
+        ):
+            client.graphql({"query": "foo"})
+
+
 def test_client_register_raises_if_required_param_isnt_scheduled(
     patch_post, monkeypatch, tmpdir
 ):
