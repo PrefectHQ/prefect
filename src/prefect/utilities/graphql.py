@@ -309,9 +309,9 @@ def format_graphql_request_error(response: Response) -> str:
     Returns:
         A formatted string
     """
-    params = json.loads(response.request.body or "")
-    query = parse_graphql(params.get("query", {}))
-    variables = parse_graphql(params.get("variables", {}))
+    params = json.loads(response.request.body or "{}")
+    query = parse_graphql(params.get("query", {})) or "null"
+    variables = parse_graphql(params.get("variables", {})) or "null"
 
     content = response.json()
     errors = content.get("errors", [])
