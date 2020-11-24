@@ -1,5 +1,0 @@
-fix:
-  - "Use `exist_ok` flag in `os.makedirs` to avoid race condition in local storage class - [#3679](https://github.com/PrefectHQ/prefect/pull/3679)"
-
-contributor:
-  - "[R Max Espinoza](https://github.com/rmax)"

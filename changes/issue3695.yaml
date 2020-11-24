@@ -1,3 +1,0 @@
-enhancement:
-  - "Allow chaining of `Task` imperative dependency calls - [#3696](https://github.com/PrefectHQ/prefect/pull/3696)"
-
