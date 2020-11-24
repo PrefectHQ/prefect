@@ -304,6 +304,8 @@ class Client:
             retry_on_api_error=retry_on_api_error,
         )
 
+        # TODO: It looks like this code is never reached because errors are raised
+        #       in self._send_request by default
         if raise_on_error and "errors" in result:
             if "UNAUTHENTICATED" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
