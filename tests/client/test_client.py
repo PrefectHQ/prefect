@@ -810,7 +810,7 @@ def test_set_flow_run_name(patch_posts, cloud_api):
     client = Client()
     result = client.set_flow_run_name(flow_run_id="74-salt", name="name")
 
-    assert result == True
+    assert result is True
 
 
 def test_cancel_flow_run(patch_posts, cloud_api):
@@ -821,7 +821,7 @@ def test_cancel_flow_run(patch_posts, cloud_api):
     client = Client()
     result = client.cancel_flow_run(flow_run_id="74-salt")
 
-    assert result == True
+    assert result is True
 
 
 def test_get_flow_run_info(patch_post):
@@ -1173,7 +1173,7 @@ def test_set_task_run_name(patch_posts, cloud_api):
     client = Client()
     result = client.set_task_run_name(task_run_id="76-salt", name="name")
 
-    assert result == True
+    assert result is True
 
 
 def test_get_task_run_state(patch_posts, cloud_api, runner_token):

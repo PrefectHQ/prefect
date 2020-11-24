@@ -268,57 +268,41 @@ def format_command_doc(name, ctx, cmd):
 @preprocess(remove_partial=False)
 def get_call_signature(obj):
     assert callable(obj), f"{obj} is not callable, cannot format signature."
-    # collect data
     try:
-        sig = inspect.getfullargspec(obj)
-    except TypeError:  # if obj is exception
-        sig = inspect.getfullargspec(obj.__init__)
-    args, defaults = sig.args, sig.defaults or []
-    kwonly, kwonlydefaults = sig.kwonlyargs or [], sig.kwonlydefaults or {}
-    varargs, varkwargs = sig.varargs, sig.varkw
+        sig = inspect.signature(obj)
+    except Exception:
+        sig = inspect.signature(obj.__init__)
+    items = []
+    for n, p in enumerate(sig.parameters.values()):
+        # drop self or cls from methods
+        if n == 0 and p.name in ("self", "cls"):
+            continue
+        if p.kind == inspect.Parameter.VAR_POSITIONAL:
+            items.append(f"*{p.name}")
+        elif p.kind == inspect.Parameter.VAR_KEYWORD:
+            items.append(f"**{p.name}")
+        elif p.default is not inspect.Parameter.empty:
+            default = p.default
+            if isinstance(default, MagicMock):
+                mock = default
+                default = mock._mock_name
+                while mock._mock_parent:
+                    default = f"{mock._mock_parent._mock_name}.{default}"
+                    mock = mock._mock_parent
+            elif isinstance(default, str):
+                # force double quotes
+                default = f'"{default}"'
+            else:
+                default = repr(default)
+            items.append((p.name, default))
+        else:
+            items.append(p.name)
+    return items
 
-    if args == []:
-        standalone, kwargs = [], []
-    else:
-        if args[0] in ["cls", "self"]:
-            args = args[1:]  # remove cls or self from displayed signature
 
-        standalone = args[: -len(defaults)] if defaults else args  # true args
-        kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs
-
-    varargs = [f"*{varargs}"] if varargs else []
-    varkwargs = [f"**{varkwargs}"] if varkwargs else []
-    if kwonly:
-        kwargs.extend([(kw, default) for kw, default in kwonlydefaults.items()])
-        kwonly = [k for k in kwonly if k not in kwonlydefaults]
-
-    return standalone, varargs, kwonly, kwargs, varkwargs
-
-
-@preprocess(remove_partial=False)
 def format_signature(obj):
-    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
-    add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
-
-    for name, val in kwargs:
-        if isinstance(val, MagicMock):
-            mock = val
-            stringified = mock._mock_name
-            while mock._mock_parent:
-                stringified = f"{mock._mock_parent._mock_name}.{stringified}"
-                mock = mock._mock_parent
-
-            val = stringified
-
-    psig = ", ".join(
-        standalone
-        + varargs
-        + kwonly
-        + [f"{name}={add_quotes(val)}" for name, val in kwargs]
-        + varkwargs
-    )
-
-    return psig
+    items = get_call_signature(obj)
+    return ", ".join(a if isinstance(a, str) else f"{a[0]}={a[1]}" for a in items)
 
 
 @preprocess

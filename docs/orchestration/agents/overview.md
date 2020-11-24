@@ -49,7 +49,11 @@ Prefect agents rely on the use of a `RUNNER` token from Prefect Cloud. For infor
 
 ### Flow Affinity: Labels
 
-Agents have an optional `labels` argument which allows for separation of execution when using multiple agents. This is especially useful for teams wanting to run specific flows on different clusters. For more information on labels and how to use them visit [Environments](../execution/overview.html#labels).
+Agents have an optional `labels` argument which allows for separation of
+execution when using multiple agents. This is especially useful for teams
+wanting to run specific flows on different clusters. For more information on
+labels and how to use them see the 
+[Run Configuration docs](../flow_config/run_configs.md#labels).
 
 By default, agents have no set labels and will only pick up runs from flows with no specified Environment Labels. Labels can be provided to an agent through a few methods:
 

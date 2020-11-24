@@ -1,5 +1,11 @@
 # Custom Environment
 
+::: warning
+Flows configured with environments are being deprecated - we recommend users
+transition to using "Run Configs" instead. See
+[the documentation](/orchestration/flow_config/overview.md) for more information.
+:::
+
 [[toc]]
 
 Prefect environments allow for completely custom, user-created environments. The only requirement is that your custom environment inherit from the base `Environment` class.

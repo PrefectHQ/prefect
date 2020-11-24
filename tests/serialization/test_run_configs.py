@@ -1,7 +1,15 @@
 import pytest
 
 from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun
-from prefect.serialization.run_config import RunConfigSchema
+from prefect.serialization.run_config import RunConfigSchema, RunConfigSchemaBase
+
+
+def test_serialized_run_config_sorts_labels():
+    assert RunConfigSchemaBase().dump({"labels": ["b", "c", "a"]})["labels"] == [
+        "a",
+        "b",
+        "c",
+    ]
 
 
 @pytest.mark.parametrize(
