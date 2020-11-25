@@ -36,7 +36,7 @@ def test_bitbucket_client_cloud(monkeypatch):
         bitbucket_client = storage._bitbucket_client
 
     assert bitbucket_client
-    bitbucket.assert_called_with("https://bitbucket.com", private_token="ACCESS_TOKEN")
+    bitbucket.assert_called_with("https://bitbucket.org", private_token="ACCESS_TOKEN")
 
 
 def test_bitbucket_client_server(monkeypatch):
@@ -45,8 +45,8 @@ def test_bitbucket_client_server(monkeypatch):
 
     storage = Bitbucket(
         project="PROJECT",
-        repo="transamerica.finance.actarial.prefect-flows",
-        host="http://bitbucket.us.aegon.com",
+        repo="test-repo",
+        host="http://localhost:1234",
     )
 
     credentials = "ACCESS_TOKEN"
@@ -55,7 +55,7 @@ def test_bitbucket_client_server(monkeypatch):
 
     assert bitbucket_client
     bitbucket.assert_called_with(
-        "http://bitbucket.us.aegon.com", private_token="ACCESS_TOKEN"
+        "http://localhost:1234", private_token="ACCESS_TOKEN"
     )
 
 
