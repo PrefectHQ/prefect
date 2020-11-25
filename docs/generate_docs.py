@@ -3,7 +3,9 @@ Functionality for auto-generating markdown documentation.
 
 Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
     - "page" -> (str): relative path to the markdown file this page represents
-    - "classes" -> (list, optional): list of classes to document
+    - "classes" -> (list or dict, optional): list of classes to document. If a
+        dict, the keys are class names and the values are lists of methods to
+        document.
     - "functions" -> (list, optional): list of standalone functions to document
     - "title" -> (str, optional): title of page
     - "top-level-doc" -> (object, optional): module object that contains the
@@ -51,6 +53,11 @@ def patch_imports():
         builtins.__import__ = real_import
 
 
+def import_object(name):
+    module, attr = name.rsplit(".", 1)
+    return getattr(importlib.import_module(module), attr)
+
+
 def load_outline(
     outline=outline_config["pages"],
     ext=outline_config.get("extension", ".md"),
@@ -60,47 +67,36 @@ def load_outline(
     for name, data in outline.items():
         fname = os.path.join(prefix or "", name)
         if "module" in data:
-            page = {}
-            page.update(
+            page = dict(
                 page=f"{fname}{ext}",
                 title=data.get("title", ""),
-                classes=[],
-                functions=[],
-                commands=[],
                 experimental=data.get("experimental", False),
             )
-            module = importlib.import_module(data["module"])
-            page["top-level-doc"] = module
+            module_name = data["module"]
+            page["top-level-doc"] = importlib.import_module(module_name)
 
             # extract documented function objects
-            # note that if one is listed as an attribute of a submodule
-            # we attempt to import the submodule and extract the function there
-            for fun in data.get("functions", []):
-                if "." in fun:
-                    parts = fun.split(".")
-                    submod = ".".join([module.__name__, parts[0]])
-                    module = importlib.import_module(submod)
-                    obj = getattr(module, parts[1])
-                else:
-                    obj = getattr(module, fun)
-                page["functions"].append(obj)
+            page["functions"] = [
+                import_object(f"{module_name}.{fun}")
+                for fun in data.get("functions", [])
+            ]
 
             # extract documented classes
-            # note that if one is listed as an attribute of a submodule
-            # we attempt to import the submodule and extract the class there
-            for clss in data.get("classes", []):
-                if "." in clss:
-                    parts = clss.split(".")
-                    submod = ".".join([module.__name__, parts[0]])
-                    module = importlib.import_module(submod)
-                    obj = getattr(module, parts[1])
-                else:
-                    obj = getattr(module, clss)
-                page["classes"].append(obj)
+            classes = data.get("classes", [])
+            if isinstance(classes, dict):
+                page["classes"] = [
+                    (import_object(f"{module_name}.{cls}"), methods)
+                    for cls, methods in classes.items()
+                ]
+            else:
+                page["classes"] = [
+                    (import_object(f"{module_name}.{cls}"), None) for cls in classes
+                ]
 
-            for cmd in data.get("commands", []):
-                obj = getattr(module, cmd)
-                page["commands"].append(obj)
+            page["commands"] = [
+                import_object(f"{module_name}.{cmd}")
+                for cmd in data.get("commands", [])
+            ]
             OUTLINE.append(page)
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))
@@ -354,12 +350,18 @@ def format_subheader(obj, level=1, in_table=False):
     return call_sig
 
 
-def get_class_methods(obj):
-    members = inspect.getmembers(
-        obj, predicate=lambda x: inspect.isroutine(x) and obj.__name__ in x.__qualname__
-    )
-    public_members = [method for (name, method) in members if not name.startswith("_")]
-    return public_members
+def get_class_methods(obj, methods=None):
+    if methods is None:
+        members = inspect.getmembers(
+            obj,
+            predicate=lambda x: inspect.isroutine(x) and obj.__name__ in x.__qualname__,
+        )
+        public_members = [
+            method for (name, method) in members if not name.startswith("_")
+        ]
+        return public_members
+    else:
+        return [getattr(obj, m) for m in methods]
 
 
 def create_tutorial_notebooks(tutorial):
@@ -530,7 +532,7 @@ The functionality here is experimental, and may change between versions without 
                     top_doc = inspect.getdoc(top_doc_obj)
                     if top_doc is not None:
                         f.write(top_doc + "\n")
-                for obj in classes:
+                for obj, methods in classes:
                     f.write(format_subheader(obj))
 
                     f.write(format_doc(obj) + "\n\n")
@@ -538,7 +540,7 @@ The functionality here is experimental, and may change between versions without 
                         f.write("\n")
                         continue
 
-                    public_members = get_class_methods(obj)
+                    public_members = get_class_methods(obj, methods)
                     f.write(create_methods_table(public_members, title="methods:"))
                     f.write("\n---\n<br>\n\n")
 
