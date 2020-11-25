@@ -83,21 +83,18 @@ class PostgresExecute(Task):
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
-            with conn:
-                with conn.cursor() as cursor:
-                    executed = cursor.execute(query=query, vars=data)
-                    if commit:
-                        conn.commit()
-                    else:
-                        conn.rollback()
+            with conn, conn.cursor() as cursor:
+                executed = cursor.execute(query=query, vars=data)
+                if commit:
+                    conn.commit()
+                else:
+                    conn.rollback()
 
-            conn.close()
             return executed
 
-        # pass through error, and ensure connection is closed
-        except (Exception, pg.DatabaseError):
+        # ensure connection is closed
+        finally:
             conn.close()
-            raise
 
 
 class PostgresExecuteMany(Task):
@@ -183,21 +180,18 @@ class PostgresExecuteMany(Task):
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
-            with conn:
-                with conn.cursor() as cursor:
-                    executed = cursor.executemany(query=query, vars_list=data)
-                    if commit:
-                        conn.commit()
-                    else:
-                        conn.rollback()
+            with conn, conn.cursor() as cursor:
+                executed = cursor.executemany(query=query, vars_list=data)
+                if commit:
+                    conn.commit()
+                else:
+                    conn.rollback()
 
-            conn.close()
             return executed
 
-        # pass through error, and ensure connection is closed
-        except (Exception, pg.DatabaseError):
+        # ensure connection is closed
+        finally:
             conn.close()
-            raise
 
 
 class PostgresFetch(Task):
@@ -298,25 +292,22 @@ class PostgresFetch(Task):
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
-            with conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(query=query, vars=data)
+            with conn, conn.cursor() as cursor:
+                cursor.execute(query=query, vars=data)
 
-                    # fetch results
-                    if fetch == "all":
-                        records = cursor.fetchall()
-                    elif fetch == "many":
-                        records = cursor.fetchmany(fetch_count)
-                    else:
-                        records = cursor.fetchone()
+                # fetch results
+                if fetch == "all":
+                    records = cursor.fetchall()
+                elif fetch == "many":
+                    records = cursor.fetchmany(fetch_count)
+                else:
+                    records = cursor.fetchone()
 
-                    if commit:
-                        conn.commit()
+                if commit:
+                    conn.commit()
 
-            conn.close()
             return records
 
-        # pass through error, and ensure connection is closed
-        except (Exception, pg.DatabaseError):
+        # ensure connection is closed
+        finally:
             conn.close()
-            raise
