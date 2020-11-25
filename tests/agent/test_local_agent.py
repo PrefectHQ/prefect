@@ -8,16 +8,7 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import (
-    Docker,
-    Local,
-    Azure,
-    GCS,
-    S3,
-    Webhook,
-    GitLab,
-    Bitbucket,
-)
+from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook, GitLab, Bitbucket
 from prefect.run_configs import LocalRun, KubernetesRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult

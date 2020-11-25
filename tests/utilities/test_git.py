@@ -19,11 +19,7 @@ except ImportError:
     Bitbucket = None
 
 import prefect
-from prefect.utilities.git import (
-    get_github_client,
-    get_gitlab_client,
-    get_bitbucket_client,
-)
+from prefect.utilities.git import get_github_client, get_gitlab_client, get_bitbucket_client
 from prefect.utilities.configuration import set_temporary_config
 
 
