@@ -644,7 +644,8 @@ class Docker(Storage):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")
 
-    def _parse_generator_output(self, generator: Iterable) -> None:
+    @staticmethod
+    def _parse_generator_output(generator: Iterable) -> None:
         """
         Parses and writes a Docker command's output to stdout
         """
