@@ -814,15 +814,6 @@ def test_push_image_raises_if_error_encountered(monkeypatch):
         storage.push_image(image_name="test", image_tag="test")
 
 
-def test_parse_output():
-    storage = Docker(base_image="python:3.6")
-
-    with pytest.raises(AttributeError):
-        storage._parse_generator_output([b'"{}"\n'])
-
-    assert storage
-
-
 def test_docker_storage_name():
     storage = Docker(base_image="python:3.6")
     with pytest.raises(ValueError):
