@@ -1,2 +1,2 @@
-enhancement:
+fix:
   - "Fix bug with docker storage throwing exception while trying to display output - [#3717](https://github.com/PrefectHQ/prefect/pull/3717)"
