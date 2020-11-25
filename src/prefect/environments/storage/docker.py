@@ -659,6 +659,7 @@ class Docker(Storage):
                     parsed.get("stream")
                     or parsed.get("message")
                     or parsed.get("errorDetail", {}).get("message")
+                    or ""
                 ).strip("\n")
                 if output:
                     print(output)
