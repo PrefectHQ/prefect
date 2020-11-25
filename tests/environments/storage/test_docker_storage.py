@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import json
 import tempfile
 import textwrap
 from unittest.mock import MagicMock
@@ -831,6 +832,41 @@ def test_docker_storage_name():
     storage.image_name = "test2"
     storage.image_tag = "test3"
     assert storage.name == "test1/test2:test3"
+
+
+@pytest.mark.parametrize(
+    "contents,expected",
+    [
+        pytest.param({"stream": "hello"}, "hello\n", id="stream key"),
+        pytest.param({"message": "hello"}, "hello\n", id="message key"),
+        pytest.param(
+            {"errorDetail": {"message": "hello"}}, "hello\n", id="errorDetail key"
+        ),
+        pytest.param(
+            {"errorDetail": {"unknown": "hello"}},
+            "",
+            id="errorDetail unknown key",
+        ),
+        pytest.param({"unknown": "hello"}, "", id="unknown key"),
+        pytest.param([], "", id="empty generator"),
+        pytest.param([{}, {}], "", id="empty dicts"),
+        pytest.param(["", ""], "", id="empty strings"),
+        pytest.param(
+            [
+                {"stream": "hello"},
+                {"stream": "world"},
+            ],
+            "hello\nworld\n",
+            id="multiple items",
+        ),
+    ],
+)
+def test_docker_storage_output_stream(contents, expected, capsys):
+    if not isinstance(contents, list):
+        contents = [contents]
+    contents = [json.dumps(item).encode() for item in contents]
+    Docker._parse_generator_output(contents)
+    assert capsys.readouterr().out == expected
 
 
 def test_docker_storage_name_registry_url_none():

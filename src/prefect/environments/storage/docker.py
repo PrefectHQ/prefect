@@ -655,6 +655,8 @@ class Docker(Storage):
                 if not line:
                     continue
                 parsed = json.loads(line)
+                if not isinstance(parsed, dict):
+                    continue
                 # Parse several possible schemas
                 output = (
                     parsed.get("stream")
