@@ -8,7 +8,16 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook, GitLab
+from prefect.environments.storage import (
+    Docker,
+    Local,
+    Azure,
+    GCS,
+    S3,
+    Webhook,
+    GitLab,
+    Bitbucket,
+)
 from prefect.run_configs import LocalRun, KubernetesRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -21,6 +30,7 @@ DEFAULT_AGENT_LABELS = [
     "github-flow-storage",
     "webhook-flow-storage",
     "gitlab-flow-storage",
+    "bitbucket-flow-storage",
 ]
 
 
@@ -223,6 +233,7 @@ def test_populate_env_vars_from_run_config(tmpdir):
         S3(bucket="test"),
         Azure(container="test"),
         GitLab("test/repo", path="path/to/flow.py"),
+        Bitbucket(project="PROJECT", repo="test-repo", path="test-flow.py"),
         Webhook(
             build_request_kwargs={"url": "test-service/upload"},
             build_request_http_method="POST",

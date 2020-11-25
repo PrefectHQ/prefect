@@ -11,6 +11,7 @@ from prefect.environments.storage import (
     Storage,
     GitHub,
     GitLab,
+    Bitbucket,
     Webhook,
 )
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
@@ -150,6 +151,26 @@ class GitLabSchema(ObjectSchema):
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> GitHub:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
+class BitbucketSchema(ObjectSchema):
+    class Meta:
+        object_class = Bitbucket
+
+    project = fields.String(allow_none=False)
+    repo = fields.String(allow_none=False)
+    host = fields.String(allow_none=True)
+    path = fields.String(allow_none=True)
+    ref = fields.String(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> Bitbucket:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows

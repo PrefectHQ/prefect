@@ -3,6 +3,7 @@ Utility functions for interacting with git-based clients.
 """
 import os
 import prefect
+import requests
 
 from typing import Any
 
@@ -15,6 +16,11 @@ try:
     from gitlab import Gitlab
 except ImportError:
     Gitlab = None  # type: ignore
+
+try:
+    from atlassian import Bitbucket
+except ImportError:
+    Bitbucket = None  # type: ignore
 
 
 def get_github_client(credentials: dict = None, **kwargs: Any) -> "Github":
@@ -87,3 +93,44 @@ def get_gitlab_client(
         host = "https://gitlab.com"
 
     return Gitlab(host, private_token=access_token, **kwargs)
+
+
+def get_bitbucket_client(
+    credentials: dict = None, host: str = None, **kwargs: Any
+) -> "Bitbucket":
+    """
+    Utility function for loading Bitbucket client objects from a given set of credentials.
+
+    Args:
+        - credentials (dict, optional): a dictionary of AWS credentials used to
+            initialize the Client; if not provided, will attempt to load the
+            Client using ambient environment settings
+        - host (str, optional): the host string for bitbucket server users. If not provided, defaults
+            to https://bitbucket.org
+        - **kwargs (Any, optional): additional keyword arguments to pass to the Bitbucket Client
+            Bitbucket accepts: "cloud", "api_version", "api_root"
+
+    Returns:
+        - Client: an initialized and authenticated Bitbucket Client
+    """
+    if not Bitbucket:
+        raise ImportError(
+            "Unable to import Bitbucket, please ensure you have installed the bitbucket extra"
+        )
+
+    if credentials:
+        access_token = credentials["BITBUCKET_ACCESS_TOKEN"]
+    else:
+        access_token = prefect.context.get("secrets", {}).get(
+            "BITBUCKET_ACCESS_TOKEN", None
+        )
+
+    if not access_token:
+        access_token = os.getenv("BITBUCKET_ACCESS_TOKEN", None)
+
+    if not host:
+        host = "https://bitbucket.org"
+
+    session = requests.Session()
+    session.headers["Authorization"] = "Bearer " + access_token
+    return Bitbucket(host, session=session, **kwargs)

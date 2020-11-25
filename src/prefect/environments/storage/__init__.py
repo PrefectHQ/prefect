@@ -33,6 +33,7 @@ from prefect.environments.storage.gcs import GCS
 from prefect.environments.storage.s3 import S3
 from prefect.environments.storage.github import GitHub
 from prefect.environments.storage.gitlab import GitLab
+from prefect.environments.storage.bitbucket import Bitbucket
 from prefect.environments.storage.webhook import Webhook
 
 

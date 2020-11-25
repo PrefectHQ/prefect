@@ -105,6 +105,7 @@ class LocalAgent(Agent):
                 "github-flow-storage",
                 "webhook-flow-storage",
                 "gitlab-flow-storage",
+                "bitbucket-flow-storage",
             ]
             for label in all_storage_labels:
                 if label not in self.labels:
