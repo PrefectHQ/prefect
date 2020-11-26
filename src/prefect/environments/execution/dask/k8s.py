@@ -163,9 +163,11 @@ class DaskKubernetesEnvironment(Environment):
             # Verify environment is running in cluster
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except config.config_exception.ConfigException as config_exception:
                 self.logger.error("Environment not currently running inside a cluster")
-                raise EnvironmentError("Environment not currently inside a cluster")
+                raise EnvironmentError(
+                    "Environment not currently inside a cluster"
+                ) from config_exception
 
             v1 = client.CoreV1Api()
             namespace = prefect.context.get("namespace", "default")
@@ -205,9 +207,11 @@ class DaskKubernetesEnvironment(Environment):
         # Verify environment is running in cluster
         try:
             config.load_incluster_config()
-        except config.config_exception.ConfigException:
+        except config.config_exception.ConfigException as config_exception:
             self.logger.error("Environment not currently running inside a cluster")
-            raise EnvironmentError("Environment not currently inside a cluster")
+            raise EnvironmentError(
+                "Environment not currently inside a cluster"
+            ) from config_exception
 
         batch_client = client.BatchV1Api()
 
