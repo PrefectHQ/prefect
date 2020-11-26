@@ -503,8 +503,10 @@ class BigQueryLoadFile(Task):
             raise ValueError("Both dataset_id and table must be provided.")
         try:
             path = Path(file)
-        except Exception:
-            raise ValueError("A string or path-like object must be provided.")
+        except Exception as value_error:
+            raise ValueError(
+                "A string or path-like object must be provided."
+            ) from value_error
         if not path.is_file():
             raise ValueError(f"File {path.as_posix()} does not exist.")
 
@@ -531,8 +533,8 @@ class BigQueryLoadFile(Task):
                     num_retries,
                     job_config=job_config,
                 )
-        except IOError:
-            raise IOError(f"Can't open and read from {path.as_posix()}.")
+        except IOError as IO_error:
+            raise IOError(f"Can't open and read from {path.as_posix()}.") from IO_error
 
         load_job.result()  # block until job is finished
 
