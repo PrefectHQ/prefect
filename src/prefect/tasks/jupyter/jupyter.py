@@ -19,7 +19,7 @@ class ExecuteNotebook(Task):
         - parameters (dict, optional): dictionary of parameters to use for the notebook
             Can also be provided at runtime
         - output_format (str, optional): Notebook output format, should be a valid
-            nbconvert Exporter name.
+            nbconvert Exporter name. 'json' is treated as 'notebook'.
             Valid exporter names: asciidoc, custom, html, latex, markdown,
             notebook, pdf, python, rst, script, slides, webpdf. (default: notebook)
         - exporter_kwargs (dict, optional): The arguments used for initializing
@@ -60,7 +60,7 @@ class ExecuteNotebook(Task):
             a cloud storage path
         - parameters (dict, optional): dictionary of parameters to use for the notebook
         - output_format (str, optional): Notebook output format, should be a valid
-            nbconvert Exporter name.
+            nbconvert Exporter name. 'json' is treated as 'notebook'.
             Valid exporter names: asciidoc, custom, html, latex, markdown,
             notebook, pdf, python, rst, script, slides, webpdf. (default: notebook)
         - exporter_kwargs (dict, optional): The arguments used for initializing
@@ -69,6 +69,8 @@ class ExecuteNotebook(Task):
         nb: nbformat.NotebookNode = pm.execute_notebook(
             path, "-", parameters=parameters, kernel_name=self.kernel_name
         )
+        if output_format == "json":
+            output_format = "notebook"
 
         if exporter_kwargs is None:
             exporter_kwargs = {}
