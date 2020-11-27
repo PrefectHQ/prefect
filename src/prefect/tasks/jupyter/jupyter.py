@@ -53,7 +53,7 @@ class ExecuteNotebook(Task):
         exporter_kwargs: dict = None,
     ) -> str:
         """
-        Run a Jupyter notebook and output as HTML or JSON
+        Run a Jupyter notebook and output as HTML, notebook, or other formats.
 
         Args:
         - path (string, optional): path to fetch the notebook from; can also be
