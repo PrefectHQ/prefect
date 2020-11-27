@@ -92,7 +92,7 @@ class Bitbucket(Storage):
         except:
             self.logger.error("Error in retrieve Bitbucket repo files.")
             raise
-        # Bitbucket API returns raw files only.
+
         return extract_flow_from_file(file_contents=contents)
 
     def add_flow(self, flow: "Flow") -> str:

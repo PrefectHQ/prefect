@@ -5,11 +5,12 @@ import pytest
 from prefect import context, Flow
 from prefect.environments.storage import Bitbucket
 
-pytest.importorskip("bitbucket")
+
+pytest.importorskip("atlassian")
 
 
 def test_create_bitbucket_storage():
-    storage = BitBucket(project="PROJECT", repo="test-repo")
+    storage = Bitbucket(project="PROJECT", repo="test-repo")
     assert storage
     assert storage.logger
 
@@ -36,7 +37,8 @@ def test_bitbucket_client_cloud(monkeypatch):
         bitbucket_client = storage._bitbucket_client
 
     assert bitbucket_client
-    bitbucket.assert_called_with("https://bitbucket.org", private_token="ACCESS_TOKEN")
+    assert bitbucket.call_args[0][0] == "http://bitbucket.org"
+    assert bitbucket.call_args[1]["session"].headers["Authorization"] == "ACCESS_TOKEN"
 
 
 def test_bitbucket_client_server(monkeypatch):
@@ -54,9 +56,8 @@ def test_bitbucket_client_server(monkeypatch):
         bitbucket_client = storage._bitbucket_client
 
     assert bitbucket_client
-    bitbucket.assert_called_with(
-        "http://localhost:1234", private_token="ACCESS_TOKEN"
-    )
+    assert bitbucket.call_args[0][0] == "http://localhose:1234"
+    assert bitbucket.call_args[1]["session"].headers["Authorization"] == "ACCESS_TOKEN"
 
 
 def test_add_flow_to_bitbucket_storage():
