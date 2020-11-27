@@ -1,6 +1,7 @@
 import nbconvert
 import nbformat
 import papermill as pm
+from typing import Union
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -30,6 +31,7 @@ class ExecuteNotebook(Task):
         path: str = None,
         parameters: dict = None,
         output_format: str = "json",
+        exporter: nbconvert.Exporter = None,
         kernel_name: str = None,
         **kwargs
     ):
@@ -45,6 +47,7 @@ class ExecuteNotebook(Task):
         path: str = None,
         parameters: dict = None,
         output_format: str = None,
+        exporter: nbconvert.Exporter = None
     ) -> str:
         """
         Run a Jupyter notebook and output as HTML or JSON
@@ -54,11 +57,19 @@ class ExecuteNotebook(Task):
             a cloud storage path
         - parameters (dict, optional): dictionary of parameters to use for the notebook
         - output_format (str, optional): Notebook output format.
+            THis argument is gnored if `exporter` is provided.
             Currently supported: json, html (default: json)
+        - exporter (nbconvert.Exporter, optional): The exporter that is used for
+            exporting the notebook, regardless of `output_format`.
         """
         nb: nbformat.NotebookNode = pm.execute_notebook(
             path, "-", parameters=parameters, kernel_name=self.kernel_name
         )
+
+        if exporter is not None:
+            (body, resources) = exporter.from_notebook_node(nb)
+            return body
+
         if output_format == "json":
             return nbformat.writes(nb)
         if output_format == "html":
