@@ -1,4 +1,3 @@
-
 import nbconvert
 import nbformat
 import papermill as pm
@@ -20,7 +19,10 @@ class ExecuteNotebook(Task):
         - parameters (dict, optional): dictionary of parameters to use for the notebook
             Can also be provided at runtime
         - output_format (str, optional): Notebook output format.
+            This argument is gnored if `exporter` is provided.
             Currently supported: json, html (default: json)
+        - exporter (nbconvert.Exporter, optional): The exporter that is used for
+            exporting the notebook, regardless of `output_format`.
         - kernel_name (string, optional): kernel name to run the notebook with.
             If not provided, the default kernel will be used.
         - **kwargs: additional keyword arguments to pass to the Task constructor
@@ -57,7 +59,7 @@ class ExecuteNotebook(Task):
             a cloud storage path
         - parameters (dict, optional): dictionary of parameters to use for the notebook
         - output_format (str, optional): Notebook output format.
-            THis argument is gnored if `exporter` is provided.
+            This argument is gnored if `exporter` is provided.
             Currently supported: json, html (default: json)
         - exporter (nbconvert.Exporter, optional): The exporter that is used for
             exporting the notebook, regardless of `output_format`.
