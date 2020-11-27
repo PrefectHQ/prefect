@@ -1,3 +1,4 @@
+
 import nbconvert
 import nbformat
 import papermill as pm
@@ -46,7 +47,7 @@ class ExecuteNotebook(Task):
         path: str = None,
         parameters: dict = None,
         output_format: str = None,
-        exporter: nbconvert.Exporter = None
+        exporter: nbconvert.Exporter = None,
     ) -> str:
         """
         Run a Jupyter notebook and output as HTML or JSON
