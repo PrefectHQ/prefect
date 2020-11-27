@@ -22,7 +22,7 @@ class ExecuteNotebook(Task):
             nbconvert Exporter name.
             Valid exporter names: asciidoc, custom, html, latex, markdown,
             notebook, pdf, python, rst, script, slides, webpdf. (default: notebook)
-        - exporter_kwargs (dict, optional): The arguments used for initializing 
+        - exporter_kwargs (dict, optional): The arguments used for initializing
             the exporter.
         - kernel_name (string, optional): kernel name to run the notebook with.
             If not provided, the default kernel will be used.
@@ -63,7 +63,7 @@ class ExecuteNotebook(Task):
             nbconvert Exporter name.
             Valid exporter names: asciidoc, custom, html, latex, markdown,
             notebook, pdf, python, rst, script, slides, webpdf. (default: notebook)
-        - exporter_kwargs (dict, optional): The arguments used for initializing 
+        - exporter_kwargs (dict, optional): The arguments used for initializing
             the exporter.
         """
         nb: nbformat.NotebookNode = pm.execute_notebook(
