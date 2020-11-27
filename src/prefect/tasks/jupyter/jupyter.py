@@ -1,7 +1,6 @@
 import nbconvert
 import nbformat
 import papermill as pm
-from typing import Union
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
