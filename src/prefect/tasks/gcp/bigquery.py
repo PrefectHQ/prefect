@@ -382,6 +382,10 @@ class BigQueryLoadGoogleCloudStorage(Task):
         load_job = client.load_table_from_uri(uri, table_ref, job_config=job_config)
         load_job.result()  # block until job is finished
 
+        # remove unpickleable attributes
+        load_job._client = None
+        load_job._completion_lock = None
+
         return load_job
 
 
@@ -535,6 +539,10 @@ class BigQueryLoadFile(Task):
             raise IOError(f"Can't open and read from {path.as_posix()}.")
 
         load_job.result()  # block until job is finished
+
+        # remove unpickleable attributes
+        load_job._client = None
+        load_job._completion_lock = None
 
         return load_job
 
