@@ -961,6 +961,47 @@ class Client:
 
         return res.data.create_project.id
 
+    def delete_project(self, project_name: str) -> bool:
+        """
+        Delete a project
+
+        Args:
+            - project_name (str): the project that should be created
+
+        Returns:
+            - bool: True if project is deleted else False
+        Raises:
+            - ValueError: if the project is None or doesn't exist
+        """
+
+        if project_name is None:
+            raise TypeError("'project_name' is a required field for deleting a project")
+
+        query_project = {
+            "query": {
+                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                    "id": True
+                }
+            }
+        }
+
+        project = self.graphql(query_project).data.project
+
+        if not project:
+            raise ValueError("Project {} not found.".format(project_name))
+
+        project_mutation = {
+            "mutation($input: delete_project_input!)": {
+                "delete_project(input: $input)": {"success"}
+            }
+        }
+
+        delete_project = self.graphql(
+            project_mutation, variables=dict(input=dict(project_id=project[0].id))
+        )
+
+        return delete_project.data.delete_project.success
+
     def create_flow_run(
         self,
         flow_id: str = None,
