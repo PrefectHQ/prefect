@@ -18,11 +18,12 @@ class ExecuteNotebook(Task):
             Can also be provided post-initialization by calling this task instance
         - parameters (dict, optional): dictionary of parameters to use for the notebook
             Can also be provided at runtime
-        - output_format (str, optional): Notebook output format.
-            This argument is gnored if `exporter` is provided.
-            Currently supported: json, html (default: json)
-        - exporter (nbconvert.Exporter, optional): The exporter that is used for
-            exporting the notebook, regardless of `output_format`.
+        - output_format (str, optional): Notebook output format, should be a valid
+            nbconvert Exporter name.
+            Valid exporter names: asciidoc, custom, html, latex, markdown,
+            notebook, pdf, python, rst, script, slides, webpdf. (default: notebook)
+        - exporter_kwargs (dict, optional): The arguments used for initializing 
+            the exporter.
         - kernel_name (string, optional): kernel name to run the notebook with.
             If not provided, the default kernel will be used.
         - **kwargs: additional keyword arguments to pass to the Task constructor
@@ -32,8 +33,8 @@ class ExecuteNotebook(Task):
         self,
         path: str = None,
         parameters: dict = None,
-        output_format: str = "json",
-        exporter: nbconvert.Exporter = None,
+        output_format: str = "notebook",
+        exporter_kwargs: dict = None,
         kernel_name: str = None,
         **kwargs
     ):
@@ -49,7 +50,7 @@ class ExecuteNotebook(Task):
         path: str = None,
         parameters: dict = None,
         output_format: str = None,
-        exporter: nbconvert.Exporter = None,
+        exporter_kwargs: dict = None,
     ) -> str:
         """
         Run a Jupyter notebook and output as HTML or JSON
@@ -58,25 +59,20 @@ class ExecuteNotebook(Task):
         - path (string, optional): path to fetch the notebook from; can also be
             a cloud storage path
         - parameters (dict, optional): dictionary of parameters to use for the notebook
-        - output_format (str, optional): Notebook output format.
-            This argument is gnored if `exporter` is provided.
-            Currently supported: json, html (default: json)
-        - exporter (nbconvert.Exporter, optional): The exporter that is used for
-            exporting the notebook, regardless of `output_format`.
+        - output_format (str, optional): Notebook output format, should be a valid
+            nbconvert Exporter name.
+            Valid exporter names: asciidoc, custom, html, latex, markdown,
+            notebook, pdf, python, rst, script, slides, webpdf. (default: notebook)
+        - exporter_kwargs (dict, optional): The arguments used for initializing 
+            the exporter.
         """
         nb: nbformat.NotebookNode = pm.execute_notebook(
             path, "-", parameters=parameters, kernel_name=self.kernel_name
         )
 
-        if exporter is not None:
-            (body, resources) = exporter.from_notebook_node(nb)
-            return body
+        if exporter_kwargs is None:
+            exporter_kwargs = {}
 
-        if output_format == "json":
-            return nbformat.writes(nb)
-        if output_format == "html":
-            html_exporter = nbconvert.HTMLExporter()
-            (body, resources) = html_exporter.from_notebook_node(nb)
-            return body
-
-        raise NotImplementedError("Notebook output %s not supported", output_format)
+        exporter = nbconvert.get_exporter(output_format)
+        body, resources = nbconvert.export(exporter, nb, **exporter_kwargs)
+        return body
