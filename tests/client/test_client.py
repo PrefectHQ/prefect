@@ -613,6 +613,43 @@ def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
     assert project_id == "proj-id"
 
 
+def test_client_delete_project(patch_post, monkeypatch):
+    patch_post(
+        {"data": {"project": [{"id": "test"}], "delete_project": {"success": True}}}
+    )
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+        client = Client()
+    result = client.delete_project(project_name="my-default-project")
+    assert result is True
+
+
+def test_client_delete_project_error(patch_post, monkeypatch):
+    patch_post(
+        {
+            "data": {
+                "project": {},
+            }
+        }
+    )
+
+    project_name = "my-default-project"
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+        client = Client()
+
+    with pytest.raises(ValueError, match="Project {} not found".format(project_name)):
+        client.delete_project(project_name=project_name)
+
+
 def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeypatch):
     patch_post({"data": {"project": [{"id": "proj-id"}]}})
 
