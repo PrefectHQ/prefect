@@ -1,5 +1,4 @@
 import json
-from nbconvert import HTMLExporter
 
 from prefect.tasks.jupyter import ExecuteNotebook
 
@@ -12,18 +11,19 @@ def test_jupyter_html_output():
     )
     output = task.run()
     assert "a*b=10" in output
+    assert "# This cell contains commented Python code" in output
 
 
-def test_jupyter_custom_exporter():
-    exporter = HTMLExporter()
-
+def test_jupyter_html_output_with_exporter_kwargs():
     task = ExecuteNotebook(
         "tests/tasks/jupyter/sample_notebook.ipynb",
         parameters=dict(a=5),
-        exporter=exporter,
+        output_format="html",
+        exporter_kwargs={"exclude_input": True},
     )
     output = task.run()
     assert "a*b=10" in output
+    assert "# This cell contains commented Python code" not in output
 
 
 def test_jupyter_json_output():
