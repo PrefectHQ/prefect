@@ -42,9 +42,10 @@ class ExecuteNotebook(Task):
         self.parameters = parameters
         self.output_format = output_format
         self.kernel_name = kernel_name
+        self.exporter_kwargs = exporter_kwargs
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("path", "parameters", "output_format")
+    @defaults_from_attrs("path", "parameters", "output_format", "exporter_kwargs")
     def run(
         self,
         path: str = None,
