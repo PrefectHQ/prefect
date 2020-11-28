@@ -1,6 +1,8 @@
-from typing import Any, cast
+from typing import Any, cast, Callable
 
 from kubernetes import client
+from kubernetes.watch import Watch
+from kubernetes.client.rest import ApiException
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -571,3 +573,118 @@ class ReplaceNamespacedPod(Task):
         api_client.replace_namespaced_pod(
             name=pod_name, namespace=namespace, body=body, **kube_kwargs
         )
+
+
+class ReadNamespacedPodLogs(Task):
+    """
+    Task for reading logs from a namespaced pod on Kubernetes. Logs can be streamed by
+    providing a `func_stream` function which then will be called for each log line. If
+    `func_stream` = `None`, the task returns all logs for the pod until that point.
+
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    This task will attempt to connect to a Kubernetes cluster in three steps with
+    the first successful connection attempt becoming the mode of communication with a
+    cluster.
+
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
+    2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
+    3. Attempt out-of-cluster connection using the default location for a kube config file
+
+    Args:
+        - pod_name (str, optional): The name of a pod to replace
+        - namespace (str, optional): The Kubernetes namespace to patch this pod in,
+            defaults to the `default` namespace
+        - func_stream (Callable, optional): Stream the logs to provided function,
+            for each line the function is called.
+        - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
+            which stored your Kubernetes API Key; this Secret must be a string and in
+            BearerToken format
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
+    """
+
+    def __init__(
+        self,
+        pod_name: str = None,
+        namespace: str = "default",
+        func_stream: Callable = None,
+        kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
+        **kwargs: Any
+    ):
+        self.pod_name = pod_name
+        self.namespace = namespace
+        self.func_stream = func_stream
+        self.kubernetes_api_key_secret = kubernetes_api_key_secret
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "pod_name", "namespace", "func_stream", "kubernetes_api_key_secret"
+    )
+    def run(
+        self,
+        pod_name: str = None,
+        namespace: str = "default",
+        func_stream: Callable = None,
+        kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
+    ) -> None:
+        """
+        Task run method.
+
+        Args:
+            - pod_name (str, optional): The name of a pod to replace
+            - namespace (str, optional): The Kubernetes namespace to patch this pod in,
+                defaults to the `default` namespace
+            - func_stream (Callable, optional): Stream the logs to provided function,
+                for each line the function is called.
+            - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
+                which stored your Kubernetes API Key; this Secret must be a string and in
+                BearerToken format
+
+        Raises:
+            - ValueError: if `pod_name` is `None`
+        """
+        if not pod_name:
+            raise ValueError("The name of a Kubernetes pod must be provided.")
+
+        api_client = cast(
+            client.CoreV1Api, get_kubernetes_client("pod", kubernetes_api_key_secret)
+        )
+
+        if func_stream is None:
+            return api_client.read_namespaced_pod_log(
+                name=pod_name, namespace=namespace
+            )
+
+        # From the kubernetes.watch documentation:
+        # Note that watching an API resource can expire. The method tries to
+        # resume automatically once from the last result, but if that last result
+        # is too old as well, an `ApiException` exception will be thrown with
+        # ``code`` 410. In that case you have to recover yourself, probably
+        # by listing the API resource to obtain the latest state and then
+        # watching from that state on by setting ``resource_version`` to
+        # one returned from listing.
+        resource_version = None
+        while True:
+            try:
+                stream = Watch().stream(
+                    api_client.read_namespaced_pod_log,
+                    name=pod_name,
+                    namespace=namespace,
+                    resource_version=resource_version,
+                )
+
+                for log in stream:
+                    func_stream(log)
+
+                return
+            except ApiException as exception:
+                if exception.status != 410:
+                    raise
+
+                pod = api_client.read_namespaced_pod(name=pod_name, namespace=namespace)
+                resource_version = pod.metadata.resource_version
