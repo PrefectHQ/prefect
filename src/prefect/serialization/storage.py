@@ -212,5 +212,6 @@ class StorageSchema(OneOfSchema):
         "S3": S3Schema,
         "GitHub": GitHubSchema,
         "GitLab": GitLabSchema,
+        "Bitbucket": BitbucketSchema,
         "Webhook": WebhookSchema,
     }

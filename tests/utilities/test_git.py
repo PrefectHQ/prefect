@@ -136,7 +136,7 @@ class TestGetBitbucketClient:
 
         bitbucket = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
-        get_bitbucket_client
+        get_bitbucket_client()
         assert bitbucket.call_args[1]["session"].headers["Authorization"] is None
 
         monkeypatch.setenv("BITBUCKET_ACCESS_TOKEN", "TOKEN")
@@ -146,11 +146,11 @@ class TestGetBitbucketClient:
     def test_default_to_cloud(self, monkeypatch):
         bitbucket = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
-        get_bitbucket_client
+        get_bitbucket_client()
         assert bitbucket.call_args[0][0] == "https://bitbucket.org"
 
     def test_specify_host(self, monkeypatch):
         bitbucket = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
         get_bitbucket_client(host="http://localhost:1234")
-        assert gitlab.call_args[0][0] == "http://localhost:1234"
+        assert bitbucket.call_args[0][0] == "http://localhost:1234"

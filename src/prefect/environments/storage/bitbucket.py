@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Any, Dict, List
-from urllib.parse import quote_plus
+from urllib.error import URLError
 
 from prefect.environments.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
@@ -70,7 +70,7 @@ class Bitbucket(Storage):
             - Flow: the requested Flow. Atlassian API retrieves raw, decoded files.
         Raises:
             - ValueError: if the flow is not contained in this storage
-            - UnknownObjectException: if the flow file is unable to be retrieved
+            - HTTPError: if flow is unable to access the Bitbucket repository
         """
         if flow_location:
             if flow_location not in self.flows.values():
@@ -89,9 +89,19 @@ class Bitbucket(Storage):
                 flow_location,
                 at=ref,
             )
-        except:
-            self.logger.error("Error in retrieve Bitbucket repo files.")
-            raise
+        except HTTPError as err:
+            if err.code == 401:
+                self.logger.error(
+                    "Access denied to repository. Please check credentials."
+                )
+                raise
+            elif err.code == 404:
+                self.logger.error(
+                    "Invalid address. Check that host, project, and repository are correct."
+                )
+                raise
+            else:
+                raise
 
         return extract_flow_from_file(file_contents=contents)
 
