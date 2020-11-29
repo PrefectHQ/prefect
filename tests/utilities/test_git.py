@@ -137,11 +137,13 @@ class TestGetBitbucketClient:
         bitbucket = MagicMock()
         monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
         get_bitbucket_client()
-        assert bitbucket.call_args[1]["session"].headers["Authorization"] is None
+        assert bitbucket.call_args[1]["session"].headers["Authorization"] == "Bearer "
 
         monkeypatch.setenv("BITBUCKET_ACCESS_TOKEN", "TOKEN")
-        get_bitbucket_client
-        assert bitbucket.call_args[1]["session"].headers["Authorization"] == "TOKEN"
+        get_bitbucket_client()
+        assert (
+            bitbucket.call_args[1]["session"].headers["Authorization"] == "Bearer TOKEN"
+        )
 
     def test_default_to_cloud(self, monkeypatch):
         bitbucket = MagicMock()

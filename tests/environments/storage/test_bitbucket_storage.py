@@ -38,7 +38,10 @@ def test_bitbucket_client_cloud(monkeypatch):
 
     assert bitbucket_client
     assert bitbucket.call_args[0][0] == "https://bitbucket.org"
-    assert bitbucket.call_args[1]["session"].headers["Authorization"] == "ACCESS_TOKEN"
+    assert (
+        bitbucket.call_args[1]["session"].headers["Authorization"]
+        == "Bearer ACCESS_TOKEN"
+    )
 
 
 def test_bitbucket_client_server(monkeypatch):
@@ -56,8 +59,11 @@ def test_bitbucket_client_server(monkeypatch):
         bitbucket_client = storage._bitbucket_client
 
     assert bitbucket_client
-    assert bitbucket.call_args[0][0] == "http://localhose:1234"
-    assert bitbucket.call_args[1]["session"].headers["Authorization"] == "ACCESS_TOKEN"
+    assert bitbucket.call_args[0][0] == "http://localhost:1234"
+    assert (
+        bitbucket.call_args[1]["session"].headers["Authorization"]
+        == "Bearer ACCESS_TOKEN"
+    )
 
 
 def test_add_flow_to_bitbucket_storage():
