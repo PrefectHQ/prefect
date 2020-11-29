@@ -28,33 +28,11 @@ If Prefect is already [installed](../../core/getting_started/installation.html) 
 
 ### Usage
 
-Prefect agents can easily be configured through the CLI.
+Prefect agents can be started via the CLI, using `prefect agent <AGENT TYPE> start`. For example:
 
 ```
-$ prefect agent
-Usage: prefect agent [OPTIONS] COMMAND [ARGS]...
-
-  Manage Prefect agents.
-
-  Usage:
-      $ prefect agent [COMMAND]
-
-  Arguments:
-      start       Start a Prefect agent
-      install     Output platform-specific agent installation configs
-
-  Examples:
-      $ prefect agent start
-      ...agent begins running in process...
-
-      $ prefect agent start kubernetes --token MY_TOKEN
-      ...agent begins running in process...
-
-      $ prefect agent install kubernetes --token MY_TOKEN --namespace metrics
-      ...k8s yaml output...
-
-Options:
-  -h, --help  Show this message and exit.
+$ prefect agent local start
+...
 ```
 
 All Prefect Agents are also extendable as Python objects and can be used programatically!
@@ -71,7 +49,11 @@ Prefect agents rely on the use of a `RUNNER` token from Prefect Cloud. For infor
 
 ### Flow Affinity: Labels
 
-Agents have an optional `labels` argument which allows for separation of execution when using multiple agents. This is especially useful for teams wanting to run specific flows on different clusters. For more information on labels and how to use them visit [Environments](../execution/overview.html#labels).
+Agents have an optional `labels` argument which allows for separation of
+execution when using multiple agents. This is especially useful for teams
+wanting to run specific flows on different clusters. For more information on
+labels and how to use them see the 
+[Run Configuration docs](../flow_config/run_configs.md#labels).
 
 By default, agents have no set labels and will only pick up runs from flows with no specified Environment Labels. Labels can be provided to an agent through a few methods:
 
@@ -86,7 +68,7 @@ DockerAgent(labels=["dev", "staging"]).start()
 - Arguments to the CLI:
 
 ```
-$ prefect agent start --label dev --label staging
+$ prefect agent <AGENT TYPE> start --label dev --label staging
 ```
 
 - As an environment variable:
@@ -111,7 +93,7 @@ A few ways to enable:
 - Passing an argument to the CLI:
 
 ```
-$ prefect agent start --agent-address http://localhost:8080
+$ prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
 ```
 
 - Setting an environment variable:

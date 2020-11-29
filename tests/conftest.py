@@ -1,8 +1,13 @@
 import os
 import tempfile
+import sys
 from unittest.mock import MagicMock
 
 import pytest
+
+if sys.platform != "win32":
+    # Fix for https://github.com/dask/distributed/issues/4168
+    import multiprocessing.popen_spawn_posix  # noqa
 from distributed import Client
 
 import prefect
@@ -176,6 +181,12 @@ def server_api():
     with prefect.utilities.configuration.set_temporary_config(
         {"cloud.api": "https:/localhost:4200", "backend": "server"}
     ):
+        yield
+
+
+@pytest.fixture()
+def running_with_backend():
+    with prefect.context({"running_with_backend": True}):
         yield
 
 

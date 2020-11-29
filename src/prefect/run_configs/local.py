@@ -7,9 +7,6 @@ from prefect.run_configs.base import RunConfig
 class LocalRun(RunConfig):
     """Configure a flow-run to run as a Local Process.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     Args:
         - env (dict, optional): Additional environment variables to set for the process
         - working_dir (str, optional): Working directory in which to start the

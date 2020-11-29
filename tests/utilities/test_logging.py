@@ -36,7 +36,7 @@ def test_root_logger_datefmt_responds_to_config(caplog, datefmt):
             logger = utilities.logging.configure_logging(testing=True)
             logger.error("badness")
             logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert logs[0].asctime == datetime.datetime.utcnow().strftime(datefmt)
+            assert logs[0].asctime == datetime.datetime.now().strftime(datefmt)
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)

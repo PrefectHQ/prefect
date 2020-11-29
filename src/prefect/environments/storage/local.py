@@ -55,8 +55,7 @@ class Local(Storage):
 
         if validate:
             abs_directory = os.path.abspath(os.path.expanduser(directory))
-            if not os.path.exists(abs_directory):
-                os.makedirs(abs_directory)
+            os.makedirs(abs_directory, exist_ok=True)
         else:
             abs_directory = directory
 

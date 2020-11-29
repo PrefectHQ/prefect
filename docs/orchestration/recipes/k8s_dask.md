@@ -109,7 +109,7 @@ assigned from `dask_service.yaml`.
 
 ```python
 from prefect import task, Flow
-from prefect.engine.executor import DaskExecutor
+from prefect.engine.executors import DaskExecutor
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker
 

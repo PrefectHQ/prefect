@@ -24,12 +24,6 @@ def test_prefect_secret_raises_deprecation_warning():
 
 
 class TestPrefectSecret:
-    def test_secret_requires_name_at_init(self):
-        with pytest.raises(
-            TypeError, match="missing 1 required positional argument: 'name'"
-        ):
-            secret = PrefectSecret()
-
     def test_create_secret(self):
         secret = PrefectSecret(name="test")
         assert secret.name == "test"
@@ -52,6 +46,18 @@ class TestPrefectSecret:
             with prefect.context(secrets=dict(test=42, foo="bar")):
                 assert secret.run() == 42
                 assert secret.run(name="foo") == "bar"
+
+    def test_secret_name_set_at_runtime(self):
+        secret = PrefectSecret()
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(foo="bar")):
+                assert secret.run(name="foo") == "bar"
+
+    def test_secret_raises_if_no_name_provided(self):
+        secret = PrefectSecret()
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with pytest.raises(ValueError, match="secret name must be provided"):
+                secret.run()
 
     def test_secret_raises_if_doesnt_exist(self):
         secret = PrefectSecret(name="test")

@@ -52,6 +52,10 @@ Examples of extra packages include:
 - `spacy`: tools for building NLP pipelines using Spacy
 - `redis`: tools for interacting with a Redis database
 
+:::warning Python 3.9
+Prefect support for Python 3.9 is experimental and extras are not expected to work yet as we wait for required packages to be updated.
+:::
+
 ## Running the local server and UI
 
 Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API. The local server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be installed. If you have [Docker Desktop](https://www.docker.com/products/docker-desktop) on your machine, you've got both of these.
@@ -76,7 +80,7 @@ prefect server start
 
 Once all components are running, you can view the UI by opening a browser and visiting [http://localhost:8080](http://localhost:8080).
 
-Please note that executing flows from the server requires at least one Prefect Agent to be running: `prefect agent start`.
+Please note that executing flows from the server requires at least one Prefect Agent to be running: `prefect agent local start`.
 
 Finally, to register any flow with the server, call `flow.register()`. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
 

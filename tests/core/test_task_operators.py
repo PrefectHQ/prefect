@@ -123,7 +123,7 @@ class TestMagicInteractionMethods:
 
             (t1 | t2 | t3 | t4)
 
-        assert all([e in f.edges for e in [Edge(t1, t2), Edge(t2, t3), Edge(t3, t4)]])
+        assert all(e in f.edges for e in [Edge(t1, t2), Edge(t2, t3), Edge(t3, t4)])
 
 
 class TestMagicOperatorMethods:

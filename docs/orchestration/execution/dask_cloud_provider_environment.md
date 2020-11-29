@@ -1,5 +1,11 @@
 # Dask Cloud Provider Environment
 
+::: warning
+Flows configured with environments are being deprecated - we recommend users
+transition to using "Run Configs" instead. See
+[the documentation](/orchestration/flow_config/overview.md) for more information.
+:::
+
 [[toc]]
 
 
@@ -10,9 +16,10 @@ the [Dask Cloud Provider](https://cloudprovider.dask.org/) project to create a D
 workers using cloud provider services, e.g. AWS Fargate. This Environment aims to provide a very
 easy way to achieve high scalability without the complexity of Kubernetes.
 
-:::tip AWS Only
-Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
-Support for AzureML is [coming soon](https://github.com/dask/dask-cloudprovider/pull/67).
+:::tip AWS, Azure Only
+Dask Cloud Provider currently supports AWS (using either Fargate or ECS)
+and Azure (using AzureML).
+Support for GCP is [coming soon](https://github.com/dask/dask-cloudprovider/pull/131).
 :::
 
 :::warning Security Considerations

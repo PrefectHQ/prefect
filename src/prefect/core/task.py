@@ -1,7 +1,9 @@
 import collections.abc
 import copy
 import enum
+import functools
 import inspect
+import typing
 import warnings
 from datetime import timedelta
 from typing import (
@@ -10,6 +12,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -79,10 +82,84 @@ def _validate_run_signature(run: Callable) -> None:
         raise ValueError(msg)
 
 
-class SignatureValidator(type):
-    def __new__(cls, name: str, parents: tuple, methods: dict) -> "SignatureValidator":
+def _infer_run_nout(run: Callable) -> Optional[int]:
+    """Infer the number of outputs for a callable from its type annotations.
+
+    Returns `None` if infererence failed, or if the type has variable-length.
+    """
+    try:
+        ret_type = inspect.signature(run).return_annotation
+    except Exception:
+        return None
+    if ret_type is inspect.Parameter.empty:
+        return None
+    # New in python 3.8
+    if hasattr(typing, "get_origin"):
+        origin = typing.get_origin(ret_type)
+    else:
+        origin = getattr(ret_type, "__origin__", None)
+
+    if origin in (typing.Tuple, tuple):
+        # Plain Tuple is a variable-length tuple
+        if ret_type in (typing.Tuple, tuple):
+            return None
+
+        # New in python 3.8
+        if hasattr(typing, "get_args"):
+            args = typing.get_args(ret_type)
+        else:
+            args = getattr(ret_type, "__args__", ())
+
+        # Empty tuple type has a type arg of the empty tuple
+        if len(args) == 1 and args[0] == ():
+            return 0
+        # Variable-length tuples have Ellipsis as the 2nd arg
+        if len(args) == 2 and args[1] == Ellipsis:
+            return None
+        # All other Tuples are length-of args
+        return len(args)
+    return None
+
+
+class TaskMetaclass(type):
+    """A metaclass for enforcing two checks on a task:
+
+    - Checks that the `run` method has a valid signature
+    - Adds a check to the `__init__` method that no tasks are passed as arguments
+    """
+
+    def __new__(cls, name: str, parents: tuple, methods: dict) -> "TaskMetaclass":
         run = methods.get("run", lambda: None)
         _validate_run_signature(run)
+
+        if "__init__" in methods:
+            old_init = methods["__init__"]
+
+            # Theoretically we could do this by defining a `__new__` method for
+            # the `Task` class that handles this check, but unfortunately if a
+            # class defines `__new__`, `inspect.signature` will use the
+            # signature for `__new__` regardless of the signature for
+            # `__init__`. This basically kills all type completions or type
+            # hints for the `Task` constructors. As such, we handle it in the
+            # metaclass
+            @functools.wraps(old_init)
+            def init(self: Any, *args: Any, **kwargs: Any) -> None:
+                if any(isinstance(a, Task) for a in args + tuple(kwargs.values())):
+                    cls_name = type(self).__name__
+                    warnings.warn(
+                        f"A Task was passed as an argument to {cls_name}, you likely want to "
+                        f"first initialize {cls_name} with any static (non-Task) arguements, "
+                        "then call the initialized task with any dynamic (Task) arguements instead. "
+                        "For example:\n\n"
+                        f"  my_task = {cls_name}(...)  # static (non-Task) args go here\n"
+                        f"  res = my_task(...)  # dynamic (Task) args go here\n\n"
+                        "see https://docs.prefect.io/core/concepts/flows.html#apis for more info.",
+                        stacklevel=2,
+                    )
+                old_init(self, *args, **kwargs)
+
+            methods = methods.copy()
+            methods["__init__"] = init
 
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
@@ -104,7 +181,7 @@ class instance_property:
         return self.func(obj)
 
 
-class Task(metaclass=SignatureValidator):
+class Task(metaclass=TaskMetaclass):
     """
     The Task class which is used as the full representation of a unit of work.
 
@@ -202,20 +279,22 @@ class Task(metaclass=SignatureValidator):
             the Prefect logger. Defaults to `False`.
         - task_run_name (Union[str, Callable], optional): a name to set for this task at runtime.
             `task_run_name` strings can be templated formatting strings which will be
-            formatted at runtime with values from `prefect.context`, task inputs, and parameters.
+            formatted at runtime with values from task arguments, `prefect.context`, and flow
+            parameters (in the case of a name conflict between these, earlier values take precedence).
             If a callable function is provided, it should have signature `callable(**kwargs) -> str`
             and at write time all formatting kwargs will be passed and a fully formatted location is
             expected as the return value. The callable can be used for string formatting logic that
             `.format(**kwargs)` doesn't support. **Note**: this only works for tasks running against a
             backend API.
+        - nout (int, optional): for tasks that return multiple results, the number of outputs
+            to expect. If not provided, will be inferred from the task return annotation, if
+            possible.  Note that `nout=1` implies the task returns a tuple of
+            one value (leave as `None` for non-tuple return types).
 
     Raises:
         - TypeError: if `tags` is of type `str`
         - TypeError: if `timeout` is not of type `int`
     """
-
-    # Tasks are not iterable, though they do have a __getitem__ method
-    __iter__ = None
 
     def __init__(
         self,
@@ -238,6 +317,7 @@ class Task(metaclass=SignatureValidator):
         result: "Result" = None,
         target: Union[str, Callable] = None,
         task_run_name: Union[str, Callable] = None,
+        nout: int = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug
@@ -344,6 +424,10 @@ class Task(metaclass=SignatureValidator):
         self.auto_generated = False
 
         self.log_stdout = log_stdout
+
+        if nout is None:
+            nout = _infer_run_nout(self.run)
+        self.nout = nout
 
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget
@@ -484,7 +568,7 @@ class Task(metaclass=SignatureValidator):
         task_args: dict = None,
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -521,7 +605,7 @@ class Task(metaclass=SignatureValidator):
         mapped: bool = False,
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -583,7 +667,7 @@ class Task(metaclass=SignatureValidator):
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
         task_args: dict = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments that should _not_ be
@@ -634,7 +718,7 @@ class Task(metaclass=SignatureValidator):
         keyword_tasks: Mapping[str, object] = None,
         mapped: bool = False,
         validate: bool = None,
-    ) -> None:
+    ) -> "Task":
         """
         Set dependencies for a flow either specified or in the current context using this task
 
@@ -652,7 +736,7 @@ class Task(metaclass=SignatureValidator):
                 configuration file.
 
         Returns:
-            - None
+            - self
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
@@ -672,9 +756,11 @@ class Task(metaclass=SignatureValidator):
             mapped=mapped,
         )
 
+        return self
+
     def set_upstream(
         self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
-    ) -> None:
+    ) -> "Task":
         """
         Sets the provided task as an upstream dependency of this task.
 
@@ -689,7 +775,7 @@ class Task(metaclass=SignatureValidator):
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
         Returns:
-            - None
+            - self
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
@@ -700,9 +786,11 @@ class Task(metaclass=SignatureValidator):
         else:
             self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
+        return self
+
     def set_downstream(
         self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
-    ) -> None:
+    ) -> "Task":
         """
         Sets the provided task as a downstream dependency of this task.
 
@@ -714,6 +802,9 @@ class Task(metaclass=SignatureValidator):
                 will be passed to the downstream task's `run()` method under this keyword argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
+        Returns:
+            - self
+
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
@@ -724,6 +815,8 @@ class Task(metaclass=SignatureValidator):
             )  # type: ignore
         else:
             task.set_dependencies(flow=flow, upstream_tasks=[self], mapped=mapped)
+
+        return self
 
     def inputs(self) -> Dict[str, Dict]:
         """
@@ -832,6 +925,15 @@ class Task(metaclass=SignatureValidator):
         return prefect.tasks.core.operators.Or().bind(self, other)
 
     # Magic Method Interactions  ----------------------------------------------------
+
+    def __iter__(self) -> Iterator:
+        if self.nout is None:
+            raise TypeError(
+                "Task is not iterable. If your task returns multiple results, "
+                "pass `nout` to the task decorator/constructor, or provide a "
+                "`Tuple` return-type annotation to your task."
+            )
+        return (self[i] for i in range(self.nout))
 
     def __getitem__(self, key: Any) -> "Task":
         """

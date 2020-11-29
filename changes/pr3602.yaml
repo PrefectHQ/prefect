@@ -1,5 +1,0 @@
-enhancement:
-  - "Added FROM to explicitly chain exceptions in src/prefect/tasks/twitter - [#3602](https://github.com/PrefectHQ/prefect/pull/3602)"
-
-contributor:
-  - "[Juan Calderon-Perez](https://github.com/gabrielcalderon)"

@@ -2,7 +2,9 @@ import collections
 import collections.abc
 import copy
 import functools
+import hashlib
 import inspect
+import json
 import os
 import tempfile
 import time
@@ -331,12 +333,13 @@ class Flow:
                 validate=False,
             )
 
-        # update auxiliary task collections
-        ref_tasks = self.reference_tasks()
-        new_refs = [t for t in ref_tasks if t != old] + (
-            [new] if old in ref_tasks else []
-        )
-        self.set_reference_tasks(new_refs)
+        if self._reference_tasks:
+            # update auxiliary task collections
+            ref_tasks = self.reference_tasks()
+            new_refs = [t for t in ref_tasks if t != old] + (
+                [new] if old in ref_tasks else []
+            )
+            self.set_reference_tasks(new_refs)
 
         if validate:
             self.validate()
@@ -1441,6 +1444,7 @@ class Flow:
         flow_copy = self.copy()
         for task, slug in flow_copy.slugs.items():
             task.slug = slug
+
         serialized = schema(exclude=["storage"]).dump(flow_copy)
 
         if build:
@@ -1462,6 +1466,30 @@ class Flow:
         serialized.update(schema(only=["storage"]).dump({"storage": storage}))
 
         return serialized
+
+    def serialized_hash(self, build: bool = False) -> str:
+        """
+        Generate a deterministic hash of the serialized flow. This is useful for
+        determining if the flow has changed. If this hash is equal to a previous hash,
+        no new information would be passed to the server on a call to `flow.register()`
+
+        Note that this will not always detect code changes since the task code is not
+        included in the serialized flow sent to the server. That said, as long as the
+        flow is "built" during registration, the code changes will be in effect even
+        if a new version is not registered with the server.
+
+        Args:
+            - build (bool, optional):  if `True`, the flow's environment is built
+                prior to serialization. Passed through to `Flow.serialize()`.
+
+        Returns:
+            - str: the hash of the serialized flow
+        """
+        serialized_flow = self.serialize(build)
+
+        return hashlib.sha256(
+            json.dumps(serialized_flow, sort_keys=True).encode()
+        ).hexdigest()
 
     # Diagnostics  ----------------------------------------------------------------
 
@@ -1556,6 +1584,7 @@ class Flow:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         no_url: bool = False,
+        idempotency_key: str = None,
         **kwargs: Any,
     ) -> Union[str, None]:
         """
@@ -1577,6 +1606,9 @@ class Flow:
                 Flow's project and name will be used.
             - no_url (bool, optional): if `True`, the stdout from this function will not
                 contain the URL link to the newly-registered flow in the Cloud UI
+            - idempotency_key (str, optional): a key that, if matching the most recent
+                registration call for this flow group, will prevent the creation of
+                another flow version and return the existing flow id instead.
             - **kwargs (Any): if instantiating a Storage object from default settings, these
                 keyword arguments will be passed to the initialization method of the default
                 Storage class
@@ -1627,6 +1659,7 @@ class Flow:
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
             no_url=no_url,
+            idempotency_key=idempotency_key,
         )
         return registered_flow
 

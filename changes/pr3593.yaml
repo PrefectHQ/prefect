@@ -1,2 +1,0 @@
-enhancement:
-  - "`prefect diagnostics` no longer displays keys that have values matching the default config - [#3593](https://github.com/PrefectHQ/prefect/pull/3593)"

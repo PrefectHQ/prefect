@@ -1,8 +1,11 @@
 import os
 import re
 import sys
+import json
 import tempfile
+import textwrap
 from unittest.mock import MagicMock
+from collections import OrderedDict
 
 import cloudpickle
 import pendulum
@@ -86,7 +89,7 @@ def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == url
-    assert storage.tls_config == False
+    assert storage.tls_config is False
     assert storage.build_kwargs == {}
     assert not storage.local_image
     assert not storage.ignore_healthchecks
@@ -479,6 +482,36 @@ def test_extra_dockerfile_commands():
         ), output
 
 
+def test_dockerfile_env_vars(tmpdir):
+    env_vars = OrderedDict(
+        [
+            ("NUM", 1),
+            ("STR_WITH_SPACES", "Hello world!"),
+            ("STR_WITH_QUOTES", 'Hello "friend"'),
+            ("STR_WITH_SINGLE_QUOTES", "'foo'"),
+        ]
+    )
+    storage = Docker(
+        env_vars=env_vars,
+    )
+    storage.add_flow(Flow("foo"))
+    dpath = storage.create_dockerfile_object(directory=str(tmpdir))
+
+    with open(dpath, "r") as dockerfile:
+        output = dockerfile.read()
+
+    expected = textwrap.dedent(
+        """
+        ENV NUM=1 \\
+            STR_WITH_SPACES='Hello world!' \\
+            STR_WITH_QUOTES='Hello "friend"' \\
+            STR_WITH_SINGLE_QUOTES="'foo'" \\
+        """
+    )
+
+    assert expected in output
+
+
 def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
     myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
     with tempfile.TemporaryDirectory() as tempdir_outside:
@@ -624,7 +657,6 @@ def test_create_dockerfile_from_everything(no_docker_host_var):
                 python_dependencies=["test"],
                 image_name="test4",
                 image_tag="test5",
-                env_vars={"test": "1"},
                 files={os.path.join(tempdir_outside, "test"): "./test2"},
                 base_url="test_url",
             )
@@ -639,16 +671,6 @@ def test_create_dockerfile_from_everything(no_docker_host_var):
 
             assert "FROM test3" in output
             assert "COPY test ./test2" in output
-
-            # ensure there is a "ENV ... test=1" in the output
-            results = re.search(
-                r"ENV(\s+[a-zA-Z0-9_]*\=[^\\]*\\\s*$)*\s*(?P<result>test=1)",
-                output,
-                re.MULTILINE,
-            )
-            assert results != None
-            assert results.group("result") == "test=1"
-
             assert "COPY healthcheck.py /opt/prefect/healthcheck.py" in output
             assert "COPY test.flow /opt/prefect/flows/test.prefect" in output
             assert "COPY other.flow /opt/prefect/flows/other.prefect" in output
@@ -746,7 +768,7 @@ def test_pull_image(capsys, monkeypatch):
     captured = capsys.readouterr()
     printed_lines = [line for line in captured.out.split("\n") if line != ""]
 
-    assert any(["100 test\r" in line for line in printed_lines])
+    assert any("100 test\r" in line for line in printed_lines)
 
 
 def test_pull_image_raises_if_error_encountered(monkeypatch):
@@ -775,7 +797,7 @@ def test_push_image(capsys, monkeypatch):
     captured = capsys.readouterr()
     printed_lines = [line for line in captured.out.split("\n") if line != ""]
 
-    assert any(["100 test\r" in line for line in printed_lines])
+    assert any("100 test\r" in line for line in printed_lines)
 
 
 def test_push_image_raises_if_error_encountered(monkeypatch):
@@ -792,15 +814,6 @@ def test_push_image_raises_if_error_encountered(monkeypatch):
         storage.push_image(image_name="test", image_tag="test")
 
 
-def test_parse_output():
-    storage = Docker(base_image="python:3.6")
-
-    with pytest.raises(AttributeError):
-        storage._parse_generator_output([b'"{}"\n'])
-
-    assert storage
-
-
 def test_docker_storage_name():
     storage = Docker(base_image="python:3.6")
     with pytest.raises(ValueError):
@@ -810,6 +823,41 @@ def test_docker_storage_name():
     storage.image_name = "test2"
     storage.image_tag = "test3"
     assert storage.name == "test1/test2:test3"
+
+
+@pytest.mark.parametrize(
+    "contents,expected",
+    [
+        pytest.param({"stream": "hello"}, "hello\n", id="stream key"),
+        pytest.param({"message": "hello"}, "hello\n", id="message key"),
+        pytest.param(
+            {"errorDetail": {"message": "hello"}}, "hello\n", id="errorDetail key"
+        ),
+        pytest.param(
+            {"errorDetail": {"unknown": "hello"}},
+            "",
+            id="errorDetail unknown key",
+        ),
+        pytest.param({"unknown": "hello"}, "", id="unknown key"),
+        pytest.param([], "", id="empty generator"),
+        pytest.param([{}, {}], "", id="empty dicts"),
+        pytest.param(["", ""], "", id="empty strings"),
+        pytest.param(
+            [
+                {"stream": "hello"},
+                {"stream": "world"},
+            ],
+            "hello\nworld\n",
+            id="multiple items",
+        ),
+    ],
+)
+def test_docker_storage_output_stream(contents, expected, capsys):
+    if not isinstance(contents, list):
+        contents = [contents]
+    contents = [json.dumps(item).encode() for item in contents]
+    Docker._parse_generator_output(contents)
+    assert capsys.readouterr().out == expected
 
 
 def test_docker_storage_name_registry_url_none():

@@ -1,5 +1,11 @@
 # Storage Options
 
+::: warning
+Flows configured with environments are being deprecated - we recommend users
+transition to using "Run Configs" instead. See
+[the documentation](/orchestration/flow_config/overview.md) for more information.
+:::
+
 Prefect includes a variety of `Storage` options for saving flows.
 
 As of Prefect version `0.9.0` every storage option except for `Docker` and `GitHub` will automatically have a result handler attached that will write results to the corresponding platform. For example, this means that if you register a flow with the Prefect API using the `S3` storage option then the flow's results will also be written to the same S3 bucket through the use of the [S3 Result](/api/latest/engine/results.html#s3result).
@@ -234,7 +240,7 @@ Make sure that the agent's labels match the desired labels for the flow storage 
 
 ```bash
 # starting a kubernetes agent that will pull flows stored in S3
-prefect agent start kubernetes -l s3-flow-storage
+prefect agent kubernetes start -l s3-flow-storage
 ```
 
 ::: tip Default Labels

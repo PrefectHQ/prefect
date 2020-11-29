@@ -17,6 +17,30 @@ def test_serialize_flow():
     assert serialized["name"] == "n"
 
 
+def test_serialize_flow_sorts_nested_schemas():
+    a = Parameter("a", default=1)
+    b = Parameter("b", default=2)
+    c = Task("c")
+    d = Task("d")
+    f = Flow("test")
+    d.set_upstream(c, flow=f)
+    c.set_upstream(b, flow=f).set_upstream(a, flow=f)
+
+    f.set_reference_tasks([d, c])
+
+    # Must use `f.serialize` instead of `FlowSchema().dump` because task slugs
+    # are not guaranteed to be set yet
+    serialized = f.serialize()
+
+    assert [param["slug"] for param in serialized["parameters"]] == ["a", "b"]
+    assert [task["slug"] for task in serialized["tasks"]] == ["a", "b", "c-1", "d-1"]
+    assert [
+        (edge["upstream_task"]["slug"], edge["downstream_task"]["slug"])
+        for edge in serialized["edges"]
+    ] == [("a", "c-1"), ("b", "c-1"), ("c-1", "d-1")]
+    assert [task["slug"] for task in serialized["reference_tasks"]] == ["c-1", "d-1"]
+
+
 def test_deserialize_flow():
     serialized = FlowSchema().dump(Flow(name="n"))
     deserialized = FlowSchema().load(serialized)

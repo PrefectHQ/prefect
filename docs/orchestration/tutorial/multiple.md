@@ -23,7 +23,7 @@ flow.register(project_name="Hello, World!")
 In another terminal, start the local agent:
 
 ```bash
-prefect agent start
+prefect agent local start
 ```
 
 ::: tip Runner Token <Badge text="Cloud"/>
@@ -50,7 +50,7 @@ Note: For more information on Supervisor installation visit the [documentation](
 The Prefect CLI has an installation command for the local agent which will output a `supervisord.conf` file that you can save and run using Supervisor.
 
 ```bash
-prefect agent install local --token <YOUR_RUNNER_TOKEN> > supervisord.conf
+prefect agent local install --token <YOUR_RUNNER_TOKEN> > supervisord.conf
 ```
 
 ::: warning No token necessary for Core server

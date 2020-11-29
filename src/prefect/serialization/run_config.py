@@ -1,11 +1,16 @@
 from marshmallow import fields
 
-from prefect.utilities.serialization import JSONCompatible, OneOfSchema, ObjectSchema
+from prefect.utilities.serialization import (
+    JSONCompatible,
+    OneOfSchema,
+    ObjectSchema,
+    SortedList,
+)
 from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun
 
 
 class RunConfigSchemaBase(ObjectSchema):
-    labels = fields.List(fields.String())
+    labels = SortedList(fields.String())
 
 
 class KubernetesRunSchema(RunConfigSchemaBase):
@@ -28,6 +33,7 @@ class ECSRunSchema(RunConfigSchemaBase):
 
     task_definition_path = fields.String(allow_none=True)
     task_definition = JSONCompatible(allow_none=True)
+    task_definition_arn = fields.String(allow_none=True)
     image = fields.String(allow_none=True)
     env = fields.Dict(keys=fields.String(), allow_none=True)
     cpu = fields.String(allow_none=True)

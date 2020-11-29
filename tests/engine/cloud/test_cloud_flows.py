@@ -976,7 +976,7 @@ def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdi
         len([tr for tr in client.task_runs.values() if tr.task_slug == flow.slugs[t1]])
         == 4
     )
-    assert all([tr.state.is_successful() for tr in client.task_runs.values()])
+    assert all(tr.state.is_successful() for tr in client.task_runs.values())
 
 
 def test_slug_mismatch_raises_informative_error(monkeypatch):

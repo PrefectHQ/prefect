@@ -1,2 +1,0 @@
-enhancement:
-  - "Display exception information on `prefect create project` failure - [#3589](https://github.com/PrefectHQ/prefect/pull/3589)"

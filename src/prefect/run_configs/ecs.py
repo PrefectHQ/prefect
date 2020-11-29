@@ -9,16 +9,13 @@ from prefect.utilities.filesystems import parse_path
 class ECSRun(RunConfig):
     """Configure a flow-run to run as an ECS Task.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     ECS Tasks are composed of task definitions and runtime parameters.
 
-    Task definitions can be configured using either the `task_definition` or
-    `task_definition_path` parameters. If neither is specified, the default
-    configured on the agent will be used. At runtime this task definition will
-    be registered once per flow version - subsequent runs of the same flow
-    version will reuse the existing definition.
+    Task definitions can be configured using either the `task_definition`,
+    `task_definition_path`, or `task_definition_arn` parameters. If neither is
+    specified, the default configured on the agent will be used. At runtime
+    this task definition will be registered once per flow version - subsequent
+    runs of the same flow version will reuse the existing definition.
 
     Runtime parameters can be specified via `run_task_kwargs`. These will be
     merged with any runtime parameters configured on the agent when starting
@@ -37,6 +34,9 @@ class ECSRun(RunConfig):
             Otherwise the task definition will be loaded at runtime on the
             agent.  Supported runtime file schemes include (`s3`, `gcs`, and
             `agent` (for paths local to the runtime agent)).
+        - task_definition_arn (str, optional): A pre-registered task definition
+            ARN to use (either `family`, `family:version`, or a full task
+            definition ARN).
         - image (str, optional): The image to use for this task. If not
             provided, will be either inferred from the flow's storage (if using
             `Docker` storage), or use the default configured on the agent.
@@ -102,6 +102,7 @@ ecs.html#ECS.Client.run_task
         *,
         task_definition: dict = None,
         task_definition_path: str = None,
+        task_definition_arn: str = None,
         image: str = None,
         env: dict = None,
         cpu: Union[int, str] = None,
@@ -112,9 +113,19 @@ ecs.html#ECS.Client.run_task
     ) -> None:
         super().__init__(labels=labels)
 
-        if task_definition is not None and task_definition_path is not None:
+        if (
+            sum(
+                [
+                    task_definition is not None,
+                    task_definition_path is not None,
+                    task_definition_arn is not None,
+                ]
+            )
+            > 1
+        ):
             raise ValueError(
-                "Cannot provide both `task_definition` and `task_definition_path`"
+                "Can only provide one of `task_definition`, `task_definition_path`, "
+                "or `task_definition_arn`"
             )
         if task_definition_path is not None:
             parsed = parse_path(task_definition_path)
@@ -130,6 +141,7 @@ ecs.html#ECS.Client.run_task
 
         self.task_definition = task_definition
         self.task_definition_path = task_definition_path
+        self.task_definition_arn = task_definition_arn
         self.image = image
         self.env = env
         self.cpu = cpu
