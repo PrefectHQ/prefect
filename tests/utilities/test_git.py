@@ -107,7 +107,7 @@ class TestGetGitLabClient:
 class TestGetBitbucketClient:
     def test_uses_context_secrets(self, monkeypatch):
         bitbucket = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Bitbucket", gitlab)
+        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(BITBUCKET_ACCESS_TOKEN="ACCESS_TOKEN")):
                 get_bitbucket_client()

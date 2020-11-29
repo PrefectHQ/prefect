@@ -37,13 +37,13 @@ def test_bitbucket_client_cloud(monkeypatch):
         bitbucket_client = storage._bitbucket_client
 
     assert bitbucket_client
-    assert bitbucket.call_args[0][0] == "http://bitbucket.org"
+    assert bitbucket.call_args[0][0] == "https://bitbucket.org"
     assert bitbucket.call_args[1]["session"].headers["Authorization"] == "ACCESS_TOKEN"
 
 
 def test_bitbucket_client_server(monkeypatch):
     bitbucket = MagicMock()
-    monkeypatch.setattr("prefect.utilities.git.Bitbucket")
+    monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
 
     storage = Bitbucket(
         project="PROJECT",
@@ -61,9 +61,9 @@ def test_bitbucket_client_server(monkeypatch):
 
 
 def test_add_flow_to_bitbucket_storage():
-    storage = Bitbucket(repo="test-repo", path="test-flow.py")
+    storage = Bitbucket(project="PROJECT", repo="test-repo", path="test-flow.py")
 
-    f = Flow("Test")
+    f = Flow("test")
     assert f.name not in storage
     assert storage.add_flow(f) == "test-flow.py"
     assert f.name in storage
@@ -85,7 +85,7 @@ def test_get_flow_bitbucket(monkeypatch):
         MagicMock(return_value=f),
     )
 
-    with pytest.rases(ValueError) as ex:
+    with pytest.raises(ValueError) as ex:
         storage = Bitbucket(project="PROJECT", repo="test-repo")
         storage.get_flow()
 
