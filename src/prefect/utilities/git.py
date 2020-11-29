@@ -133,7 +133,7 @@ def get_bitbucket_client(
 
     session = requests.Session()
     if access_token is None:
-        session.headers["Authorization"] = "Bearer "]
+        session.headers["Authorization"] = "Bearer "
     else:
         session.headers["Authorization"] = "Bearer " + access_token
     return Bitbucket(host, session=session, **kwargs)
