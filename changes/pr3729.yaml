@@ -1,0 +1,5 @@
+fix:
+  - "Support passing `helper_script` to `ShellTask`/`DBTShellTask` at runtime - [#3729](https://github.com/PrefectHQ/prefect/pull/3729)"
+
+contributor:
+  - "[Panagiotis Simakis](https://github.com/sp1thas)"
