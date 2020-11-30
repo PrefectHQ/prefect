@@ -47,7 +47,7 @@ TaskRunInfoResult = NamedTuple(
     [
         ("id", str),
         ("task_id", str),
-        ("task_slug", Optional[str]),
+        ("task_slug", str),
         ("version", int),
         ("state", "prefect.engine.state.State"),
     ],
@@ -1328,7 +1328,7 @@ class Client:
         return TaskRunInfoResult(
             id=task_run_info.id,
             task_id=task_id,
-            task_slug=None,
+            task_slug="",
             version=task_run_info.version,
             state=state,
         )
