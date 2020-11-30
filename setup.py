@@ -71,6 +71,9 @@ extras = {
 if sys.version_info < (3, 6):
     extras["dev"].remove("black")
 
+if sys.version_info < (3, 7):
+    extras["dev"].remove("dask_cloudprovider")
+
 extras["all_extras"] = sum(extras.values(), [])
 
 
