@@ -43,6 +43,11 @@ title = "create"
 module = "prefect.cli.create"
 commands = ["project"]
 
+[pages.cli.delete]
+title = "delete"
+module = "prefect.cli.delete"
+commands = ["project"]
+
 [pages.cli.describe]
 title = "describe"
 module = "prefect.cli.describe"
