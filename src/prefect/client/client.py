@@ -1392,13 +1392,13 @@ class Client:
         """
         query = {
             "query": {
-                with_args("task_run_by_pk", {"id": task_run_id}): {
+                with_args("get_task_run_info", {"task_run_id": task_run_id}): {
                     "serialized_state": True,
                 }
             }
         }
 
-        task_run = self.graphql(query).data.task_run_by_pk
+        task_run = self.graphql(query).data.get_task_run_info
 
         return prefect.engine.state.State.deserialize(task_run.serialized_state)
 

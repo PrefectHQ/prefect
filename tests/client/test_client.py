@@ -1115,7 +1115,7 @@ def test_set_task_run_name(patch_posts, cloud_api):
 
 def test_get_task_run_state(patch_posts, cloud_api, runner_token):
     query_resp = {
-        "task_run_by_pk": {
+        "get_task_run_info": {
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
