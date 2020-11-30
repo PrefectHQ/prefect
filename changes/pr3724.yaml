@@ -1,0 +1,5 @@
+fix:
+  - "Fix PicklingError in BigQueryLoadFile and BigQueryLoadGoogleCloudStorage  - [#3724](https://github.com/PrefectHQ/prefect/pull/3724)"
+
+contributor:
+  - "[Takayuki Hirayama](https://github.com/yukihira1992)"

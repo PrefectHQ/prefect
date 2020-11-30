@@ -499,32 +499,32 @@ classes = ["LoadTweetReplies"]
 [pages.agent.agent]
 title = "Agent"
 module = "prefect.agent"
-classes = ["Agent"]
+classes = {Agent = ["start"]}
 
 [pages.agent.local]
 title = "Local Agent"
 module = "prefect.agent.local"
-classes = ["LocalAgent"]
+classes = {LocalAgent = ["start"]}
 
 [pages.agent.docker]
 title = "Docker Agent"
 module = "prefect.agent.docker"
-classes = ["DockerAgent"]
+classes = {DockerAgent = ["start"]}
 
 [pages.agent.kubernetes]
 title = "Kubernetes Agent"
 module = "prefect.agent.kubernetes"
-classes = ["KubernetesAgent"]
+classes = {KubernetesAgent = ["start"]}
 
 [pages.agent.fargate]
 title = "Fargate Agent"
 module = "prefect.agent.fargate"
-classes = ["FargateAgent"]
+classes = {FargateAgent = ["start"]}
 
 [pages.agent.ecs]
 title = "ECS Agent"
 module = "prefect.agent.ecs"
-classes = ["ECSAgent"]
+classes = {ECSAgent = ["start"]}
 
 [pages.artifacts.artifacts]
 title = "Artifacts"

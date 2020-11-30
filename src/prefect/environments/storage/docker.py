@@ -644,7 +644,8 @@ class Docker(Storage):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")
 
-    def _parse_generator_output(self, generator: Iterable) -> None:
+    @staticmethod
+    def _parse_generator_output(generator: Iterable) -> None:
         """
         Parses and writes a Docker command's output to stdout
         """
@@ -654,11 +655,14 @@ class Docker(Storage):
                 if not line:
                     continue
                 parsed = json.loads(line)
+                if not isinstance(parsed, dict):
+                    continue
                 # Parse several possible schemas
                 output = (
                     parsed.get("stream")
                     or parsed.get("message")
                     or parsed.get("errorDetail", {}).get("message")
+                    or ""
                 ).strip("\n")
                 if output:
                     print(output)
