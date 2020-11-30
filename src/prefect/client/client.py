@@ -47,7 +47,7 @@ TaskRunInfoResult = NamedTuple(
     [
         ("id", str),
         ("task_id", str),
-        ("task_slug", str),
+        ("task_slug", Optional[str]),
         ("version", int),
         ("state", "prefect.engine.state.State"),
     ],
