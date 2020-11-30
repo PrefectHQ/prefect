@@ -131,44 +131,38 @@ class TestClientGraphQLErrorHandling:
         session.return_value.post = MagicMock(return_value=response)
         monkeypatch.setattr("requests.Session", session)
 
+    def get_client(self):
+        with set_temporary_config(
+            {
+                "cloud.api": "http://my-cloud.foo",
+                "cloud.auth_token": "secret_token",
+                "backend": "cloud",
+            }
+        ):
+            return Client()
+
     def test_graphql_errors_calls_formatter_and_displays(
-        patch_post_response, monkeypatch
+        self, patch_post_response, monkeypatch
     ):
         formatter = MagicMock(return_value="Formatted graphql message")
         monkeypatch.setattr(
             "prefect.client.client.format_graphql_request_error", formatter
         )
 
-        with set_temporary_config(
-            {
-                "cloud.api": "http://my-cloud.foo",
-                "cloud.auth_token": "secret_token",
-                "backend": "cloud",
-            }
-        ):
-            client = Client()
-
         with pytest.raises(ClientError, match="Formatted graphql message"):
-            client.graphql({"query": "foo"})
+            self.get_client().graphql({"query": "foo"})
 
         formatter.assert_called_once()
 
-    def test_graphql_errors_allow_formatter_to_fail(patch_post_response, monkeypatch):
+    def test_graphql_errors_allow_formatter_to_fail(
+        self, patch_post_response, monkeypatch
+    ):
         def erroring_formatter():
             raise Exception("Bad formatter")
 
         monkeypatch.setattr(
             "prefect.client.client.format_graphql_request_error", erroring_formatter
         )
-
-        with set_temporary_config(
-            {
-                "cloud.api": "http://my-cloud.foo",
-                "cloud.auth_token": "secret_token",
-                "backend": "cloud",
-            }
-        ):
-            client = Client()
 
         with pytest.raises(
             ClientError,
@@ -177,7 +171,7 @@ class TestClientGraphQLErrorHandling:
                 "mutation but the response could not be parsed for more details"
             ),
         ):
-            client.graphql({"query": "foo"})
+            self.get_client().graphql({"query": "foo"})
 
 
 def test_client_register_raises_if_required_param_isnt_scheduled(
