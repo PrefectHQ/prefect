@@ -111,6 +111,10 @@ class Bitbucket(Storage):
                 )
                 raise
             else:
+                self.logger.error(
+                    f"Error retrieving file contents at {flow_location} in {self.repo}@{ref} inside project {self.project}. "
+                    "Please check arguments passed to Bitbucket storage."
+                )
                 raise
 
         return extract_flow_from_file(file_contents=contents)
