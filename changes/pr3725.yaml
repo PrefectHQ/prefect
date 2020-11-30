@@ -1,0 +1,5 @@
+enhancement:
+  - "Allow custom exporter for ExecuteNotebook task - [#3725](https://github.com/PrefectHQ/prefect/pull/3725)"
+
+contributor:
+  - "[Swier Heeres](https://github.com/swierh)"
