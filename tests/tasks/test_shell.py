@@ -226,3 +226,13 @@ def test_shell_sources_helper_script_correctly():
     out = f.run()
     assert out.is_successful()
     assert out.result[res].result == "chris"
+
+
+def test_shell_task_accepts_helper_script():
+    helper = "cd ~"
+    task = ShellTask()
+    with Flow("test") as f:
+        res = task(command="ls", helper_script=helper)
+
+    out = f.run()
+    assert out.is_successful()
