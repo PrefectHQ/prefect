@@ -198,7 +198,7 @@ jobs:
 
       - run:
           name: Upgrade pip
-          command: pip install -U pip
+          command: pip install "pip==20.2.4"
 
       - run:
           name: Install Prefect
@@ -232,7 +232,7 @@ jobs:
 
       - run:
           name: Upgrade pip
-          command: pip install -U pip
+          command: pip install "pip==20.2.4"
 
       - run:
           name: Install Prefect
@@ -261,7 +261,7 @@ jobs:
 
       - run:
           name: Upgrade pip
-          command: pip install -U pip
+          command: pip install "pip==20.2.4"
 
       - run:
           name: Install Prefect
@@ -290,7 +290,7 @@ jobs:
 
       - run:
           name: Upgrade pip
-          command: pip install -U pip
+          command: pip install "pip==20.2.4"
 
       - run:
           name: Install Prefect
