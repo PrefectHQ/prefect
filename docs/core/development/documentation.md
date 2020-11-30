@@ -4,23 +4,45 @@ Documentation is incredibly important to Prefect, both for explaining its concep
 
 ## Docstrings
 
-Prefect auto-generates API documentation from docstrings by compiling them to Markdown. For details on properly formatting your docstrings, please see the [code style](./style.md#docstrings) guide.
+Prefect auto-generates API documentation from docstrings by compiling them to
+Markdown. For details on properly formatting your docstrings, please see the
+[code style](./style.md#docstrings) guide.
 
 ## API Reference
 
-Modules, functions, and classes must be explicitly added to the auto-generated documentation. First, update the `docs/outline.toml` file with the following information: - a header that describes the path to the generated Markdown file - a `title` for the generated Markdown file - `module`: an optional path to an importable module, whose docstring will be displayed at the top of the page - `classes`: an optional list of strings specifying all documented classes in the module - `functions`: an optional list of strings specifying all documented standalone functions in the module
+Modules, functions, and classes must be explicitly added to the auto-generated
+documentation. First, update the `docs/outline.toml` file with the following
+information: 
 
-For example, if the stylized module described above was importable at `prefect.utilities.example`, then we might add this to `outline.toml`:
+- a TOML header with the path to the generated Markdown file (e.g. `pages.utilities.example`)
+- `title` (str): the title of the generated docs page
+- `module` (str, optional): the import path to the module being documented. The
+  module docstring will be displayed at the top of the page.
+- `classes` (list or dict, optional): a list of class names in `module` to
+  document (all public methods of these classes will be documented).
+  Alternatively, a dict mapping class names to lists of method names to
+  document can be used (only explicitly listed method names will be
+  documented).
+- `functions` (list, optional): a list of function names in `module` to document
+
+For example, to document a module `prefect.utilities.example` with a class
+`MyClass` and a function `my_function`, you might add the following to
+`outline.toml`:
 
 ```
 [pages.utilities.example]
 title = "Example Module"
 module = "prefect.utilities.example"
-classes = ["Class"]
-functions = ["function"]
+classes = ["MyClass"]
+functions = ["my_function"]
 ```
 
-Most reference docs sections update their sidebars automatically by detecting the files generated from `outline.toml`. However, in some instances you may have to include your file explicitly. To do so, update `docs/.vuepress/config.js` and add it to the appropriate "children" section. The actual `prefect.utilities` section _does_ auto-update its sidebar, but for the sake of example, you would add the new file to the children array like so:
+Most reference docs sections update their sidebars automatically by detecting
+the files generated from `outline.toml`. However, in some instances you may
+have to include your file explicitly. To do so, update
+`docs/.vuepress/config.js` and add it to the appropriate "children" section.
+The actual `prefect.utilities` section _does_ auto-update its sidebar, but for
+the sake of example, you would add the new file to the children array like so:
 
 ```javascript
 {
