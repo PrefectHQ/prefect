@@ -4,10 +4,12 @@ import json
 import textwrap
 import uuid
 from collections.abc import KeysView, ValuesView
-from typing import Any
-from requests import Response
+from typing import Any, TYPE_CHECKING
 
 from box import Box
+
+if TYPE_CHECKING:
+    import requests
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -297,7 +299,7 @@ def with_args(field: Any, arguments: Any) -> str:
     return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
 
 
-def format_graphql_request_error(response: Response) -> str:
+def format_graphql_request_error(response: "requests.Response") -> str:
     """
     Given a http response that contains a graphql error, parse the error messages
     and create a nicely formatted string summary

@@ -19,7 +19,6 @@ except ImportError:
 import pendulum
 import toml
 from slugify import slugify
-from requests import HTTPError
 
 import prefect
 from prefect.utilities.exceptions import (
@@ -328,6 +327,8 @@ class Client:
         params: Dict[str, JSONLike] = None,
         headers: dict = None,
     ) -> "requests.models.Response":
+        import requests
+
         if prefect.context.config.cloud.get("diagnostics") is True:
             self.logger.debug(f"Preparing request to {url}")
             clean_headers = {
@@ -357,7 +358,7 @@ class Client:
         # Check if request returned a successful status
         try:
             response.raise_for_status()
-        except HTTPError as exc:
+        except requests.HTTPError as exc:
             if response.status_code == 400 and params and "query" in params:
                 # Create a custom-formatted err message for graphql errors which always
                 # return a 400 status code and have "query" in the parameter dict
