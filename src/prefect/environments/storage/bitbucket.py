@@ -24,7 +24,8 @@ class Bitbucket(Storage):
     flow.storage = Bitbucket(project="my.project",repo="my.repo", path="/flows/flow.py", ref="my-branch")
     ```
 
-    - Push this `flow.py` file to the `my.repo` repository under `/flows/flow.py` inside "my.project" project.
+    - Push this `flow.py` file to the `my.repo` repository under `/flows/flow.py` inside "my.project"
+        project.
 
     - Call `prefect register -f flow.py` to register this flow with Bitbucket storage.
 
@@ -112,8 +113,8 @@ class Bitbucket(Storage):
                 raise
             else:
                 self.logger.error(
-                    f"Error retrieving file contents at {flow_location} in {self.repo}@{ref} inside project {self.project}. "
-                    "Please check arguments passed to Bitbucket storage."
+                    f"Error retrieving contents at {flow_location} in {self.repo}@{ref}. "
+                    "Please check arguments passed to Bitbucket storage and verify project exists."
                 )
                 raise
 
