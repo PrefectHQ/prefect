@@ -9,9 +9,11 @@ from typing import Any, Dict
 class HttpDremioClientAuthHandler(flight.ClientAuthHandler):
     """
     Client for Dremio authentication.
+
     Args:
         - username (str): user name used to authenticate
         - password (str): password used to authenticate
+
     Returns:
         - token (str)
     """
@@ -33,6 +35,7 @@ class HttpDremioClientAuthHandler(flight.ClientAuthHandler):
 class DremioFetch(Task):
     """
     Task for fetching results of a query using Dremio Query Engine.
+
     Args:
         - user (str): user name used to authenticate
         - password (str): password used to authenticate
@@ -64,10 +67,13 @@ class DremioFetch(Task):
     def run(self, query: str) -> Dict:
         """
         Task run method. Executes a query against Dremio and fetches results.
+
         Args:
             - query (str, optional): query to execute against query engine
+
         Returns:
             - dict: a dictionary of data returned by Dremio
+
         Raises:
             - ValueError: if `query` is `None`
         """
