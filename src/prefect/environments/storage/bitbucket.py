@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Any, Dict, List
-from urllib.error import URLError
+from urllib.error import HTTPError
 
 from prefect.environments.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
@@ -12,16 +12,22 @@ class Bitbucket(Storage):
     """
     Bitbucket storage class. This class represents the Storage interface for Flows stored
     in `.py` files in a Bitbucket repository.
+
     This class represents a mapping of flow name to file paths contained in the git repo,
     meaning that all flow files should be pushed independently. A typical workflow using
     this storage type might look like the following:
+
     - Compose flow `.py` file where flow has Bitbucket storage:
+
     ```python
     flow = Flow("my-flow")
-    flow.storage = Bitbucket(project="my/project",repo="my/repo", path="/flows/flow.py", ref="my-branch")
+    flow.storage = Bitbucket(project="my.project",repo="my.repo", path="/flows/flow.py", ref="my-branch")
     ```
-    - Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+
+    - Push this `flow.py` file to the `my.repo` repository under `/flows/flow.py` inside "my.project" project.
+
     - Call `prefect register -f flow.py` to register this flow with Bitbucket storage.
+
     Args:
         - project (str): Project that the repository will be in.  Not equivalent to a GitHub project;
             required value for all Bitbucket repositories.
@@ -60,14 +66,17 @@ class Bitbucket(Storage):
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
         If the Flow is not found an error will be logged and `None` will be returned.
+
         Args:
             - flow_location (str): the location of a flow within this Storage; in this case,
                 a file path on a repository where a Flow file has been committed. Will use `path` if not
                 provided.
             - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if
                 not specified
+
         Returns:
-            - Flow: the requested Flow. Atlassian API retrieves raw, decoded files.
+            - Flow: the requested Flow; Atlassian API retrieves raw, decoded files.
+
         Raises:
             - ValueError: if the flow is not contained in this storage
             - HTTPError: if flow is unable to access the Bitbucket repository
@@ -80,6 +89,7 @@ class Bitbucket(Storage):
         else:
             raise ValueError("No flow location provided")
 
+        # Use ref argument if exists, else use attribute, else default to 'master'
         ref = ref if ref else (self.ref if self.ref else "master")
 
         try:
@@ -108,10 +118,13 @@ class Bitbucket(Storage):
     def add_flow(self, flow: "Flow") -> str:
         """
         Method for storing a new flow as bytes in the local filesytem.
+
         Args:
             - flow (Flow): a Prefect Flow to add
+
         Returns:
             - str: the location of the added flow in the repo
+
         Raises:
             - ValueError: if a flow with the same name is already contained in this storage
         """
@@ -131,6 +144,7 @@ class Bitbucket(Storage):
         Build the Bitbucket storage object and run basic healthchecks. Due to this object
         supporting file based storage no files are committed to the repository during
         this step. Instead, all files should be committed independently.
+
         Returns:
             - Storage: a Bitbucket object that contains information about how and where
                 each flow is stored
