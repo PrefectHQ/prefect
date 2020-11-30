@@ -1,2 +1,0 @@
-enhancement:
-  - "Display formatted graphql errors on client request failure - [#3632](https://github.com/PrefectHQ/prefect/pull/3632)"
