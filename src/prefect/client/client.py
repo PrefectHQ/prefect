@@ -32,6 +32,7 @@ from prefect.utilities.graphql import (
     compress,
     parse_graphql,
     with_args,
+    format_graphql_request_error,
 )
 from prefect.utilities.logging import create_diagnostic_logger
 
@@ -302,6 +303,8 @@ class Client:
             retry_on_api_error=retry_on_api_error,
         )
 
+        # TODO: It looks like this code is never reached because errors are raised
+        #       in self._send_request by default
         if raise_on_error and "errors" in result:
             if "UNAUTHENTICATED" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
@@ -324,6 +327,8 @@ class Client:
         params: Dict[str, JSONLike] = None,
         headers: dict = None,
     ) -> "requests.models.Response":
+        import requests
+
         if prefect.context.config.cloud.get("diagnostics") is True:
             self.logger.debug(f"Preparing request to {url}")
             clean_headers = {
@@ -351,19 +356,25 @@ class Client:
             )
 
         # Check if request returned a successful status
-        if response.status_code == 400:
-            msg = (
-                f"400 Client Error: Bad Request for url: {url}\n\n"
-                f"This is likely caused by a poorly formatted GraphQL query or mutation."
-            )
-            try:
-                msg += f" GraphQL sent:\n\n{parse_graphql(params)}"
-            except Exception:
-                # failed to format, raise below
-                pass
-            finally:
-                raise ClientError(msg)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            if response.status_code == 400 and params and "query" in params:
+                # Create a custom-formatted err message for graphql errors which always
+                # return a 400 status code and have "query" in the parameter dict
+                try:
+                    graphql_msg = format_graphql_request_error(response)
+                except Exception:
+                    # Fallback to a general message
+                    graphql_msg = (
+                        "This is likely caused by a poorly formatted GraphQL query or "
+                        "mutation but the response could not be parsed for more details"
+                    )
+                raise ClientError(f"{exc}\n{graphql_msg}") from exc
+
+            # Server-side and non-graphql errors will be raised without modification
+            raise
+
         return response
 
     def _request(
