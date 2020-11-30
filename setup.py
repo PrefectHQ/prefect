@@ -66,6 +66,7 @@ extras = {
     "test": test_requires,
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
+    "dremio": ["pyarrow>=0.15.1"],
 }
 
 if sys.version_info < (3, 6):
