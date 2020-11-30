@@ -202,7 +202,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_extras]"
+          command: pip install ".[test_ci]"
 
       - run:
           name: Run tests
@@ -236,7 +236,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_extras]"
+          command: pip install ".[test_ci]"
 
       - run:
           name: Run tests
@@ -265,7 +265,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_extras]"
+          command: pip install ".[test_ci]"
 
       - run:
           name: Run tests

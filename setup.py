@@ -71,11 +71,12 @@ extras = {
 if sys.version_info < (3, 6):
     extras["dev"].remove("black")
 
-if sys.version_info < (3, 7):
-    del extras["dask_cloudprovider"]
-
 extras["all_extras"] = sum(extras.values(), [])
 
+# CI extras to control dependencies for tests
+extras["test_ci"] = sum(extras.values(), [])
+if sys.version_info < (3, 7):
+    extras["test_ci"].remove("dask_cloudprovider")
 
 cmdclass = {
     "verify_version": VerifyVersionCommand,
