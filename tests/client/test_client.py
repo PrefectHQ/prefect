@@ -1043,12 +1043,8 @@ def test_set_flow_run_state_with_error(patch_post):
 
 def test_get_task_run_info(patch_posts):
     mutation_resp = {
-        "get_or_create_task_run": {
+        "get_or_create_task_run_info": {
             "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
-        }
-    }
-    query_resp = {
-        "task_run_by_pk": {
             "version": 0,
             "serialized_state": {
                 "type": "Pending",
@@ -1061,11 +1057,10 @@ def test_get_task_run_info(patch_posts):
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
                 "cached_inputs": None,
             },
-            "task": {"slug": "slug"},
         }
     }
 
-    post = patch_posts([dict(data=mutation_resp), dict(data=query_resp)])
+    post = patch_posts([dict(data=mutation_resp)])
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
@@ -1120,7 +1115,7 @@ def test_set_task_run_name(patch_posts, cloud_api):
 
 def test_get_task_run_state(patch_posts, cloud_api, runner_token):
     query_resp = {
-        "task_run_by_pk": {
+        "get_task_run_info": {
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
