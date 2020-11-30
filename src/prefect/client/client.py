@@ -1343,7 +1343,7 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "get_or_create_task_run",
+                    "get_or_create_task_run_info",
                     {
                         "input": {
                             "flow_run_id": flow_run_id,
@@ -1353,6 +1353,8 @@ class Client:
                     },
                 ): {
                     "id": True,
+                    "version": True,
+                    "serialized_state": True,
                 }
             }
         }
@@ -1361,28 +1363,14 @@ class Client:
         if result is None:
             raise ClientError("Failed to create task run.")
 
-        task_run_id = result.data.get_or_create_task_run.id
+        task_run_info = result.data.get_or_create_task_run_info
 
-        query = {
-            "query": {
-                with_args("task_run_by_pk", {"id": task_run_id}): {
-                    "version": True,
-                    "serialized_state": True,
-                    "task": {"slug": True},
-                }
-            }
-        }
-        task_run = self.graphql(query).data.task_run_by_pk  # type: ignore
-
-        if task_run is None:
-            raise ClientError('Task run ID not found: "{}"'.format(task_run_id))
-
-        state = prefect.engine.state.State.deserialize(task_run.serialized_state)
+        state = prefect.engine.state.State.deserialize(task_run_info.serialized_state)
         return TaskRunInfoResult(
-            id=task_run_id,
+            id=task_run_info.id,
             task_id=task_id,
-            task_slug=task_run.task.slug,
-            version=task_run.version,
+            task_slug="",
+            version=task_run_info.version,
             state=state,
         )
 
@@ -1445,13 +1433,13 @@ class Client:
         """
         query = {
             "query": {
-                with_args("task_run_by_pk", {"id": task_run_id}): {
+                with_args("get_task_run_info", {"task_run_id": task_run_id}): {
                     "serialized_state": True,
                 }
             }
         }
 
-        task_run = self.graphql(query).data.task_run_by_pk
+        task_run = self.graphql(query).data.get_task_run_info
 
         return prefect.engine.state.State.deserialize(task_run.serialized_state)
 

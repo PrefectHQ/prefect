@@ -22,7 +22,7 @@ class ShellTask(prefect.Task):
         - helper_script (str, optional): a string representing a shell script, which
             will be executed prior to the `command` in the same process. Can be used to
             change directories, define helper functions, etc. when re-using this Task
-            for different commands in a Flow
+            for different commands in a Flow; can also be provided at runtime
         - shell (string, optional): shell to run the command with; defaults to "bash"
         - return_all (bool, optional): boolean specifying whether this task
             should return all lines of stdout as a list, or just the last line
@@ -71,9 +71,9 @@ class ShellTask(prefect.Task):
         self.stream_output = stream_output
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("command", "env")
+    @defaults_from_attrs("command", "env", "helper_script")
     def run(
-        self, command: str = None, env: dict = None
+        self, command: str = None, env: dict = None, helper_script: str = None
     ) -> Optional[Union[str, List[str]]]:
         """
         Run the shell command.
@@ -81,10 +81,14 @@ class ShellTask(prefect.Task):
         Args:
             - command (string): shell command to be executed; can also be
                 provided at task initialization. Any variables / functions defined in
-                `self.helper_script` will be available in the same process this command
+                `helper_script` will be available in the same process this command
                 runs in
             - env (dict, optional): dictionary of environment variables to use for
                 the subprocess
+            - helper_script (str, optional): a string representing a shell script, which
+                will be executed prior to the `command` in the same process. Can be used to
+                change directories, define helper functions, etc. when re-using this Task
+                for different commands in a Flow
 
         Returns:
             - output (string): if `return_all` is `False` (the default), only
@@ -103,8 +107,8 @@ class ShellTask(prefect.Task):
         current_env = os.environ.copy()
         current_env.update(env or {})
         with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
-            if self.helper_script:
-                tmp.write(self.helper_script.encode())
+            if helper_script:
+                tmp.write(helper_script.encode())
                 tmp.write("\n".encode())
             tmp.write(command.encode())
             tmp.flush()
