@@ -607,3 +607,8 @@ title = "Edge Utilities"
 module = "prefect.utilities.edges"
 classes = ["unmapped", "mapped", "flatten"]
 functions = []
+
+[pages.tasks.dremio]
+title = "Dremio Tasks"
+module = "prefect.tasks.dremio"
+classes = ["DremioFetch"]
