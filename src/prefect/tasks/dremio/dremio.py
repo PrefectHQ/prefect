@@ -16,17 +16,17 @@ class HttpDremioClientAuthHandler(flight.ClientAuthHandler):
         - token (str)
     """
 
-    def __init__(self, username, password):
+    def __init__(self, username: str, password: str):
         super(flight.ClientAuthHandler, self).__init__()
         self.basic_auth = flight.BasicAuth(username, password)
         self.token = None
 
-    def authenticate(self, outgoing, incoming):
+    def authenticate(self, outgoing: Any, incoming: Any) -> None:
         auth = self.basic_auth.serialize()
         outgoing.write(auth)
         self.token = incoming.read()
 
-    def get_token(self):
+    def get_token(self) -> str:
         return self.token
 
 
