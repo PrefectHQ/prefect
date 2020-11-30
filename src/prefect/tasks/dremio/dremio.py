@@ -67,9 +67,9 @@ class DremioFetch(Task):
         Args:
             - query (str, optional): query to execute against query engine
         Returns:
-            - results (dict): dictionary of data returned by Dremio
+            - dict: a dictionary of data returned by Dremio
         Raises:
-            - ValueError: if the query is not provided
+            - ValueError: if `query` is `None`
         """
         if not query:
             raise ValueError("A query string must be provided")
