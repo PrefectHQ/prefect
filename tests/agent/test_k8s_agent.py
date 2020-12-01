@@ -1118,7 +1118,9 @@ class TestK8sAgentRunConfig:
         self.agent.job_template_path = template_path
 
         self.agent.env_vars = {"CUSTOM2": "OVERRIDE2", "CUSTOM3": "VALUE3"}
-        run_config = KubernetesRun(env={"CUSTOM3": "OVERRIDE3", "CUSTOM4": "VALUE4"})
+        run_config = KubernetesRun(
+            image="test-image", env={"CUSTOM3": "OVERRIDE3", "CUSTOM4": "VALUE4"}
+        )
 
         flow_run = self.build_flow_run(run_config)
         job = self.agent.generate_job_spec(flow_run)
@@ -1130,6 +1132,7 @@ class TestK8sAgentRunConfig:
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
+            "PREFECT__CONTEXT__IMAGE": "test-image",
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
