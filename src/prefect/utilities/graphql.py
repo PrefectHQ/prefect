@@ -4,9 +4,12 @@ import json
 import textwrap
 import uuid
 from collections.abc import KeysView, ValuesView
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from box import Box
+
+if TYPE_CHECKING:
+    import requests
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -16,6 +19,13 @@ def lowercase_first_letter(s: str) -> str:
     if s:
         return s[0].lower() + s[1:]
     return s
+
+
+def multiline_indent(string: str, spaces: int) -> str:
+    """
+    Utility to indent all but the first line in a string to the specified level
+    """
+    return string.replace("\n", "\n" + " " * spaces)
 
 
 class GraphQLResult(Box):
@@ -287,6 +297,58 @@ def with_args(field: Any, arguments: Any) -> str:
     parsed_field = parse_graphql(field)
     parsed_arguments = parse_graphql_arguments(arguments)
     return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
+
+
+def format_graphql_request_error(response: "requests.Response") -> str:
+    """
+    Given a http response that contains a graphql error, parse the error messages
+    and create a nicely formatted string summary
+
+    Args:
+        response (requests.Response): The HTTP response with the errors, should have
+            returned a 400
+
+    Returns:
+        A formatted string
+    """
+    params = json.loads(response.request.body or "{}")
+    query = parse_graphql(params.get("query", {})) or "null"
+    variables = parse_graphql(params.get("variables", {})) or "null"
+
+    content = response.json()
+    errors = content.get("errors", [])
+    error_msgs = []
+    for error in errors:
+        message = error.get("message", "No error message supplied.")
+        extensions = error.get("extensions", {})
+        # Other extensions are possible but we will only include the minimum for now
+        # since stack traces and other info are likely not passed
+        code = extensions.get("code", "UNKNOWN_ERROR")
+        # Wrap the error message at 80 characters and indent extra lines
+        error_msgs.append(multiline_indent(textwrap.fill(f"{code}: {message}", 80), 4))
+
+    error_prefix = (
+        "The following error messages were provided by the GraphQL server:\n"
+        if error_msgs
+        else "The server did not provide any error messages."
+    )
+
+    error_paragraph = "\n".join(error_msgs)
+
+    return textwrap.dedent(
+        f"""
+        {error_prefix}
+            {multiline_indent(error_paragraph, 12)}
+
+        The GraphQL query was:
+
+            {multiline_indent(query, 12)}
+
+        The passed variables were:
+
+            {multiline_indent(variables, 12)}
+        """
+    )
 
 
 def compress(input: Any) -> str:

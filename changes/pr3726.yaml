@@ -1,5 +1,0 @@
-fix:
-  - "Properly forward `location` parameter in bigquery tasks - [#3726](https://github.com/PrefectHQ/prefect/pull/3726)"
-
-contributor:
-  - "[Takayuki Hirayama](https://github.com/yukihira1992)"

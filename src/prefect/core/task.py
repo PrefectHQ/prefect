@@ -148,8 +148,8 @@ class TaskMetaclass(type):
                     cls_name = type(self).__name__
                     warnings.warn(
                         f"A Task was passed as an argument to {cls_name}, you likely want to "
-                        f"first initialize {cls_name} with any static (non-Task) arguements, "
-                        "then call the initialized task with any dynamic (Task) arguements instead. "
+                        f"first initialize {cls_name} with any static (non-Task) arguments, "
+                        "then call the initialized task with any dynamic (Task) arguments instead. "
                         "For example:\n\n"
                         f"  my_task = {cls_name}(...)  # static (non-Task) args go here\n"
                         f"  res = my_task(...)  # dynamic (Task) args go here\n\n"
