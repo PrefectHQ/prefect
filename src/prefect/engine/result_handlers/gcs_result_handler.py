@@ -98,7 +98,7 @@ class GCSResultHandler(ResultHandler):
         """
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
-            result = self.gcs_bucket.blob(uri).download_as_string()
+            result = self.gcs_bucket.blob(uri).download_as_bytes()
             try:
                 return_val = cloudpickle.loads(base64.b64decode(result))
             except EOFError:
