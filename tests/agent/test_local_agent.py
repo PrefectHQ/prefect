@@ -315,7 +315,10 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     agent = LocalAgent()
 
-    with pytest.raises(TypeError, match="Unsupported RunConfig type: Kubernetes"):
+    with pytest.raises(
+        TypeError,
+        match="`run_config` of type `KubernetesRun`, only `LocalRun` is supported",
+    ):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
@@ -332,6 +335,30 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     assert not popen.called
     assert len(agent.processes) == 0
+
+
+def test_local_agent_deploy_null_run_config(monkeypatch):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "flow": {
+                    "storage": Local().serialize(),
+                    "run_config": None,
+                    "id": "foo",
+                    "core_version": "0.13.0",
+                },
+            },
+        )
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
 
 
 @pytest.mark.parametrize("working_dir", [None, "existing"])

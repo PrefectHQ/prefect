@@ -571,14 +571,14 @@ class TestDeployFlow:
         return agent.deploy_flow(flow_run)
 
     def test_deploy_flow_errors_if_not_ecs_run_config(self):
-        with pytest.raises(TypeError, match="Unsupported RunConfig"):
+        with pytest.raises(
+            TypeError,
+            match="`run_config` of type `LocalRun`, only `ECSRun` is supported",
+        ):
             self.deploy_flow(LocalRun())
 
-    def test_deploy_flow_errors_if_missing_run_config(self):
-        with pytest.raises(ValueError, match="Flow is missing a `run_config`"):
-            self.deploy_flow(None)
-
-    def test_deploy_flow_registers_taskdef_if_not_found(self, aws):
+    @pytest.mark.parametrize("run_config", [ECSRun(), None])
+    def test_deploy_flow_registers_taskdef_if_not_found(self, run_config, aws):
         aws.resourcegroupstaggingapi.get_resources.return_value = {
             "ResourceTagMappingList": []
         }
@@ -587,7 +587,7 @@ class TestDeployFlow:
         }
         aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
 
-        res = self.deploy_flow(ECSRun(run_task_kwargs={"enableECSManagedTags": True}))
+        res = self.deploy_flow(run_config)
         assert aws.ecs.register_task_definition.called
         assert (
             aws.ecs.register_task_definition.call_args[1]["family"]
@@ -595,7 +595,6 @@ class TestDeployFlow:
         )
         assert aws.ecs.run_task.called
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
-        assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
         assert "my-task-arn" in res
 
     def test_deploy_flow_does_not_register_taskdef_if_found(self, aws):
@@ -632,3 +631,16 @@ class TestDeployFlow:
             self.deploy_flow(ECSRun())
         assert aws.ecs.run_task.called
         assert "my-reason" in str(exc.value)
+
+    def test_deploy_flow_forwards_run_task_kwargs(self, aws):
+        aws.resourcegroupstaggingapi.get_resources.return_value = {
+            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
+        }
+        aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
+
+        res = self.deploy_flow(ECSRun(run_task_kwargs={"enableECSManagedTags": True}))
+        assert not aws.ecs.register_task_definition.called
+        assert aws.ecs.run_task.called
+        assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
+        assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
+        assert "my-task-arn" in res

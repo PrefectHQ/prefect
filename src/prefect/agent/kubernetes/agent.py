@@ -10,7 +10,7 @@ import prefect
 from prefect import config
 from prefect.agent import Agent
 from prefect.engine.state import Failed
-from prefect.serialization.run_config import RunConfigSchema
+from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
@@ -277,8 +277,9 @@ class KubernetesAgent(Agent):
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
         """
-        if getattr(flow_run.flow, "run_config", None) is not None:
-            return self.generate_job_spec_from_run_config(flow_run)
+        run_config = self._get_run_config(flow_run, KubernetesRun)
+        if run_config is not None:
+            return self.generate_job_spec_from_run_config(flow_run, run_config)
         else:
             return self.generate_job_spec_from_environment(flow_run)
 
@@ -416,17 +417,18 @@ class KubernetesAgent(Agent):
 
         return job
 
-    def generate_job_spec_from_run_config(self, flow_run: GraphQLResult) -> dict:
+    def generate_job_spec_from_run_config(
+        self, flow_run: GraphQLResult, run_config: KubernetesRun
+    ) -> dict:
         """Generate a k8s job spec for a flow run.
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - run_config (KubernetesRun): The flow run's run_config
 
         Returns:
             - dict: a dictionary representation of a k8s job for flow execution
         """
-        run_config = RunConfigSchema().load(flow_run.flow.run_config)
-
         if run_config.job_template:
             job = run_config.job_template
         else:

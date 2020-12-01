@@ -254,18 +254,28 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
     assert api.start.call_args[1]["container"] == "container_id"
 
 
-@pytest.mark.parametrize("image_on_run_config", [True, False])
-def test_docker_agent_deploy_flow_run_config(api, image_on_run_config):
-    if image_on_run_config:
-        storage = Local()
-        image = "on-run-config"
-        run = DockerRun(image=image, env={"TESTING": "VALUE"})
-    else:
+@pytest.mark.parametrize("has_run_config", [True, False])
+@pytest.mark.parametrize("has_docker_storage", [True, False])
+def test_docker_agent_deploy_flow_run_config(api, has_run_config, has_docker_storage):
+    if has_docker_storage:
         storage = Docker(
             registry_url="testing", image_name="on-storage", image_tag="tag"
         )
         image = "testing/on-storage:tag"
-        run = DockerRun(env={"TESTING": "VALUE"})
+    else:
+        storage = Local()
+        image = (
+            "on-run-config"
+            if has_run_config
+            else "prefecthq/prefect:all_extras-0.13.11"
+        )
+
+    if has_run_config:
+        env = {"TESTING": "VALUE"}
+        run = DockerRun(image=image, env=env)
+    else:
+        env = {}
+        run = None
 
     agent = DockerAgent()
     agent.deploy_flow(
@@ -275,7 +285,7 @@ def test_docker_agent_deploy_flow_run_config(api, image_on_run_config):
                     {
                         "id": "foo",
                         "storage": storage.serialize(),
-                        "run_config": run.serialize(),
+                        "run_config": run.serialize() if run else None,
                         "core_version": "0.13.11",
                     }
                 ),
@@ -287,13 +297,18 @@ def test_docker_agent_deploy_flow_run_config(api, image_on_run_config):
 
     assert api.create_container.called
     assert api.create_container.call_args[0][0] == image
-    assert api.create_container.call_args[1]["environment"]["TESTING"] == "VALUE"
+    res_env = api.create_container.call_args[1]["environment"]
+    for k, v in env.items():
+        assert res_env[k] == v
 
 
 def test_docker_agent_deploy_flow_unsupported_run_config(api):
     agent = DockerAgent()
 
-    with pytest.raises(TypeError, match="Unsupported RunConfig type: LocalRun"):
+    with pytest.raises(
+        TypeError,
+        match="`run_config` of type `LocalRun`, only `DockerRun` is supported",
+    ):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {

@@ -11,8 +11,7 @@ import prefect
 from prefect.agent.kubernetes.agent import KubernetesAgent, read_bytes_from_path
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
-from prefect.run_configs import KubernetesRun
-from prefect.serialization.run_config import RunConfigSchema
+from prefect.run_configs import KubernetesRun, LocalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -32,7 +31,7 @@ def test_k8s_agent_init(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     assert agent
-    assert agent.agent_config_id == None
+    assert agent.agent_config_id is None
     assert agent.labels == []
     assert agent.name == "agent"
     assert agent.batch_client
@@ -1007,7 +1006,7 @@ class TestK8sAgentRunConfig:
                 "flow": GraphQLResult(
                     {
                         "storage": storage.serialize(),
-                        "run_config": RunConfigSchema().dump(config),
+                        "run_config": None if config is None else config.serialize(),
                         "id": "new_id",
                         "core_version": "0.13.0",
                     }
@@ -1015,6 +1014,21 @@ class TestK8sAgentRunConfig:
                 "id": "id",
             }
         )
+
+    def test_generate_job_spec_null_environment_uses_default_run_config(self):
+        self.agent.generate_job_spec_from_run_config = MagicMock(
+            wraps=self.agent.generate_job_spec_from_run_config
+        )
+        flow_run = self.build_flow_run(None)
+        self.agent.generate_job_spec(flow_run)
+        assert self.agent.generate_job_spec_from_run_config.called
+
+    def test_generate_job_spec_errors_if_non_kubernetesrun_run_config(self):
+        with pytest.raises(
+            TypeError,
+            match="`run_config` of type `LocalRun`, only `KubernetesRun` is supported",
+        ):
+            self.agent.generate_job_spec(self.build_flow_run(LocalRun()))
 
     def test_generate_job_spec_uses_job_template_provided_in_run_config(self):
         template = self.read_default_template()

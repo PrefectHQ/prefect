@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 from prefect import config, context
 from prefect.agent import Agent
 from prefect.run_configs import DockerRun
-from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
@@ -351,19 +350,7 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
-        if getattr(flow_run.flow, "run_config", None) is not None:
-            run_config = RunConfigSchema().load(flow_run.flow.run_config)
-            if not isinstance(run_config, DockerRun):
-                self.logger.error(
-                    "Flow run %s has a `run_config` of type `%s`, only `DockerRun` is supported",
-                    flow_run.id,
-                    type(run_config).__name__,
-                )
-                raise TypeError(
-                    "Unsupported RunConfig type: %s" % type(run_config).__name__
-                )
-        else:
-            run_config = None
+        run_config = self._get_run_config(flow_run, DockerRun)
 
         image = get_flow_image(flow_run=flow_run)
         env_vars = self.populate_env_vars(flow_run, image, run_config=run_config)
@@ -493,7 +480,7 @@ class DockerAgent(Agent):
         # 2. Values set on the agent via `--env`
         env.update(self.env_vars)
 
-        # 3. Values set on a DockerRun RunConfig (if present
+        # 3. Values set on a DockerRun RunConfig (if present)
         if run_config is not None and run_config.env is not None:
             env.update(run_config.env)
 

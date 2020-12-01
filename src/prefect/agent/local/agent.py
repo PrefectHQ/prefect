@@ -9,7 +9,6 @@ from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.run_configs import LocalRun
 from prefect.serialization.storage import StorageSchema
-from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.agent import get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
@@ -147,21 +146,7 @@ class LocalAgent(Agent):
             )
             raise TypeError("Unsupported Storage type: %s" % type(storage).__name__)
 
-        # If the flow is using a run_config, load it
-        if getattr(flow_run.flow, "run_config", None) is not None:
-            run_config = RunConfigSchema().load(flow_run.flow.run_config)
-            if not isinstance(run_config, LocalRun):
-                self.logger.error(
-                    "Flow run %s has a `run_config` of type `%s`, only `LocalRun` is supported",
-                    flow_run.id,
-                    type(run_config).__name__,
-                )
-                raise TypeError(
-                    "Unsupported RunConfig type: %s" % type(run_config).__name__
-                )
-        else:
-            run_config = None
-
+        run_config = self._get_run_config(flow_run, LocalRun)
         env = self.populate_env_vars(flow_run, run_config=run_config)
 
         working_dir = None if run_config is None else run_config.working_dir
