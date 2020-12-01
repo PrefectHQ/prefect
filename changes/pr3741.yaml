@@ -1,0 +1,5 @@
+fix:
+  - "Replace deprecated download_as_string method with download_as_bytes method - [#3741](https://github.com/PrefectHQ/prefect/pull/3741)"
+
+contributor:
+  - "[Takayuki Hirayama](https://github.com/yukihira1992)"
