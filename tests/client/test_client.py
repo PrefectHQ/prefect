@@ -2,9 +2,12 @@ import datetime
 import json
 import uuid
 from unittest.mock import MagicMock
+
 import marshmallow
 import pendulum
 import pytest
+import requests
+
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result import SafeResult
