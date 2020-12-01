@@ -369,6 +369,7 @@ class TestGenerateTaskDefinition:
 
     def test_generate_task_definition_environment(self):
         run_config = ECSRun(
+            image="test-image",
             task_definition={
                 "containerDefinitions": [
                     {
@@ -393,6 +394,7 @@ class TestGenerateTaskDefinition:
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            "PREFECT__CONTEXT__IMAGE": "test-image",
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "VALUE2",
         }

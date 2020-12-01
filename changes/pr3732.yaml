@@ -1,0 +1,5 @@
+enhancement:
+  - "Support timeout option in GCS tasks - [#3732](https://github.com/PrefectHQ/prefect/pull/3732)"
+
+contributor:
+  - "[Takayuki Hirayama](https://github.com/yukihira1992)"

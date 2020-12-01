@@ -11,6 +11,19 @@ def test_jupyter_html_output():
     )
     output = task.run()
     assert "a*b=10" in output
+    assert "# This cell contains commented Python code" in output
+
+
+def test_jupyter_html_output_with_exporter_kwargs():
+    task = ExecuteNotebook(
+        "tests/tasks/jupyter/sample_notebook.ipynb",
+        parameters=dict(a=5),
+        output_format="html",
+        exporter_kwargs={"exclude_input": True},
+    )
+    output = task.run()
+    assert "a*b=10" in output
+    assert "# This cell contains commented Python code" not in output
 
 
 def test_jupyter_json_output():
@@ -18,6 +31,17 @@ def test_jupyter_json_output():
         "tests/tasks/jupyter/sample_notebook.ipynb",
         parameters=dict(a=5),
         output_format="json",
+    )
+    output = task.run()
+    _ = json.loads(output)  # try loading the JSON string
+    assert "a*b=10" in output
+
+
+def test_jupyter_notebook_output():
+    task = ExecuteNotebook(
+        "tests/tasks/jupyter/sample_notebook.ipynb",
+        parameters=dict(a=5),
+        output_format="notebook",
     )
     output = task.run()
     _ = json.loads(output)  # try loading the JSON string

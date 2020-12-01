@@ -10,11 +10,11 @@ import requests
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import SafeResult
 from prefect.engine.state import Pending, Running, State
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError, ClientError
-from prefect.utilities.graphql import GraphQLResult, decompress
+from prefect.utilities.exceptions import ClientError
+from prefect.utilities.graphql import decompress
 
 
 def test_client_posts_to_api_server(patch_post):
@@ -106,7 +106,7 @@ def test_client_posts_graphql_to_api_server(patch_post):
     assert post.call_args[0][0] == "http://my-cloud.foo"
 
 
-## test actual mutation and query handling
+# test actual mutation and query handling
 def test_graphql_errors_get_raised(patch_post):
     patch_post(dict(data="42", errors=[{"GraphQL issue!": {}}]))
 
@@ -120,6 +120,58 @@ def test_graphql_errors_get_raised(patch_post):
         client = Client()
     with pytest.raises(ClientError, match="GraphQL issue!"):
         client.graphql("query: {}")
+
+
+class TestClientGraphQLErrorHandling:
+    @pytest.fixture()
+    def patch_post_response(self, monkeypatch):
+        response = requests.Response()
+        response.status_code = 400
+        session = MagicMock()
+        session.return_value.post = MagicMock(return_value=response)
+        monkeypatch.setattr("requests.Session", session)
+
+    def get_client(self):
+        with set_temporary_config(
+            {
+                "cloud.api": "http://my-cloud.foo",
+                "cloud.auth_token": "secret_token",
+                "backend": "cloud",
+            }
+        ):
+            return Client()
+
+    def test_graphql_errors_calls_formatter_and_displays(
+        self, patch_post_response, monkeypatch
+    ):
+        formatter = MagicMock(return_value="Formatted graphql message")
+        monkeypatch.setattr(
+            "prefect.client.client.format_graphql_request_error", formatter
+        )
+
+        with pytest.raises(ClientError, match="Formatted graphql message"):
+            self.get_client().graphql({"query": "foo"})
+
+        formatter.assert_called_once()
+
+    def test_graphql_errors_allow_formatter_to_fail(
+        self, patch_post_response, monkeypatch
+    ):
+        def erroring_formatter():
+            raise Exception("Bad formatter")
+
+        monkeypatch.setattr(
+            "prefect.client.client.format_graphql_request_error", erroring_formatter
+        )
+
+        with pytest.raises(
+            ClientError,
+            match=(
+                "This is likely caused by a poorly formatted GraphQL query or "
+                "mutation but the response could not be parsed for more details"
+            ),
+        ):
+            self.get_client().graphql({"query": "foo"})
 
 
 def test_client_register_raises_if_required_param_isnt_scheduled(
@@ -162,7 +214,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
         ClientError,
         match="Flows with required parameters can not be scheduled automatically",
     ):
-        flow_id = client.register(
+        client.register(
             flow,
             project_name="my-default-project",
             compressed=False,
@@ -309,7 +361,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result(
     flow.result = None
 
     with pytest.warns(UserWarning, match="result handler"):
-        flow_id = client.register(
+        client.register(
             flow,
             project_name="my-default-project",
             compressed=compressed,
@@ -390,11 +442,11 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     flow.result = flow.storage.result
 
-    flow_id = client.register(
+    client.register(
         flow, project_name="my-default-project", compressed=compressed, no_url=True
     )
 
-    ## extract POST info
+    # extract POST info
     if compressed:
         serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
@@ -442,7 +494,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     )
     flow.result = flow.storage.result
 
-    flow_id = client.register(
+    client.register(
         flow,
         project_name="my-default-project",
         compressed=compressed,
@@ -450,7 +502,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
         no_url=True,
     )
 
-    ## extract POST info
+    # extract POST info
     if compressed:
         serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
@@ -498,7 +550,7 @@ def test_client_register_default_all_extras_image(
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     flow.result = flow.storage.result
 
-    flow_id = client.register(
+    client.register(
         flow,
         project_name="my-default-project",
         compressed=compressed,
@@ -506,7 +558,7 @@ def test_client_register_default_all_extras_image(
         no_url=True,
     )
 
-    ## extract POST info
+    # extract POST info
     if compressed:
         serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
@@ -553,7 +605,7 @@ def test_client_register_optionally_avoids_building_flow(
     flow = prefect.Flow(name="test")
     flow.result = prefect.engine.result.Result()
 
-    flow_id = client.register(
+    client.register(
         flow,
         project_name="my-default-project",
         build=False,
@@ -561,7 +613,7 @@ def test_client_register_optionally_avoids_building_flow(
         no_url=True,
     )
 
-    ## extract POST info
+    # extract POST info
     if compressed:
         serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
@@ -588,7 +640,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     flow.result = prefect.engine.result.Result()
 
     with pytest.raises(ValueError) as exc:
-        flow_id = client.register(flow, project_name="my-default-project", no_url=True)
+        client.register(flow, project_name="my-default-project", no_url=True)
     assert "not found" in str(exc.value)
     assert "prefect create project 'my-default-project'" in str(exc.value)
 
@@ -616,6 +668,43 @@ def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
     assert project_id == "proj-id"
 
 
+def test_client_delete_project(patch_post, monkeypatch):
+    patch_post(
+        {"data": {"project": [{"id": "test"}], "delete_project": {"success": True}}}
+    )
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+        client = Client()
+    result = client.delete_project(project_name="my-default-project")
+    assert result is True
+
+
+def test_client_delete_project_error(patch_post, monkeypatch):
+    patch_post(
+        {
+            "data": {
+                "project": {},
+            }
+        }
+    )
+
+    project_name = "my-default-project"
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+        client = Client()
+
+    with pytest.raises(ValueError, match="Project {} not found".format(project_name)):
+        client.delete_project(project_name=project_name)
+
+
 def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeypatch):
     patch_post({"data": {"project": [{"id": "proj-id"}]}})
 
@@ -633,7 +722,8 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
         client = Client()
 
     task = prefect.Task()
-    # we add a max_retries value to the task without a corresponding retry_delay; this will fail at deserialization
+    # we add a max_retries value to the task without a corresponding retry_delay;
+    # this will fail at deserialization
     task.max_retries = 3
     flow = prefect.Flow(name="test", tasks=[task])
     flow.result = prefect.engine.result.Result()
@@ -644,7 +734,7 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
             "(Flow could not be deserialized).*"
             "(`retry_delay` must be provided if max_retries > 0)"
         ),
-    ) as exc:
+    ):
         client.register(
             flow, project_name="my-default-project", build=False, no_url=True
         )
@@ -747,7 +837,7 @@ def test_client_register_flow_id_no_output(
 def test_set_flow_run_name(patch_posts, cloud_api):
     mutation_resp = {"data": {"set_flow_run_name": {"success": True}}}
 
-    post = patch_posts(mutation_resp)
+    patch_posts(mutation_resp)
 
     client = Client()
     result = client.set_flow_run_name(flow_run_id="74-salt", name="name")
@@ -758,7 +848,7 @@ def test_set_flow_run_name(patch_posts, cloud_api):
 def test_cancel_flow_run(patch_posts, cloud_api):
     mutation_resp = {"data": {"cancel_flow_run": {"state": True}}}
 
-    post = patch_posts(mutation_resp)
+    patch_posts(mutation_resp)
 
     client = Client()
     result = client.cancel_flow_run(flow_run_id="74-salt")
@@ -806,7 +896,7 @@ def test_get_flow_run_info(patch_post):
             ],
         }
     }
-    post = patch_post(dict(data=response))
+    patch_post(dict(data=response))
 
     with set_temporary_config(
         {
@@ -869,7 +959,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
             ],
         }
     }
-    post = patch_post(dict(data=response))
+    patch_post(dict(data=response))
 
     with set_temporary_config(
         {
@@ -897,7 +987,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
 
 
 def test_get_flow_run_info_raises_informative_error(patch_post):
-    post = patch_post(dict(data={"flow_run_by_pk": None}))
+    patch_post(dict(data={"flow_run_by_pk": None}))
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
@@ -927,7 +1017,7 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
         }
     }
 
-    post = patch_posts([dict(data=query_resp)])
+    patch_posts([dict(data=query_resp)])
 
     client = Client()
     state = client.get_flow_run_state(flow_run_id="72-salt")
@@ -944,7 +1034,7 @@ def test_set_flow_run_state(patch_post):
             }
         }
     }
-    post = patch_post(response)
+    patch_post(response)
 
     with set_temporary_config(
         {
@@ -969,7 +1059,7 @@ def test_set_flow_run_state_gets_queued(patch_post):
             }
         }
     }
-    post = patch_post(response)
+    patch_post(response)
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
@@ -997,7 +1087,7 @@ def test_set_flow_run_state_uses_config_queue_interval(
             }
         }
     }
-    post = patch_post(response)
+    patch_post(response)
 
     with set_temporary_config(
         {
@@ -1027,7 +1117,7 @@ def test_set_flow_run_state_with_error(patch_post):
         "data": {"set_flow_run_state": None},
         "errors": [{"message": "something went wrong"}],
     }
-    post = patch_post(response)
+    patch_post(response)
 
     with set_temporary_config(
         {
@@ -1043,12 +1133,8 @@ def test_set_flow_run_state_with_error(patch_post):
 
 def test_get_task_run_info(patch_posts):
     mutation_resp = {
-        "get_or_create_task_run": {
+        "get_or_create_task_run_info": {
             "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
-        }
-    }
-    query_resp = {
-        "task_run_by_pk": {
             "version": 0,
             "serialized_state": {
                 "type": "Pending",
@@ -1061,11 +1147,10 @@ def test_get_task_run_info(patch_posts):
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
                 "cached_inputs": None,
             },
-            "task": {"slug": "slug"},
         }
     }
 
-    post = patch_posts([dict(data=mutation_resp), dict(data=query_resp)])
+    patch_posts([dict(data=mutation_resp)])
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
@@ -1090,7 +1175,7 @@ def test_get_task_run_info_with_error(patch_post):
         "data": {"get_or_create_task_run": None},
         "errors": [{"message": "something went wrong"}],
     }
-    post = patch_post(response)
+    patch_post(response)
 
     with set_temporary_config(
         {
@@ -1110,7 +1195,7 @@ def test_get_task_run_info_with_error(patch_post):
 def test_set_task_run_name(patch_posts, cloud_api):
     mutation_resp = {"data": {"set_task_run_name": {"success": True}}}
 
-    post = patch_posts(mutation_resp)
+    patch_posts(mutation_resp)
 
     client = Client()
     result = client.set_task_run_name(task_run_id="76-salt", name="name")
@@ -1120,7 +1205,7 @@ def test_set_task_run_name(patch_posts, cloud_api):
 
 def test_get_task_run_state(patch_posts, cloud_api, runner_token):
     query_resp = {
-        "task_run_by_pk": {
+        "get_task_run_info": {
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
@@ -1135,7 +1220,7 @@ def test_get_task_run_state(patch_posts, cloud_api, runner_token):
         }
     }
 
-    post = patch_posts([dict(data=query_resp)])
+    patch_posts([dict(data=query_resp)])
 
     client = Client()
     state = client.get_task_run_state(task_run_id="72-salt")
@@ -1146,7 +1231,7 @@ def test_get_task_run_state(patch_posts, cloud_api, runner_token):
 
 def test_set_task_run_state(patch_post):
     response = {"data": {"set_task_run_states": {"states": [{"status": "SUCCESS"}]}}}
-    post = patch_post(response)
+    patch_post(response)
     state = Pending()
 
     with set_temporary_config(
@@ -1164,7 +1249,7 @@ def test_set_task_run_state(patch_post):
 
 def test_set_task_run_state_responds_to_status(patch_post):
     response = {"data": {"set_task_run_states": {"states": [{"status": "QUEUED"}]}}}
-    post = patch_post(response)
+    patch_post(response)
     state = Pending()
 
     with set_temporary_config(
@@ -1189,7 +1274,7 @@ def test_set_task_run_state_responds_to_config_when_queued(patch_post):
             }
         }
     }
-    post = patch_post(response)
+    patch_post(response)
     state = Pending()
 
     with set_temporary_config(
@@ -1213,7 +1298,7 @@ def test_set_task_run_state_responds_to_config_when_queued(patch_post):
 
 def test_set_task_run_state_serializes(patch_post):
     response = {"data": {"set_task_run_states": {"states": [{"status": "SUCCESS"}]}}}
-    post = patch_post(response)
+    patch_post(response)
 
     with set_temporary_config(
         {
@@ -1236,7 +1321,7 @@ def test_set_task_run_state_with_error(patch_post):
         "data": {"set_task_run_states": None},
         "errors": [{"message": "something went wrong"}],
     }
-    post = patch_post(response)
+    patch_post(response)
 
     with set_temporary_config(
         {
@@ -1272,7 +1357,7 @@ def test_create_flow_run_with_input(patch_post, kwargs):
     response = {
         "data": {"create_flow_run": {"id": "FOO"}},
     }
-    post = patch_post(response)
+    patch_post(response)
 
     with set_temporary_config(
         {
@@ -1414,9 +1499,7 @@ def test_register_agent_raises_error(patch_post, cloud_api):
         client = Client()
 
         with pytest.raises(ValueError):
-            agent_id = client.register_agent(
-                agent_type="type", name="name", labels=["1", "2"]
-            )
+            client.register_agent(agent_type="type", name="name", labels=["1", "2"])
 
 
 def test_get_agent_config(patch_post, cloud_api):

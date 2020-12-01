@@ -94,7 +94,7 @@ class GCSResult(Result):
 
         try:
             self.logger.debug("Starting to download result from {}...".format(location))
-            serialized_value = self.gcs_bucket.blob(location).download_as_string()
+            serialized_value = self.gcs_bucket.blob(location).download_as_bytes()
             try:
                 new.value = new.serializer.deserialize(serialized_value)
             except EOFError:

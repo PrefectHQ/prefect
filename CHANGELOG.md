@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.13.18 <Badge text="beta" type="success" />
+
+Released on November 30, 2020.
+
+### Enhancements
+
+- Display formatted graphql errors on client request failure - [#3632](https://github.com/PrefectHQ/prefect/pull/3632)
+- Refactor Core Client API calls for performance - [#3730](https://github.com/PrefectHQ/prefect/pull/3730)
+
+### Task Library
+
+- Refactor execute query code for `PostgresExecute`, `PostgresExecuteMany`, and `PostgresFetch` tasks - [#3714](https://github.com/PrefectHQ/prefect/pull/3714)
+- Fix `PicklingError` in `BigQueryLoadFile` and `BigQueryLoadGoogleCloudStorage` - [#3724](https://github.com/PrefectHQ/prefect/pull/3724)
+- Allow custom exporter for `ExecuteNotebook` task - [#3725](https://github.com/PrefectHQ/prefect/pull/3725)
+- Properly forward `location` parameter in bigquery tasks - [#3726](https://github.com/PrefectHQ/prefect/pull/3726)
+- Support passing `helper_script` to `ShellTask`/`DBTShellTask` at runtime - [#3729](https://github.com/PrefectHQ/prefect/pull/3729)
+
+### Fixes
+
+- Fix bug with docker storage throwing exception while trying to display output - [#3717](https://github.com/PrefectHQ/prefect/pull/3717)
+
+### Contributors
+
+- [Amanda Wee](https://github.com/amanda-wee)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+- [Swier Heeres](https://github.com/swierh)
+- [Takayuki Hirayama](https://github.com/yukihira1992)
+
+## 0.13.17 <Badge text="beta" type="success" />
+
+Released on November 24, 2020.
+
+### Features
+
+- Improved support for Tasks returning multiple results - [#3697](https://github.com/PrefectHQ/prefect/pull/3697)
+
+### Enhancements
+
+- Allow chaining of `Task` imperative dependency calls - [#3696](https://github.com/PrefectHQ/prefect/pull/3696)
+- Add `task_definition_arn` to `ECSRun` run-config - [#3681](https://github.com/PrefectHQ/prefect/pull/3681)
+- Rerun `resource_manager` tasks when restarting flows from failed - [#3689](https://github.com/PrefectHQ/prefect/pull/3689)
+- Raise nice warning if user passes `Task` instance to `Task` constructor, rather than when calling the `Task` (or using `Task.map`/`Task.set_dependencies`) - [#3691](https://github.com/PrefectHQ/prefect/pull/3691)
+- Always use tenant slug in output of Client `get_cloud_url` function - [#3692](https://github.com/PrefectHQ/prefect/pull/3692)
+
+### Task Library
+
+- Add enhancement to `StartFlowRun` task to create link artifact for started flow run - [#3692](https://github.com/PrefectHQ/prefect/pull/3692)
+- Add a new postgres task `PostgresExecuteMany` - [#3703](https://github.com/PrefectHQ/prefect/pull/3703)
+- Add debug logging for Docker tasks `PullImage` and `BuildImage` - [#3672](https://github.com/PrefectHQ/prefect/pull/3672)
+- `ShellTask` returns output on failure - [#3649](https://github.com/PrefectHQ/prefect/pull/3649)
+- `ShellTask` allows streaming of output independently of the number of lines returned - [#3649](https://github.com/PrefectHQ/prefect/pull/3649)
+
+### Fixes
+
+- Make `serialized_hash` handle unordered task sets correctly - [#3682](https://github.com/PrefectHQ/prefect/pull/3682)
+- Docker storage build error logs were not always displayed - [#3693](https://github.com/PrefectHQ/prefect/pull/3693)
+- Fix automatic quoting of Docker storage environment variable values - [#3694](https://github.com/PrefectHQ/prefect/pull/3694)
+- Use `exist_ok` flag in `os.makedirs` to avoid race condition in local storage class - [#3679](https://github.com/PrefectHQ/prefect/pull/3679)
+
+### Contributors
+
+- [Faris ALSaleem](https://github.com/FarisALSaleem)
+- [R Max Espinoza](https://github.com/rmax)
+- [Takayuki Hirayama](https://github.com/yukihira1992)
+
 ## 0.13.16 <Badge text="beta" type="success" />
 
 Released on November 17, 2020.
