@@ -1,6 +1,7 @@
 import os
 import time
 import uuid
+import textwrap
 from typing import Iterable, List, Any
 
 import json
@@ -208,6 +209,28 @@ class KubernetesAgent(Agent):
 
                             failed_pods.append(pod.metadata.name)
 
+                            for status in pod.status.container_statuses:
+                                if status.state.terminated:
+                                    msg = textwrap.dedent(
+                                        f"""
+                                        Found failed container: {status.name}
+                                            Exit code: {status.state.terminated.exit_code}
+                                            Message: {status.state.terminated.message}
+                                            Reason: {status.state.terminated.reason}
+                                            Signal: {status.state.terminated.signal}
+                                        """
+                                    )
+                                    self.client.write_run_logs(
+                                        [
+                                            dict(
+                                                flow_run_id=flow_run_id,
+                                                name=self.name,
+                                                message=msg,
+                                                level="ERROR",
+                                            )
+                                        ]
+                                    )
+
                         if failed_pods:
                             self.logger.debug(
                                 f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
@@ -220,6 +243,7 @@ class KubernetesAgent(Agent):
                                     )
                                 ),
                             )
+                        return
 
                     # Delete job if it is successful or failed
                     if delete_job:
