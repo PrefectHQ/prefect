@@ -101,7 +101,7 @@ class RunGreatExpectationsCheckpoint(Task):
     def __init__(
         self,
         checkpoint_name: str = None,
-        context: "DataContext" = None,
+        context: "DataContext" = None,  # noqa
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
         expectation_suite_name: str = None,
@@ -143,7 +143,7 @@ class RunGreatExpectationsCheckpoint(Task):
     def run(
         self,
         checkpoint_name: str = None,
-        context: "DataContext" = None,
+        context: "DataContext" = None,  # noqa
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
         expectation_suite_name: str = None,
