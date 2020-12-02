@@ -9,7 +9,7 @@ from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
 from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook, GitLab
-from prefect.run_configs import LocalRun, KubernetesRun
+from prefect.run_configs import LocalRun, KubernetesRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -315,7 +315,10 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     agent = LocalAgent()
 
-    with pytest.raises(TypeError, match="Unsupported RunConfig type: Kubernetes"):
+    with pytest.raises(
+        TypeError,
+        match="`run_config` of type `KubernetesRun`, only `LocalRun` is supported",
+    ):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
@@ -332,6 +335,31 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     assert not popen.called
     assert len(agent.processes) == 0
+
+
+@pytest.mark.parametrize("run_config", [None, UniversalRun()])
+def test_local_agent_deploy_null_or_univeral_run_config(monkeypatch, run_config):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "flow": {
+                    "storage": Local().serialize(),
+                    "run_config": run_config.serialize() if run_config else None,
+                    "id": "foo",
+                    "core_version": "0.13.0",
+                },
+            },
+        )
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
 
 
 @pytest.mark.parametrize("working_dir", [None, "existing"])

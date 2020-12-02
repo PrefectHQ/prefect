@@ -90,6 +90,8 @@ class KubernetesRun(RunConfig):
             if isinstance(job_template, str):
                 job_template = yaml.safe_load(job_template)
 
+        assert job_template is None or isinstance(job_template, dict)  # mypy
+
         if cpu_limit is not None:
             cpu_limit = str(cpu_limit)
         if cpu_request is not None:

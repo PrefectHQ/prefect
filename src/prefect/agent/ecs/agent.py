@@ -8,7 +8,6 @@ import yaml
 from prefect import config
 from prefect.agent import Agent
 from prefect.run_configs import ECSRun
-from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
@@ -291,24 +290,8 @@ class ECSAgent(Agent):
         """
         self.logger.info("Deploying flow run %r", flow_run.id)
 
-        # Load and validate the flow's run_config
-        if getattr(flow_run.flow, "run_config", None) is not None:
-            run_config = RunConfigSchema().load(flow_run.flow.run_config)
-            if not isinstance(run_config, ECSRun):
-                self.logger.error(
-                    "Flow run %s has a `run_config` of type `%s`, only `ECSRun` is supported",
-                    flow_run.id,
-                    type(run_config).__name__,
-                )
-                raise TypeError(
-                    "Unsupported RunConfig type: %s" % type(run_config).__name__
-                )
-        else:
-            self.logger.error(
-                "Flow run %s has a null `run_config`, only `ECSRun` is supported",
-                flow_run.id,
-            )
-            raise ValueError("Flow is missing a `run_config`")
+        run_config = self._get_run_config(flow_run, ECSRun)
+        assert isinstance(run_config, ECSRun)  # mypy
 
         taskdef_arn = self.get_task_definition_arn(flow_run, run_config)
         if taskdef_arn is None:

@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun
+from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun, UniversalRun
 from prefect.serialization.run_config import RunConfigSchema, RunConfigSchemaBase
 
 
@@ -10,6 +10,13 @@ def test_serialized_run_config_sorts_labels():
         "b",
         "c",
     ]
+
+
+@pytest.mark.parametrize("config", [UniversalRun(), UniversalRun(labels=["a", "b"])])
+def test_serialize_universal_run(config):
+    msg = RunConfigSchema().dump(config)
+    config2 = RunConfigSchema().load(msg)
+    assert sorted(config.labels) == sorted(config2.labels)
 
 
 @pytest.mark.parametrize(
