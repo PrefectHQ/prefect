@@ -232,7 +232,7 @@ instance.
 
 ## Bitbucket
 
-[Bitbucket Storage](/api/latest/environments/storage.html#github) is a 
+[Bitbucket Storage](/api/latest/environments/storage.html#github) is a
 storage option that uploads flows to a Bitbucket repository as `.py` files.
 
 ```python
@@ -244,32 +244,62 @@ flow = Flow(
     Bitbucket(
         project="project",                  # name of project
         repo="project.repo",                # name of repo in project
-        path="flows/my_flow.py",            # location of flow file in repo        
+        path="flows/my_flow.py",            # location of flow file in repo
         secrets=["BITBUCKET_ACCESS_TOKEN"]  # name of personal access token secret
     )
 )
 ```
 
 Much of the GitHub example in the [file based
-storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well. 
+storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well.
 
 ::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with 
-`"bitbucket-flow-storage"`; this helps prevents agents not explicitly 
+Flows registered with this storage option will automatically be labeled with
+`"bitbucket-flow-storage"`; this helps prevents agents not explicitly
 authenticated with your Bitbucket repo from attempting to run this flow.
 :::
 
 :::tip Bitbucket Credentials
-Bitbucket storage uses a [personal access 
-token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html) 
+Bitbucket storage uses a [personal access
+token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
 for authenticating with repositories.
 :::
 
-
 :::tip Bitbucket Projects
-Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo 
-must be associated with a Project. Bitbucket storage requires a `project` argument 
+Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo
+must be associated with a Project. Bitbucket storage requires a `project` argument
 pointing to the correct project name.
+
+## CodeCommit
+
+[CodeCommit Storage](/api/latest/environments/storage.html#codecommit) is a
+storage option that uploads flows to a CodeCommit repository as `.py` files.
+
+```python
+from prefect import Flow
+from prefect.environments.storage import GitLab
+
+flow = Flow(
+    "codecommit-flow",
+    CodeCommit(
+        repo="org/repo",                 # name of repo
+        path="flows/my_flow.py",         # location of flow file in repo
+        commit='dev',                    # branch, tag or commit id
+    )
+)
+```
+
+::: tip Sensible Defaults
+Flows registered with this storage option will automatically be labeled with
+`"codecommit-flow-storage"`; this helps prevent agents not explicitly
+authenticated with your AWS deployment from attempting to run this flow.
+:::
+
+:::tip AWS Credentials
+S3 Storage uses AWS credentials the same way as
+[boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
+which means both upload (build) and download (local agent) times need to
+have proper AWS credential configuration.
 :::
 
 ## Docker

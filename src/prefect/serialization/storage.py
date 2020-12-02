@@ -12,6 +12,7 @@ from prefect.environments.storage import (
     GitHub,
     GitLab,
     Bitbucket,
+    CodeCommit,
     Webhook,
 )
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
@@ -177,6 +178,27 @@ class BitbucketSchema(ObjectSchema):
         return base_obj
 
 
+class CodeCommitSchema(ObjectSchema):
+    class Meta:
+        object_class = CodeCommit
+
+    repo = fields.String(allow_none=False)
+    path = fields.String(allow_none=True)
+    commit = fields.String(allow_none=True)
+    client_options = fields.Dict(
+        key=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> CodeCommit:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
 class WebhookSchema(ObjectSchema):
     class Meta:
         object_class = Webhook
@@ -213,5 +235,6 @@ class StorageSchema(OneOfSchema):
         "GitHub": GitHubSchema,
         "GitLab": GitLabSchema,
         "Bitbucket": BitbucketSchema,
+        "CodeCommit": CodeCommitSchema,
         "Webhook": WebhookSchema,
     }
