@@ -63,8 +63,8 @@ class DremioFetch(Task):
         self.query = query
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query")
-    def run(self, query: str) -> Dict:
+    @defaults_from_attrs("user", "password", "host", "port", "query")
+    def run(self, user: str, password: str, host: str, port: int, query: str) -> Dict:
         """
         Task run method. Executes a query against Dremio and fetches results.
 
@@ -80,8 +80,8 @@ class DremioFetch(Task):
         if not query:
             raise ValueError("A query string must be provided")
 
-        client = flight.FlightClient(f"grpc+tcp://{self.host}:{self.port}")
-        client.authenticate(HttpDremioClientAuthHandler(self.user, self.password))
+        client = flight.FlightClient(f"grpc+tcp://{host}:{port}")
+        client.authenticate(HttpDremioClientAuthHandler(user, password))
 
         info = client.get_flight_info(
             flight.FlightDescriptor.for_command(query + "--arrow flight")
