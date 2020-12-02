@@ -201,14 +201,25 @@ class KubernetesAgent(Agent):
                             ),
                         )
 
+                        failed_pods = []
                         for pod in pods.items:
                             if pod.status.phase != "Failed":
                                 continue
 
-                            pod_logs = self.core_client.read_namespaced_pod_log(name=pod.metadata.name, namespace=self.namespace)
+                            failed_pods.append(pod.metadata.name)
 
-                            # pod.metadata.name
-                        return
+                        if failed_pods:
+                            self.logger.debug(
+                                f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
+                            )
+                            self.client.set_flow_run_state(
+                                flow_run_id=flow_run_id,
+                                state=Failed(
+                                    message="Kubernetes Error: the pods {} failed for this job".format(
+                                        failed_pods
+                                    )
+                                ),
+                            )
 
                     # Delete job if it is successful or failed
                     if delete_job:
