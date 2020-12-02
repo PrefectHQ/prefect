@@ -1,0 +1,5 @@
+enhancement:
+  - "Support Bitbucket as storage option - [#3711](https://github.com/PrefectHQ/prefect/pull/3711)"
+
+contributor:
+  - "[Phillip Choi](https://github.com/philz-catz)"

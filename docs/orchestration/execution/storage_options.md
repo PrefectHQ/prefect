@@ -143,6 +143,28 @@ GitLab storage uses a [personal access token](https://docs.gitlab.com/ee/user/pr
 GitLab server users can point the `host` argument to their personal GitLab instance.
 :::
 
+## Bitbucket
+
+[Bitbucket Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
+
+Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well. 
+
+::: tip Sensible Defaults
+Flows registered with this storage option will automatically be labeled with `"bitbucket-flow-storage"`; this helps prevents agents not explicitly authenticated with your Bitbucket repo from attempting to run this flow.
+:::
+
+:::tip Bitbucket Credentials
+Bitbucket storage uses a [personal access token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html) for authenticating with repositories.
+:::
+
+:::tip Bitbucket Server
+Bitbucket server users can point the `host` argument to their personal or organization Bitbucket instance.
+:::
+
+:::tip Bitbucket Projects
+Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo must be associated with a Project. Bitbucket storage requires a `project` argument pointing to the correct project name.
+:::
+
 ## Docker
 
 [Docker Storage](/api/latest/environments/storage.html#docker) is a storage option that puts flows inside of a Docker image and pushes them to a container registry. This method of Storage has deployment compatability with the [Docker Agent](/orchestration/agents/docker.html), [Kubernetes Agent](/orchestration/agents/kubernetes.html), and [Fargate Agent](/orchestration/agents/fargate.html).
