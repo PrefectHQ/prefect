@@ -1,7 +1,6 @@
 import os
 import time
 import uuid
-import textwrap
 from typing import Iterable, List, Any
 
 import json
@@ -207,29 +206,43 @@ class KubernetesAgent(Agent):
                             if pod.status.phase != "Failed":
                                 continue
 
+                            # Format pod failure error message
                             failed_pods.append(pod.metadata.name)
-
+                            pod_failure_message = f"Pod {pod.metadata.name} failed.\n"
                             for status in pod.status.container_statuses:
+                                state = (
+                                    "running"
+                                    if status.state.running
+                                    else "waiting"
+                                    if status.state.waiting
+                                    else "terminated"
+                                    if status.state.terminated
+                                    else "Not Found"
+                                )
+                                msg = f"\tContainer '{status.name}' state: {state}\n"
+
                                 if status.state.terminated:
-                                    msg = textwrap.dedent(
-                                        f"""
-                                        Failed container '{status.name}' in pod '{pod.metadata.name}'
-                                            Exit code: {status.state.terminated.exit_code}
-                                            Message: {status.state.terminated.message}
-                                            Reason: {status.state.terminated.reason}
-                                            Signal: {status.state.terminated.signal}
-                                        """
+                                    msg += f"\t\tExit Code:: {status.state.terminated.exit_code}\n"
+                                    if status.state.terminated.message:
+                                        msg += f"\t\tMessage: {status.state.terminated.message}\n"
+                                    if status.state.terminated.reason:
+                                        msg += f"\t\tReason: {status.state.terminated.reason}\n"
+                                    if status.state.terminated.signal:
+                                        msg += f"\t\tSignal: {status.state.terminated.signal}\n"
+
+                                pod_failure_message += msg
+
+                            # Send pod failure information to flow run logs
+                            self.client.write_run_logs(
+                                [
+                                    dict(
+                                        flow_run_id=flow_run_id,
+                                        name=self.name,
+                                        message=pod_failure_message.strip(),
+                                        level="ERROR",
                                     )
-                                    self.client.write_run_logs(
-                                        [
-                                            dict(
-                                                flow_run_id=flow_run_id,
-                                                name=self.name,
-                                                message=msg,
-                                                level="ERROR",
-                                            )
-                                        ]
-                                    )
+                                ]
+                            )
 
                         if failed_pods:
                             self.logger.debug(
