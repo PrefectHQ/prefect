@@ -1765,11 +1765,7 @@ class TestGetTasks:
 
 class TestSerialize:
     def test_serialization(self):
-        (
-            p1,
-            t2,
-            t3,
-        ) = (Parameter("1"), Task("2"), Task("3"))
+        (p1, t2, t3,) = (Parameter("1"), Task("2"), Task("3"))
 
         f = Flow(name="test", tasks=[p1, t2, t3])
         f.add_edge(p1, t2)
@@ -1780,11 +1776,7 @@ class TestSerialize:
         assert len(serialized["tasks"]) == len(f.tasks)
 
     def test_deserialization(self):
-        (
-            p1,
-            t2,
-            t3,
-        ) = (Parameter("1"), Task("2"), Task("3"))
+        (p1, t2, t3,) = (Parameter("1"), Task("2"), Task("3"))
 
         f = Flow(
             name="hi",
@@ -3066,9 +3058,7 @@ class TestSaveLoad:
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mthread", "mproc_local", "mproc"], indirect=True
 )
-def test_timeout_actually_stops_execution(
-    executor,
-):
+def test_timeout_actually_stops_execution(executor,):
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real

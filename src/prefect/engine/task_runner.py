@@ -854,10 +854,7 @@ class TaskRunner(Runner):
 
             with log_context:
                 value = prefect.utilities.executors.run_task_with_timeout(
-                    task=self.task,
-                    args=(),
-                    kwargs=raw_inputs,
-                    logger=self.logger,
+                    task=self.task, args=(), kwargs=raw_inputs, logger=self.logger,
                 )
 
         # inform user of timeout

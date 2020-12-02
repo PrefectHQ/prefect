@@ -61,9 +61,7 @@ class S3(Storage):
 
         result = S3Result(bucket=bucket)
         super().__init__(
-            result=result,
-            stored_as_script=stored_as_script,
-            **kwargs,
+            result=result, stored_as_script=stored_as_script, **kwargs,
         )
 
     @property

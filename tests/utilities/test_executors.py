@@ -79,10 +79,7 @@ def test_timeout_handler_passes_args_and_kwargs_and_returns(timeout_handler):
 
     assert timeout_handler(
         just_return, args=[5], kwargs=dict(y="yellow"), timeout=10
-    ) == (
-        5,
-        "yellow",
-    )
+    ) == (5, "yellow",)
 
 
 @pytest.mark.skipif(

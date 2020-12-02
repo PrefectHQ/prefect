@@ -74,10 +74,7 @@ def test_help(cmd):
             "kubernetes",
             "prefect.agent.kubernetes.KubernetesAgent",
             "--namespace TESTNAMESPACE --job-template testtemplate.yaml",
-            {
-                "namespace": "TESTNAMESPACE",
-                "job_template_path": "testtemplate.yaml",
-            },
+            {"namespace": "TESTNAMESPACE", "job_template_path": "testtemplate.yaml",},
         ),
         (
             "fargate",

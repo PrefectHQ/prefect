@@ -372,11 +372,7 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, cloud_api):
 
     kwarg_dict = {
         "test": "not_real",
-        "containerDefinitions": [
-            {
-                "test": "not_real",
-            }
-        ],
+        "containerDefinitions": [{"test": "not_real",}],
     }
 
     (

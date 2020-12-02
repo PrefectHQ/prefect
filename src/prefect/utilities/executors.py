@@ -133,8 +133,7 @@ def run_with_thread_timeout(
 
 
 def multiprocessing_safe_run_and_retrieve(
-    queue: multiprocessing.Queue,
-    payload: bytes,
+    queue: multiprocessing.Queue, payload: bytes,
 ) -> None:
     """
     Gets the return value from a function and puts it in a multiprocessing-safe
@@ -256,10 +255,7 @@ def run_with_multiprocess_timeout(
 
 
 def run_task_with_timeout(
-    task: "Task",
-    args: Sequence = (),
-    kwargs: Mapping = None,
-    logger: Logger = None,
+    task: "Task", args: Sequence = (), kwargs: Mapping = None, logger: Logger = None,
 ) -> Any:
     """
     Helper function for implementing timeouts on task executions.
@@ -552,8 +548,7 @@ def flatten_upstream_state(upstream_state: "State") -> "State":
 
 
 def flatten_mapped_children(
-    mapped_children: List["State"],
-    executor: "prefect.engine.executors.Executor",
+    mapped_children: List["State"], executor: "prefect.engine.executors.Executor",
 ) -> List["State"]:
     counts = executor.wait(
         [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]

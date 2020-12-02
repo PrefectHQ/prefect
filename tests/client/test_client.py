@@ -684,13 +684,7 @@ def test_client_delete_project(patch_post, monkeypatch):
 
 
 def test_client_delete_project_error(patch_post, monkeypatch):
-    patch_post(
-        {
-            "data": {
-                "project": {},
-            }
-        }
-    )
+    patch_post({"data": {"project": {},}})
 
     project_name = "my-default-project"
 
@@ -1535,11 +1529,7 @@ def test_artifacts_client_functions(patch_post, cloud_api):
     client.update_task_run_artifact(task_run_artifact_id="tra_id", data={"new": "data"})
     client.delete_task_run_artifact(task_run_artifact_id="tra_id")
 
-    response = {
-        "data": {
-            "create_task_run_artifact": {"id": None},
-        }
-    }
+    response = {"data": {"create_task_run_artifact": {"id": None},}}
 
     patch_post(response)
 

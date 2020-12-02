@@ -302,10 +302,7 @@ class TestS3ResultHandler:
         handler = S3ResultHandler(
             bucket="bob",
             aws_credentials_secret="AWS_CREDENTIALS",
-            boto3_kwargs=dict(
-                aws_access_key_id=123,
-                aws_secret_access_key=456,
-            ),
+            boto3_kwargs=dict(aws_access_key_id=123, aws_secret_access_key=456,),
         )
         assert (
             "aws_access_key_id" in handler.boto3_kwargs.keys()
@@ -328,10 +325,7 @@ class TestS3ResultHandler:
     def test_s3_with_kwargs_aws_keys(self, session):
         handler = S3ResultHandler(
             bucket="bob",
-            boto3_kwargs=dict(
-                aws_access_key_id=123,
-                aws_secret_access_key=456,
-            ),
+            boto3_kwargs=dict(aws_access_key_id=123, aws_secret_access_key=456,),
         )
         assert (
             "aws_access_key_id" in handler.boto3_kwargs.keys()
@@ -378,10 +372,7 @@ class TestS3ResultHandler:
 
         assert handler.bucket == "bob"
         kw.update(
-            {
-                "aws_access_key_id": 1,
-                "aws_secret_access_key": 999,
-            }
+            {"aws_access_key_id": 1, "aws_secret_access_key": 999,}
         )
         assert session.Session().client.call_args[1] == kw
 
