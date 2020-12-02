@@ -215,7 +215,7 @@ class KubernetesAgent(Agent):
                             self.client.set_flow_run_state(
                                 flow_run_id=flow_run_id,
                                 state=Failed(
-                                    message="Kubernetes Error: the pods {} failed for this job".format(
+                                    message="Kubernetes Error: pods {} failed for this job".format(
                                         failed_pods
                                     )
                                 ),
