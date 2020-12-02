@@ -57,12 +57,6 @@ class Bitbucket(Storage):
         self.path = path
         self.ref = ref
 
-        super().__init__(**kwargs)
-
-    @property
-    def default_labels(self) -> List[str]:
-        return ["bitbucket-flow-storage"]
-
     def get_flow(self, flow_location: str = None, ref: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
