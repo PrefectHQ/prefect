@@ -110,7 +110,7 @@ def test_populate_env_vars_from_agent_config(api):
     agent = DockerAgent(env_vars=dict(AUTH_THING="foo"))
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
 
     assert env_vars["AUTH_THING"] == "foo"
@@ -120,7 +120,7 @@ def test_populate_env_vars(api):
     agent = DockerAgent()
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
 
     expected_vars = {
@@ -129,6 +129,7 @@ def test_populate_env_vars(api):
         "PREFECT__CLOUD__AGENT__LABELS": "[]",
         "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
         "PREFECT__CONTEXT__FLOW_ID": "foo",
+        "PREFECT__CONTEXT__IMAGE": "test-image",
         "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
         "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
         "PREFECT__LOGGING__LEVEL": "INFO",
@@ -143,7 +144,7 @@ def test_populate_env_vars_includes_agent_labels(api):
     agent = DockerAgent(labels=["42", "marvin"])
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
     assert env_vars["PREFECT__CLOUD__AGENT__LABELS"] == "['42', 'marvin']"
 
@@ -153,7 +154,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api):
     agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
     assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
@@ -173,7 +174,8 @@ def test_populate_env_vars_from_run_config(api):
                 "flow": {"id": "foo", "run_config": run.serialize()},
             }
         ),
-        run,
+        "test-image",
+        run_config=run,
     )
     assert env_vars["KEY1"] == "VAL1"
     assert env_vars["KEY2"] == "OVERRIDE"
