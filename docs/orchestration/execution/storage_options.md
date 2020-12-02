@@ -147,7 +147,7 @@ GitLab server users can point the `host` argument to their personal GitLab insta
 
 [Bitbucket Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
 
-Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well. 
+Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well.
 
 ::: tip Sensible Defaults
 Flows registered with this storage option will automatically be labeled with `"bitbucket-flow-storage"`; this helps prevents agents not explicitly authenticated with your Bitbucket repo from attempting to run this flow.
@@ -163,6 +163,17 @@ Bitbucket server users can point the `host` argument to their personal or organi
 
 :::tip Bitbucket Projects
 Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo must be associated with a Project. Bitbucket storage requires a `project` argument pointing to the correct project name.
+
+## CodeCommit
+
+[CodeCommit Storage](/api/latest/environments/storage.html#codecommit) is a storage option that uploads flows to a CodeCommit repository as `.py` files.
+
+::: tip Sensible Defaults
+Flows registered with this storage option will automatically be labeled with `"codecommit-flow-storage"`; this helps prevent agents not explicitly authenticated with your AWS deployment from attempting to run this flow.
+:::
+
+:::tip AWS Credentials
+S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
 :::
 
 ## Docker

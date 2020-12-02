@@ -17,6 +17,7 @@ from prefect.environments.storage import (
     Webhook,
     GitLab,
     Bitbucket,
+    CodeCommit,
 )
 from prefect.run_configs import LocalRun, KubernetesRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
@@ -30,6 +31,7 @@ DEFAULT_AGENT_LABELS = [
     "github-flow-storage",
     "webhook-flow-storage",
     "gitlab-flow-storage",
+    "codecommit-flow-storage",
 ]
 
 
@@ -233,6 +235,7 @@ def test_populate_env_vars_from_run_config(tmpdir):
         Azure(container="test"),
         GitLab("test/repo", path="path/to/flow.py"),
         Bitbucket(project="PROJECT", repo="test-repo", path="test-flow.py"),
+        CodeCommit("test/repo", path="path/to/flow.py"),
         Webhook(
             build_request_kwargs={"url": "test-service/upload"},
             build_request_http_method="POST",
