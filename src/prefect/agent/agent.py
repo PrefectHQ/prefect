@@ -8,7 +8,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Set, Optional, cast, Callable
+from typing import Any, Generator, Iterable, Set, Optional, cast, Type
 from urllib.parse import urlparse
 
 import pendulum
@@ -20,7 +20,7 @@ from prefect.client import Client
 from prefect.engine.state import Failed, Submitted
 from prefect.serialization import state
 from prefect.serialization.run_config import RunConfigSchema
-from prefect.run_configs import RunConfig
+from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities.context import context
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
@@ -684,7 +684,7 @@ class Agent:
         self.logger.error("Error while deploying flow: {}".format(repr(exc)))
 
     def _get_run_config(
-        self, flow_run: GraphQLResult, run_config_cls: Callable
+        self, flow_run: GraphQLResult, run_config_cls: Type[RunConfig]
     ) -> Optional[RunConfig]:
         """
         Get a run_config for the flow, if present.
@@ -700,20 +700,22 @@ class Agent:
         # If the flow is using a run_config, load it
         if getattr(flow_run.flow, "run_config", None) is not None:
             run_config = RunConfigSchema().load(flow_run.flow.run_config)
-            if not isinstance(run_config, run_config_cls):
+            if isinstance(run_config, UniversalRun):
+                # Convert to agent-specific run-config
+                return run_config_cls(labels=run_config.labels)
+            elif not isinstance(run_config, run_config_cls):
                 msg = (
                     "Flow run %s has a `run_config` of type `%s`, only `%s` is supported"
                     % (flow_run.id, type(run_config).__name__, run_config_cls.__name__)
                 )
                 self.logger.error(msg)
                 raise TypeError(msg)
+            return run_config
         elif getattr(flow_run.flow, "environment", None) is None:
             # No environment, use default run_config
-            run_config = run_config_cls()
-        else:
-            run_config = None
+            return run_config_cls()
 
-        return run_config
+        return None
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """

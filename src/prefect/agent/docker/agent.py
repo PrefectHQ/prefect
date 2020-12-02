@@ -351,6 +351,7 @@ class DockerAgent(Agent):
         import docker
 
         run_config = self._get_run_config(flow_run, DockerRun)
+        assert run_config is None or isinstance(run_config, DockerRun)  # mypy
 
         image = get_flow_image(flow_run=flow_run)
         env_vars = self.populate_env_vars(flow_run, image, run_config=run_config)

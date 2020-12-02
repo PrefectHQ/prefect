@@ -45,7 +45,7 @@ from prefect.engine.state import (
     TimedOut,
 )
 from prefect.environments.execution import LocalEnvironment
-from prefect.run_configs import LocalRun
+from prefect.run_configs import LocalRun, UniversalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
@@ -2709,6 +2709,14 @@ class TestFlowRegister:
         assert f.storage.image_tag == "BIG"
         assert f.environment.labels == set()
 
+    def test_flow_register_sets_universal_run_if_empty(self, monkeypatch):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+
+        f = Flow(name="test")
+        f.environment = None
+        f.register("My-project", build=False)
+        assert isinstance(f.run_config, UniversalRun)
+
     @pytest.mark.parametrize("kind", ["environment", "run_config"])
     @pytest.mark.parametrize(
         "storage",
@@ -2764,20 +2772,6 @@ class TestFlowRegister:
 
         f.register("My-project", build=False)
         assert isinstance(f.result, LocalResult)
-
-    def test_flow_register_auto_labels_environment_with_storage_labels(
-        self, monkeypatch
-    ):
-        class MyStorage(prefect.environments.storage.Local):
-            @property
-            def labels(self):
-                return ["a", "b", "c"]
-
-        monkeypatch.setattr("prefect.Client", MagicMock())
-        f = Flow(name="Test me!! I should get labeled", storage=MyStorage())
-        f.register("My-project")
-
-        assert f.environment.labels == {"a", "b", "c"}
 
     def test_flow_register_doesnt_overwrite_labels_if_local_storage_is_used(
         self, monkeypatch

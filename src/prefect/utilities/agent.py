@@ -39,7 +39,7 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
         # core_version should always be present, but just in case
         version = flow_run.flow.get("core_version") or "latest"
         return f"prefecthq/prefect:all_extras-{version}"
-    elif getattr(flow_run.flow, "environment", None) is not None:
+    else:
         environment = EnvironmentSchema().load(flow_run.flow.environment)
         if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
             return environment.metadata.get("image")

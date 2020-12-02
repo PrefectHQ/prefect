@@ -9,7 +9,7 @@ from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
 from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook, GitLab
-from prefect.run_configs import LocalRun, KubernetesRun
+from prefect.run_configs import LocalRun, KubernetesRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -337,7 +337,8 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
     assert len(agent.processes) == 0
 
 
-def test_local_agent_deploy_null_run_config(monkeypatch):
+@pytest.mark.parametrize("run_config", [None, UniversalRun()])
+def test_local_agent_deploy_null_or_univeral_run_config(monkeypatch, run_config):
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
@@ -349,7 +350,7 @@ def test_local_agent_deploy_null_run_config(monkeypatch):
                 "id": "id",
                 "flow": {
                     "storage": Local().serialize(),
-                    "run_config": None,
+                    "run_config": run_config.serialize() if run_config else None,
                     "id": "foo",
                     "core_version": "0.13.0",
                 },

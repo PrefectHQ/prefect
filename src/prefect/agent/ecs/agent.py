@@ -291,6 +291,7 @@ class ECSAgent(Agent):
         self.logger.info("Deploying flow run %r", flow_run.id)
 
         run_config = self._get_run_config(flow_run, ECSRun)
+        assert isinstance(run_config, ECSRun)  # mypy
 
         taskdef_arn = self.get_task_definition_arn(flow_run, run_config)
         if taskdef_arn is None:

@@ -278,6 +278,7 @@ class KubernetesAgent(Agent):
             - dict: a dictionary representation of a k8s job for flow execution
         """
         run_config = self._get_run_config(flow_run, KubernetesRun)
+        assert run_config is None or isinstance(run_config, KubernetesRun)  # mypy
         if run_config is not None:
             return self.generate_job_spec_from_run_config(flow_run, run_config)
         else:

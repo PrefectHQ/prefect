@@ -10,7 +10,7 @@ from prefect.agent.ecs.agent import (
     DEFAULT_TASK_DEFINITION_PATH,
 )
 from prefect.environments.storage import Local, Docker
-from prefect.run_configs import ECSRun, LocalRun
+from prefect.run_configs import ECSRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
@@ -577,7 +577,7 @@ class TestDeployFlow:
         ):
             self.deploy_flow(LocalRun())
 
-    @pytest.mark.parametrize("run_config", [ECSRun(), None])
+    @pytest.mark.parametrize("run_config", [ECSRun(), UniversalRun(), None])
     def test_deploy_flow_registers_taskdef_if_not_found(self, run_config, aws):
         aws.resourcegroupstaggingapi.get_resources.return_value = {
             "ResourceTagMappingList": []

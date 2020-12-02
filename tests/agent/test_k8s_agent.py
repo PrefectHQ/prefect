@@ -11,7 +11,7 @@ import prefect
 from prefect.agent.kubernetes.agent import KubernetesAgent, read_bytes_from_path
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
-from prefect.run_configs import KubernetesRun, LocalRun
+from prefect.run_configs import KubernetesRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -1015,11 +1015,12 @@ class TestK8sAgentRunConfig:
             }
         )
 
-    def test_generate_job_spec_null_environment_uses_default_run_config(self):
+    @pytest.mark.parametrize("run_config", [None, UniversalRun()])
+    def test_generate_job_spec_null_or_univeral_run_config(self, run_config):
         self.agent.generate_job_spec_from_run_config = MagicMock(
             wraps=self.agent.generate_job_spec_from_run_config
         )
-        flow_run = self.build_flow_run(None)
+        flow_run = self.build_flow_run(run_config)
         self.agent.generate_job_spec(flow_run)
         assert self.agent.generate_job_spec_from_run_config.called
 
