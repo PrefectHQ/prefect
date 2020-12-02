@@ -160,6 +160,7 @@ class KubernetesAgent(Agent):
                     job_name = job.metadata.name
                     flow_run_id = job.metadata.labels.get("prefect.io/flow_run_id")
 
+                    # Check for pods that are stuck with image pull errors
                     if not delete_job:
                         pods = self.core_client.list_namespaced_pod(
                             namespace=self.namespace,
@@ -191,6 +192,25 @@ class KubernetesAgent(Agent):
                                         delete_job = True
                                         break
 
+                    # Report failed pods
+                    if job.status.failed:
+                        pods = self.core_client.list_namespaced_pod(
+                            namespace=self.namespace,
+                            label_selector="prefect.io/identifier={}".format(
+                                job.metadata.labels.get("prefect.io/identifier")
+                            ),
+                        )
+
+                        for pod in pods.items:
+                            if pod.status.phase != "Failed":
+                                continue
+
+                            pod_logs = self.core_client.read_namespaced_pod_log(name=pod.metadata.name, namespace=self.namespace)
+
+                            # pod.metadata.name
+                        return
+
+                    # Delete job if it is successful or failed
                     if delete_job:
                         self.logger.debug(f"Deleting job {job_name}")
                         try:
