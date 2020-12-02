@@ -69,6 +69,11 @@ class DremioFetch(Task):
         Task run method. Executes a query against Dremio and fetches results.
 
         Args:
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): Dremio host address
+            - port (int, optional): port used to connect to FlightClient, defaults to 32010 if not
+                provided
             - query (str, optional): query to execute against query engine
 
         Returns:
