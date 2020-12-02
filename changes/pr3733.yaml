@@ -17,4 +17,4 @@
 # Here's an example of a PR that adds an enhancement
 
 enhancement:
-  - "Added storage option for AWS CodeCommit - [#1234](https://github.com/PrefectHQ/prefect/pull/1234)"
+  - "Added storage option for AWS CodeCommit - [#3733](https://github.com/PrefectHQ/prefect/pull/3733)"
