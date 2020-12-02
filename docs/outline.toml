@@ -240,7 +240,7 @@ classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "Fargate
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"

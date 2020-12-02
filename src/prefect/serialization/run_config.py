@@ -6,11 +6,16 @@ from prefect.utilities.serialization import (
     ObjectSchema,
     SortedList,
 )
-from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun
+from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun, UniversalRun
 
 
 class RunConfigSchemaBase(ObjectSchema):
     labels = SortedList(fields.String())
+
+
+class UniversalRunSchema(RunConfigSchemaBase):
+    class Meta:
+        object_class = UniversalRun
 
 
 class KubernetesRunSchema(RunConfigSchemaBase):
@@ -64,4 +69,5 @@ class RunConfigSchema(OneOfSchema):
         "ECSRun": ECSRunSchema,
         "LocalRun": LocalRunSchema,
         "DockerRun": DockerRunSchema,
+        "UniversalRun": UniversalRunSchema,
     }

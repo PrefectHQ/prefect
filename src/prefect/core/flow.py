@@ -43,7 +43,7 @@ from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.results import ResultHandlerResult
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
-from prefect.run_configs import RunConfig
+from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
@@ -1639,6 +1639,9 @@ class Flow:
 
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
+
+        if self.environment is None and self.run_config is None:
+            self.run_config = UniversalRun()
 
         # add auto-labels for various types of storage
         for obj in [self.environment, self.run_config]:

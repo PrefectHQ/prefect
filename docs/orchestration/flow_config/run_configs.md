@@ -64,6 +64,30 @@ Prefect has a number of different `RunConfig` implementations - we'll briefly
 cover each below. See [the API
 documentation](/api/latest/run_configs.md) for more information.
 
+### UniversalRun
+
+[UniversalRun](/api/latest/environments/run_config.md#universalrun) configures
+flow runs that can be deployed on any agent. This is the default `RunConfig`
+used if flow-labels are specified. It can be useful if agent-side configuration
+is sufficient. Only configuring the flow's labels is exposed - to configure
+backend specific fields use one of the other `RunConfig` types.
+
+#### Examples
+
+Use the defaults set on the agent:
+
+```python
+from prefect.run_configs import UniversalRun
+
+flow.run_config = UniversalRun()
+```
+
+Configure labels for this flow:
+
+```python
+flow.run_config = UniversalRun(labels=["label-1", "label-2"])
+```
+
 ### LocalRun
 
 [LocalRun](/api/latest/environments/run_config.md#localrun) configures flow
