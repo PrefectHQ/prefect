@@ -167,6 +167,8 @@ class BitbucketSchema(ObjectSchema):
     host = fields.String(allow_none=True)
     path = fields.String(allow_none=True)
     ref = fields.String(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Bitbucket:
