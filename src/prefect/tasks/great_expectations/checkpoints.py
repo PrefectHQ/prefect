@@ -101,7 +101,7 @@ class RunGreatExpectationsCheckpoint(Task):
     def __init__(
         self,
         checkpoint_name: str = None,
-        context: "DataContext" = None,  # noqa
+        context: "ge.DataContext" = None,
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
         expectation_suite_name: str = None,
@@ -143,7 +143,7 @@ class RunGreatExpectationsCheckpoint(Task):
     def run(
         self,
         checkpoint_name: str = None,
-        context: "DataContext" = None,  # noqa
+        context: "ge.DataContext" = None,
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
         expectation_suite_name: str = None,
@@ -205,7 +205,9 @@ class RunGreatExpectationsCheckpoint(Task):
                 runtime_environment=runtime_environment,
             )
 
-        # Retrieve the assets to validate if not already provided
+        # if assets are not provided directly through `assets_to_validate` then they need be loaded
+        #   if the checkpoint is being loaded from the context then load suite and batch from there
+        #   otherwise get batch from `batch_kwargs` and `expectation_suite_name`
         if not assets_to_validate:
             assets_to_validate = []
             if get_checkpoint_from_context:
