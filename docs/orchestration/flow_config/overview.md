@@ -29,8 +29,8 @@ with Flow("example", storage=Docker()) as flow:
     ...
 ```
 
-For more information on the different `Storage` types, see
-[Storage](./storage.md).
+For more information on the different `Storage` types, see the
+[Storage docs](./storage.md).
 
 ## Run Configuration
 
@@ -56,32 +56,21 @@ For more information on the different `RunConfig` types, see the
 
 ## Executor
 
-A flow's `Executor` is responsible for running tasks in a flow. The default
-[LocalExecutor](/api/latest/engine/executors.md#local) executes all tasks
-locally in a single thread. For parallel execution you can switch to the
-[LocalDaskExecutor](/api/latest/engine/executors.md#localdaskexecutor) to run
-using local threads or processes. There's also the
-[DaskExecutor](/api/latest/engine/executors.md#daskexecutor) for larger flow
-runs where distributed execution is necessary.
+A flow's `Executor` is responsible for executing tasks in a flow run. There are
+several different options, each with different performance characteristics.
+Choosing a good executor configuration can greatly improve your flow's
+performance.
 
-To configure an executor on a flow, you can specify it as part of the
-constructor, or set it as the `executor` attribute later before calling
-`flow.register`. For example, to configure a flow to use a `LocalDaskExecutor`:
+A flow's `executor` is configured on the flow itself. For example, to configure
+a flow to use a `LocalDaskExecutor`:
 
 ```python
 from prefect import Flow
 from prefect.engine.executors import LocalDaskExecutor
 
-# Set executor as part of the constructor
 with Flow("example", executor=LocalDaskExecutor()) as flow:
     ...
-
-# OR set executor as an attribute later
-with Flow("example") as flow:
-    ...
-
-flow.executor = LocalDaskExecutor()
 ```
 
-For more information on the different `Executor` types, see the
-[Executor docs](/api/latest/engine/executors.md).
+For more information on the different `Executor` options, see the
+[Executor docs](./executors.md)

@@ -226,7 +226,8 @@ module.exports = {
           children: [
             'flow_config/overview',
             'flow_config/storage',
-            'flow_config/run_configs'
+            'flow_config/run_configs',
+            'flow_config/executors'
           ]
         },
         {
