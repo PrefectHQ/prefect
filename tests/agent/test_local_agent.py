@@ -30,7 +30,6 @@ DEFAULT_AGENT_LABELS = [
     "github-flow-storage",
     "webhook-flow-storage",
     "gitlab-flow-storage",
-    "bitbucket-flow-storage",
 ]
 
 
