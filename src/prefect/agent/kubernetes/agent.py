@@ -213,7 +213,7 @@ class KubernetesAgent(Agent):
                                 if status.state.terminated:
                                     msg = textwrap.dedent(
                                         f"""
-                                        Found failed container: {status.name}
+                                        Failed container '{status.name}' in pod '{pod.metadata.name}'
                                             Exit code: {status.state.terminated.exit_code}
                                             Message: {status.state.terminated.message}
                                             Reason: {status.state.terminated.reason}
@@ -243,7 +243,6 @@ class KubernetesAgent(Agent):
                                     )
                                 ),
                             )
-                        return
 
                     # Delete job if it is successful or failed
                     if delete_job:

@@ -964,7 +964,9 @@ def test_k8s_agent_manage_jobs_client_call(monkeypatch, cloud_api):
 
 def test_k8s_agent_manage_jobs_reports_failed_pods(monkeypatch, cloud_api):
     gql_return = MagicMock(
-        return_value=MagicMock(data=MagicMock(set_flow_run_state=None))
+        return_value=MagicMock(
+            data=MagicMock(set_flow_run_state=None, write_run_logs=None)
+        )
     )
     client = MagicMock()
     client.return_value.graphql = gql_return
@@ -990,6 +992,14 @@ def test_k8s_agent_manage_jobs_reports_failed_pods(monkeypatch, cloud_api):
     pod = MagicMock()
     pod.metadata.name = "pod_name"
     pod.status.phase = "Failed"
+    terminated = MagicMock()
+    terminated.exit_code = "code"
+    terminated.message = "message"
+    terminated.reason = "reason"
+    terminated.signal = "signal"
+    c_status = MagicMock()
+    c_status.state.terminated = terminated
+    pod.status.container_statuses = [c_status]
 
     pod2 = MagicMock()
     pod2.metadata.name = "pod_name"
