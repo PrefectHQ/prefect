@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict
 from urllib.error import HTTPError
 
 from prefect.environments.storage import Storage
