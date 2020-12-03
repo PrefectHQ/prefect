@@ -170,25 +170,15 @@ module.exports = {
       '/orchestration/': [
         '/orchestration/',
         {
-          title: 'Server',
+          title: 'Deployment Tutorial',
           collapsable: true,
           children: [
-            'server/overview',
-            'server/architecture',
-            'server/deploy-local',
-            'server/telemetry'
-          ]
-        },
-        {
-          title: 'UI',
-          collapsable: true,
-          children: [
-            'ui/dashboard',
-            'ui/flow',
-            'ui/flow-run',
-            'ui/task-run',
-            'ui/interactive-api',
-            'ui/team-settings'
+            'tutorial/configure',
+            'tutorial/first',
+            'tutorial/multiple',
+            'tutorial/docker',
+            'tutorial/k8s',
+            'tutorial/next-steps'
           ]
         },
         {
@@ -206,18 +196,6 @@ module.exports = {
             'concepts/tokens',
             'concepts/roles',
             'concepts/task-concurrency-limiting'
-          ]
-        },
-        {
-          title: 'Deployment Tutorial',
-          collapsable: true,
-          children: [
-            'tutorial/configure',
-            'tutorial/first',
-            'tutorial/multiple',
-            'tutorial/docker',
-            'tutorial/k8s',
-            'tutorial/next-steps'
           ]
         },
         {
@@ -242,17 +220,25 @@ module.exports = {
           ]
         },
         {
-          title: 'Legacy Environments',
+          title: 'UI',
           collapsable: true,
           children: [
-            'execution/overview',
-            'execution/storage_options',
-            'execution/local_environment',
-            'execution/dask_cloud_provider_environment',
-            'execution/dask_k8s_environment',
-            'execution/k8s_job_environment',
-            'execution/fargate_task_environment',
-            'execution/custom_environment'
+            'ui/dashboard',
+            'ui/flow',
+            'ui/flow-run',
+            'ui/task-run',
+            'ui/interactive-api',
+            'ui/team-settings'
+          ]
+        },
+        {
+          title: 'Server',
+          collapsable: true,
+          children: [
+            'server/overview',
+            'server/architecture',
+            'server/deploy-local',
+            'server/telemetry'
           ]
         },
         {
@@ -270,6 +256,20 @@ module.exports = {
           title: 'FAQ',
           collapsable: true,
           children: getChildren('docs/orchestration', 'faq')
+        },
+        {
+          title: 'Legacy Environments',
+          collapsable: true,
+          children: [
+            'execution/overview',
+            'execution/storage_options',
+            'execution/local_environment',
+            'execution/dask_cloud_provider_environment',
+            'execution/dask_k8s_environment',
+            'execution/k8s_job_environment',
+            'execution/fargate_task_environment',
+            'execution/custom_environment'
+          ]
         }
       ],
       '/core/': [
