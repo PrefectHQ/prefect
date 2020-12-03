@@ -259,7 +259,6 @@ module.exports = {
           title: 'Deployment Recipes',
           collapsable: true,
           children: [
-            'recipes/deployment',
             'recipes/third_party_auth',
             'recipes/configuring_storage',
             'recipes/multi_flow_storage',
