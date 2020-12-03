@@ -208,7 +208,7 @@ class KubernetesAgent(Agent):
 
                             # Format pod failure error message
                             failed_pods.append(pod.metadata.name)
-                            pod_failure_message = f"Pod {pod.metadata.name} failed.\n"
+                            pod_status_logs = [f"Pod {pod.metadata.name} failed."]
                             for status in pod.status.container_statuses:
                                 state = (
                                     "running"
@@ -219,18 +219,26 @@ class KubernetesAgent(Agent):
                                     if status.state.terminated
                                     else "Not Found"
                                 )
-                                msg = f"\tContainer '{status.name}' state: {state}\n"
+                                pod_status_logs.append(
+                                    f"\tContainer '{status.name}' state: {state}"
+                                )
 
                                 if status.state.terminated:
-                                    msg += f"\t\tExit Code:: {status.state.terminated.exit_code}\n"
+                                    pod_status_logs.append(
+                                        f"\t\tExit Code:: {status.state.terminated.exit_code}"
+                                    )
                                     if status.state.terminated.message:
-                                        msg += f"\t\tMessage: {status.state.terminated.message}\n"
+                                        pod_status_logs.append(
+                                            f"\t\tMessage: {status.state.terminated.message}"
+                                        )
                                     if status.state.terminated.reason:
-                                        msg += f"\t\tReason: {status.state.terminated.reason}\n"
+                                        pod_status_logs.append(
+                                            f"\t\tReason: {status.state.terminated.reason}"
+                                        )
                                     if status.state.terminated.signal:
-                                        msg += f"\t\tSignal: {status.state.terminated.signal}\n"
-
-                                pod_failure_message += msg
+                                        pod_status_logs.append(
+                                            f"\t\tSignal: {status.state.terminated.signal}"
+                                        )
 
                             # Send pod failure information to flow run logs
                             self.client.write_run_logs(
@@ -238,13 +246,19 @@ class KubernetesAgent(Agent):
                                     dict(
                                         flow_run_id=flow_run_id,
                                         name=self.name,
-                                        message=pod_failure_message.strip(),
+                                        message="\n".join(pod_status_logs),
                                         level="ERROR",
                                     )
                                 ]
                             )
 
-                        if failed_pods:
+                        # If there are failed pods and the run is not finished, fail the run
+                        if (
+                            failed_pods
+                            and not self.client.get_flow_run_state(
+                                flow_run_id
+                            ).is_finished()
+                        ):
                             self.logger.debug(
                                 f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
                             )

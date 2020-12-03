@@ -960,7 +960,11 @@ def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
 def test_k8s_agent_manage_jobs_reports_failed_pods(monkeypatch, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
-            data=MagicMock(set_flow_run_state=None, write_run_logs=None)
+            data=MagicMock(
+                set_flow_run_state=None,
+                write_run_logs=None,
+                get_flow_run_state=prefect.engine.state.Success(),
+            )
         )
     )
     client = MagicMock()
