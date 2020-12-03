@@ -919,6 +919,104 @@ def test_k8s_agent_manage_jobs_pass(monkeypatch, cloud_api):
     agent.heartbeat()
 
 
+def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
+    job_mock = MagicMock()
+    job_mock.metadata.labels = {
+        "prefect.io/identifier": "id",
+        "prefect.io/flow_run_id": "fr",
+    }
+    job_mock.metadata.name = "my_job"
+    job_mock.status.failed = True
+    job_mock.status.succeeded = True
+    batch_client = MagicMock()
+    list_job = MagicMock()
+    list_job.metadata._continue = 0
+    list_job.items = [job_mock]
+    batch_client.list_namespaced_job.return_value = list_job
+    batch_client.delete_namespaced_job.return_value = None
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
+    )
+
+    pod = MagicMock()
+    pod.metadata.name = "pod_name"
+    pod.status.phase = "Success"
+
+    core_client = MagicMock()
+    list_pods = MagicMock()
+    list_pods.items = [pod]
+    core_client.list_namespaced_pod.return_value = list_pods
+    monkeypatch.setattr(
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    agent = KubernetesAgent()
+    agent.manage_jobs()
+
+    assert batch_client.delete_namespaced_job.called
+
+
+def test_k8s_agent_manage_jobs_reports_failed_pods(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                set_flow_run_state=None,
+                write_run_logs=None,
+                get_flow_run_state=prefect.engine.state.Success(),
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    job_mock = MagicMock()
+    job_mock.metadata.labels = {
+        "prefect.io/identifier": "id",
+        "prefect.io/flow_run_id": "fr",
+    }
+    job_mock.metadata.name = "my_job"
+    job_mock.status.failed = True
+    job_mock.status.succeeded = False
+    batch_client = MagicMock()
+    list_job = MagicMock()
+    list_job.metadata._continue = 0
+    list_job.items = [job_mock]
+    batch_client.list_namespaced_job.return_value = list_job
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
+    )
+
+    pod = MagicMock()
+    pod.metadata.name = "pod_name"
+    pod.status.phase = "Failed"
+    terminated = MagicMock()
+    terminated.exit_code = "code"
+    terminated.message = "message"
+    terminated.reason = "reason"
+    terminated.signal = "signal"
+    c_status = MagicMock()
+    c_status.state.terminated = terminated
+    pod.status.container_statuses = [c_status]
+
+    pod2 = MagicMock()
+    pod2.metadata.name = "pod_name"
+    pod2.status.phase = "Success"
+
+    core_client = MagicMock()
+    list_pods = MagicMock()
+    list_pods.items = [pod, pod2]
+    core_client.list_namespaced_pod.return_value = list_pods
+    monkeypatch.setattr(
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    agent = KubernetesAgent()
+    agent.manage_jobs()
+
+    assert core_client.list_namespaced_pod.called
+
+
 def test_k8s_agent_manage_jobs_client_call(monkeypatch, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(data=MagicMock(set_flow_run_state=None))
@@ -959,31 +1057,6 @@ def test_k8s_agent_manage_jobs_client_call(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     agent.manage_jobs()
-
-
-def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
-    job_mock = MagicMock()
-    job_mock.metadata.labels = {
-        "prefect.io/identifier": "id",
-        "prefect.io/flow_run_id": "fr",
-    }
-    job_mock.metadata.name = "my_job"
-    job_mock.status.failed = True
-    job_mock.status.succeeded = True
-    batch_client = MagicMock()
-    list_job = MagicMock()
-    list_job.metadata._continue = 0
-    list_job.items = [job_mock]
-    batch_client.list_namespaced_job.return_value = list_job
-    batch_client.delete_namespaced_job.return_value = None
-    monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
-    )
-
-    agent = KubernetesAgent()
-    agent.manage_jobs()
-
-    assert batch_client.delete_namespaced_job.called
 
 
 class TestK8sAgentRunConfig:

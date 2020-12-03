@@ -160,6 +160,7 @@ class KubernetesAgent(Agent):
                     job_name = job.metadata.name
                     flow_run_id = job.metadata.labels.get("prefect.io/flow_run_id")
 
+                    # Check for pods that are stuck with image pull errors
                     if not delete_job:
                         pods = self.core_client.list_namespaced_pod(
                             namespace=self.namespace,
@@ -191,6 +192,86 @@ class KubernetesAgent(Agent):
                                         delete_job = True
                                         break
 
+                    # Report failed pods
+                    if job.status.failed:
+                        pods = self.core_client.list_namespaced_pod(
+                            namespace=self.namespace,
+                            label_selector="prefect.io/identifier={}".format(
+                                job.metadata.labels.get("prefect.io/identifier")
+                            ),
+                        )
+
+                        failed_pods = []
+                        for pod in pods.items:
+                            if pod.status.phase != "Failed":
+                                continue
+
+                            # Format pod failure error message
+                            failed_pods.append(pod.metadata.name)
+                            pod_status_logs = [f"Pod {pod.metadata.name} failed."]
+                            for status in pod.status.container_statuses:
+                                state = (
+                                    "running"
+                                    if status.state.running
+                                    else "waiting"
+                                    if status.state.waiting
+                                    else "terminated"
+                                    if status.state.terminated
+                                    else "Not Found"
+                                )
+                                pod_status_logs.append(
+                                    f"\tContainer '{status.name}' state: {state}"
+                                )
+
+                                if status.state.terminated:
+                                    pod_status_logs.append(
+                                        f"\t\tExit Code:: {status.state.terminated.exit_code}"
+                                    )
+                                    if status.state.terminated.message:
+                                        pod_status_logs.append(
+                                            f"\t\tMessage: {status.state.terminated.message}"
+                                        )
+                                    if status.state.terminated.reason:
+                                        pod_status_logs.append(
+                                            f"\t\tReason: {status.state.terminated.reason}"
+                                        )
+                                    if status.state.terminated.signal:
+                                        pod_status_logs.append(
+                                            f"\t\tSignal: {status.state.terminated.signal}"
+                                        )
+
+                            # Send pod failure information to flow run logs
+                            self.client.write_run_logs(
+                                [
+                                    dict(
+                                        flow_run_id=flow_run_id,
+                                        name=self.name,
+                                        message="\n".join(pod_status_logs),
+                                        level="ERROR",
+                                    )
+                                ]
+                            )
+
+                        # If there are failed pods and the run is not finished, fail the run
+                        if (
+                            failed_pods
+                            and not self.client.get_flow_run_state(
+                                flow_run_id
+                            ).is_finished()
+                        ):
+                            self.logger.debug(
+                                f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
+                            )
+                            self.client.set_flow_run_state(
+                                flow_run_id=flow_run_id,
+                                state=Failed(
+                                    message="Kubernetes Error: pods {} failed for this job".format(
+                                        failed_pods
+                                    )
+                                ),
+                            )
+
+                    # Delete job if it is successful or failed
                     if delete_job:
                         self.logger.debug(f"Deleting job {job_name}")
                         try:
