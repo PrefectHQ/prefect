@@ -458,7 +458,7 @@ class KubernetesAgent(Agent):
         container = containers[0]
 
         # Set container image
-        container["image"] = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(flow_run)
 
         # Set flow run command
         container["args"] = [get_flow_run_command(flow_run)]
@@ -479,6 +479,7 @@ class KubernetesAgent(Agent):
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
+                "PREFECT__CONTEXT__IMAGE": image,
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",

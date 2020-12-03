@@ -366,7 +366,7 @@ class DockerAgent(Agent):
             run_config = None
 
         image = get_flow_image(flow_run=flow_run)
-        env_vars = self.populate_env_vars(flow_run, run_config=run_config)
+        env_vars = self.populate_env_vars(flow_run, image, run_config=run_config)
 
         if not self.no_pull and len(image.split("/")) > 1:
             self.logger.info("Pulling image {}...".format(image))
@@ -461,13 +461,14 @@ class DockerAgent(Agent):
         self.processes.append(proc)
 
     def populate_env_vars(
-        self, flow_run: GraphQLResult, run_config: DockerRun = None
+        self, flow_run: GraphQLResult, image: str, run_config: DockerRun = None
     ) -> dict:
         """
         Populate metadata and variables in the environment variables for a flow run
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - image (str): The image for this flow
             - run_config (DockerRun, optional): The `run_config` for the flow, if any.
 
         Returns:
@@ -504,6 +505,7 @@ class DockerAgent(Agent):
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
+                "PREFECT__CONTEXT__IMAGE": image,
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",

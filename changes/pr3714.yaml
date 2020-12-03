@@ -1,5 +1,0 @@
-enhancement:
-  - "Refactor execute query code for `PostgresExecute`, `PostgresExecuteMany`, and `PostgresFetch` tasks. - [#3714](https://github.com/PrefectHQ/prefect/pull/3714)"
-
-contributor:
-  - "[Amanda Wee](https://github.com/amanda-wee)"

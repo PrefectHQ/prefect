@@ -32,6 +32,7 @@ from prefect.utilities.graphql import (
     compress,
     parse_graphql,
     with_args,
+    format_graphql_request_error,
 )
 from prefect.utilities.logging import create_diagnostic_logger
 
@@ -302,6 +303,8 @@ class Client:
             retry_on_api_error=retry_on_api_error,
         )
 
+        # TODO: It looks like this code is never reached because errors are raised
+        #       in self._send_request by default
         if raise_on_error and "errors" in result:
             if "UNAUTHENTICATED" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
@@ -324,6 +327,8 @@ class Client:
         params: Dict[str, JSONLike] = None,
         headers: dict = None,
     ) -> "requests.models.Response":
+        import requests
+
         if prefect.context.config.cloud.get("diagnostics") is True:
             self.logger.debug(f"Preparing request to {url}")
             clean_headers = {
@@ -351,19 +356,25 @@ class Client:
             )
 
         # Check if request returned a successful status
-        if response.status_code == 400:
-            msg = (
-                f"400 Client Error: Bad Request for url: {url}\n\n"
-                f"This is likely caused by a poorly formatted GraphQL query or mutation."
-            )
-            try:
-                msg += f" GraphQL sent:\n\n{parse_graphql(params)}"
-            except Exception:
-                # failed to format, raise below
-                pass
-            finally:
-                raise ClientError(msg)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            if response.status_code == 400 and params and "query" in params:
+                # Create a custom-formatted err message for graphql errors which always
+                # return a 400 status code and have "query" in the parameter dict
+                try:
+                    graphql_msg = format_graphql_request_error(response)
+                except Exception:
+                    # Fallback to a general message
+                    graphql_msg = (
+                        "This is likely caused by a poorly formatted GraphQL query or "
+                        "mutation but the response could not be parsed for more details"
+                    )
+                raise ClientError(f"{exc}\n{graphql_msg}") from exc
+
+            # Server-side and non-graphql errors will be raised without modification
+            raise
+
         return response
 
     def _request(
@@ -961,6 +972,47 @@ class Client:
 
         return res.data.create_project.id
 
+    def delete_project(self, project_name: str) -> bool:
+        """
+        Delete a project
+
+        Args:
+            - project_name (str): the project that should be created
+
+        Returns:
+            - bool: True if project is deleted else False
+        Raises:
+            - ValueError: if the project is None or doesn't exist
+        """
+
+        if project_name is None:
+            raise TypeError("'project_name' is a required field for deleting a project")
+
+        query_project = {
+            "query": {
+                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                    "id": True
+                }
+            }
+        }
+
+        project = self.graphql(query_project).data.project
+
+        if not project:
+            raise ValueError("Project {} not found.".format(project_name))
+
+        project_mutation = {
+            "mutation($input: delete_project_input!)": {
+                "delete_project(input: $input)": {"success"}
+            }
+        }
+
+        delete_project = self.graphql(
+            project_mutation, variables=dict(input=dict(project_id=project[0].id))
+        )
+
+        return delete_project.data.delete_project.success
+
     def create_flow_run(
         self,
         flow_id: str = None,
@@ -1302,7 +1354,7 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "get_or_create_task_run",
+                    "get_or_create_task_run_info",
                     {
                         "input": {
                             "flow_run_id": flow_run_id,
@@ -1312,6 +1364,8 @@ class Client:
                     },
                 ): {
                     "id": True,
+                    "version": True,
+                    "serialized_state": True,
                 }
             }
         }
@@ -1320,28 +1374,14 @@ class Client:
         if result is None:
             raise ClientError("Failed to create task run.")
 
-        task_run_id = result.data.get_or_create_task_run.id
+        task_run_info = result.data.get_or_create_task_run_info
 
-        query = {
-            "query": {
-                with_args("task_run_by_pk", {"id": task_run_id}): {
-                    "version": True,
-                    "serialized_state": True,
-                    "task": {"slug": True},
-                }
-            }
-        }
-        task_run = self.graphql(query).data.task_run_by_pk  # type: ignore
-
-        if task_run is None:
-            raise ClientError('Task run ID not found: "{}"'.format(task_run_id))
-
-        state = prefect.engine.state.State.deserialize(task_run.serialized_state)
+        state = prefect.engine.state.State.deserialize(task_run_info.serialized_state)
         return TaskRunInfoResult(
-            id=task_run_id,
+            id=task_run_info.id,
             task_id=task_id,
-            task_slug=task_run.task.slug,
-            version=task_run.version,
+            task_slug="",
+            version=task_run_info.version,
             state=state,
         )
 
@@ -1404,13 +1444,13 @@ class Client:
         """
         query = {
             "query": {
-                with_args("task_run_by_pk", {"id": task_run_id}): {
+                with_args("get_task_run_info", {"task_run_id": task_run_id}): {
                     "serialized_state": True,
                 }
             }
         }
 
-        task_run = self.graphql(query).data.task_run_by_pk
+        task_run = self.graphql(query).data.get_task_run_info
 
         return prefect.engine.state.State.deserialize(task_run.serialized_state)
 

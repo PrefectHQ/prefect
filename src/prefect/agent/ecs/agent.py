@@ -441,7 +441,7 @@ class ECSAgent(Agent):
             containers.append(container)
 
         # Set flow image
-        container["image"] = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(flow_run)
 
         # Set flow run command
         container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
@@ -456,6 +456,7 @@ class ECSAgent(Agent):
         # - Values in the task definition template
         env = {
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+            "PREFECT__CONTEXT__IMAGE": image,
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }

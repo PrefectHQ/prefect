@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.13.18 <Badge text="beta" type="success" />
+
+Released on November 30, 2020.
+
+### Enhancements
+
+- Display formatted graphql errors on client request failure - [#3632](https://github.com/PrefectHQ/prefect/pull/3632)
+- Refactor Core Client API calls for performance - [#3730](https://github.com/PrefectHQ/prefect/pull/3730)
+
+### Task Library
+
+- Refactor execute query code for `PostgresExecute`, `PostgresExecuteMany`, and `PostgresFetch` tasks - [#3714](https://github.com/PrefectHQ/prefect/pull/3714)
+- Fix `PicklingError` in `BigQueryLoadFile` and `BigQueryLoadGoogleCloudStorage` - [#3724](https://github.com/PrefectHQ/prefect/pull/3724)
+- Allow custom exporter for `ExecuteNotebook` task - [#3725](https://github.com/PrefectHQ/prefect/pull/3725)
+- Properly forward `location` parameter in bigquery tasks - [#3726](https://github.com/PrefectHQ/prefect/pull/3726)
+- Support passing `helper_script` to `ShellTask`/`DBTShellTask` at runtime - [#3729](https://github.com/PrefectHQ/prefect/pull/3729)
+
+### Fixes
+
+- Fix bug with docker storage throwing exception while trying to display output - [#3717](https://github.com/PrefectHQ/prefect/pull/3717)
+
+### Contributors
+
+- [Amanda Wee](https://github.com/amanda-wee)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+- [Swier Heeres](https://github.com/swierh)
+- [Takayuki Hirayama](https://github.com/yukihira1992)
+
 ## 0.13.17 <Badge text="beta" type="success" />
 
 Released on November 24, 2020.

@@ -1,0 +1,2 @@
+fix:
+  - "Fix state attempting to read result from absent upstream result - [#3618](https://github.com/PrefectHQ/prefect/issues/3618)"

@@ -617,28 +617,6 @@ class TestResultInterface:
         assert new_state._result.location is None
 
     @pytest.mark.parametrize("cls", all_states)
-    def test_state_load_result_reads_if_location_is_provided(self, cls):
-        class MyResult(Result):
-            def read(self, *args, **kwargs):
-                self.value = "bar"
-                return self
-
-        state = cls(result=Result())
-        assert state.message is None
-        assert state.result is None
-        assert state._result.location is None
-
-        new_state = state.load_result(MyResult(location="foo"))
-        assert new_state.message is None
-
-        if not new_state.is_mapped():
-            assert new_state.result == "bar"
-            assert new_state._result.location == "foo"
-        else:
-            assert new_state.result is None
-            assert not new_state._result.location
-
-    @pytest.mark.parametrize("cls", all_states)
     def test_state_load_cached_results_calls_read(self, cls):
         """
         This test ensures that the read logic of the provided result is
