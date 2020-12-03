@@ -66,7 +66,7 @@ documentation](/api/latest/run_configs.md) for more information.
 
 ### UniversalRun
 
-[UniversalRun](/api/latest/environments/run_config.md#universalrun) configures
+[UniversalRun](/api/latest/run_configs.md#universalrun) configures
 flow runs that can be deployed on any agent. This is the default `RunConfig`
 used if flow-labels are specified. It can be useful if agent-side configuration
 is sufficient. Only configuring the flow's labels is exposed - to configure
@@ -90,7 +90,7 @@ flow.run_config = UniversalRun(labels=["label-1", "label-2"])
 
 ### LocalRun
 
-[LocalRun](/api/latest/environments/run_config.md#localrun) configures flow
+[LocalRun](/api/latest/run_configs.md#localrun) configures flow
 runs deployed as local processes with a
 [LocalAgent](/orchestration/agents/local.md).
 
@@ -118,7 +118,7 @@ flow.run_config = LocalRun(working_dir="/path/to/working-directory")
 
 ### DockerRun
 
-[DockerRun](/api/latest/environments/run_config.md#dockerrun) configures flow
+[DockerRun](/api/latest/run_configs.md#dockerrun) configures flow
 runs deployed as docker containers with a
 [DockerAgent](/orchestration/agents/docker.md).
 
@@ -146,7 +146,7 @@ flow.run_config = DockerRun(image="example/image-name:with-tag")
 
 ### KubernetesRun
 
-[KubernetesRun](/api/latest/environments/run_config.md#kubernetesrun)
+[KubernetesRun](/api/latest/run_configs.md#kubernetesrun)
 configures flow runs deployed as Kubernetes jobs with a
 [KubernetesAgent](/orchestration/agents/kubernetes.md).
 
@@ -188,7 +188,7 @@ flow.run_config = KubernetesRun(job_template_path="s3://bucket/path/to/spec.yaml
 
 ### ECSRun
 
-[ECSRun](/api/latest/environments/run_config.md#ecsrun) configures flow runs
+[ECSRun](/api/latest/run_configs.md#ecsrun) configures flow runs
 deployed as ECS tasks with a ECSAgent.
 
 #### Examples
