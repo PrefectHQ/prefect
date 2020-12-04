@@ -1,0 +1,3 @@
+task:
+  - "Allow the `RunGreatExpectationsCheckpoint` task to load validations and context from memory - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)"
+  - "Add the option to post markdown artifacts from the `RunGreatExpectationsCheckpoint` task - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)"
