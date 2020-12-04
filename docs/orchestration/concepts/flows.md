@@ -16,6 +16,23 @@ flow.register(project_name="Hello, World!")
 Registering a flow with the backend API requires it to be registered to a project. To create a project see [the "creating a project" tutorial](projects.html#creating-a-project).
 :::
 
+:::tip Deduplicating registration calls
+
+Each call to `flow.register()` will bump the version of the flow in the
+backend.  If you are registering flows using automation, you may want to pass
+an `idempotency_key` which will only create a new version when the key changes.
+For example, we can take advantage of the hash of the serialized flow to only
+register a new version of the flow when it has changed:
+
+```python
+flow.register(
+    project_name="Hello, World!",
+    idempotency_key=flow.serialized_hash()
+)
+```
+:::
+
+
 Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](../tutorial/configure.html#log-in-to-prefect-cloud). For more information on Flow registration see [here](../tutorial/first.html#register-flow-with-prefect-cloud).
 
 ### GraphQL <Badge text="GQL"/>
