@@ -36,7 +36,7 @@ class GitHub(Storage):
     """
 
     def __init__(
-        self, repo: str, path: str = None, ref: str = None, **kwargs: Any
+        self, repo: str, path: str = None, ref: str = "master", **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
