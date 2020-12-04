@@ -190,7 +190,7 @@ Result(serializer=MySerializer())
 By default, Prefect will store task results in a file / directory structure based on the timestamp of when the result is written along with a randomly generated UUID. This of course can be configured to your needs:
 
 - you can provide an explicit, hardcoded filepath using the `location` kwarg on all Result classes
-- alternatively, you can provide a `location` _template_ [format string](https://www.python.org/dev/peps/pep-3101/#format-strings) which will be templated with values in [Prefect context](/api/latest/utilities/context.html) at runtime.
+- alternatively, you can provide a `location` [template which will be populated at runtime](/core/idioms/templating)
 
 Note that if you pursue option two above, Python string templating allows for powerful configuration. For example, the code below writes task results to both a hardcoded location as well as a location based on the day of the week:
 
