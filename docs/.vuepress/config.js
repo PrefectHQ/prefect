@@ -170,14 +170,13 @@ module.exports = {
       '/orchestration/': [
         '/orchestration/',
         {
-          title: 'Deployment Tutorial',
+          title: 'Tutorial',
           collapsable: true,
           children: [
-            'tutorial/configure',
+            'tutorial/overview',
             'tutorial/first',
-            'tutorial/multiple',
-            'tutorial/docker',
-            'tutorial/k8s',
+            'tutorial/parameters',
+            'tutorial/flow_config',
             'tutorial/next-steps'
           ]
         },
