@@ -4,9 +4,9 @@ Now that your environment is setup, it's time to deploy your first Flow.
 
 ## Creating a Project
 
-Before we can register a flow with the Prefect Backend, we first need to
-create a _Project_. Similar to a directory in filesystem, Prefect organizes
-flows into projects, where each flow belongs to exactly one project.
+Before we can register a flow with the Prefect Backend, we first need to create
+a _Project_. Similar to a directory in a filesystem, Prefect organizes flows
+into projects, where each flow belongs to exactly one project.
 
 Projects can be created using the UI through either the project filter on the
 [dashboard](/orchestration/ui/dashboard) page, or in the [project settings

@@ -131,7 +131,7 @@ Register and run the flow.
 
 ![](/orchestration/tutorial/hello-flow-run-parallel.png)
 
-You should see that multiple `say_hello` tasks running in parallel, providing a
+You should see multiple `say_hello` tasks running in parallel, providing a
 noticeable speedup (this ran in 13 seconds, when serially it would have taken
 30 seconds). If you look through the logs you can also see logs from each task
 interleaved, showing they ran concurrently.

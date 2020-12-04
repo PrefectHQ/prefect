@@ -72,7 +72,7 @@ name to `"custom-names"`, and provide new values for the `"people"` parameter.
 When you're happy with the flow run settings, click `"Run"` to create a new
 flow run using the new settings.
 
-Once the flow run starts, chek the logs to see that your settings took effect.
+Once the flow run starts, check the logs to see that your settings took effect.
 
 ![](/orchestration/tutorial/hello-flow-run-mapped2.png)
 
