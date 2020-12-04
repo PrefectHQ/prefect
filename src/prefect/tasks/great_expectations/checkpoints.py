@@ -232,7 +232,7 @@ class RunGreatExpectationsCheckpoint(Task):
         )
 
         if results.success is False:
-            raise signals.VALIDATIONFAIL(result=results)
+            raise signals.FAIL(result=results)
 
         # Generate artifact markdown
         if not disable_markdown_artifact:
