@@ -20,22 +20,27 @@ import great_expectations as ge
 from typing import Optional
 
 
-class RunGreatExpectationsCheckpoint(Task):
+class RunGreatExpectationsValidation(Task):
     """
-    Task for running a Great Expectations checkpoint.
+    Task for running data validation with Great Expectations.
 
     Example using the GE getting started tutorial:
     https://github.com/superconductive/ge_tutorials/tree/main/ge_getting_started_tutorial
 
-    This is a parameterized flow for building the `batch_kwargs` to be passed into the task.
+    The task can be used to run validation in one of the following ways:
+
+    1. expectation_suite AND batch_kwargs, where batch_kwargs is a dict
+    2. assets_to_validate: a list of dicts of expectation_suite + batch_kwargs
+    3. checkpoint_name: the name of a pre-configured checkpoint (which bundles expectation suites
+    and batch_kwargs)
 
     ```python
     from prefect import task, Flow, Parameter
-    from prefect.tasks.great_expectations import RunGreatExpectationsCheckpoint
+    from prefect.tasks.great_expectations import RunGreatExpectationsValidation
 
 
     # Define checkpoint task
-    checkpoint_task = RunGreatExpectationsCheckpoint()
+    validation_task = RunGreatExpectationsValidation()
 
 
     # Task for retrieving batch kwargs including csv dataset
@@ -51,9 +56,7 @@ class RunGreatExpectationsCheckpoint(Task):
         batch_kwargs = get_batch_kwargs(datasource_name, dataset)
 
         expectation_suite_name = Parameter("expectation_suite_name")
-        checkpoint_name = Parameter("checkpoint_name")
-        checkpoint_task(
-            checkpoint_name=checkpoint_name,
+        validation_task(
             batch_kwargs=batch_kwargs,
             expectation_suite_name=expectation_suite_name,
         )
@@ -63,28 +66,23 @@ class RunGreatExpectationsCheckpoint(Task):
             "datasource_name": "data__dir",
             "dataset": "data/yellow_tripdata_sample_2019-01.csv",
             "expectation_suite_name": "yellow_tripdata_sample_2019-01.warning",
-            "checkpoint_name": "action_list_operator",
         },
     )
     ```
 
 
     Args:
-        - checkpoint_name (str, optional): the name of the checkpoint; should match the filename of
-            the checkpoint without .py
+        - checkpoint_name (str, optional): the name of a pre-configured checkpoint; should match the
+            filename of the checkpoint without .py
         - context (DataContext, optional): an in-memory GE DataContext object. e.g.
             `ge.data_context.DataContext()` If not provided then `context_root_dir` will be used to
             look for one.
         - assets_to_validate (list, optional): A list of assets to validate when running the
-            validation operator. If not provided then `batch_kwargs` and `expectation_suite_name`
-            will be used if context is provided. Also, if not provided and
-            `get_checkpoint_from_context` is True then the assets will be loaded from that context.
+            validation operator.
         - batch_kwargs (dict, optional): a dictionary of batch kwargs to be used when validating
             assets.
         - expectation_suite_name (str, optional): the name of an expectation suite to be used when
             validating assets.
-        - get_checkpoint_from_context (bool, optional): get the checkpoint from context. Defaults to
-            `False`
         - context_root_dir (str, optional): the absolute or relative path to the directory holding
             your `great_expectations.yml`
         - runtime_environment (dict, optional): a dictionary of great expectation config key-value
@@ -95,6 +93,8 @@ class RunGreatExpectationsCheckpoint(Task):
             task. Defaults to `True`.
         - disable_markdown_artifact (bool, optional): toggle the posting of a markdown artifact from
             this tasks. Defaults to `False`.
+        - validation_operator (str, optional): configure the actions to be executed after running
+            validation. Defaults to `action_list_operator`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -105,12 +105,12 @@ class RunGreatExpectationsCheckpoint(Task):
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
         expectation_suite_name: str = None,
-        get_checkpoint_from_context: bool = False,
         context_root_dir: str = None,
         runtime_environment: Optional[dict] = None,
         run_name: str = None,
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
+        validation_operator: str = 'action_list_operator',
         **kwargs
     ):
         self.checkpoint_name = checkpoint_name
@@ -118,12 +118,12 @@ class RunGreatExpectationsCheckpoint(Task):
         self.assets_to_validate = assets_to_validate
         self.batch_kwargs = batch_kwargs
         self.expectation_suite_name = expectation_suite_name
-        self.get_checkpoint_from_context = get_checkpoint_from_context
         self.context_root_dir = context_root_dir
         self.runtime_environment = runtime_environment or dict()
         self.run_name = run_name
         self.run_info_at_end = run_info_at_end
-        self.disable_markdown_artifact = disable_markdown_artifact
+        self.disable_markdown_artifact = disable_markdown_artifact,
+        self.validation_operator = validation_operator
 
         super().__init__(**kwargs)
 
@@ -133,12 +133,12 @@ class RunGreatExpectationsCheckpoint(Task):
         "assets_to_validate",
         "batch_kwargs",
         "expectation_suite_name",
-        "get_checkpoint_from_context",
         "context_root_dir",
         "runtime_environment",
         "run_name",
         "run_info_at_end",
         "disable_markdown_artifact",
+        "validation_operator"
     )
     def run(
         self,
@@ -147,12 +147,12 @@ class RunGreatExpectationsCheckpoint(Task):
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
         expectation_suite_name: str = None,
-        get_checkpoint_from_context: bool = False,
         context_root_dir: str = None,
         runtime_environment: Optional[dict] = None,
         run_name: str = None,
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
+        validation_operator: str = 'action_list_operator'
     ):
         """
         Task run method.
@@ -164,15 +164,11 @@ class RunGreatExpectationsCheckpoint(Task):
                 `ge.data_context.DataContext()` If not provided then `context_root_dir` will be used to
                 look for one.
             - assets_to_validate (list, optional): A list of assets to validate when running the
-                validation operator. If not provided then `batch_kwargs` and `expectation_suite_name`
-                will be used if context is provided. Also, if not provided and
-                `get_checkpoint_from_context` is True then the assets will be loaded from that context.
+                validation operator.
             - batch_kwargs (dict, optional): a dictionary of batch kwargs to be used when validating
                 assets.
             - expectation_suite_name (str, optional): the name of an expectation suite to be used when
                 validating assets.
-            - get_checkpoint_from_context (bool, optional): get the checkpoint from context. Defaults to
-                `False`
             - context_root_dir (str, optional): the absolute or relative path to the directory holding
                 your `great_expectations.yml`
             - runtime_environment (dict, optional): a dictionary of great expectation config key-value
@@ -183,6 +179,8 @@ class RunGreatExpectationsCheckpoint(Task):
                 task. Defaults to `True`.
             - disable_markdown_artifact (bool, optional): toggle the posting of a markdown artifact from
                 this tasks. Defaults to `False`.
+            - validation_operator (str, optional): configure the actions to be executed after running
+                validation. Defaults to `action_list_operator`.
 
         Raises:
             - 'signals.VALIDATIONFAIL' if the validation was not a success
@@ -205,12 +203,18 @@ class RunGreatExpectationsCheckpoint(Task):
                 runtime_environment=runtime_environment,
             )
 
-        # if assets are not provided directly through `assets_to_validate` then they need be loaded
-        #   if the checkpoint is being loaded from the context then load suite and batch from there
+        # Check that the parameters are mutually exclusive
+        if sum(bool(x) for x in [(expectation_suite_name and batch_kwargs), assets_to_validate, checkpoint_name]) != 1:
+            raise ValueError("Exactly one of expectation_suite_name + batch_kwargs, assets_to_validate, \
+             or checkpoint_name is required to run validation.")
+
+        # If assets are not provided directly through `assets_to_validate` then they need be loaded
+        #   if a checkpoint_name is supplied, then load suite and batch_kwargs from there
         #   otherwise get batch from `batch_kwargs` and `expectation_suite_name`
+
         if not assets_to_validate:
             assets_to_validate = []
-            if get_checkpoint_from_context:
+            if checkpoint_name:
                 ge_checkpoint = context.get_checkpoint(checkpoint_name)
 
                 for batch in ge_checkpoint["batches"]:
@@ -219,6 +223,7 @@ class RunGreatExpectationsCheckpoint(Task):
                         suite = context.get_expectation_suite(suite_name)
                         batch = context.get_batch(batch_kwargs, suite)
                         assets_to_validate.append(batch)
+                validation_operator = ge_checkpoint["validation_operator_name"]
             else:
                 assets_to_validate.append(
                     context.get_batch(batch_kwargs, expectation_suite_name)
@@ -226,7 +231,7 @@ class RunGreatExpectationsCheckpoint(Task):
 
         # Run validation operator
         results = context.run_validation_operator(
-            checkpoint_name or ge_checkpoint["validation_operator_name"],
+            validation_operator,
             assets_to_validate=assets_to_validate,
             run_id={"run_name": run_name or prefect.context.get("task_slug")},
         )
