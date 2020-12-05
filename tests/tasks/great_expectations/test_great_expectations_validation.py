@@ -21,7 +21,6 @@ class TestInitialization:
             assets_to_validate=["assets"],
             batch_kwargs={"kwargs": "here"},
             expectation_suite_name="name",
-            get_checkpoint_from_context=True,
             context_root_dir="/path/to/somewhere",
             runtime_environment={
                 "plugins_directory": "/path/to/plugins/somewhere/else"
@@ -35,7 +34,6 @@ class TestInitialization:
         assert t.assets_to_validate == ["assets"]
         assert t.batch_kwargs == {"kwargs": "here"}
         assert t.expectation_suite_name == "name"
-        assert t.get_checkpoint_from_context == True
         assert t.context_root_dir == "/path/to/somewhere"
         assert t.runtime_environment == {
             "plugins_directory": "/path/to/plugins/somewhere/else"
