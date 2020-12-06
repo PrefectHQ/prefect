@@ -1,0 +1,2 @@
+fix:
+  - "Fix rare cancellation bug when running with external Dask cluster - [#3770](https://github.com/PrefectHQ/prefect/pull/3770)"
