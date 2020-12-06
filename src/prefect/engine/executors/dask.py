@@ -13,7 +13,7 @@ from prefect.utilities.importtools import import_object
 
 if TYPE_CHECKING:
     import dask
-    from distributed import Future, Variable
+    from distributed import Future, Event
     import multiprocessing.pool
     import concurrent.futures
 
@@ -45,28 +45,30 @@ def _make_task_key(
     return None
 
 
-def _maybe_run(var_name: str, fn: Callable, *args: Any, **kwargs: Any) -> Any:
-    """Check if the task should run against a `distributed.Variable` before
+def _maybe_run(event_name: str, fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Check if the task should run against a `distributed.Event` before
     starting the task. This offers stronger guarantees than distributed's
     current cancellation mechanism, which only cancels pending tasks."""
-    # In certain configurations, the way distributed unpickles variables can
-    # lead to excess client connections being created. To avoid this issue we
-    # manually lookup the variable by name.
     import dask
-    from distributed import Variable, get_client
+    from distributed import Event, get_client
 
-    # Explicitly pass in the timeout from dask's config, distributed currently
-    # hardcodes this rather than using the value from the config. Can be
-    # removed once this is fixed upstream.
-    timeout = dask.config.get("distributed.comm.timeouts.connect")
-    var = Variable(var_name, client=get_client(timeout=timeout))
     try:
-        should_run = var.get(timeout=0)
+        # Explicitly pass in the timeout from dask's config. Some versions of
+        # distributed hardcode this rather than using the value from the
+        # config.  Can be removed once we bump our min requirements for
+        # distributed to >= 2.31.0.
+        timeout = dask.config.get("distributed.comm.timeouts.connect")
+        event = Event(event_name, client=get_client(timeout=timeout))
+        should_run = event.is_set()
     except Exception:
-        # Errors here indicate the get operation timed out, which can happen if
-        # the variable is undefined (usually indicating the flow runner has
-        # stopped or the cluster is shutting down).
-        should_run = False
+        # Failure to create an event is usually due to connection errors. These
+        # are either due to flaky behavior in distributed's comms under high
+        # loads, or due to the scheduler shutting down. Either way, the safest
+        # course here is to assume we *should* run the task still. If we guess
+        # wrong, we're either doing a bit of unnecessary work, or the cluster
+        # is shutting down and the task will be cancelled anyway.
+        should_run = True
+
     if should_run:
         return fn(*args, **kwargs)
 
@@ -233,7 +235,7 @@ class DaskExecutor(Executor):
         # They're used in the case we can't forcibly kill all the dask workers,
         # and need to wait for all the dask tasks to cleanup before exiting.
         self._futures = None  # type: Optional[weakref.WeakSet[Future]]
-        self._should_run_var = None  # type: Optional[Variable]
+        self._should_run_event = None  # type: Optional[Event]
         # A ref to a background task subscribing to dask cluster events
         self._watch_dask_events_task = None  # type: Optional[concurrent.futures.Future]
 
@@ -317,15 +319,15 @@ class DaskExecutor(Executor):
                 scheduler_comm.close_rpc()
 
     def _pre_start_yield(self) -> None:
-        from distributed import Variable
+        from distributed import Event
 
         is_inproc = self.client.scheduler.address.startswith("inproc")  # type: ignore
         if self.address is not None or is_inproc:
             self._futures = weakref.WeakSet()
-            self._should_run_var = Variable(
+            self._should_run_event = Event(
                 f"prefect-{uuid.uuid4().hex}", client=self.client
             )
-            self._should_run_var.set(True)
+            self._should_run_event.set()
 
         self._watch_dask_events_task = asyncio.run_coroutine_threadsafe(
             self._watch_dask_events(), self.client.loop.asyncio_loop  # type: ignore
@@ -341,11 +343,11 @@ class DaskExecutor(Executor):
                 pass
             self._watch_dask_events_task = None
 
-        if self._should_run_var is not None:
+        if self._should_run_event is not None:
             # Multipart cleanup, ignoring exceptions in each stage
             # 1.) Stop pending tasks from starting
             try:
-                self._should_run_var.set(False)
+                self._should_run_event.clear()
             except Exception:
                 pass
             # 2.) Wait for all running tasks to complete
@@ -359,12 +361,7 @@ class DaskExecutor(Executor):
                     wait(futures)
             except Exception:
                 pass
-            # 3.) Delete the distributed variable
-            try:
-                self._should_run_var.delete()
-            except Exception:
-                pass
-        self._should_run_var = None
+        self._should_run_event = None
         self._futures = None
 
     def _prep_dask_kwargs(self, extra_context: dict = None) -> dict:
@@ -400,7 +397,7 @@ class DaskExecutor(Executor):
                 for k in [
                     "client",
                     "_futures",
-                    "_should_run_var",
+                    "_should_run_event",
                     "_watch_dask_events_task",
                 ]
             }
@@ -430,11 +427,11 @@ class DaskExecutor(Executor):
             raise ValueError("This executor has not been started.")
 
         kwargs.update(self._prep_dask_kwargs(extra_context))
-        if self._should_run_var is None:
+        if self._should_run_event is None:
             fut = self.client.submit(fn, *args, **kwargs)
         else:
             fut = self.client.submit(
-                _maybe_run, self._should_run_var.name, fn, *args, **kwargs
+                _maybe_run, self._should_run_event.name, fn, *args, **kwargs
             )
             self._futures.add(fut)
         return fut
