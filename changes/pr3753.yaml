@@ -4,3 +4,6 @@ task:
 
 deprecation:
   - "Deprecated the `RunGreatExpectationsCheckpoint` task in favor of `RunGreatExpectationsValidation` - [#3766](https://github.com/PrefectHQ/prefect/pull/3766)"
+
+contributor:
+ - "[Sam Bail](https://github.com/spbail)"
