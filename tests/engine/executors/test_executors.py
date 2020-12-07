@@ -251,7 +251,7 @@ class TestDaskExecutor:
 
         def record_times():
             start_time = time.time()
-            time.sleep(random.random() * 0.25 + 0.5)
+            time.sleep(0.75)
             end_time = time.time()
             return start_time, end_time
 
@@ -427,7 +427,7 @@ class TestDaskExecutor:
             assert isinstance(post, DaskExecutor)
             assert post.client is None
             assert post._futures is None
-            assert post._should_run_var is None
+            assert post._should_run_event is None
 
     def test_executor_logs_worker_events(self, caplog):
         caplog.set_level(logging.DEBUG, logger="prefect")
@@ -482,7 +482,7 @@ class TestDaskExecutor:
 
         assert executor.client is None
         assert executor._futures is None
-        assert executor._should_run_var is None
+        assert executor._should_run_event is None
 
     def test_temporary_cluster_forcefully_cancels_pending_tasks(self, tmpdir):
         filname = tmpdir.join("signal")
