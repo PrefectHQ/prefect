@@ -6,7 +6,7 @@ learn more about how to initialize a great expectation deployment [on their Gett
 """
 try:
     from prefect.tasks.great_expectations.checkpoints import (
-        RunGreatExpectationsValidation,
+        RunGreatExpectationsValidation, RunGreatExpectationsCheckpoint
     )
 except ImportError:
     raise ImportError(
