@@ -110,7 +110,7 @@ class RunGreatExpectationsValidation(Task):
         run_name: str = None,
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
-        validation_operator: str = 'action_list_operator',
+        validation_operator: str = "action_list_operator",
         **kwargs
     ):
         self.checkpoint_name = checkpoint_name
@@ -122,7 +122,7 @@ class RunGreatExpectationsValidation(Task):
         self.runtime_environment = runtime_environment or dict()
         self.run_name = run_name
         self.run_info_at_end = run_info_at_end
-        self.disable_markdown_artifact = disable_markdown_artifact,
+        self.disable_markdown_artifact = (disable_markdown_artifact,)
         self.validation_operator = validation_operator
 
         super().__init__(**kwargs)
@@ -138,7 +138,7 @@ class RunGreatExpectationsValidation(Task):
         "run_name",
         "run_info_at_end",
         "disable_markdown_artifact",
-        "validation_operator"
+        "validation_operator",
     )
     def run(
         self,
@@ -152,7 +152,7 @@ class RunGreatExpectationsValidation(Task):
         run_name: str = None,
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
-        validation_operator: str = 'action_list_operator'
+        validation_operator: str = "action_list_operator",
     ):
         """
         Task run method.
@@ -191,8 +191,6 @@ class RunGreatExpectationsValidation(Task):
                 The Great Expectations metadata returned from the validation
 
         """
-        if checkpoint_name is None:
-            raise ValueError("You must provide the checkpoint name.")
 
         runtime_environment = runtime_environment or dict()
 
@@ -204,9 +202,21 @@ class RunGreatExpectationsValidation(Task):
             )
 
         # Check that the parameters are mutually exclusive
-        if sum(bool(x) for x in [(expectation_suite_name and batch_kwargs), assets_to_validate, checkpoint_name]) != 1:
-            raise ValueError("Exactly one of expectation_suite_name + batch_kwargs, assets_to_validate, \
-             or checkpoint_name is required to run validation.")
+        if (
+            sum(
+                bool(x)
+                for x in [
+                    (expectation_suite_name and batch_kwargs),
+                    assets_to_validate,
+                    checkpoint_name,
+                ]
+            )
+            != 1
+        ):
+            raise ValueError(
+                "Exactly one of expectation_suite_name + batch_kwargs, assets_to_validate, or "
+                "checkpoint_name is required to run validation."
+            )
 
         # If assets are not provided directly through `assets_to_validate` then they need be loaded
         #   if a checkpoint_name is supplied, then load suite and batch_kwargs from there
