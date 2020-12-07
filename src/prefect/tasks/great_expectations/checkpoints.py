@@ -122,7 +122,7 @@ class RunGreatExpectationsValidation(Task):
         self.runtime_environment = runtime_environment or dict()
         self.run_name = run_name
         self.run_info_at_end = run_info_at_end
-        self.disable_markdown_artifact = (disable_markdown_artifact,)
+        self.disable_markdown_artifact = disable_markdown_artifact
         self.validation_operator = validation_operator
 
         super().__init__(**kwargs)

@@ -42,12 +42,23 @@ class TestInitialization:
         assert t.run_info_at_end == False
         assert t.disable_markdown_artifact == True
 
-    # TODO: I'd add a test to check the run method raises if the incorrect
-    # combination of parameters is provided
-    # def test_raises_if_checkpoint_not_provided(self, monkeypatch):
-    #     task = RunGreatExpectationsValidation()
-    #     client = MagicMock()
-    #     great_expectations = MagicMock(client=client)
-    #     monkeypatch.setattr("prefect.tasks.great_expectations", great_expectations)
-    #     with pytest.raises(ValueError, match="checkpoint"):
-    #         task.run()
+    def test_raises_if_params_not_mutually_exclusive(self):
+        task = RunGreatExpectationsValidation(context="test")
+        with pytest.raises(ValueError, match="Exactly"):
+            task.run()
+
+        with pytest.raises(ValueError, match="Exactly"):
+            task.run(expectation_suite_name="name")
+
+        with pytest.raises(ValueError, match="Exactly"):
+            task.run(batch_kwargs={"here"})
+
+        with pytest.raises(ValueError, match="Exactly"):
+            task.run(
+                expectation_suite_name="name",
+                batch_kwargs={"here"},
+                assets_to_validate=["val"],
+            )
+
+        with pytest.raises(ValueError, match="Exactly"):
+            task.run(assets_to_validate=["val"], checkpoint_name="name")
