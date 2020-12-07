@@ -1,0 +1,2 @@
+fix:
+  - "Fix type-casting for task timeout defaults loaded from config - [#3761](https://github.com/PrefectHQ/prefect/pull/3761)"
