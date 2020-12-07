@@ -11,6 +11,7 @@ from prefect.engine.cache_validators import all_inputs, duration_only, never_use
 from prefect.engine.result_handlers import JSONResultHandler
 from prefect.engine.results import PrefectResult, LocalResult
 from prefect.utilities.configuration import set_temporary_config
+from prefect.configuration import process_task_defaults
 from prefect.utilities.tasks import task
 
 
@@ -57,9 +58,21 @@ class TestCreateTask:
         t2 = Task(max_retries=5, retry_delay=timedelta(0))
         assert t2.max_retries == 5
 
+        with set_temporary_config({"tasks.defaults.max_retries": 3}) as config:
+            # Cover type casting of task defaults
+            process_task_defaults(config)
+            t3 = Task(retry_delay=timedelta(0))
+            assert t3.max_retries == 3
+
     def test_create_task_with_retry_delay(self):
-        t2 = Task(retry_delay=timedelta(seconds=30), max_retries=1)
-        assert t2.retry_delay == timedelta(seconds=30)
+        t1 = Task(retry_delay=timedelta(seconds=30), max_retries=1)
+        assert t1.retry_delay == timedelta(seconds=30)
+
+        with set_temporary_config({"tasks.defaults.retry_delay": 3}) as config:
+            # Cover type casting of task defaults
+            process_task_defaults(config)
+            t2 = Task(max_retries=1)
+            assert t2.retry_delay == timedelta(seconds=3)
 
     def test_create_task_with_max_retries_and_no_retry_delay(self):
         with pytest.raises(ValueError):
@@ -90,7 +103,9 @@ class TestCreateTask:
         t3 = Task(timeout=1)
         assert t3.timeout == 1
 
-        with set_temporary_config({"tasks.defaults.timeout": 3}):
+        with set_temporary_config({"tasks.defaults.timeout": 3}) as config:
+            # Cover type casting of task defaults
+            process_task_defaults(config)
             t4 = Task()
             assert t4.timeout == 3
 
