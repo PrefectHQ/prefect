@@ -366,7 +366,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = [
-        "RunGreatExpectationsCheckpoint",
+        "RunGreatExpectationsValidation", "RunGreatExpectationsCheckpoint",
         ]
 
 [pages.tasks.gsheets]

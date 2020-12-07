@@ -1,3 +1,9 @@
 task:
-  - "Allow the `RunGreatExpectationsCheckpoint` task to load validations and context from memory - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)"
-  - "Add the option to post markdown artifacts from the `RunGreatExpectationsCheckpoint` task - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)"
+  - "Add `RunGreatExpectationsValidation` task - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)"
+  - "Add the option to post markdown artifacts from the `RunGreatExpectationsValidation` task - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)"
+
+deprecation:
+  - "Deprecated the `RunGreatExpectationsCheckpoint` task in favor of `RunGreatExpectationsValidation` - [#3766](https://github.com/PrefectHQ/prefect/pull/3766)"
+
+contributor:
+ - "[Sam Bail](https://github.com/spbail)"
