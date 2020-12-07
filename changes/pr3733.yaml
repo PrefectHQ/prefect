@@ -18,3 +18,6 @@
 
 enhancement:
   - "Added storage option for AWS CodeCommit - [#3733](https://github.com/PrefectHQ/prefect/pull/3733)"
+
+contributor:
+  - "[Jonathan Owen](https://github.com/jrowen)"
