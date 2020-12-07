@@ -16,6 +16,8 @@ def test_no_args():
     assert config.cpu_request is None
     assert config.memory_limit is None
     assert config.memory_request is None
+    assert config.service_account_name is None
+    assert config.image_pull_secrets is None
     assert config.labels == set()
 
 
@@ -86,3 +88,15 @@ def test_cpu_limit_and_request_acceptable_types():
     config = KubernetesRun(cpu_limit=0.5, cpu_request=0.1)
     assert config.cpu_limit == "0.5"
     assert config.cpu_request == "0.1"
+
+
+def test_service_account_name_and_image_pull_secrets():
+    config = KubernetesRun(
+        service_account_name="my-account", image_pull_secrets=("a", "b", "c")
+    )
+    assert config.service_account_name == "my-account"
+    assert config.image_pull_secrets == ["a", "b", "c"]
+
+    # Ensure falsey-lists aren't converted to `None`.
+    config = KubernetesRun(image_pull_secrets=[])
+    assert config.image_pull_secrets == []

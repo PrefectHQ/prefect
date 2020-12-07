@@ -260,11 +260,26 @@ def kubernetes():
     "job_template_path",
     help="Path to a kubernetes job template to use instead of the default.",
 )
-def start(**kwargs):
+@click.option(
+    "--service-account-name",
+    "service_account_name",
+    help="A default service account name to configure on started jobs.",
+)
+@click.option(
+    "--image-pull-secrets",
+    "image_pull_secrets",
+    help="Default image pull secrets to configure on started jobs. Multiple "
+    "values can be provided as a comma-separated list "
+    "(e.g. `--image-pull-secrets VAL1,VAL2`)",
+)
+def start(image_pull_secrets=None, **kwargs):
     """Start a Kubernetes agent"""
     from prefect.agent.kubernetes import KubernetesAgent
 
-    start_agent(KubernetesAgent, **kwargs)
+    if image_pull_secrets is not None:
+        image_pull_secrets = [s.strip() for s in image_pull_secrets.split(",")]
+
+    start_agent(KubernetesAgent, image_pull_secrets=image_pull_secrets, **kwargs)
 
 
 @kubernetes.command()

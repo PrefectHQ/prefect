@@ -73,11 +73,20 @@ def test_help(cmd):
         (
             "kubernetes",
             "prefect.agent.kubernetes.KubernetesAgent",
-            "--namespace TESTNAMESPACE --job-template testtemplate.yaml",
-            {
-                "namespace": "TESTNAMESPACE",
-                "job_template_path": "testtemplate.yaml",
-            },
+            (
+                "--namespace TESTNAMESPACE --job-template testtemplate.yaml",
+                "--service-account-name TESTACCT --image-pull-secrets VAL1,VAL2",
+            ),
+            (
+                {
+                    "namespace": "TESTNAMESPACE",
+                    "job_template_path": "testtemplate.yaml",
+                },
+                {
+                    "service_account_name": "TESTACCT",
+                    "image_pull_secrets": ["VAL1", "VAL2"],
+                },
+            ),
         ),
         (
             "fargate",
@@ -121,7 +130,16 @@ def test_agent_start(
         command.append("--verbose")
     else:
         command.extend(["--log-level", "debug"])
+    if not isinstance(extra_cmd, str):
+        extra_cmd = extra_cmd[0] if deprecated else " ".join(extra_cmd)
     command.extend(extra_cmd.split())
+
+    if not isinstance(extra_kwargs, dict):
+        extra_kwargs = (
+            extra_kwargs[0]
+            if deprecated
+            else dict(**extra_kwargs[0], **extra_kwargs[1])
+        )
 
     expected_kwargs = {
         "agent_config_id": "TEST-AGENT-CONFIG-ID",

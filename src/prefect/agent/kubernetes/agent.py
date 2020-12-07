@@ -1,7 +1,7 @@
 import os
 import time
 import uuid
-from typing import Iterable, List, Any
+from typing import Optional, Iterable, List, Any
 
 import json
 import yaml
@@ -36,31 +36,18 @@ class KubernetesAgent(Agent):
     desired cluster. Information on using the Kubernetes Agent can be found at
     https://docs.prefect.io/orchestration/agents/kubernetes.html
 
-    Environment variables may be set on the agent to be provided to each flow run's job:
-    ```
-    prefect agent kubernetes start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
-    ```
-
-    These can also be used to control the k8s job spec that describes the flow run jobs.
-    For example, to set the k8s secret used to pull images from a non-public registry:
-    ```
-    prefect agent kubernetes start --env IMAGE_PULL_SECRETS=my-img-pull-secret
-    ```
-
-    For details on the available environment variables for customizing the job spec,
-    see `help(KubernetesAgent.generate_job_spec_from_environment)`.
-
-    Specifying a namespace for the agent will create flow run jobs in that namespace:
-    ```
-    prefect agent kubernetes start --namespace dev
-    ```
-
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
             configuration based on an agent from a backend API. If set all configuration values will be
             pulled from backend agent configuration.
         - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
             to the environment variable `NAMESPACE` or `default`.
+        - service_account_name (str, optional): A kubernetes service account name to use by
+            default for created jobs. May be overridden per-flow by specifying
+            on a flow's `KubernetesRun` run config.
+        - image_pull_secrets (list, optional): A list of image pull secrets to use by default
+            for created jobs. May be overridden per-flow by specifying on a flow's
+            `KubernetesRun` run config.
         - job_template_path (str, optional): A path to a job template file to use instead
             of the default.
         - name (str, optional): An optional name to give this agent. Can also be set through
@@ -89,6 +76,8 @@ class KubernetesAgent(Agent):
         self,
         agent_config_id: str = None,
         namespace: str = None,
+        service_account_name: str = None,
+        image_pull_secrets: Iterable[str] = None,
         job_template_path: str = None,
         name: str = None,
         labels: Iterable[str] = None,
@@ -110,6 +99,8 @@ class KubernetesAgent(Agent):
         )
 
         self.namespace = namespace or os.getenv("NAMESPACE", "default")
+        self.service_account_name = service_account_name
+        self.image_pull_secrets = image_pull_secrets
         self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
         self.volumes = volumes
@@ -534,6 +525,41 @@ class KubernetesAgent(Agent):
         job["metadata"]["name"] = job_name
         job["metadata"]["labels"].update(**k8s_labels)
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
+        pod_template = job["spec"]["template"]
+
+        # Configure `service_account_name` if specified
+        if run_config.service_account_name is not None:
+            # On run-config, always override
+            service_account_name = (
+                run_config.service_account_name
+            )  # type: Optional[str]
+        elif "serviceAccountName" in pod_template and (
+            run_config.job_template or run_config.job_template_path
+        ):
+            # On run-config job-template, no override
+            service_account_name = None
+        else:
+            # Use agent value, if provided
+            service_account_name = self.service_account_name
+        if service_account_name is not None:
+            pod_template["serviceAccountName"] = service_account_name
+
+        # Configure `image_pull_secrets` if specified
+        if run_config.image_pull_secrets is not None:
+            # On run-config, always override
+            image_pull_secrets = (
+                run_config.image_pull_secrets
+            )  # type: Optional[Iterable[str]]
+        elif "imagePullSecrets" in pod_template and (
+            run_config.job_template or run_config.job_template_path
+        ):
+            # On run-config job template, no override
+            image_pull_secrets = None
+        else:
+            # Use agent, if provided
+            image_pull_secrets = self.image_pull_secrets
+        if image_pull_secrets is not None:
+            pod_template["imagePullSecrets"] = [{"name": s} for s in image_pull_secrets]
 
         # Get the first container, which is used for the prefect job
         containers = _get_or_create(job, "spec.template.spec.containers", [])
