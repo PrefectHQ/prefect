@@ -469,23 +469,23 @@ class Docker(Storage):
         else:
             base_commands = "FROM {base_image}".format(base_image=self.base_image)
 
-        # Generate single pip install command for python dependencies
-        pip_installs = "RUN pip install "
-        if self.python_dependencies:
-            for dependency in self.python_dependencies:
-                pip_installs += "{} ".format(dependency)
-
-        # Write all extra commands that should be run in the image
-        installation_commands = ""
-        for cmd in self.installation_commands:
-            installation_commands += "RUN {}\n".format(cmd)
-
         # Generate ENV variables to load into the image
         env_vars = ""
         if self.env_vars:
             # Format with repr to get proper quoting
             formatted_vars = [f"{k}={v!r}" for k, v in self.env_vars.items()]
             env_vars = "ENV " + " \\\n    ".join(formatted_vars)
+
+        # Generate single pip install command for python dependencies
+        pip_installs = "RUN pip install "
+        if self.python_dependencies:
+            for dependency in self.python_dependencies:
+                pip_installs += "{} ".format(dependency)
+
+        # Write all install-time commands that should be run in the image
+        installation_commands = ""
+        for cmd in self.installation_commands:
+            installation_commands += "RUN {}\n".format(cmd)
 
         # Copy user specified files into the image
         copy_files = ""
@@ -568,6 +568,7 @@ class Docker(Storage):
         file_contents = textwrap.dedent(
             f"""
             {multiline_indent(base_commands, 12)}
+            {multiline_indent(env_vars, 12)}
 
             RUN pip install pip --upgrade
             {multiline_indent(installation_commands, 12)}
@@ -578,7 +579,6 @@ class Docker(Storage):
             COPY {healthcheck_loc} {self.prefect_directory}/healthcheck.py
             {multiline_indent(copy_files, 12)}
 
-            {multiline_indent(env_vars, 12)}
             {multiline_indent(final_commands, 12)}
             {healthcheck_run}
             """
