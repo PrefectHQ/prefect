@@ -290,6 +290,9 @@ def get_call_signature(obj):
                 default = f'"{default}"'
             else:
                 default = repr(default)
+
+            # Replace from repr because it can cause HTML errors in rendering
+            default = default.replace("<", "&lt;").replace(">", "&gt;")
             items.append((p.name, default))
         else:
             items.append(p.name)
