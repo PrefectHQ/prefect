@@ -30,6 +30,8 @@ class KubernetesRunSchema(RunConfigSchemaBase):
     cpu_request = fields.String(allow_none=True)
     memory_limit = fields.String(allow_none=True)
     memory_request = fields.String(allow_none=True)
+    service_account_name = fields.String(allow_none=True)
+    image_pull_secrets = fields.List(fields.String(), allow_none=True)
 
 
 class ECSRunSchema(RunConfigSchemaBase):
