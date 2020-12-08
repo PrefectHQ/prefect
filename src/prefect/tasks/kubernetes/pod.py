@@ -578,8 +578,8 @@ class ReplaceNamespacedPod(Task):
 class ReadNamespacedPodLogs(Task):
     """
     Task for reading logs from a namespaced pod on Kubernetes. Logs can be streamed by
-    providing a `func_stream` function which then will be called for each log line. If
-    `func_stream` = `None`, the task returns all logs for the pod until that point.
+    providing a `on_log_entry` function which then will be called for each log line. If
+    `on_log_entry` = `None`, the task returns all logs for the pod until that point.
 
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
@@ -598,8 +598,9 @@ class ReadNamespacedPodLogs(Task):
         - pod_name (str, optional): The name of a pod to replace
         - namespace (str, optional): The Kubernetes namespace to patch this pod in,
             defaults to the `default` namespace
-        - func_stream (Callable, optional): Stream the logs to provided function,
-            for each line the function is called.
+        - on_log_entry (Callable, optional): If provided, will stream the pod logs
+            calling the callback for every line (and the task returns `None`). If not
+            provided, the current pod logs will be returned immediately from the task.
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -611,25 +612,25 @@ class ReadNamespacedPodLogs(Task):
         self,
         pod_name: str = None,
         namespace: str = "default",
-        func_stream: Callable = None,
+        on_log_entry: Callable = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         **kwargs: Any
     ):
         self.pod_name = pod_name
         self.namespace = namespace
-        self.func_stream = func_stream
+        self.on_log_entry = on_log_entry
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
 
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "pod_name", "namespace", "func_stream", "kubernetes_api_key_secret"
+        "pod_name", "namespace", "on_log_entry", "kubernetes_api_key_secret"
     )
     def run(
         self,
         pod_name: str = None,
         namespace: str = "default",
-        func_stream: Callable = None,
+        on_log_entry: Callable = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
     ) -> None:
         """
@@ -639,8 +640,9 @@ class ReadNamespacedPodLogs(Task):
             - pod_name (str, optional): The name of a pod to replace
             - namespace (str, optional): The Kubernetes namespace to patch this pod in,
                 defaults to the `default` namespace
-            - func_stream (Callable, optional): Stream the logs to provided function,
-                for each line the function is called.
+            - on_log_entry (Callable, optional): If provided, will stream the pod logs
+                calling the callback for every line (and the task returns `None`). If not
+                provided, the current pod logs will be returned immediately from the task.
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -655,7 +657,7 @@ class ReadNamespacedPodLogs(Task):
             client.CoreV1Api, get_kubernetes_client("pod", kubernetes_api_key_secret)
         )
 
-        if func_stream is None:
+        if on_log_entry is None:
             return api_client.read_namespaced_pod_log(
                 name=pod_name, namespace=namespace
             )
@@ -679,7 +681,7 @@ class ReadNamespacedPodLogs(Task):
                 )
 
                 for log in stream:
-                    func_stream(log)
+                    on_log_entry(log)
 
                 return
             except ApiException as exception:

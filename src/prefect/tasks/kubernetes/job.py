@@ -722,6 +722,10 @@ class RunNamespacedJob(Task):
         )
         self.logger.info(f"Job {job_name} has been created.")
 
+        # TODO: if a job has more active pods than the threadpool has threads
+        # logs will no longer be streamed live for all pods. Using an async
+        # k8s client would help remedy this.
+        # https://github.com/PrefectHQ/prefect/pull/3715#discussion_r538324514
         pool = ThreadPool()
         pod_log_streams = dict()
 
@@ -755,7 +759,7 @@ class RunNamespacedJob(Task):
                             pod_name=pod_name,
                             namespace=namespace,
                             kubernetes_api_key_secret=kubernetes_api_key_secret,
-                            func_stream=lambda log: func_log(f"{pod_name}: {log}"),
+                            on_log_entry=lambda log: func_log(f"{pod_name}: {log}"),
                         )
 
                         self.logger.info(f"Started following logs for {pod_name}")
