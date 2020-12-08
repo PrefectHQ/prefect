@@ -15,6 +15,7 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
 On a development installation of Prefect, run `python generate_docs.py` from inside the `docs/` folder.
 """
 import builtins
+import html
 import importlib
 import inspect
 import os
@@ -292,7 +293,7 @@ def get_call_signature(obj):
                 default = repr(default)
 
             # Replace from repr because it can cause HTML errors in rendering
-            default = default.replace("<", "&lt;").replace(">", "&gt;")
+            default = html.escape(default)
             items.append((p.name, default))
         else:
             items.append(p.name)
