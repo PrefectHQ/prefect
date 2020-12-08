@@ -119,6 +119,7 @@ class KubernetesAgent(Agent):
 
         self.batch_client = client.BatchV1Api()
         self.core_client = client.CoreV1Api()
+        # self.events_client = client.EventsV1beta1Api()
         self.k8s_client = client
 
         self.logger.debug(f"Namespace: {self.namespace}")
@@ -161,6 +162,8 @@ class KubernetesAgent(Agent):
                         )
 
                         for pod in pods.items:
+                            # print(pod)
+                            # return
                             if pod.status.container_statuses:
                                 for container_status in pod.status.container_statuses:
                                     waiting = container_status.state.waiting
@@ -182,6 +185,32 @@ class KubernetesAgent(Agent):
 
                                         delete_job = True
                                         break
+
+                            # Report recent events for pending pods to flow run logs
+                            if pod.status.phase == "Pending":
+                                pod_event_logs = [f"Pod {pod.metadata.name} pending."]
+                                pod_events = self.core_client.list_namespaced_event(
+                                    namespace=self.namespace,
+                                    field_selector="involvedObject.name={}".format(
+                                        pod.metadata.name
+                                    ),
+                                    timeout_seconds=30,
+                                )
+                                for event in pod_events.items:
+                                    pod_event_logs.append(f"\tEvent: {event.reason} at {event.last_timestamp:%Y-%m-%d %H:%M:%S}")
+                                    pod_event_logs.append(f"\t\tMessage: {event.message}")
+
+                                # Send pod failure information to flow run logs
+                                self.client.write_run_logs(
+                                    [
+                                        dict(
+                                            flow_run_id=flow_run_id,
+                                            name=self.name,
+                                            message="\n".join(pod_event_logs),
+                                            level="INFO",
+                                        )
+                                    ]
+                                )
 
                     # Report failed pods
                     if job.status.failed:
