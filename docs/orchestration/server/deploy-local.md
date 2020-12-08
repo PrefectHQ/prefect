@@ -23,7 +23,7 @@ You can set this directly in the UI on the Home page:
 
 ![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
 
-...or by setting `apollo_url` in `./prefect/config.toml` on whatever machine you're running Prefect Server:
+...or by setting `apollo_url` in `~/.prefect/config.toml` on whatever machine you're running Prefect Server:
 
 ```
 [server]
