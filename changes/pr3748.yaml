@@ -1,2 +1,0 @@
-fix:
-  - "Fix default image whenever working on a non-tagged commit - [#3748](https://github.com/PrefectHQ/prefect/pull/3748)"

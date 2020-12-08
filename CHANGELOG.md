@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.13.19 <Badge text="beta" type="success" />
+
+Released on December 8, 2020.
+
+### Enhancements
+
+- Use explicit exception chaining - [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
+- Support Bitbucket as storage option - [#3711](https://github.com/PrefectHQ/prefect/pull/3711)
+- Surface pod failures and container errors in jobs deployed with the Kubernetes Agent - [3747](https://github.com/PrefectHQ/prefect/issues/3747)
+- Support timeout option in GCS tasks - [#3732](https://github.com/PrefectHQ/prefect/pull/3732)
+- Added storage option for AWS CodeCommit - [#3733](https://github.com/PrefectHQ/prefect/pull/3733)
+- Add the image used for a flow-run to the flow run environment as `prefect.context.image` - [#3746](https://github.com/PrefectHQ/prefect/pull/3746)
+- Add `UniversalRun` run-config that works with all agents - [#3750](https://github.com/PrefectHQ/prefect/pull/3750)
+- Support flows that have no run-config or environment - [#3750](https://github.com/PrefectHQ/prefect/pull/3750)
+- Allow Docker storage environment vars to be used in commands - [#3755](https://github.com/PrefectHQ/prefect/pull/3755)
+- Add `service_account_name` and `image_pull_secrets` options to `KubernetesRun` and `KubernetesAgent` - [#3778](https://github.com/PrefectHQ/prefect/pull/3778)
+- Add a new Client function `delete_project` - [#3728](https://github.com/PrefectHQ/prefect/pull/3728)
+
+### Task Library
+
+- Add task to fetch data from Dremio - [#3734](https://github.com/PrefectHQ/prefect/pull/3734)
+- Add `RunGreatExpectationsValidation` task - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)
+- Add the option to post markdown artifacts from the `RunGreatExpectationsValidation` task - [#3753](https://github.com/PrefectHQ/prefect/pull/3753)
+
+### Fixes
+
+- Fix state attempting to read result from absent upstream result - [#3618](https://github.com/PrefectHQ/prefect/issues/3618)
+- Replace deprecated download_as_string method with download_as_bytes method - [#3741](https://github.com/PrefectHQ/prefect/pull/3741)
+- Fix default image whenever working on a non-tagged commit - [#3748](https://github.com/PrefectHQ/prefect/pull/3748)
+- Fix type-casting for task timeout defaults loaded from config - [#3761](https://github.com/PrefectHQ/prefect/pull/3761)
+- Fix the `ref` default on GitHub storage - [#3764](https://github.com/PrefectHQ/prefect/pull/3764)
+- Fix rare cancellation bug when running with external Dask cluster - [#3770](https://github.com/PrefectHQ/prefect/pull/3770)
+
+### Deprecations
+
+- Deprecated the `RunGreatExpectationsCheckpoint` task in favor of `RunGreatExpectationsValidation` - [#3766](https://github.com/PrefectHQ/prefect/pull/3766)
+
+### Contributors
+
+- [BluePoof](https://github.com/BluePoof)
+- [Faris ALSaleem](https://github.com/FarisALSaleem)
+- [Jonathan Owen](https://github.com/jrowen)
+- [Klemen Strojan](https://github.com/strojank)
+- [Phillip Choi](https://github.com/philz-catz)
+- [Sam Bail](https://github.com/spbail)
+- [Takayuki Hirayama](https://github.com/yukihira1992)
+
 ## 0.13.18 <Badge text="beta" type="success" />
 
 Released on November 30, 2020.

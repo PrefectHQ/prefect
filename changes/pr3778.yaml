@@ -1,2 +1,0 @@
-enhancement:
-  - "Add `service_account_name` and `image_pull_secrets` options to `KubernetesRun` and `KubernetesAgent` - [#3778](https://github.com/PrefectHQ/prefect/pull/3778)"

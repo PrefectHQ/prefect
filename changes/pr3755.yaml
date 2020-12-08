@@ -1,2 +1,0 @@
-enhancement:
-  - "Allow Docker storage environment vars to be used in commands - [#3755](https://github.com/PrefectHQ/prefect/pull/3755)"
