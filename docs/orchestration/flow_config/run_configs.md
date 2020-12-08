@@ -177,7 +177,7 @@ requests](https://kubernetes.io/docs/concepts/configuration/manage-resources-con
 for this flow:
 
 ```python
-flow.run_config = KubernetesRun(cpu_request=2, memory_request="2 Gi")
+flow.run_config = KubernetesRun(cpu_request=2, memory_request="2Gi")
 ```
 
 Use a custom Kubernetes Job spec for this flow, stored in S3:
