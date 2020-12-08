@@ -6,7 +6,7 @@ Released on December 8, 2020.
 
 ### Enhancements
 
-- Use explicit exception chaining [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
+- Use explicit exception chaining - [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
 - Support Bitbucket as storage option - [#3711](https://github.com/PrefectHQ/prefect/pull/3711)
 - Surface pod failures and container errors in jobs deployed with the Kubernetes Agent - [3747](https://github.com/PrefectHQ/prefect/issues/3747)
 - Support timeout option in GCS tasks - [#3732](https://github.com/PrefectHQ/prefect/pull/3732)
