@@ -224,7 +224,7 @@ class KubernetesAgent(Agent):
                                         pod.metadata.name
                                     ] = event.last_timestamp
 
-                                    pod_event_logs=[
+                                    pod_event_logs = [
                                         f"Event: '{event.reason}' on pod '{pod.metadata.name}'"
                                     ]
                                     pod_event_logs.append(f"\tMessage: {event.message}")
