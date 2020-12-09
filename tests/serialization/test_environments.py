@@ -320,7 +320,7 @@ def test_serialize_local_environment_with_labels():
 
 def test_deserialize_old_env_payload():
     old = {
-        "executor": "prefect.engine.executors.LocalExecutor",
+        "executor": "prefect.executors.LocalExecutor",
         "executor_kwargs": {},
         "__version__": "0.6.3",
         "type": "RemoteEnvironment",

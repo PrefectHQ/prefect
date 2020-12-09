@@ -189,7 +189,7 @@ class FlowRunner(Runner):
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
         task_runner_state_handlers: Iterable[Callable] = None,
-        executor: "prefect.engine.executors.Executor" = None,
+        executor: "prefect.executors.Executor" = None,
         context: Dict[str, Any] = None,
         task_contexts: Dict[Task, Dict[str, Any]] = None,
     ) -> State:
@@ -367,7 +367,7 @@ class FlowRunner(Runner):
         task_contexts: Dict[Task, Dict[str, Any]],
         return_tasks: Set[Task],
         task_runner_state_handlers: Iterable[Callable],
-        executor: "prefect.engine.executors.base.Executor",
+        executor: "prefect.executors.base.Executor",
     ) -> State:
         """
         Runs the flow.

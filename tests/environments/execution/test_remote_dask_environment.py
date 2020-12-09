@@ -9,7 +9,7 @@ def test_create_remote_environment():
     address_kwargs = {"address": "tcp://127.0.0.1:8786"}
     environment = RemoteDaskEnvironment(address=address_kwargs["address"])
     assert environment
-    assert environment.executor == "prefect.engine.executors.DaskExecutor"
+    assert environment.executor == "prefect.executors.DaskExecutor"
     assert environment.executor_kwargs == address_kwargs
     assert environment.labels == set()
     assert environment.on_start is None
@@ -41,7 +41,7 @@ def test_create_remote_environment_populated():
     arbitrary_kwargs["address"] = address_kwargs["address"]
     arbitrary_kwargs["security"] = security
     assert environment
-    assert environment.executor == "prefect.engine.executors.DaskExecutor"
+    assert environment.executor == "prefect.executors.DaskExecutor"
     assert environment.executor_kwargs == arbitrary_kwargs
     assert environment.labels == set(["foo", "bar", "good"])
     assert environment.on_start is f
