@@ -1,7 +1,7 @@
 # Flow Configuration
 
 So far we've been using the default [flow
-configuration](/orchestration/flow_config.md). When using a Prefect Backend,
+configuration](/orchestration/flow_config/overview.md). When using a Prefect Backend,
 each flow is configured with:
 
 - **Storage**: describes where the flow should be stored to and loaded from
