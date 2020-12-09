@@ -12,14 +12,14 @@ Executing flows using the Prefect API is accomplished through two powerful abstr
 
 ## Storage
 
-[Storage](https://docs.prefect.io/api/latest/environments/storage.html) objects are pieces of functionality which define how and where a Flow should be stored. Prefect supports storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.
+[Storage](https://docs.prefect.io/api/latest/storage.html) objects are pieces of functionality which define how and where a Flow should be stored. Prefect supports storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.
 
 ### How Storage is Used
 
 To attach storage to your Flows, provide your storage object at initialization:
 
 ```python
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 f = Flow("example-storage", storage=Docker(registry_url="prefecthq/storage-example"))
 ```
@@ -27,7 +27,7 @@ f = Flow("example-storage", storage=Docker(registry_url="prefecthq/storage-examp
 or assign it directly:
 
 ```python
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")
@@ -37,7 +37,7 @@ When you register your flow with the Prefect API the storage object attached to 
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 f = Flow("example-easy-storage")
 f.storage = Docker()
@@ -50,7 +50,7 @@ f.register("My First Project", registry_url="prefecthq/storage-example")
 You are also able to optionally build your storage separate from the `register` command and specify that you do not want to build it again at registration-time:
 
 ```python
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")

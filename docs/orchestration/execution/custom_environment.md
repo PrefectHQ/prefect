@@ -25,7 +25,7 @@ from typing import Any, Callable, List
 
 from prefect import config
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Storage
+from prefect.storage import Storage
 
 
 class MyCustomEnvironment(Environment):
@@ -111,7 +111,7 @@ class MyCustomEnvironment(Environment):
 
 
 from prefect import task, Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 
 @task

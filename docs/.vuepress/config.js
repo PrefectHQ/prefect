@@ -142,6 +142,11 @@ module.exports = {
           children: ['run_configs.md'],
         },
         {
+          title: 'prefect.storage',
+          collapsable: true,
+          children: ['storage.md'],
+        },
+        {
           title: 'prefect.tasks',
           collapsable: true,
           children: getChildren('docs/api/latest', 'tasks')

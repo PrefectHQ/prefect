@@ -126,7 +126,7 @@ spec:
 ```python
 from prefect import task, Flow
 from prefect.environments import KubernetesJobEnvironment
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 
 @task

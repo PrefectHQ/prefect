@@ -23,7 +23,7 @@ For example, to configure a flow to use `Docker` storage:
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 with Flow("example", storage=Docker()) as flow:
     ...

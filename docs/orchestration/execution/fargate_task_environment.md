@@ -136,7 +136,7 @@ The following example will execute your Flow using the Fargate Task Environment 
 ```python
 from prefect import task, Flow
 from prefect.environments import FargateTaskEnvironment
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 
 @task
