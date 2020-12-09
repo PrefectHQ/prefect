@@ -1,4 +1,6 @@
+from datetime import datetime
 import os
+import pytz
 import time
 import uuid
 from typing import Optional, Iterable, List, Any
@@ -121,7 +123,7 @@ class KubernetesAgent(Agent):
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
 
-        self.job_pod_events = {}  # type: ignore
+        self.job_pod_event_timestamps = {}  # type: ignore
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
@@ -187,10 +189,17 @@ class KubernetesAgent(Agent):
 
                             # Report recent events for pending pods to flow run logs
                             if pod.status.phase == "Pending":
-                                if not self.job_pod_events.get(job_name):
-                                    self.job_pod_events[job_name] = []
+                                if not self.job_pod_event_timestamps.get(job_name):
+                                    self.job_pod_event_timestamps[job_name] = {}
 
-                                pod_event_logs = [f"Pod {pod.metadata.name} pending."]
+                                if not self.job_pod_event_timestamps[job_name].get(
+                                    pod.metadata.name
+                                ):
+                                    self.job_pod_event_timestamps[job_name][
+                                        pod.metadata.name
+                                    ] = datetime.min.replace(tzinfo=pytz.UTC)
+
+                                pod_event_logs = []
                                 pod_events = self.core_client.list_namespaced_event(
                                     namespace=self.namespace,
                                     field_selector="involvedObject.name={}".format(
@@ -198,38 +207,42 @@ class KubernetesAgent(Agent):
                                     ),
                                     timeout_seconds=30,
                                 )
-                                for event in pod_events.items:
-                                    # Continue if event has already been logged
+
+                                for event in sorted(
+                                    pod_events.items, key=lambda x: x.last_timestamp
+                                ):
+                                    # Break out of loop if there are no new events
                                     if (
-                                        event.metadata.name
-                                        in self.job_pod_events[job_name]
-                                    ):
-                                        continue
-                                    self.job_pod_events[job_name].append(
-                                        event.metadata.name
-                                    )
-
-                                    pod_event_logs.append(
-                                        f"\tEvent: {event.reason} at "
-                                        f"{event.last_timestamp:%Y-%m-%d %H:%M:%S}"
-                                    )
-                                    pod_event_logs.append(
-                                        f"\t\tMessage: {event.message}"
-                                    )
-
-                                # Only send logs if there are new events
-                                if len(pod_event_logs) > 1:
-                                    # Send pod failure information to flow run logs
-                                    self.client.write_run_logs(
-                                        [
-                                            dict(
-                                                flow_run_id=flow_run_id,
-                                                name=self.name,
-                                                message="\n".join(pod_event_logs),
-                                                level="DEBUG",
-                                            )
+                                        event.last_timestamp
+                                        < self.job_pod_event_timestamps[job_name][
+                                            pod.metadata.name
                                         ]
+                                    ):
+                                        break
+
+                                    self.job_pod_event_timestamps[job_name][
+                                        pod.metadata.name
+                                    ] = event.last_timestamp
+
+                                    pod_event_logs.append(
+                                        f"Event: '{event.reason}' on pod '{pod.metadata.name}'"
                                     )
+                                    pod_event_logs.append(f"\tMessage: {event.message}")
+
+                                    # Only send logs if there are new events
+                                    if pod_event_logs:
+                                        # Send pod failure information to flow run logs
+                                        self.client.write_run_logs(
+                                            [
+                                                dict(
+                                                    flow_run_id=flow_run_id,
+                                                    name=self.name,
+                                                    message="\n".join(pod_event_logs),
+                                                    level="DEBUG",
+                                                    timestamp=event.last_timestamp.isoformat(),
+                                                )
+                                            ]
+                                        )
 
                     # Report failed pods
                     if job.status.failed:
@@ -314,7 +327,7 @@ class KubernetesAgent(Agent):
                     if delete_job:
                         self.logger.debug(f"Deleting job {job_name}")
                         try:
-                            self.job_pod_events.pop(job_name, None)
+                            self.job_pod_event_timestamps.pop(job_name, None)
                             self.batch_client.delete_namespaced_job(
                                 name=job_name,
                                 namespace=self.namespace,
