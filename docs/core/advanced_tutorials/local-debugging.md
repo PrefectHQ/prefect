@@ -283,7 +283,7 @@ Another reason a flow might unexpectedly break in production (or fail to run at 
 
 ```python
 from prefect import task, Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 
 # import a non-prefect package used for scraping reddit

@@ -8,7 +8,7 @@ import pytest
 import prefect
 from prefect import Flow
 from prefect.engine.results import LocalResult
-from prefect.environments.storage import Local
+from prefect.storage import Local
 from prefect.utilities.configuration import set_temporary_config
 
 

@@ -17,11 +17,11 @@ Version `0.12.5` introduces file-based storage for all storage options. For more
 
 ## Local
 
-[Local Storage](/api/latest/environments/storage.html#local) is the default `Storage` option for all flows. This stores the flow as bytes in the local filesystem which means it can only be run by a [local agent](/orchestration/agents/local.html) running on the same machine.
+[Local Storage](/api/latest/storage.html#local) is the default `Storage` option for all flows. This stores the flow as bytes in the local filesystem which means it can only be run by a [local agent](/orchestration/agents/local.html) running on the same machine.
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Local
+from prefect.storage import Local
 
 flow = Flow("local-flow", storage=Local())
 
@@ -38,11 +38,11 @@ Additionally, in more recent releases of Core your flow will default to using a 
 
 ## Azure Blob Storage
 
-[Azure Storage](/api/latest/environments/storage.html#azure) is a storage option that uploads flows to an Azure Blob container.
+[Azure Storage](/api/latest/storage.html#azure) is a storage option that uploads flows to an Azure Blob container.
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Azure
+from prefect.storage import Azure
 
 flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_string="<my-connection-string>"))
 
@@ -63,11 +63,11 @@ Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us
 
 ## AWS S3
 
-[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket.
+[S3 Storage](/api/latest/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket.
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import S3
+from prefect.storage import S3
 
 flow = Flow("s3-flow", storage=S3(bucket="<my-bucket>"))
 
@@ -88,11 +88,11 @@ S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.
 
 ## Google Cloud Storage
 
-[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket.
+[GCS Storage](/api/latest/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket.
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import GCS
+from prefect.storage import GCS
 
 flow = Flow("gcs-flow", storage=GCS(bucket="<my-bucket>"))
 
@@ -113,7 +113,7 @@ GCS Storage uses Google Cloud credentials the same way as the standard [google.c
 
 ## GitHub
 
-[GitHub Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files.
+[GitHub Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files.
 
 For a detailed look on how to use GitHub storage visit the [Using file based storage](/core/idioms/file-based.html) idiom.
 
@@ -127,7 +127,7 @@ GitHub storage uses a [personal access token](https://help.github.com/en/github/
 
 ## GitLab
 
-[GitLab Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a GitLab repository as `.py` files.
+[GitLab Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitLab repository as `.py` files.
 
 Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to GitLab as well.
 
@@ -145,7 +145,7 @@ GitLab server users can point the `host` argument to their personal GitLab insta
 
 ## Bitbucket
 
-[Bitbucket Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
+[Bitbucket Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
 
 Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well.
 
@@ -166,7 +166,7 @@ Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each r
 
 ## CodeCommit
 
-[CodeCommit Storage](/api/latest/environments/storage.html#codecommit) is a storage option that uploads flows to a CodeCommit repository as `.py` files.
+[CodeCommit Storage](/api/latest/storage.html#codecommit) is a storage option that uploads flows to a CodeCommit repository as `.py` files.
 
 ::: tip Sensible Defaults
 Flows registered with this storage option will automatically be labeled with `"codecommit-flow-storage"`; this helps prevent agents not explicitly authenticated with your AWS deployment from attempting to run this flow.
@@ -178,11 +178,11 @@ S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.
 
 ## Docker
 
-[Docker Storage](/api/latest/environments/storage.html#docker) is a storage option that puts flows inside of a Docker image and pushes them to a container registry. This method of Storage has deployment compatability with the [Docker Agent](/orchestration/agents/docker.html), [Kubernetes Agent](/orchestration/agents/kubernetes.html), and [Fargate Agent](/orchestration/agents/fargate.html).
+[Docker Storage](/api/latest/storage.html#docker) is a storage option that puts flows inside of a Docker image and pushes them to a container registry. This method of Storage has deployment compatability with the [Docker Agent](/orchestration/agents/docker.html), [Kubernetes Agent](/orchestration/agents/kubernetes.html), and [Fargate Agent](/orchestration/agents/fargate.html).
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 flow = Flow("gcs-flow", storage=Docker(registry_url="<my-registry.io>", image_name="my_flow"))
 
@@ -199,13 +199,13 @@ Docker Storage uses the [Docker SDK for Python](https://docker-py.readthedocs.io
 
 ## Webhook
 
-[Webhook Storage](/api/latest/environments/storage.html#webhook) is a storage option that stores and retrieves flows with HTTP requests. This type of storage can be used with any type of agent, and is intended to be a flexible way to integrate Prefect with your existing ecosystem, including your own file storage services.
+[Webhook Storage](/api/latest/storage.html#webhook) is a storage option that stores and retrieves flows with HTTP requests. This type of storage can be used with any type of agent, and is intended to be a flexible way to integrate Prefect with your existing ecosystem, including your own file storage services.
 
 For example, the following code could be used to store flows in DropBox.
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Webhook
+from prefect.storage import Webhook
 
 flow = Flow(
     "dropbox-flow",
@@ -256,7 +256,7 @@ Prefect allows for flows to be stored in cloud storage services and executed in 
 ```python
 from prefect import Flow
 from prefect.environments import LocalEnvironment
-from prefect.environments.storage import S3
+from prefect.storage import S3
 
 flow = Flow("example")
 
@@ -269,7 +269,7 @@ flow.environment = LocalEnvironment(metadata={"image": "repo/name:tag"})
 
 This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example).
 
-Make sure that the agent's labels match the desired labels for the flow storage objects. For example, if you are using `prefect.environments.storage.s3` to store flows, the agent should get label `s3-flow-storage`. See the `"Sensible Defaults"` tips in the previous sections for more details.
+Make sure that the agent's labels match the desired labels for the flow storage objects. For example, if you are using `prefect.storage.s3` to store flows, the agent should get label `s3-flow-storage`. See the `"Sensible Defaults"` tips in the previous sections for more details.
 
 ```bash
 # starting a kubernetes agent that will pull flows stored in S3

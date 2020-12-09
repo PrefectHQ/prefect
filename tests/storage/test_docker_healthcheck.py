@@ -9,7 +9,7 @@ import pytest
 from prefect import Flow, Task, task
 from prefect.engine.results import LocalResult
 from prefect.environments import Environment
-from prefect.environments.storage import _healthcheck as healthchecks
+from prefect.storage import _healthcheck as healthchecks
 
 
 pytestmark = pytest.mark.skipif(

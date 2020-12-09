@@ -4,7 +4,7 @@ import pytest
 
 from prefect.agent.fargate import FargateAgent
 from prefect.environments import LocalEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 

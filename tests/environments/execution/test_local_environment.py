@@ -4,7 +4,7 @@ import prefect
 from prefect import Flow
 from prefect.engine.executors import LocalDaskExecutor
 from prefect.environments.execution import LocalEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 
 

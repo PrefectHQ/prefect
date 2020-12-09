@@ -5,7 +5,7 @@ import cloudpickle
 import pytest
 
 from prefect import context, Flow
-from prefect.environments.storage import S3
+from prefect.storage import S3
 
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
@@ -102,7 +102,7 @@ def test_add_multiple_flows_to_S3(bucket="bucket"):
 def test_upload_flow_to_s3(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     storage = S3(bucket="bucket")
 
@@ -127,7 +127,7 @@ def test_build_no_upload_if_file_and_no_script(monkeypatch):
 def test_build_script_upload(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     storage = S3(
         bucket="bucket", stored_as_script=True, local_script_path="local.py", key="key"
@@ -152,7 +152,7 @@ def test_upload_flow_to_s3_client_error(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
     boto3.upload_fileobj.side_effect = ClientError({}, None)
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     storage = S3(bucket="bucket")
 
@@ -168,7 +168,7 @@ def test_upload_flow_to_s3_client_error(monkeypatch):
 def test_upload_flow_to_s3_bucket_key(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     storage = S3(bucket="bucket", key="key")
 
@@ -183,7 +183,7 @@ def test_upload_flow_to_s3_bucket_key(monkeypatch):
 def test_upload_multiple_flows_to_s3_bucket_key(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     storage = S3(bucket="bucket")
 
@@ -199,7 +199,7 @@ def test_upload_multiple_flows_to_s3_bucket_key(monkeypatch):
 def test_upload_flow_to_s3_flow_byte_stream(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     storage = S3(bucket="bucket")
 
@@ -220,7 +220,7 @@ def test_upload_flow_to_s3_flow_byte_stream(monkeypatch):
 def test_upload_flow_to_s3_key_format(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     storage = S3(bucket="bucket")
 
@@ -250,7 +250,7 @@ def test_add_flow_to_s3_already_added(monkeypatch):
 def test_get_flow_s3(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
@@ -273,7 +273,7 @@ def test_get_flow_s3_client_error(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
     boto3.download_fileobj.side_effect = ClientError({}, None)
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
@@ -291,7 +291,7 @@ def test_get_flow_s3_client_error(monkeypatch):
 def test_get_flow_s3_bucket_key(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
@@ -310,7 +310,7 @@ def test_get_flow_s3_bucket_key(monkeypatch):
 def test_get_flow_s3_not_in_storage(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
@@ -327,7 +327,7 @@ def test_get_flow_s3_not_in_storage(monkeypatch):
 def test_get_flow_s3_runs(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
@@ -353,12 +353,12 @@ def test_get_flow_s3_runs(monkeypatch):
 def test_get_flow_as_file_s3_runs(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
     monkeypatch.setattr(
-        "prefect.environments.storage.s3.extract_flow_from_file",
+        "prefect.storage.s3.extract_flow_from_file",
         MagicMock(return_value=f),
     )
 
@@ -382,7 +382,7 @@ def test_get_flow_as_file_s3_runs(monkeypatch):
 def test_get_flow_s3_from_init_key(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
@@ -401,7 +401,7 @@ def test_get_flow_s3_from_init_key(monkeypatch):
 def test_get_flow_s3_from_init_key_run(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 
@@ -418,7 +418,7 @@ def test_get_flow_s3_from_init_key_run(monkeypatch):
 def test_get_flow_s3_no_location_set(monkeypatch):
     client = MagicMock()
     boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
 
     f = Flow("test")
 

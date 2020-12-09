@@ -6,7 +6,7 @@ from typing import Iterable, List
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 from prefect.run_configs import LocalRun
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.agent import get_flow_run_command

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect import context, Flow
-from prefect.environments.storage import Bitbucket
+from prefect.storage import Bitbucket
 
 
 pytest.importorskip("atlassian")
@@ -87,7 +87,7 @@ def test_get_flow_bitbucket(monkeypatch):
     monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
 
     monkeypatch.setattr(
-        "prefect.environments.storage.bitbucket.extract_flow_from_file",
+        "prefect.storage.bitbucket.extract_flow_from_file",
         MagicMock(return_value=f),
     )
 

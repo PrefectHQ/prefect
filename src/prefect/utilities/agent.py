@@ -17,7 +17,7 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
         - ValueError: if deployment attempted on unsupported Storage type and `image` not
             present in environment metadata
     """
-    from prefect.environments.storage import Docker
+    from prefect.storage import Docker
     from prefect.serialization.storage import StorageSchema
     from prefect.serialization.run_config import RunConfigSchema
     from prefect.serialization.environment import EnvironmentSchema

@@ -45,7 +45,7 @@ All Prefect interfaces for third party services have default secrets they attemp
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import GCS
+from prefect.storage import GCS
 
 
 storage = GCS(bucket="my-bucket", 

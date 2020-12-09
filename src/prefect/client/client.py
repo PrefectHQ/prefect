@@ -784,7 +784,7 @@ class Client:
         # Configure environment.metadata (if using environment-based flows)
         if flow.environment is not None:
             # Set Docker storage image in environment metadata if provided
-            if isinstance(flow.storage, prefect.environments.storage.Docker):
+            if isinstance(flow.storage, prefect.storage.Docker):
                 flow.environment.metadata["image"] = flow.storage.name
                 serialized_flow = flow.serialize(build=False)
 

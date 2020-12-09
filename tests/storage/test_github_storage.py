@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect import context, Flow
-from prefect.environments.storage import GitHub
+from prefect.storage import GitHub
 
 pytest.importorskip("github")
 
@@ -77,7 +77,7 @@ def test_get_flow_github(monkeypatch):
     monkeypatch.setattr("prefect.utilities.git.Github", github)
 
     monkeypatch.setattr(
-        "prefect.environments.storage.github.extract_flow_from_file",
+        "prefect.storage.github.extract_flow_from_file",
         MagicMock(return_value=f),
     )
 

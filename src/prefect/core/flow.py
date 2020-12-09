@@ -42,7 +42,7 @@ from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.results import ResultHandlerResult
 from prefect.environments import Environment
-from prefect.environments.storage import Storage, get_default_storage_class
+from prefect.storage import Storage, get_default_storage_class
 from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
@@ -123,7 +123,7 @@ class Flow:
            that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
         - run_config (prefect.run_configs.RunConfig, optional): The runtime
            configuration to use when deploying this flow.
-        - storage (prefect.environments.storage.Storage, optional): The unit of storage
+        - storage (prefect.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks

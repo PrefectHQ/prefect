@@ -4,7 +4,7 @@ import cloudpickle
 import pytest
 
 from prefect import Flow
-from prefect.environments.storage import GCS
+from prefect.storage import GCS
 from prefect.utilities.exceptions import StorageError
 
 

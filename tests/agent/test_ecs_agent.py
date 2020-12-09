@@ -9,7 +9,7 @@ from prefect.agent.ecs.agent import (
     ECSAgent,
     DEFAULT_TASK_DEFINITION_PATH,
 )
-from prefect.environments.storage import Local, Docker
+from prefect.storage import Local, Docker
 from prefect.run_configs import ECSRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.filesystems import read_bytes_from_path
