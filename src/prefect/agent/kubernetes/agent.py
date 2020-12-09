@@ -194,17 +194,16 @@ class KubernetesAgent(Agent):
                                     self.job_pod_event_timestamps[job_name] = {}
 
                                 if not self.job_pod_event_timestamps[job_name].get(
-                                    pod_name
+                                    pod.metadata.name
                                 ):
                                     self.job_pod_event_timestamps[job_name][
-                                        pod_name
+                                        pod.metadata.name
                                     ] = datetime.min.replace(tzinfo=pytz.UTC)
 
-                                pod_event_logs = []
                                 pod_events = self.core_client.list_namespaced_event(
                                     namespace=self.namespace,
                                     field_selector="involvedObject.name={}".format(
-                                        pod_name
+                                        pod.metadata.name
                                     ),
                                     timeout_seconds=30,
                                 )
@@ -216,34 +215,32 @@ class KubernetesAgent(Agent):
                                     if (
                                         event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
-                                            pod_name
+                                            pod.metadata.name
                                         ]
                                     ):
                                         break
 
                                     self.job_pod_event_timestamps[job_name][
-                                        pod_name
+                                        pod.metadata.name
                                     ] = event.last_timestamp
 
-                                    pod_event_logs.append(
-                                        f"Event: '{event.reason}' on pod '{pod_name}'"
-                                    )
+                                    pod_event_logs=[
+                                        f"Event: '{event.reason}' on pod '{pod.metadata.name}'"
+                                    ]
                                     pod_event_logs.append(f"\tMessage: {event.message}")
 
-                                    # Only send logs if there are new events
-                                    if pod_event_logs:
-                                        # Send pod failure information to flow run logs
-                                        self.client.write_run_logs(
-                                            [
-                                                dict(
-                                                    flow_run_id=flow_run_id,
-                                                    name=self.name,
-                                                    message="\n".join(pod_event_logs),
-                                                    level="DEBUG",
-                                                    timestamp=event.last_timestamp.isoformat(),
-                                                )
-                                            ]
-                                        )
+                                    # Send pod failure information to flow run logs
+                                    self.client.write_run_logs(
+                                        [
+                                            dict(
+                                                flow_run_id=flow_run_id,
+                                                name=self.name,
+                                                message="\n".join(pod_event_logs),
+                                                level="DEBUG",
+                                                timestamp=event.last_timestamp.isoformat(),
+                                            )
+                                        ]
+                                    )
 
                     # Report failed pods
                     if job.status.failed:
