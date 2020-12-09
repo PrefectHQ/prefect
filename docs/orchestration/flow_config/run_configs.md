@@ -28,11 +28,11 @@ flow.run_config = KubernetesRun()
 
 ## Labels
 
-[Like Agents](../agents/overview.md#flow-affinity:-labels), `RunConfig` objects
-can be configured with zero or more labels.  Labels can be used to determine
-which agent (or agents) can execute a flow; for an agent to receive a flow run
-to execute, the labels set on the agent must be a *superset* of those set on
-the `RunConfig`.
+[Like Agents](../agents/overview.md#labels), `RunConfig` objects can be
+configured with zero or more labels.  Labels can be used to determine which
+agent (or agents) can execute a flow; for an agent to receive a flow run to
+execute, the labels set on the agent must be a *superset* of those set on the
+`RunConfig`.
 
 For example, here we configure a flow with `labels=["dev", "ml"]`:
 

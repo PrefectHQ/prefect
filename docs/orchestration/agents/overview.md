@@ -1,85 +1,169 @@
 # Overview
 
-The Prefect agent is a small process spun up to orchestrate flow runs. The agent queries the Prefect API for new or incomplete flow runs and allocates resources for them on the deployment's platform of choice.
+Prefect Agents are lightweight processes for orchestrating flow runs. Agents
+run inside a user's architecture, and are responsible for starting and
+monitoring flow runs. During operation the agent process queries the Prefect
+API for any pending flow runs, and allocates resources for them on their
+respective deployment platforms.
 
-If using the Prefect Cloud API, it's important to note that Prefect Cloud uses a hybrid approach to workflow execution. This means that Prefect processes run inside the tenant's infrastructure and only send requests _out_ to Prefect Cloud. Both the Prefect agent and all Prefect flows which run using Cloud follow this communication pattern.
+Note that both Prefect Agents (and flow runs) only send requests _out_ to the
+Prefect API, and never receive requests themselves. This is part of our [Hybrid
+Execution
+Model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296),
+and helps keep your code and data safe.
 
-[[toc]]
+A single agent can manage many concurrent flow runs - the only reason to have
+multiple active agents is if you need to support flow runs on different
+deployment platforms.
 
-### Agent Process
+## Agent Types
 
-Agents start by first querying the Prefect API for their respective tenant ID (inferred from the API token that the agent is given). The agent then continually queries the Prefect API for flow runs to be started on that agent's platform.
+Prefect supports several different agent types for deploying on different
+platforms.
 
-Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant to which this flow run belongs will then see that there is work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Docker agent or a job in the case of a Kubernetes agent.
+- **Local**: The [Local Agent](./local.md) executes flow runs as local processes.
 
-Once the agent submits the flow run for execution, the agent returns to waiting for more flow runs to execute. That flow run that was submitted for execution is now set to a `Submitted` state. The `Submitted` state will contain information regarding identification of the deployment.
+- **Docker**: The [Docker Agent](./docker.md) executes flow runs in docker
+  containers.
 
-If for any reason the agent encounters an issue deploying the flow run for execution then it will mark that flow run as `Failed` with the message set to the error it encountered.
+- **Kubernetes**: The [Kubernetes Agent](./kubernetes.md) executes flow runs as
+  [Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/).
 
-:::tip Agent tracking
-Agents are tracked and uniquely identified by Prefect Cloud or Prefect Server through a combination of agent name, labels, token <Badge text="Cloud"/>, and Core Version.
+- **AWS ECS**: The [ECS Agent](./ecs.md) executes flow runs as [AWS ECS
+  tasks](https://aws.amazon.com/ecs/) (on either ECS or Fargate).
 
-Prefect doesn't talk to agents but instead relies on agents to talk to it, which means agents identify themselves and communicate their settings. Independent agent processes with the same configurations will be interpreted by Prefect as the same agent; changing any piece of the configuration will tell Prefect to track these agents independently.
-:::
+See their respective documentation for more information on each type.
 
-### Installation
+## Usage
 
-If Prefect is already [installed](../../core/getting_started/installation.html) no additional work is required to begin using Prefect agents!
-
-### Usage
-
-Prefect agents can be started via the CLI, using `prefect agent <AGENT TYPE> start`. For example:
+Prefect agents can be started via the CLI, using `prefect agent <AGENT TYPE>
+start`. For example, to start a local agent:
 
 ```
-$ prefect agent local start
-...
+prefect agent local start
 ```
 
-All Prefect Agents are also extendable as Python objects and can be used programatically!
+Alternatively, all Prefect Agents can also be run using the Python API.
 
 ```python
-from prefect.agent.docker import DockerAgent
+from prefect.agent.local import LocalAgent
 
-DockerAgent().start()
+LocalAgent().start()
 ```
+## Common Configuration Options
+
+The following configuration options are shared for all agents.
 
 ### Tokens <Badge text="Cloud"/>
 
-Prefect agents rely on the use of a `RUNNER` token from Prefect Cloud. For information on tokens and how they are used visit the [Tokens](../concepts/tokens.html) page.
+Prefect agents rely on the use of a `RUNNER` token from Prefect Cloud. For
+information on tokens and how they are used visit the
+[Tokens](../concepts/tokens.html) page.
 
-### Flow Affinity: Labels
+When starting an Agent with Prefect Cloud, you'll need to provide the `RUNNER`
+token. There are a few different ways to do this:
+
+:::: tabs
+::: tab CLI
+```bash
+prefect agent <AGENT TYPE> start --token <RUNNER TOKEN>
+```
+:::
+
+::: tab "Prefect Config"
+```toml
+# ~/.prefect/config.toml
+[cloud.agent]
+auth_token = "<RUNNER TOKEN>"
+```
+:::
+
+::: tab "Environment Variable"
+```bash
+export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<RUNNER TOKEN>
+```
+:::
+::::
+
+### Prefect API Address
+
+Prefect agents query the API for Prefect Cloud for any pending flow runs. By
+default this is:
+
+- `https://api.prefect.io` for Prefect Cloud
+- `http://localhost:4200` for Prefect Server
+
+If needed, you can manually configure the address through the CLI:
+
+```bash
+prefect agent <AGENT TYPE> start --api <API ADDRESS>
+```
+
+### Labels
 
 Agents have an optional `labels` argument which allows for separation of
 execution when using multiple agents. This is especially useful for teams
 wanting to run specific flows on different clusters. For more information on
-labels and how to use them see the 
+labels and how to use them see the
 [Run Configuration docs](../flow_config/run_configs.md#labels).
 
-By default, agents have no set labels and will only pick up runs from flows with no specified Environment Labels. Labels can be provided to an agent through a few methods:
+By default, agents have no set labels and will only pick up runs from flows
+with no specified labels. Labels can be provided to an agent
+through a few methods:
 
-- Initialization of the Agent class:
+:::: tabs
+::: tab CLI
+```bash
+prefect agent <AGENT TYPE> start --label dev --label staging
+```
+:::
 
+::: tab "Python API"
 ```python
 from prefect.agent.docker import DockerAgent
 
 DockerAgent(labels=["dev", "staging"]).start()
 ```
-
-- Arguments to the CLI:
-
-```
-$ prefect agent <AGENT TYPE> start --label dev --label staging
-```
-
-- As an environment variable:
-
-```
-$ export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
-```
-
-:::tip Environment Variable
-Setting labels through the `PREFECT__CLOUD__AGENT__LABELS` environment variable will make those labels the default unless overridden through initialization of an Agent class or through the CLI's `agent start` command.
 :::
+
+::: tab "Prefect Config"
+```toml
+# ~/.prefect/config.toml
+[cloud.agent]
+labels = ["dev", "staging"]
+```
+:::
+
+::: tab "Environment Variable"
+```bash
+export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
+```
+:::
+::::
+
+### Environment Variables
+
+All agents have a `--env` flag for configuring environment variables to set on
+all flow runs managed by that agent. This can be useful for things you want
+applied to *all* flow runs, whereas the `env` option in a flow's
+[RunConfig](/orchestration/flow_config/run_configs.md) only applies to runs of a
+specific flow.
+
+:::: tabs
+::: tab CLI
+```bash
+prefect agent <AGENT TYPE> start --env KEY=VALUE --env KEY2=VALUE2
+```
+:::
+
+::: tab "Python API"
+```python
+from prefect.agent.docker import DockerAgent
+
+DockerAgent(env_vars={"KEY": "VALUE", "KEY2": "VALUE2"})
+```
+:::
+::::
 
 ### Health Checks
 
@@ -88,21 +172,37 @@ Health checks can be used by common orchestration services (e.g.
 `supervisord`, `docker`, `kubernetes`, ...) to check that the agent is
 running properly and take actions (such as restarting the agent) if it's not.
 
-A few ways to enable:
+A few ways to configure:
 
-- Passing an argument to the CLI:
-
+:::: tabs
+::: tab CLI
+```bash
+prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
 ```
-$ prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
-```
+:::
 
-- Setting an environment variable:
+::: tab "Python API"
+```python
+from prefect.agent.docker import DockerAgent
 
+DockerAgent(agent_address="http://localhost:8080").start()
 ```
+:::
+
+::: tab "Prefect Config"
+```toml
+# ~/.prefect/config.toml
+[cloud.agent]
+agent_address = "http://localhost:8080"
+```
+:::
+
+::: tab "Environment Variable"
+```bash
 $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
 ```
-
-- Setting `cloud.agent.agent_address` in your [configuration](../../core/concepts/configuration.html):
+:::
+::::
 
 If enabled, the HTTP health check will be available via the `/api/health`
 route at the configured agent address. This route returns `200 OK` if the
