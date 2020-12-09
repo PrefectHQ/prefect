@@ -24,8 +24,8 @@ and more.
 ## Agents
 
 To learn more about Prefect agents, [flow
-affinity](/orchestration/agents/overview.html#flow-affinity-labels) via labels,
-or find information on platform specific agents visit the
+affinity](/orchestration/agents/overview.html#labels) via labels, or find
+information on platform specific agents visit the
 [agent](/orchestration/agents/overview.html) documentation.
 
 ## Flow Configuration
