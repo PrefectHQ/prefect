@@ -19,7 +19,7 @@ infrastructure requirements and instead opts to run Flows directly in process.
 The only needed configuration for the Local Environment is the specification
 of an [Executor](/core/concepts/engine.html#executors) however if it is not
 specified then it defaults to the
-[LocalExecutor](/api/latest/engine/executors.html#localexecutor).
+[LocalExecutor](/api/latest/executors.html#localexecutor).
 
 _For more information on the Local Environment visit the relevant [API
 documentation](/api/latest/environments/execution.html#localenvironment)._
@@ -54,7 +54,7 @@ Note that this is the same as the default behavior - if you don't specify an
 ```python
 from prefect import Flow
 from prefect.environments import LocalEnvironment
-from prefect.engine.executors import LocalExecutor
+from prefect.executors import LocalExecutor
 
 flow = Flow(
     "Local Executor Example",
@@ -65,14 +65,14 @@ flow = Flow(
 #### Using a DaskExecutor, with a local Dask cluster
 
 Here we configure a `LocalEnvironment` to run a flow using a
-[DaskExecutor](/api/latest/engine/executors.html#daskexecutor), connected to a
+[DaskExecutor](/api/latest/executors.html#daskexecutor), connected to a
 local temporary [Dask](https://dask.org") cluster. When the flow run starts, a
 temporary local Dask cluster will be created just for that flow run.
 
 ```python
 from prefect import Flow
 from prefect.environments import LocalEnvironment
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 flow = Flow(
     "Dask Executor Example",
@@ -88,7 +88,7 @@ connected to an existing Dask cluster.
 ```python
 from prefect import Flow
 from prefect.environments import LocalEnvironment
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 flow = Flow(
     "Dask Executor Example",

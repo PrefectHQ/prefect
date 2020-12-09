@@ -253,7 +253,7 @@ If you are following along and executing the code locally, it is recommended you
 :::
 
 ```python
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 executor = DaskExecutor()
 

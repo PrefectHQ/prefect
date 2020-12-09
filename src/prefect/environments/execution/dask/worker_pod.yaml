@@ -23,7 +23,7 @@ spec:
       - name: PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
         value: "prefect.engine.cloud.CloudTaskRunner"
       - name: PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS
-        value: "prefect.engine.executors.DaskExecutor"
+        value: "prefect.executors.DaskExecutor"
       - name: PREFECT__LOGGING__LOG_TO_CLOUD
         value: "true"
       - name: PREFECT__LOGGING__LEVEL
