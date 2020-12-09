@@ -331,49 +331,6 @@ class TestDaskExecutor:
         executor = DaskExecutor(cluster_class=TestCluster)
         assert executor.cluster_class == TestCluster
 
-    def test_deprecated_local_processes(self):
-        with pytest.warns(UserWarning, match="local_processes"):
-            executor = DaskExecutor(
-                cluster_class="distributed.LocalCluster",
-                client_kwargs={"set_as_default": True},
-                local_processes=True,
-            )
-        assert executor.cluster_class == distributed.LocalCluster
-        assert executor.cluster_kwargs == {
-            "processes": True,
-            "silence_logs": logging.CRITICAL,
-        }
-        assert executor.client_kwargs == {"set_as_default": True}
-
-        # When not using a LocalCluster, `local_processes` warns, but isn't
-        # added to the kwargs
-        with pytest.warns(UserWarning, match="local_processes"):
-
-            class TestCluster(object):
-                pass
-
-            executor = DaskExecutor(cluster_class=TestCluster, local_processes=True)
-
-        assert executor.cluster_class == TestCluster
-        assert executor.cluster_kwargs == {}
-        assert executor.client_kwargs == {"set_as_default": False}
-
-    def test_deprecated_client_kwargs(self):
-        with pytest.warns(UserWarning, match="client_kwargs"):
-            executor = DaskExecutor(
-                cluster_class="distributed.LocalCluster",
-                set_as_default=True,
-            )
-        assert executor.cluster_kwargs == {"silence_logs": logging.CRITICAL}
-        assert executor.client_kwargs == {"set_as_default": True}
-
-    def test_local_address_deprecated(self):
-        with pytest.warns(UserWarning, match="local"):
-            executor = DaskExecutor(address="local")
-        assert executor.address is None
-        assert executor.cluster_class == distributed.LocalCluster
-        assert executor.cluster_kwargs == {"silence_logs": logging.CRITICAL}
-
     @pytest.mark.parametrize("debug", [True, False])
     def test_debug_is_converted_to_silence_logs(self, debug):
         executor = DaskExecutor(debug=debug)

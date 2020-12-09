@@ -2,7 +2,6 @@ import asyncio
 import logging
 import uuid
 import sys
-import warnings
 import weakref
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
@@ -19,18 +18,6 @@ if TYPE_CHECKING:
 
 
 __any__ = ("DaskExecutor", "LocalDaskExecutor")
-
-
-# XXX: remove when deprecation of DaskExecutor kwargs is done
-_valid_client_kwargs = {
-    "timeout",
-    "set_as_default",
-    "scheduler_file",
-    "security",
-    "name",
-    "direct_to_workers",
-    "heartbeat_interval",
-}
 
 
 def _make_task_key(
@@ -109,7 +96,6 @@ class DaskExecutor(Executor):
             `debug=True` will increase dask's logging level, providing
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
-        - **kwargs: DEPRECATED
 
     Using a temporary local dask cluster:
 
@@ -146,32 +132,9 @@ class DaskExecutor(Executor):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
         debug: bool = None,
-        **kwargs: Any,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
-        # XXX: deprecated
-        if address == "local":
-            warnings.warn(
-                "`address='local'` is deprecated. To use a local cluster, leave the "
-                "`address` field empty.",
-                stacklevel=2,
-            )
-            address = None
-
-        # XXX: deprecated
-        local_processes = kwargs.pop("local_processes", None)
-        if local_processes is None:
-            local_processes = context.config.engine.executor.dask.get(
-                "local_processes", None
-            )
-        if local_processes is not None:
-            warnings.warn(
-                "`local_processes` is deprecated, please use "
-                "`cluster_kwargs={'processes': local_processes}`. The default is "
-                "now `local_processes=True`.",
-                stacklevel=2,
-            )
 
         if address is not None:
             if cluster_class is not None or cluster_kwargs is not None:
@@ -196,17 +159,6 @@ class DaskExecutor(Executor):
                 cluster_kwargs.setdefault(
                     "silence_logs", logging.CRITICAL if not debug else logging.WARNING
                 )
-                if local_processes is not None:
-                    cluster_kwargs.setdefault("processes", local_processes)
-                for_cluster = set(kwargs).difference(_valid_client_kwargs)
-                if for_cluster:
-                    warnings.warn(
-                        "Forwarding executor kwargs to `LocalCluster` is now handled by the "
-                        "`cluster_kwargs` parameter, please update accordingly",
-                        stacklevel=2,
-                    )
-                    for k in for_cluster:
-                        cluster_kwargs[k] = kwargs.pop(k)
 
             if adapt_kwargs is None:
                 adapt_kwargs = {}
@@ -215,13 +167,6 @@ class DaskExecutor(Executor):
             client_kwargs = {}
         else:
             client_kwargs = client_kwargs.copy()
-        if kwargs:
-            warnings.warn(
-                "Forwarding executor kwargs to `Client` is now handled by the "
-                "`client_kwargs` parameter, please update accordingly",
-                stacklevel=2,
-            )
-            client_kwargs.update(kwargs)
         client_kwargs.setdefault("set_as_default", False)
 
         self.address = address
