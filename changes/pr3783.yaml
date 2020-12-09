@@ -1,0 +1,2 @@
+enhancement:
+  - "Kubernetes Agent now reports events for pending pods created by prefect jobs - [#3783](https://github.com/PrefectHQ/prefect/pull/3783)"
