@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.environments import LocalEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.run_configs import KubernetesRun, LocalRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult

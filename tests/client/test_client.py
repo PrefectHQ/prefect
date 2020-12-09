@@ -13,7 +13,7 @@ from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result import SafeResult
 from prefect.engine.state import Pending, Running, State
 from prefect.environments.execution import LocalEnvironment
-from prefect.environments.storage import Local
+from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import ClientError
@@ -210,7 +210,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
     flow = prefect.Flow(
         "test", schedule=prefect.schedules.Schedule(clocks=[a, b]), tasks=[x]
     )
-    flow.storage = prefect.environments.storage.Local(tmpdir)
+    flow.storage = prefect.storage.Local(tmpdir)
     flow.result = flow.storage.result
 
     with pytest.raises(
@@ -269,7 +269,7 @@ def test_client_register_doesnt_raise_for_scheduled_params(
     flow = prefect.Flow(
         "test", schedule=prefect.schedules.Schedule(clocks=[a, b]), tasks=[x, y]
     )
-    flow.storage = prefect.environments.storage.Local(tmpdir)
+    flow.storage = prefect.storage.Local(tmpdir)
     flow.result = flow.storage.result
 
     flow_id = client.register(
@@ -309,7 +309,7 @@ def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
         }
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow = prefect.Flow(name="test", storage=prefect.storage.Local(tmpdir))
     flow.result = flow.storage.result
 
     flow_id = client.register(
@@ -356,9 +356,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result(
         }
     ):
         client = Client()
-    with prefect.Flow(
-        name="test", storage=prefect.environments.storage.Local(tmpdir)
-    ) as flow:
+    with prefect.Flow(name="test", storage=prefect.storage.Local(tmpdir)) as flow:
         a(prefect.Task())
 
     flow.result = None
@@ -402,7 +400,7 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
         }
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow = prefect.Flow(name="test", storage=prefect.storage.Local(tmpdir))
     flow.result = None
 
     flow_id = client.register(
@@ -442,7 +440,7 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
         }
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow = prefect.Flow(name="test", storage=prefect.storage.Local(tmpdir))
     flow.result = flow.storage.result
 
     client.register(
@@ -481,7 +479,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     monkeypatch.setattr(
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     with set_temporary_config(
         {
@@ -493,7 +491,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
         client = Client()
     flow = prefect.Flow(
         name="test",
-        storage=prefect.environments.storage.Docker(image_name="test_image"),
+        storage=prefect.storage.Docker(image_name="test_image"),
     )
     flow.result = flow.storage.result
 
@@ -540,7 +538,7 @@ def test_client_register_default_all_extras_image(
     monkeypatch.setattr(
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     with set_temporary_config(
         {
@@ -550,7 +548,7 @@ def test_client_register_default_all_extras_image(
         }
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow = prefect.Flow(name="test", storage=prefect.storage.Local(tmpdir))
     flow.result = flow.storage.result
 
     client.register(
@@ -834,7 +832,7 @@ def test_client_register_flow_id_no_output(
         }
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow = prefect.Flow(name="test", storage=prefect.storage.Local(tmpdir))
     flow.result = flow.storage.result
 
     flow_id = client.register(

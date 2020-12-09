@@ -9,8 +9,7 @@ from typing import Any, Dict, Optional
 
 from prefect import context
 from prefect import task, Flow
-from prefect.environments.storage import Webhook
-from prefect.environments.storage.webhook import _render_dict
+from prefect.storage.webhook import Webhook, _render_dict
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect import context, Flow
-from prefect.environments.storage import CodeCommit
+from prefect.storage import CodeCommit
 
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
@@ -108,12 +108,12 @@ def test_get_flow_codecommit(monkeypatch):
     d = {"fileContent": b'import prefect; flow = prefect.Flow("test")'}
     client.__getitem__.side_effect = d.__getitem__
     boto3 = MagicMock(get_file=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.environments.storage.CodeCommit._boto3_client", boto3)
+    monkeypatch.setattr("prefect.storage.CodeCommit._boto3_client", boto3)
 
     f = Flow("test")
 
     monkeypatch.setattr(
-        "prefect.environments.storage.github.extract_flow_from_file",
+        "prefect.storage.github.extract_flow_from_file",
         MagicMock(return_value=f),
     )
 

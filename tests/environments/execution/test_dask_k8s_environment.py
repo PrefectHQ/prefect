@@ -9,7 +9,7 @@ import yaml
 
 import prefect
 from prefect.environments import DaskKubernetesEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 

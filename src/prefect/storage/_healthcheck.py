@@ -42,7 +42,7 @@ def cloudpickle_deserialization_check(flow_file_paths: list):
                 warnings.warn(
                     "Flow uses module which is not importable. Refer to documentation "
                     "on how to import custom modules "
-                    "https://docs.prefect.io/api/latest/environments/storage.html#docker",
+                    "https://docs.prefect.io/api/latest/storage.html#docker",
                     stacklevel=2,
                 )
                 raise

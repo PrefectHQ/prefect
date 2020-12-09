@@ -8,7 +8,7 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import (
+from prefect.storage import (
     Docker,
     Local,
     Azure,

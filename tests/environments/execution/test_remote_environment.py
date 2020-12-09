@@ -7,7 +7,7 @@ import cloudpickle
 import prefect
 from prefect import Flow
 from prefect.environments import RemoteEnvironment
-from prefect.environments.storage import Local
+from prefect.storage import Local
 
 
 def test_create_remote_environment():

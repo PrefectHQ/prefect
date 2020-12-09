@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 from prefect import Flow, config
 from prefect.engine.executors import LocalDaskExecutor
 from prefect.environments import FargateTaskEnvironment
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
 
 

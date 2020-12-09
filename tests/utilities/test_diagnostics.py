@@ -122,7 +122,7 @@ def test_flow_information():
     flow = prefect.Flow(
         "test",
         tasks=[t1, t2],
-        storage=prefect.environments.storage.Local(),
+        storage=prefect.storage.Local(),
         schedule=prefect.schedules.Schedule(clocks=[]),
         result=prefect.engine.results.PrefectResult(),
     )
@@ -166,7 +166,7 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
         flow = prefect.Flow(
             "test",
             tasks=[t1, t2],
-            storage=prefect.environments.storage.Local(),
+            storage=prefect.storage.Local(),
             schedule=prefect.schedules.Schedule(clocks=[]),
             result=prefect.engine.results.PrefectResult(),
         )

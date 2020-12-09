@@ -2,7 +2,7 @@ from typing import Any
 
 from marshmallow import fields, post_load
 
-from prefect.environments.storage import (
+from prefect.storage import (
     GCS,
     S3,
     Azure,

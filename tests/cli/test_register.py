@@ -37,7 +37,7 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
         contents = (
             "from prefect import Flow\n"
             "from prefect.environments.execution import LocalEnvironment\n"
-            "from prefect.environments.storage import Local\n"
+            "from prefect.storage import Local\n"
             "f = Flow('test-flow', environment=LocalEnvironment(labels=['a']),\n"
             "   storage=Local(add_default_labels=False))"
         )
@@ -45,7 +45,7 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
         contents = (
             "from prefect import Flow\n"
             "from prefect.run_configs import KubernetesRun\n"
-            "from prefect.environments.storage import Local\n"
+            "from prefect.storage import Local\n"
             "f = Flow('test-flow', run_config=KubernetesRun(labels=['a']),\n"
             "   storage=Local(add_default_labels=False))"
         )

@@ -13,7 +13,7 @@ import pytest
 
 import prefect
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ def test_add_flow_to_docker_custom_prefect_dir():
     ],
 )
 def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
-    monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
+    monkeypatch.setattr("prefect.storage.docker.sys.platform", platform)
     monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
     monkeypatch.setattr(prefect, "__version__", "0.9.2+c2394823")
 
@@ -105,7 +105,7 @@ def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
 def test_empty_docker_storage_on_tagged_commit(
     monkeypatch, platform, url, no_docker_host_var
 ):
-    monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
+    monkeypatch.setattr("prefect.storage.docker.sys.platform", platform)
     monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
     monkeypatch.setattr(prefect, "__version__", "0.9.2")
 
@@ -216,7 +216,7 @@ def test_files_not_absolute_path():
 def test_build_base_image(monkeypatch):
     storage = Docker(registry_url="reg", base_image="test")
 
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -227,7 +227,7 @@ def test_build_base_image(monkeypatch):
 def test_build_no_default(monkeypatch):
     storage = Docker(registry_url="reg")
 
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -239,7 +239,7 @@ def test_build_sets_informative_image_name(monkeypatch):
     storage = Docker(registry_url="reg")
     storage.add_flow(Flow("test"))
 
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -252,7 +252,7 @@ def test_build_sets_image_name_for_multiple_flows(monkeypatch):
     storage.add_flow(Flow("test"))
     storage.add_flow(Flow("test2"))
 
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -264,7 +264,7 @@ def test_build_respects_user_provided_image_name_and_tag(monkeypatch):
     storage = Docker(registry_url="reg", image_name="CUSTOM", image_tag="TAG")
     storage.add_flow(Flow("test"))
 
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -279,7 +279,7 @@ def test_build_respects_user_provided_image_name_and_tag_for_multiple_flows(
     storage.add_flow(Flow("test"))
     storage.add_flow(Flow("test2"))
 
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -291,7 +291,7 @@ def test_build_sets_informative_image_name_for_weird_name_flows(monkeypatch):
     storage = Docker(registry_url="reg")
     storage.add_flow(Flow("!&& ~~ cool flow :shades:"))
 
-    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -336,7 +336,7 @@ def test_build_image_passes(monkeypatch):
     )
 
     pull_image = MagicMock()
-    monkeypatch.setattr("prefect.environments.storage.Docker.pull_image", pull_image)
+    monkeypatch.setattr("prefect.storage.Docker.pull_image", pull_image)
 
     build = MagicMock()
     monkeypatch.setattr("docker.APIClient.build", build)
@@ -356,10 +356,10 @@ def test_build_image_passes_and_pushes(monkeypatch):
     storage = Docker(registry_url="reg", base_image="python:3.6")
 
     pull_image = MagicMock()
-    monkeypatch.setattr("prefect.environments.storage.Docker.pull_image", pull_image)
+    monkeypatch.setattr("prefect.storage.Docker.pull_image", pull_image)
 
     push_image = MagicMock()
-    monkeypatch.setattr("prefect.environments.storage.Docker.push_image", push_image)
+    monkeypatch.setattr("prefect.storage.Docker.push_image", push_image)
 
     build = MagicMock()
     monkeypatch.setattr("docker.APIClient.build", build)
