@@ -215,6 +215,7 @@ module.exports = {
             'agents/local',
             'agents/docker',
             'agents/kubernetes',
+            'agents/ecs',
             'agents/fargate'
           ]
         },
