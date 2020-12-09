@@ -14,7 +14,7 @@ Agent aren't [installed by default](/core/getting_started/installation.md). If
 you're a `pip` user you'll need to add the `kubernetes` extra. Likewise, with
 `conda` you'll need to install the extra `kubernetes` package:
 
-:::: tabs Installing Extra Kubernetes Requirements
+:::: tabs
 ::: tab Pip
 ```bash
 pip install prefect[kubernetes]
@@ -140,7 +140,8 @@ For reference, the default template packaged with Prefect can be found
 
 To provide your own job template, you can use the `--job-template` flag. This
 takes a path to a job template YAML file. The path can be local to the agent,
-or stored in cloud storage on either GCS or S3.
+or stored in cloud storage on either GCS or S3 (note that in this case, the
+agent will need credentials for S3/GCS access).
 
 ```bash
 # Using a local file

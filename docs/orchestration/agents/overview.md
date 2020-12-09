@@ -87,8 +87,8 @@ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<RUNNER TOKEN>
 
 ### Prefect API Address
 
-Prefect agents query the API for Prefect Cloud for any pending flow runs. By
-default this is:
+Prefect agents query the API for any pending flow runs. By default the address
+used is:
 
 - `https://api.prefect.io` for Prefect Cloud
 - `http://localhost:4200` for Prefect Server

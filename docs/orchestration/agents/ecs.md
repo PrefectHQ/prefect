@@ -10,7 +10,7 @@ default](/core/getting_started/installation.md). If you're a `pip` user you'll
 need to add the `aws` extra. Likewise, with `conda` you'll need to install
 `boto3`:
 
-:::: tabs Installing Extra AWS Requirements
+:::: tabs
 ::: tab Pip
 ```bash
 pip install prefect[aws]
@@ -82,16 +82,17 @@ When possible we recommend using the `~/.aws/config` file, but
 [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables)
 also work:
 
-:::: tabs Example boto3 configuration
-::: Config file
+:::: tabs
+::: tab "Config file"
 ```toml
+# ~/.aws/config
 [default]
 aws_access_key_id=...
 aws_secret_access_key=...
 region=...
 ```
 :::
-::: Environment Variables
+::: tab "Environment Variables"
 ```bash
 export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=...
 ```

@@ -76,7 +76,7 @@ label by default. To disable this default label, use the `--no-hostname-label`
 flag:
 
 ```bash
-prefect agent local start --no-hostname-label`
+prefect agent local start --no-hostname-label
 ```
 
 ### Streaming Flow Run Logs
