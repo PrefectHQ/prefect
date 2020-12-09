@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.13.18)', link: '/api/latest/' },
+          { text: 'Latest (0.13.19)', link: '/api/latest/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
@@ -215,6 +215,7 @@ module.exports = {
             'agents/local',
             'agents/docker',
             'agents/kubernetes',
+            'agents/ecs',
             'agents/fargate'
           ]
         },
