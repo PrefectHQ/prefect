@@ -3,7 +3,7 @@
 Prefect Agents are lightweight processes for orchestrating flow runs. Agents
 run inside a user's architecture, and are responsible for starting and
 monitoring flow runs. During operation the agent process queries the Prefect
-API for any pending flow runs, and allocates resources for them on their
+API for any scheduled flow runs, and allocates resources for them on their
 respective deployment platforms.
 
 Note that both Prefect Agents (and flow runs) only send requests _out_ to the
