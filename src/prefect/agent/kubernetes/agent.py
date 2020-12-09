@@ -165,6 +165,7 @@ class KubernetesAgent(Agent):
                         )
 
                         for pod in pods.items:
+                            pod_name = pod.metadata.name
                             if pod.status.container_statuses:
                                 for container_status in pod.status.container_statuses:
                                     waiting = container_status.state.waiting
@@ -193,17 +194,17 @@ class KubernetesAgent(Agent):
                                     self.job_pod_event_timestamps[job_name] = {}
 
                                 if not self.job_pod_event_timestamps[job_name].get(
-                                    pod.metadata.name
+                                    pod_name
                                 ):
                                     self.job_pod_event_timestamps[job_name][
-                                        pod.metadata.name
+                                        pod_name
                                     ] = datetime.min.replace(tzinfo=pytz.UTC)
 
                                 pod_event_logs = []
                                 pod_events = self.core_client.list_namespaced_event(
                                     namespace=self.namespace,
                                     field_selector="involvedObject.name={}".format(
-                                        pod.metadata.name
+                                        pod_name
                                     ),
                                     timeout_seconds=30,
                                 )
@@ -215,17 +216,17 @@ class KubernetesAgent(Agent):
                                     if (
                                         event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
-                                            pod.metadata.name
+                                            pod_name
                                         ]
                                     ):
                                         break
 
                                     self.job_pod_event_timestamps[job_name][
-                                        pod.metadata.name
+                                        pod_name
                                     ] = event.last_timestamp
 
                                     pod_event_logs.append(
-                                        f"Event: '{event.reason}' on pod '{pod.metadata.name}'"
+                                        f"Event: '{event.reason}' on pod '{pod_name}'"
                                     )
                                     pod_event_logs.append(f"\tMessage: {event.message}")
 
