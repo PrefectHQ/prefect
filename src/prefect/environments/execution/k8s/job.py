@@ -1,7 +1,6 @@
 import copy
 import os
 import uuid
-import warnings
 from typing import Any, Callable, List, TYPE_CHECKING
 
 import yaml
@@ -47,7 +46,6 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
             with this environment. Defaults to `False`
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
             default executor will be used.
-        - executor_kwargs (dict, optional): DEPRECATED
         - labels (List[str], optional): a list of labels, which are arbitrary string
             identifiers used by Prefect Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the
@@ -62,7 +60,6 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         job_spec_file: str = None,
         unique_job_name: bool = False,
         executor: "prefect.executors.Executor" = None,
-        executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
@@ -71,14 +68,8 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
         self.unique_job_name = unique_job_name
 
-        if executor_kwargs is not None:
-            warnings.warn(
-                "`executor_kwargs` is deprecated, use `executor` instead", stacklevel=2
-            )
         if executor is None:
-            executor = prefect.engine.get_default_executor_class()(
-                **(executor_kwargs or {})
-            )
+            executor = prefect.engine.get_default_executor_class()()
         elif not isinstance(executor, prefect.executors.Executor):
             raise TypeError(
                 f"`executor` must be an `Executor` or `None`, got `{executor}`"
