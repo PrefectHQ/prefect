@@ -174,6 +174,36 @@ jobs:
           paths:
             - coverage
 
+  # Test task library explicitly
+  test_task_library:
+    docker:
+      - image: python:3.8
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Upgrade pip
+          command: pip install "pip==20.2.4"
+
+      - run:
+          name: Install Prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          name: Run tests
+          command: pytest tests/tasks -vvrfEsx
+
   # ----------------------------------
   # Run unit tests in Python 3.6-3.8
   # ----------------------------------
@@ -202,11 +232,11 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[test_ci]"
+          command: pip install ".[all_orchestration_extras]"
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -236,11 +266,11 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[test_ci]"
+          command: pip install ".[all_orchestration_extras]"
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx
 
   test_38:
     docker:
@@ -265,11 +295,11 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[test_ci]"
+          command: pip install ".[all_orchestration_extras]"
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx
 
   test_39:
     docker:
@@ -301,7 +331,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx
 
   upload_coverage:
     docker:
