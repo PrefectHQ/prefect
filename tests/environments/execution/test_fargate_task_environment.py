@@ -27,18 +27,6 @@ def test_create_fargate_task_environment_with_executor():
     assert environment.executor is executor
 
 
-def test_create_fargate_task_environment_with_deprecated_executor_kwargs():
-    with set_temporary_config(
-        {"engine.executor.default_class": "prefect.executors.LocalDaskExecutor"}
-    ):
-        with pytest.warns(UserWarning, match="executor_kwargs"):
-            environment = FargateTaskEnvironment(
-                executor_kwargs={"scheduler": "synchronous"}
-            )
-    assert isinstance(environment.executor, LocalDaskExecutor)
-    assert environment.executor.scheduler == "synchronous"
-
-
 def test_create_fargate_task_environment_labels():
     environment = FargateTaskEnvironment(labels=["foo"])
     assert environment.labels == set(["foo"])

@@ -69,19 +69,6 @@ def test_create_k8s_job_environment(job_spec_file):
     assert environment.logger.name == "prefect.KubernetesJobEnvironment"
 
 
-def test_create_k8s_job_environment_with_deprecated_executor_kwargs(job_spec_file):
-    with set_temporary_config(
-        {"engine.executor.default_class": "prefect.executors.LocalDaskExecutor"}
-    ):
-        with pytest.warns(UserWarning, match="executor_kwargs"):
-            environment = KubernetesJobEnvironment(
-                job_spec_file=job_spec_file,
-                executor_kwargs={"scheduler": "synchronous"},
-            )
-        assert isinstance(environment.executor, LocalDaskExecutor)
-        assert environment.executor.scheduler == "synchronous"
-
-
 def test_create_k8s_job_environment_labels(job_spec_file):
     environment = KubernetesJobEnvironment(job_spec_file=job_spec_file, labels=["foo"])
     assert environment.labels == set(["foo"])
