@@ -60,10 +60,6 @@ class Azure(Storage):
         )
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
-    @property
-    def default_labels(self) -> List[str]:
-        return ["azure-flow-storage"]
-
     def get_flow(self, flow_location: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).

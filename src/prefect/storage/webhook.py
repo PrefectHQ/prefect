@@ -232,10 +232,6 @@ class Webhook(Storage):
 
         super().__init__(stored_as_script=stored_as_script, **kwargs)
 
-    @property
-    def default_labels(self) -> List[str]:
-        return ["webhook-flow-storage"]
-
     def get_flow(self, flow_location: str = "placeholder") -> "Flow":
         """
         Get the flow from storage. This method will call

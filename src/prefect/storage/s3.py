@@ -66,10 +66,6 @@ class S3(Storage):
             **kwargs,
         )
 
-    @property
-    def default_labels(self) -> List[str]:
-        return ["s3-flow-storage"]
-
     def get_flow(self, flow_location: str = None) -> "Flow":
         """
         Given a flow_location within this Storage object or S3, returns the underlying Flow
