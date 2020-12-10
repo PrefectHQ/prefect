@@ -166,10 +166,6 @@ class TestCreateFlow:
         f2 = Flow(name="test", environment=env)
         assert f2.environment is env
 
-    def test_create_flow_has_default_environment(self):
-        f2 = Flow(name="test")
-        assert isinstance(f2.environment, prefect.environments.LocalEnvironment)
-
     def test_create_flow_auto_generates_tasks(self):
         with Flow("auto") as f:
             res = AddTask()(x=1, y=2)
@@ -2618,6 +2614,7 @@ class TestFlowDiagnostics:
                 "test",
                 tasks=[t1, t2],
                 storage=prefect.storage.Local(),
+                run_config=prefect.run_configs.LocalRun(),
                 schedule=prefect.schedules.Schedule(clocks=[]),
                 result_handler=prefect.engine.result_handlers.JSONResultHandler(),
             )
@@ -2640,18 +2637,16 @@ class TestFlowDiagnostics:
             assert flow_information
 
             # Type information
-            assert flow_information["environment"]["type"] == "LocalEnvironment"
             assert flow_information["storage"]["type"] == "Local"
             assert flow_information["result"]["type"] == "PrefectResult"
             assert flow_information["schedule"]["type"] == "Schedule"
             assert flow_information["task_count"] == 2
 
             # Kwargs presence check
-            assert flow_information["environment"]["executor"] is True
-            assert flow_information["environment"]["labels"] is False
-            assert flow_information["environment"]["on_start"] is False
-            assert flow_information["environment"]["on_exit"] is False
-            assert flow_information["environment"]["logger"] is True
+            assert flow_information["run_config"]["type"] == "LocalRun"
+            assert flow_information["run_config"]["env"] == False
+            assert flow_information["run_config"]["labels"] == False
+            assert flow_information["run_config"]["working_dir"] == False
 
             assert system_info["prefect_version"] == prefect.__version__
             assert system_info["platform"] == platform.platform()
@@ -2703,7 +2698,7 @@ class TestFlowRegister:
         assert f.storage.registry_url == "FOO"
         assert f.storage.image_name == "BAR"
         assert f.storage.image_tag == "BIG"
-        assert f.environment.labels == set()
+        assert f.run_config.labels == set()
 
     def test_flow_register_sets_universal_run_if_empty(self, monkeypatch):
         monkeypatch.setattr("prefect.Client", MagicMock())

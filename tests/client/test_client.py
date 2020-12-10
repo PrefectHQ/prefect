@@ -492,6 +492,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     flow = prefect.Flow(
         name="test",
         storage=prefect.storage.Docker(image_name="test_image"),
+        environment=LocalEnvironment(),
     )
     flow.result = flow.storage.result
 
@@ -548,7 +549,11 @@ def test_client_register_default_prefect_image(
         }
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.storage.Local(tmpdir))
+    flow = prefect.Flow(
+        name="test",
+        storage=prefect.storage.Local(tmpdir),
+        environment=LocalEnvironment(),
+    )
     flow.result = flow.storage.result
 
     client.register(
