@@ -112,7 +112,7 @@ Here we create a flow configured with:
 
 ```python
 from prefect import task, Flow
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 from prefect.run_configs import KubernetesRun
 from prefect.storage import Docker
 

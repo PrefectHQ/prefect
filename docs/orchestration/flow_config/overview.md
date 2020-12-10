@@ -66,7 +66,7 @@ a flow to use a `LocalDaskExecutor`:
 
 ```python
 from prefect import Flow
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 
 with Flow("example", executor=LocalDaskExecutor()) as flow:
     ...

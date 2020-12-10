@@ -11,7 +11,7 @@ if sys.platform != "win32":
 from distributed import Client
 
 import prefect
-from prefect.engine.executors import DaskExecutor, LocalDaskExecutor, LocalExecutor
+from prefect.executors import DaskExecutor, LocalDaskExecutor, LocalExecutor
 from prefect.utilities import configuration
 
 

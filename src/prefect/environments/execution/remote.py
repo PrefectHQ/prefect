@@ -19,7 +19,7 @@ class RemoteEnvironment(Environment):
     # using a RemoteEnvironment w/ an existing Dask cluster
 
     env = RemoteEnvironment(
-        executor="prefect.engine.executors.DaskExecutor",
+        executor="prefect.executors.DaskExecutor",
         executor_kwargs={"address": "tcp://dask_scheduler_address"}
     )
 

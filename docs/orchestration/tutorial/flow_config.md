@@ -99,7 +99,7 @@ import time
 import prefect
 from prefect import task, Flow, Parameter
 from prefect.run_configs import LocalRun
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 
 
 @task

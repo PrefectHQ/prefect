@@ -26,7 +26,7 @@ class LocalEnvironment(Environment, _RunMixin):
 
     def __init__(
         self,
-        executor: "prefect.engine.executors.Executor" = None,
+        executor: "prefect.executors.Executor" = None,
         labels: Iterable[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
@@ -34,7 +34,7 @@ class LocalEnvironment(Environment, _RunMixin):
     ) -> None:
         if executor is None:
             executor = prefect.engine.get_default_executor_class()()
-        elif not isinstance(executor, prefect.engine.executors.Executor):
+        elif not isinstance(executor, prefect.executors.Executor):
             raise TypeError(
                 f"`executor` must be an `Executor` or `None`, got `{executor}`"
             )

@@ -92,7 +92,7 @@ that were created.
 from dask_cloudprovider import FargateCluster
 
 from prefect import Flow, Parameter, task
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 cluster = FargateCluster(
     image="prefecthq/prefect:latest",
@@ -162,7 +162,7 @@ simplifies dependency management and avoids the need for separately distributing
 to Dask workers.
 
 Following creation of the Dask cluster, the Flow will be run using the
-[Dask Executor](/api/latest/engine/executors.html#daskexecutor) pointed
+[Dask Executor](/api/latest/executors.html#daskexecutor) pointed
 to the newly-created Dask cluster. All Task execution will take place on the
 Dask workers.
 

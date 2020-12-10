@@ -293,7 +293,7 @@ class DaskKubernetesEnvironment(Environment):
 
         try:
             from prefect.engine import get_default_flow_runner_class
-            from prefect.engine.executors import DaskExecutor
+            from prefect.executors import DaskExecutor
             from dask_kubernetes import KubeCluster
 
             if self._worker_spec:
@@ -499,7 +499,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
-                "value": "prefect.engine.executors.DaskExecutor",
+                "value": "prefect.executors.DaskExecutor",
             },
         ]
 
@@ -572,7 +572,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
-                "value": "prefect.engine.executors.DaskExecutor",
+                "value": "prefect.executors.DaskExecutor",
             },
         ]
 

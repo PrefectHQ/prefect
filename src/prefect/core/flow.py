@@ -37,7 +37,7 @@ import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.core.task import Task
-from prefect.engine.executors import Executor
+from prefect.executors import Executor
 from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.results import ResultHandlerResult
@@ -116,7 +116,7 @@ class Flow:
     Args:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
-        - executor (prefect.engine.executors.Executor, optional): The executor that the flow
+        - executor (prefect.executors.Executor, optional): The executor that the flow
            should use. If `None`, the default executor configured in the runtime environment
            will be used.
         - environment (prefect.environments.Environment, optional): The environment

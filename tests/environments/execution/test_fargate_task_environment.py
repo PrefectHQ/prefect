@@ -5,7 +5,7 @@ import prefect
 import pytest
 from botocore.exceptions import ClientError
 from prefect import Flow, config
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 from prefect.environments import FargateTaskEnvironment
 from prefect.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
@@ -29,7 +29,7 @@ def test_create_fargate_task_environment_with_executor():
 
 def test_create_fargate_task_environment_with_deprecated_executor_kwargs():
     with set_temporary_config(
-        {"engine.executor.default_class": "prefect.engine.executors.LocalDaskExecutor"}
+        {"engine.executor.default_class": "prefect.executors.LocalDaskExecutor"}
     ):
         with pytest.warns(UserWarning, match="executor_kwargs"):
             environment = FargateTaskEnvironment(

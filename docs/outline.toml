@@ -193,15 +193,6 @@ title = "TaskRunner"
 module = "prefect.engine.task_runner"
 classes = ["TaskRunner"]
 
-[pages.engine.executors]
-title = "Executors"
-module = "prefect.engine.executors"
-classes = [
-            "Executor",
-            "DaskExecutor",
-            "LocalDaskExecutor",
-            "LocalExecutor"]
-
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
@@ -231,6 +222,11 @@ classes = ["CloudFlowRunner", "CloudTaskRunner"]
 title = "Execution Environments"
 module = "prefect.environments.execution"
 classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
+
+[pages.executors]
+title = "Executors"
+module = "prefect.executors"
+classes = {Executor=[], LocalExecutor=[], LocalDaskExecutor=[], DaskExecutor=[]}
 
 [pages.run_configs]
 title = "Run Configuration"

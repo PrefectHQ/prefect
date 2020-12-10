@@ -30,7 +30,7 @@ Your choice of executor is very important for how easily it will be to debug you
 To swap out executors, follow the schematic:
 
 ```python
-from prefect.engine.executors import LocalExecutor
+from prefect.executors import LocalExecutor
 
 # ... your flow construction
 
@@ -47,7 +47,7 @@ If you want to upgrade to a more powerful executor but still maintain an easily 
 You can set the `LocalDaskExecutor` to be the default executor on your local machine. To change your Prefect settings (including the default executor), you can either:
 
 - modify your `~/.prefect/config.toml` file
-- update your OS environment variables; every value in the config file can be overridden by setting `PREFECT__SECTION__SUBSECTION__KEY`. For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalExecutor"`
+- update your OS environment variables; every value in the config file can be overridden by setting `PREFECT__SECTION__SUBSECTION__KEY`. For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.executors.LocalExecutor"`
   :::
 
 #### `DaskExecutor`
