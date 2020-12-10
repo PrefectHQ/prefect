@@ -93,7 +93,7 @@ extras["task_library_ci"] = [
     r for r in extras["task_library_ci"] if not r.startswith("dask_cloudprovider")
 ]
 
-extras["base_library_ci"] = extras["all_orchestration_extras"] + extras["test"]
+extras["base_library_ci"] = extras["all_orchestration_extras"] + extras["dev"]
 
 cmdclass = {
     "verify_version": VerifyVersionCommand,
