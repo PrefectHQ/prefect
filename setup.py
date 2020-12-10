@@ -70,6 +70,7 @@ extras = {
     "dremio": ["pyarrow>=0.15.1"],
 }
 
+
 if sys.version_info < (3, 6):
     extras["dev"].remove("black")
 
@@ -79,6 +80,17 @@ extras["all_extras"] = sum(extras.values(), [])
 extras["test_ci"] = sum(extras.values(), [])
 extras["test_ci"] = [
     r for r in extras["test_ci"] if not r.startswith("dask_cloudprovider")
+]
+
+# Extras for docker image builds to include for orchestration
+extras["all_orchestration_extras"] = [
+    "atlassian-python-api >= 2.0.1",
+    "azure-storage-blob >= 12.1.0, < 13.0",
+    "boto3 >= 1.9, < 2.0",
+    "kubernetes >= 9.0.0a1, <= 11.0.0b2",
+    "google-cloud-storage >= 1.13, < 2.0",
+    "python-gitlab >= 2.5.0, < 3.0",
+    "PyGithub >= 1.51, < 2.0",
 ]
 
 cmdclass = {
