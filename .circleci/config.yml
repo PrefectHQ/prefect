@@ -386,6 +386,7 @@ jobs:
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
+              --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} \
               -t prefecthq/prefect:latest-${PYTHON_TAG} \
               .
@@ -452,6 +453,7 @@ jobs:
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
+              --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:master \
               .
       - run:
