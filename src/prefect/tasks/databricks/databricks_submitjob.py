@@ -522,6 +522,7 @@ class DatabricksRunNow(Task):
 
         self.databricks_conn_secret = databricks_conn_secret
         self.json = json or {}
+        self.job_id = job_id
         self.notebook_params = notebook_params
         self.python_params = python_params
         self.spark_submit_params = spark_submit_params
