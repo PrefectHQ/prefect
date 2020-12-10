@@ -357,6 +357,8 @@ jobs:
       tag_latest:
         type: boolean
         default: false
+      extras:
+        type: string
     environment:
       PYTHON_VERSION: << parameters.python_version >>
       PYTHON_TAG: python<< parameters.python_version >>
@@ -424,6 +426,8 @@ jobs:
     parameters:
       python_version:
         type: string
+      extras:
+        type: string
     environment:
       PYTHON_VERSION: << parameters.python_version >>
       EXTRAS: << parameters.extras >>
@@ -468,8 +472,6 @@ jobs:
           password: $DOCKER_HUB_PW
     parameters:
       python_version:
-        type: string
-      extras:
         type: string
       tag_latest:
         type: boolean
