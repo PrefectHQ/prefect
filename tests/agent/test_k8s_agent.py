@@ -1173,7 +1173,7 @@ class TestK8sAgentRunConfig:
                 "test/name:tag",
             ),
             (KubernetesRun(image="myimage"), Local(), "myimage"),
-            (KubernetesRun(), Local(), "prefecthq/prefect:all_extras-0.13.0"),
+            (KubernetesRun(), Local(), "prefecthq/prefect:0.13.0"),
         ],
         ids=["on-storage", "on-run_config", "default"],
     )

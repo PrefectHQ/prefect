@@ -289,11 +289,11 @@ Prefect has a couple [default secrets](/core/concepts/secrets.html#default-secre
 ```python
 flow.storage = S3(bucket="my-flows", secrets=["AWS_CREDENTIALS"])
 
-flow.environment = LocalEnvironment(metadata={"image": "prefecthq/prefect:all_extras"})
+flow.environment = LocalEnvironment(metadata={"image": "prefecthq/prefect"})
 ```
 
 ::: warning Dependencies
 It is important to make sure that the `image` set in the environment's metadata contains the dependencies required to use the storage option. For example, using `S3` storage requires Prefect's `aws` dependencies.
 
-These are generally packaged with custom built images or optionally you could use the `prefecthq/prefect:all_extras` image which contains all of Prefect's optional extra packages.
+These are generally packaged with custom built images or optionally you could use the `prefecthq/prefect` image which contains all of Prefect's orchestration extras.
 :::

@@ -264,11 +264,7 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
         image = "testing/on-storage:tag"
     else:
         storage = Local()
-        image = (
-            "on-run-config"
-            if run_kind == "docker"
-            else "prefecthq/prefect:all_extras-0.13.11"
-        )
+        image = "on-run-config" if run_kind == "docker" else "prefecthq/prefect:0.13.11"
 
     if run_kind == "docker":
         env = {"TESTING": "VALUE"}

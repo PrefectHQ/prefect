@@ -203,7 +203,7 @@ class Docker(Storage):
         self.installation_commands.append(
             f"pip show prefect || "
             f"pip install git+https://github.com/PrefectHQ/prefect.git"
-            f"@{self.prefect_version}#egg=prefect[kubernetes]"
+            f"@{self.prefect_version}#egg=prefect[all_orchestration_extras]"
         )
 
         not_absolute = [

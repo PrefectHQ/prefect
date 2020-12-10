@@ -17,3 +17,4 @@ coverage:
 ignore:
   - "src/prefect/contrib/**/*"
   - "src/prefect/tasks/**/*"
+  - "src/prefect/environments/**/*"
