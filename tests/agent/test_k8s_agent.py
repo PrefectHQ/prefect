@@ -1071,7 +1071,7 @@ class TestK8sAgentRunConfig:
         with open(DEFAULT_JOB_TEMPLATE_PATH) as f:
             return yaml.safe_load(f)
 
-    def build_flow_run(self, config, storage=None):
+    def build_flow_run(self, config, storage=None, core_version="0.13.0"):
         if storage is None:
             storage = Local()
         return GraphQLResult(
@@ -1081,7 +1081,7 @@ class TestK8sAgentRunConfig:
                         "storage": storage.serialize(),
                         "run_config": None if config is None else config.serialize(),
                         "id": "new_id",
-                        "core_version": "0.13.0",
+                        "core_version": core_version,
                     }
                 ),
                 "id": "id",
@@ -1163,6 +1163,7 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["metadata"]["labels"] == dict(
             POD_LABEL="VALUE2", **labels
         )
+        assert job["spec"]["template"]["spec"]["restartPolicy"] == "Never"
 
     @pytest.mark.parametrize(
         "run_config, storage, expected",
@@ -1182,6 +1183,19 @@ class TestK8sAgentRunConfig:
         job = self.agent.generate_job_spec(flow_run)
         image = job["spec"]["template"]["spec"]["containers"][0]["image"]
         assert image == expected
+
+    @pytest.mark.parametrize(
+        "core_version, expected",
+        [
+            ("0.12.0", "prefect execute cloud-flow"),
+            ("0.14.0", "prefect execute flow-run"),
+        ],
+    )
+    def test_generate_job_spec_container_args(self, core_version, expected):
+        flow_run = self.build_flow_run(KubernetesRun(), core_version=core_version)
+        job = self.agent.generate_job_spec(flow_run)
+        args = job["spec"]["template"]["spec"]["containers"][0]["args"]
+        assert args == expected.split()
 
     def test_generate_job_spec_environment_variables(self, tmpdir):
         """Check that environment variables are set in precedence order
