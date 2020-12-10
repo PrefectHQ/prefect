@@ -5,6 +5,7 @@ import cloudpickle
 import pytest
 
 pytest.importorskip("dask_cloudprovider")
+pytest.importorskip("dask_cloudprovider.aws")
 
 from distributed.deploy import Cluster
 
