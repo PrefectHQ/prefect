@@ -4,7 +4,7 @@ import string
 import warnings
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional
 
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -231,10 +231,6 @@ class Webhook(Storage):
         self._build_responses: Optional[Dict[str, Response]] = None
 
         super().__init__(stored_as_script=stored_as_script, **kwargs)
-
-    @property
-    def default_labels(self) -> List[str]:
-        return ["webhook-flow-storage"]
 
     def get_flow(self, flow_location: str = "placeholder") -> "Flow":
         """

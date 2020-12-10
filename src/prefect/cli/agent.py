@@ -141,8 +141,8 @@ def local():
 )
 @click.option(
     "--storage-labels/--no-storage-labels",
-    default=True,
-    help="Add all storage labels to the LocalAgent",
+    default=None,
+    help="Add all storage labels to the LocalAgent. DEPRECATED",
 )
 @click.option(
     "--hostname-label/--no-hostname-label",
@@ -431,9 +431,8 @@ _agents = {
 )
 @click.option(
     "--storage-labels/--no-storage-labels",
-    default=True,
-    help="Add all storage labels to the LocalAgent",
-    hidden=True,
+    default=None,
+    help="Add all storage labels to the LocalAgent. DEPRECATED",
 )
 @click.option(
     "--hostname-label/--no-hostname-label",
@@ -537,8 +536,8 @@ def start(
     no_docker_interface,
     max_polls,
     agent_address,
-    storage_labels,
     hostname_label,
+    storage_labels,
 ):
     """
     Start an agent.
@@ -586,8 +585,6 @@ def start(
                                     (available for Local and Docker agents only)
         --hostname-label            Add hostname to the Agent's labels
                                         (Default to True. Disable with --no-hostname-label option)
-        --storage-labels            Add all storage labels to the Agent
-                                        (Default to True. Disable with --no-storage-labels option)
 
     \b
     Docker Agent:

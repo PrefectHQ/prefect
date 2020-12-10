@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict
 
 import cloudpickle
 import pendulum
@@ -59,10 +59,6 @@ class Azure(Storage):
             connection_string=self.connection_string, container=container
         )
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
-
-    @property
-    def default_labels(self) -> List[str]:
-        return ["azure-flow-storage"]
 
     def get_flow(self, flow_location: str = None) -> "Flow":
         """

@@ -64,7 +64,6 @@ def test_create_webhook_storage():
     assert storage.get_flow_request_kwargs == get_flow_request_kwargs
     assert storage.get_flow_request_http_method == "GET"
     assert storage.secrets == []
-    assert storage.default_labels == ["webhook-flow-storage"]
     assert storage.stored_as_script is False
 
 

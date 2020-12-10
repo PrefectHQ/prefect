@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict
 
 import cloudpickle
 import pendulum
@@ -65,10 +65,6 @@ class S3(Storage):
             stored_as_script=stored_as_script,
             **kwargs,
         )
-
-    @property
-    def default_labels(self) -> List[str]:
-        return ["s3-flow-storage"]
 
     def get_flow(self, flow_location: str = None) -> "Flow":
         """

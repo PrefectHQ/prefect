@@ -46,11 +46,10 @@ def test_help(cmd):
         (
             "local",
             "prefect.agent.local.LocalAgent",
-            "-p path1 -p path2 -f --no-storage-labels --no-hostname-label",
+            "-p path1 -p path2 -f --no-hostname-label",
             {
                 "import_paths": ["path1", "path2"],
                 "show_flow_logs": True,
-                "storage_labels": False,
                 "hostname_label": False,
             },
         ),

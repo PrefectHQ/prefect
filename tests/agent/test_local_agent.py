@@ -25,12 +25,6 @@ from prefect.utilities.graphql import GraphQLResult
 
 DEFAULT_AGENT_LABELS = [
     socket.gethostname(),
-    "azure-flow-storage",
-    "gcs-flow-storage",
-    "s3-flow-storage",
-    "github-flow-storage",
-    "webhook-flow-storage",
-    "gitlab-flow-storage",
 ]
 
 
@@ -50,7 +44,7 @@ def test_local_agent_init():
 
 
 def test_local_agent_deduplicates_labels():
-    agent = LocalAgent(labels=["azure-flow-storage"])
+    agent = LocalAgent(labels=[socket.gethostname()])
     assert sorted(agent.labels) == sorted(DEFAULT_AGENT_LABELS)
 
 
@@ -67,17 +61,6 @@ def test_local_agent_config_options():
     assert agent.processes == set()
     assert agent.import_paths == ["test_path"]
     assert set(agent.labels) == {"test_label", *DEFAULT_AGENT_LABELS}
-
-
-def test_local_agent_config_no_storage_labels():
-    agent = LocalAgent(
-        labels=["test_label"],
-        storage_labels=False,
-    )
-    assert set(agent.labels) == {
-        socket.gethostname(),
-        "test_label",
-    }
 
 
 @pytest.mark.parametrize("hostname_label", [True, False])

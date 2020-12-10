@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict
 from urllib.parse import quote_plus
 
 from prefect.storage import Storage
@@ -54,10 +54,6 @@ class GitLab(Storage):
         self.ref = ref
 
         super().__init__(**kwargs)
-
-    @property
-    def default_labels(self) -> List[str]:
-        return ["gitlab-flow-storage"]
 
     def get_flow(self, flow_location: str = None, ref: str = None) -> "Flow":
         """

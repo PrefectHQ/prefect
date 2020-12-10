@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict
 
 import cloudpickle
 import pendulum
@@ -65,10 +65,6 @@ class GCS(Storage):
 
         result = GCSResult(bucket=bucket)
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
-
-    @property
-    def default_labels(self) -> List[str]:
-        return ["gcs-flow-storage"]
 
     def get_flow(self, flow_location: str = None) -> "Flow":
         """
