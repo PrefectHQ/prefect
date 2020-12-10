@@ -90,7 +90,7 @@ extras["all_orchestration_extras"] = [
 # CI extras to control dependencies for tests
 extras["task_library_ci"] = sum(extras.values(), [])
 extras["task_library_ci"] = [
-    r for r in extras["test_ci"] if not r.startswith("dask_cloudprovider")
+    r for r in extras["task_library_ci"] if not r.startswith("dask_cloudprovider")
 ]
 
 extras["base_library_ci"] = extras["all_orchestration_extras"] + extras["test"]
