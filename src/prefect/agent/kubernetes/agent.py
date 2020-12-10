@@ -561,6 +561,9 @@ class KubernetesAgent(Agent):
         if image_pull_secrets is not None:
             pod_template["imagePullSecrets"] = [{"name": s} for s in image_pull_secrets]
 
+        # Default restartPolicy to Never
+        _get_or_create(job, "spec.template.spec.restartPolicy", "Never")
+
         # Get the first container, which is used for the prefect job
         containers = _get_or_create(job, "spec.template.spec.containers", [])
         if not containers:
@@ -571,7 +574,7 @@ class KubernetesAgent(Agent):
         container["image"] = image = get_flow_image(flow_run)
 
         # Set flow run command
-        container["args"] = [get_flow_run_command(flow_run)]
+        container["args"] = get_flow_run_command(flow_run).split()
 
         # Populate environment variables from the following sources,
         # with precedence:
