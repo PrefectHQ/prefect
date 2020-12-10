@@ -2796,6 +2796,15 @@ class TestFlowRegister:
             exc.value
         )
 
+    def test_flow_register_warns_if_mixing_environment_and_executor(self, monkeypatch):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        flow = Flow(
+            name="test", environment=LocalEnvironment(), executor=LocalExecutor()
+        )
+
+        with pytest.warns(UserWarning, match="This flow is using the deprecated"):
+            flow.register("testing", build=False)
+
 
 def test_bad_flow_runner_code_still_returns_state_obj():
     class BadFlowRunner(prefect.engine.flow_runner.FlowRunner):

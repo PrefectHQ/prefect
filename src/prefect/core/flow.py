@@ -1637,6 +1637,22 @@ class Flow:
             )
             return None
 
+        if (
+            self.environment is not None
+            and self.run_config is None
+            and self.executor is not None
+        ):
+            warnings.warn(
+                "This flow is using the deprecated `flow.environment` based configuration, "
+                "but has `flow.executor` set.\n\n"
+                "This executor will be *not* be used at runtime.\n\n"
+                "Please transition to the `flow.run_config` based system instead to "
+                "make use of setting `flow.executor`. "
+                "See https://docs.prefect.io/orchestration/flow_config/overview.html "
+                "for more information.",
+                stacklevel=2,
+            )
+
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
