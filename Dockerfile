@@ -3,7 +3,7 @@ FROM python:${PYTHON_VERSION}-slim
 
 # Build Arguments
 ARG PREFECT_VERSION
-ARG EXTRAS=kubernetes
+ARG EXTRAS
 ARG GIT_SHA
 ARG BUILD_DATE
 

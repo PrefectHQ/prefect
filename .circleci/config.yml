@@ -174,7 +174,7 @@ jobs:
           paths:
             - coverage
 
-  # Test task library explicitly
+  # test task library explicitly
   test_task_library:
     docker:
       - image: python:3.8
@@ -198,7 +198,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_extras]"
+          command: pip install ".[test_ci]"
 
       - run:
           name: Run tests
@@ -360,6 +360,7 @@ jobs:
     environment:
       PYTHON_VERSION: << parameters.python_version >>
       PYTHON_TAG: python<< parameters.python_version >>
+      EXTRAS: << parameters.extras >>
     steps:
       - checkout
       - run:
@@ -423,6 +424,7 @@ jobs:
         type: string
     environment:
       PYTHON_VERSION: << parameters.python_version >>
+      EXTRAS: << parameters.extras >>
     steps:
       - checkout
       - run:
@@ -456,7 +458,7 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
 
-  build_all_extras_docker_image:
+  build_core_docker_image:
     docker:
       - image: docker
         auth:
@@ -472,7 +474,6 @@ jobs:
         default: false
     environment:
       PYTHON_VERSION: << parameters.python_version >>
-      EXTRAS: << parameters.extras >>
     steps:
       - checkout
       - run:
@@ -486,7 +487,7 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Build all_extras image
+          name: Build core image
           command: |
             set -u
             docker build \
@@ -495,18 +496,18 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:all_extras-${CIRCLE_TAG} \
-              -t prefecthq/prefect:all_extras \
+              -t prefecthq/prefect:core-${CIRCLE_TAG} \
+              -t prefecthq/prefect:core \
               .
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:all_extras-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       - run:
-          name: Push all_extras tag
+          name: Push core tag
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:all_extras-${CIRCLE_TAG}
+            docker push prefecthq/prefect:core-${CIRCLE_TAG}
       - when:
           condition: << parameters.tag_latest >>
           steps:
@@ -514,7 +515,7 @@ jobs:
                 name: Push latest tag
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-                  docker push prefecthq/prefect:all_extras
+                  docker push prefecthq/prefect:core
 
 
   promote_server_artifacts:
@@ -589,6 +590,7 @@ workflows:
       - test_39
       - test_lower_prefect
       - test_vanilla_prefect
+      - test_task_library
       - upload_coverage:
           requires:
             - test_36
@@ -605,6 +607,7 @@ workflows:
     jobs:
       - build_master_docker_image:
           python_version: '3.7'
+          extras: 'all_orchestration_extras'
           filters:
             branches:
               only: master
@@ -613,6 +616,7 @@ workflows:
     jobs:
       - build_docker_image:
           python_version: '3.6'
+          extras: 'all_orchestration_extras'
           filters:
             branches:
               ignore: /.*/
@@ -620,6 +624,7 @@ workflows:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.7'
+          extras: 'all_orchestration_extras'
           tag_latest: true
           filters:
             branches:
@@ -628,6 +633,7 @@ workflows:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.8'
+          extras: 'all_orchestration_extras'
           filters:
             branches:
               ignore: /.*/
@@ -639,9 +645,8 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build_all_extras_docker_image:
+      - build_core_docker_image:
           python_version: '3.8'
-          extras: 'all_extras'
           tag_latest: true
           filters:
             branches:
