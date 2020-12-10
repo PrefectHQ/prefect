@@ -12,8 +12,6 @@ from prefect.serialization.environment import (
     FargateTaskEnvironmentSchema,
     KubernetesJobEnvironmentSchema,
     LocalEnvironmentSchema,
-    RemoteEnvironmentSchema,
-    RemoteDaskEnvironmentSchema,
 )
 
 
@@ -234,80 +232,10 @@ def test_serialize_k8s_job_environment_with_labels(k8s_job_spec_content):
     assert new.labels == {"a", "b", "c"}
 
 
-def test_serialize_remote_environment():
-    env = environments.RemoteEnvironment()
-
-    schema = RemoteEnvironmentSchema()
-    serialized = schema.dump(env)
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
-    assert serialized["executor"] == prefect.config.engine.executor.default_class
-    assert serialized["executor_kwargs"] == {}
-    assert serialized["labels"] == []
-    assert serialized["metadata"] == {}
-
-    new = schema.load(serialized)
-    assert new.executor == prefect.config.engine.executor.default_class
-    assert new.executor_kwargs == {}
-    assert new.labels == set()
-
-
-def test_serialize_remote_environment_with_labels():
-    env = environments.RemoteEnvironment(labels=["b", "c", "a"])
-
-    schema = RemoteEnvironmentSchema()
-    serialized = schema.dump(env)
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
-    assert serialized["executor"] == prefect.config.engine.executor.default_class
-    assert serialized["executor_kwargs"] == {}
-    # labels should be sorted in the serialized obj
-    assert serialized["labels"] == ["a", "b", "c"]
-
-    new = schema.load(serialized)
-    assert new.executor == prefect.config.engine.executor.default_class
-    assert new.executor_kwargs == {}
-    assert new.labels == {"b", "c", "a"}
-
-
-def test_serialize_remote_dask_environment():
-    env = environments.RemoteDaskEnvironment(address="test")
-
-    schema = RemoteDaskEnvironmentSchema()
-    serialized = schema.dump(env)
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
-    assert serialized["address"] == "test"
-    assert serialized["labels"] == []
-    assert serialized["metadata"] == {}
-
-    new = schema.load(serialized)
-    assert new.address == "test"
-    assert new.labels == set()
-
-
-def test_serialize_remote_dask_environment_with_labels():
-    env = environments.RemoteDaskEnvironment(
-        address="test", labels=["b", "c", "a"], executor_kwargs={"not": "present"}
-    )
-
-    schema = RemoteDaskEnvironmentSchema()
-    serialized = schema.dump(env)
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
-    assert serialized["address"] == "test"
-    # labels should be sorted in the serialized obj
-    assert serialized["labels"] == ["a", "b", "c"]
-
-    new = schema.load(serialized)
-    assert new.address == "test"
-    assert new.labels == {"b", "c", "a"}
-
-
 def test_serialize_local_environment_with_labels():
     env = environments.LocalEnvironment(labels=["b", "c", "a"])
 
-    schema = RemoteEnvironmentSchema()
+    schema = LocalEnvironmentSchema()
     serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
@@ -316,20 +244,6 @@ def test_serialize_local_environment_with_labels():
 
     new = schema.load(serialized)
     assert new.labels == {"b", "c", "a"}
-
-
-def test_deserialize_old_env_payload():
-    old = {
-        "executor": "prefect.executors.LocalExecutor",
-        "executor_kwargs": {},
-        "__version__": "0.6.3",
-        "type": "RemoteEnvironment",
-    }
-
-    schema = EnvironmentSchema()
-    obj = schema.load(old)
-    assert isinstance(obj, environments.RemoteEnvironment)
-    assert obj.labels == set()
 
 
 def test_serialize_custom_environment():
