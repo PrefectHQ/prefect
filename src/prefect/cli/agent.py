@@ -140,11 +140,6 @@ def local():
     is_flag=True,
 )
 @click.option(
-    "--storage-labels/--no-storage-labels",
-    default=True,
-    help="Add all storage labels to the LocalAgent",
-)
-@click.option(
     "--hostname-label/--no-hostname-label",
     default=True,
     help="Add hostname to the LocalAgent's labels",
