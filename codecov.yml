@@ -17,3 +17,6 @@ coverage:
 ignore:
   - "src/prefect/contrib/**/*"
   - "src/prefect/tasks/**/*"
+  - "src/prefect/environments/**/*"
+  - "src/utilities/notifications/jira_notification.py"
+  - "src/engine/serializers.py"
