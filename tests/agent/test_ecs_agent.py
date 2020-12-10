@@ -329,7 +329,7 @@ class TestGenerateTaskDefinition:
                 "test/name:tag",
             ),
             (ECSRun(image="myimage"), Local(), "myimage"),
-            (ECSRun(), Local(), "prefecthq/prefect:all_extras-0.13.0"),
+            (ECSRun(), Local(), "prefecthq/prefect:0.13.0"),
         ],
         ids=["on-storage", "on-run_config", "default"],
     )

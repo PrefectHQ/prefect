@@ -100,7 +100,7 @@ def test_get_flow_image_run_config_default_value_from_core_version(run_config, v
     )
     image = get_flow_image(flow_run)
     expected_version = version.split("+")[0] if version else "latest"
-    assert image == f"prefecthq/prefect:all_extras-{expected_version}"
+    assert image == f"prefecthq/prefect:{expected_version}"
 
 
 def test_get_flow_image_run_config_image_on_RunConfig():

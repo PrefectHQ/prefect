@@ -519,7 +519,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_register_default_all_extras_image(
+def test_client_register_default_prefect_image(
     patch_post, compressed, monkeypatch, tmpdir
 ):
     if compressed:
@@ -571,7 +571,7 @@ def test_client_register_default_all_extras_image(
             "serialized_flow"
         ]
     assert serialized_flow["storage"] is not None
-    assert "all_extras" in serialized_flow["environment"]["metadata"]["image"]
+    assert "prefecthq/prefect" in serialized_flow["environment"]["metadata"]["image"]
 
 
 @pytest.mark.parametrize("compressed", [True, False])
