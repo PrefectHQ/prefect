@@ -31,23 +31,6 @@ def flow_run():
     """
     Execute a flow run in the context of a backend API.
     """
-    return _execute_flow_run()
-
-
-@execute.command(hidden=True)
-def cloud_flow():
-    """
-    Execute a flow's environment in the context of Prefect Cloud.
-
-    DEPRECATED: This command is deprecated, please use `prefect execute flow-run` instead.
-
-    Note: this is a command that runs during Cloud execution of flows and is not meant
-    for local use.
-    """
-    return _execute_flow_run()
-
-
-def _execute_flow_run():
     flow_run_id = prefect.context.get("flow_run_id")
     if not flow_run_id:
         click.echo("Not currently executing a flow within a Cloud context.")
