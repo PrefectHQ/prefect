@@ -131,18 +131,12 @@ def test_flow_information():
     assert flow_information
 
     # Type information
-    assert flow_information["environment"]["type"] == "LocalEnvironment"
+    assert flow_information["environment"] is False
+    assert flow_information["run_config"] is False
     assert flow_information["storage"]["type"] == "Local"
     assert flow_information["result"]["type"] == "PrefectResult"
     assert flow_information["schedule"]["type"] == "Schedule"
     assert flow_information["task_count"] == 2
-
-    # Kwargs presence check
-    assert flow_information["environment"]["executor"] is True
-    assert flow_information["environment"]["labels"] is False
-    assert flow_information["environment"]["on_start"] is False
-    assert flow_information["environment"]["on_exit"] is False
-    assert flow_information["environment"]["logger"] is True
 
 
 def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
@@ -167,6 +161,7 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
             "test",
             tasks=[t1, t2],
             storage=prefect.storage.Local(),
+            run_config=prefect.run_configs.LocalRun(),
             schedule=prefect.schedules.Schedule(clocks=[]),
             result=prefect.engine.results.PrefectResult(),
         )
@@ -189,18 +184,15 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
         assert flow_information
 
         # Type information
-        assert flow_information["environment"]["type"] == "LocalEnvironment"
         assert flow_information["storage"]["type"] == "Local"
         assert flow_information["result"]["type"] == "PrefectResult"
         assert flow_information["schedule"]["type"] == "Schedule"
         assert flow_information["task_count"] == 2
 
-        # Kwargs presence check
-        assert flow_information["environment"]["executor"] is True
-        assert flow_information["environment"]["labels"] is False
-        assert flow_information["environment"]["on_start"] is False
-        assert flow_information["environment"]["on_exit"] is False
-        assert flow_information["environment"]["logger"] is True
+        assert flow_information["run_config"]["type"] == "LocalRun"
+        assert flow_information["run_config"]["env"] is False
+        assert flow_information["run_config"]["labels"] is False
+        assert flow_information["run_config"]["working_dir"] is False
 
         assert system_info["prefect_version"] == prefect.__version__
         assert system_info["platform"] == platform.platform()

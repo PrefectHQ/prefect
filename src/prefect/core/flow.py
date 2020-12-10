@@ -119,8 +119,8 @@ class Flow:
         - executor (prefect.executors.Executor, optional): The executor that the flow
            should use. If `None`, the default executor configured in the runtime environment
            will be used.
-        - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
+        - environment (prefect.environments.Environment, optional, DEPRECATED): The environment
+           that the flow should be run in.
         - run_config (prefect.run_configs.RunConfig, optional): The runtime
            configuration to use when deploying this flow.
         - storage (prefect.storage.Storage, optional): The unit of storage
@@ -175,7 +175,7 @@ class Flow:
         self.logger = logging.get_logger(self.name)
         self.schedule = schedule
         self.executor = executor
-        self.environment = environment or prefect.environments.LocalEnvironment()
+        self.environment = environment
         self.run_config = run_config
         self.storage = storage
         if result_handler:
@@ -1569,8 +1569,10 @@ class Flow:
         with set_temporary_config(temp_config):
             if self.run_config is not None:
                 labels = list(self.run_config.labels or ())
-            else:
+            elif self.environment is not None:
                 labels = list(self.environment.labels or ())
+            else:
+                labels = []
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
