@@ -4,7 +4,7 @@ import string
 import warnings
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional
 
 from requests import Session
 from requests.adapters import HTTPAdapter

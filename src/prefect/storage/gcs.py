@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict
 
 import cloudpickle
 import pendulum
