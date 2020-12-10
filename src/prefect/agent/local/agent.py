@@ -3,6 +3,7 @@ import socket
 import sys
 from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
+import warnings
 
 from prefect import config
 from prefect.agent import Agent
@@ -56,6 +57,8 @@ class LocalAgent(Agent):
         - hostname_label (boolean, optional): a boolean specifying whether this agent should
             auto-label itself with the hostname of the machine it is running on.  Useful for
             flows which are stored on the local filesystem.
+        - storage_labels (boolean, optional, DEPRECATED): a boolean specifying whether this agent should
+            auto-label itself with all of the storage options labels.
     """
 
     def __init__(
@@ -70,6 +73,7 @@ class LocalAgent(Agent):
         max_polls: int = None,
         agent_address: str = None,
         no_cloud_logs: bool = False,
+        storage_labels: bool = None,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
@@ -92,6 +96,13 @@ class LocalAgent(Agent):
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
+
+        if storage_labels is not None:
+            warnings.warn(
+                "Use of `storage_labels` kwarg is deprecated and the local agent no longer has "
+                "default labels.",
+                stacklevel=2,
+            )
 
         self.logger.debug(f"Import paths: {self.import_paths}")
         self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
