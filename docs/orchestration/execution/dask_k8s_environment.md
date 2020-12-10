@@ -94,7 +94,7 @@ _For more information on how Docker registry credentials are used as Kubernetes 
 
 Create a new [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) with the configuration provided at initialization of this environment. That Job is responsible for creating a `KubeCluster` object from the `dask_kubernetes` library with the provided configuration. Previously configured custom worker YAML and min/max worker settings are applied at this point as `dask_kubernetes` takes care of automatic worker creation.
 
-Following creation of the Dask cluster, the Flow will be run using the [Dask Executor](/api/latest/engine/executors.html#daskexecutor) pointing to the newly-created Dask cluster. All Task execution will take place on the Dask worker pods.
+Following creation of the Dask cluster, the Flow will be run using the [Dask Executor](/api/latest/executors.html#daskexecutor) pointing to the newly-created Dask cluster. All Task execution will take place on the Dask worker pods.
 
 ## Examples
 

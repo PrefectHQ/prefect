@@ -79,7 +79,7 @@ class RemoteDaskEnvironment(RemoteEnvironment):
             dask_executor_kwargs["security"] = security
 
         super().__init__(
-            executor="prefect.engine.executors.DaskExecutor",
+            executor="prefect.executors.DaskExecutor",
             executor_kwargs=dask_executor_kwargs,
             labels=labels,
             on_start=on_start,

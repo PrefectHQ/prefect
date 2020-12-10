@@ -137,6 +137,11 @@ module.exports = {
           children: getChildren('docs/api/latest', 'environments')
         },
         {
+          title: 'prefect.executors',
+          collapsable: true,
+          children: ['executors.md'],
+        },
+        {
           title: 'prefect.run_configs',
           collapsable: true,
           children: ['run_configs.md'],

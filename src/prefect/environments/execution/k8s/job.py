@@ -61,7 +61,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         self,
         job_spec_file: str = None,
         unique_job_name: bool = False,
-        executor: "prefect.engine.executors.Executor" = None,
+        executor: "prefect.executors.Executor" = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
@@ -79,7 +79,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
             executor = prefect.engine.get_default_executor_class()(
                 **(executor_kwargs or {})
             )
-        elif not isinstance(executor, prefect.engine.executors.Executor):
+        elif not isinstance(executor, prefect.executors.Executor):
             raise TypeError(
                 f"`executor` must be an `Executor` or `None`, got `{executor}`"
             )

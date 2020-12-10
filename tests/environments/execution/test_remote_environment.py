@@ -27,7 +27,7 @@ def test_create_remote_environment_populated():
         pass
 
     environment = RemoteEnvironment(
-        executor="prefect.engine.executors.DaskExecutor",
+        executor="prefect.executors.DaskExecutor",
         executor_kwargs={"address": "test"},
         labels=["foo", "bar", "good"],
         on_start=f,
@@ -35,7 +35,7 @@ def test_create_remote_environment_populated():
         metadata={"test": "here"},
     )
     assert environment
-    assert environment.executor == "prefect.engine.executors.DaskExecutor"
+    assert environment.executor == "prefect.executors.DaskExecutor"
     assert environment.executor_kwargs == {"address": "test"}
     assert environment.labels == set(["foo", "bar", "good"])
     assert environment.on_start is f

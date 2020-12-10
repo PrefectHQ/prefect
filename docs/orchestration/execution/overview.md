@@ -75,7 +75,7 @@ executor to every Flow you create. To specify a different environment, provide
 it to your Flow at initialization:
 
 ```python
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 from prefect.environments import LocalEnvironment
 
 f = Flow("example-env", environment=LocalEnvironment(executor=DaskExecutor()))
@@ -84,7 +84,7 @@ f = Flow("example-env", environment=LocalEnvironment(executor=DaskExecutor()))
 or assign it directly:
 
 ```python
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 from prefect.environments import LocalEnvironment
 
 f = Flow("example-env")

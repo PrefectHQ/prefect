@@ -25,7 +25,7 @@ from prefect.core.task import Task
 from prefect.tasks.core import constants
 from prefect.core.parameter import Parameter
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
-from prefect.engine.executors import LocalExecutor, DaskExecutor
+from prefect.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler

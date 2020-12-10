@@ -32,7 +32,7 @@ def terminal_task():
 
 
 env = RemoteEnvironment(
-    executor="prefect.engine.executors.DaskExecutor",
+    executor="prefect.executors.DaskExecutor",
     executor_kwargs={"scheduler_address": "tcp://"},
 )
 storage = Docker(

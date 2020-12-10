@@ -106,7 +106,7 @@ class FargateTaskEnvironment(Environment, _RunMixin):
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
-        executor: "prefect.engine.executors.Executor" = None,
+        executor: "prefect.executors.Executor" = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
@@ -134,7 +134,7 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             executor = prefect.engine.get_default_executor_class()(
                 **(executor_kwargs or {})
             )
-        elif not isinstance(executor, prefect.engine.executors.Executor):
+        elif not isinstance(executor, prefect.executors.Executor):
             raise TypeError(
                 f"`executor` must be an `Executor` or `None`, got `{executor}`"
             )

@@ -10,6 +10,8 @@ import prefect.triggers
 import prefect.environments
 import prefect.storage
 import prefect.environments.storage  # deprecated
+import prefect.executors
+import prefect.engine.executors  # deprecated
 import prefect.artifacts
 
 from prefect.core import Task, Flow, Parameter
