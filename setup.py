@@ -76,12 +76,6 @@ if sys.version_info < (3, 6):
 
 extras["all_extras"] = sum(extras.values(), [])
 
-# CI extras to control dependencies for tests
-extras["test_ci"] = sum(extras.values(), [])
-extras["test_ci"] = [
-    r for r in extras["test_ci"] if not r.startswith("dask_cloudprovider")
-]
-
 # Extras for docker image builds to include for orchestration
 extras["all_orchestration_extras"] = [
     "atlassian-python-api >= 2.0.1",
@@ -92,6 +86,14 @@ extras["all_orchestration_extras"] = [
     "python-gitlab >= 2.5.0, < 3.0",
     "PyGithub >= 1.51, < 2.0",
 ]
+
+# CI extras to control dependencies for tests
+extras["task_library_ci"] = sum(extras.values(), [])
+extras["task_library_ci"] = [
+    r for r in extras["test_ci"] if not r.startswith("dask_cloudprovider")
+]
+
+extras["base_library_ci"] = extras["all_orchestration_extras"] + extras["test"]
 
 cmdclass = {
     "verify_version": VerifyVersionCommand,

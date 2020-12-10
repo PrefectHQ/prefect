@@ -198,7 +198,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[test_ci]"
+          command: pip install ".[task_library_ci]"
 
       - run:
           name: Run tests
@@ -232,7 +232,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_orchestration_extras]"
+          command: pip install ".[base_library_ci]"
 
       - run:
           name: Run tests
@@ -266,7 +266,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_orchestration_extras]"
+          command: pip install ".[base_library_ci]"
 
       - run:
           name: Run tests
@@ -295,7 +295,7 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[all_orchestration_extras]"
+          command: pip install ".[base_library_ci]"
 
       - run:
           name: Run tests
