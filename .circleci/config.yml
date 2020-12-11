@@ -384,7 +384,7 @@ jobs:
             docker build \
               --build-arg GIT_SHA=$CIRCLE_SHA1 \
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-              --build-arg PREFECT_VERSION=$CIRCLE_TAG \
+              --build-arg PREFECT_VERSION=master \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:0.14.0-${PYTHON_TAG} \
@@ -499,7 +499,7 @@ jobs:
             docker build \
               --build-arg GIT_SHA=$CIRCLE_SHA1 \
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-              --build-arg PREFECT_VERSION=$CIRCLE_TAG \
+              --build-arg PREFECT_VERSION=master \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:core-0.14.0 \
