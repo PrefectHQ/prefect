@@ -15,6 +15,5 @@ coverage:
         threshold: 1%
 
 ignore:
-  - "src/prefect/contrib/**/*"
   - "src/prefect/tasks/**/*"
   - "src/prefect/environments/**/*"

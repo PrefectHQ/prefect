@@ -44,7 +44,7 @@ def _handle_databricks_task_execution(task, hook, log):
 
     Args:
         - task (prefect.Task) : Prefect task being handled
-        - hook (prefect.contrib.tasks.databricks.databricks_hook.DatabricksHook): Databricks Hook
+        - hook (prefect.tasks.databricks.databricks_hook.DatabricksHook): Databricks Hook
         - log (logger): Prefect logging instance
     """
 
@@ -132,7 +132,7 @@ class DatabricksSubmitRun(Task):
 
     ```
     from prefect.tasks.secrets import PrefectSecret
-    from prefect.contrib.tasks.databricks import DatabricksSubmitRun
+    from prefect.tasks.databricks import DatabricksSubmitRun
 
     with Flow('my flow') as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
@@ -433,7 +433,7 @@ class DatabricksRunNow(Task):
 
     ```
     from prefect.tasks.secrets import PrefectSecret
-    from prefect.contrib.tasks.databricks import DatabricksRunNow
+    from prefect.tasks.databricks import DatabricksRunNow
 
     with Flow('my flow') as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
