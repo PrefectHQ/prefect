@@ -211,20 +211,23 @@ class KubernetesAgent(Agent):
                                 for event in sorted(
                                     pod_events.items, key=lambda x: x.last_timestamp
                                 ):
-                                    # Break out of loop if there are no new events
+                                    # Skip old events
                                     if (
                                         event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
                                             pod_name
                                         ]
                                     ):
-                                        break
+                                        continue
 
                                     self.job_pod_event_timestamps[job_name][
                                         pod_name
                                     ] = event.last_timestamp
 
-                                    log_msg = f"Event: {event.reason!r} on pod {pod_name!r}\n\tMessage: {event.message}"
+                                    log_msg = (
+                                        f"Event: {event.reason!r} on pod {pod_name!r}\n"
+                                        f"\tMessage: {event.message}"
+                                    )
 
                                     # Send pod failure information to flow run logs
                                     self.client.write_run_logs(
