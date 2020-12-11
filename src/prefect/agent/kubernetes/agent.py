@@ -102,7 +102,16 @@ class KubernetesAgent(Agent):
         )
 
         self.namespace = namespace or os.getenv("NAMESPACE", "default")
-        self.service_account_name = service_account_name
+        self.service_account_name = service_account_name or os.getenv(
+            "SERVICE_ACCOUNT_NAME"
+        )
+        if image_pull_secrets is None:
+            image_pull_secrets_env = os.getenv("IMAGE_PULL_SECRETS")
+            image_pull_secrets = (
+                [s.strip() for s in image_pull_secrets_env.split(",")]
+                if image_pull_secrets_env is not None
+                else None
+            )
         self.image_pull_secrets = image_pull_secrets
         self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
@@ -485,7 +494,7 @@ class KubernetesAgent(Agent):
         env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = flow_run.flow.id  # type: ignore
-        env[4]["value"] = os.getenv("NAMESPACE", "default")
+        env[4]["value"] = self.namespace
         env[5]["value"] = str(self.labels)
         env[6]["value"] = str(self.log_to_cloud).lower()
         env[7]["value"] = config.logging.level
@@ -495,10 +504,8 @@ class KubernetesAgent(Agent):
             env.append(dict(name=key, value=value))
 
         # Use image pull secrets if provided
-        image_pull_secrets = os.getenv("IMAGE_PULL_SECRETS")
-        if image_pull_secrets:
-            secrets = image_pull_secrets.split(",")
-            for idx, secret_name in enumerate(secrets):
+        if self.image_pull_secrets:
+            for idx, secret_name in enumerate(self.image_pull_secrets):
                 # this check preserves behavior from previous releases,
                 # where prefect would only overwrite the first entry in
                 # imagePullSecrets
@@ -537,10 +544,10 @@ class KubernetesAgent(Agent):
             job["spec"]["template"]["spec"]["containers"][0][
                 "imagePullPolicy"
             ] = os.getenv("IMAGE_PULL_POLICY")
-        if os.getenv("SERVICE_ACCOUNT_NAME"):
-            job["spec"]["template"]["spec"]["serviceAccountName"] = os.getenv(
-                "SERVICE_ACCOUNT_NAME"
-            )
+        if self.service_account_name:
+            job["spec"]["template"]["spec"][
+                "serviceAccountName"
+            ] = self.service_account_name
 
         return job
 
