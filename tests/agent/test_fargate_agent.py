@@ -10,6 +10,7 @@ from prefect.utilities.graphql import GraphQLResult
 
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
+pytestmark = pytest.mark.filterwarnings("ignore:`FargateAgent` is deprecated")
 
 from botocore.exceptions import ClientError
 
