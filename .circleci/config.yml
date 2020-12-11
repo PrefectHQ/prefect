@@ -501,7 +501,6 @@ jobs:
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PREFECT_VERSION=master \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
-              --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:core-0.14.0 \
               -t prefecthq/prefect:core \
               .
@@ -620,26 +619,26 @@ workflows:
 
   'Build and publish release artifacts':
     jobs:
-      - build_docker_image:
-          python_version: '3.6'
-          extras: 'all_orchestration_extras'
-          # filters:
-          #   branches:
-          #     only: master
-            # tags:
-            #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build_docker_image:
-          python_version: '3.7'
-          extras: 'all_orchestration_extras'
-          tag_latest: true
-          # filters:
-          #   branches:
-          #     only: master
-            # tags:
-            #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build_docker_image:
-          python_version: '3.8'
-          extras: 'all_orchestration_extras'
+      # - build_docker_image:
+      #     python_version: '3.6'
+      #     extras: 'all_orchestration_extras'
+      #     # filters:
+      #     #   branches:
+      #     #     only: master
+      #       # tags:
+      #       #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      # - build_docker_image:
+      #     python_version: '3.7'
+      #     extras: 'all_orchestration_extras'
+      #     tag_latest: true
+      #     # filters:
+      #     #   branches:
+      #     #     only: master
+      #       # tags:
+      #       #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      # - build_docker_image:
+      #     python_version: '3.8'
+      #     extras: 'all_orchestration_extras'
           # filters:
           #   branches:
           #     only: master
