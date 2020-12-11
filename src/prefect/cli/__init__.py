@@ -90,7 +90,7 @@ def config():
     """
     Output Prefect config
     """
-    click.echo(prefect.config.to_dict())
+    click.echo(prefect.config.to_json())
 
 
 @cli.command(hidden=True)
