@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 import os
 import pytz
@@ -123,7 +124,10 @@ class KubernetesAgent(Agent):
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
 
-        self.job_pod_event_timestamps = {}  # type: ignore
+        min_datetime = datetime.min.replace(tzinfo=pytz.UTC)
+        self.job_pod_event_timestamps = defaultdict(  # type: ignore
+            lambda: defaultdict(lambda: min_datetime)
+        )
 
         self.logger.debug(f"Namespace: {self.namespace}")
 
@@ -190,16 +194,6 @@ class KubernetesAgent(Agent):
 
                             # Report recent events for pending pods to flow run logs
                             if pod.status.phase == "Pending":
-                                if not self.job_pod_event_timestamps.get(job_name):
-                                    self.job_pod_event_timestamps[job_name] = {}
-
-                                if not self.job_pod_event_timestamps[job_name].get(
-                                    pod_name
-                                ):
-                                    self.job_pod_event_timestamps[job_name][
-                                        pod_name
-                                    ] = datetime.min.replace(tzinfo=pytz.UTC)
-
                                 pod_events = self.core_client.list_namespaced_event(
                                     namespace=self.namespace,
                                     field_selector="involvedObject.name={}".format(
