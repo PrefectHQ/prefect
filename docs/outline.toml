@@ -390,7 +390,7 @@ classes = ["CreateItem"]
 
 [pages.tasks.mysql]
 title = "MySQL Tasks"
-module = "prefect.contrib.tasks.mysql"
+module = "prefect.tasks.mysql"
 classes = ["MySQLExecute", "MySQLFetch"]
 
 [pages.tasks.notifications]
@@ -425,7 +425,7 @@ classes = ["SnowflakeQuery"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
-module = "prefect.contrib.tasks.databricks"
+module = "prefect.tasks.databricks"
 classes = ["DatabricksSubmitRun", "DatabricksRunNow"]
 
 [pages.tasks.spacy]
