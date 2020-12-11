@@ -232,7 +232,7 @@ class KubernetesAgent(Agent):
                                             dict(
                                                 flow_run_id=flow_run_id,
                                                 name=self.name,
-                                                message="\n".join(pod_event_logs),
+                                                message=log_msg,
                                                 level="DEBUG",
                                                 timestamp=event.last_timestamp.isoformat(),
                                             )
