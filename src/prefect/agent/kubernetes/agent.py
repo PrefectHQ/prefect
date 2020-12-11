@@ -224,10 +224,7 @@ class KubernetesAgent(Agent):
                                         pod_name
                                     ] = event.last_timestamp
 
-                                    pod_event_logs = [
-                                        f"Event: '{event.reason}' on pod '{pod_name}'"
-                                    ]
-                                    pod_event_logs.append(f"\tMessage: {event.message}")
+                                    log_msg = f"Event: {event.reason!r} on pod {pod_name!r}\n\tMessage: {event.message}"
 
                                     # Send pod failure information to flow run logs
                                     self.client.write_run_logs(
