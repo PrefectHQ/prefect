@@ -387,7 +387,7 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} \
+              -t prefecthq/prefect:0.14.0-${PYTHON_TAG} \
               -t prefecthq/prefect:latest-${PYTHON_TAG} \
               .
       - when:
@@ -396,12 +396,12 @@ jobs:
             - run:
                 name: Tag latest image
                 command: |
-                  docker tag prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} prefecthq/prefect:latest
-                  docker tag prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} prefecthq/prefect:${CIRCLE_TAG}
+                  docker tag prefecthq/prefect:0.14.0-${PYTHON_TAG} prefecthq/prefect:latest
+                  docker tag prefecthq/prefect:0.14.0-${PYTHON_TAG} prefecthq/prefect:0.14.0
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:0.14.0-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       # - run:
       #     name: Push versioned tags
       #     command: |
@@ -502,13 +502,13 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:core-${CIRCLE_TAG} \
+              -t prefecthq/prefect:core-0.14.0 \
               -t prefecthq/prefect:core \
               .
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:core-0.14.0 /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       # - run:
       #     name: Push core tag
       #     command: |
