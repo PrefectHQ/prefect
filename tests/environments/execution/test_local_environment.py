@@ -1,5 +1,4 @@
 from unittest.mock import MagicMock
-import pytest
 
 import prefect
 from prefect import Flow
@@ -7,9 +6,6 @@ from prefect.executors import LocalDaskExecutor
 from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
-
-
-pytestmark = pytest.mark.filterwarnings("ignore:`Environment` based flow configuration")
 
 
 class DummyStorage(Local):

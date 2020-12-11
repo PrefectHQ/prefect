@@ -323,9 +323,20 @@ def install(label, env, **kwargs):
 #################
 
 
+def warn_fargate_deprecated():
+    click.secho(
+        "Warning: The Fargate agent is deprecated, please transition to using the ECS agent instead",
+        fg="yellow",
+        err=True,
+    )
+
+
 @agent.group()
 def fargate():
-    """Manage Prefect Fargate agents."""
+    """Manage Prefect Fargate agents (DEPRECATED).
+
+    The Fargate agent is deprecated, please transition to using the ECS agent instead.
+    """
 
 
 @fargate.command(
@@ -334,14 +345,19 @@ def fargate():
 @add_options(COMMON_START_OPTIONS)
 @click.pass_context
 def start(ctx, **kwargs):
-    """Start a Fargate agent"""
+    """Start a Fargate agent (DEPRECATED)
+
+    The Fargate agent is deprecated, please transition to using the ECS agent instead.
+    """
     from prefect.agent.fargate import FargateAgent
+
+    warn_fargate_deprecated()
 
     for item in ctx.args:
         k, v = item.replace("--", "").split("=", 2)
         kwargs[k] = v
 
-    start_agent(FargateAgent, **kwargs)
+    start_agent(FargateAgent, _called_from_cli=True, **kwargs)
 
 
 #############
@@ -633,12 +649,15 @@ def start(
             )
             return
 
-        click.secho(
-            f"Warning: `prefect agent start {agent_option}` is deprecated, use "
-            f"`prefect agent {agent_option} start` instead",
-            fg="yellow",
-            err=True,
-        )
+        if agent_option == "fargate":
+            warn_fargate_deprecated()
+        else:
+            click.secho(
+                f"Warning: `prefect agent start {agent_option}` is deprecated, use "
+                f"`prefect agent {agent_option} start` instead",
+                fg="yellow",
+                err=True,
+            )
 
         env_vars = dict()
         for env_var in env:
@@ -686,6 +705,7 @@ def start(
                 max_polls=max_polls,
                 no_cloud_logs=no_cloud_logs,
                 agent_address=agent_address,
+                _called_from_cli=True,
                 **kwargs,
             ).start()
         elif agent_option == "kubernetes":

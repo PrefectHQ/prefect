@@ -15,9 +15,6 @@ from prefect.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
 
 
-pytestmark = pytest.mark.filterwarnings("ignore:`Environment` based flow configuration")
-
-
 @pytest.fixture
 def default_command_args() -> List[str]:
     return [

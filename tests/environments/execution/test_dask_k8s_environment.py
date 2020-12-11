@@ -13,9 +13,6 @@ from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
-
-pytestmark = pytest.mark.filterwarnings("ignore:`Environment` based flow configuration")
-
 base_flow = prefect.Flow("test", storage=Docker())
 
 

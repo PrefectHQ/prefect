@@ -166,7 +166,12 @@ def test_agent_start(
 
     result = CliRunner().invoke(agent, command)
     if deprecated:
-        assert f"Warning: `prefect agent start {name}` is deprecated" in result.output
+        if name == "fargate":
+            assert f"Warning: The Fargate agent is deprecated" in result.output
+        else:
+            assert (
+                f"Warning: `prefect agent start {name}` is deprecated" in result.output
+            )
 
     kwargs = agent_cls.call_args[1]
     for k, v in expected_kwargs.items():
