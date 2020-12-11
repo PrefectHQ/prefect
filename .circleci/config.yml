@@ -365,16 +365,16 @@ jobs:
       EXTRAS: << parameters.extras >>
     steps:
       - checkout
-      - run:
-          # since this job is kicked off on *any* tag, we want to bail if this commit is not on master.
-          # todo: is there a better way to ensure that this is a commit on master?
-          name: Master branch check
-          command: |
-            apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
-              exit 1
-            fi
+      # - run:
+      #     # since this job is kicked off on *any* tag, we want to bail if this commit is not on master.
+      #     # todo: is there a better way to ensure that this is a commit on master?
+      #     name: Master branch check
+      #     command: |
+      #       apk add git
+      #       if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+      #         echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+      #         exit 1
+      #       fi
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
@@ -402,21 +402,21 @@ jobs:
           name: Test image
           command: |
             docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
-      - run:
-          name: Push versioned tags
-          command: |
-            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}
-            docker push prefecthq/prefect:latest-${PYTHON_TAG}
-      - when:
-          condition: << parameters.tag_latest >>
-          steps:
-            - run:
-                name: Push latest tag
-                command: |
-                  docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-                  docker push prefecthq/prefect:latest
-                  docker push prefecthq/prefect:${CIRCLE_TAG}
+      # - run:
+      #     name: Push versioned tags
+      #     command: |
+      #       docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+      #       docker push prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}
+      #       docker push prefecthq/prefect:latest-${PYTHON_TAG}
+      # - when:
+      #     condition: << parameters.tag_latest >>
+      #     steps:
+      #       - run:
+      #           name: Push latest tag
+      #           command: |
+      #             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+      #             docker push prefecthq/prefect:latest
+      #             docker push prefecthq/prefect:${CIRCLE_TAG}
 
   build_master_docker_image:
     docker:
@@ -482,14 +482,14 @@ jobs:
       PYTHON_VERSION: << parameters.python_version >>
     steps:
       - checkout
-      - run:
-          name: Master branch check
-          command: |
-            apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
-              exit 1
-            fi
+      # - run:
+      #     name: Master branch check
+      #     command: |
+      #       apk add git
+      #       if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+      #         echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+      #         exit 1
+      #       fi
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
@@ -509,19 +509,19 @@ jobs:
           name: Test image
           command: |
             docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
-      - run:
-          name: Push core tag
-          command: |
-            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:core-${CIRCLE_TAG}
-      - when:
-          condition: << parameters.tag_latest >>
-          steps:
-            - run:
-                name: Push latest tag
-                command: |
-                  docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-                  docker push prefecthq/prefect:core
+      # - run:
+      #     name: Push core tag
+      #     command: |
+      #       docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+      #       docker push prefecthq/prefect:core-${CIRCLE_TAG}
+      # - when:
+      #     condition: << parameters.tag_latest >>
+      #     steps:
+      #       - run:
+      #           name: Push latest tag
+      #           command: |
+      #             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+      #             docker push prefecthq/prefect:core
 
 
   promote_server_artifacts:
@@ -588,80 +588,80 @@ orbs:
 workflows:
   version: 2
 
-  'Run tests':
-    jobs:
-      - test_36
-      - test_37
-      - test_38
-      - test_39
-      - test_lower_prefect
-      - test_vanilla_prefect
-      - test_task_library
-      - upload_coverage:
-          requires:
-            - test_36
-            - test_37
-            - test_39
-            - test_vanilla_prefect
+  # 'Run tests':
+  #   jobs:
+  #     # - test_36
+  #     # - test_37
+  #     # - test_38
+  #     # - test_39
+  #     # - test_lower_prefect
+  #     # - test_vanilla_prefect
+  #     # - test_task_library
+  #     # - upload_coverage:
+  #     #     requires:
+  #     #       - test_36
+  #     #       - test_37
+  #     #       - test_39
+  #     #       - test_vanilla_prefect
 
-  'Check code style and docs':
-    jobs:
-      - check_static_analysis
-      - check_documentation
+  # 'Check code style and docs':
+  #   jobs:
+  #     - check_static_analysis
+  #     - check_documentation
 
-  'Build and publish development artifacts':
-    jobs:
-      - build_master_docker_image:
-          python_version: '3.7'
-          extras: 'all_orchestration_extras'
-          filters:
-            branches:
-              only: master
+  # 'Build and publish development artifacts':
+  #   jobs:
+  #     - build_master_docker_image:
+  #         python_version: '3.7'
+  #         extras: 'all_orchestration_extras'
+  #         filters:
+  #           branches:
+  #             only: master
 
   'Build and publish release artifacts':
     jobs:
       - build_docker_image:
           python_version: '3.6'
           extras: 'all_orchestration_extras'
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+          # filters:
+          #   branches:
+          #     only: master
+            # tags:
+            #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.7'
           extras: 'all_orchestration_extras'
           tag_latest: true
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+          # filters:
+          #   branches:
+          #     only: master
+            # tags:
+            #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.8'
           extras: 'all_orchestration_extras'
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - release_to_pypi:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+          # filters:
+          #   branches:
+          #     only: master
+            # tags:
+            #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      # - release_to_pypi:
+      #     filters:
+      #       branches:
+      #         ignore: /.*/
+      #       tags:
+      #         only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
           python_version: '3.8'
           tag_latest: true
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - promote_server_artifacts:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+          # filters:
+          #   branches:
+          #     only: master
+            # tags:
+            #   only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      # - promote_server_artifacts:
+      #     filters:
+      #       branches:
+      #         ignore: /.*/
+      #       tags:
+      #         only: /^[0-9]+\.[0-9]+\.[0-9]+$/
