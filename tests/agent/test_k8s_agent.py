@@ -1,6 +1,7 @@
 import json
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 
 pytest.importorskip("kubernetes")
@@ -1057,6 +1058,61 @@ def test_k8s_agent_manage_jobs_client_call(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     agent.manage_jobs()
+
+
+def test_k8s_agent_manage_pending_pods(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(set_flow_run_state=None, write_run_logs=None)
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    job_mock = MagicMock()
+    job_mock.metadata.labels = {
+        "prefect.io/identifier": "id",
+        "prefect.io/flow_run_id": "fr",
+    }
+    job_mock.metadata.name = "my_job"
+    job_mock.status.failed = False
+    job_mock.status.succeeded = False
+    batch_client = MagicMock()
+    list_job = MagicMock()
+    list_job.metadata._continue = 0
+    list_job.items = [job_mock]
+    batch_client.list_namespaced_job.return_value = list_job
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
+    )
+
+    dt = pendulum.now()
+
+    pod = MagicMock()
+    pod.metadata.name = "pod_name"
+    pod.status.phase = "Pending"
+    event = MagicMock()
+    event.last_timestamp = dt
+    event.reason = "reason"
+    event.message = "message"
+
+    core_client = MagicMock()
+    list_pods = MagicMock()
+    list_pods.items = [pod]
+    list_events = MagicMock()
+    list_events.items = [event]
+
+    core_client.list_namespaced_pod.return_value = list_pods
+    core_client.list_namespaced_event.return_value = list_events
+    monkeypatch.setattr(
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    agent = KubernetesAgent()
+    agent.manage_jobs()
+
+    assert agent.job_pod_event_timestamps["my_job"]["pod_name"] == dt
 
 
 class TestK8sAgentRunConfig:

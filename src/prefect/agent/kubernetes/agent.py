@@ -1,4 +1,7 @@
+from collections import defaultdict
+from datetime import datetime
 import os
+import pytz
 import time
 import uuid
 from typing import Optional, Iterable, List, Any
@@ -121,6 +124,11 @@ class KubernetesAgent(Agent):
         self.core_client = client.CoreV1Api()
         self.k8s_client = client
 
+        min_datetime = datetime.min.replace(tzinfo=pytz.UTC)
+        self.job_pod_event_timestamps = defaultdict(  # type: ignore
+            lambda: defaultdict(lambda: min_datetime)
+        )
+
         self.logger.debug(f"Namespace: {self.namespace}")
 
     def manage_jobs(self) -> None:
@@ -161,6 +169,7 @@ class KubernetesAgent(Agent):
                         )
 
                         for pod in pods.items:
+                            pod_name = pod.metadata.name
                             if pod.status.container_statuses:
                                 for container_status in pod.status.container_statuses:
                                     waiting = container_status.state.waiting
@@ -182,6 +191,50 @@ class KubernetesAgent(Agent):
 
                                         delete_job = True
                                         break
+
+                            # Report recent events for pending pods to flow run logs
+                            if pod.status.phase == "Pending":
+                                pod_events = self.core_client.list_namespaced_event(
+                                    namespace=self.namespace,
+                                    field_selector="involvedObject.name={}".format(
+                                        pod_name
+                                    ),
+                                    timeout_seconds=30,
+                                )
+
+                                for event in sorted(
+                                    pod_events.items, key=lambda x: x.last_timestamp
+                                ):
+                                    # Skip old events
+                                    if (
+                                        event.last_timestamp
+                                        < self.job_pod_event_timestamps[job_name][
+                                            pod_name
+                                        ]
+                                    ):
+                                        continue
+
+                                    self.job_pod_event_timestamps[job_name][
+                                        pod_name
+                                    ] = event.last_timestamp
+
+                                    log_msg = (
+                                        f"Event: {event.reason!r} on pod {pod_name!r}\n"
+                                        f"\tMessage: {event.message}"
+                                    )
+
+                                    # Send pod failure information to flow run logs
+                                    self.client.write_run_logs(
+                                        [
+                                            dict(
+                                                flow_run_id=flow_run_id,
+                                                name=self.name,
+                                                message=log_msg,
+                                                level="DEBUG",
+                                                timestamp=event.last_timestamp.isoformat(),
+                                            )
+                                        ]
+                                    )
 
                     # Report failed pods
                     if job.status.failed:
@@ -266,6 +319,7 @@ class KubernetesAgent(Agent):
                     if delete_job:
                         self.logger.debug(f"Deleting job {job_name}")
                         try:
+                            self.job_pod_event_timestamps.pop(job_name, None)
                             self.batch_client.delete_namespaced_job(
                                 name=job_name,
                                 namespace=self.namespace,

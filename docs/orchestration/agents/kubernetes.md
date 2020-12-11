@@ -190,7 +190,7 @@ prefect-agent-845798bb59-s7wxg   1/1     Running   0          5s
 ```
 
 ### RBAC
- 
+
 The Kubernetes Agent requires certain
 [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
 permissions to work with jobs in its namespace. The proper RBAC configuration
@@ -208,7 +208,7 @@ rules:
   resources: ["jobs"]
   verbs: ["*"]
 - apiGroups: [""]
-  resources: ["pods"]
+  resources: ["events", "pods"]
   verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
