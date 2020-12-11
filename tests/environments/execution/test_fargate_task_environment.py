@@ -11,6 +11,9 @@ from prefect.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
 
 
+pytestmark = pytest.mark.filterwarnings("ignore:`Environment` based flow configuration")
+
+
 def test_create_fargate_task_environment():
     environment = FargateTaskEnvironment()
     assert environment.executor is not None

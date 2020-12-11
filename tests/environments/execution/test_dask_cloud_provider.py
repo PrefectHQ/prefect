@@ -13,6 +13,8 @@ from prefect.environments.execution import DaskCloudProviderEnvironment
 
 from dask_cloudprovider.aws import FargateCluster
 
+pytestmark = pytest.mark.filterwarnings("ignore:`Environment` based flow configuration")
+
 
 def test_create_environment():
     environment = DaskCloudProviderEnvironment(Cluster)
