@@ -18,6 +18,10 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
     KubernetesJobEnvironment is an environment which deploys your flow as a Kubernetes
     job. This environment allows (and requires) a custom job YAML spec to be provided.
 
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+
     When providing a custom YAML job spec the first container in the spec must be the
     container that the flow runner will be executed on.
 

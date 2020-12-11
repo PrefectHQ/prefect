@@ -14,7 +14,13 @@ if TYPE_CHECKING:
 class DaskCloudProviderEnvironment(Environment):
     """
     DaskCloudProviderEnvironment creates Dask clusters using the Dask Cloud Provider
-    project. For each flow run, a new Dask cluster will be dynamically created and the
+    project.
+
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+
+    For each flow run, a new Dask cluster will be dynamically created and the
     flow will run using a `DaskExecutor` with the Dask scheduler address from the newly
     created Dask cluster. You can specify the number of Dask workers manually
     (for example, passing the kwarg `n_workers`) or enable adaptive mode by

@@ -32,11 +32,15 @@ _DEFINITION_KWARG_LIST = [
 class FargateTaskEnvironment(Environment, _RunMixin):
     """
     FargateTaskEnvironment is an environment which deploys your flow as a Fargate task.
-    This environment requires AWS credentials and extra boto3 kwargs which
-    are used in the creation and running of the Fargate task.
 
-    When providing a custom container definition spec the first container in the spec must be the
-    container that the flow runner will be executed on.
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+
+    This environment requires AWS credentials and extra boto3 kwargs which are
+    used in the creation and running of the Fargate task. When providing a
+    custom container definition spec the first container in the spec must be
+    the container that the flow runner will be executed on.
 
     The following environment variables, required for cloud, do not need to be
     included––they are automatically added and populated during execution:

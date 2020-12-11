@@ -11,6 +11,10 @@ class LocalEnvironment(Environment, _RunMixin):
     """
     A LocalEnvironment class for executing a flow in the local process.
 
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+
     Args:
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
             default executor will be used.
