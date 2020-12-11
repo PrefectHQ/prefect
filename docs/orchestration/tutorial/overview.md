@@ -1,3 +1,11 @@
+---
+title: Overview and Setup
+---
+
+<div align="center" style="margin-top:50px; margin-bottom:40px">
+    <img src="/orchestration/tutorial/header-illustration.svg" width=500>
+</div>
+
 # Overview and Setup
 
 Welcome to the Prefect Deployment Tutorial! This tutorial will cover:
