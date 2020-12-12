@@ -266,3 +266,23 @@ def test_serialize_custom_environment():
     assert isinstance(obj, environments.Environment)
     assert obj.labels == {"a", "b", "c"}
     assert obj.metadata == {"test": "here"}
+
+
+def test_deserialize_remote_environment_still_works():
+    """
+    Because so many people used this environment in the past, we want to at least make sure
+    new Agents can still submit them for work.
+    """
+    env = {
+        "type": "RemoteEnvironment",
+        "labels": ["prod"],
+        "executor": "prefect.engine.executors.LocalExecutor",
+        "__version__": "0.9.0",
+        "executor_kwargs": {},
+    }
+    schema = EnvironmentSchema()
+    obj = schema.load(env)
+
+    assert isinstance(obj, environments.Environment)
+    assert obj.labels == {"prod"}
+    assert obj.metadata == {}
