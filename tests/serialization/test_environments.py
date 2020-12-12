@@ -268,13 +268,11 @@ def test_serialize_custom_environment():
     assert obj.metadata == {"test": "here"}
 
 
-def test_deserialize_remote_environment_still_works():
-    """
-    Because so many people used this environment in the past, we want to at least make sure
-    new Agents can still submit them for work.
-    """
+@pytest.mark.parametrize("cls_name", ["RemoteEnvironment", "RemoteDaskEnvironment"])
+def test_deserialize_old_environments_still_work(cls_name):
+    """Check that old removed environments can still be deserialzed in the agent"""
     env = {
-        "type": "RemoteEnvironment",
+        "type": cls_name,
         "labels": ["prod"],
         "executor": "prefect.engine.executors.LocalExecutor",
         "__version__": "0.9.0",

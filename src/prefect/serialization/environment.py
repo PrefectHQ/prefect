@@ -97,6 +97,7 @@ class EnvironmentSchema(OneOfSchema):
         "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
         "CustomEnvironment": CustomEnvironmentSchema,
         "RemoteEnvironment": CustomEnvironmentSchema,
+        "RemoteDaskEnvironment": CustomEnvironmentSchema,
     }
 
     def get_obj_type(self, obj: Any) -> str:
