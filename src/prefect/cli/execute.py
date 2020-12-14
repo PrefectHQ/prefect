@@ -39,7 +39,7 @@ def flow_run():
     query = {
         "query": {
             with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                "flow": {"name": True, "storage": True},
+                "flow": {"name": True, "storage": True, "run_config": True},
                 "version": True,
             }
         }
@@ -65,6 +65,12 @@ def flow_run():
 
         with prefect.context(secrets=secrets, loading_flow=True):
             flow = storage.get_flow(storage.flows[flow_data.name])
+
+        # Load run config from backend if not present on flow object
+        if flow.run_config is None and flow_data.run_config:
+            flow.run_config = prefect.serialization.run_config.RunConfigSchema().load(
+                flow_data.run_config
+            )
 
         with prefect.context(secrets=secrets):
             if getattr(flow, "run_config", None) is not None:
