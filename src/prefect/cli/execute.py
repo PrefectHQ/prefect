@@ -39,7 +39,7 @@ def flow_run():
     query = {
         "query": {
             with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                "flow": {"name": True, "storage": True},
+                "flow": {"name": True, "storage": True, "run_config": True},
                 "version": True,
             }
         }
@@ -67,7 +67,7 @@ def flow_run():
             flow = storage.get_flow(storage.flows[flow_data.name])
 
         with prefect.context(secrets=secrets):
-            if getattr(flow, "run_config", None) is not None:
+            if flow_data.run_config is not None:
                 runner_cls = get_default_flow_runner_class()
                 runner_cls(flow=flow).run()
             else:
