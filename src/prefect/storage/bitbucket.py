@@ -21,7 +21,9 @@ class Bitbucket(Storage):
 
     ```python
     flow = Flow("my-flow")
-    flow.storage = Bitbucket(project="my.project",repo="my.repo", path="/flows/flow.py", ref="my-branch")
+    flow.storage = Bitbucket(
+        project="my.project", repo="my.repo", path="/flows/flow.py", ref="my-branch"
+    )
     ```
 
     - Push this `flow.py` file to the `my.repo` repository under `/flows/flow.py` inside "my.project"
