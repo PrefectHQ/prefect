@@ -66,12 +66,6 @@ def flow_run():
         with prefect.context(secrets=secrets, loading_flow=True):
             flow = storage.get_flow(storage.flows[flow_data.name])
 
-        # Load run config from backend if not present on flow object
-        if flow.run_config is None and flow_data.run_config:
-            flow.run_config = prefect.serialization.run_config.RunConfigSchema().load(
-                flow_data.run_config
-            )
-
         with prefect.context(secrets=secrets):
             if flow_data.run_config is not None:
                 runner_cls = get_default_flow_runner_class()
