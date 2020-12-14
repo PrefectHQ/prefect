@@ -21,7 +21,6 @@ from typing import (
 
 import prefect
 import prefect.engine.cache_validators
-from prefect.engine.results import ResultHandlerResult
 import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
@@ -31,7 +30,6 @@ from prefect.utilities.edges import EdgeAnnotation
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
     from prefect.engine.result import Result
-    from prefect.engine.result_handlers import ResultHandler
     from prefect.engine.state import State
     from prefect.core import Edge
 
@@ -248,12 +246,9 @@ class Task(metaclass=TaskMetaclass):
             be used if running locally, or the Task's database ID if running in
             Cloud
         - checkpoint (bool, optional): if this Task is successful, whether to
-            store its result using the `result_handler` available during the run;
+            store its result using the configured result available during the run;
             Also note that checkpointing will only occur locally if
             `prefect.config.flows.checkpointing` is set to `True`
-        - result_handler (ResultHandler, optional, DEPRECATED): the handler to
-            use for retrieving and storing state results during execution; if not
-            provided, will default to the one attached to the Flow
         - result (Result, optional): the result instance used to retrieve and
             store task results during execution
         - target (Union[str, Callable], optional): location to check for task Result. If a result
@@ -310,7 +305,6 @@ class Task(metaclass=TaskMetaclass):
         cache_validator: Callable = None,
         cache_key: str = None,
         checkpoint: bool = None,
-        result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         log_stdout: bool = False,
@@ -384,16 +378,7 @@ class Task(metaclass=TaskMetaclass):
         )
         self.cache_validator = cache_validator or default_validator
         self.checkpoint = checkpoint
-        if result_handler:
-            warnings.warn(
-                "Result Handlers are deprecated; please use the new style Result classes instead.",
-                stacklevel=2,
-            )
-            self.result = ResultHandlerResult.from_result_handler(
-                result_handler
-            )  # type: Optional[Result]
-        else:
-            self.result = result
+        self.result = result
 
         self.target = target
 

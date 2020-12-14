@@ -6,8 +6,7 @@ import pytest
 
 import prefect
 from prefect.engine import results, state
-from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.result import Result
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -25,9 +24,9 @@ from marshmallow import Schema
 
 
 def complex_states():
-    res1 = SafeResult(1, result_handler=JSONResultHandler())
-    res2 = SafeResult({"z": 2}, result_handler=JSONResultHandler())
-    res3 = SafeResult(dict(x=1, y={"z": 2}), result_handler=JSONResultHandler())
+    res1 = results.PrefectResult(value=1)
+    res2 = results.PrefectResult(value={"z": 2})
+    res3 = results.PrefectResult(value=dict(x=1, y={"z": 2}))
     naive_dt = datetime.datetime(2020, 1, 1)
     utc_dt = pendulum.datetime(2020, 1, 1)
     complex_result = {"x": res1, "y": res2}
@@ -357,3 +356,21 @@ class TestNewStyleResults:
 
         assert new_state.cached_inputs["x"].location == '"foo"'
         assert new_state.cached_inputs["y"].location == '"bar"'
+
+
+@pytest.mark.parametrize(
+    "old_json",
+    [
+        {
+            "type": "Success",
+            "_result": {"type": "NoResultType", "__version__": "0.6.0"},
+            "message": "Task run succeeded.",
+            "__version__": "0.6.0",
+        }
+    ],
+)
+def test_can_deserialize_old_no_result(old_json):
+    schema = StateSchema()
+
+    state = schema.load(old_json)
+    assert state.is_successful()

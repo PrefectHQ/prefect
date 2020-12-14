@@ -38,9 +38,7 @@ from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.core.task import Task
 from prefect.executors import Executor
-from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import ResultHandler
-from prefect.engine.results import ResultHandlerResult
+from prefect.engine.result import Result
 from prefect.environments import Environment
 from prefect.storage import Storage, get_default_storage_class
 from prefect.run_configs import RunConfig, UniversalRun
@@ -129,10 +127,8 @@ class Flow:
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks that determine the final
             state of a flow
-        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to
-            retrieve and store task results during execution
-        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
-            retrieving and storing state results during execution
+        - result (Result, optional): the result instance used to retrieve and store
+            task results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -163,7 +159,6 @@ class Flow:
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         validate: bool = None,
-        result_handler: Optional[ResultHandler] = None,
         result: Optional[Result] = None,
     ):
         self._cache = {}  # type: dict
@@ -178,16 +173,7 @@ class Flow:
         self.environment = environment
         self.run_config = run_config
         self.storage = storage
-        if result_handler:
-            warnings.warn(
-                "Result Handlers are deprecated; please use the new style Result classes instead.",
-                stacklevel=2,
-            )
-            self.result = ResultHandlerResult.from_result_handler(
-                result_handler
-            )  # type: Optional[Result]
-        else:
-            self.result = result
+        self.result = result
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -1243,9 +1229,9 @@ class Flow:
             **kwargs,
         )
 
-        # state always should return a dict of tasks. If it's NoResult (meaning the run was
+        # state always should return a dict of tasks. If it's empty (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state._result == NoResult:
+        if not state._result:
             state.result = {}
         elif isinstance(state.result, Exception):
             self.logger.error(
@@ -1667,7 +1653,7 @@ class Flow:
                 obj.labels.update(self.storage.labels)
                 obj.labels.update(labels or ())
 
-        # register the flow with a default result handler if one not provided
+        # register the flow with a default result if one not provided
         if not self.result:
             self.result = self.storage.result
 
