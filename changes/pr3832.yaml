@@ -1,0 +1,3 @@
+enhancement:
+  - "`execute flow-run` command now sends flow run log in the case of an error - [#3832](https://github.com/PrefectHQ/prefect/pull/3832)"
+  - "Changed name of logs raised by the Kubernetes Agent if they stem from infrastructure events - [#3832](https://github.com/PrefectHQ/prefect/pull/3832)"
