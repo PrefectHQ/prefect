@@ -28,7 +28,7 @@ def test_register_flow_help():
 
 
 @pytest.mark.parametrize("labels", [[], ["b", "c"]])
-@pytest.mark.parametrize("kind", ["run_config", "environment"])
+@pytest.mark.parametrize("kind", ["run_config", "environment", "neither"])
 def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
     client = MagicMock()
     monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
@@ -41,13 +41,19 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
             "f = Flow('test-flow', environment=LocalEnvironment(labels=['a']),\n"
             "   storage=Local(add_default_labels=False))"
         )
-    else:
+    elif kind == "run_config":
         contents = (
             "from prefect import Flow\n"
             "from prefect.run_configs import KubernetesRun\n"
             "from prefect.storage import Local\n"
             "f = Flow('test-flow', run_config=KubernetesRun(labels=['a']),\n"
             "   storage=Local(add_default_labels=False))"
+        )
+    else:
+        contents = (
+            "from prefect import Flow\n"
+            "from prefect.storage import Local\n"
+            "f = Flow('test-flow', storage=Local(add_default_labels=False))"
         )
 
     full_path = str(tmpdir.join("flow.py"))
@@ -67,7 +73,9 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
     flow = client.register.call_args[1]["flow"]
     if kind == "run_config":
         assert flow.run_config.labels == {"a", *labels}
-    else:
+    elif kind == "environment":
         assert flow.environment.labels == {"a", *labels}
+    else:
+        assert flow.run_config.labels == {*labels}
 
     assert result.exit_code == 0
