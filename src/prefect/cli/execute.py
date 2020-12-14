@@ -73,7 +73,7 @@ def flow_run():
             )
 
         with prefect.context(secrets=secrets):
-            if getattr(flow, "run_config", None) is not None:
+            if flow_data.run_config is not None:
                 runner_cls = get_default_flow_runner_class()
                 runner_cls(flow=flow).run()
             else:
