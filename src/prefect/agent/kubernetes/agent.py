@@ -237,7 +237,7 @@ class KubernetesAgent(Agent):
                                         [
                                             dict(
                                                 flow_run_id=flow_run_id,
-                                                name=self.name,
+                                                name="k8s-infra",
                                                 message=log_msg,
                                                 level="DEBUG",
                                                 timestamp=event.last_timestamp.isoformat(),
@@ -298,7 +298,7 @@ class KubernetesAgent(Agent):
                                 [
                                     dict(
                                         flow_run_id=flow_run_id,
-                                        name=self.name,
+                                        name="k8s-infra",
                                         message="\n".join(pod_status_logs),
                                         level="ERROR",
                                     )

@@ -78,5 +78,13 @@ def flow_run():
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)
         client.set_flow_run_state(flow_run_id=flow_run_id, state=state)
+        client.write_run_logs(
+            dict(
+                flow_run_id=flow_run_id,  # type: ignore
+                name="execute flow-run",
+                message=msg,
+                level="ERROR",
+            )
+        )
         click.echo(str(exc))
         raise exc
