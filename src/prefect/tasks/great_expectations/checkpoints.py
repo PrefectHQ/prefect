@@ -247,9 +247,6 @@ class RunGreatExpectationsValidation(Task):
             run_id={"run_name": run_name or prefect.context.get("task_slug")},
         )
 
-        if results.success is False:
-            raise signals.FAIL(result=results)
-
         # Generate artifact markdown
         if not disable_markdown_artifact:
             run_info_at_end = True
@@ -270,6 +267,9 @@ class RunGreatExpectationsValidation(Task):
             )
 
             create_markdown(markdown_artifact)
+
+        if results.success is False:
+            raise signals.FAIL(result=results)
 
         return results
 
