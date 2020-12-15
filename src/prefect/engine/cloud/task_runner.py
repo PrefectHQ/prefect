@@ -54,31 +54,6 @@ class CloudTaskRunner(TaskRunner):
             task=task, state_handlers=state_handlers, flow_result=flow_result
         )
 
-    def _heartbeat(self) -> bool:
-        try:
-            task_run_id = self.task_run_id  # type: str
-            self.heartbeat_cmd = ["prefect", "heartbeat", "task-run", "-i", task_run_id]
-            self.client.update_task_run_heartbeat(task_run_id)
-
-            # use empty string for testing purposes
-            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
-            query = {
-                "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                        "flow": {"settings": True},
-                    }
-                }
-            }
-            flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if not flow_run.flow.settings.get("heartbeat_enabled", True):
-                return False
-            return True
-        except Exception:
-            self.logger.exception(
-                "Heartbeat failed for Task '{}'".format(self.task.name)
-            )
-            return False
-
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
         A special state handler that the TaskRunner uses to call its task's state handlers.
