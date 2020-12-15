@@ -76,14 +76,6 @@ def test_safe_result_disallows_none_result_handler_at_deserialization_time():
         schema.load(serialized)
 
 
-@pytest.mark.parametrize(
-    "obj", [SafeResult(value=19, result_handler=JSONResultHandler()), NoResult]
-)
-def test_state_result_schema_chooses_schema(obj):
-    schema = StateResultSchema()
-    assert type(schema.load(schema.dump(obj))) == type(obj)
-
-
 def test_value_raises_error_on_dump_if_not_valid_json():
     r = SafeResult(
         value={"x": {"y": {"z": lambda: 1}}}, result_handler=JSONResultHandler()

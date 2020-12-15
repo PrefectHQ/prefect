@@ -249,7 +249,7 @@ class TestToResult:
     "obj",
     [
         Result(3),
-        Result(object, value=lambda: None),
+        Result(object, location=lambda: None),
     ],
 )
 def test_everything_is_pickleable_after_init(obj):
