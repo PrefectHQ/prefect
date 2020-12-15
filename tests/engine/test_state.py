@@ -5,9 +5,8 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import Result
 from prefect.engine.results import PrefectResult
-from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cancelled,
     Cached,
@@ -32,7 +31,6 @@ from prefect.engine.state import (
     ValidationFailed,
     _MetaState,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -53,7 +51,7 @@ class TestCreateStates:
         state = cls()
         assert state.message is None
         assert state.result is None
-        assert state._result == NoResult
+        assert state._result == Result()
         assert state.context == dict()
         assert state.cached_inputs == dict()
 
@@ -61,8 +59,6 @@ class TestCreateStates:
     def test_create_state_with_kwarg_result_arg(self, cls):
         state = cls(result=1)
         assert isinstance(state._result, Result)
-        assert state._result.safe_value is NoResult
-        assert state._result.result_handler is None
         assert state.result == 1
         assert state.message is None
         assert isinstance(state._result, Result)
@@ -91,7 +87,7 @@ class TestCreateStates:
     def test_create_state_with_positional_message_arg(self, cls):
         state = cls("i am a string")
         assert state.message == "i am a string"
-        assert state._result == NoResult
+        assert state._result == Result()
 
     @pytest.mark.parametrize("cls", all_states)
     def test_create_state_with_data_and_message(self, cls):
@@ -115,7 +111,7 @@ class TestCreateStates:
             state = cls()
         assert state.message is None
         assert state.result is None
-        assert state._result == NoResult
+        assert state._result == Result()
         assert state.context == dict(tags=list(set("abcdef")))
 
         with prefect.context(task_tags=set("abcdef")):
@@ -269,44 +265,6 @@ def test_serialize_and_deserialize_on_mixed_cached_state():
     assert new_state._result.location == json.dumps(dict(hi=5, bye=6))
     assert new_state.cached_result_expiration == state.cached_result_expiration
     assert new_state.cached_inputs == dict.fromkeys(["x", "p"], PrefectResult())
-
-
-def test_serialize_and_deserialize_on_safe_cached_state():
-    safe = SafeResult("99", result_handler=JSONResultHandler())
-    safe_dct = SafeResult(dict(hi=5, bye=6), result_handler=JSONResultHandler())
-    now = pendulum.now("utc")
-    state = Cached(
-        cached_inputs=dict(x=safe, p=safe),
-        result=safe_dct,
-        cached_result_expiration=now,
-    )
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Cached)
-    assert new_state.color == state.color
-    assert new_state.result == dict(hi=5, bye=6)
-    assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == state.cached_inputs
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
-def test_serialization_of_cached_inputs_with_safe_values(cls):
-    safe5 = SafeResult(5, result_handler=JSONResultHandler())
-    state = cls(cached_inputs=dict(hi=safe5, bye=safe5))
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == state.cached_inputs
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
-def test_serialization_of_cached_inputs_with_unsafe_values(cls):
-    unsafe5 = PrefectResult(value=5)
-    state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == dict(hi=PrefectResult(), bye=PrefectResult())
 
 
 def test_state_equality():

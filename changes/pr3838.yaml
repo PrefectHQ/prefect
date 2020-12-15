@@ -1,0 +1,2 @@
+breaking:
+  - "Remove all references to result handlers, safe results and NoResults - [#3838](https://github.com/PrefectHQ/prefect/pull/3838)"

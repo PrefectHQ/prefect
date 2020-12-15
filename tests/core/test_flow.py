@@ -28,7 +28,6 @@ from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
-from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError, FAIL, LOOP
 from prefect.engine.state import (
     Cancelled,
@@ -2616,7 +2615,7 @@ class TestFlowDiagnostics:
                 storage=prefect.storage.Local(),
                 run_config=prefect.run_configs.LocalRun(),
                 schedule=prefect.schedules.Schedule(clocks=[]),
-                result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+                result=prefect.engine.results.PrefectResult(),
             )
 
             monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")

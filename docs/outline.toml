@@ -196,7 +196,7 @@ classes = ["TaskRunner"]
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
-classes = ["Result", "SafeResult", "NoResultType"]
+classes = ["Result"]
 
 [pages.engine.results]
 title = "Result Subclasses"
@@ -207,11 +207,6 @@ classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult
 title = "Result Serializers"
 module = "prefect.engine.serializers"
 classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer"]
-
-[pages.engine.result_handlers]
-title = "Result Handlers"
-module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler", "SecretResultHandler"]
 
 [pages.engine.cloud]
 title = "Cloud"
