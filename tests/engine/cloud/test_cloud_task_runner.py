@@ -480,62 +480,6 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
 
 
-class TestHeartBeats:
-    def test_heartbeat_traps_errors_caused_by_client(self, caplog, monkeypatch):
-        client = MagicMock(graphql=MagicMock(side_effect=SyntaxError))
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
-        runner = CloudTaskRunner(task=Task(name="bad"))
-        runner.task_run_id = None
-        res = runner._heartbeat()
-        assert res is False
-
-        log = caplog.records[0]
-        assert log.levelname == "ERROR"
-        assert "Heartbeat failed for Task 'bad'" in log.message
-
-    def test_heartbeat_traps_errors_caused_by_bad_attributes(self, caplog, monkeypatch):
-        monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", MagicMock())
-        runner = CloudTaskRunner(task=Task())
-        res = runner._heartbeat()
-        assert res is False
-
-        log = caplog.records[0]
-        assert log.levelname == "ERROR"
-        assert "Heartbeat failed for Task 'Task'" in log.message
-
-    @pytest.mark.parametrize("setting_available", [True, False])
-    def test_task_runner_heartbeat_sets_command(self, monkeypatch, setting_available):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
-        client.graphql.return_value.data.flow_run_by_pk.flow.settings = (
-            dict(heartbeat_enabled=True) if setting_available else {}
-        )
-
-        runner = CloudTaskRunner(task=Task())
-        runner.task_run_id = "foo"
-        res = runner._heartbeat()
-        assert res is True
-        assert runner.task_run_id == "foo"
-        assert runner.heartbeat_cmd == ["prefect", "heartbeat", "task-run", "-i", "foo"]
-
-    def test_task_runner_does_not_have_heartbeat_if_disabled(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
-        client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-            heartbeat_enabled=False
-        )
-        runner = CloudTaskRunner(task=Task())
-        runner.task_run_id = "foo"
-        res = runner._heartbeat()
-        assert res is False
-
-
 class TestStateResultHandling:
     def test_task_runner_handles_outputs_prior_to_setting_state(self, client):
         @prefect.task(cache_for=datetime.timedelta(days=1), result=PrefectResult())

@@ -1,0 +1,2 @@
+enhancement:
+  - "Remove task run level heartbeats for performance - [#3842](https://github.com/PrefectHQ/prefect/pull/3842)"
