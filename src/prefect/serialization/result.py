@@ -4,7 +4,6 @@ from typing import Any
 from prefect.engine import result, results
 from prefect.tasks.secrets import SecretBase
 from prefect.utilities.serialization import (
-    JSONCompatible,
     ObjectSchema,
     OneOfSchema,
     to_qualified_name,
