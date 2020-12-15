@@ -126,10 +126,10 @@ class AzureResult(Result):
             client = self.service.get_blob_client(
                 container=self.container, blob=location
             )
-            content_string = client.download_blob()
+            content_bytes = client.download_blob().content_as_bytes()
 
             try:
-                new.value = new.serializer.deserialize(content_string)
+                new.value = new.serializer.deserialize(content_bytes)
             except EOFError:
                 new.value = None
             self.logger.debug("Finished downloading result from {}.".format(location))
