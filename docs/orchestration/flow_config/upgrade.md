@@ -1,7 +1,7 @@
 # Upgrading from Prefect < 0.14.0
 
 Prefect 0.14.0 included a new Flow configuration system based on
-[RunConfig](./run_configs.md) objects. The replaces the previous system based
+[RunConfig](./run_configs.md) objects. This replaces the previous system based
 on [Environment](/orchestration/execution/overview.md) objects, with
 `Environment` based configuration being deprecated.
 
@@ -31,7 +31,7 @@ agent type (e.g. `LocalRun` for `LocalAgent`, `KuberenetesRun` for
 `KubernetesAgent`, ...), and contain platform-specific configuration options
 (e.g. `image`, ...). The exception to this is
 [UniversalRun](./run_configs.md#universalrun), which works with any agent (but
-only contains configuration for setting [labels](./run_config.md#labels).
+only contains configuration for setting [labels](./run_config.md#labels)).
 
 `LocalEnvironment` also contained an option to configure an
 [Executor](./executors.md) for the flow run - this option has been moved to
