@@ -10,7 +10,7 @@ import requests
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
-from prefect.engine.result import SafeResult
+from prefect.engine.result import Result
 from prefect.engine.state import Pending, Running, State
 from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
@@ -609,7 +609,7 @@ def test_client_register_optionally_avoids_building_flow(
     ):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow.result = prefect.engine.result.Result()
+    flow.result = Result()
 
     client.register(
         flow,
@@ -643,7 +643,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow.result = prefect.engine.result.Result()
+    flow.result = Result()
 
     with pytest.raises(ValueError) as exc:
         client.register(flow, project_name="my-default-project", no_url=True)
@@ -732,7 +732,7 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
     # this will fail at deserialization
     task.max_retries = 3
     flow = prefect.Flow(name="test", tasks=[task])
-    flow.result = prefect.engine.result.Result()
+    flow.result = Result()
 
     with pytest.raises(
         ValueError,
@@ -888,9 +888,8 @@ def test_get_flow_run_info(patch_post):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+309.gf1db024",
@@ -931,7 +930,7 @@ def test_get_flow_run_info(patch_post):
     assert result.scheduled_start_time.minute == 15
     assert result.scheduled_start_time.year == 2019
     assert isinstance(result.state, Pending)
-    assert result.state.result == "42"
+    assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.version == 0
     assert isinstance(result.parameters, dict)
@@ -951,9 +950,8 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+309.gf1db024",
@@ -994,7 +992,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
     assert result.scheduled_start_time.minute == 15
     assert result.scheduled_start_time.year == 2019
     assert isinstance(result.state, Pending)
-    assert result.state.result == "42"
+    assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.version == 0
     assert isinstance(result.parameters, dict)
@@ -1025,9 +1023,8 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
@@ -1041,7 +1038,7 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
     client = Client()
     state = client.get_flow_run_state(flow_run_id="72-salt")
     assert isinstance(state, Pending)
-    assert state.result == "42"
+    assert state._result.location == "42"
     assert state.message is None
 
 
@@ -1158,9 +1155,8 @@ def test_get_task_run_info(patch_posts):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
@@ -1183,7 +1179,7 @@ def test_get_task_run_info(patch_posts):
     )
     assert isinstance(result, TaskRunInfoResult)
     assert isinstance(result.state, Pending)
-    assert result.state.result == "42"
+    assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.id == "772bd9ee-40d7-479c-9839-4ab3a793cabd"
     assert result.version == 0
@@ -1228,9 +1224,8 @@ def test_get_task_run_state(patch_posts, cloud_api, runner_token):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
@@ -1244,7 +1239,7 @@ def test_get_task_run_state(patch_posts, cloud_api, runner_token):
     client = Client()
     state = client.get_task_run_state(task_run_id="72-salt")
     assert isinstance(state, Pending)
-    assert state.result == "42"
+    assert state._result.location == "42"
     assert state.message is None
 
 
@@ -1313,26 +1308,6 @@ def test_set_task_run_state_responds_to_config_when_queued(patch_post):
     assert result.state is None  # caller should set this
     assert result.message == "hol up"
     assert result.start_time >= pendulum.now("UTC").add(seconds=749)
-
-
-def test_set_task_run_state_serializes(patch_post):
-    response = {"data": {"set_task_run_states": {"states": [{"status": "SUCCESS"}]}}}
-    patch_post(response)
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-
-    res = SafeResult(lambda: None, result_handler=None)
-    with pytest.raises(marshmallow.exceptions.ValidationError):
-        client.set_task_run_state(
-            task_run_id="76-salt", version=0, state=Pending(result=res)
-        )
 
 
 def test_set_task_run_state_with_error(patch_post):
