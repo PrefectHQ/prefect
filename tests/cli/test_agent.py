@@ -232,7 +232,7 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
     command.extend(
         (
             "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
-            "--api TEST_API --namespace TEST_NAMESPACE --resource-manager --rbac "
+            "--api TEST_API --namespace TEST_NAMESPACE --rbac "
             "--latest --image-pull-secrets secret-test --mem-request mem_req "
             "--mem-limit mem_lim --cpu-request cpu_req --cpu-limit cpu_lim "
             "--image-pull-policy custom_policy --service-account-name svc_name "
@@ -246,7 +246,6 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
         "api": "TEST_API",
         "namespace": "TEST_NAMESPACE",
-        "resource_manager_enabled": True,
         "rbac": True,
         "latest": True,
         "image_pull_secrets": "secret-test",
