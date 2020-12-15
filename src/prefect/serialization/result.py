@@ -17,6 +17,11 @@ class ResultSchema(ObjectSchema):
     location = fields.Str(allow_none=True)
 
 
+class NoResultSchema(ObjectSchema):
+    class Meta:
+        object_class = result.NoResultType
+
+
 class CustomResultSchema(ObjectSchema):
     class Meta:
         object_class = lambda: result.Result
@@ -116,6 +121,7 @@ class StateResultSchema(OneOfSchema):
         "PrefectResult": PrefectResultSchema,
         "S3Result": S3ResultSchema,
         "SecretResult": SecretResultSchema,
+        "NoResultType": NoResultSchema,
     }
 
     def _load(self, data, *args, **kwargs):

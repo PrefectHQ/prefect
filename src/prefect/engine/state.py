@@ -53,7 +53,7 @@ class State:
         cached_inputs: Dict[str, Result] = None,
     ):
         self.message = message
-        self.result = result or NoResult
+        self.result = result if result is not None else NoResult
         self.context = context or dict()
         self.cached_inputs = cached_inputs or dict()  # type: Dict[str, Result]
         if "task_tags" in prefect.context:

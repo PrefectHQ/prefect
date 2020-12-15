@@ -671,3 +671,8 @@ def test_n_map_states():
 
     state = Mapped(map_states=[1, 2], n_map_states=4)
     assert state.n_map_states == 4
+
+
+def test_init_with_falsey_value():
+    state = Success(result={})
+    assert state.result == {}

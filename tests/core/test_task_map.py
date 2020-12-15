@@ -7,7 +7,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.flow_runner import FlowRunner
-from prefect.engine.result import Result
+from prefect.engine.result import Result, NoResult
 from prefect.engine.state import Mapped, Pending, Retrying, Success
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task
@@ -326,7 +326,7 @@ def test_map_skips_dont_leak_out(executor):
     assert len(m.result) == 3
     assert m.result == [None, 4, 5]
     assert m.map_states[0].result is None
-    assert m.map_states[0]._result == Result()
+    assert m.map_states[0]._result == NoResult
     assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
 

@@ -6,7 +6,7 @@ import pytest
 
 import prefect
 from prefect.engine import results, state
-from prefect.engine.result import Result
+from prefect.engine.result import Result, NoResult
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -87,8 +87,7 @@ def test_serialize_state_with_no_result(cls):
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] == "message"
-    assert serialized["_result"]["type"] == "Result"
-    assert serialized["_result"]["location"] is None
+    assert serialized["_result"]["type"] == "NoResultType"
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -203,7 +202,7 @@ def test_deserialize_mapped():
     assert isinstance(deserialized, state.Mapped)
     assert len(deserialized.map_states) == 2
     assert deserialized.map_states == [None, None]
-    assert deserialized._result == Result()
+    assert deserialized._result == NoResult
     assert deserialized.result is None
 
 
@@ -213,7 +212,7 @@ def test_deserialize_state_from_only_type(cls):
     new_state = StateSchema().load(serialized)
     assert isinstance(new_state, cls)
     assert new_state.message is None
-    assert new_state._result == Result()
+    assert new_state._result == NoResult
     assert new_state.result is None
 
 
@@ -243,7 +242,7 @@ def test_deserialize_json_with_context():
     assert deserialized.message is None
     assert deserialized.context == dict(boo=["a", "b", "c"])
     assert deserialized.result is None
-    assert deserialized._result == Result()
+    assert deserialized._result == NoResult
 
 
 def test_deserialize_json_without_version():
@@ -252,7 +251,7 @@ def test_deserialize_json_without_version():
     assert deserialized.is_running()
     assert deserialized.message == "test"
     assert deserialized.result is None
-    assert deserialized._result == Result()
+    assert deserialized._result == NoResult
 
 
 def test_deserialize_handles_unknown_fields():
