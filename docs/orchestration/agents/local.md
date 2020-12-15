@@ -18,7 +18,9 @@ installed](/core/getting_started/installation.md).
 If running the local agent inside a Docker container, we recommend you also use
 an init process like [`tini`](https://github.com/krallin/tini). Running without
 an init process may result in lingering zombie processes accumulating in your
-container.
+container. If you're using the [official Prefect docker
+images](/core/getting_started/installation.md#docker) then this is already
+handled for you.
 :::
 
 ## Flow Configuration
