@@ -2184,7 +2184,9 @@ class TestLooping:
 
             def write(self, obj, **kwargs):
                 self.data.append(obj)
-                return self.data.index(obj)
+                self.location = self.data.index(obj)
+                self.value = obj
+                return self
 
             def read(self, idx, **kwargs):
                 return self.data[idx]
@@ -2201,8 +2203,8 @@ class TestLooping:
 
         state = TaskRunner(my_task).run(context={"checkpointing": True})
         assert state.is_successful()
-        assert state.result == 3
         assert result.data == [1, 2, 3]
+        assert state.result == 3
 
     def test_looping_works_with_retries(self):
         @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))

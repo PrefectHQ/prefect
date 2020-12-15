@@ -377,16 +377,16 @@ class TestFilterTask:
 
     def test_default_filter_func_filters_noresults_and_exceptions(self):
         task = FilterTask()
-        res = task.run([NoResult, NoResult, 0, 1, 5, "", ValueError()])
+        res = task.run([None, 0, 1, 5, "", ValueError()])
         assert len(res) == 4
         assert res == [0, 1, 5, ""]
 
     def test_filter_func_can_be_changed(self):
         task = FilterTask(filter_func=lambda r: r != 5)
         exc = ValueError()
-        res = task.run([NoResult, NoResult, 0, 1, 5, "", exc])
-        assert len(res) == 6
-        assert res == [NoResult, NoResult, 0, 1, "", exc]
+        res = task.run([None, 0, 1, 5, "", exc])
+        assert len(res) == 5
+        assert res == [None, 0, 1, "", exc]
 
 
 @task

@@ -98,7 +98,7 @@ def vclient(monkeypatch):
 
 
 def test_task_runner_puts_cloud_in_context(client):
-    @prefect.task(result_handler=ResultHandler())
+    @prefect.task(result=Result())
     def whats_in_ctx():
         return prefect.context.get("checkpointing")
 
@@ -203,14 +203,14 @@ def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updat
 
 
 def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
-    @prefect.task(cache_for=datetime.timedelta(minutes=1))
+    @prefect.task(cache_for=datetime.timedelta(minutes=1), result=PrefectResult())
     def cached_task():
         return 42
 
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(days=1),
-        result=Result(99, JSONResultHandler()),
+        result=PrefectResult(location="99"),
     )
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
@@ -227,21 +227,19 @@ def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
 
 
 def test_task_runner_validates_cached_states_if_task_has_caching(client):
-    @prefect.task(
-        cache_for=datetime.timedelta(minutes=1), result_handler=JSONResultHandler()
-    )
+    @prefect.task(cache_for=datetime.timedelta(minutes=1), result=PrefectResult())
     def cached_task():
         return 42
 
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         - datetime.timedelta(minutes=2),
-        result=Result(99, JSONResultHandler()),
+        result=PrefectResult(location="99"),
     )
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         - datetime.timedelta(days=1),
-        result=Result(13, JSONResultHandler()),
+        result=PrefectResult(location="13"),
     )
     client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
 
@@ -253,9 +251,7 @@ def test_task_runner_validates_cached_states_if_task_has_caching(client):
 
 
 def test_task_runner_treats_unfound_files_as_invalid_caches(client, tmpdir):
-    @prefect.task(
-        cache_for=datetime.timedelta(minutes=1), result_handler=JSONResultHandler()
-    )
+    @prefect.task(cache_for=datetime.timedelta(minutes=1), result=PrefectResult())
     def cached_task():
         return 42
 
@@ -267,7 +263,7 @@ def test_task_runner_treats_unfound_files_as_invalid_caches(client, tmpdir):
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(days=1),
-        result=Result(13, JSONResultHandler()),
+        result=PrefectResult(location="13"),
     )
     client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
 
@@ -712,7 +708,7 @@ def test_task_runner_performs_retries_for_short_delays(client):
 
 
 def test_task_runner_handles_looping(client):
-    @prefect.task(result_handler=ResultHandler())
+    @prefect.task(result=PrefectResult())
     def looper():
         if prefect.context.get("task_loop_count", 1) < 3:
             raise LOOP(result=prefect.context.get("task_loop_result", 0) + 10)
@@ -737,7 +733,7 @@ def test_task_runner_handles_looping(client):
 
 
 def test_task_runner_handles_looping_with_no_result(client):
-    @prefect.task(result_handler=ResultHandler())
+    @prefect.task(result=Result())
     def looper():
         if prefect.context.get("task_loop_count", 1) < 3:
             raise LOOP()
@@ -766,7 +762,7 @@ def test_task_runner_handles_looping_with_retries_with_no_result(client):
     @prefect.task(
         max_retries=1,
         retry_delay=datetime.timedelta(seconds=0),
-        result_handler=JSONResultHandler(),
+        result=PrefectResult(),
     )
     def looper():
         if (
@@ -802,7 +798,7 @@ def test_task_runner_handles_looping_with_retries(client):
     @prefect.task(
         max_retries=1,
         retry_delay=datetime.timedelta(seconds=0),
-        result_handler=JSONResultHandler(),
+        result=PrefectResult(),
     )
     def looper():
         if (

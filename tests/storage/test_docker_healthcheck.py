@@ -116,14 +116,12 @@ class TestResultCheck:
     @pytest.mark.parametrize(
         "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
     )
-    def test_doesnt_raise_for_checkpointed_tasks_if_flow_has_result_handler(
-        self, kwargs
-    ):
+    def test_doesnt_raise_for_checkpointed_tasks_if_flow_has_result(self, kwargs):
         @task(**kwargs)
         def up():
             pass
 
-        f = Flow("foo-test", tasks=[up], result_handler=42)
+        f = Flow("foo-test", tasks=[up], result=42)
         assert healthchecks.result_check([f]) is None
 
     @pytest.mark.parametrize(
@@ -202,7 +200,7 @@ class TestResultCheck:
         def up():
             pass
 
-        @task(**kwargs, result_handler=42)
+        @task(**kwargs, result=42)
         def down():
             pass
 
