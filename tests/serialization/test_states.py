@@ -1,5 +1,5 @@
 import datetime
-
+import json
 import marshmallow
 import pendulum
 import pytest
@@ -26,28 +26,23 @@ from marshmallow import Schema
 def complex_states():
     res1 = results.PrefectResult(value=1)
     res2 = results.PrefectResult(value={"z": 2})
-    res3 = results.PrefectResult(value=dict(x=1, y={"z": 2}))
+    res3 = results.PrefectResult(location=json.dumps(dict(x=1, y={"z": 2})))
     naive_dt = datetime.datetime(2020, 1, 1)
     utc_dt = pendulum.datetime(2020, 1, 1)
-    complex_result = {"x": res1, "y": res2}
     cached_state = state.Cached(
-        cached_inputs=complex_result,
+        hashed_inputs=dict(x="foo", y="bar"),
         result=res3,
-        cached_parameters={"x": 1, "y": {"z": 2}},
         cached_result_expiration=utc_dt,
     )
     cached_state_naive = state.Cached(
-        cached_inputs=complex_result,
+        hashed_inputs=dict(x="foo", y="bar"),
         result=res3,
-        cached_parameters={"x": 1, "y": {"z": 2}},
         cached_result_expiration=naive_dt,
     )
     running_tags = state.Running()
     running_tags.context = dict(tags=["1", "2", "3"])
     test_states = [
         state.Looped(loop_count=45),
-        state.Pending(cached_inputs=complex_result),
-        state.Paused(cached_inputs=complex_result),
         state.Retrying(start_time=utc_dt, run_count=3),
         state.Retrying(start_time=naive_dt, run_count=3),
         state.Scheduled(start_time=utc_dt),
@@ -62,7 +57,6 @@ def complex_states():
         state.Queued(state=state.Retrying(start_time=utc_dt, run_count=2)),
         cached_state,
         cached_state_naive,
-        state.TimedOut(cached_inputs=complex_result),
     ]
     return test_states
 
@@ -87,50 +81,27 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
-def test_serialize_state_with_un_handled_result(cls):
-    serialized = StateSchema().dump(cls(message="message", result=1))
-    assert isinstance(serialized, dict)
-    assert serialized["type"] == cls.__name__
-    assert serialized["message"] == "message"
-    assert serialized["_result"]["type"] == "NoResultType"
-    assert serialized["__version__"] == prefect.__version__
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_serialize_state_with_no_result(cls):
     state = cls(message="message")
     serialized = StateSchema().dump(state)
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] == "message"
-    assert serialized["_result"]["type"] == "NoResultType"
+    assert serialized["_result"]["type"] == "Result"
+    assert serialized["_result"]["location"] is None
     assert serialized["__version__"] == prefect.__version__
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_serialize_state_with_handled_result(cls):
-    res = Result(value=1, result_handler=JSONResultHandler())
-    res.store_safe_value()
+    res = Result(value=1, location="src/place")
     state = cls(message="message", result=res)
     serialized = StateSchema().dump(state)
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] == "message"
-    assert serialized["_result"]["type"] == "SafeResult"
-    assert serialized["_result"]["value"] == "1"
-    assert serialized["__version__"] == prefect.__version__
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
-def test_serialize_state_with_safe_result(cls):
-    res = SafeResult(value="1", result_handler=JSONResultHandler())
-    state = cls(message="message", result=res)
-    serialized = StateSchema().dump(state)
-    assert isinstance(serialized, dict)
-    assert serialized["type"] == cls.__name__
-    assert serialized["message"] == "message"
-    assert serialized["_result"]["type"] == "SafeResult"
-    assert serialized["_result"]["value"] == "1"
+    assert serialized["_result"]["type"] == "Result"
+    assert serialized["_result"]["location"] == "src/place"
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -232,7 +203,8 @@ def test_deserialize_mapped():
     assert isinstance(deserialized, state.Mapped)
     assert len(deserialized.map_states) == 2
     assert deserialized.map_states == [None, None]
-    assert deserialized._result == NoResult
+    assert deserialized._result == Result()
+    assert deserialized.result is None
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -241,7 +213,8 @@ def test_deserialize_state_from_only_type(cls):
     new_state = StateSchema().load(serialized)
     assert isinstance(new_state, cls)
     assert new_state.message is None
-    assert new_state._result == NoResult
+    assert new_state._result == Result()
+    assert new_state.result is None
 
 
 def test_deserialize_state_without_type_fails():
@@ -261,20 +234,6 @@ def test_complex_state_attributes_are_handled(state):
     assert state == deserialized
 
 
-def test_result_must_be_valid_json():
-    res = SafeResult({"x": {"y": {"z": 1}}}, result_handler=JSONResultHandler())
-    s = state.Success(result=res)
-    serialized = StateSchema().dump(s)
-    assert serialized["_result"]["value"] == s.result
-
-
-def test_result_raises_error_on_dump_if_not_valid_json():
-    res = SafeResult({"x": {"y": {"z": lambda: 1}}}, result_handler=JSONResultHandler())
-    s = state.Success(result=res)
-    with pytest.raises(marshmallow.exceptions.ValidationError):
-        StateSchema().dump(s)
-
-
 def test_deserialize_json_with_context():
     deserialized = StateSchema().load(
         {"type": "Running", "context": {"boo": ["a", "b", "c"]}}
@@ -283,7 +242,8 @@ def test_deserialize_json_with_context():
     assert deserialized.is_running()
     assert deserialized.message is None
     assert deserialized.context == dict(boo=["a", "b", "c"])
-    assert deserialized._result == NoResult
+    assert deserialized.result is None
+    assert deserialized._result == Result()
 
 
 def test_deserialize_json_without_version():
@@ -291,8 +251,8 @@ def test_deserialize_json_without_version():
     assert type(deserialized) is state.Running
     assert deserialized.is_running()
     assert deserialized.message == "test"
-    assert deserialized.context == dict()
-    assert deserialized._result == NoResult
+    assert deserialized.result is None
+    assert deserialized._result == Result()
 
 
 def test_deserialize_handles_unknown_fields():
@@ -308,11 +268,12 @@ def test_deserialize_handles_unknown_fields():
 
 
 class TestNewStyleResults:
-    def test_new_result_with_no_location_serializes_as_no_result(self):
+    def test_new_result_with_no_location_serializes_correctly(self):
         s = state.Success(message="test", result=results.S3Result(bucket="foo"))
         serialized = StateSchema().dump(s)
         assert serialized["message"] == "test"
-        assert serialized["_result"]["type"] == "NoResultType"
+        assert serialized["_result"]["type"] == "S3Result"
+        assert serialized["_result"]["location"] is None
 
     def test_new_result_with_location_serializes_correctly(self):
         s = state.Success(
@@ -336,26 +297,6 @@ class TestNewStyleResults:
         assert new_state._result.bucket == "foo"
         assert isinstance(new_state._result, results.S3Result)
         assert new_state._result.location == "dir/place.txt"
-
-    def test_cached_inputs_are_serialized_correctly(self):
-        s = state.Cached(
-            message="test",
-            result=results.PrefectResult(value=1, location="1"),
-            cached_inputs=dict(
-                x=results.PrefectResult(location='"foo"'),
-                y=results.PrefectResult(location='"bar"'),
-            ),
-        )
-        schema = StateSchema()
-        serialized = schema.dump(s)
-
-        assert serialized["cached_inputs"]["x"]["location"] == '"foo"'
-        assert serialized["cached_inputs"]["y"]["location"] == '"bar"'
-
-        new_state = schema.load(serialized)
-
-        assert new_state.cached_inputs["x"].location == '"foo"'
-        assert new_state.cached_inputs["y"].location == '"bar"'
 
 
 @pytest.mark.parametrize(
