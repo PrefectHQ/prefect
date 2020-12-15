@@ -2,11 +2,8 @@ import marshmallow
 import pytest
 
 import prefect
-from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.result import Result
 from prefect.serialization.result import (
-    NoResultSchema,
-    SafeResultSchema,
     StateResultSchema,
 )
 

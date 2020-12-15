@@ -6,12 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
-from prefect.engine.result_handlers import (
-    JSONResultHandler,
-    LocalResultHandler,
-    ResultHandler,
-)
+from prefect.engine.result import Result
 
 
 class TestInitialization:
@@ -254,9 +249,7 @@ class TestToResult:
     "obj",
     [
         Result(3),
-        Result(object, result_handler=LocalResultHandler()),
-        NoResult,
-        SafeResult("3", result_handler=JSONResultHandler()),
+        Result(object, value=lambda: None),
     ],
 )
 def test_everything_is_pickleable_after_init(obj):

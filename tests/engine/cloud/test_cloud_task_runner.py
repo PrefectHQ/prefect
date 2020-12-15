@@ -12,10 +12,9 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs, duration_only
 from prefect.engine.cloud import CloudTaskRunner
-from prefect.engine.result import NoResult, Result, SafeResult, NoResult
+from prefect.engine.result import Result
 from prefect.engine.results import PrefectResult, SecretResult, LocalResult
 
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
@@ -35,7 +34,6 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import VersionLockError
 

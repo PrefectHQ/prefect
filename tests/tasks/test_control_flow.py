@@ -2,7 +2,6 @@ import pytest
 
 import prefect
 from prefect import Flow, Task, task, Parameter
-from prefect.engine.result import NoResult
 from prefect.engine.state import Skipped, Success
 from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch, case
 from prefect.tasks.control_flow.conditional import CompareValue

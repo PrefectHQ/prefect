@@ -15,7 +15,7 @@ from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import Result
 from prefect.engine.state import (
     Cached,
     Failed,

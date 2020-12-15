@@ -22,13 +22,8 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
-from prefect.engine.result_handlers import (
-    JSONResultHandler,
-    ResultHandler,
-    SecretResultHandler,
-)
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -1376,7 +1371,8 @@ class TestCacheResultStep:
             state=state, inputs={"x": Result(1)}
         )
         assert new_state is state
-        assert new_state._result is NoResult
+        assert new_state._result == Result()
+        assert new_state.result is None
 
     @pytest.mark.parametrize(
         "validator",
@@ -2062,9 +2058,9 @@ def test_pending_raised_from_endrun_has_updated_metadata():
 
 @pytest.mark.parametrize("checkpoint", [True, None])
 def test_failures_arent_checkpointed(checkpoint):
-    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+    result = MagicMock(write=MagicMock(side_effect=SyntaxError))
 
-    @prefect.task(checkpoint=checkpoint, result_handler=handler)
+    @prefect.task(checkpoint=checkpoint, result=result)
     def fn():
         raise TypeError("Bad types")
 
@@ -2076,9 +2072,9 @@ def test_failures_arent_checkpointed(checkpoint):
 
 @pytest.mark.parametrize("checkpoint", [True, None])
 def test_skips_arent_checkpointed(checkpoint):
-    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+    result = MagicMock(write=MagicMock(side_effect=SyntaxError))
 
-    @prefect.task(checkpoint=checkpoint, result_handler=handler)
+    @prefect.task(checkpoint=checkpoint, result=result)
     def fn():
         return 2
 
@@ -2183,19 +2179,19 @@ class TestLooping:
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_looping_checkpoints_all_iterations(self, checkpoint):
-        class Handler(ResultHandler):
+        class MyResult(Result):
             data = []
 
-            def write(self, obj):
+            def write(self, obj, **kwargs):
                 self.data.append(obj)
                 return self.data.index(obj)
 
-            def read(self, idx):
+            def read(self, idx, **kwargs):
                 return self.data[idx]
 
-        handler = Handler()
+        result = MyResult()
 
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=result)
         def my_task():
             curr = prefect.context.get("task_loop_result", 0)
             if prefect.context.get("task_loop_count", 1) < 3:
@@ -2206,7 +2202,7 @@ class TestLooping:
         state = TaskRunner(my_task).run(context={"checkpointing": True})
         assert state.is_successful()
         assert state.result == 3
-        assert handler.data == [1, 2, 3]
+        assert result.data == [1, 2, 3]
 
     def test_looping_works_with_retries(self):
         @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))

@@ -502,10 +502,7 @@ def prepare_upstream_states_for_mapping(
                     # might not have `result` attributes.
                     # Therefore, we only try to get a result if EITHER this task's
                     # state is not already mapped OR the upstream result is not None.
-                    if (
-                        not state.is_mapped()
-                        or upstream_state._result != prefect.engine.result.NoResult
-                    ):
+                    if not state.is_mapped() or upstream_state._result is not None:
                         if not hasattr(upstream_state.result, "__getitem__"):
                             value = None
                         else:
