@@ -686,7 +686,6 @@ class KubernetesAgent(Agent):
         api: str = None,
         namespace: str = None,
         image_pull_secrets: str = None,
-        resource_manager_enabled: bool = False,
         rbac: bool = False,
         latest: bool = False,
         mem_request: str = None,
@@ -710,8 +709,6 @@ class KubernetesAgent(Agent):
                 to `default`
             - image_pull_secrets (str, optional): The name of an image pull secret to use
                 for Prefect jobs
-            - resource_manager_enabled (bool, optional): Whether to include the resource
-                manager as part of the YAML. Defaults to `False`
             - rbac (bool, optional): Whether to include default RBAC configuration as
                 part of the YAML. Defaults to `False`
             - latest (bool, optional): Whether to use the `latest` Prefect image.
@@ -788,23 +785,6 @@ class KubernetesAgent(Agent):
         deployment["spec"]["template"]["spec"]["containers"][0][
             "image"
         ] = "prefecthq/prefect:{}".format(image_version)
-
-        # Populate resource manager if requested
-        if resource_manager_enabled:
-            resource_manager_env = deployment["spec"]["template"]["spec"]["containers"][
-                1
-            ]["env"]
-
-            resource_manager_env[0]["value"] = token
-            resource_manager_env[1]["value"] = api
-            resource_manager_env[3]["value"] = namespace
-
-            # Use local prefect version for image
-            deployment["spec"]["template"]["spec"]["containers"][1][
-                "image"
-            ] = "prefecthq/prefect:{}".format(image_version)
-        else:
-            del deployment["spec"]["template"]["spec"]["containers"][1]
 
         # Populate image pull secrets if provided
         if image_pull_secrets:

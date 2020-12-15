@@ -291,12 +291,6 @@ def start(image_pull_secrets=None, **kwargs):
     "-i",
     help="Name of image pull secrets to use for workloads.",
 )
-@click.option(
-    "--resource-manager",
-    "resource_manager_enabled",
-    is_flag=True,
-    help="Enable resource manager.",
-)
 @click.option("--rbac", is_flag=True, help="Enable default RBAC.")
 @click.option("--latest", is_flag=True, help="Use the latest Prefect image.")
 @click.option("--mem-request", help="Requested memory for Prefect init job.")
@@ -752,9 +746,6 @@ def start(
     help="Name of image pull secrets to use for workloads.",
     hidden=True,
 )
-@click.option(
-    "--resource-manager", is_flag=True, help="Enable resource manager.", hidden=True
-)
 @click.option("--rbac", is_flag=True, help="Enable default RBAC.", hidden=True)
 @click.option(
     "--latest", is_flag=True, help="Use the latest Prefect image.", hidden=True
@@ -833,7 +824,6 @@ def install(
     api,
     namespace,
     image_pull_secrets,
-    resource_manager,
     rbac,
     latest,
     mem_request,
@@ -876,7 +866,6 @@ def install(
         --api, -a                   TEXT    A Prefect API URL
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
-        --resource-manager                  Enable resource manager on install
         --rbac                              Enable default RBAC on install
         --latest                            Use the `latest` Prefect image
         --mem-request               TEXT    Requested memory for Prefect init job
@@ -929,7 +918,6 @@ def install(
             api=api,
             namespace=namespace,
             image_pull_secrets=image_pull_secrets,
-            resource_manager_enabled=resource_manager,
             rbac=rbac,
             latest=latest,
             mem_request=mem_request,
