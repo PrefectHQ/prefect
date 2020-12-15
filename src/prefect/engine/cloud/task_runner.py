@@ -20,7 +20,6 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.exceptions import VersionLockError
 from prefect.utilities.executors import tail_recursive
-from prefect.utilities.graphql import with_args
 
 
 class CloudTaskRunner(TaskRunner):
