@@ -1,0 +1,2 @@
+breaking:
+  - "Remove option to enable deprecated Kubernetes resource manager in agent install CLI command - [#3840](https://github.com/PrefectHQ/prefect/pull/3840)"

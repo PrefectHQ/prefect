@@ -526,25 +526,17 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
         token="test_token",
         api="test_api",
         namespace="test_namespace",
-        resource_manager_enabled=True,
         backend="backend-test",
     )
 
     deployment = yaml.safe_load(deployment)
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-    resource_manager_env = deployment["spec"]["template"]["spec"]["containers"][1][
-        "env"
-    ]
 
     assert agent_env[0]["value"] == "test_token"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
     assert agent_env[11]["value"] == "backend-test"
-
-    assert resource_manager_env[0]["value"] == "test_token"
-    assert resource_manager_env[1]["value"] == "test_api"
-    assert resource_manager_env[3]["value"] == "test_namespace"
 
 
 def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
@@ -610,16 +602,13 @@ def test_k8s_agent_generate_deployment_yaml_local_version(
         token="test_token",
         api="test_api",
         namespace="test_namespace",
-        resource_manager_enabled=True,
     )
 
     deployment = yaml.safe_load(deployment)
 
     agent_yaml = deployment["spec"]["template"]["spec"]["containers"][0]
-    resource_manager_yaml = deployment["spec"]["template"]["spec"]["containers"][1]
 
     assert agent_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
-    assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
 
 
 def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, cloud_api):
@@ -634,40 +623,14 @@ def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, cloud_api):
         token="test_token",
         api="test_api",
         namespace="test_namespace",
-        resource_manager_enabled=True,
         latest=True,
     )
 
     deployment = yaml.safe_load(deployment)
 
     agent_yaml = deployment["spec"]["template"]["spec"]["containers"][0]
-    resource_manager_yaml = deployment["spec"]["template"]["spec"]["containers"][1]
 
     assert agent_yaml["image"] == "prefecthq/prefect:latest"
-    assert resource_manager_yaml["image"] == "prefecthq/prefect:latest"
-
-
-def test_k8s_agent_generate_deployment_yaml_no_resource_manager(monkeypatch, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    agent = KubernetesAgent()
-    deployment = agent.generate_deployment_yaml(
-        token="test_token", api="test_api", namespace="test_namespace"
-    )
-
-    deployment = yaml.safe_load(deployment)
-
-    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-
-    assert agent_env[0]["value"] == "test_token"
-    assert agent_env[1]["value"] == "test_api"
-    assert agent_env[2]["value"] == "test_namespace"
-
-    assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
 
 
 def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, cloud_api):
