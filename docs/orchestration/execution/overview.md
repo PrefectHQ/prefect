@@ -2,8 +2,9 @@
 
 ::: warning
 Flows configured with environments are being deprecated - we recommend users
-transition to using "Run Configs" instead. See
-[the documentation](/orchestration/flow_config/overview.md) for more information.
+transition to using "Run Configs" instead. See [flow
+configuration](/orchestration/flow_config/overview.md) and [upgrading
+tips](/orchestration/flow_config/upgrade.md) for more information.
 :::
 
 Executing flows using the Prefect API is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, flows can be saved, shared, and executed across various platforms.
