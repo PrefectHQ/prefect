@@ -366,7 +366,57 @@ class TestNewStyleResults:
             "_result": {"type": "NoResultType", "__version__": "0.6.0"},
             "message": "Task run succeeded.",
             "__version__": "0.6.0",
-        }
+        },
+        {
+            "type": "Mapped",
+            "context": {"tags": []},
+            "message": "Mapped tasks submitted for execution.",
+            "__version__": "0.7.1+108.g3ad8ced1",
+            "n_map_states": 2,
+        },
+        {
+            "type": "Success",
+            "_result": {
+                "type": "SafeResult",
+                "value": '["test1.zip", "test2.zip"]',
+                "__version__": "0.7.1+108.g3ad8ced1",
+                "result_handler": {
+                    "type": "JSONResultHandler",
+                    "__version__": "0.7.1+108.g3ad8ced1",
+                },
+            },
+            "context": {"tags": []},
+            "message": "Task run succeeded.",
+            "__version__": "0.7.1+108.g3ad8ced1",
+        },
+        {
+            "type": "Success",
+            "_result": {
+                "type": "SafeResult",
+                "value": "/src/prefect-result-2020-06-09t15-32-47-297967-00-00",
+                "__version__": "0.11.5+59.gdba764390",
+                "result_handler": {
+                    "dir": "/src",
+                    "type": "LocalResultHandler",
+                    "__version__": "0.11.5+59.gdba764390",
+                },
+            },
+            "context": {"tags": []},
+            "message": "Task run succeeded.",
+            "__version__": "0.11.5+59.gdba764390",
+            "cached_inputs": {
+                "report": {
+                    "type": "SafeResult",
+                    "value": "/src/prefect-result-2020-06-09t15-32-38-403718-00-00",
+                    "__version__": "0.11.5+59.gdba764390",
+                    "result_handler": {
+                        "dir": "/src",
+                        "type": "LocalResultHandler",
+                        "__version__": "0.11.5+59.gdba764390",
+                    },
+                }
+            },
+        },
     ],
 )
 def test_can_deserialize_old_no_result(old_json):
