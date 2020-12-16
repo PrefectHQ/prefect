@@ -1,2 +1,0 @@
-fix:
-  - "Prefect kubernetes agent no longer relies on existence of any fields in configured Kubernetes Job Template - [#3805](https://github.com/PrefectHQ/prefect/pull/3805)"

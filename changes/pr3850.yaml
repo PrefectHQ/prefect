@@ -1,5 +1,0 @@
-fix:
-  - Pass `as_user=False` when using client.get_cloud_url in StartFlowRun - [#3850](https://github.com/PrefectHQ/prefect/pull/3850)
-
-contributor:
-  - "[Jacob Hayes](https://github.com/JacobHayes)"

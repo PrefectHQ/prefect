@@ -1,6 +1,0 @@
-breaking:
-  - "Removed setting of default labels on storage objects and the local agent - [#3800](https://github.com/PrefectHQ/prefect/pull/3800)"
-
-deprecation:
-  - "Deprecated use of `storage_labels` boolean kwarg on local agent - [#3800](https://github.com/PrefectHQ/prefect/pull/3800)"
-  - "Deprecated use of `--storage-labels` option from agent `start` CLI command - [#3800](https://github.com/PrefectHQ/prefect/pull/3800)"

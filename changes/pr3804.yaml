@@ -1,7 +1,0 @@
-enhancement:
-  - "Add orchestration-based dependencies to the `prefecthq/prefect` Docker image - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)"
-  - "Add a slimmed down `prefecthq/prefect:core` Docker image that only contains base dependencies - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)"
-  - "Docker storage now installs all orchestration-based dependencies when using default image - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)"
-
-breaking:
-  - "Stop building the `prefecthq/prefect:all_extras` image and switch flow deployment default to using `prefecthq/prefect:{core_version}` - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)"

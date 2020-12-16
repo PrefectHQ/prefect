@@ -1,2 +1,0 @@
-deprecation:
-  - "Storage classes have been moved from `prefect.environments.storage` to `prefect.storage`, the old import paths have been deprecated accordingly - [#3796](https://github.com/PrefectHQ/prefect/pull/3796)"

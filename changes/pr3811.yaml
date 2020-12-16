@@ -1,2 +1,0 @@
-deprecation:
-  - "Deprecates all `Environment` classes - users should transition to setting `flow.run_config` instead of `flow.environment` - [#3811](https://github.com/PrefectHQ/prefect/pull/3811)"

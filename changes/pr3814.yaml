@@ -1,2 +1,0 @@
-fix:
-  - "Accept old envvar style configuration for Kubernetes agent for `--service-account-name`/`--image-pull-secrets` options - [#3814](https://github.com/PrefectHQ/prefect/pull/3814)"

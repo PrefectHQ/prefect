@@ -1,2 +1,0 @@
-fix:
-  - "Fix Azure result byte decoding of blob data - [#3846](https://github.com/PrefectHQ/prefect/issues/3846)"

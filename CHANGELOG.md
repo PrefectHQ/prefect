@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.14.0 <Badge text="beta" type="success" />
+
+Released on December 16, 2020.
+
+### Features
+
+- New flow run configuration system based on `RunConfig` types, see [here](https://docs.prefect.io/orchestration/flow_config/overview.html) for more info
+
+### Enhancements
+
+- Kubernetes Agent now reports events for pending pods created by prefect jobs - [#3783](https://github.com/PrefectHQ/prefect/pull/3783)
+- Using `--rbac` for Kubernetes Agent install command now includes the `events` resource - [#3783](https://github.com/PrefectHQ/prefect/pull/3783)
+- Add orchestration-based dependencies to the `prefecthq/prefect` Docker image - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)
+- Add a slimmed down `prefecthq/prefect:core` Docker image that only contains base dependencies - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)
+- Docker storage now installs all orchestration-based dependencies when using default image - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)
+- Add warning on flow registration if `flow.executor` is set but the flow is using the legacy `flow.environment` configuration system - [#3808](https://github.com/PrefectHQ/prefect/pull/3808)
+- Echoing prefect config file as JSON to be able to parse it with jq in the terminal - [#3818](https://github.com/PrefectHQ/prefect/pull/3818)
+- Produce artifact for RunGreatExpectationsValidation even if validation fails - [#3829](https://github.com/PrefectHQ/prefect/pull/3829)
+- `execute flow-run` command now sends flow run log in the case of an error - [#3832](https://github.com/PrefectHQ/prefect/pull/3832)
+- Changed name of logs raised by the Kubernetes Agent if they stem from infrastructure events - [#3832](https://github.com/PrefectHQ/prefect/pull/3832)
+- Add `tini` to the official Prefect docker images - [#3839](https://github.com/PrefectHQ/prefect/pull/3839)
+- Remove task run level heartbeats for performance - [#3842](https://github.com/PrefectHQ/prefect/pull/3842)
+
+### Task Library
+
+- Fix mising `job_id` in `DatabricksRunNow` task initialization - [#3793](https://github.com/PrefectHQ/prefect/issues/3793)
+
+### Fixes
+
+- Fix Azure result byte decoding of blob data - [#3846](https://github.com/PrefectHQ/prefect/issues/3846)
+- Prefect kubernetes agent no longer relies on existence of any fields in configured Kubernetes Job Template - [#3805](https://github.com/PrefectHQ/prefect/pull/3805)
+- Accept old envvar style configuration for Kubernetes agent for `--service-account-name`/`--image-pull-secrets` options - [#3814](https://github.com/PrefectHQ/prefect/pull/3814)
+- Pass `as_user=False` when using `client.get_cloud_url` in `StartFlowRun` - [#3850](https://github.com/PrefectHQ/prefect/pull/3850)
+- Fix AWS boto3 utility passing duplicate kwargs to client initialization - [#3857](https://github.com/PrefectHQ/prefect/pull/3857)
+
+### Deprecations
+
+- Storage classes have been moved from `prefect.environments.storage` to `prefect.storage`, the old import paths have been deprecated accordingly - [#3796](https://github.com/PrefectHQ/prefect/pull/3796)
+- Executor classes have been moved from `prefect.engine.executors` to `prefect.executors`, the old import paths have been deprecated accordingly - [#3798](https://github.com/PrefectHQ/prefect/pull/3798)
+- Deprecated use of `storage_labels` boolean kwarg on local agent - [#3800](https://github.com/PrefectHQ/prefect/pull/3800)
+- Deprecated use of `--storage-labels` option from agent `start` CLI command - [#3800](https://github.com/PrefectHQ/prefect/pull/3800)
+- Deprecates all `Environment` classes - users should transition to setting `flow.run_config` instead of `flow.environment` - [#3811](https://github.com/PrefectHQ/prefect/pull/3811)
+- Deprecate the Fargate Agent in favor of the ECS Agent - [#3812](https://github.com/PrefectHQ/prefect/pull/3812)
+
+### Breaking Changes
+
+- Using in-cluster installs of the Kubernetes Agent now requires RBAC for the `events` resource - [#3783](https://github.com/PrefectHQ/prefect/pull/3783)
+- Removed setting of default labels on storage objects and the local agent - [#3800](https://github.com/PrefectHQ/prefect/pull/3800)
+- Remove deprecated `RemoteEnvironment`/`RemoteDaskEnvironment` - [#3802](https://github.com/PrefectHQ/prefect/pull/3802)
+- Remove deprecated `executor_kwargs` argument to `KubernetesJobEnvironment`/`FargateTaskEnvironment` - [#3802](https://github.com/PrefectHQ/prefect/pull/3802)
+- Remove deprecated `prefect run cloud`/`prefect run server` CLI commands - [#3803](https://github.com/PrefectHQ/prefect/pull/3803)
+- Remove deprecated `prefect execute cloud-flow` CLI command - [#3803](https://github.com/PrefectHQ/prefect/pull/3803)
+- Stop building the `prefecthq/prefect:all_extras` image and switch flow deployment default to using `prefecthq/prefect:{core_version}` - [#3804](https://github.com/PrefectHQ/prefect/pull/3804)
+- Flows now use `RunConfig` based deployments by default - legacy `Environment` based deployments are now opt-in only - [#3806](https://github.com/PrefectHQ/prefect/pull/3806)
+- Remove deprecated `prefect.contrib` module - [#3813](https://github.com/PrefectHQ/prefect/pull/3813)
+- Remove all references to result handlers and safe results - [#3838](https://github.com/PrefectHQ/prefect/pull/3838)
+- Remove option to enable deprecated Kubernetes resource manager in agent install CLI command - [#3840](https://github.com/PrefectHQ/prefect/pull/3840)
+
+### Contributors
+
+- [Christian Werner](https://github.com/cwerner)
+- [Erich Oliveira](https://github.com/ericholiveira)
+- [Jacob Hayes](https://github.com/JacobHayes)
+- [Pedro Martins](https://github.com/pedrocwb)
+
 ## 0.13.19 <Badge text="beta" type="success" />
 
 Released on December 8, 2020.

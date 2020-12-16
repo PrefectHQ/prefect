@@ -1,2 +1,0 @@
-fix:
-  - "Fix AWS boto3 utility passing duplicate kwargs to client initialization - [#3857](https://github.com/PrefectHQ/prefect/pull/3857)"

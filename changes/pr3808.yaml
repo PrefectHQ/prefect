@@ -1,2 +1,0 @@
-enhancement:
-  - "Add warning on flow registration if `flow.executor` is set but the flow is using the legacy `flow.environment` configuration system - [#3808](https://github.com/PrefectHQ/prefect/pull/3808)"
