@@ -1,6 +1,6 @@
 # Naming task runs based on inputs
 
-Tasks in Prefect provide a way for dynamically naming task runs based on the inputs provided to them from upstream tasks. Creating a dynamic task run name is a great way to help identify errors that may occur in a flow, for example, easily showing which mapped task failed based on the input it received.
+Tasks in Prefect provide a way for dynamically naming task runs based on the inputs provided to them from upstream tasks. Creating a dynamic task run name is a great way to help identify errors that may occur in a flow, for example, easily showing which mapped task failed based on the input it received. See [the page on templating](/core/idioms/templating.html) for details on how dynamically templated names work.
 
 ::: warning Backend Only
 This feature only works when running in the context of an [API backend](/orchestration/) run using something like the [Prefect Server](/orchestration/server/overview.html) or [Prefect Cloud](https://cloud.prefect.io).
