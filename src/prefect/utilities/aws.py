@@ -39,25 +39,25 @@ def get_boto_client(
         aws_secret_access_key = ctx_credentials.get("SECRET_ACCESS_KEY")
         aws_session_token = ctx_credentials.get("SESSION_TOKEN")
 
+    kwargs_access_key_id = kwargs.pop("aws_access_key_id", None)
+    kwargs_secret_access_key = kwargs.pop("aws_secret_access_key", None)
+    kwargs_session_token = kwargs.pop("aws_session_token", None)
+
     if use_session:
         # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing  # noqa
         session = boto3.session.Session()
         return session.client(
             resource,
-            aws_access_key_id=aws_access_key or kwargs.pop("aws_access_key_id", None),
-            aws_secret_access_key=aws_secret_access_key
-            or kwargs.pop("aws_secret_access_key", None),
-            aws_session_token=aws_session_token
-            or kwargs.pop("aws_session_token", None),
+            aws_access_key_id=aws_access_key or kwargs_access_key_id,
+            aws_secret_access_key=aws_secret_access_key or kwargs_secret_access_key,
+            aws_session_token=aws_session_token or kwargs_session_token,
             **kwargs
         )
     else:
         return boto3.client(
             resource,
-            aws_access_key_id=aws_access_key or kwargs.pop("aws_access_key_id", None),
-            aws_secret_access_key=aws_secret_access_key
-            or kwargs.pop("aws_secret_access_key", None),
-            aws_session_token=aws_session_token
-            or kwargs.pop("aws_session_token", None),
+            aws_access_key_id=aws_access_key or kwargs_access_key_id,
+            aws_secret_access_key=aws_secret_access_key or kwargs_secret_access_key,
+            aws_session_token=aws_session_token or kwargs_session_token,
             **kwargs
         )
