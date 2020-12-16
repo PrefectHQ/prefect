@@ -1,6 +1,0 @@
-enhancement:
-  - "Kubernetes Agent now reports events for pending pods created by prefect jobs - [#3783](https://github.com/PrefectHQ/prefect/pull/3783)"
-  - "Using `--rbac` for Kubernetes Agent install command now includes the `events` resource - [#3783](https://github.com/PrefectHQ/prefect/pull/3783)"
-
-breaking:
-  - "Using in-cluster installs of the Kubernetes Agent now requires RBAC for the `events` resource - [#3783](https://github.com/PrefectHQ/prefect/pull/3783)"

@@ -1,5 +1,0 @@
-enhancement:
-  - "Echoing prefect config file as JSON to be able to parse it with jq in the terminal - [#3818](https://github.com/PrefectHQ/prefect/pull/3818)"
-
-contributor:
-  - "[Pedro Martins](https://github.com/pedrocwb)"

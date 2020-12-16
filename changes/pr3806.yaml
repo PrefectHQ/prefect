@@ -1,2 +1,0 @@
-breaking:
-  - "Flows now use `RunConfig` based deployments by default - legacy `Environment` based deployments are now opt-in only - [#3806](https://github.com/PrefectHQ/prefect/pull/3806)"

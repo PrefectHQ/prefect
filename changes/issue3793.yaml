@@ -1,5 +1,0 @@
-task:
-  - "Fix mising `job_id` in `DatabricksRunNow` task initialization - [#3793](https://github.com/PrefectHQ/prefect/issues/3793)"
-
-contributor:
-  - "[Erich Oliveira](https://github.com/ericholiveira)"
