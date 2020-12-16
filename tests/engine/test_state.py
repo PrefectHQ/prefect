@@ -5,7 +5,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine.result import Result
+from prefect.engine.result import Result, NoResult
 from prefect.engine.results import PrefectResult
 from prefect.engine.state import (
     Cancelled,
@@ -51,7 +51,7 @@ class TestCreateStates:
         state = cls()
         assert state.message is None
         assert state.result is None
-        assert state._result == Result()
+        assert state._result == NoResult
         assert state.context == dict()
         assert state.cached_inputs == dict()
 
@@ -87,7 +87,8 @@ class TestCreateStates:
     def test_create_state_with_positional_message_arg(self, cls):
         state = cls("i am a string")
         assert state.message == "i am a string"
-        assert state._result == Result()
+        assert state.result is None
+        assert state._result == NoResult
 
     @pytest.mark.parametrize("cls", all_states)
     def test_create_state_with_data_and_message(self, cls):
@@ -111,7 +112,7 @@ class TestCreateStates:
             state = cls()
         assert state.message is None
         assert state.result is None
-        assert state._result == Result()
+        assert state._result == NoResult
         assert state.context == dict(tags=list(set("abcdef")))
 
         with prefect.context(task_tags=set("abcdef")):
@@ -670,3 +671,8 @@ def test_n_map_states():
 
     state = Mapped(map_states=[1, 2], n_map_states=4)
     assert state.n_map_states == 4
+
+
+def test_init_with_falsey_value():
+    state = Success(result={})
+    assert state.result == {}

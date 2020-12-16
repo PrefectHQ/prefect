@@ -222,3 +222,15 @@ class Result:
             "might be trying to use features that require choosing a Result subclass; "
             "see https://docs.prefect.io/core/concepts/results.html"
         )
+
+
+class NoResultType(Result):
+    """
+    Backwards compatible type so that states created by new versions of Core can be deserialized by
+    old versions.
+    """
+
+    pass
+
+
+NoResult = NoResultType()

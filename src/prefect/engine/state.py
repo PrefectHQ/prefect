@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Type, Mapping
 import pendulum
 
 import prefect
-from prefect.engine.result import Result
+from prefect.engine.result import Result, NoResult
 
 
 class State:
@@ -53,7 +53,7 @@ class State:
         cached_inputs: Dict[str, Result] = None,
     ):
         self.message = message
-        self.result = result
+        self.result = result if result is not None else NoResult
         self.context = context or dict()
         self.cached_inputs = cached_inputs or dict()  # type: Dict[str, Result]
         if "task_tags" in prefect.context:

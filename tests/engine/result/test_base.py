@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.engine.result import Result
+from prefect.engine.result import Result, NoResultType
 
 
 class TestInitialization:
@@ -53,6 +53,14 @@ class TestResultEquality:
 
     def test_boring_results_are_different_if_one_has_location(self):
         r, s = Result(), Result(location="s")
+        assert r != s
+
+    def test_no_results_are_equal(self):
+        r, s = NoResultType(), NoResultType()
+        assert r == s
+
+    def test_no_results_are_not_equal_to_results(self):
+        r, s = NoResultType(), Result()
         assert r != s
 
 

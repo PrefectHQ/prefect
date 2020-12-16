@@ -22,7 +22,7 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import Result
+from prefect.engine.result import Result, NoResult
 from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.state import (
     Cached,
@@ -1371,7 +1371,7 @@ class TestCacheResultStep:
             state=state, inputs={"x": Result(1)}
         )
         assert new_state is state
-        assert new_state._result == Result()
+        assert new_state._result == NoResult
         assert new_state.result is None
 
     @pytest.mark.parametrize(
