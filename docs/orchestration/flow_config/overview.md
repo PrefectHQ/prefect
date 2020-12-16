@@ -23,7 +23,7 @@ For example, to configure a flow to use `Docker` storage:
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 with Flow("example", storage=Docker()) as flow:
     ...
@@ -66,7 +66,7 @@ a flow to use a `LocalDaskExecutor`:
 
 ```python
 from prefect import Flow
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 
 with Flow("example", executor=LocalDaskExecutor()) as flow:
     ...

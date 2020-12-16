@@ -2,9 +2,9 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect import Flow
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 from prefect.environments.execution import LocalEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -19,7 +19,7 @@ class DummyStorage(Local):
 
 def test_create_environment():
     with set_temporary_config(
-        {"engine.executor.default_class": "prefect.engine.executors.LocalDaskExecutor"}
+        {"engine.executor.default_class": "prefect.executors.LocalDaskExecutor"}
     ):
         environment = LocalEnvironment()
 

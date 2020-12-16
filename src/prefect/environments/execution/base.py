@@ -8,6 +8,7 @@ that environment. e.g. the `DaskKubernetesEnvironment` is an environment which
 runs a flow on Kubernetes using the `dask-kubernetes` library.
 """
 
+import warnings
 from typing import Callable, Iterable, TYPE_CHECKING
 
 import prefect
@@ -22,6 +23,10 @@ if TYPE_CHECKING:
 class Environment:
     """
     Base class for Environments.
+
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
 
     An environment is an object that can be instantiated in a way that makes it possible to
     call `environment.setup()` to stand up any required static infrastructure and
@@ -51,6 +56,12 @@ class Environment:
         self.on_exit = on_exit
         self.metadata = metadata or {}
         self.logger = logging.get_logger(type(self).__name__)
+        warnings.warn(
+            "`Environment` based flow configuration is deprecated, please transition to configuring "
+            "`flow.run_config` instead of `flow.environment`. "
+            "See https://docs.prefect.io/orchestration/flow_config/overview.html for more info.",
+            stacklevel=2 if type(self) is Environment else 3,
+        )
 
     def __repr__(self) -> str:
         return "<Environment: {}>".format(type(self).__name__)

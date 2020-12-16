@@ -11,13 +11,7 @@ import pytest
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import (
-    ConstantResultHandler,
-    JSONResultHandler,
-    ResultHandler,
-    SecretResultHandler,
-)
+from prefect.engine.result import Result
 from prefect.engine.results import PrefectResult, SecretResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
@@ -36,7 +30,6 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import VersionLockError
 
@@ -470,7 +463,7 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     def downstream(l):
         return l ** 2
 
-    with prefect.Flow(name="looping", result_handler=JSONResultHandler()) as f:
+    with prefect.Flow(name="looping", result=PrefectResult()) as f:
         inter = looper(10)
         final = downstream(inter)
 

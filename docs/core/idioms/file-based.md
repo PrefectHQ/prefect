@@ -23,7 +23,7 @@ pip install 'prefect[github]'
 :::
 
 In this example we will walk through a potential workflow you may use when registering flows with
-[GitHub](/api/latest/environments/storage.html#github) storage. This example takes place in a GitHub
+[GitHub](/api/latest/storage.html#github) storage. This example takes place in a GitHub
 repository with the following structure:
 
 ```
@@ -39,7 +39,7 @@ First, compose your flow file and give the flow `GitHub` storage:
 # flows/my_flow.py
 
 from prefect import task, Flow
-from prefect.environments.storage import GitHub
+from prefect.storage import GitHub
 
 @task
 def get_data():

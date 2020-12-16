@@ -1,7 +1,6 @@
 from typing import Any, Callable, List
 
 from prefect import Task
-from prefect.engine.result import NoResultType
 from prefect.triggers import all_finished
 
 
@@ -51,7 +50,7 @@ class FilterTask(Task):
         kwargs.setdefault("skip_on_upstream_skip", False)
         kwargs.setdefault("trigger", all_finished)
         self.filter_func = filter_func or (
-            lambda r: not isinstance(r, (type(None), NoResultType, Exception))
+            lambda r: not isinstance(r, (type(None), Exception))
         )
         super().__init__(**kwargs)
 

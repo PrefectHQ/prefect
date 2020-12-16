@@ -1,6 +1,5 @@
 import operator
 import os
-import warnings
 from typing import TYPE_CHECKING, Callable, List
 
 import prefect
@@ -33,11 +32,15 @@ _DEFINITION_KWARG_LIST = [
 class FargateTaskEnvironment(Environment, _RunMixin):
     """
     FargateTaskEnvironment is an environment which deploys your flow as a Fargate task.
-    This environment requires AWS credentials and extra boto3 kwargs which
-    are used in the creation and running of the Fargate task.
 
-    When providing a custom container definition spec the first container in the spec must be the
-    container that the flow runner will be executed on.
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+
+    This environment requires AWS credentials and extra boto3 kwargs which are
+    used in the creation and running of the Fargate task. When providing a
+    custom container definition spec the first container in the spec must be
+    the container that the flow runner will be executed on.
 
     The following environment variables, required for cloud, do not need to be
     included––they are automatically added and populated during execution:
@@ -87,7 +90,6 @@ class FargateTaskEnvironment(Environment, _RunMixin):
             Defaults to the value set in the environment variable `REGION_NAME` or `None`
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
             default executor will be used.
-        - executor_kwargs (dict, optional): DEPRECATED
         - labels (List[str], optional): a list of labels, which are arbitrary string
             identifiers used by Prefect Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the
@@ -106,8 +108,7 @@ class FargateTaskEnvironment(Environment, _RunMixin):
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
-        executor: "prefect.engine.executors.Executor" = None,
-        executor_kwargs: dict = None,
+        executor: "prefect.executors.Executor" = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
@@ -126,15 +127,9 @@ class FargateTaskEnvironment(Environment, _RunMixin):
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
-        if executor_kwargs is not None:
-            warnings.warn(
-                "`executor_kwargs` is deprecated, use `executor` instead", stacklevel=2
-            )
         if executor is None:
-            executor = prefect.engine.get_default_executor_class()(
-                **(executor_kwargs or {})
-            )
-        elif not isinstance(executor, prefect.engine.executors.Executor):
+            executor = prefect.engine.get_default_executor_class()()
+        elif not isinstance(executor, prefect.executors.Executor):
             raise TypeError(
                 f"`executor` must be an `Executor` or `None`, got `{executor}`"
             )

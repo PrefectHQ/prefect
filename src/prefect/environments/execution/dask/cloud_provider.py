@@ -5,19 +5,25 @@ import prefect
 from distributed.deploy.cluster import Cluster
 from distributed.security import Security
 from prefect import Client
-from prefect.environments.execution.dask.remote import RemoteDaskEnvironment
+from prefect.environments.execution import Environment
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
-class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
+class DaskCloudProviderEnvironment(Environment):
     """
     DaskCloudProviderEnvironment creates Dask clusters using the Dask Cloud Provider
-    project. For each flow run, a new Dask cluster will be dynamically created and the
-    flow will run using a `RemoteDaskEnvironment` with the Dask scheduler address
-    from the newly created Dask cluster. You can specify the number of Dask workers
-    manually (for example, passing the kwarg `n_workers`) or enable adaptive mode by
+    project.
+
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+
+    For each flow run, a new Dask cluster will be dynamically created and the
+    flow will run using a `DaskExecutor` with the Dask scheduler address from the newly
+    created Dask cluster. You can specify the number of Dask workers manually
+    (for example, passing the kwarg `n_workers`) or enable adaptive mode by
     passing `adaptive_min_workers` and, optionally, `adaptive_max_workers`. This
     environment aims to provide a very easy path to Dask scalability for users of
     cloud platforms, like AWS.
@@ -100,6 +106,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         self._adaptive_max_workers = adaptive_max_workers
         self._on_execute = on_execute
         self._provider_kwargs = kwargs
+        self.executor_kwargs = (executor_kwargs or {}).copy()
         if "skip_cleanup" not in self._provider_kwargs:
             # Prefer this default (if not provided) to avoid deregistering task definitions See
             # this issue in Dask Cloud Provider:
@@ -112,15 +119,15 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             # Client when it connects to the scheduler after cluster creation. So we
             # put it in _provider_kwargs so it gets passed to the Dask Cloud Provider's constructor
             self._provider_kwargs["security"] = self._security
+            self.executor_kwargs["client_kwargs"] = {"security": self._security}
+
         self.cluster = None
+
         super().__init__(
-            address="",  # The scheduler address will be set after cluster creation
-            executor_kwargs=executor_kwargs,
             labels=labels,
             on_start=on_start,
             on_exit=on_exit,
             metadata=metadata,
-            security=self._security,
         )
 
     @property
@@ -160,6 +167,13 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     def execute(  # type: ignore
         self, flow: "Flow", **kwargs: Any  # type: ignore
     ) -> None:
+        """
+        Execute a flow run on a dask-cloudprovider cluster.
+
+        Args:
+            - flow (Flow): the Flow object
+            - **kwargs (Any): Unused
+        """
         flow_run_info = None
         flow_run_id = prefect.context.get("flow_run_id")
         if self._on_execute:
@@ -219,4 +233,20 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                 self.executor_kwargs["address"]
             )
         )
-        super().execute(flow, **kwargs)
+        if self.on_start:
+            self.on_start()
+
+        try:
+            from prefect.engine import get_default_flow_runner_class
+            from prefect.executors import DaskExecutor
+
+            runner_cls = get_default_flow_runner_class()
+            runner_cls(flow=flow).run(executor=DaskExecutor(**self.executor_kwargs))
+        except Exception as exc:
+            self.logger.exception(
+                "Unexpected error raised during flow run: {}".format(exc)
+            )
+            raise
+        finally:
+            if self.on_exit:
+                self.on_exit()

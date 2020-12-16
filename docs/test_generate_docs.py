@@ -173,8 +173,8 @@ def test_tokenizer():
     [
         (no_args, ""),
         (one_arg, "x"),
-        (one_string_kwarg, 'k="key"'),
-        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (one_string_kwarg, "k=&quot;key&quot;"),
+        (standard_sig, "x, y, k=&quot;key&quot;, q=None, b=True"),
         (varargs_with_default, "*args, iso=None, **kwargs"),
         (varargs_no_default, "*args, iso, **kwargs"),
         (A, "attr, keep=True"),
@@ -195,8 +195,8 @@ def test_format_signature(obj, exp):
     [
         (no_args, ""),
         (one_arg, "x"),
-        (one_string_kwarg, 'k="key"'),
-        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (one_string_kwarg, "k=&quot;key&quot;"),
+        (standard_sig, "x, y, k=&quot;key&quot;, q=None, b=True"),
         (varargs_with_default, "*args, iso=None, **kwargs"),
         (varargs_no_default, "*args, iso, **kwargs"),
         (A.run, "*args, b=True, **kwargs"),
@@ -222,8 +222,8 @@ def test_format_signature_with_partial(obj, exp):
     [
         (no_args, ""),
         (one_arg, "x"),
-        (one_string_kwarg, 'k="key"'),
-        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (one_string_kwarg, "k=&quot;key&quot;"),
+        (standard_sig, "x, y, k=&quot;key&quot;, q=None, b=True"),
         (varargs_with_default, "*args, iso=None, **kwargs"),
         (varargs_no_default, "*args, iso, **kwargs"),
         (A.run, "*args, b=True, **kwargs"),

@@ -10,7 +10,7 @@ constructor, or set it as the `executor` attribute later before calling
 
 ```python
 from prefect import Flow
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 
 # Set executor as part of the constructor
 with Flow("example", executor=LocalDaskExecutor()) as flow:
@@ -50,7 +50,7 @@ performance. Here's some general recommendations:
 
 ## LocalExecutor
 
-The [LocalExecutor](/api/latest/engine/executors.md#local) executes all tasks
+The [LocalExecutor](/api/latest/executors.md#localexecutor) executes all tasks
 locally in a single thread. It's the default executor in Prefect. It's a good
 option for quick running flows, or ones that don't expose lots of opportunities
 for parallelism.
@@ -59,21 +59,21 @@ No extra configuration is required to specify the `LocalExecutor`, as it's the
 default option. If needed though, you can still specify it explicitly:
 
 ```python
-from prefect.engine.executors import LocalExecutor
+from prefect.executors import LocalExecutor
 
 flow.executor = LocalExecutor()
 ```
 
 ## LocalDaskExecutor
 
-The [LocalDaskExecutor](/api/latest/engine/executors.md#localdaskexecutor) is a
+The [LocalDaskExecutor](/api/latest/executors.md#localdaskexecutor) is a
 good option or flows that could benefit from parallel execution, but are still
 fine running on a single machine (not distributed). It can run tasks in
 parallel using either threads (default) or local processes using one of [Dask's
 local schedulers](https://docs.dask.org/en/latest/scheduling.html).
 
 ```python
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 
 # Uses the default scheduler (threads)
 flow.executor = LocalDaskExecutor()
@@ -121,7 +121,7 @@ sufficient.
 
 ## DaskExecutor
 
-The [DaskExecutor](/api/latest/engine/executors.md#daskexecutor) runs Prefect
+The [DaskExecutor](/api/latest/executors.md#daskexecutor) runs Prefect
 tasks using [Dask's Distributed
 Scheduler](https://distributed.dask.org/en/latest/). It can be used locally on
 a single machine (much like the `LocalDaskExecutor` above), but is most useful
@@ -135,7 +135,7 @@ By default, when you use a `DaskExecutor` it creates a temporary local Dask
 cluster.
 
 ```python
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 # By default this will use a temporary local Dask cluster
 flow.executor = DaskExecutor()

@@ -12,10 +12,9 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs, duration_only
 from prefect.engine.cloud import CloudTaskRunner
-from prefect.engine.result import NoResult, Result, SafeResult, NoResult
+from prefect.engine.result import Result
 from prefect.engine.results import PrefectResult, SecretResult, LocalResult
 
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
@@ -35,7 +34,6 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import VersionLockError
 
@@ -100,7 +98,7 @@ def vclient(monkeypatch):
 
 
 def test_task_runner_puts_cloud_in_context(client):
-    @prefect.task(result_handler=ResultHandler())
+    @prefect.task(result=Result())
     def whats_in_ctx():
         return prefect.context.get("checkpointing")
 
@@ -205,14 +203,14 @@ def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updat
 
 
 def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
-    @prefect.task(cache_for=datetime.timedelta(minutes=1))
+    @prefect.task(cache_for=datetime.timedelta(minutes=1), result=PrefectResult())
     def cached_task():
         return 42
 
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(days=1),
-        result=Result(99, JSONResultHandler()),
+        result=PrefectResult(location="99"),
     )
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
@@ -229,21 +227,19 @@ def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
 
 
 def test_task_runner_validates_cached_states_if_task_has_caching(client):
-    @prefect.task(
-        cache_for=datetime.timedelta(minutes=1), result_handler=JSONResultHandler()
-    )
+    @prefect.task(cache_for=datetime.timedelta(minutes=1), result=PrefectResult())
     def cached_task():
         return 42
 
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         - datetime.timedelta(minutes=2),
-        result=Result(99, JSONResultHandler()),
+        result=PrefectResult(location="99"),
     )
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         - datetime.timedelta(days=1),
-        result=Result(13, JSONResultHandler()),
+        result=PrefectResult(location="13"),
     )
     client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
 
@@ -255,9 +251,7 @@ def test_task_runner_validates_cached_states_if_task_has_caching(client):
 
 
 def test_task_runner_treats_unfound_files_as_invalid_caches(client, tmpdir):
-    @prefect.task(
-        cache_for=datetime.timedelta(minutes=1), result_handler=JSONResultHandler()
-    )
+    @prefect.task(cache_for=datetime.timedelta(minutes=1), result=PrefectResult())
     def cached_task():
         return 42
 
@@ -269,7 +263,7 @@ def test_task_runner_treats_unfound_files_as_invalid_caches(client, tmpdir):
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(days=1),
-        result=Result(13, JSONResultHandler()),
+        result=PrefectResult(location="13"),
     )
     client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
 
@@ -486,62 +480,6 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
 
 
-class TestHeartBeats:
-    def test_heartbeat_traps_errors_caused_by_client(self, caplog, monkeypatch):
-        client = MagicMock(graphql=MagicMock(side_effect=SyntaxError))
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
-        runner = CloudTaskRunner(task=Task(name="bad"))
-        runner.task_run_id = None
-        res = runner._heartbeat()
-        assert res is False
-
-        log = caplog.records[0]
-        assert log.levelname == "ERROR"
-        assert "Heartbeat failed for Task 'bad'" in log.message
-
-    def test_heartbeat_traps_errors_caused_by_bad_attributes(self, caplog, monkeypatch):
-        monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", MagicMock())
-        runner = CloudTaskRunner(task=Task())
-        res = runner._heartbeat()
-        assert res is False
-
-        log = caplog.records[0]
-        assert log.levelname == "ERROR"
-        assert "Heartbeat failed for Task 'Task'" in log.message
-
-    @pytest.mark.parametrize("setting_available", [True, False])
-    def test_task_runner_heartbeat_sets_command(self, monkeypatch, setting_available):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
-        client.graphql.return_value.data.flow_run_by_pk.flow.settings = (
-            dict(heartbeat_enabled=True) if setting_available else {}
-        )
-
-        runner = CloudTaskRunner(task=Task())
-        runner.task_run_id = "foo"
-        res = runner._heartbeat()
-        assert res is True
-        assert runner.task_run_id == "foo"
-        assert runner.heartbeat_cmd == ["prefect", "heartbeat", "task-run", "-i", "foo"]
-
-    def test_task_runner_does_not_have_heartbeat_if_disabled(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
-        client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-            heartbeat_enabled=False
-        )
-        runner = CloudTaskRunner(task=Task())
-        runner.task_run_id = "foo"
-        res = runner._heartbeat()
-        assert res is False
-
-
 class TestStateResultHandling:
     def test_task_runner_handles_outputs_prior_to_setting_state(self, client):
         @prefect.task(cache_for=datetime.timedelta(days=1), result=PrefectResult())
@@ -714,7 +652,7 @@ def test_task_runner_performs_retries_for_short_delays(client):
 
 
 def test_task_runner_handles_looping(client):
-    @prefect.task(result_handler=ResultHandler())
+    @prefect.task(result=PrefectResult())
     def looper():
         if prefect.context.get("task_loop_count", 1) < 3:
             raise LOOP(result=prefect.context.get("task_loop_result", 0) + 10)
@@ -739,7 +677,7 @@ def test_task_runner_handles_looping(client):
 
 
 def test_task_runner_handles_looping_with_no_result(client):
-    @prefect.task(result_handler=ResultHandler())
+    @prefect.task(result=Result())
     def looper():
         if prefect.context.get("task_loop_count", 1) < 3:
             raise LOOP()
@@ -768,7 +706,7 @@ def test_task_runner_handles_looping_with_retries_with_no_result(client):
     @prefect.task(
         max_retries=1,
         retry_delay=datetime.timedelta(seconds=0),
-        result_handler=JSONResultHandler(),
+        result=PrefectResult(),
     )
     def looper():
         if (
@@ -804,7 +742,7 @@ def test_task_runner_handles_looping_with_retries(client):
     @prefect.task(
         max_retries=1,
         retry_delay=datetime.timedelta(seconds=0),
-        result_handler=JSONResultHandler(),
+        result=PrefectResult(),
     )
     def looper():
         if (
