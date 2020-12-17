@@ -9,7 +9,7 @@ Instead of a static string, you'll pass a string that will be formatted at runti
 
 Templating is available for:
 
-- [Task run names](/core/idioms/task-run-name.html)
+- [Task run names](/core/idioms/task-run-names.html)
 - [Task target paths](/core/idioms/targets.html)
 - [Task result locations](/core/concepts/results.html#templating-result-locations)
 
