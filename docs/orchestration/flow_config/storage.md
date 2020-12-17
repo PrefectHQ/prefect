@@ -269,6 +269,7 @@ for authenticating with repositories.
 Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo
 must be associated with a Project. Bitbucket storage requires a `project` argument
 pointing to the correct project name.
+:::
 
 ## CodeCommit
 
