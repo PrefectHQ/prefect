@@ -401,10 +401,13 @@ class Flow:
 
     @cache
     def _default_reference_tasks(self) -> Set[Task]:
-        from prefect.tasks.core.resource_manager import ResourceCleanupTask
+        from prefect.tasks.core.resource_manager import (
+            ResourceInitTask,
+            ResourceCleanupTask,
+        )
 
-        # Select all tasks that aren't ResourceCleanupTasks and have no
-        # downstream dependencies that aren't ResourceCleanupTasks
+        # Select all tasks that aren't a ResourceInitTask/ResourceCleanupTask
+        # and have no downstream dependencies that aren't ResourceCleanupTasks
         #
         # Note: this feels a bit gross, since it special cases a certain
         # subclass inside the flow runner. If this behavior expands to other
@@ -413,7 +416,7 @@ class Flow:
         return {
             t
             for t in self.tasks
-            if not isinstance(t, ResourceCleanupTask)
+            if not isinstance(t, (ResourceInitTask, ResourceCleanupTask))
             and not any(
                 t
                 for t in self.downstream_tasks(t)
