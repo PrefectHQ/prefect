@@ -66,7 +66,12 @@ def read_bytes_from_path(path: str) -> bytes:
         blob = bucket.get_blob(parsed.path.lstrip("/"))
         if blob is None:
             raise ValueError(f"Job template doesn't exist at {path}")
-        return blob.download_as_bytes()
+        # Support GCS < 1.31
+        return (
+            blob.download_as_bytes()
+            if hasattr(blob, "download_as_bytes")
+            else blob.download_as_string()
+        )
     elif parsed.scheme == "s3":
         from prefect.utilities.aws import get_boto_client
 
