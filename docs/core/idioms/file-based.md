@@ -105,7 +105,7 @@ You can replace `GitHub` instances in the example above with `GitLab`, use the `
 :::
 
 :::tip Bitbucket users
-Similarly, to use Bitbucket based storage, install the `bitbucket` extra:
+Similarly, to use Bitbucket (Server only) based storage, install the `bitbucket` extra:
 
 ```bash
 pip install 'prefect[bitbucket]'
