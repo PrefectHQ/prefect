@@ -2,7 +2,7 @@ import time
 from typing import Any, Optional, cast
 
 from kubernetes import client
-from multiprocessing.pool import ThreadPool
+from concurrent.futures import ThreadPoolExecutor
 
 from prefect import Task
 from prefect.engine import signals
@@ -722,11 +722,7 @@ class RunNamespacedJob(Task):
         )
         self.logger.info(f"Job {job_name} has been created.")
 
-        # TODO: if a job has more active pods than the threadpool has threads
-        # logs will no longer be streamed live for all pods. Using an async
-        # k8s client would help remedy this.
-        # https://github.com/PrefectHQ/prefect/pull/3715#discussion_r538324514
-        pool = ThreadPool()
+        pool = ThreadPoolExecutor()
         pod_log_streams = dict()
 
         try:
@@ -763,7 +759,7 @@ class RunNamespacedJob(Task):
                         )
 
                         self.logger.info(f"Started following logs for {pod_name}")
-                        pod_log_streams[pod_name] = pool.apply_async(read_pod_logs.run)
+                        pod_log_streams[pod_name] = pool.submit(read_pod_logs.run)
 
                 if job.status.active:
                     time.sleep(job_status_poll_interval)
@@ -784,5 +780,5 @@ class RunNamespacedJob(Task):
                 self.logger.info(f"Job {job_name} has been deleted.")
         finally:
             if pool:
-                pool.close()
+                pool.shutdown()
                 pool = None
