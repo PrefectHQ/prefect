@@ -92,7 +92,7 @@ class TestGCSStorage:
         f = Flow("awesome-flow")
         flow_content = cloudpickle.dumps(f)
 
-        blob_mock = MagicMock(download_as_string=MagicMock(return_value=flow_content))
+        blob_mock = MagicMock(download_as_bytes=MagicMock(return_value=flow_content))
         bucket_mock = MagicMock(get_blob=MagicMock(return_value=blob_mock))
         google_client.return_value.get_bucket = MagicMock(return_value=bucket_mock)
 
@@ -107,13 +107,13 @@ class TestGCSStorage:
 
         assert fetched_flow.name == f.name
         bucket_mock.get_blob.assert_called_with("a-place")
-        assert blob_mock.download_as_string.call_count == 1
+        assert blob_mock.download_as_bytes.call_count == 1
 
     def test_get_flow_from_gcs_as_file(self, google_client):
         f = Flow("awesome-flow")
         flow_content = """from prefect import Flow\nf=Flow('awesome-flow')"""
 
-        blob_mock = MagicMock(download_as_string=MagicMock(return_value=flow_content))
+        blob_mock = MagicMock(download_as_bytes=MagicMock(return_value=flow_content))
         bucket_mock = MagicMock(get_blob=MagicMock(return_value=blob_mock))
         google_client.return_value.get_bucket = MagicMock(return_value=bucket_mock)
 
@@ -124,7 +124,7 @@ class TestGCSStorage:
 
         assert fetched_flow.name == f.name
         bucket_mock.get_blob.assert_called_with("a-place")
-        assert blob_mock.download_as_string.call_count == 1
+        assert blob_mock.download_as_bytes.call_count == 1
 
     def test_build_no_upload_if_file_and_no_local_script_path(self, google_client):
         storage = GCS(bucket="awesome-bucket", stored_as_script=True)
