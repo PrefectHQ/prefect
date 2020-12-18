@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class Bitbucket(Storage):
     """
     Bitbucket storage class. This class represents the Storage interface for Flows stored
-    in `.py` files in a Bitbucket repository.
+    in `.py` files in a Bitbucket repository. This is for Bitbucket Server only.
 
     This class represents a mapping of flow name to file paths contained in the git repo,
     meaning that all flow files should be pushed independently. A typical workflow using
