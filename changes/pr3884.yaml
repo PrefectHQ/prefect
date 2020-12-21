@@ -1,0 +1,2 @@
+fix:
+  - "Fix use of `imagePullSecrets`/`serviceAccountName` in k8s agent - [#3884](https://github.com/PrefectHQ/prefect/pull/3884)"

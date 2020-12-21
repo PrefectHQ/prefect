@@ -1279,14 +1279,16 @@ class TestK8sAgentRunConfig:
     def test_generate_job_spec_service_account_name(self, tmpdir):
         template_path = str(tmpdir.join("job.yaml"))
         template = self.read_default_template()
-        template["spec"]["template"]["serviceAccountName"] = "on-agent-template"
+        template["spec"]["template"]["spec"]["serviceAccountName"] = "on-agent-template"
         with open(template_path, "w") as f:
             yaml.safe_dump(template, f)
 
         self.agent.service_account_name = "on-agent"
         self.agent.job_template_path = template_path
 
-        template["spec"]["template"]["serviceAccountName"] = "on-run-config-template"
+        template["spec"]["template"]["spec"][
+            "serviceAccountName"
+        ] = "on-run-config-template"
 
         run_config = KubernetesRun(
             job_template=template, service_account_name="on-run-config"
@@ -1295,36 +1297,41 @@ class TestK8sAgentRunConfig:
         # Check precedence order:
         # 1. Explicit on run-config"
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["serviceAccountName"] == "on-run-config"
+        assert job["spec"]["template"]["spec"]["serviceAccountName"] == "on-run-config"
 
         # 2. In job template on run-config
         run_config.service_account_name = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["serviceAccountName"] == "on-run-config-template"
+        assert (
+            job["spec"]["template"]["spec"]["serviceAccountName"]
+            == "on-run-config-template"
+        )
         # None in run-config job template is still used
-        run_config.job_template["spec"]["template"]["serviceAccountName"] = None
+        run_config.job_template["spec"]["template"]["spec"]["serviceAccountName"] = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["serviceAccountName"] is None
+        assert job["spec"]["template"]["spec"]["serviceAccountName"] is None
 
         # 3. Explicit on agent
         # Not present in job template
-        run_config.job_template["spec"]["template"].pop("serviceAccountName")
+        run_config.job_template["spec"]["template"]["spec"].pop("serviceAccountName")
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["serviceAccountName"] == "on-agent"
+        assert job["spec"]["template"]["spec"]["serviceAccountName"] == "on-agent"
         # No job template present
         run_config.job_template = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["serviceAccountName"] == "on-agent"
+        assert job["spec"]["template"]["spec"]["serviceAccountName"] == "on-agent"
 
         # 4. In job template on agent
         self.agent.service_account_name = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["serviceAccountName"] == "on-agent-template"
+        assert (
+            job["spec"]["template"]["spec"]["serviceAccountName"] == "on-agent-template"
+        )
 
     def test_generate_job_spec_image_pull_secrets(self, tmpdir):
         template_path = str(tmpdir.join("job.yaml"))
         template = self.read_default_template()
-        template["spec"]["template"]["imagePullSecrets"] = [
+        template["spec"]["template"]["spec"]["imagePullSecrets"] = [
             {"name": "on-agent-template"}
         ]
         with open(template_path, "w") as f:
@@ -1333,7 +1340,7 @@ class TestK8sAgentRunConfig:
         self.agent.image_pull_secrets = ["on-agent"]
         self.agent.job_template_path = template_path
 
-        template["spec"]["template"]["imagePullSecrets"] = [
+        template["spec"]["template"]["spec"]["imagePullSecrets"] = [
             {"name": "on-run-config-template"}
         ]
 
@@ -1344,34 +1351,38 @@ class TestK8sAgentRunConfig:
         # Check precedence order:
         # 1. Explicit on run-config"
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["imagePullSecrets"] == [
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-run-config"}
         ]
 
         # 2. In job template on run-config
         run_config.image_pull_secrets = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["imagePullSecrets"] == [
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-run-config-template"}
         ]
         # None in run-config job template is still used
-        run_config.job_template["spec"]["template"]["imagePullSecrets"] = None
+        run_config.job_template["spec"]["template"]["spec"]["imagePullSecrets"] = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["imagePullSecrets"] is None
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] is None
 
         # 3. Explicit on agent
         # Not present in job template
-        run_config.job_template["spec"]["template"].pop("imagePullSecrets")
+        run_config.job_template["spec"]["template"]["spec"].pop("imagePullSecrets")
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["imagePullSecrets"] == [{"name": "on-agent"}]
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
+            {"name": "on-agent"}
+        ]
         # No job template present
         run_config.job_template = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["imagePullSecrets"] == [{"name": "on-agent"}]
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
+            {"name": "on-agent"}
+        ]
 
         # 4. In job template on agent
         self.agent.image_pull_secrets = None
         job = self.agent.generate_job_spec(self.build_flow_run(run_config))
-        assert job["spec"]["template"]["imagePullSecrets"] == [
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-agent-template"}
         ]
