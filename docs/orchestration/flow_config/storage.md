@@ -194,7 +194,7 @@ for authenticating with repositories.
 ## GitLab
 
 [GitLab Storage](/api/latest/storage.md#gitlab) is a storage
-option for referencing flows stored in a GitHub repository as `.py` files.
+option for referencing flows stored in a GitLab repository as `.py` files.
 
 ```python
 from prefect import Flow
