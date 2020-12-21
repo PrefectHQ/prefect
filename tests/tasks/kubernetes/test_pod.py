@@ -478,9 +478,6 @@ class TestReadNamespacedPodLogs:
         assert stream.call_args[0][0] == api_client.read_namespaced_pod_log
         assert stream.call_args[1]["name"] == "test"
 
-        assert api_client.read_namespaced_pod.call_count == 1
-        assert api_client.read_namespaced_pod.call_args[1]["name"] == "test"
-
         assert on_log_entry.call_count == 1
         assert on_log_entry.call_args[0][0] == "msg 2"
 
