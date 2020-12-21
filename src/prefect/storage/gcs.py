@@ -99,7 +99,12 @@ class GCS(Storage):
                     flow_location, self.bucket
                 )
             )
-        content = blob.download_as_string()
+        # Support GCS < 1.31
+        content = (
+            blob.download_as_bytes()
+            if hasattr(blob, "download_as_bytes")
+            else blob.download_as_string()
+        )
 
         if self.stored_as_script:
             return extract_flow_from_file(file_contents=content)
