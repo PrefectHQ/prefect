@@ -666,18 +666,13 @@ class ReadNamespacedPodLogs(Task):
         # Note that watching an API resource can expire. The method tries to
         # resume automatically once from the last result, but if that last result
         # is too old as well, an `ApiException` exception will be thrown with
-        # ``code`` 410. In that case you have to recover yourself, probably
-        # by listing the API resource to obtain the latest state and then
-        # watching from that state on by setting ``resource_version`` to
-        # one returned from listing.
-        resource_version = None
+        # ``code`` 410.
         while True:
             try:
                 stream = Watch().stream(
                     api_client.read_namespaced_pod_log,
                     name=pod_name,
                     namespace=namespace,
-                    resource_version=resource_version,
                 )
 
                 for log in stream:
@@ -687,6 +682,3 @@ class ReadNamespacedPodLogs(Task):
             except ApiException as exception:
                 if exception.status != 410:
                     raise
-
-                pod = api_client.read_namespaced_pod(name=pod_name, namespace=namespace)
-                resource_version = pod.metadata.resource_version
