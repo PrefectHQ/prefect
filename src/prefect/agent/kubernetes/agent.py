@@ -586,7 +586,7 @@ class KubernetesAgent(Agent):
         job["metadata"]["name"] = job_name
         job["metadata"]["labels"].update(**k8s_labels)
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
-        pod_template = job["spec"]["template"]
+        pod_spec = job["spec"]["template"]["spec"]
 
         # Configure `service_account_name` if specified
         if run_config.service_account_name is not None:
@@ -594,7 +594,7 @@ class KubernetesAgent(Agent):
             service_account_name = (
                 run_config.service_account_name
             )  # type: Optional[str]
-        elif "serviceAccountName" in pod_template and (
+        elif "serviceAccountName" in pod_spec and (
             run_config.job_template or run_config.job_template_path
         ):
             # On run-config job-template, no override
@@ -603,7 +603,7 @@ class KubernetesAgent(Agent):
             # Use agent value, if provided
             service_account_name = self.service_account_name
         if service_account_name is not None:
-            pod_template["serviceAccountName"] = service_account_name
+            pod_spec["serviceAccountName"] = service_account_name
 
         # Configure `image_pull_secrets` if specified
         if run_config.image_pull_secrets is not None:
@@ -611,7 +611,7 @@ class KubernetesAgent(Agent):
             image_pull_secrets = (
                 run_config.image_pull_secrets
             )  # type: Optional[Iterable[str]]
-        elif "imagePullSecrets" in pod_template and (
+        elif "imagePullSecrets" in pod_spec and (
             run_config.job_template or run_config.job_template_path
         ):
             # On run-config job template, no override
@@ -620,7 +620,7 @@ class KubernetesAgent(Agent):
             # Use agent, if provided
             image_pull_secrets = self.image_pull_secrets
         if image_pull_secrets is not None:
-            pod_template["imagePullSecrets"] = [{"name": s} for s in image_pull_secrets]
+            pod_spec["imagePullSecrets"] = [{"name": s} for s in image_pull_secrets]
 
         # Default restartPolicy to Never
         _get_or_create(job, "spec.template.spec.restartPolicy", "Never")
