@@ -74,5 +74,5 @@ class Test_read_bytes_from_path:
         )
         res = read_bytes_from_path("s3://mybucket/path/to/thing.yaml")
         assert client.download_fileobj.call_args[1]["Bucket"] == "mybucket"
-        assert client.download_fileobj.call_args[1]["Key"] == "/path/to/thing.yaml"
+        assert client.download_fileobj.call_args[1]["Key"] == "path/to/thing.yaml"
         assert isinstance(res, bytes)

@@ -77,7 +77,9 @@ def read_bytes_from_path(path: str) -> bytes:
 
         client = get_boto_client(resource="s3")
         stream = io.BytesIO()
-        client.download_fileobj(Bucket=parsed.netloc, Key=parsed.path, Fileobj=stream)
+        client.download_fileobj(
+            Bucket=parsed.netloc, Key=parsed.path.lstrip("/"), Fileobj=stream
+        )
         return stream.getvalue()
     else:
         raise ValueError(f"Unsupported file scheme {path}")

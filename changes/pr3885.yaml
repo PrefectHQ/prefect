@@ -1,0 +1,2 @@
+fix:
+  - "Fix `read_bytes_from_path` to work properly with S3 - [#3885](https://github.com/PrefectHQ/prefect/pull/3885)"
