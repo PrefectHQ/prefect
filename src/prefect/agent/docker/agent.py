@@ -404,6 +404,12 @@ class DockerAgent(Agent):
                 {self.network: self.docker_client.create_endpoint_config()}
             )
 
+        labels = {
+            "io.prefect.flow-name": flow_run.flow.name,
+            "io.prefect.flow-id": flow_run.flow.id,
+            "io.prefect.flow-run-id": flow_run.id,
+        }
+
         container = self.docker_client.create_container(
             image,
             command=get_flow_run_command(flow_run),
@@ -411,6 +417,7 @@ class DockerAgent(Agent):
             volumes=container_mount_paths,
             host_config=self.docker_client.create_host_config(**host_config),
             networking_config=networking_config,
+            labels=labels,
         )
 
         # Start the container
