@@ -30,10 +30,6 @@ class StartFlowRun(Task):
             state as the state of this task.  Defaults to `False`.
         - new_flow_context (dict, optional): the optional run context for the new flow run
         - run_name (str, optional): name to be set for the flow run
-        - idempotency_key (str, optional): a unique idempotency key for scheduling the
-            flow run. Duplicate flow runs with the same idempotency key will only create
-            a single flow run. This is useful for ensuring that only one run is created
-            if this task is retried. If not provided, defaults to the active `task_run_id`.
         - scheduled_start_time (datetime, optional): the time to schedule the execution
             for; if not provided, defaults to now
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
@@ -47,7 +43,6 @@ class StartFlowRun(Task):
         wait: bool = False,
         new_flow_context: dict = None,
         run_name: str = None,
-        idempotency_key: str = None,
         scheduled_start_time: datetime.datetime = None,
         **kwargs: Any,
     ):
@@ -56,7 +51,6 @@ class StartFlowRun(Task):
         self.parameters = parameters
         self.new_flow_context = new_flow_context
         self.run_name = run_name
-        self.idempotency_key = idempotency_key
         self.wait = wait
         self.scheduled_start_time = scheduled_start_time
         if flow_name:
@@ -69,7 +63,6 @@ class StartFlowRun(Task):
         "parameters",
         "new_flow_context",
         "run_name",
-        "idempotency_key",
         "scheduled_start_time",
     )
     def run(

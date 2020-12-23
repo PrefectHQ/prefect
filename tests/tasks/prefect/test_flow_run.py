@@ -72,11 +72,10 @@ class TestStartFlowRunCloud:
             flow_name="Test Flow",
             parameters={"test": "ing"},
             run_name="test-run",
-            idempotency_key=idempotency_key,
         )
         # verify that run returns the new flow run ID
         with prefect.context(task_run_id=task_run_id):
-            assert task.run() == "xyz890"
+            assert task.run(idempotency_key=idempotency_key) == "xyz890"
         # verify the GraphQL query was called with the correct arguments
         query_args = list(client.graphql.call_args_list[0][0][0]["query"].keys())[0]
         assert "Test Project" in query_args
