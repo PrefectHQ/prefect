@@ -61,68 +61,34 @@ class TestStartFlowRunCloud:
         assert task.run_name == "test-run"
         assert task.scheduled_start_time == now
 
-    def test_flow_run_task(self, client, cloud_api):
+    @pytest.mark.parametrize("idempotency_key", [None, "my-key"])
+    @pytest.mark.parametrize("task_run_id", [None, "test-id"])
+    def test_flow_run_task_submit_args(
+        self, client, cloud_api, idempotency_key, task_run_id
+    ):
         # verify that create_flow_run was called
         task = StartFlowRun(
             project_name="Test Project",
             flow_name="Test Flow",
             parameters={"test": "ing"},
             run_name="test-run",
+            idempotency_key=idempotency_key,
         )
         # verify that run returns the new flow run ID
-        assert task.run() == "xyz890"
+        with prefect.context(task_run_id=task_run_id):
+            assert task.run() == "xyz890"
         # verify the GraphQL query was called with the correct arguments
         query_args = list(client.graphql.call_args_list[0][0][0]["query"].keys())[0]
         assert "Test Project" in query_args
         assert "Test Flow" in query_args
 
         # verify create_flow_run was called with the correct arguments
-        client.create_flow_run.assert_called_once_with(
+        assert client.create_flow_run.call_args[1] == dict(
             flow_id="abc123",
             parameters={"test": "ing"},
-            idempotency_key=None,
+            idempotency_key=idempotency_key or task_run_id,
             context=None,
             run_name="test-run",
-            scheduled_start_time=None,
-        )
-
-    def test_flow_run_task_with_flow_run_id(self, client, cloud_api):
-        # verify that create_flow_run was called
-        task = StartFlowRun(
-            project_name="Test Project",
-            flow_name="Test Flow",
-            parameters={"test": "ing"},
-        )
-
-        # verify that run returns the new flow run ID
-        with prefect.context(flow_run_id="test-id"):
-            assert task.run() == "xyz890"
-
-        # verify create_flow_run was called with the correct arguments
-        client.create_flow_run.assert_called_once_with(
-            flow_id="abc123",
-            parameters={"test": "ing"},
-            idempotency_key="test-id",
-            context=None,
-            run_name=None,
-            scheduled_start_time=None,
-        )
-
-    def test_idempotency_key_uses_map_index_if_present(self, client, cloud_api):
-        # verify that create_flow_run was called
-        task = StartFlowRun(project_name="Test Project", flow_name="Test Flow")
-
-        # verify that run returns the new flow run ID
-        with prefect.context(flow_run_id="test-id", map_index=4):
-            assert task.run() == "xyz890"
-
-        # verify create_flow_run was called with the correct arguments
-        client.create_flow_run.assert_called_once_with(
-            flow_id="abc123",
-            idempotency_key="test-id-4",
-            parameters=None,
-            context=None,
-            run_name=None,
             scheduled_start_time=None,
         )
 
@@ -240,25 +206,3 @@ class TestStartFlowRunServer:
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
-
-    def test_flow_run_task_with_flow_run_id(self, client, server_api):
-        # verify that create_flow_run was called
-        task = StartFlowRun(
-            project_name="Test Project",
-            flow_name="Test Flow",
-            parameters={"test": "ing"},
-        )
-
-        # verify that run returns the new flow run ID
-        with prefect.context(flow_run_id="test-id"):
-            assert task.run() == "xyz890"
-
-        # verify create_flow_run was called with the correct arguments
-        client.create_flow_run.assert_called_once_with(
-            flow_id="abc123",
-            parameters={"test": "ing"},
-            idempotency_key="test-id",
-            context=None,
-            run_name=None,
-            scheduled_start_time=None,
-        )
