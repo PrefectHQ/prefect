@@ -200,6 +200,7 @@ def test_docker_agent_deploy_flow(core_version, command, api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -220,6 +221,11 @@ def test_docker_agent_deploy_flow(core_version, command, api):
     assert api.create_host_config.call_args[1]["auto_remove"] is True
     assert api.create_container.call_args[1]["command"] == command
     assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
+    assert api.create_container.call_args[1]["labels"] == {
+        "io.prefect.flow-id": "foo",
+        "io.prefect.flow-name": "flow-name",
+        "io.prefect.flow-run-id": "id",
+    }
     assert api.start.call_args[1]["container"] == "container_id"
 
 
@@ -231,6 +237,7 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Local().serialize(),
                         "environment": LocalEnvironment(
                             metadata={"image": "repo/name:tag"}
@@ -280,6 +287,7 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": storage.serialize(),
                         "run_config": run.serialize() if run else None,
                         "core_version": "0.13.11",
@@ -313,6 +321,7 @@ def test_docker_agent_deploy_flow_unsupported_run_config(api):
                             "storage": Local().serialize(),
                             "run_config": LocalRun().serialize(),
                             "id": "foo",
+                            "name": "flow-name",
                             "core_version": "0.13.0",
                         }
                     ),
@@ -339,6 +348,7 @@ def test_docker_agent_deploy_flow_storage_raises(monkeypatch, api):
                         {
                             "storage": Local().serialize(),
                             "id": "foo",
+                            "name": "flow-name",
                             "environment": LocalEnvironment().serialize(),
                             "core_version": "0.13.0",
                         }
@@ -361,6 +371,7 @@ def test_docker_agent_deploy_flow_no_pull(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -387,6 +398,7 @@ def test_docker_agent_deploy_flow_no_pull_using_environment_metadata(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Local().serialize(),
                         "environment": LocalEnvironment(
                             metadata={"image": "name:tag"}
@@ -414,6 +426,7 @@ def test_docker_agent_deploy_flow_reg_allow_list_allowed(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test1", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -442,6 +455,7 @@ def test_docker_agent_deploy_flow_reg_allow_list_not_allowed(api):
                     "flow": GraphQLResult(
                         {
                             "id": "foo",
+                            "name": "flow-name",
                             "storage": Docker(
                                 registry_url="test2", image_name="name", image_tag="tag"
                             ).serialize(),
@@ -477,6 +491,7 @@ def test_docker_agent_deploy_flow_show_flow_logs(api, monkeypatch):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -523,6 +538,7 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -813,6 +829,7 @@ def test_docker_agent_network(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -844,6 +861,7 @@ def test_docker_agent_deploy_with_interface_check_linux(
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -873,6 +891,7 @@ def test_docker_agent_deploy_with_no_interface_check_linux(
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
