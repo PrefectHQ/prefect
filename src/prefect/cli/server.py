@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from typing import TYPE_CHECKING
 from pathlib import Path
 
 import click
@@ -12,6 +13,8 @@ import prefect
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 
+if TYPE_CHECKING:
+    import docker
 
 def make_env(fname=None):
     # replace localhost with postgres to use docker-compose dns
@@ -399,6 +402,20 @@ def ascii_welcome(ui_port="8080"):
 
     return message
 
+
+@server.command(hidden=True)
+def stop():
+    import docker
+
+    client = docker.APIClient()
+
+    network_id = client.networks(names=["prefect-server"])[0].get("Id")
+
+    for container in client.inspect_network(network_id).items():
+        client.disconnect_container_from_network(container[0], network_id)
+        client.remove_container(container[0], force=True)
+
+    client.remove_network(network_id)
 
 @server.command(hidden=True)
 @click.option(
