@@ -123,6 +123,13 @@ def server():
     hidden=True,
 )
 @click.option(
+    "--detach",
+    "-d",
+    help="Detached mode. Runs Server containers in the background",
+    is_flag=True,
+    hidden=True,
+)
+@click.option(
     "--postgres-port",
     help="The port used to serve Postgres",
     default=config.server.database.host_port,
@@ -203,6 +210,7 @@ def start(
     skip_pull,
     no_upgrade,
     no_ui,
+    detach,
     postgres_port,
     hasura_port,
     graphql_port,
@@ -231,6 +239,7 @@ def start(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
+        --detach, -d                Detached mode. Runs Server containers in the background
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
@@ -339,6 +348,8 @@ def start(
             )
 
         cmd = ["docker-compose", "up"]
+        if detach:
+            cmd.append("--detach")
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         started = False
         with prefect.utilities.configuration.set_temporary_config(
@@ -361,6 +372,8 @@ def start(
                     time.sleep(0.5)
                     pass
             while True:
+                if detach:
+                    return
                 time.sleep(0.5)
     except BaseException:
         click.secho(
