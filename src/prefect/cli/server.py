@@ -16,6 +16,7 @@ from prefect.utilities.configuration import set_temporary_config
 if TYPE_CHECKING:
     import docker
 
+
 def make_env(fname=None):
     # replace localhost with postgres to use docker-compose dns
     PREFECT_ENV = dict(
@@ -80,7 +81,8 @@ def server():
 
     \b
     Arguments:
-        start                   Start the Prefect Core server using docker-compose
+        start                   Start the Prefect server using docker-compose
+        stop                    Stop Prefect Server by removing all containers and networks
         create-tenant           Creates a new tenant in the server instance
                                     Note: running `start` already creates a default tenant
 
@@ -405,17 +407,29 @@ def ascii_welcome(ui_port="8080"):
 
 @server.command(hidden=True)
 def stop():
+    """
+    This command stops all Prefect Server containers that are connected to the
+    `prefect-server` network. Note: This will completely remove the `prefect-server` network
+    and all associated containers.
+    """
     import docker
 
     client = docker.APIClient()
 
     network_id = client.networks(names=["prefect-server"])[0].get("Id")
 
-    for container in client.inspect_network(network_id).items():
+    if not network_id:
+        click.echo("No running Prefect Server found")
+        return
+
+    click.echo("Stopping Prefect Server containers and network")
+    for container in client.inspect_network(network_id).get("Containers").items():
         client.disconnect_container_from_network(container[0], network_id)
         client.remove_container(container[0], force=True)
 
     client.remove_network(network_id)
+    click.echo("Prefect Server stopped")
+
 
 @server.command(hidden=True)
 @click.option(
