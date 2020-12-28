@@ -371,9 +371,9 @@ def start(
                 except Exception:
                     time.sleep(0.5)
                     pass
-            if detach:
-                return
             while True:
+                if detach:
+                    return
                 time.sleep(0.5)
     except BaseException:
         click.secho(
@@ -432,9 +432,9 @@ def stop():
         return
 
     click.echo("Stopping Prefect Server containers and network")
-    for container in client.inspect_network(network_id).get("Containers").items():
-        client.disconnect_container_from_network(container[0], network_id)
-        client.remove_container(container[0], force=True)
+    for container in client.inspect_network(network_id).get("Containers").keys():
+        client.disconnect_container_from_network(container, network_id)
+        client.remove_container(container, force=True)
 
     client.remove_network(network_id)
     click.echo("Prefect Server stopped")
