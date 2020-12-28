@@ -72,7 +72,7 @@ def test_server_start(monkeypatch, macos_platform):
     monkeypatch.setattr("subprocess.check_output", check_output)
 
     runner = CliRunner()
-    result = runner.invoke(server, ["start"])
+    result = runner.invoke(server, ["start", "--detach"])
     assert result.exit_code == 1
 
     assert check_call.called
@@ -83,7 +83,7 @@ def test_server_start(monkeypatch, macos_platform):
     assert check_call.call_args[1].get("cwd")
     assert check_call.call_args[1].get("env")
 
-    assert popen.call_args[0][0] == ["docker-compose", "up"]
+    assert popen.call_args[0][0] == ["docker-compose", "up", "--detach"]
     assert popen.call_args[1].get("cwd")
     assert popen.call_args[1].get("env")
 
