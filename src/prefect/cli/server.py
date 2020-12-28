@@ -371,9 +371,9 @@ def start(
                 except Exception:
                     time.sleep(0.5)
                     pass
+            if detach:
+                return
             while True:
-                if detach:
-                    return
                 time.sleep(0.5)
     except BaseException:
         click.secho(
