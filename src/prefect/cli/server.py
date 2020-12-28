@@ -427,13 +427,10 @@ def stop():
 
     networks = client.networks(names=["prefect-server"])
 
-    network_id = None
-    if networks:
-        network_id = networks[0].get("Id")
-
-    if not network_id:
+    if not networks:
         click.echo("No running Prefect Server found")
         return
+    network_id = networks[0].get("Id")
 
     click.echo("Stopping Prefect Server containers and network")
     for container in client.inspect_network(network_id).get("Containers").keys():
