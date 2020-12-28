@@ -425,7 +425,11 @@ def stop():
 
     client = docker.APIClient()
 
-    network_id = client.networks(names=["prefect-server"])[0].get("Id")
+    networks = client.networks(names=["prefect-server"])
+
+    network_id = None
+    if networks:
+        network_id = networks[0].get("Id")
 
     if not network_id:
         click.echo("No running Prefect Server found")
