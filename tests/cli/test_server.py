@@ -274,3 +274,15 @@ def test_create_tenant(monkeypatch, cloud_api):
     )
     assert result.exit_code == 0
     assert "my_id" in result.output
+
+
+def test_stop_server(monkeypatch):
+    client = MagicMock()
+    client.networks = MagicMock(return_value=["network_id"])
+    client.inspect_network = MagicMock(
+        return_value={"Containers": {"id": {"test": "val"}}}
+    )
+    monkeypatch.setattr("docker.APIClient", client)
+    runner = CliRunner()
+    result = runner.invoke(server, ["stop"])
+    assert result.exit_code == 0
