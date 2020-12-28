@@ -1,0 +1,3 @@
+enhancement:
+  - "Add `prefect server stop` command for stopping the server - [#3899](https://github.com/PrefectHQ/prefect/pull/3899)"
+  - "Add `--detach` to `prefect server start` for running the server in the background - [#3899](https://github.com/PrefectHQ/prefect/pull/3899)"
