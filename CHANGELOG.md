@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.14.1 <Badge text="beta" type="success" />
+
+Released on December 29, 2020.
+
+### Enhancements
+
+- Make `setup` method optional for `resource_manager` tasks - [#3869](https://github.com/PrefectHQ/prefect/pull/3869)
+- Add labels to all containers managed by the docker agent - [#3893](https://github.com/PrefectHQ/prefect/pull/3893)
+- Add `prefect server stop` command for stopping the server - [#3899](https://github.com/PrefectHQ/prefect/pull/3899)
+- Add `--detach` to `prefect server start` for running the server in the background - [#3899](https://github.com/PrefectHQ/prefect/pull/3899)
+
+### Fixes
+
+- Add support for `google-cloud-storage` < 1.31.0 - [#3875](https://github.com/PrefectHQ/prefect/pull/3875)
+- Fix use of `imagePullSecrets`/`serviceAccountName` in k8s agent - [#3884](https://github.com/PrefectHQ/prefect/pull/3884)
+- Fix `read_bytes_from_path` to work properly with S3 - [#3885](https://github.com/PrefectHQ/prefect/pull/3885)
+- Change default `idempotency_key` in `StartFlowRun` to use `task_run_id` instead of `flow_run_id` - [#3892](https://github.com/PrefectHQ/prefect/pull/3892)
+
 ## 0.14.0 <Badge text="beta" type="success" />
 
 Released on December 16, 2020.

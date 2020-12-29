@@ -1,2 +1,0 @@
-enhancement:
-  - "Make `setup` method optional for `resource_manager` tasks - [#3869](https://github.com/PrefectHQ/prefect/pull/3869)"

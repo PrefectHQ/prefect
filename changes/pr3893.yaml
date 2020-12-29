@@ -1,2 +1,0 @@
-enhancement:
-  - "Add labels to all containers managed by the docker agent - [#3893](https://github.com/PrefectHQ/prefect/pull/3893)"
