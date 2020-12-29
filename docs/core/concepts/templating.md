@@ -1,7 +1,7 @@
 # Templating names
 
 There are several places within Prefect where names can be templated at runtime to create a value relevant to that specific run.
-These names can be passed as literal strings, e.g. `"my_foo_task"`,  but to get dynamic values based on the current state, we'll need to use _template_ strings.
+These names can be passed as literal strings, e.g. `"my_foo_task"`, but to get dynamic values based on the current state, we'll need to use _template_ strings.
 Here, we take advantage of Python's [format string](https://www.python.org/dev/peps/pep-3101/#format-strings) and provide various arguments.
 Instead of a static string, you'll pass a string that will be formatted at runtime, e.g. `"foo-{today}"`, where `today` is the name of one of the variables we provide.
 
@@ -32,7 +32,7 @@ The variables are loaded in the order shown above. Collisions will be resolved s
 
 ### Using task inputs
 
-The name can be templatable string like `"{val}"`. Make sure not to try to format the string early, e.g. `f"{val}"` as this will be formatted when your flow is *defined* rather than when it is *run*.
+The name can be a templatable string like `"{val}"`. Make sure not to try to format the string early, e.g. `f"{val}"` as this will be formatted when your flow is *defined* rather than when it is *run*.
 
 Here's an example that uses the task input to determine the name.
 
@@ -67,7 +67,6 @@ def generate_task_run_name(val: str, **kwargs):
     if len(val) > 10:
         val = val[:10]
     return val
-
 
 @task(task_run_name=generate_task_run_name)
 def compute(val: str):
