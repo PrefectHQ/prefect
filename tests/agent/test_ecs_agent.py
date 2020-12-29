@@ -275,13 +275,13 @@ class TestGenerateTaskDefinition:
                 "flow": GraphQLResult(
                     {
                         "storage": storage.serialize(),
-                        "run_config": run_config.serialize(),
                         "id": "flow-id",
                         "version": 1,
                         "name": "Test Flow",
                         "core_version": "0.13.0",
                     }
                 ),
+                "run_config": run_config.serialize(),
                 "id": "flow-run-id",
             }
         )
@@ -426,13 +426,13 @@ class TestGetRunTaskKwargs:
                 "flow": GraphQLResult(
                     {
                         "storage": Local().serialize(),
-                        "run_config": run_config.serialize(),
                         "id": "flow-id",
                         "version": 1,
                         "name": "Test Flow",
                         "core_version": "0.13.0",
                     }
                 ),
+                "run_config": run_config.serialize(),
                 "id": "flow-run-id",
             }
         )
@@ -558,13 +558,13 @@ class TestDeployFlow:
                 "flow": GraphQLResult(
                     {
                         "storage": Local().serialize(),
-                        "run_config": run_config.serialize() if run_config else None,
                         "id": "flow-id",
                         "version": 1,
                         "name": "Test Flow",
                         "core_version": "0.13.0",
                     }
                 ),
+                "run_config": run_config.serialize() if run_config else None,
                 "id": "flow-run-id",
             }
         )

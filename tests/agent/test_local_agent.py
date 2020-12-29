@@ -197,7 +197,8 @@ def test_populate_env_vars_from_run_config(tmpdir):
             {
                 "id": "id",
                 "name": "name",
-                "flow": {"id": "foo", "run_config": run.serialize()},
+                "flow": {"id": "foo"},
+                "run_config": run.serialize(),
             }
         ),
         run,
@@ -320,10 +321,10 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
                     "id": "id",
                     "flow": {
                         "storage": Local().serialize(),
-                        "run_config": KubernetesRun().serialize(),
                         "id": "foo",
                         "core_version": "0.13.0",
                     },
+                    "run_config": KubernetesRun().serialize(),
                 },
             )
         )
@@ -345,10 +346,10 @@ def test_local_agent_deploy_null_or_univeral_run_config(monkeypatch, run_config)
                 "id": "id",
                 "flow": {
                     "storage": Local().serialize(),
-                    "run_config": run_config.serialize() if run_config else None,
                     "id": "foo",
                     "core_version": "0.13.0",
                 },
+                "run_config": run_config.serialize() if run_config else None,
             },
         )
     )
@@ -373,10 +374,10 @@ def test_local_agent_deploy_run_config_working_dir(monkeypatch, working_dir, tmp
                 "id": "id",
                 "flow": {
                     "storage": Local().serialize(),
-                    "run_config": LocalRun(working_dir=working_dir).serialize(),
                     "id": "foo",
                     "core_version": "0.13.0",
                 },
+                "run_config": LocalRun(working_dir=working_dir).serialize(),
             },
         )
     )
@@ -401,10 +402,10 @@ def test_local_agent_deploy_run_config_missing_working_dir(monkeypatch, tmpdir):
                     "id": "id",
                     "flow": {
                         "storage": Local().serialize(),
-                        "run_config": LocalRun(working_dir=working_dir).serialize(),
                         "id": "foo",
                         "core_version": "0.13.0",
                     },
+                    "run_config": LocalRun(working_dir=working_dir).serialize(),
                 },
             )
         )

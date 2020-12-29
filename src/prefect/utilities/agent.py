@@ -22,7 +22,7 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
     from prefect.serialization.run_config import RunConfigSchema
     from prefect.serialization.environment import EnvironmentSchema
 
-    has_run_config = getattr(flow_run.flow, "run_config", None) is not None
+    has_run_config = getattr(flow_run, "run_config", None) is not None
     has_environment = getattr(flow_run.flow, "environment", None) is not None
 
     storage = StorageSchema().load(flow_run.flow.storage)
@@ -32,7 +32,7 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
         if isinstance(storage, Docker):
             return storage.name
         elif has_run_config:
-            run_config = RunConfigSchema().load(flow_run.flow.run_config)
+            run_config = RunConfigSchema().load(flow_run.run_config)
             if getattr(run_config, "image", None) is not None:
                 return run_config.image
         # No image found on run-config, and no environment present. Use default.

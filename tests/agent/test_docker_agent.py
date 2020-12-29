@@ -171,7 +171,8 @@ def test_populate_env_vars_from_run_config(api):
             {
                 "id": "id",
                 "name": "name",
-                "flow": {"id": "foo", "run_config": run.serialize()},
+                "flow": {"id": "foo"},
+                "run_config": run.serialize(),
             }
         ),
         "test-image",
@@ -289,10 +290,10 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
                         "id": "foo",
                         "name": "flow-name",
                         "storage": storage.serialize(),
-                        "run_config": run.serialize() if run else None,
                         "core_version": "0.13.11",
                     }
                 ),
+                "run_config": run.serialize() if run else None,
                 "id": "id",
                 "name": "name",
             }
@@ -319,12 +320,12 @@ def test_docker_agent_deploy_flow_unsupported_run_config(api):
                     "flow": GraphQLResult(
                         {
                             "storage": Local().serialize(),
-                            "run_config": LocalRun().serialize(),
                             "id": "foo",
                             "name": "flow-name",
                             "core_version": "0.13.0",
                         }
                     ),
+                    "run_config": LocalRun().serialize(),
                     "id": "id",
                     "name": "name",
                     "version": "version",
