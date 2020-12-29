@@ -29,6 +29,9 @@ The variables are loaded in the order shown above. Collisions will be resolved s
 
 ## Examples
 
+
+### Using task inputs
+
 The name can be templatable string like `"{val}"`. Make sure not to try to format the string early, e.g. `f"{val}"` as this will be formatted when your flow is *defined* rather than when it is *run*.
 
 Here's an example that uses the task input to determine the name.
@@ -44,25 +47,38 @@ with Flow("template-example") as flow:
     compute(val="hello")
 ```
 
+### Callable name generators
+
 Templates can also be callables, which give you the ability to do more complex determinations.
 
 ```python
 from prefect import task, Flow
 
-# You can specify some arguments if you know they will be passed, but you must take
-# **kwargs to consume the rest of the passed values from the context
-def generate_task_run_name(val, **kwargs):
-    double_val = val * 2
-    return double_val
+
+def generate_task_run_name(val: str, **kwargs):
+    """
+    Replace spaces with '-' and truncate at 10 characters.
+
+    You can specify some arguments if you know they will be passed, but you must take
+    **kwargs to consume the rest of the passed values from the context or an exception
+    will be thrown.
+    """
+    val = val.replace(" ", "-")
+    if len(val) > 10:
+        val = val[:10]
+    return val
 
 
 @task(task_run_name=generate_task_run_name)
-def compute(val):
+def compute(val: str):
     pass
 
 with Flow("template-example") as flow:
-    compute(val="hello")
+    compute(val="hello this is a kind of long sentence")
 ```
+
+
+### Using flow parameters
 
 All parameters in the flow are made available, even if not used in the task. Here's an example using a Parameter to template a local result location.
 
@@ -90,7 +106,9 @@ with Flow("local-result-parametrized") as flow:
 flow.add_task(result_basepath)
 ```
 
-The context contains a pendulum `DateTime` object which allows manipulation of the timestamp. For example, this writes the result to `~/2020-12_my_task.prefect`.
+### Formatting dates
+
+The context contains a `pendulum` `DateTime` object which allows manipulation of the timestamp. For example, this writes the result to `~/2020-12_my_task.prefect`.
 
 ```python
 import os
@@ -110,3 +128,21 @@ def my_task():
 with Flow("local-result-with-date-parsing") as flow:
     my_task()
 ```
+
+::: tip Python formatting
+
+You can also format dates with the [Python built-in formatting](https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior). 
+For example, the following will create a name like `Tuesday-Dec-29`
+
+```python
+from prefect import task, Flow
+
+@task(task_run_name="{date:%A}-{date:%b}-{date:%d}")
+def compute():
+    pass
+
+with Flow("template-example") as flow:
+    compute()
+```
+
+::: tip
