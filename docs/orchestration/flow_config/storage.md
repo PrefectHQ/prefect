@@ -46,13 +46,15 @@ flow = Flow("local-flow", storage=Local())
 
 After registration, the flow will be stored at `~/.prefect/flows/local-flow.prefect`.
 
-:::tip Sensible Defaults
+:::tip Automatic Labels
 Flows registered with this storage option will automatically be labeled with
 the hostname of the machine from which it was registered; this prevents agents
 not running on the same machine from attempting to run this flow.
+:::
 
-Additionally, your flow will default to using a `LocalResult` for persisting
-any task results in the same file location.
+:::tip Flow Results
+Flows configured with `Local` storage also default to using a `LocalResult` for
+persisting any task results in the same filesystem.
 :::
 
 ## AWS S3
@@ -70,13 +72,9 @@ flow = Flow("s3-flow", storage=S3(bucket="<my-bucket>"))
 After registration, the flow will be stored in the specified bucket under
 `s3-flow/<slugified-current-timestamp>`.
 
-:::tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"s3-flow-storage"`; this helps prevent agents not explicitly authenticated
-with your AWS deployment from attempting to run this flow.
-
-Additionally your flow will default to using a `S3Result` for persisting any
-task results in the same S3 bucket.
+:::tip Flow Results
+Flows configured with `S3` storage also default to using a `S3Result` for
+persisting any task results in the same S3 bucket.
 :::
 
 :::tip AWS Credentials
@@ -107,13 +105,9 @@ flow = Flow(
 After registration, the flow will be stored in the container under
 `azure-flow/<slugified-current-timestamp>`.
 
-:::tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"azure-flow-storage"`; this prevents agents not explicitly authenticated with
-your Azure deployment from attempting to run this flow.
-
-Additionally your flow will default to using a `AzureResult` for persisting any
-task results in the same Azure container.
+:::tip Flow Results
+Flows configured with `Azure` storage also default to using an `AzureResult` for
+persisting any task results to the same container in Azure Blob storage.
 :::
 
 :::tip Azure Credentials
@@ -140,13 +134,9 @@ flow = Flow("gcs-flow", storage=GCS(bucket="<my-bucket>"))
 After registration the flow will be stored in the specified bucket under
 `gcs-flow/<slugified-current-timestamp>`.
 
-:::tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"gcs-flow-storage"`; this helps prevents agents not explicitly authenticated
-with your GCS project from attempting to run this flow.
-
-Additionally, your flow will default to using a `GCSResult` for persisting any
-task results in the same GCS location.
+:::tip Flow Results
+Flows configured with `GCS` storage also default to using a `GCSResult` for
+persisting any task results in the same GCS location.
 :::
 
 :::tip Google Cloud Credentials
@@ -179,12 +169,6 @@ flow = Flow(
 For a detailed look on how to use GitHub storage visit the [Using file based
 storage](/core/idioms/file-based.md) idiom.
 
-:::tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"github-flow-storage"`; this helps prevents agents not explicitly
-authenticated with your GitHub repo from attempting to run this flow.
-:::
-
 :::tip GitHub Credentials
 GitHub storage uses a [personal access
 token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line)
@@ -212,12 +196,6 @@ flow = Flow(
 
 Much of the GitHub example in the [file based
 storage](/core/idioms/file-based.md) documentation applies to GitLab as well.
-
-:::tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"gitlab-flow-storage"`; this helps prevents agents not explicitly
-authenticated with your GitLab repo from attempting to run this flow.
-:::
 
 :::tip GitLab Credentials
 GitLab storage uses a [personal access
@@ -253,12 +231,6 @@ flow = Flow(
 Much of the GitHub example in the [file based
 storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well.
 
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"bitbucket-flow-storage"`; this helps prevents agents not explicitly
-authenticated with your Bitbucket repo from attempting to run this flow.
-:::
-
 :::tip Bitbucket Credentials
 Bitbucket storage uses a [personal access
 token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
@@ -289,12 +261,6 @@ flow = Flow(
     )
 )
 ```
-
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"codecommit-flow-storage"`; this helps prevent agents not explicitly
-authenticated with your AWS deployment from attempting to run this flow.
-:::
 
 :::tip AWS Credentials
 S3 Storage uses AWS credentials the same way as
@@ -396,9 +362,3 @@ Template strings in `${}` are used to reference sensitive information. Given
 secrets](/core/concepts/secrets.md) `SOME_TOKEN`. Because this resolution is
 at runtime, this storage option never has your sensitive information stored in
 it and that sensitive information is never sent to Prefect Cloud.
-
-:::tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with
-`"webhook-flow-storage"`. Add that label to an agent to tell Prefect Cloud that
-that agent should run flows with `Webhook` storage.
-:::
