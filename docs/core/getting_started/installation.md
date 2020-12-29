@@ -108,3 +108,10 @@ Image tag breakdown:
 | X.Y.Z-python3.6  |          X.Y.Z           |            3.6 |
 | core             | most recent PyPi version |            3.8 |
 | core-X.Y.Z       |          X.Y.Z           |            3.8 |
+
+All Prefect images besides those tagged with `core` contain all extra dependencies necessary for flow
+orchestration. This includes libraries required to work with
+[storage](https://docs.prefect.io/orchestration/flow_config/storage.html) and
+[agents](https://docs.prefect.io/orchestration/agents/overview.html#agent-types) (e.g. `boto3` and
+`kubernetes`). The `core` tagged images only include the base dependencies of the Prefect library that
+can be found [here](https://github.com/PrefectHQ/prefect/blob/master/requirements.txt).
