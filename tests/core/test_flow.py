@@ -25,10 +25,9 @@ from prefect.core.task import Task
 from prefect.tasks.core import constants
 from prefect.core.parameter import Parameter
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
-from prefect.engine.executors import LocalExecutor, DaskExecutor
+from prefect.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
-from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError, FAIL, LOOP
 from prefect.engine.state import (
     Cancelled,
@@ -149,16 +148,14 @@ class TestCreateFlow:
         assert isinstance(f.result, LocalResult)
 
     def test_create_flow_with_storage(self):
-        f2 = Flow(name="test", storage=prefect.environments.storage.Local())
-        assert isinstance(f2.storage, prefect.environments.storage.Local)
+        f2 = Flow(name="test", storage=prefect.storage.Local())
+        assert isinstance(f2.storage, prefect.storage.Local)
         assert f2.result is None
 
     def test_create_flow_with_storage_and_result(self):
         result = LocalResult(dir="/")
-        f2 = Flow(
-            name="test", storage=prefect.environments.storage.Local(), result=result
-        )
-        assert isinstance(f2.storage, prefect.environments.storage.Local)
+        f2 = Flow(name="test", storage=prefect.storage.Local(), result=result)
+        assert isinstance(f2.storage, prefect.storage.Local)
         assert isinstance(f2.result, LocalResult)
         assert f2.result != f2.storage.result
         assert f2.result == result
@@ -167,10 +164,6 @@ class TestCreateFlow:
         env = prefect.environments.LocalEnvironment()
         f2 = Flow(name="test", environment=env)
         assert f2.environment is env
-
-    def test_create_flow_has_default_environment(self):
-        f2 = Flow(name="test")
-        assert isinstance(f2.environment, prefect.environments.LocalEnvironment)
 
     def test_create_flow_auto_generates_tasks(self):
         with Flow("auto") as f:
@@ -1816,7 +1809,7 @@ class TestSerialize:
             f.serialize()
 
     def test_serialize_includes_storage(self):
-        f = Flow(name="test", storage=prefect.environments.storage.Local())
+        f = Flow(name="test", storage=prefect.storage.Local())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
@@ -1824,7 +1817,7 @@ class TestSerialize:
         assert s_build["storage"]["type"] == "Local"
 
     def test_serialize_adds_flow_to_storage_if_build(self, tmpdir):
-        f = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+        f = Flow(name="test", storage=prefect.storage.Local(tmpdir))
         s_no_build = f.serialize()
         assert f.name not in f.storage
 
@@ -1832,7 +1825,7 @@ class TestSerialize:
         assert f.name in f.storage
 
     def test_serialize_can_be_called_twice(self, tmpdir):
-        f = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+        f = Flow(name="test", storage=prefect.storage.Local(tmpdir))
         s_no_build = f.serialize()
         assert f.name not in f.storage
 
@@ -1859,14 +1852,14 @@ class TestSerializedHash:
         assert f.serialized_hash() == f.copy().serialized_hash()
 
     def test_is_consistent_after_storage_build(self):
-        f = Flow("foo", storage=prefect.environments.storage.Local())
+        f = Flow("foo", storage=prefect.storage.Local())
         key = f.serialized_hash(build=True)
         assert key == f.serialized_hash()
         assert key == f.serialized_hash(build=True)
         assert key == f.copy().serialized_hash()
 
     def test_is_different_before_and_after_storage_build(self):
-        f = Flow("foo", storage=prefect.environments.storage.Local())
+        f = Flow("foo", storage=prefect.storage.Local())
         assert f.copy().serialized_hash() != f.serialized_hash(build=True)
 
     def test_is_different_with_different_flow_name(self):
@@ -1944,9 +1937,9 @@ class TestSerializedHash:
         assert f1.serialized_hash() != f2.serialized_hash()
 
     def test_is_different_with_modified_flow_storage(self):
-        f1 = Flow("foo", storage=prefect.environments.storage.Local())
+        f1 = Flow("foo", storage=prefect.storage.Local())
         f2 = f1.copy()
-        f2.storage = prefect.environments.storage.Docker()
+        f2.storage = prefect.storage.Docker()
         assert f1.serialized_hash() != f2.serialized_hash()
 
     def test_is_different_with_different_flow_tasks(self):
@@ -2619,9 +2612,10 @@ class TestFlowDiagnostics:
             flow = prefect.Flow(
                 "test",
                 tasks=[t1, t2],
-                storage=prefect.environments.storage.Local(),
+                storage=prefect.storage.Local(),
+                run_config=prefect.run_configs.LocalRun(),
                 schedule=prefect.schedules.Schedule(clocks=[]),
-                result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+                result=prefect.engine.results.PrefectResult(),
             )
 
             monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
@@ -2642,18 +2636,16 @@ class TestFlowDiagnostics:
             assert flow_information
 
             # Type information
-            assert flow_information["environment"]["type"] == "LocalEnvironment"
             assert flow_information["storage"]["type"] == "Local"
             assert flow_information["result"]["type"] == "PrefectResult"
             assert flow_information["schedule"]["type"] == "Schedule"
             assert flow_information["task_count"] == 2
 
             # Kwargs presence check
-            assert flow_information["environment"]["executor"] is True
-            assert flow_information["environment"]["labels"] is False
-            assert flow_information["environment"]["on_start"] is False
-            assert flow_information["environment"]["on_exit"] is False
-            assert flow_information["environment"]["logger"] is True
+            assert flow_information["run_config"]["type"] == "LocalRun"
+            assert flow_information["run_config"]["env"] == False
+            assert flow_information["run_config"]["labels"] == False
+            assert flow_information["run_config"]["working_dir"] == False
 
             assert system_info["prefect_version"] == prefect.__version__
             assert system_info["platform"] == platform.platform()
@@ -2663,7 +2655,7 @@ class TestFlowDiagnostics:
 class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
-        ["prefect.environments.storage.Docker", "prefect.environments.storage.Local"],
+        ["prefect.storage.Docker", "prefect.storage.Local"],
     )
     def test_flow_register_uses_default_storage(self, monkeypatch, storage):
         monkeypatch.setattr("prefect.Client", MagicMock())
@@ -2691,9 +2683,7 @@ class TestFlowRegister:
 
         assert f.storage is None
         with set_temporary_config(
-            {
-                "flows.defaults.storage.default_class": "prefect.environments.storage.Docker"
-            }
+            {"flows.defaults.storage.default_class": "prefect.storage.Docker"}
         ):
             f.register(
                 "My-project",
@@ -2703,11 +2693,11 @@ class TestFlowRegister:
                 no_url=True,
             )
 
-        assert isinstance(f.storage, prefect.environments.storage.Docker)
+        assert isinstance(f.storage, prefect.storage.Docker)
         assert f.storage.registry_url == "FOO"
         assert f.storage.image_name == "BAR"
         assert f.storage.image_tag == "BIG"
-        assert f.environment.labels == set()
+        assert f.run_config.labels == set()
 
     def test_flow_register_sets_universal_run_if_empty(self, monkeypatch):
         monkeypatch.setattr("prefect.Client", MagicMock())
@@ -2721,10 +2711,10 @@ class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
         [
-            prefect.environments.storage.Local(),
-            prefect.environments.storage.S3(bucket="blah"),
-            prefect.environments.storage.GCS(bucket="test"),
-            prefect.environments.storage.Azure(container="windows"),
+            prefect.storage.Local(),
+            prefect.storage.S3(bucket="blah"),
+            prefect.storage.GCS(bucket="test"),
+            prefect.storage.Azure(container="windows"),
         ],
     )
     def test_flow_register_auto_labels_if_labeled_storage_used(
@@ -2744,10 +2734,10 @@ class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
         [
-            prefect.environments.storage.Local(),
-            prefect.environments.storage.S3(bucket="blah"),
-            prefect.environments.storage.GCS(bucket="test"),
-            prefect.environments.storage.Azure(container="windows"),
+            prefect.storage.Local(),
+            prefect.storage.S3(bucket="blah"),
+            prefect.storage.GCS(bucket="test"),
+            prefect.storage.Azure(container="windows"),
         ],
     )
     def test_flow_register_auto_sets_result_if_storage_has_default(
@@ -2765,7 +2755,7 @@ class TestFlowRegister:
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(
             name="Test me!! I should get labeled",
-            storage=prefect.environments.storage.S3(bucket="t"),
+            storage=prefect.storage.S3(bucket="t"),
             result=LocalResult(),
         )
         assert isinstance(f.result, LocalResult)
@@ -2784,13 +2774,11 @@ class TestFlowRegister:
 
         assert f.storage is None
         with set_temporary_config(
-            {
-                "flows.defaults.storage.default_class": "prefect.environments.storage.Local"
-            }
+            {"flows.defaults.storage.default_class": "prefect.storage.Local"}
         ):
             f.register("My-project")
 
-        assert isinstance(f.storage, prefect.environments.storage.Local)
+        assert isinstance(f.storage, prefect.storage.Local)
         assert "foo" in f.environment.labels
         assert len(f.environment.labels) == 2
 
@@ -2801,6 +2789,15 @@ class TestFlowRegister:
         assert "`flow.register()` from within a `Flow` context manager" in str(
             exc.value
         )
+
+    def test_flow_register_warns_if_mixing_environment_and_executor(self, monkeypatch):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        flow = Flow(
+            name="test", environment=LocalEnvironment(), executor=LocalExecutor()
+        )
+
+        with pytest.warns(UserWarning, match="This flow is using the deprecated"):
+            flow.register("testing", build=False)
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

@@ -141,8 +141,8 @@ def local():
 )
 @click.option(
     "--storage-labels/--no-storage-labels",
-    default=True,
-    help="Add all storage labels to the LocalAgent",
+    default=None,
+    help="Add all storage labels to the LocalAgent. DEPRECATED",
 )
 @click.option(
     "--hostname-label/--no-hostname-label",
@@ -260,11 +260,26 @@ def kubernetes():
     "job_template_path",
     help="Path to a kubernetes job template to use instead of the default.",
 )
-def start(**kwargs):
+@click.option(
+    "--service-account-name",
+    "service_account_name",
+    help="A default service account name to configure on started jobs.",
+)
+@click.option(
+    "--image-pull-secrets",
+    "image_pull_secrets",
+    help="Default image pull secrets to configure on started jobs. Multiple "
+    "values can be provided as a comma-separated list "
+    "(e.g. `--image-pull-secrets VAL1,VAL2`)",
+)
+def start(image_pull_secrets=None, **kwargs):
     """Start a Kubernetes agent"""
     from prefect.agent.kubernetes import KubernetesAgent
 
-    start_agent(KubernetesAgent, **kwargs)
+    if image_pull_secrets is not None:
+        image_pull_secrets = [s.strip() for s in image_pull_secrets.split(",")]
+
+    start_agent(KubernetesAgent, image_pull_secrets=image_pull_secrets, **kwargs)
 
 
 @kubernetes.command()
@@ -275,12 +290,6 @@ def start(**kwargs):
     "--image-pull-secrets",
     "-i",
     help="Name of image pull secrets to use for workloads.",
-)
-@click.option(
-    "--resource-manager",
-    "resource_manager_enabled",
-    is_flag=True,
-    help="Enable resource manager.",
 )
 @click.option("--rbac", is_flag=True, help="Enable default RBAC.")
 @click.option("--latest", is_flag=True, help="Use the latest Prefect image.")
@@ -308,9 +317,20 @@ def install(label, env, **kwargs):
 #################
 
 
+def warn_fargate_deprecated():
+    click.secho(
+        "Warning: The Fargate agent is deprecated, please transition to using the ECS agent instead",
+        fg="yellow",
+        err=True,
+    )
+
+
 @agent.group()
 def fargate():
-    """Manage Prefect Fargate agents."""
+    """Manage Prefect Fargate agents (DEPRECATED).
+
+    The Fargate agent is deprecated, please transition to using the ECS agent instead.
+    """
 
 
 @fargate.command(
@@ -319,14 +339,19 @@ def fargate():
 @add_options(COMMON_START_OPTIONS)
 @click.pass_context
 def start(ctx, **kwargs):
-    """Start a Fargate agent"""
+    """Start a Fargate agent (DEPRECATED)
+
+    The Fargate agent is deprecated, please transition to using the ECS agent instead.
+    """
     from prefect.agent.fargate import FargateAgent
+
+    warn_fargate_deprecated()
 
     for item in ctx.args:
         k, v = item.replace("--", "").split("=", 2)
         kwargs[k] = v
 
-    start_agent(FargateAgent, **kwargs)
+    start_agent(FargateAgent, _called_from_cli=True, **kwargs)
 
 
 #############
@@ -416,9 +441,8 @@ _agents = {
 )
 @click.option(
     "--storage-labels/--no-storage-labels",
-    default=True,
-    help="Add all storage labels to the LocalAgent",
-    hidden=True,
+    default=None,
+    help="Add all storage labels to the LocalAgent. DEPRECATED",
 )
 @click.option(
     "--hostname-label/--no-hostname-label",
@@ -522,8 +546,8 @@ def start(
     no_docker_interface,
     max_polls,
     agent_address,
-    storage_labels,
     hostname_label,
+    storage_labels,
 ):
     """
     Start an agent.
@@ -571,8 +595,6 @@ def start(
                                     (available for Local and Docker agents only)
         --hostname-label            Add hostname to the Agent's labels
                                         (Default to True. Disable with --no-hostname-label option)
-        --storage-labels            Add all storage labels to the Agent
-                                        (Default to True. Disable with --no-storage-labels option)
 
     \b
     Docker Agent:
@@ -621,12 +643,15 @@ def start(
             )
             return
 
-        click.secho(
-            f"Warning: `prefect agent start {agent_option}` is deprecated, use "
-            f"`prefect agent {agent_option} start` instead",
-            fg="yellow",
-            err=True,
-        )
+        if agent_option == "fargate":
+            warn_fargate_deprecated()
+        else:
+            click.secho(
+                f"Warning: `prefect agent start {agent_option}` is deprecated, use "
+                f"`prefect agent {agent_option} start` instead",
+                fg="yellow",
+                err=True,
+            )
 
         env_vars = dict()
         for env_var in env:
@@ -674,6 +699,7 @@ def start(
                 max_polls=max_polls,
                 no_cloud_logs=no_cloud_logs,
                 agent_address=agent_address,
+                _called_from_cli=True,
                 **kwargs,
             ).start()
         elif agent_option == "kubernetes":
@@ -719,9 +745,6 @@ def start(
     required=False,
     help="Name of image pull secrets to use for workloads.",
     hidden=True,
-)
-@click.option(
-    "--resource-manager", is_flag=True, help="Enable resource manager.", hidden=True
 )
 @click.option("--rbac", is_flag=True, help="Enable default RBAC.", hidden=True)
 @click.option(
@@ -801,7 +824,6 @@ def install(
     api,
     namespace,
     image_pull_secrets,
-    resource_manager,
     rbac,
     latest,
     mem_request,
@@ -844,7 +866,6 @@ def install(
         --api, -a                   TEXT    A Prefect API URL
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
-        --resource-manager                  Enable resource manager on install
         --rbac                              Enable default RBAC on install
         --latest                            Use the `latest` Prefect image
         --mem-request               TEXT    Requested memory for Prefect init job
@@ -897,7 +918,6 @@ def install(
             api=api,
             namespace=namespace,
             image_pull_secrets=image_pull_secrets,
-            resource_manager_enabled=resource_manager,
             rbac=rbac,
             latest=latest,
             mem_request=mem_request,

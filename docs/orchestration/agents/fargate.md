@@ -1,4 +1,12 @@
-# Fargate Agent
+# Fargate Agent (Deprecated)
+
+::: warning
+The Fargate Agent is deprecated, we recommend users transition to using the new
+[ECS Agent](/orchestration/agents/ecs.md) instead. Note that the ECS agent only
+supports [RunConfig](/orchestration/flow_config/overview.md#run-configuration)
+based flows. Flows using the legacy `Environment` classes will need to be
+transitioned before moving off the fargate agent.
+:::
 
 The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargate. This agent can be run anywhere so long as the proper AWS configuration credentials are provided.
 

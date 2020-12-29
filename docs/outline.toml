@@ -193,19 +193,10 @@ title = "TaskRunner"
 module = "prefect.engine.task_runner"
 classes = ["TaskRunner"]
 
-[pages.engine.executors]
-title = "Executors"
-module = "prefect.engine.executors"
-classes = [
-            "Executor",
-            "DaskExecutor",
-            "LocalDaskExecutor",
-            "LocalExecutor"]
-
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
-classes = ["Result", "SafeResult", "NoResultType"]
+classes = ["Result"]
 
 [pages.engine.results]
 title = "Result Subclasses"
@@ -217,30 +208,30 @@ title = "Result Serializers"
 module = "prefect.engine.serializers"
 classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer"]
 
-[pages.engine.result_handlers]
-title = "Result Handlers"
-module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler", "SecretResultHandler"]
-
 [pages.engine.cloud]
 title = "Cloud"
 module = "prefect.engine.cloud"
 classes = ["CloudFlowRunner", "CloudTaskRunner"]
-
-[pages.environments.storage]
-title = "Storage"
-module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab", "Bitbucket", "CodeCommit"]
 
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
 classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
 
+[pages.executors]
+title = "Executors"
+module = "prefect.executors"
+classes = {Executor=[], LocalExecutor=[], LocalDaskExecutor=[], DaskExecutor=[]}
+
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
 classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+
+[pages.storage]
+title = "Storage"
+module = "prefect.storage"
+classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab", "Bitbucket", "CodeCommit"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -366,7 +357,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = [
-        "RunGreatExpectationsCheckpoint",
+        "RunGreatExpectationsValidation", "RunGreatExpectationsCheckpoint",
         ]
 
 [pages.tasks.gsheets]
@@ -394,7 +385,7 @@ classes = ["CreateItem"]
 
 [pages.tasks.mysql]
 title = "MySQL Tasks"
-module = "prefect.contrib.tasks.mysql"
+module = "prefect.tasks.mysql"
 classes = ["MySQLExecute", "MySQLFetch"]
 
 [pages.tasks.notifications]
@@ -429,7 +420,7 @@ classes = ["SnowflakeQuery"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
-module = "prefect.contrib.tasks.databricks"
+module = "prefect.tasks.databricks"
 classes = ["DatabricksSubmitRun", "DatabricksRunNow"]
 
 [pages.tasks.spacy]

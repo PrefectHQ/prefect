@@ -168,14 +168,18 @@ class GCSDownload(GCSBaseTask):
         )
 
         # identify blob name
-        gcs_blob = self._get_blob(
+        blob = self._get_blob(
             bucket,
             blob,
             encryption_key=encryption_key,
             encryption_key_secret=encryption_key_secret,
         )
-        data = gcs_blob.download_as_string(timeout=request_timeout)
-        return data
+        # Support GCS < 1.31
+        return (
+            blob.download_as_bytes(timeout=request_timeout)
+            if hasattr(blob, "download_as_bytes")
+            else blob.download_as_string(timeout=request_timeout)
+        )
 
 
 class GCSUpload(GCSBaseTask):

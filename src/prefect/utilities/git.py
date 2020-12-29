@@ -28,7 +28,7 @@ def get_github_client(credentials: dict = None, **kwargs: Any) -> "Github":
     Utility function for loading github client objects from a given set of credentials.
 
     Args:
-        - credentials (dict, optional): a dictionary of AWS credentials used to
+        - credentials (dict, optional): a dictionary of Github credentials used to
             initialize the Client; if not provided, will attempt to load the
             Client using ambient environment settings
         - **kwargs (Any, optional): additional keyword arguments to pass to the github Client
@@ -64,7 +64,7 @@ def get_gitlab_client(
     Utility function for loading gitlab client objects from a given set of credentials.
 
     Args:
-        - credentials (dict, optional): a dictionary of AWS credentials used to
+        - credentials (dict, optional): a dictionary of Gitlab credentials used to
             initialize the Client; if not provided, will attempt to load the
             Client using ambient environment settings
         - host (str, optional): the host string for gitlab server users. If not provided, defaults
@@ -102,7 +102,7 @@ def get_bitbucket_client(
     Utility function for loading Bitbucket client objects from a given set of credentials.
 
     Args:
-        - credentials (dict, optional): a dictionary of AWS credentials used to
+        - credentials (dict, optional): a dictionary of Bitbucket credentials used to
             initialize the Client; if not provided, will attempt to load the
             Client using ambient environment settings
         - host (str, optional): the host string for bitbucket server users. If not provided, defaults

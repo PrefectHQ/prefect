@@ -6,7 +6,7 @@ import pytest
 import prefect
 from prefect import Flow
 from prefect.environments import LocalEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.utilities.storage import (
     get_flow_image,
     extract_flow_from_file,

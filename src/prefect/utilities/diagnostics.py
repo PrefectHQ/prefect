@@ -121,35 +121,48 @@ def flow_information(flow: "prefect.Flow") -> dict:
         return True
 
     # Check presence of environment attributes
-    environment = dict()  # type: ignore
     if flow.environment:
         environment = {
             "type": type(flow.environment).__name__,
+            **_replace_values(flow.environment.__dict__),
         }
-        environment.update(_replace_values(flow.environment.__dict__))
+    else:
+        environment = False  # type: ignore
+
+    # Check presence of run_config attributes
+    if flow.run_config:
+        run_config = {
+            "type": type(flow.run_config).__name__,
+            **_replace_values(flow.run_config.__dict__),
+        }
+    else:
+        run_config = False  # type: ignore
 
     # Check presence of storage attributes
-    storage = dict()  # type: ignore
     if flow.storage:
         storage = {
             "type": type(flow.storage).__name__,
+            **_replace_values(flow.storage.__dict__),
         }
-        storage.update(_replace_values(flow.storage.__dict__))
+    else:
+        storage = False  # type: ignore
 
     # Check presence of a result handler
-    result = dict()  # type: ignore
     if flow.result:
         result = {"type": type(flow.result).__name__}
+    else:
+        result = False  # type: ignore
 
     # Check presence of a schedule
-    schedule = dict()  # type: ignore
     if flow.schedule:
-        schedule = {"type": type(flow.schedule).__name__}
-        schedule.update(flow.schedule.__dict__)
+        schedule = {"type": type(flow.schedule).__name__, **flow.schedule.__dict__}
+    else:
+        schedule = False  # type: ignore
 
     return dict(
         flow_information=dict(
             environment=environment,
+            run_config=run_config,
             storage=storage,
             result=result,
             schedule=schedule,

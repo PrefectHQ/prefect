@@ -174,6 +174,36 @@ jobs:
           paths:
             - coverage
 
+  # test task library explicitly
+  test_task_library:
+    docker:
+      - image: python:3.8
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Upgrade pip
+          command: pip install "pip==20.2.4"
+
+      - run:
+          name: Install Prefect
+          command: pip install ".[task_library_ci]"
+
+      - run:
+          name: Run tests
+          command: pytest tests/tasks -vvrfEsx
+
   # ----------------------------------
   # Run unit tests in Python 3.6-3.8
   # ----------------------------------
@@ -202,11 +232,11 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[test_ci]"
+          command: pip install ".[base_library_ci]"
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -236,11 +266,11 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[test_ci]"
+          command: pip install ".[base_library_ci]"
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx
 
   test_38:
     docker:
@@ -265,11 +295,11 @@ jobs:
 
       - run:
           name: Install Prefect
-          command: pip install ".[test_ci]"
+          command: pip install ".[base_library_ci]"
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx
 
   test_39:
     docker:
@@ -301,7 +331,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx
 
   upload_coverage:
     docker:
@@ -327,9 +357,12 @@ jobs:
       tag_latest:
         type: boolean
         default: false
+      extras:
+        type: string
     environment:
       PYTHON_VERSION: << parameters.python_version >>
       PYTHON_TAG: python<< parameters.python_version >>
+      EXTRAS: << parameters.extras >>
     steps:
       - checkout
       - run:
@@ -353,6 +386,7 @@ jobs:
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
+              --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} \
               -t prefecthq/prefect:latest-${PYTHON_TAG} \
               .
@@ -363,6 +397,7 @@ jobs:
                 name: Tag latest image
                 command: |
                   docker tag prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} prefecthq/prefect:latest
+                  docker tag prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} prefecthq/prefect:${CIRCLE_TAG}
       - run:
           name: Test image
           command: |
@@ -381,6 +416,7 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:latest
+                  docker push prefecthq/prefect:${CIRCLE_TAG}
 
   build_master_docker_image:
     docker:
@@ -391,8 +427,11 @@ jobs:
     parameters:
       python_version:
         type: string
+      extras:
+        type: string
     environment:
       PYTHON_VERSION: << parameters.python_version >>
+      EXTRAS: << parameters.extras >>
     steps:
       - checkout
       - run:
@@ -414,6 +453,7 @@ jobs:
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
+              --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:master \
               .
       - run:
@@ -426,7 +466,7 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
 
-  build_all_extras_docker_image:
+  build_core_docker_image:
     docker:
       - image: docker
         auth:
@@ -435,14 +475,11 @@ jobs:
     parameters:
       python_version:
         type: string
-      extras:
-        type: string
       tag_latest:
         type: boolean
         default: false
     environment:
       PYTHON_VERSION: << parameters.python_version >>
-      EXTRAS: << parameters.extras >>
     steps:
       - checkout
       - run:
@@ -456,7 +493,7 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Build all_extras image
+          name: Build core image
           command: |
             set -u
             docker build \
@@ -464,19 +501,18 @@ jobs:
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
-              --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:all_extras-${CIRCLE_TAG} \
-              -t prefecthq/prefect:all_extras \
+              -t prefecthq/prefect:core-${CIRCLE_TAG} \
+              -t prefecthq/prefect:core \
               .
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:all_extras-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       - run:
-          name: Push all_extras tag
+          name: Push core tag
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:all_extras-${CIRCLE_TAG}
+            docker push prefecthq/prefect:core-${CIRCLE_TAG}
       - when:
           condition: << parameters.tag_latest >>
           steps:
@@ -484,7 +520,7 @@ jobs:
                 name: Push latest tag
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-                  docker push prefecthq/prefect:all_extras
+                  docker push prefecthq/prefect:core
 
 
   promote_server_artifacts:
@@ -559,6 +595,7 @@ workflows:
       - test_39
       - test_lower_prefect
       - test_vanilla_prefect
+      - test_task_library
       - upload_coverage:
           requires:
             - test_36
@@ -575,6 +612,7 @@ workflows:
     jobs:
       - build_master_docker_image:
           python_version: '3.7'
+          extras: 'all_orchestration_extras'
           filters:
             branches:
               only: master
@@ -583,6 +621,7 @@ workflows:
     jobs:
       - build_docker_image:
           python_version: '3.6'
+          extras: 'all_orchestration_extras'
           filters:
             branches:
               ignore: /.*/
@@ -590,6 +629,7 @@ workflows:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.7'
+          extras: 'all_orchestration_extras'
           tag_latest: true
           filters:
             branches:
@@ -598,6 +638,7 @@ workflows:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.8'
+          extras: 'all_orchestration_extras'
           filters:
             branches:
               ignore: /.*/
@@ -609,9 +650,8 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build_all_extras_docker_image:
+      - build_core_docker_image:
           python_version: '3.8'
-          extras: 'all_extras'
           tag_latest: true
           filters:
             branches:

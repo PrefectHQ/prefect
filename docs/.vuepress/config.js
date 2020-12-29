@@ -1,6 +1,6 @@
-const sidebar107 = require('../api/0.10.7/sidebar')
 const sidebar115 = require('../api/0.11.5/sidebar')
 const sidebar126 = require('../api/0.12.6/sidebar')
+const sidebar1319 = require('../api/0.13.19/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -80,10 +80,10 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.13.18)', link: '/api/latest/' },
+          { text: 'Latest (0.14.1)', link: '/api/latest/' },
+          { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
-          { text: '0.10.7', link: '/api/0.10.7/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
@@ -93,9 +93,9 @@ module.exports = {
       }
     ],
     sidebar: {
-      '/api/0.10.7/': sidebar107.sidebar,
       '/api/0.11.5/': sidebar115.sidebar,
       '/api/0.12.6/': sidebar126.sidebar,
+      '/api/0.13.19/': sidebar1319.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
@@ -137,9 +137,19 @@ module.exports = {
           children: getChildren('docs/api/latest', 'environments')
         },
         {
+          title: 'prefect.executors',
+          collapsable: true,
+          children: ['executors.md'],
+        },
+        {
           title: 'prefect.run_configs',
           collapsable: true,
           children: ['run_configs.md'],
+        },
+        {
+          title: 'prefect.storage',
+          collapsable: true,
+          children: ['storage.md'],
         },
         {
           title: 'prefect.tasks',
@@ -170,25 +180,14 @@ module.exports = {
       '/orchestration/': [
         '/orchestration/',
         {
-          title: 'Server',
+          title: 'Tutorial',
           collapsable: true,
           children: [
-            'server/overview',
-            'server/architecture',
-            'server/deploy-local',
-            'server/telemetry'
-          ]
-        },
-        {
-          title: 'UI',
-          collapsable: true,
-          children: [
-            'ui/dashboard',
-            'ui/flow',
-            'ui/flow-run',
-            'ui/task-run',
-            'ui/interactive-api',
-            'ui/team-settings'
+            'tutorial/overview',
+            'tutorial/first',
+            'tutorial/parameters',
+            'tutorial/flow_config',
+            'tutorial/next-steps'
           ]
         },
         {
@@ -209,25 +208,14 @@ module.exports = {
           ]
         },
         {
-          title: 'Deployment Tutorial',
-          collapsable: true,
-          children: [
-            'tutorial/configure',
-            'tutorial/first',
-            'tutorial/multiple',
-            'tutorial/docker',
-            'tutorial/k8s',
-            'tutorial/next-steps'
-          ]
-        },
-        {
           title: 'Flow Run Configuration',
           collapsable: true,
           children: [
             'flow_config/overview',
             'flow_config/storage',
             'flow_config/run_configs',
-            'flow_config/executors'
+            'flow_config/executors',
+            'flow_config/upgrade'
           ]
         },
         {
@@ -238,21 +226,30 @@ module.exports = {
             'agents/local',
             'agents/docker',
             'agents/kubernetes',
+            'agents/ecs',
             'agents/fargate'
           ]
         },
         {
-          title: 'Legacy Environments',
+          title: 'UI',
           collapsable: true,
           children: [
-            'execution/overview',
-            'execution/storage_options',
-            'execution/local_environment',
-            'execution/dask_cloud_provider_environment',
-            'execution/dask_k8s_environment',
-            'execution/k8s_job_environment',
-            'execution/fargate_task_environment',
-            'execution/custom_environment'
+            'ui/dashboard',
+            'ui/flow',
+            'ui/flow-run',
+            'ui/task-run',
+            'ui/interactive-api',
+            'ui/team-settings'
+          ]
+        },
+        {
+          title: 'Server',
+          collapsable: true,
+          children: [
+            'server/overview',
+            'server/architecture',
+            'server/deploy-local',
+            'server/telemetry'
           ]
         },
         {
@@ -270,6 +267,20 @@ module.exports = {
           title: 'FAQ',
           collapsable: true,
           children: getChildren('docs/orchestration', 'faq')
+        },
+        {
+          title: 'Legacy Environments',
+          collapsable: true,
+          children: [
+            'execution/overview',
+            'execution/storage_options',
+            'execution/local_environment',
+            'execution/dask_cloud_provider_environment',
+            'execution/dask_k8s_environment',
+            'execution/k8s_job_environment',
+            'execution/fargate_task_environment',
+            'execution/custom_environment'
+          ]
         }
       ],
       '/core/': [

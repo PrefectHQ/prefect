@@ -1,24 +1,24 @@
 import pytest
 
-from prefect import engine, utilities
+from prefect import engine, executors, utilities
 
 
 def test_default_executor():
-    assert engine.get_default_executor_class() is engine.executors.LocalExecutor
+    assert engine.get_default_executor_class() is executors.LocalExecutor
 
 
 def test_default_executor_responds_to_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.executor.default_class": "prefect.engine.executors.LocalDaskExecutor"}
+        {"engine.executor.default_class": "prefect.executors.LocalDaskExecutor"}
     ):
-        assert engine.get_default_executor_class() is engine.executors.LocalDaskExecutor
+        assert engine.get_default_executor_class() is executors.LocalDaskExecutor
 
 
 def test_default_executor_responds_to_config_object():
     with utilities.configuration.set_temporary_config(
-        {"engine.executor.default_class": engine.executors.LocalDaskExecutor}
+        {"engine.executor.default_class": executors.LocalDaskExecutor}
     ):
-        assert engine.get_default_executor_class() is engine.executors.LocalDaskExecutor
+        assert engine.get_default_executor_class() is executors.LocalDaskExecutor
 
 
 def test_default_executor_with_bad_config():
@@ -26,7 +26,7 @@ def test_default_executor_with_bad_config():
         {"engine.executor.default_class": "prefect.engine.bad import path"}
     ):
         with pytest.warns(UserWarning):
-            assert engine.get_default_executor_class() is engine.executors.LocalExecutor
+            assert engine.get_default_executor_class() is executors.LocalExecutor
 
 
 def test_default_flow_runner():

@@ -37,12 +37,10 @@ import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.core.task import Task
-from prefect.engine.executors import Executor
-from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import ResultHandler
-from prefect.engine.results import ResultHandlerResult
+from prefect.executors import Executor
+from prefect.engine.result import Result
 from prefect.environments import Environment
-from prefect.environments.storage import Storage, get_default_storage_class
+from prefect.storage import Storage, get_default_storage_class
 from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
@@ -116,23 +114,21 @@ class Flow:
     Args:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
-        - executor (prefect.engine.executors.Executor, optional): The executor that the flow
+        - executor (prefect.executors.Executor, optional): The executor that the flow
            should use. If `None`, the default executor configured in the runtime environment
            will be used.
-        - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
+        - environment (prefect.environments.Environment, optional, DEPRECATED): The environment
+           that the flow should be run in.
         - run_config (prefect.run_configs.RunConfig, optional): The runtime
            configuration to use when deploying this flow.
-        - storage (prefect.environments.storage.Storage, optional): The unit of storage
+        - storage (prefect.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks that determine the final
             state of a flow
-        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to
-            retrieve and store task results during execution
-        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
-            retrieving and storing state results during execution
+        - result (Result, optional): the result instance used to retrieve and store
+            task results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -163,7 +159,6 @@ class Flow:
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         validate: bool = None,
-        result_handler: Optional[ResultHandler] = None,
         result: Optional[Result] = None,
     ):
         self._cache = {}  # type: dict
@@ -175,19 +170,10 @@ class Flow:
         self.logger = logging.get_logger(self.name)
         self.schedule = schedule
         self.executor = executor
-        self.environment = environment or prefect.environments.LocalEnvironment()
+        self.environment = environment
         self.run_config = run_config
         self.storage = storage
-        if result_handler:
-            warnings.warn(
-                "Result Handlers are deprecated; please use the new style Result classes instead.",
-                stacklevel=2,
-            )
-            self.result = ResultHandlerResult.from_result_handler(
-                result_handler
-            )  # type: Optional[Result]
-        else:
-            self.result = result
+        self.result = result
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -415,10 +401,13 @@ class Flow:
 
     @cache
     def _default_reference_tasks(self) -> Set[Task]:
-        from prefect.tasks.core.resource_manager import ResourceCleanupTask
+        from prefect.tasks.core.resource_manager import (
+            ResourceInitTask,
+            ResourceCleanupTask,
+        )
 
-        # Select all tasks that aren't ResourceCleanupTasks and have no
-        # downstream dependencies that aren't ResourceCleanupTasks
+        # Select all tasks that aren't a ResourceInitTask/ResourceCleanupTask
+        # and have no downstream dependencies that aren't ResourceCleanupTasks
         #
         # Note: this feels a bit gross, since it special cases a certain
         # subclass inside the flow runner. If this behavior expands to other
@@ -427,7 +416,7 @@ class Flow:
         return {
             t
             for t in self.tasks
-            if not isinstance(t, ResourceCleanupTask)
+            if not isinstance(t, (ResourceInitTask, ResourceCleanupTask))
             and not any(
                 t
                 for t in self.downstream_tasks(t)
@@ -1243,9 +1232,9 @@ class Flow:
             **kwargs,
         )
 
-        # state always should return a dict of tasks. If it's NoResult (meaning the run was
+        # state always should return a dict of tasks. If it's empty (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state._result == NoResult:
+        if not state._result:
             state.result = {}
         elif isinstance(state.result, Exception):
             self.logger.error(
@@ -1569,8 +1558,10 @@ class Flow:
         with set_temporary_config(temp_config):
             if self.run_config is not None:
                 labels = list(self.run_config.labels or ())
-            else:
+            elif self.environment is not None:
                 labels = list(self.environment.labels or ())
+            else:
+                labels = []
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
@@ -1597,7 +1588,7 @@ class Flow:
                 prior to serialization; defaults to `True`
             - labels (List[str], optional): a list of labels to add to this Flow's environment;
                 useful for associating Flows with individual Agents; see
-                http://docs.prefect.io/orchestration/agents/overview.html#flow-affinity-labels
+                http://docs.prefect.io/orchestration/agents/overview.html#labels
             - set_schedule_active (bool, optional): if `False`, will set the schedule to
                 inactive in the database to prevent auto-scheduling runs (if the Flow has a
                 schedule).  Defaults to `True`. This can be changed later.
@@ -1637,6 +1628,22 @@ class Flow:
             )
             return None
 
+        if (
+            self.environment is not None
+            and self.run_config is None
+            and self.executor is not None
+        ):
+            warnings.warn(
+                "This flow is using the deprecated `flow.environment` based configuration, "
+                "but has `flow.executor` set.\n\n"
+                "This executor will be *not* be used at runtime.\n\n"
+                "Please transition to the `flow.run_config` based system instead to "
+                "make use of setting `flow.executor`. "
+                "See https://docs.prefect.io/orchestration/flow_config/overview.html "
+                "for more information.",
+                stacklevel=2,
+            )
+
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
@@ -1649,7 +1656,7 @@ class Flow:
                 obj.labels.update(self.storage.labels)
                 obj.labels.update(labels or ())
 
-        # register the flow with a default result handler if one not provided
+        # register the flow with a default result if one not provided
         if not self.result:
             self.result = self.storage.result
 

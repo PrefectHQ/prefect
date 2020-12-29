@@ -186,6 +186,56 @@ def test_resource_manager_generated_flow_structure(api):
     }
 
 
+def test_resource_manager_generated_flow_structure_no_setup():
+    @resource_manager
+    class MyResource:
+        def __init__(self, a):
+            self.a = a
+
+        def cleanup(self, val):
+            pass
+
+    with Flow("test") as flow:
+        a = inc(1)
+        context = MyResource(a)
+        with context as resource:
+            b = add(resource, a)
+            c = inc(b)
+            d = inc(2)
+            e = inc(d)
+            f = inc(3)
+        g = inc(f)
+
+    # task kwargs successfully forwarded to tasks
+    assert context.init_task.name == "MyResource"
+    assert context.setup_task is None
+    assert resource is None
+    assert context.cleanup_task.name == "MyResource.cleanup"
+    assert not context.cleanup_task.skip_on_upstream_skip
+
+    # Reference tasks setup properly
+    assert flow.reference_tasks() == {c, e, g}
+
+    # Check that:
+    # - Tasks with no downstream dependency in the resource context have
+    #   the cleanup task set as a downstream dependency
+    # - All other tasks only have explicit dependencies
+    assert flow.upstream_tasks(a) == set()
+    assert flow.upstream_tasks(context.init_task) == {a}
+    assert flow.upstream_tasks(b) == {a}
+    assert flow.upstream_tasks(c) == {b}
+    assert flow.upstream_tasks(d) == set()
+    assert flow.upstream_tasks(e) == {d}
+    assert flow.upstream_tasks(f) == set()
+    assert flow.upstream_tasks(g) == {f}
+    assert flow.upstream_tasks(context.cleanup_task) == {
+        context.init_task,
+        c,
+        e,
+        f,
+    }
+
+
 def test_resource_manager_execution_success():
     on_setup = MagicMock(return_value=100)
     on_cleanup = MagicMock()
@@ -201,6 +251,29 @@ def test_resource_manager_execution_success():
     state = flow.run()
     assert on_setup.called
     assert on_cleanup.call_args == ((100,), {})
+    assert state.is_successful()
+    for r in state.result.values():
+        assert r.is_successful()
+
+
+def test_resource_manager_execution_success_no_setup():
+    @resource_manager
+    class MyResource:
+        def __init__(self, on_cleanup):
+            self.on_cleanup = on_cleanup
+
+        def cleanup(self, val):
+            self.on_cleanup(val)
+
+    on_cleanup = MagicMock()
+
+    with Flow("test") as flow:
+        context = MyResource(on_cleanup)
+        with context:
+            inc(inc(1))
+
+    state = flow.run()
+    assert on_cleanup.call_args == ((None,), {})
     assert state.is_successful()
     for r in state.result.values():
         assert r.is_successful()

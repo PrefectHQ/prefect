@@ -1,2 +1,0 @@
-enhancement:
-  - "Surface pod failures and container errors in jobs deployed with the Kubernetes Agent - [3747](https://github.com/PrefectHQ/prefect/issues/3747)"

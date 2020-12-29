@@ -8,8 +8,6 @@ from prefect.environments import (
     FargateTaskEnvironment,
     KubernetesJobEnvironment,
     LocalEnvironment,
-    RemoteEnvironment,
-    RemoteDaskEnvironment,
 )
 from prefect.utilities.serialization import (
     ObjectSchema,
@@ -64,25 +62,6 @@ class KubernetesJobEnvironmentSchema(ObjectSchema):
     metadata = JSONCompatible(allow_none=True)
 
 
-class RemoteEnvironmentSchema(ObjectSchema):
-    class Meta:
-        object_class = RemoteEnvironment
-
-    executor = fields.String(allow_none=True)
-    executor_kwargs = fields.Dict(allow_none=True)
-    labels = SortedList(fields.String())
-    metadata = JSONCompatible(allow_none=True)
-
-
-class RemoteDaskEnvironmentSchema(ObjectSchema):
-    class Meta:
-        object_class = RemoteDaskEnvironment
-
-    address = fields.String()
-    labels = SortedList(fields.String())
-    metadata = JSONCompatible(allow_none=True)
-
-
 class CustomEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = lambda: Environment
@@ -116,9 +95,9 @@ class EnvironmentSchema(OneOfSchema):
         "FargateTaskEnvironment": FargateTaskEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
-        "RemoteEnvironment": RemoteEnvironmentSchema,
-        "RemoteDaskEnvironment": RemoteDaskEnvironmentSchema,
         "CustomEnvironment": CustomEnvironmentSchema,
+        "RemoteEnvironment": CustomEnvironmentSchema,
+        "RemoteDaskEnvironment": CustomEnvironmentSchema,
     }
 
     def get_obj_type(self, obj: Any) -> str:

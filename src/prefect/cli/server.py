@@ -77,7 +77,10 @@ def server():
 
     \b
     Arguments:
-        start                   Start the Prefect Core server using docker-compose
+        start                   Start the Prefect server using docker-compose
+        stop                    Stop Prefect Server by removing all containers and networks
+        create-tenant           Creates a new tenant in the server instance
+                                    Note: running `start` already creates a default tenant
 
     \b
     Examples:
@@ -116,6 +119,13 @@ def server():
     "--no-ui",
     "-u",
     help="Pass this flag to avoid starting the UI",
+    is_flag=True,
+    hidden=True,
+)
+@click.option(
+    "--detach",
+    "-d",
+    help="Detached mode. Runs Server containers in the background",
     is_flag=True,
     hidden=True,
 )
@@ -200,6 +210,7 @@ def start(
     skip_pull,
     no_upgrade,
     no_ui,
+    detach,
     postgres_port,
     hasura_port,
     graphql_port,
@@ -228,6 +239,7 @@ def start(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
+        --detach, -d                Detached mode. Runs Server containers in the background
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
@@ -336,6 +348,8 @@ def start(
             )
 
         cmd = ["docker-compose", "up"]
+        if detach:
+            cmd.append("--detach")
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         started = False
         with prefect.utilities.configuration.set_temporary_config(
@@ -357,6 +371,8 @@ def start(
                 except Exception:
                     time.sleep(0.5)
                     pass
+            if detach:
+                return
             while True:
                 time.sleep(0.5)
     except BaseException:
@@ -396,6 +412,33 @@ def ascii_welcome(ui_port="8080"):
     """
 
     return message
+
+
+@server.command(hidden=True)
+def stop():
+    """
+    This command stops all Prefect Server containers that are connected to the
+    `prefect-server` network. Note: This will completely remove the `prefect-server` network
+    and all associated containers.
+    """
+    import docker
+
+    client = docker.APIClient()
+
+    networks = client.networks(names=["prefect-server"])
+
+    if not networks:
+        click.echo("No running Prefect Server found")
+        return
+    network_id = networks[0].get("Id")
+
+    click.echo("Stopping Prefect Server containers and network")
+    for container in client.inspect_network(network_id).get("Containers").keys():
+        client.disconnect_container_from_network(container, network_id)
+        client.remove_container(container, force=True)
+
+    client.remove_network(network_id)
+    click.echo("Prefect Server stopped")
 
 
 @server.command(hidden=True)

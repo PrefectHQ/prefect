@@ -14,8 +14,6 @@ An instantiated Result object has the following attributes:
     raw data lives
 - a `serializer`: an object that can serialize Python objects to bytes and
   recover them later
-- a `result_handler` that holds onto the `ResultHandler` used to read / write
-    the value to / from its handled representation
 
 To distinguish between a Task that runs but does not return output from a Task
 that has yet to run, Prefect also provides a `NoResult` object representing the
@@ -27,53 +25,11 @@ import pendulum
 import uuid
 from typing import Any, Callable, Iterable
 
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
 
 
-class ResultInterface:
-    """
-    A necessary evil so that Results can store SafeResults and NoResults
-    in its attributes without pickle recursion problems.
-    """
-
-    def __eq__(self, other: Any) -> bool:
-        if type(self) == type(other):
-            eq = True
-            for attr in self.__dict__:
-                if attr.startswith("_"):
-                    continue
-                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
-            return eq
-        return False
-
-    def __repr__(self) -> str:
-        val = self.value  # type: ignore
-        return "<{type}: {val}>".format(type=type(self).__name__, val=repr(val))
-
-    def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
-        """
-        If no result handler provided, returns self.  If a ResultHandler is
-        provided, however, it will become the new result handler for this
-        result.
-
-        Args:
-            - result_handler (optional): an optional result handler to override
-                the current handler
-
-        Returns:
-            - ResultInterface: a potentially new Result object
-        """
-        if result_handler is not None:
-            self.result_handler = result_handler
-        return self
-
-    def store_safe_value(self) -> None:
-        """Performs no computation."""
-
-
-class Result(ResultInterface):
+class Result:
     """
     A representation of the result of a Prefect task; this class contains
     information about the value of a task's result, a result handler specifying
@@ -83,9 +39,6 @@ class Result(ResultInterface):
 
     Args:
         - value (Any, optional): the value of the result
-        - result_handler (ResultHandler, optional): the result handler to use
-            when storing / serializing this result's value; required if you intend
-            on persisting this result in some way
         - validators (Iterable[Callable], optional): Iterable of validation
             functions to apply to the result to ensure it is `valid`.
         - run_validators (bool): Whether the result value should be validated.
@@ -104,15 +57,12 @@ class Result(ResultInterface):
     def __init__(
         self,
         value: Any = None,
-        result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
         location: str = None,
         serializer: Serializer = None,
     ):
         self.value = value
-        self.safe_value = NoResult  # type: SafeResult
-        self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
         if serializer is None:
@@ -126,22 +76,19 @@ class Result(ResultInterface):
             self.location = None
         self.logger = logging.get_logger(type(self).__name__)
 
-    def store_safe_value(self) -> None:
-        """
-        Populate the `safe_value` attribute with a `SafeResult` using the result
-        handler
-        """
-        # don't bother with `None` values
-        if self.value is None:
-            return
-        if self.safe_value == NoResult:
-            assert isinstance(
-                self.result_handler, ResultHandler
-            ), "Result has no ResultHandler"  # mypy assert
-            value = self.result_handler.write(self.value)
-            self.safe_value = SafeResult(
-                value=value, result_handler=self.result_handler
-            )
+    def __eq__(self, other: Any) -> bool:
+        if type(self) == type(other):
+            eq = True
+            for attr in self.__dict__:
+                if attr.startswith("_"):
+                    continue
+                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
+            return eq
+        return False
+
+    def __repr__(self) -> str:
+        val = self.value  # type: ignore
+        return "<{type}: {val}>".format(type=type(self).__name__, val=repr(val))
 
     def from_value(self, value: Any) -> "Result":
         """
@@ -277,75 +224,13 @@ class Result(ResultInterface):
         )
 
 
-class SafeResult(ResultInterface):
+class NoResultType(Result):
     """
-    A _safe_ representation of the result of a Prefect task; this class contains information
-    about the serialized value of a task's result, and a result handler specifying how to
-    deserialize this value
-
-    Args:
-        - value (Any): the safe representation of a value
-        - result_handler (ResultHandler): the result handler to use when reading this result's value
+    Backwards compatible type so that states created by new versions of Core can be deserialized by
+    old versions.
     """
 
-    def __init__(self, value: Any, result_handler: ResultHandler):
-        self.value = value
-        self.result_handler = result_handler
-
-    @property
-    def safe_value(self) -> "SafeResult":
-        return self
-
-    def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
-        """
-        Read the value of this result using the result handler and return a fully hydrated Result.
-        If a new ResultHandler is provided, it will instead be used to read the underlying value
-        and the `result_handler` attribute of this result will be reset accordingly.
-
-        Args:
-            - result_handler (optional): an optional result handler to override the current handler
-
-        Returns:
-            - ResultInterface: a potentially new Result object
-        """
-        if result_handler is not None:
-            self.result_handler = result_handler
-        value = self.result_handler.read(self.value)
-        res = Result(value=value, result_handler=self.result_handler)
-        res.safe_value = self
-        return res
-
-
-class NoResultType(SafeResult):
-    """
-    A `SafeResult` subclass representing the _absence_ of computation / output.  A `NoResult` object
-    returns itself for its `value` and its `safe_value`.
-    """
-
-    def __init__(self) -> None:
-        self.location = None
-        super().__init__(value=None, result_handler=ResultHandler())
-
-    def __eq__(self, other: Any) -> bool:
-        if type(self) == type(other):
-            return True
-        else:
-            return False
-
-    def __repr__(self) -> str:
-        return "<No result>"
-
-    def __str__(self) -> str:
-        return "NoResult"
-
-    def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
-        """
-        Performs no computation and returns self.
-
-        Args:
-            - result_handler (optional): a passthrough for interface compatibility
-        """
-        return self
+    pass
 
 
 NoResult = NoResultType()

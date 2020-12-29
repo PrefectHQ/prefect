@@ -89,3 +89,21 @@ class TestGetBotoClient:
             "aws_secret_access_key": "secret",
             "aws_session_token": "session",
         }
+
+    def test_credentials_does_not_duplicate_kwargs(self, monkeypatch):
+        client = MagicMock()
+        boto3 = MagicMock(client=client)
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        get_boto_client(
+            resource="not a real resource",
+            credentials={"ACCESS_KEY": "true_key", "SECRET_ACCESS_KEY": "true_secret"},
+            aws_access_key_id="id",
+            aws_secret_access_key="secret",
+            aws_session_token="session",
+        )
+        kwargs = client.call_args[1]
+        assert kwargs == {
+            "aws_access_key_id": "true_key",
+            "aws_secret_access_key": "true_secret",
+            "aws_session_token": "session",
+        }

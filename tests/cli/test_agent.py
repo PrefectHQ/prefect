@@ -46,11 +46,10 @@ def test_help(cmd):
         (
             "local",
             "prefect.agent.local.LocalAgent",
-            "-p path1 -p path2 -f --no-storage-labels --no-hostname-label",
+            "-p path1 -p path2 -f --no-hostname-label",
             {
                 "import_paths": ["path1", "path2"],
                 "show_flow_logs": True,
-                "storage_labels": False,
                 "hostname_label": False,
             },
         ),
@@ -73,11 +72,20 @@ def test_help(cmd):
         (
             "kubernetes",
             "prefect.agent.kubernetes.KubernetesAgent",
-            "--namespace TESTNAMESPACE --job-template testtemplate.yaml",
-            {
-                "namespace": "TESTNAMESPACE",
-                "job_template_path": "testtemplate.yaml",
-            },
+            (
+                "--namespace TESTNAMESPACE --job-template testtemplate.yaml",
+                "--service-account-name TESTACCT --image-pull-secrets VAL1,VAL2",
+            ),
+            (
+                {
+                    "namespace": "TESTNAMESPACE",
+                    "job_template_path": "testtemplate.yaml",
+                },
+                {
+                    "service_account_name": "TESTACCT",
+                    "image_pull_secrets": ["VAL1", "VAL2"],
+                },
+            ),
         ),
         (
             "fargate",
@@ -121,7 +129,16 @@ def test_agent_start(
         command.append("--verbose")
     else:
         command.extend(["--log-level", "debug"])
+    if not isinstance(extra_cmd, str):
+        extra_cmd = extra_cmd[0] if deprecated else " ".join(extra_cmd)
     command.extend(extra_cmd.split())
+
+    if not isinstance(extra_kwargs, dict):
+        extra_kwargs = (
+            extra_kwargs[0]
+            if deprecated
+            else dict(**extra_kwargs[0], **extra_kwargs[1])
+        )
 
     expected_kwargs = {
         "agent_config_id": "TEST-AGENT-CONFIG-ID",
@@ -149,7 +166,12 @@ def test_agent_start(
 
     result = CliRunner().invoke(agent, command)
     if deprecated:
-        assert f"Warning: `prefect agent start {name}` is deprecated" in result.output
+        if name == "fargate":
+            assert f"Warning: The Fargate agent is deprecated" in result.output
+        else:
+            assert (
+                f"Warning: `prefect agent start {name}` is deprecated" in result.output
+            )
 
     kwargs = agent_cls.call_args[1]
     for k, v in expected_kwargs.items():
@@ -210,7 +232,7 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
     command.extend(
         (
             "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
-            "--api TEST_API --namespace TEST_NAMESPACE --resource-manager --rbac "
+            "--api TEST_API --namespace TEST_NAMESPACE --rbac "
             "--latest --image-pull-secrets secret-test --mem-request mem_req "
             "--mem-limit mem_lim --cpu-request cpu_req --cpu-limit cpu_lim "
             "--image-pull-policy custom_policy --service-account-name svc_name "
@@ -224,7 +246,6 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
         "api": "TEST_API",
         "namespace": "TEST_NAMESPACE",
-        "resource_manager_enabled": True,
         "rbac": True,
         "latest": True,
         "image_pull_secrets": "secret-test",

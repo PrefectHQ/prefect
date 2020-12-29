@@ -25,7 +25,7 @@ for it to finish before pulling the container's logs.
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 from prefect.run_configs import KubernetesRun
 from prefect.tasks.docker import (
     PullImage,

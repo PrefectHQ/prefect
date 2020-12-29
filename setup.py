@@ -28,33 +28,43 @@ install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("dev-requirements.txt").read().strip().split("\n")
 test_requires = open("test-requirements.txt").read().strip().split("\n")
 
+orchestration_extras = {
+    "aws": ["boto3 >= 1.9, < 2.0"],
+    "azure": ["azure-storage-blob >= 12.1.0, < 13.0"],
+    "bitbucket": ["atlassian-python-api >= 2.0.1"],
+    "gcp": ["google-cloud-storage >= 1.13, < 2.0"],
+    "github": ["PyGithub >= 1.51, < 2.0"],
+    "gitlab": ["python-gitlab >= 2.5.0, < 3.0"],
+    "kubernetes": ["kubernetes >= 9.0.0a1, <= 11.0.0b2"],
+}
+
 extras = {
     "airtable": ["airtable-python-wrapper >= 0.11, < 0.12"],
-    "aws": ["boto3 >= 1.9, < 2.0"],
+    "aws": orchestration_extras["aws"],
     "azure": [
         "azure-storage-blob >= 12.1.0, < 13.0",
         "azureml-sdk >= 1.0.65, < 1.1",
         "azure-cosmos >= 3.1.1, <3.2",
     ],
-    "bitbucket": ["atlassian-python-api >= 2.0.1"],
+    "bitbucket": orchestration_extras["bitbucket"],
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0, < 1.0"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
     "ge": ["great_expectations >= 0.11.1"],
     "gcp": [
         "google-cloud-bigquery >= 1.6.0, < 2.0",
-        "google-cloud-storage >= 1.13, < 2.0",
-    ],
-    "github": ["PyGithub >= 1.51, < 2.0"],
-    "gitlab": ["python-gitlab >= 2.5.0, < 3.0"],
+    ]
+    + orchestration_extras["gcp"],
+    "github": orchestration_extras["github"],
+    "gitlab": orchestration_extras["gitlab"],
     "google": [
         "google-cloud-bigquery >= 1.6.0, < 2.0",
-        "google-cloud-storage >= 1.13, < 2.0",
-    ],
+    ]
+    + orchestration_extras["gcp"],
     "gsheets": ["gspread >= 3.6.0"],
     "jira": ["jira >= 2.0.0"],
     "jupyter": ["papermill >= 2.2.0", "nbconvert >= 6.0.7"],
-    "kubernetes": ["kubernetes >= 9.0.0a1, <= 11.0.0b2", "dask-kubernetes >= 0.8.0"],
+    "kubernetes": ["dask-kubernetes >= 0.8.0"] + orchestration_extras["kubernetes"],
     "pandas": ["pandas >= 1.0.1"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
     "mysql": ["pymysql >= 0.9.3"],
@@ -70,16 +80,27 @@ extras = {
     "dremio": ["pyarrow>=0.15.1"],
 }
 
+
 if sys.version_info < (3, 6):
     extras["dev"].remove("black")
 
 extras["all_extras"] = sum(extras.values(), [])
 
+# Extras for docker image builds to include for orchestration
+extras["all_orchestration_extras"] = sum(orchestration_extras.values(), [])
+
 # CI extras to control dependencies for tests
-extras["test_ci"] = sum(extras.values(), [])
-extras["test_ci"] = [
-    r for r in extras["test_ci"] if not r.startswith("dask_cloudprovider")
+extras["task_library_ci"] = sum(extras.values(), [])
+extras["task_library_ci"] = [
+    r for r in extras["task_library_ci"] if not r.startswith("dask_cloudprovider")
 ]
+
+extras["base_library_ci"] = (
+    extras["all_orchestration_extras"]
+    + extras["dev"]
+    + extras["pandas"]
+    + extras["jira"]
+)
 
 cmdclass = {
     "verify_version": VerifyVersionCommand,

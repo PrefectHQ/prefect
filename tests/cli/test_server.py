@@ -72,7 +72,7 @@ def test_server_start(monkeypatch, macos_platform):
     monkeypatch.setattr("subprocess.check_output", check_output)
 
     runner = CliRunner()
-    result = runner.invoke(server, ["start"])
+    result = runner.invoke(server, ["start", "--detach"])
     assert result.exit_code == 1
 
     assert check_call.called
@@ -83,7 +83,7 @@ def test_server_start(monkeypatch, macos_platform):
     assert check_call.call_args[1].get("cwd")
     assert check_call.call_args[1].get("env")
 
-    assert popen.call_args[0][0] == ["docker-compose", "up"]
+    assert popen.call_args[0][0] == ["docker-compose", "up", "--detach"]
     assert popen.call_args[1].get("cwd")
     assert popen.call_args[1].get("env")
 
@@ -274,3 +274,15 @@ def test_create_tenant(monkeypatch, cloud_api):
     )
     assert result.exit_code == 0
     assert "my_id" in result.output
+
+
+def test_stop_server(monkeypatch):
+    client = MagicMock()
+    client.networks = MagicMock(return_value=["network_id"])
+    client.inspect_network = MagicMock(
+        return_value={"Containers": {"id": {"test": "val"}}}
+    )
+    monkeypatch.setattr("docker.APIClient", client)
+    runner = CliRunner()
+    result = runner.invoke(server, ["stop"])
+    assert result.exit_code == 0

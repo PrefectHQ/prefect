@@ -425,7 +425,7 @@ def prepare_upstream_states_for_mapping(
     state: "State",
     upstream_states: "Dict[Edge, State]",
     mapped_children: "Dict[Task, list]",
-    executor: "prefect.engine.executors.Executor",
+    executor: "prefect.executors.Executor",
 ) -> list:
     """
     If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
@@ -553,7 +553,7 @@ def flatten_upstream_state(upstream_state: "State") -> "State":
 
 def flatten_mapped_children(
     mapped_children: List["State"],
-    executor: "prefect.engine.executors.Executor",
+    executor: "prefect.executors.Executor",
 ) -> List["State"]:
     counts = executor.wait(
         [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]

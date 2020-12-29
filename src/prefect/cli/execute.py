@@ -31,23 +31,6 @@ def flow_run():
     """
     Execute a flow run in the context of a backend API.
     """
-    return _execute_flow_run()
-
-
-@execute.command(hidden=True)
-def cloud_flow():
-    """
-    Execute a flow's environment in the context of Prefect Cloud.
-
-    DEPRECATED: This command is deprecated, please use `prefect execute flow-run` instead.
-
-    Note: this is a command that runs during Cloud execution of flows and is not meant
-    for local use.
-    """
-    return _execute_flow_run()
-
-
-def _execute_flow_run():
     flow_run_id = prefect.context.get("flow_run_id")
     if not flow_run_id:
         click.echo("Not currently executing a flow within a Cloud context.")
@@ -56,7 +39,7 @@ def _execute_flow_run():
     query = {
         "query": {
             with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                "flow": {"name": True, "storage": True},
+                "flow": {"name": True, "storage": True, "run_config": True},
                 "version": True,
             }
         }
@@ -84,7 +67,7 @@ def _execute_flow_run():
             flow = storage.get_flow(storage.flows[flow_data.name])
 
         with prefect.context(secrets=secrets):
-            if getattr(flow, "run_config", None) is not None:
+            if flow_data.run_config is not None:
                 runner_cls = get_default_flow_runner_class()
                 runner_cls(flow=flow).run()
             else:
@@ -95,5 +78,13 @@ def _execute_flow_run():
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)
         client.set_flow_run_state(flow_run_id=flow_run_id, state=state)
+        client.write_run_logs(
+            dict(
+                flow_run_id=flow_run_id,  # type: ignore
+                name="execute flow-run",
+                message=msg,
+                level="ERROR",
+            )
+        )
         click.echo(str(exc))
         raise exc

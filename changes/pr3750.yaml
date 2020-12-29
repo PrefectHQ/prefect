@@ -1,3 +1,0 @@
-enhancement:
-  - "Add `UniversalRun` run-config that works with all agents - [#3750](https://github.com/PrefectHQ/prefect/pull/3750)"
-  - "Support flows that have no run-config or environment - [#3750](https://github.com/PrefectHQ/prefect/pull/3750)"

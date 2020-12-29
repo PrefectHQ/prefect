@@ -89,11 +89,21 @@ def login(token):
 
     except AuthorizationError:
         click.secho(
-            "Error attempting to use Prefect API token {}".format(token), fg="red"
+            f"Error attempting to use Prefect API token {token}. "
+            "Please check that you are providing a USER scoped Personal Access Token.\n"
+            "For more information visit the documentation for USER tokens at "
+            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+            fg="red",
         )
         return
     except ClientError:
-        click.secho("Error attempting to communicate with Prefect Cloud", fg="red")
+        click.secho(
+            "Error attempting to communicate with Prefect Cloud. "
+            "Please check that you are providing a USER scoped Personal Access Token.\n"
+            "For more information visit the documentation for USER tokens at "
+            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+            fg="red",
+        )
         return
 
     # save token

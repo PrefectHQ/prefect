@@ -17,7 +17,7 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
         - ValueError: if deployment attempted on unsupported Storage type and `image` not
             present in environment metadata
     """
-    from prefect.environments.storage import Docker
+    from prefect.storage import Docker
     from prefect.serialization.storage import StorageSchema
     from prefect.serialization.run_config import RunConfigSchema
     from prefect.serialization.environment import EnvironmentSchema
@@ -39,7 +39,7 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
         # core_version should always be present, but just in case
         version = flow_run.flow.get("core_version") or "latest"
         cleaned_version = version.split("+")[0]
-        return f"prefecthq/prefect:all_extras-{cleaned_version}"
+        return f"prefecthq/prefect:{cleaned_version}"
     else:
         environment = EnvironmentSchema().load(flow_run.flow.environment)
         if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):

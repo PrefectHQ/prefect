@@ -85,9 +85,4 @@ def flow(file, name, project, label):
     with prefect.context({"loading_flow": True, "local_script_path": file_path}):
         flow = extract_flow_from_file(file_path=file_path, flow_name=name)
 
-    if getattr(flow, "run_config", None) is not None:
-        flow.run_config.labels.update(label)
-    else:
-        flow.environment.labels.update(label)
-
-    flow.register(project_name=project)
+    flow.register(project_name=project, labels=label)

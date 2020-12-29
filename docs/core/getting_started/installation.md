@@ -68,7 +68,7 @@ Before running the server for the first time, run:
 
 ```
 prefect backend server
-``` 
+```
 
 This configures Prefect for local orchestration, and saves the configuration in your local `~/.prefect` directory. 
 
@@ -106,5 +106,5 @@ Image tag breakdown:
 | X.Y.Z-python3.8  |          X.Y.Z           |            3.8 |
 | X.Y.Z-python3.7  |          X.Y.Z           |            3.7 |
 | X.Y.Z-python3.6  |          X.Y.Z           |            3.6 |
-| all_extras       | most recent PyPi version |            3.8 |
-| all_extras-X.Y.Z |          X.Y.Z           |            3.8 |
+| core             | most recent PyPi version |            3.8 |
+| core-X.Y.Z       |          X.Y.Z           |            3.8 |
