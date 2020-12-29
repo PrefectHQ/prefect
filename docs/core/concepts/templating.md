@@ -128,7 +128,7 @@ with Flow("local-result-with-date-parsing") as flow:
     my_task()
 ```
 
-::: tip Python formatting
+::: tip Python date formatting
 
 You can also format dates with the [Python built-in formatting](https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior). 
 For example, the following will create a name like `Tuesday-Dec-29`
@@ -144,4 +144,4 @@ with Flow("template-example") as flow:
     compute()
 ```
 
-::: tip
+:::
