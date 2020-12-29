@@ -8,6 +8,7 @@ from prefect import context, Task
 from prefect.artifacts import create_link
 from prefect.client import Client
 from prefect.engine.signals import signal_from_state
+from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -25,6 +26,8 @@ class StartFlowRun(Task):
             running with Prefect Core's server as the backend, this should not be provided.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
+        - run_config (RunConfig, optional): a run-config to use for this flow
+            run, overriding any existing flow settings.
         - wait (bool, optional): whether to wait the triggered flow run's state; if True, this
             task will wait until the flow run is complete, and then reflect the corresponding
             state as the state of this task.  Defaults to `False`.
@@ -40,6 +43,7 @@ class StartFlowRun(Task):
         flow_name: str = None,
         project_name: str = None,
         parameters: dict = None,
+        run_config: RunConfig = None,
         wait: bool = False,
         new_flow_context: dict = None,
         run_name: str = None,
@@ -49,6 +53,7 @@ class StartFlowRun(Task):
         self.flow_name = flow_name
         self.project_name = project_name
         self.parameters = parameters
+        self.run_config = run_config
         self.new_flow_context = new_flow_context
         self.run_name = run_name
         self.wait = wait
@@ -61,6 +66,7 @@ class StartFlowRun(Task):
         "flow_name",
         "project_name",
         "parameters",
+        "run_config",
         "new_flow_context",
         "run_name",
         "scheduled_start_time",
@@ -70,6 +76,7 @@ class StartFlowRun(Task):
         flow_name: str = None,
         project_name: str = None,
         parameters: dict = None,
+        run_config: RunConfig = None,
         new_flow_context: dict = None,
         run_name: str = None,
         idempotency_key: str = None,
@@ -87,6 +94,8 @@ class StartFlowRun(Task):
             - parameters (dict, optional): the parameters to pass to the flow run being
                 scheduled; if not provided, this method will use the parameters provided at
                 initialization
+            - run_config (RunConfig, optional): a run-config to use for this flow
+                run, overriding any existing flow settings.
             - new_flow_context (dict, optional): the optional run context for the new flow run
             - run_name (str, optional): name to be set for the flow run
             - idempotency_key (str, optional): a unique idempotency key for scheduling the
@@ -156,6 +165,7 @@ class StartFlowRun(Task):
         flow_run_id = client.create_flow_run(
             flow_id=flow_id,
             parameters=parameters,
+            run_config=run_config,
             idempotency_key=idempotency_key,
             context=new_flow_context,
             run_name=run_name,
