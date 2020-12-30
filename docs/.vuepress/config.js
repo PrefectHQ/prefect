@@ -316,6 +316,7 @@ module.exports = {
             'concepts/notifications',
             'concepts/persistence',
             'concepts/results',
+            'concepts/templating',
             'concepts/schedules',
             'concepts/secrets',
             'concepts/configuration',
