@@ -382,6 +382,11 @@ title = "Monday Tasks"
 module = "prefect.tasks.monday"
 classes = ["CreateItem"]
 
+[pages.tasks.trello]
+title = "Trello Tasks"
+module = "prefect.tasks.trello"
+classes = ["CreateCard"]
+
 [pages.tasks.mysql]
 title = "MySQL Tasks"
 module = "prefect.contrib.tasks.mysql"
