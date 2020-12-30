@@ -94,7 +94,7 @@ prefect agent local start --show-flow-logs
 
 ## Using with Supervisor
 
-[Supervisor](http://supervisor.org) is a tool for managing long running
+[Supervisor](http://supervisord.org) is a tool for managing long running
 processes on a UNIX-like operating system. This can be useful for deployments
 where you want to ensure you have a Prefect Local Agent always running in the
 background.
