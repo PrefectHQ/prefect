@@ -9,9 +9,9 @@ import yaml
 
 import prefect
 from prefect import Flow
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 from prefect.environments import KubernetesJobEnvironment
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -67,19 +67,6 @@ def test_create_k8s_job_environment(job_spec_file):
     assert environment.on_exit is None
     assert environment.metadata == {}
     assert environment.logger.name == "prefect.KubernetesJobEnvironment"
-
-
-def test_create_k8s_job_environment_with_deprecated_executor_kwargs(job_spec_file):
-    with set_temporary_config(
-        {"engine.executor.default_class": "prefect.engine.executors.LocalDaskExecutor"}
-    ):
-        with pytest.warns(UserWarning, match="executor_kwargs"):
-            environment = KubernetesJobEnvironment(
-                job_spec_file=job_spec_file,
-                executor_kwargs={"scheduler": "synchronous"},
-            )
-        assert isinstance(environment.executor, LocalDaskExecutor)
-        assert environment.executor.scheduler == "synchronous"
 
 
 def test_create_k8s_job_environment_labels(job_spec_file):

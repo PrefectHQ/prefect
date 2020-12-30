@@ -69,10 +69,10 @@ sum_numbers.bind(numbers=[number_1, number_2, number_3], flow=flow)
 :::
 ::::
 
-Whenever you run this flow it will by default use Prefect's [`LocalExecutor`](/api/latest/engine/executors.html#localexecutor) which executes tasks synchronously. This means that you will always see the tasks executed in the same order without any parallelization. In order to start executing the tasks in parallel you should run the flow with a [`DaskExecutor`](/api/latest/engine/executors.html#daskexecutor). The Dask Executor is responsible for taking the tasks of this flow and executing them on various Dask workers. You can start using the Dask Executor instantly by importing it and passing it into the flow's run function.
+Whenever you run this flow it will by default use Prefect's [`LocalExecutor`](/api/latest/executors.html#localexecutor) which executes tasks synchronously. This means that you will always see the tasks executed in the same order without any parallelization. In order to start executing the tasks in parallel you should run the flow with a [`DaskExecutor`](/api/latest/executors.html#daskexecutor). The Dask Executor is responsible for taking the tasks of this flow and executing them on various Dask workers. You can start using the Dask Executor instantly by importing it and passing it into the flow's run function.
 
 ```python
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 flow.run(parameters={"stop": 5}, executor=DaskExecutor())
 ```
 

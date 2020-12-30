@@ -10,12 +10,6 @@ The schematic is an interactive, live-updating look at the progress of each run.
 
 ![](/orchestration/ui/flowrun-schematic.png)
 
-## Gantt
-
-A live-updating Gantt chart of run progress.
-
-![](/orchestration/ui/flowrun-gantt.png)
-
 ## Logs
 
 The logs page shows live-updating logs from the flow run. They may be filtered, queried, and downloaded for convenience.
@@ -25,7 +19,7 @@ The logs page shows live-updating logs from the flow run. They may be filtered, 
 
 To manually restart a run from any failed tasks, click the "Restart" button in the action bar.
 
-If you want to restart the run from a specific task, visit the corresponding [task run page](/orchestration/ui/taskrun) and click "Restart" on that page. 
+If you want to restart the run from a specific task, visit the corresponding [task run page](/orchestration/ui/task-run) and click "Restart" on that page.
 
 ::: warning Results
 The confirmation box notes that if your failed tasks require data from upstream tasks, and you did not specify a result to serialize that data, then your retry will fail. This is because without the upstream data, there's no way for your tasks to run. All Prefect `Storage` classes except `Docker` have default `Result` subclasses; if your flow runs in a Docker container you will need to specify a result subclass when you register your flow for this feature to work.

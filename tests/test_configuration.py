@@ -67,7 +67,7 @@ def config(test_config_file_path, monkeypatch):
     )
     monkeypatch.setenv("PATH", "1/2/3")
     monkeypatch.setenv(
-        "PREFECT_TEST__ENV_VARS__ESCAPED_CHARACTERS", r"line 1\nline 2\rand 3\tand 4"
+        "PREFECT_TEST__ENV_VARS__ESCAPED_CHARACTERS", "line 1\nline 2\rand 3\tand 4"
     )
 
     yield configuration.load_configuration(
@@ -293,12 +293,6 @@ class TestProcessTaskDefaults:
         config.tasks.defaults.timeout = None
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.timeout is None
-
-    def test_timeout_is_timedelta_if_int(self):
-        config = Config(default_box=True)
-        config.tasks.defaults.timeout = 5
-        config = configuration.process_task_defaults(config)
-        assert config.tasks.defaults.timeout == datetime.timedelta(seconds=5)
 
     def test_timeout_is_timedelta_if_timedelta(self):
         config = Config(default_box=True)

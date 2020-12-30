@@ -1,5 +1,0 @@
-enhancement:
-  - "Add option to specify `networkMode` for tasks created by the Fargate Agent - [#3546](https://github.com/PrefectHQ/prefect/pull/3546)"
-
-contributor:
-  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"

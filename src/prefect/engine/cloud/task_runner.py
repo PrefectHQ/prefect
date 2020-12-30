@@ -20,7 +20,6 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.exceptions import VersionLockError
 from prefect.utilities.executors import tail_recursive
-from prefect.utilities.graphql import with_args
 
 
 class CloudTaskRunner(TaskRunner):
@@ -53,31 +52,6 @@ class CloudTaskRunner(TaskRunner):
         super().__init__(
             task=task, state_handlers=state_handlers, flow_result=flow_result
         )
-
-    def _heartbeat(self) -> bool:
-        try:
-            task_run_id = self.task_run_id  # type: str
-            self.heartbeat_cmd = ["prefect", "heartbeat", "task-run", "-i", task_run_id]
-            self.client.update_task_run_heartbeat(task_run_id)
-
-            # use empty string for testing purposes
-            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
-            query = {
-                "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                        "flow": {"settings": True},
-                    }
-                }
-            }
-            flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if not flow_run.flow.settings.get("heartbeat_enabled", True):
-                return False
-            return True
-        except Exception:
-            self.logger.exception(
-                "Heartbeat failed for Task '{}'".format(self.task.name)
-            )
-            return False
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -266,7 +240,16 @@ class CloudTaskRunner(TaskRunner):
                         sanitized_inputs,
                         prefect.context.get("parameters"),
                     ):
-                        return candidate_state.load_result(self.result)
+                        try:
+                            return candidate_state.load_result(self.result)
+                        except Exception:
+                            location = getattr(
+                                candidate_state._result, "location", None
+                            )
+                            self.logger.warning(
+                                f"Failed to load cached state data from {location}.",
+                                exc_info=True,
+                            )
 
                 self.logger.debug(
                     "Task '{name}': can't use cache because no candidate Cached states "
@@ -335,9 +318,9 @@ class CloudTaskRunner(TaskRunner):
         if task_run_name:
             raw_inputs = {k: r.value for k, r in task_inputs.items()}
             formatting_kwargs = {
-                **prefect.context.get("parameters", {}).copy(),
-                **raw_inputs,
+                **prefect.context.get("parameters", {}),
                 **prefect.context,
+                **raw_inputs,
             }
 
             if not isinstance(task_run_name, str):

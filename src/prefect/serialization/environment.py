@@ -8,14 +8,13 @@ from prefect.environments import (
     FargateTaskEnvironment,
     KubernetesJobEnvironment,
     LocalEnvironment,
-    RemoteEnvironment,
-    RemoteDaskEnvironment,
 )
 from prefect.utilities.serialization import (
     ObjectSchema,
     OneOfSchema,
     to_qualified_name,
     JSONCompatible,
+    SortedList,
 )
 
 
@@ -23,7 +22,7 @@ class BaseEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = Environment
 
-    labels = fields.List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -31,7 +30,7 @@ class LocalEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = LocalEnvironment
 
-    labels = fields.List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -40,7 +39,7 @@ class DaskKubernetesEnvironmentSchema(ObjectSchema):
         object_class = DaskKubernetesEnvironment
 
     docker_secret = fields.String(allow_none=True)
-    labels = fields.List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
     private_registry = fields.Boolean(allow_none=False)
     min_workers = fields.Int()
@@ -51,7 +50,7 @@ class FargateTaskEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = FargateTaskEnvironment
 
-    labels = fields.List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -59,26 +58,7 @@ class KubernetesJobEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = KubernetesJobEnvironment
 
-    labels = fields.List(fields.String())
-    metadata = JSONCompatible(allow_none=True)
-
-
-class RemoteEnvironmentSchema(ObjectSchema):
-    class Meta:
-        object_class = RemoteEnvironment
-
-    executor = fields.String(allow_none=True)
-    executor_kwargs = fields.Dict(allow_none=True)
-    labels = fields.List(fields.String())
-    metadata = JSONCompatible(allow_none=True)
-
-
-class RemoteDaskEnvironmentSchema(ObjectSchema):
-    class Meta:
-        object_class = RemoteDaskEnvironment
-
-    address = fields.String()
-    labels = fields.List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
 
@@ -87,7 +67,7 @@ class CustomEnvironmentSchema(ObjectSchema):
         object_class = lambda: Environment
         exclude_fields = ["type"]
 
-    labels = fields.List(fields.String())
+    labels = SortedList(fields.String())
     metadata = JSONCompatible(allow_none=True)
 
     type = fields.Function(
@@ -115,9 +95,9 @@ class EnvironmentSchema(OneOfSchema):
         "FargateTaskEnvironment": FargateTaskEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
-        "RemoteEnvironment": RemoteEnvironmentSchema,
-        "RemoteDaskEnvironment": RemoteDaskEnvironmentSchema,
         "CustomEnvironment": CustomEnvironmentSchema,
+        "RemoteEnvironment": CustomEnvironmentSchema,
+        "RemoteDaskEnvironment": CustomEnvironmentSchema,
     }
 
     def get_obj_type(self, obj: Any) -> str:

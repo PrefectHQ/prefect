@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import sys
@@ -97,18 +98,46 @@ def test_shell_task_env_can_be_set_at_init():
 
 
 def test_shell_logs_non_zero_exit(caplog):
+    caplog.set_level(level=logging.ERROR, logger="prefect.ShellTask")
     with Flow(name="test") as f:
         task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist")
     out = f.run()
     assert out.is_failed()
 
-    error_log = [c for c in caplog.records if c.levelname == "ERROR"]
-    assert len(error_log) == 1
-    assert error_log[0].name == "prefect.ShellTask"
-    assert "Command failed" in error_log[0].message
+    assert len(caplog.records) == 1
+    assert "Command failed" in caplog.records[0].message
+
+
+def test_shell_attaches_result_to_failure(caplog):
+    def assert_fail_result(task, state):
+        assert (
+            state.result == "foo"
+            "ls: surely_a_dir_that_doesnt_exist: No such file or directory"
+        )
+
+    with Flow(name="test") as f:
+        task = ShellTask(on_failure=assert_fail_result)(
+            command="echo foo && ls surely_a_dir_that_doesnt_exist"
+        )
+    out = f.run()
+    assert out.is_failed()
+
+
+@pytest.mark.parametrize("stream_output", [True, False])
+def test_shell_respects_stream_output(caplog, stream_output):
+
+    with Flow(name="test") as f:
+        ShellTask(stream_output=stream_output)(
+            command="echo foo && echo bar",
+        )
+    f.run()
+
+    stdout_in_log = "foo" in caplog.messages and "bar" in caplog.messages
+    assert stdout_in_log == stream_output
 
 
 def test_shell_logs_stderr_on_non_zero_exit(caplog):
+    caplog.set_level(level=logging.ERROR, logger="prefect.ShellTask")
     with Flow(name="test") as f:
         task = ShellTask(log_stderr=True, return_all=True)(
             command="ls surely_a_dir_that_doesnt_exist"
@@ -116,12 +145,10 @@ def test_shell_logs_stderr_on_non_zero_exit(caplog):
     out = f.run()
     assert out.is_failed()
 
-    error_log = [c for c in caplog.records if c.levelname == "ERROR"]
-    assert len(error_log) == 2
-    assert error_log[0].name == "prefect.ShellTask"
-    assert "Command failed" in error_log[0].message
-    assert "No such file or directory" in error_log[1].message
-    assert "surely_a_dir_that_doesnt_exist" in error_log[1].message
+    assert len(caplog.records) == 2
+    assert "Command failed" in caplog.records[0].message
+    assert "No such file or directory" in caplog.records[1].message
+    assert "surely_a_dir_that_doesnt_exist" in caplog.records[1].message
 
 
 def test_shell_initializes_and_runs_multiline_cmd():
@@ -199,3 +226,13 @@ def test_shell_sources_helper_script_correctly():
     out = f.run()
     assert out.is_successful()
     assert out.result[res].result == "chris"
+
+
+def test_shell_task_accepts_helper_script():
+    helper = "cd ~"
+    task = ShellTask()
+    with Flow("test") as f:
+        res = task(command="ls", helper_script=helper)
+
+    out = f.run()
+    assert out.is_successful()

@@ -17,22 +17,29 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
         - ValueError: if deployment attempted on unsupported Storage type and `image` not
             present in environment metadata
     """
-    from prefect.environments.storage import Docker
+    from prefect.storage import Docker
     from prefect.serialization.storage import StorageSchema
     from prefect.serialization.run_config import RunConfigSchema
     from prefect.serialization.environment import EnvironmentSchema
 
+    has_run_config = getattr(flow_run.flow, "run_config", None) is not None
+    has_environment = getattr(flow_run.flow, "environment", None) is not None
+
     storage = StorageSchema().load(flow_run.flow.storage)
-    if getattr(flow_run.flow, "run_config", None) is not None:
-        run_config = RunConfigSchema().load(flow_run.flow.run_config)
+    # Not having an environment implies run-config based flow, even if
+    # run_config is None.
+    if has_run_config or not has_environment:
         if isinstance(storage, Docker):
             return storage.name
-        elif getattr(run_config, "image", None) is not None:
-            return run_config.image
-        else:
-            # core_version should always be present, but just in case
-            version = flow_run.flow.get("core_version") or "latest"
-            return f"prefecthq/prefect:all_extras-{version}"
+        elif has_run_config:
+            run_config = RunConfigSchema().load(flow_run.flow.run_config)
+            if getattr(run_config, "image", None) is not None:
+                return run_config.image
+        # No image found on run-config, and no environment present. Use default.
+        # core_version should always be present, but just in case
+        version = flow_run.flow.get("core_version") or "latest"
+        cleaned_version = version.split("+")[0]
+        return f"prefecthq/prefect:{cleaned_version}"
     else:
         environment = EnvironmentSchema().load(flow_run.flow.environment)
         if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):

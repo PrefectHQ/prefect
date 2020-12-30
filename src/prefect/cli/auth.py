@@ -89,11 +89,21 @@ def login(token):
 
     except AuthorizationError:
         click.secho(
-            "Error attempting to use Prefect API token {}".format(token), fg="red"
+            f"Error attempting to use Prefect API token {token}. "
+            "Please check that you are providing a USER scoped Personal Access Token.\n"
+            "For more information visit the documentation for USER tokens at "
+            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+            fg="red",
         )
         return
     except ClientError:
-        click.secho("Error attempting to communicate with Prefect Cloud", fg="red")
+        click.secho(
+            "Error attempting to communicate with Prefect Cloud. "
+            "Please check that you are providing a USER scoped Personal Access Token.\n"
+            "For more information visit the documentation for USER tokens at "
+            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+            fg="red",
+        )
         return
 
     # save token
@@ -114,7 +124,7 @@ def logout():
     )
 
     client = Client()
-    tenant_id = client._active_tenant_id
+    tenant_id = client.active_tenant_id
 
     if not tenant_id:
         click.secho("No tenant currently active", fg="red")
@@ -135,7 +145,7 @@ def list_tenants():
     client = Client()
 
     tenants = client.get_available_tenants()
-    active_tenant_id = client._active_tenant_id
+    active_tenant_id = client.active_tenant_id
 
     output = []
     for item in tenants:

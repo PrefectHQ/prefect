@@ -5,12 +5,13 @@ import cloudpickle
 import pytest
 
 pytest.importorskip("dask_cloudprovider")
+pytest.importorskip("dask_cloudprovider.aws")
 
 from distributed.deploy import Cluster
 
 from prefect.environments.execution import DaskCloudProviderEnvironment
 
-from dask_cloudprovider import FargateCluster
+from dask_cloudprovider.aws import FargateCluster
 
 
 def test_create_environment():
@@ -21,7 +22,7 @@ def test_create_environment():
 def test_create_dask_cloud_provider_environment():
     environment = DaskCloudProviderEnvironment(provider_class=FargateCluster)
     assert environment
-    assert environment.executor_kwargs == {"address": ""}
+    assert environment.executor_kwargs == {}
     assert environment.labels == set()
     assert environment._on_execute is None
     assert environment.on_start is None
@@ -35,7 +36,7 @@ def test_create_dask_cloud_provider_environment_with_executor_kwargs():
         provider_class=FargateCluster, executor_kwargs={"test": "here"}
     )
     assert environment
-    assert environment.executor_kwargs == {"address": "", "test": "here"}
+    assert environment.executor_kwargs == {"test": "here"}
 
 
 def test_create_dask_cloud_provider_environment_labels():

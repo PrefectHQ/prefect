@@ -11,13 +11,7 @@ import pytest
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import (
-    ConstantResultHandler,
-    JSONResultHandler,
-    ResultHandler,
-    SecretResultHandler,
-)
+from prefect.engine.result import Result
 from prefect.engine.results import PrefectResult, SecretResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
@@ -36,7 +30,6 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import VersionLockError
 
@@ -285,6 +278,17 @@ def test_flow_runner_loads_context_from_cloud(monkeypatch):
     assert res.context["a"] == 1
 
 
+def test_flow_runner_puts_running_with_backend_in_context(client):
+    @prefect.task()
+    def whats_in_ctx():
+        assert prefect.context.get("running_with_backend")
+
+    flow = prefect.Flow(name="test", tasks=[whats_in_ctx])
+    res = CloudFlowRunner(flow=flow).run()
+
+    assert res.is_successful()
+
+
 def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
     flow = prefect.Flow(name="test")
     date = pendulum.parse("19860920")
@@ -459,7 +463,7 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     def downstream(l):
         return l ** 2
 
-    with prefect.Flow(name="looping", result_handler=JSONResultHandler()) as f:
+    with prefect.Flow(name="looping", result=PrefectResult()) as f:
         inter = looper(10)
         final = downstream(inter)
 

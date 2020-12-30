@@ -6,7 +6,7 @@ import tempfile
 import pytest
 
 import prefect
-from prefect.environments import storage
+from prefect import storage
 from prefect.serialization.storage import (
     AzureSchema,
     BaseStorageSchema,
@@ -16,13 +16,14 @@ from prefect.serialization.storage import (
     S3Schema,
     WebhookSchema,
     GitLabSchema,
+    BitbucketSchema,
 )
 
 
 def test_all_storage_subclasses_have_schemas():
     "Test that ensures we don't forget to include a Schema for every subclass we implement"
 
-    subclasses = set(c.__name__ for c in storage.Storage.__subclasses__())
+    subclasses = {c.__name__ for c in storage.Storage.__subclasses__()}
     subclasses.add(storage.Storage.__name__)  # add base storage, not a subclass
     schemas = set(prefect.serialization.storage.StorageSchema().type_schemas.keys())
     assert subclasses == schemas
@@ -382,4 +383,37 @@ def test_gitlab_full_serialize():
     assert serialized["host"] == "http://localhost:1234"
     assert serialized["path"] == "path/to/flow.py"
     assert serialized["ref"] == "test-branch"
+    assert serialized["secrets"] == ["token"]
+
+
+def test_bitbucket_empty_serialize():
+    # Testing that empty serialization occurs without error or weirdness in attributes.
+    bitbucket = storage.Bitbucket(project="PROJECT", repo="test-repo")
+    serialized = BitbucketSchema().dump(bitbucket)
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["project"] == "PROJECT"
+    assert serialized["repo"] == "test-repo"
+    assert not serialized["host"]
+    assert not serialized["path"]
+    assert not serialized["ref"]
+    assert serialized["secrets"] == []
+
+
+def test_bitbucket_full_serialize():
+    bitbucket = storage.Bitbucket(
+        project="PROJECT",
+        repo="test-repo",
+        path="test-flow.py",
+        host="http://localhost:7990",
+        ref="develop",
+        secrets=["token"],
+    )
+
+    serialized = BitbucketSchema().dump(bitbucket)
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["project"] == "PROJECT"
+    assert serialized["repo"] == "test-repo"
+    assert serialized["path"] == "test-flow.py"
+    assert serialized["host"] == "http://localhost:7990"
+    assert serialized["ref"] == "develop"
     assert serialized["secrets"] == ["token"]

@@ -1,3 +1,4 @@
+import pendulum
 import pytest
 from unittest.mock import MagicMock
 
@@ -14,9 +15,14 @@ def client(monkeypatch):
             )
         ),
         create_flow_run=MagicMock(return_value="xyz890"),
+        get_cloud_url=MagicMock(return_value="https://api.prefect.io/flow/run/url"),
+        create_task_run_artifact=MagicMock(return_value="id"),
     )
     monkeypatch.setattr(
         "prefect.tasks.prefect.flow_run.Client", MagicMock(return_value=cloud_client)
+    )
+    monkeypatch.setattr(
+        "prefect.artifacts.Client", MagicMock(return_value=cloud_client)
     )
     yield cloud_client
 
@@ -33,6 +39,8 @@ def test_deprecated_old_name():
 
 class TestStartFlowRunCloud:
     def test_initialization(self, cloud_api):
+        now = pendulum.now()
+
         # verify that the task is initialized as expected
         task = StartFlowRun(
             name="My Flow Run Task",
@@ -42,6 +50,7 @@ class TestStartFlowRunCloud:
             new_flow_context={"foo": "bar"},
             parameters={"test": "ing"},
             run_name="test-run",
+            scheduled_start_time=now,
         )
         assert task.name == "My Flow Run Task"
         assert task.checkpoint is False
@@ -50,8 +59,13 @@ class TestStartFlowRunCloud:
         assert task.new_flow_context == {"foo": "bar"}
         assert task.parameters == {"test": "ing"}
         assert task.run_name == "test-run"
+        assert task.scheduled_start_time == now
 
-    def test_flow_run_task(self, client, cloud_api):
+    @pytest.mark.parametrize("idempotency_key", [None, "my-key"])
+    @pytest.mark.parametrize("task_run_id", [None, "test-id"])
+    def test_flow_run_task_submit_args(
+        self, client, cloud_api, idempotency_key, task_run_id
+    ):
         # verify that create_flow_run was called
         task = StartFlowRun(
             project_name="Test Project",
@@ -60,57 +74,42 @@ class TestStartFlowRunCloud:
             run_name="test-run",
         )
         # verify that run returns the new flow run ID
-        assert task.run() == "xyz890"
+        with prefect.context(task_run_id=task_run_id):
+            assert task.run(idempotency_key=idempotency_key) == "xyz890"
         # verify the GraphQL query was called with the correct arguments
         query_args = list(client.graphql.call_args_list[0][0][0]["query"].keys())[0]
         assert "Test Project" in query_args
         assert "Test Flow" in query_args
 
         # verify create_flow_run was called with the correct arguments
-        client.create_flow_run.assert_called_once_with(
+        assert client.create_flow_run.call_args[1] == dict(
             flow_id="abc123",
             parameters={"test": "ing"},
-            idempotency_key=None,
+            idempotency_key=idempotency_key or task_run_id,
             context=None,
             run_name="test-run",
+            scheduled_start_time=None,
         )
 
-    def test_flow_run_task_with_flow_run_id(self, client, cloud_api):
+    def test_flow_run_task_uses_scheduled_start_time(self, client, cloud_api):
+        in_one_hour = pendulum.now().add(hours=1)
         # verify that create_flow_run was called
         task = StartFlowRun(
             project_name="Test Project",
             flow_name="Test Flow",
-            parameters={"test": "ing"},
+            scheduled_start_time=in_one_hour,
         )
-
         # verify that run returns the new flow run ID
-        with prefect.context(flow_run_id="test-id"):
-            assert task.run() == "xyz890"
+        assert task.run() == "xyz890"
 
         # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
             flow_id="abc123",
-            parameters={"test": "ing"},
-            idempotency_key="test-id",
-            context=None,
-            run_name=None,
-        )
-
-    def test_idempotency_key_uses_map_index_if_present(self, client, cloud_api):
-        # verify that create_flow_run was called
-        task = StartFlowRun(project_name="Test Project", flow_name="Test Flow")
-
-        # verify that run returns the new flow run ID
-        with prefect.context(flow_run_id="test-id", map_index=4):
-            assert task.run() == "xyz890"
-
-        # verify create_flow_run was called with the correct arguments
-        client.create_flow_run.assert_called_once_with(
-            flow_id="abc123",
-            idempotency_key="test-id-4",
             parameters=None,
+            idempotency_key=None,
             context=None,
             run_name=None,
+            scheduled_start_time=in_one_hour,
         )
 
     def test_flow_run_task_without_flow_name(self, cloud_api):
@@ -132,9 +131,25 @@ class TestStartFlowRunCloud:
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
 
+    def test_flow_run_link_artifact(self, client, cloud_api):
+        task = StartFlowRun(
+            project_name="Test Project",
+            flow_name="Test Flow",
+            parameters={"test": "ing"},
+            run_name="test-run",
+        )
+        with prefect.context(running_with_backend=True, task_run_id="trid"):
+            task.run()
+
+            client.create_task_run_artifact.assert_called_once_with(
+                data={"link": "/flow/run/url"}, kind="link", task_run_id="trid"
+            )
+
 
 class TestStartFlowRunServer:
     def test_initialization(self, server_api):
+        now = pendulum.now()
+
         # verify that the task is initialized as expected
         task = StartFlowRun(
             name="My Flow Run Task",
@@ -144,6 +159,7 @@ class TestStartFlowRunServer:
             new_flow_context={"foo": "bar"},
             parameters={"test": "ing"},
             run_name="test-run",
+            scheduled_start_time=now,
         )
         assert task.name == "My Flow Run Task"
         assert task.checkpoint is False
@@ -151,6 +167,7 @@ class TestStartFlowRunServer:
         assert task.new_flow_context == {"foo": "bar"}
         assert task.parameters == {"test": "ing"}
         assert task.run_name == "test-run"
+        assert task.scheduled_start_time == now
 
     def test_flow_run_task(self, client, server_api):
         # verify that create_flow_run was called
@@ -173,6 +190,7 @@ class TestStartFlowRunServer:
             idempotency_key=None,
             context=None,
             run_name="test-run",
+            scheduled_start_time=None,
         )
 
     def test_flow_run_task_without_flow_name(self, server_api):
@@ -187,24 +205,3 @@ class TestStartFlowRunServer:
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
         with pytest.raises(ValueError, match="Flow 'Test Flow' not found."):
             task.run()
-
-    def test_flow_run_task_with_flow_run_id(self, client, server_api):
-        # verify that create_flow_run was called
-        task = StartFlowRun(
-            project_name="Test Project",
-            flow_name="Test Flow",
-            parameters={"test": "ing"},
-        )
-
-        # verify that run returns the new flow run ID
-        with prefect.context(flow_run_id="test-id"):
-            assert task.run() == "xyz890"
-
-        # verify create_flow_run was called with the correct arguments
-        client.create_flow_run.assert_called_once_with(
-            flow_id="abc123",
-            parameters={"test": "ing"},
-            idempotency_key="test-id",
-            context=None,
-            run_name=None,
-        )

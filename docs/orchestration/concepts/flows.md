@@ -16,6 +16,23 @@ flow.register(project_name="Hello, World!")
 Registering a flow with the backend API requires it to be registered to a project. To create a project see [the "creating a project" tutorial](projects.html#creating-a-project).
 :::
 
+:::tip Deduplicating registration calls
+
+Each call to `flow.register()` will bump the version of the flow in the
+backend.  If you are registering flows using automation, you may want to pass
+an `idempotency_key` which will only create a new version when the key changes.
+For example, we can take advantage of the hash of the serialized flow to only
+register a new version of the flow when it has changed:
+
+```python
+flow.register(
+    project_name="Hello, World!",
+    idempotency_key=flow.serialized_hash()
+)
+```
+:::
+
+
 Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](../tutorial/configure.html#log-in-to-prefect-cloud). For more information on Flow registration see [here](../tutorial/first.html#register-flow-with-prefect-cloud).
 
 ### GraphQL <Badge text="GQL"/>
@@ -47,7 +64,7 @@ mutation($flow: JSON!) {
 
 Every registered flow is part of a version group and has a version group id and a flow group id. 
 
-Version group ids are deprecated but maintained for backwards compatibility. The version group id can be provided when [registering a flow](/api/latest/core/flow.html#flow-2). If no version group id is provided at registration, the platform checks if any other flows in the same project have the same name as the new flow. If so, the new flow is assigned to the same version group as the other flow.  Version group ids can be used when creating a flow run and, if provided, the unique unarchived version in this version group will be run; this input is useful as a stable API for running a regularly updated flow.
+The version group id can be provided when [registering a flow](/api/latest/core/flow.html#flow-2). If no version group id is provided at registration, the platform checks if any other flows in the same project have the same name as the new flow. If so, the new flow is assigned to the same version group as the other flow.  Version group ids can be used when creating a flow run and, if provided, the unique unarchived version in this version group will be run; this input is useful as a stable API for running a regularly updated flow.
 
 The flow group id is a UUID and is not currently editable.  The flow group id can be used when setting [flow group settings](/orchestration/ui/flow.html#flow-group-settings) such as default parameters and labels.
 

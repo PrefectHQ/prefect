@@ -33,7 +33,8 @@ def create():
 @click.option("--description", "-d", help="Project description to create", hidden=True)
 def project(name, description):
     """
-    Create projects with the Prefect API that organize flows.
+    Create projects with the Prefect API that organize flows. Does nothing if
+    the project already exists.
 
     \b
     Arguments:
@@ -46,7 +47,8 @@ def project(name, description):
     """
     try:
         Client().create_project(project_name=name, project_description=description)
-    except ClientError:
+    except ClientError as exc:
+        click.echo(f"{type(exc).__name__}: {exc}")
         click.secho("Error creating project", fg="red")
         return
 

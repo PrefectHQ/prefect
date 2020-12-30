@@ -31,7 +31,7 @@ classes = ["Secret"]
 [pages.cli.agent]
 title = "agent"
 module = "prefect.cli.agent"
-commands = ["start", "install"]
+commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
 
 [pages.cli.auth]
 title = "auth"
@@ -41,6 +41,11 @@ commands = ["login", "logout", "list_tenants", "switch_tenants", "create_token",
 [pages.cli.create]
 title = "create"
 module = "prefect.cli.create"
+commands = ["project"]
+
+[pages.cli.delete]
+title = "delete"
+module = "prefect.cli.delete"
 commands = ["project"]
 
 [pages.cli.describe]
@@ -188,19 +193,10 @@ title = "TaskRunner"
 module = "prefect.engine.task_runner"
 classes = ["TaskRunner"]
 
-[pages.engine.executors]
-title = "Executors"
-module = "prefect.engine.executors"
-classes = [
-            "Executor",
-            "DaskExecutor",
-            "LocalDaskExecutor",
-            "LocalExecutor"]
-
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
-classes = ["Result", "SafeResult", "NoResultType"]
+classes = ["Result"]
 
 [pages.engine.results]
 title = "Result Subclasses"
@@ -212,30 +208,30 @@ title = "Result Serializers"
 module = "prefect.engine.serializers"
 classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer"]
 
-[pages.engine.result_handlers]
-title = "Result Handlers"
-module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler", "SecretResultHandler"]
-
 [pages.engine.cloud]
 title = "Cloud"
 module = "prefect.engine.cloud"
 classes = ["CloudFlowRunner", "CloudTaskRunner"]
-
-[pages.environments.storage]
-title = "Storage"
-module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab"]
 
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
 classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
 
+[pages.executors]
+title = "Executors"
+module = "prefect.executors"
+classes = {Executor=[], LocalExecutor=[], LocalDaskExecutor=[], DaskExecutor=[]}
+
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "LocalRun", "DockerRun", "KubernetesRun"]
+classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+
+[pages.storage]
+title = "Storage"
+module = "prefect.storage"
+classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab", "Bitbucket", "CodeCommit"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -361,7 +357,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = [
-        "RunGreatExpectationsCheckpoint",
+        "RunGreatExpectationsValidation", "RunGreatExpectationsCheckpoint",
         ]
 
 [pages.tasks.gsheets]
@@ -377,6 +373,11 @@ title = "Jira Tasks"
 module = "prefect.tasks.jira"
 classes = ["JiraTask", "JiraServiceDeskTask"]
 
+[pages.tasks.jupyter]
+title = "Jupyter Tasks"
+module = "prefect.tasks.jupyter"
+classes = ["ExecuteNotebook"]
+
 [pages.tasks.monday]
 title = "Monday Tasks"
 module = "prefect.tasks.monday"
@@ -389,7 +390,7 @@ classes = ["CreateCard"]
 
 [pages.tasks.mysql]
 title = "MySQL Tasks"
-module = "prefect.contrib.tasks.mysql"
+module = "prefect.tasks.mysql"
 classes = ["MySQLExecute", "MySQLFetch"]
 
 [pages.tasks.notifications]
@@ -400,7 +401,7 @@ classes = ["EmailTask", "SlackTask", "PushbulletTask"]
 [pages.tasks.postgres]
 title = "Postgres Tasks"
 module = "prefect.tasks.postgres"
-classes = ["PostgresExecute", "PostgresFetch"]
+classes = ["PostgresExecute", "PostgresExecuteMany", "PostgresFetch"]
 
 [pages.tasks.redis]
 title = "Redis Tasks"
@@ -424,7 +425,7 @@ classes = ["SnowflakeQuery"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
-module = "prefect.contrib.tasks.databricks"
+module = "prefect.tasks.databricks"
 classes = ["DatabricksSubmitRun", "DatabricksRunNow"]
 
 [pages.tasks.spacy]
@@ -499,27 +500,44 @@ classes = ["LoadTweetReplies"]
 [pages.agent.agent]
 title = "Agent"
 module = "prefect.agent"
-classes = ["Agent"]
+classes = {Agent = ["start"]}
 
 [pages.agent.local]
 title = "Local Agent"
 module = "prefect.agent.local"
-classes = ["LocalAgent"]
+classes = {LocalAgent = ["start"]}
 
 [pages.agent.docker]
 title = "Docker Agent"
 module = "prefect.agent.docker"
-classes = ["DockerAgent"]
+classes = {DockerAgent = ["start"]}
 
 [pages.agent.kubernetes]
 title = "Kubernetes Agent"
 module = "prefect.agent.kubernetes"
-classes = ["KubernetesAgent"]
+classes = {KubernetesAgent = ["start"]}
 
 [pages.agent.fargate]
 title = "Fargate Agent"
 module = "prefect.agent.fargate"
-classes = ["FargateAgent"]
+classes = {FargateAgent = ["start"]}
+
+[pages.agent.ecs]
+title = "ECS Agent"
+module = "prefect.agent.ecs"
+classes = {ECSAgent = ["start"]}
+
+[pages.artifacts.artifacts]
+title = "Artifacts"
+module = "prefect.artifacts"
+functions = [
+    "create_link",
+    "update_link",
+    "create_markdown",
+    "update_markdown",
+    "delete_artifact"
+]
+experimental = true
 
 [pages.utilities.collections]
 title = "Collections"
@@ -590,3 +608,8 @@ title = "Edge Utilities"
 module = "prefect.utilities.edges"
 classes = ["unmapped", "mapped", "flatten"]
 functions = []
+
+[pages.tasks.dremio]
+title = "Dremio Tasks"
+module = "prefect.tasks.dremio"
+classes = ["DremioFetch"]

@@ -32,6 +32,7 @@ from prefect.utilities.graphql import (
     compress,
     parse_graphql,
     with_args,
+    format_graphql_request_error,
 )
 from prefect.utilities.logging import create_diagnostic_logger
 
@@ -98,32 +99,13 @@ class Client:
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
 
-        # store api token
         self._api_token = api_token or prefect.context.config.cloud.get(
             "auth_token", None
         )
 
-        if prefect.config.backend == "cloud":
-            if not self._api_token:
-                # if no api token was passed, attempt to load state from local storage
-                settings = self._load_local_settings()
-                self._api_token = settings.get("api_token")
-
-                if self._api_token:
-                    self._active_tenant_id = settings.get("active_tenant_id")
-                if self._active_tenant_id:
-                    try:
-                        self.login_to_tenant(tenant_id=self._active_tenant_id)
-                    except AuthorizationError:
-                        # if an authorization error is raised, then the token is invalid and should
-                        # be cleared
-                        self.logout_from_tenant()
-        else:
-            # TODO: Separate put this functionality and clean up initial tenant access handling
-            if not self._active_tenant_id:
-                tenant_info = self.graphql({"query": {"tenant": {"id"}}})
-                if tenant_info.data.tenant:
-                    self._active_tenant_id = tenant_info.data.tenant[0].id
+        # Initialize the tenant and api token if not yet set
+        if not self._api_token and prefect.config.backend == "cloud":
+            self._init_tenant()
 
     def create_tenant(self, name: str, slug: str = None) -> str:
         """
@@ -241,6 +223,46 @@ class Client:
         else:
             return {}
 
+    @property
+    def active_tenant_id(self) -> Optional[str]:
+        """
+        Return the tenant to contact the server.
+        If your tenant has not been set yet it will be initialized.
+        """
+        if self._active_tenant_id is None:
+            self._init_tenant()
+        return self._active_tenant_id
+
+    def _init_tenant(self) -> None:
+        """
+        Init the tenant to contact the server.
+
+        If your backend is set to cloud the tenant will be read from: $HOME/.prefect/settings.toml.
+
+        For the server backend it will try to retrieve the default tenant. If the server is
+        protected with auth like BasicAuth do not forget to `attach_headers` before any call.
+        """
+        if prefect.config.backend == "cloud":
+            # if no api token was passed, attempt to load state from local storage
+            settings = self._load_local_settings()
+
+            if not self._api_token:
+                self._api_token = settings.get("api_token")
+            if self._api_token:
+                self._active_tenant_id = settings.get("active_tenant_id")
+
+            if self._active_tenant_id:
+                try:
+                    self.login_to_tenant(tenant_id=self._active_tenant_id)
+                except AuthorizationError:
+                    # if an authorization error is raised, then the token is invalid and should
+                    # be cleared
+                    self.logout_from_tenant()
+        else:
+            tenant_info = self.graphql({"query": {"tenant": {"id"}}})
+            if tenant_info.data.tenant:
+                self._active_tenant_id = tenant_info.data.tenant[0].id
+
     def graphql(
         self,
         query: Any,
@@ -281,6 +303,8 @@ class Client:
             retry_on_api_error=retry_on_api_error,
         )
 
+        # TODO: It looks like this code is never reached because errors are raised
+        #       in self._send_request by default
         if raise_on_error and "errors" in result:
             if "UNAUTHENTICATED" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
@@ -303,6 +327,8 @@ class Client:
         params: Dict[str, JSONLike] = None,
         headers: dict = None,
     ) -> "requests.models.Response":
+        import requests
+
         if prefect.context.config.cloud.get("diagnostics") is True:
             self.logger.debug(f"Preparing request to {url}")
             clean_headers = {
@@ -330,7 +356,25 @@ class Client:
             )
 
         # Check if request returned a successful status
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            if response.status_code == 400 and params and "query" in params:
+                # Create a custom-formatted err message for graphql errors which always
+                # return a 400 status code and have "query" in the parameter dict
+                try:
+                    graphql_msg = format_graphql_request_error(response)
+                except Exception:
+                    # Fallback to a general message
+                    graphql_msg = (
+                        "This is likely caused by a poorly formatted GraphQL query or "
+                        "mutation but the response could not be parsed for more details"
+                    )
+                raise ClientError(f"{exc}\n{graphql_msg}") from exc
+
+            # Server-side and non-graphql errors will be raised without modification
+            raise
+
         return response
 
     def _request(
@@ -496,7 +540,7 @@ class Client:
             - str: the access token
         """
         if not self._access_token:
-            return self._api_token
+            return self._api_token  # type: ignore
 
         expiration = self._access_token_expires_at or pendulum.now()
         if self._refresh_token and pendulum.now().add(seconds=30) > expiration:
@@ -587,7 +631,7 @@ class Client:
             )  # type: ignore
             self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
 
-        self._active_tenant_id = tenant_id
+        self._active_tenant_id = tenant_id  # type: ignore
 
         # save the tenant setting
         settings = self._load_local_settings()
@@ -650,6 +694,7 @@ class Client:
         version_group_id: str = None,
         compressed: bool = True,
         no_url: bool = False,
+        idempotency_key: str = None,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -669,6 +714,9 @@ class Client:
                 `True` compressed
             - no_url (bool, optional): if `True`, the stdout from this function will not
                 contain the URL link to the newly-registered flow in the Cloud UI
+            - idempotency_key (optional, str): a key that, if matching the most recent
+                registration call for this flow group, will prevent the creation of
+                another flow version and return the existing flow id instead.
 
         Returns:
             - str: the ID of the newly-registered flow
@@ -733,18 +781,18 @@ class Client:
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
-        # Set Docker storage image in environment metadata if provided
-        if isinstance(flow.storage, prefect.environments.storage.Docker):
-            flow.environment.metadata["image"] = flow.storage.name
-            serialized_flow = flow.serialize(build=False)
+        # Configure environment.metadata (if using environment-based flows)
+        if flow.environment is not None:
+            # Set Docker storage image in environment metadata if provided
+            if isinstance(flow.storage, prefect.storage.Docker):
+                flow.environment.metadata["image"] = flow.storage.name
+                serialized_flow = flow.serialize(build=False)
 
-        # If no image ever set, default metadata to all_extras image on current version
-        if not flow.environment.metadata.get("image"):
-            version = prefect.__version__.split("+")[0]
-            flow.environment.metadata[
-                "image"
-            ] = f"prefecthq/prefect:all_extras-{version}"
-            serialized_flow = flow.serialize(build=False)
+            # If no image ever set, default metadata to image on current version
+            if not flow.environment.metadata.get("image"):
+                version = prefect.__version__.split("+")[0]
+                flow.environment.metadata["image"] = f"prefecthq/prefect:{version}"
+                serialized_flow = flow.serialize(build=False)
 
         # verify that the serialized flow can be deserialized
         try:
@@ -758,16 +806,20 @@ class Client:
 
         if compressed:
             serialized_flow = compress(serialized_flow)
+
+        inputs = dict(
+            project_id=(project[0].id if project else None),
+            serialized_flow=serialized_flow,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+        )
+        # Add newly added inputs only when set for backwards compatibility
+        if idempotency_key is not None:
+            inputs.update(idempotency_key=idempotency_key)
+
         res = self.graphql(
             create_mutation,
-            variables=dict(
-                input=dict(
-                    project_id=(project[0].id if project else None),
-                    serialized_flow=serialized_flow,
-                    set_schedule_active=set_schedule_active,
-                    version_group_id=version_group_id,
-                )
-            ),
+            variables=dict(input=inputs),
             retry_on_api_error=False,
         )  # type: Any
 
@@ -796,10 +848,16 @@ class Client:
             print("Flow URL: {}".format(flow_url))
 
             # Extra information to improve visibility
+            if flow.run_config is not None:
+                labels = sorted(flow.run_config.labels)
+            elif flow.environment is not None:
+                labels = sorted(flow.environment.labels)
+            else:
+                labels = []
             msg = (
                 f" {prefix}ID: {flow_id}\n"
                 f" {prefix}Project: {project_name}\n"
-                f" {prefix}Labels: {list(flow.environment.labels)}"
+                f" {prefix}Labels: {labels}"
             )
             print(msg)
 
@@ -829,25 +887,23 @@ class Client:
         # returns "https://cloud.prefect.io/my-tenant-slug/flow-run/424242-ca-94611-111-55"
         ```
         """
-        # Generate direct link to UI
-        if prefect.config.backend == "cloud":
-            tenant_slug = self.get_default_tenant_slug(as_user=as_user)
-        else:
-            tenant_slug = ""
 
+        # Search for matching cloud API because we can't guarantee that the backend config is set
+        using_cloud_api = ".prefect.io" in prefect.config.cloud.api
+        tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
+
+        # For various API versions parse out `api-` for direct UI link
         base_url = (
-            re.sub("api-", "", prefect.config.cloud.api)
-            if re.search("api-", prefect.config.cloud.api)
-            else re.sub("api", "cloud", prefect.config.cloud.api)
+            (
+                re.sub("api-", "", prefect.config.cloud.api)
+                if re.search("api-", prefect.config.cloud.api)
+                else re.sub("api", "cloud", prefect.config.cloud.api)
+            )
+            if using_cloud_api
+            else prefect.config.server.ui.endpoint
         )
 
-        full_url = prefect.config.cloud.api
-        if tenant_slug:
-            full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
-        elif prefect.config.backend == "server":
-            full_url = "/".join([prefect.config.server.ui.endpoint, subdirectory, id])
-
-        return full_url
+        return "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
 
     def get_default_tenant_slug(self, as_user: bool = True) -> str:
         """
@@ -878,14 +934,14 @@ class Client:
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
-        Create a new Project
+        Create a new project if a project with the name provided does not already exist
 
         Args:
-            - project_name (str): the project that should contain this flow
+            - project_name (str): the project that should be created
             - project_description (str, optional): the project description
 
         Returns:
-            - str: the ID of the newly-created project
+            - str: the ID of the newly-created or pre-existing project
 
         Raises:
             - ClientError: if the project creation failed
@@ -896,18 +952,72 @@ class Client:
             }
         }
 
-        res = self.graphql(
-            project_mutation,
-            variables=dict(
-                input=dict(
-                    name=project_name,
-                    description=project_description,
-                    tenant_id=self._active_tenant_id,
-                )
-            ),
-        )  # type: Any
+        try:
+            res = self.graphql(
+                project_mutation,
+                variables=dict(
+                    input=dict(
+                        name=project_name,
+                        description=project_description,
+                        tenant_id=self.active_tenant_id,
+                    )
+                ),
+            )  # type: Any
+        except ClientError as exc:
+            if "'Uniqueness violation.'" in str(exc):
+                project_query = {
+                    "query": {
+                        with_args(
+                            "project", {"where": {"name": {"_eq": project_name}}}
+                        ): {"id": True}
+                    }
+                }
+                res = self.graphql(project_query)
+                return res.data.project[0].id
+            raise
 
         return res.data.create_project.id
+
+    def delete_project(self, project_name: str) -> bool:
+        """
+        Delete a project
+
+        Args:
+            - project_name (str): the project that should be created
+
+        Returns:
+            - bool: True if project is deleted else False
+        Raises:
+            - ValueError: if the project is None or doesn't exist
+        """
+
+        if project_name is None:
+            raise TypeError("'project_name' is a required field for deleting a project")
+
+        query_project = {
+            "query": {
+                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                    "id": True
+                }
+            }
+        }
+
+        project = self.graphql(query_project).data.project
+
+        if not project:
+            raise ValueError("Project {} not found.".format(project_name))
+
+        project_mutation = {
+            "mutation($input: delete_project_input!)": {
+                "delete_project(input: $input)": {"success"}
+            }
+        }
+
+        delete_project = self.graphql(
+            project_mutation, variables=dict(input=dict(project_id=project[0].id))
+        )
+
+        return delete_project.data.delete_project.success
 
     def create_flow_run(
         self,
@@ -1250,7 +1360,7 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "get_or_create_task_run",
+                    "get_or_create_task_run_info",
                     {
                         "input": {
                             "flow_run_id": flow_run_id,
@@ -1260,6 +1370,8 @@ class Client:
                     },
                 ): {
                     "id": True,
+                    "version": True,
+                    "serialized_state": True,
                 }
             }
         }
@@ -1268,28 +1380,14 @@ class Client:
         if result is None:
             raise ClientError("Failed to create task run.")
 
-        task_run_id = result.data.get_or_create_task_run.id
+        task_run_info = result.data.get_or_create_task_run_info
 
-        query = {
-            "query": {
-                with_args("task_run_by_pk", {"id": task_run_id}): {
-                    "version": True,
-                    "serialized_state": True,
-                    "task": {"slug": True},
-                }
-            }
-        }
-        task_run = self.graphql(query).data.task_run_by_pk  # type: ignore
-
-        if task_run is None:
-            raise ClientError('Task run ID not found: "{}"'.format(task_run_id))
-
-        state = prefect.engine.state.State.deserialize(task_run.serialized_state)
+        state = prefect.engine.state.State.deserialize(task_run_info.serialized_state)
         return TaskRunInfoResult(
-            id=task_run_id,
+            id=task_run_info.id,
             task_id=task_id,
-            task_slug=task_run.task.slug,
-            version=task_run.version,
+            task_slug="",
+            version=task_run_info.version,
             state=state,
         )
 
@@ -1352,13 +1450,13 @@ class Client:
         """
         query = {
             "query": {
-                with_args("task_run_by_pk", {"id": task_run_id}): {
+                with_args("get_task_run_info", {"task_run_id": task_run_id}): {
                     "serialized_state": True,
                 }
             }
         }
 
-        task_run = self.graphql(query).data.task_run_by_pk
+        task_run = self.graphql(query).data.get_task_run_info
 
         return prefect.engine.state.State.deserialize(task_run.serialized_state)
 
@@ -1580,7 +1678,7 @@ class Client:
                     type=agent_type,
                     name=name,
                     labels=labels or [],
-                    tenant_id=self._active_tenant_id,
+                    tenant_id=self.active_tenant_id,
                     agent_config_id=agent_config_id,
                 )
             ),
@@ -1611,3 +1709,89 @@ class Client:
 
         result = self.graphql(query)  # type: Any
         return result.data.agent_config[0].settings
+
+    def create_task_run_artifact(
+        self, task_run_id: str, kind: str, data: dict, tenant_id: str = None
+    ) -> str:
+        """
+        Create an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_id (str): the task run id
+            - kind (str): the artifact kind
+            - data (dict): the artifact data
+            - tenant_id (str, optional): the tenant id that this artifact belongs to. Defaults
+                to the tenant ID linked to the task run
+
+        Returns:
+            - str: the task run artifact ID
+        """
+        mutation = {
+            "mutation($input: create_task_run_artifact_input!)": {
+                "create_task_run_artifact(input: $input)": {"id"}
+            }
+        }
+
+        result = self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(
+                    task_run_id=task_run_id, kind=kind, data=data, tenant_id=tenant_id
+                )
+            ),
+        )
+
+        artifact_id = result.data.create_task_run_artifact.id
+        if not artifact_id:
+            raise ValueError("Error creating task run artifact")
+
+        return artifact_id
+
+    def update_task_run_artifact(self, task_run_artifact_id: str, data: dict) -> None:
+        """
+        Update an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_artifact_id (str): the task run artifact id
+            - data (dict): the artifact data
+        """
+        if task_run_artifact_id is None:
+            raise ValueError(
+                "The ID of an existing task run artifact must be provided."
+            )
+
+        mutation = {
+            "mutation($input: update_task_run_artifact_input!)": {
+                "update_task_run_artifact(input: $input)": {"success"}
+            }
+        }
+
+        self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(task_run_artifact_id=task_run_artifact_id, data=data)
+            ),
+        )
+
+    def delete_task_run_artifact(self, task_run_artifact_id: str) -> None:
+        """
+        Delete an artifact that corresponds to a specific task run
+
+        Args:
+            - task_run_artifact_id (str): the task run artifact id
+        """
+        if task_run_artifact_id is None:
+            raise ValueError(
+                "The ID of an existing task run artifact must be provided."
+            )
+
+        mutation = {
+            "mutation($input: delete_task_run_artifact_input!)": {
+                "delete_task_run_artifact(input: $input)": {"success"}
+            }
+        }
+
+        self.graphql(
+            mutation,
+            variables=dict(input=dict(task_run_artifact_id=task_run_artifact_id)),
+        )

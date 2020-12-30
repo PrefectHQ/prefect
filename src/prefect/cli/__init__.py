@@ -9,6 +9,7 @@ from prefect.utilities import backend as backend_util
 from .agent import agent as _agent
 from .auth import auth as _auth
 from .create import create as _create
+from .delete import delete as _delete
 from .describe import describe as _describe
 from .execute import execute as _execute
 from .get import get as _get
@@ -39,6 +40,7 @@ def cli():
     Action Commands:
         agent       Manage agents
         create      Create objects
+        delete      Delete objects
         execute     Execute a flow's environment
         run         Run a flow
         register    Register flows with an API
@@ -62,6 +64,7 @@ def cli():
 cli.add_command(_agent)
 cli.add_command(_auth)
 cli.add_command(_create)
+cli.add_command(_delete)
 cli.add_command(_describe)
 cli.add_command(_execute)
 cli.add_command(_get)
@@ -87,7 +90,7 @@ def config():
     """
     Output Prefect config
     """
-    click.echo(prefect.config.to_dict())
+    click.echo(prefect.config.to_json())
 
 
 @cli.command(hidden=True)

@@ -9,10 +9,9 @@ import yaml
 
 import prefect
 from prefect.environments import DaskKubernetesEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
-
 
 base_flow = prefect.Flow("test", storage=Docker())
 
@@ -54,6 +53,20 @@ def test_create_dask_environment_args():
     assert environment.docker_secret == "docker"
     assert environment.metadata == {"test": "here"}
     assert environment.image_pull_secret == "secret"
+
+
+def test_create_dask_environment_multiple_image_secrets_in_args():
+    environment = DaskKubernetesEnvironment(
+        min_workers=5,
+        max_workers=6,
+        work_stealing=False,
+        scheduler_logs=True,
+        private_registry=True,
+        docker_secret="docker",
+        metadata={"test": "here"},
+        image_pull_secret="some-cred,different-cred",
+    )
+    assert environment.image_pull_secret == "some-cred,different-cred"
 
 
 def test_create_dask_environment_labels():
@@ -180,7 +193,7 @@ def test_create_namespaced_job_fails_outside_cluster():
 
 
 def test_environment_run(monkeypatch):
-    from prefect.engine.executors import DaskExecutor
+    from prefect.executors import DaskExecutor
 
     start_func = MagicMock()
     exit_func = MagicMock()
@@ -288,6 +301,32 @@ def test_populate_job_yaml():
     )
 
 
+def test_populate_job_yaml_multiple_image_secrets():
+    environment = DaskKubernetesEnvironment(
+        image_pull_secret="good-secret,dangerous-secret"
+    )
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+    with open(path.join(file_path, "job.yaml")) as job_file:
+        job = yaml.safe_load(job_file)
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.auth_token": "auth_test",
+            "logging.extra_loggers": ["test_logger"],
+        }
+    ):
+        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+            yaml_obj = environment._populate_job_yaml(
+                yaml_obj=job, docker_name="test1/test2:test3"
+            )
+
+    expected_secrets = [dict(name="good-secret"), dict(name="dangerous-secret")]
+    assert yaml_obj["spec"]["template"]["spec"]["imagePullSecrets"] == expected_secrets
+
+
 def test_populate_worker_pod_yaml():
     environment = DaskKubernetesEnvironment()
 
@@ -341,7 +380,7 @@ def test_populate_worker_pod_yaml_with_private_registry():
         ):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
-    yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")
+    assert yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")
 
 
 def test_populate_worker_pod_yaml_with_image_pull_secret():
@@ -360,7 +399,29 @@ def test_populate_worker_pod_yaml_with_image_pull_secret():
         ):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
-    yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="mysecret")
+    assert yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="mysecret")
+
+
+def test_populate_worker_pod_yaml_with_multiple_image_pull_secrets():
+    environment = DaskKubernetesEnvironment(image_pull_secret="some-secret,another-one")
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+    with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
+        pod = yaml.safe_load(pod_file)
+
+    with set_temporary_config(
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+    ):
+        with prefect.context(
+            flow_run_id="id_test", image="my_image", namespace="foo-man"
+        ):
+            yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
+
+    assert yaml_obj["spec"]["imagePullSecrets"] == [
+        dict(name="some-secret"),
+        dict(name="another-one"),
+    ]
 
 
 def test_initialize_environment_with_spec_populates(monkeypatch):
@@ -416,7 +477,7 @@ def test_populate_custom_worker_spec_yaml(log_flag):
     assert env[3]["value"] == "false"
     assert env[4]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
-    assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[6]["value"] == "prefect.executors.DaskExecutor"
     assert env[7]["value"] == str(log_flag).lower()
     assert env[8]["value"] == "INFO"
     assert (
@@ -464,7 +525,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
     assert env[5]["value"] == "false"
     assert env[6]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[7]["value"] == "prefect.engine.cloud.CloudTaskRunner"
-    assert env[8]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[8]["value"] == "prefect.executors.DaskExecutor"
     assert env[9]["value"] == str(log_flag).lower()
     assert env[10]["value"] == "INFO"
     assert (

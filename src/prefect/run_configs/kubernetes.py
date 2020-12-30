@@ -8,9 +8,6 @@ from prefect.run_configs.base import RunConfig
 class KubernetesRun(RunConfig):
     """Configure a flow-run to run as a Kubernetes Job.
 
-    Note: The functionality here is experimental, and may change between
-    versions without notice. Use at your own risk.
-
     Kubernetes jobs are configured by filling in a job template at runtime. A
     job template can be specified either as a path (to be read in at runtime)
     or an in-memory object (which will be stored along with the flow in Prefect
@@ -32,6 +29,12 @@ class KubernetesRun(RunConfig):
         - cpu_request (float or str, optional): The CPU request to use for the job
         - memory_limit (str, optional): The memory limit to use for the job
         - memory_request (str, optional): The memory request to use for the job
+        - service_account_name (str, optional): A service account name to use
+            for this job. If present, overrides any service account configured
+            on the agent or in the job template.
+        - image_pull_secrets (list, optional): A list of image pull secrets to
+            use for this job. If present, overrides any image pull secrets
+            configured on the agent or in the job template.
         - labels (Iterable[str], optional): an iterable of labels to apply to this
             run config. Labels are string identifiers used by Prefect Agents
             for selecting valid flow runs when polling for work
@@ -75,6 +78,8 @@ class KubernetesRun(RunConfig):
         cpu_request: Union[float, str] = None,
         memory_limit: str = None,
         memory_request: str = None,
+        service_account_name: str = None,
+        image_pull_secrets: Iterable[str] = None,
         labels: Iterable[str] = None,
     ) -> None:
         super().__init__(labels=labels)
@@ -93,10 +98,15 @@ class KubernetesRun(RunConfig):
             if isinstance(job_template, str):
                 job_template = yaml.safe_load(job_template)
 
+        assert job_template is None or isinstance(job_template, dict)  # mypy
+
         if cpu_limit is not None:
             cpu_limit = str(cpu_limit)
         if cpu_request is not None:
             cpu_request = str(cpu_request)
+
+        if image_pull_secrets is not None:
+            image_pull_secrets = list(image_pull_secrets)
 
         self.job_template_path = job_template_path
         self.job_template = job_template
@@ -106,3 +116,5 @@ class KubernetesRun(RunConfig):
         self.cpu_request = cpu_request
         self.memory_limit = memory_limit
         self.memory_request = memory_request
+        self.service_account_name = service_account_name
+        self.image_pull_secrets = image_pull_secrets

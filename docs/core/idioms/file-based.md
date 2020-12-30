@@ -23,7 +23,7 @@ pip install 'prefect[github]'
 :::
 
 In this example we will walk through a potential workflow you may use when registering flows with
-[GitHub](/api/latest/environments/storage.html#github) storage. This example takes place in a GitHub
+[GitHub](/api/latest/storage.html#github) storage. This example takes place in a GitHub
 repository with the following structure:
 
 ```
@@ -39,7 +39,7 @@ First, compose your flow file and give the flow `GitHub` storage:
 # flows/my_flow.py
 
 from prefect import task, Flow
-from prefect.environments.storage import GitHub
+from prefect.storage import GitHub
 
 @task
 def get_data():
@@ -102,6 +102,25 @@ pip install 'prefect[gitlab]'
 ```
 
 You can replace `GitHub` instances in the example above with `GitLab`, use the `"GITLAB_ACCESS_TOKEN"` secret rather than `"GITHUB_ACCESS_TOKEN"`, and then you may run the example as written.
+:::
+
+:::tip Bitbucket users
+Similarly, to use Bitbucket (Server only) based storage, install the `bitbucket` extra:
+
+```bash
+pip install 'prefect[bitbucket]'
+```
+
+Bitbucket storage also operates largely the same way. Replace `GitHub` with `Bitbucket` and use the `BITBUCKET_ACCESS_TOKEN` secret.  However, Bitbucket requires an additional argument: `project`.  The `flow.storage` in the above example would be declared as follows for Bitbucket storage:
+
+```python
+flow.storage = Bitbucket(
+    project="project",              # name of project that repo resides in
+    repo="org/repo",                 # name of repo
+    path="flows/my_flow.py",        # location of flow file in repo
+    secrets=["BITBUCKET_ACCESS_TOKEN"]  # name of personal access token secret
+)
+```
 :::
 
 ### File based Docker storage

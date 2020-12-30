@@ -231,6 +231,20 @@ class Nested(fields.Nested):
         return super()._serialize(value, attr, obj, **kwargs)
 
 
+class SortedList(fields.List):
+    """
+    An extension of the Marshmallow List field that sorts the serialized object for
+    determinism
+
+    Args:
+        - cls_or_instance (type): the inner field class
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
+    """
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return sorted(super()._serialize(value, attr, obj, **kwargs))
+
+
 class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
     """
     A subclass of marshmallow_oneofschema.OneOfSchema that excludes unknown fields

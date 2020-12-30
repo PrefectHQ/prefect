@@ -21,7 +21,7 @@ spec:
           image: prefecthq/prefect:latest
           imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
-          args: ["prefect agent start kubernetes"]
+          args: ["prefect agent kubernetes start"]
           env:
             - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
               value: ""
@@ -60,24 +60,3 @@ spec:
             initialDelaySeconds: 40
             periodSeconds: 40
             failureThreshold: 2
-        - name: resource-manager
-          image: prefecthq/prefect:latest
-          imagePullPolicy: Always
-          command: ["/bin/bash", "-c"]
-          args:
-            [
-              "python -c 'from prefect.agent.kubernetes import ResourceManager; ResourceManager().start()'",
-            ]
-          env:
-            - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
-              value: ""
-            - name: PREFECT__CLOUD__API
-              value: "https://api.prefect.io"
-            - name: PREFECT__CLOUD__AGENT__RESOURCE_MANAGER__LOOP_INTERVAL
-              value: "60"
-            - name: NAMESPACE
-              value: "default"
-          resources:
-            limits:
-              memory: "128Mi"
-              cpu: "100m"

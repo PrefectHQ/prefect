@@ -17,6 +17,30 @@ def test_serialize_flow():
     assert serialized["name"] == "n"
 
 
+def test_serialize_flow_sorts_nested_schemas():
+    a = Parameter("a", default=1)
+    b = Parameter("b", default=2)
+    c = Task("c")
+    d = Task("d")
+    f = Flow("test")
+    d.set_upstream(c, flow=f)
+    c.set_upstream(b, flow=f).set_upstream(a, flow=f)
+
+    f.set_reference_tasks([d, c])
+
+    # Must use `f.serialize` instead of `FlowSchema().dump` because task slugs
+    # are not guaranteed to be set yet
+    serialized = f.serialize()
+
+    assert [param["slug"] for param in serialized["parameters"]] == ["a", "b"]
+    assert [task["slug"] for task in serialized["tasks"]] == ["a", "b", "c-1", "d-1"]
+    assert [
+        (edge["upstream_task"]["slug"], edge["downstream_task"]["slug"])
+        for edge in serialized["edges"]
+    ] == [("a", "c-1"), ("b", "c-1"), ("c-1", "d-1")]
+    assert [task["slug"] for task in serialized["reference_tasks"]] == ["c-1", "d-1"]
+
+
 def test_deserialize_flow():
     serialized = FlowSchema().dump(Flow(name="n"))
     deserialized = FlowSchema().load(serialized)
@@ -138,18 +162,18 @@ def test_reference_tasks():
 
 
 def test_serialize_container_environment():
-    storage = prefect.environments.storage.Docker(
+    storage = prefect.storage.Docker(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
     deserialized = FlowSchema().load(
         FlowSchema().dump(Flow(name="test", storage=storage))
     )
-    assert isinstance(deserialized.storage, prefect.environments.storage.Docker)
+    assert isinstance(deserialized.storage, prefect.storage.Docker)
     assert deserialized.storage.registry_url == storage.registry_url
 
 
 def test_deserialize_serialized_flow_after_build(tmpdir):
-    flow = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow = Flow(name="test", storage=prefect.storage.Local(tmpdir))
     serialized_flow = flow.serialize(build=True)
     deserialized = FlowSchema().load(serialized_flow)
     assert isinstance(deserialized, Flow)

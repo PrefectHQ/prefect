@@ -8,19 +8,23 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook, GitLab
-from prefect.run_configs import LocalRun, KubernetesRun
+from prefect.storage import (
+    Docker,
+    Local,
+    Azure,
+    GCS,
+    S3,
+    Webhook,
+    GitLab,
+    Bitbucket,
+    CodeCommit,
+)
+from prefect.run_configs import LocalRun, KubernetesRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 DEFAULT_AGENT_LABELS = [
     socket.gethostname(),
-    "azure-flow-storage",
-    "gcs-flow-storage",
-    "s3-flow-storage",
-    "github-flow-storage",
-    "webhook-flow-storage",
-    "gitlab-flow-storage",
 ]
 
 
@@ -40,7 +44,7 @@ def test_local_agent_init():
 
 
 def test_local_agent_deduplicates_labels():
-    agent = LocalAgent(labels=["azure-flow-storage"])
+    agent = LocalAgent(labels=[socket.gethostname()])
     assert sorted(agent.labels) == sorted(DEFAULT_AGENT_LABELS)
 
 
@@ -57,17 +61,6 @@ def test_local_agent_config_options():
     assert agent.processes == set()
     assert agent.import_paths == ["test_path"]
     assert set(agent.labels) == {"test_label", *DEFAULT_AGENT_LABELS}
-
-
-def test_local_agent_config_no_storage_labels():
-    agent = LocalAgent(
-        labels=["test_label"],
-        storage_labels=False,
-    )
-    assert set(agent.labels) == {
-        socket.gethostname(),
-        "test_label",
-    }
 
 
 @pytest.mark.parametrize("hostname_label", [True, False])
@@ -223,6 +216,8 @@ def test_populate_env_vars_from_run_config(tmpdir):
         S3(bucket="test"),
         Azure(container="test"),
         GitLab("test/repo", path="path/to/flow.py"),
+        Bitbucket(project="PROJECT", repo="test-repo", path="test-flow.py"),
+        CodeCommit("test/repo", path="path/to/flow.py"),
         Webhook(
             build_request_kwargs={"url": "test-service/upload"},
             build_request_http_method="POST",
@@ -315,7 +310,10 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     agent = LocalAgent()
 
-    with pytest.raises(TypeError, match="Unsupported RunConfig type: Kubernetes"):
+    with pytest.raises(
+        TypeError,
+        match="`run_config` of type `KubernetesRun`, only `LocalRun` is supported",
+    ):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
@@ -332,6 +330,31 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     assert not popen.called
     assert len(agent.processes) == 0
+
+
+@pytest.mark.parametrize("run_config", [None, UniversalRun()])
+def test_local_agent_deploy_null_or_univeral_run_config(monkeypatch, run_config):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "flow": {
+                    "storage": Local().serialize(),
+                    "run_config": run_config.serialize() if run_config else None,
+                    "id": "foo",
+                    "core_version": "0.13.0",
+                },
+            },
+        )
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
 
 
 @pytest.mark.parametrize("working_dir", [None, "existing"])
@@ -394,12 +417,16 @@ def test_generate_supervisor_conf():
     agent = LocalAgent()
 
     conf = agent.generate_supervisor_conf(
-        token="token", labels=["label"], import_paths=["path"]
+        token="token",
+        labels=["label"],
+        import_paths=["path"],
+        env_vars={"TESTKEY": "TESTVAL"},
     )
 
     assert "-t token" in conf
     assert "-l label" in conf
     assert "-p path" in conf
+    assert "-e TESTKEY=TESTVAL" in conf
 
 
 @pytest.mark.parametrize(

@@ -45,7 +45,7 @@ All Prefect interfaces for third party services have default secrets they attemp
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import GCS
+from prefect.storage import GCS
 
 
 storage = GCS(bucket="my-bucket", 
@@ -67,7 +67,7 @@ This off-the-shelf experience generally only applies to interfaces that are nati
 Recall that users can autopopulate Prefect context with values through the use of environment variables.  In particular, all secrets can be set by providing an appropriate value to `PREFECT__CONTEXT__SECRETS__XXXX` in your runtime environment.  One way of achieving this through Prefect is by configuring your agent(s) to pass the appropriate value to each flow run it submits.  Using a Docker Agent as an example:
 
 ```
-prefect agent start docker \\
+prefect agent docker start \\
     -e PREFECT__CONTEXT__SECRETS__AWS_CREDENTIALS=${AWS_CREDENTIALS}
 ```
 

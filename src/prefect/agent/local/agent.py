@@ -3,14 +3,13 @@ import socket
 import sys
 from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
+import warnings
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 from prefect.run_configs import LocalRun
 from prefect.serialization.storage import StorageSchema
-from prefect.serialization.run_config import RunConfigSchema
-from prefect.utilities.agent import get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -21,7 +20,7 @@ class LocalAgent(Agent):
 
     Optional import paths may be specified to append dependency modules to the PATH:
     ```
-    prefect agent start local --import-path "/usr/local/my_module" --import-path "~/other_module"
+    prefect agent local start --import-path "/usr/local/my_module" --import-path "~/other_module"
 
     # Now the local scripts/packages my_module and other_module will be importable in
     # the flow's subprocess
@@ -29,7 +28,7 @@ class LocalAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's subprocess:
     ```
-    prefect agent start local --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent local start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     Args:
@@ -57,7 +56,7 @@ class LocalAgent(Agent):
         - hostname_label (boolean, optional): a boolean specifying whether this agent should
             auto-label itself with the hostname of the machine it is running on.  Useful for
             flows which are stored on the local filesystem.
-        - storage_labels (boolean, optional): a boolean specifying whether this agent should
+        - storage_labels (boolean, optional, DEPRECATED): a boolean specifying whether this agent should
             auto-label itself with all of the storage options labels.
     """
 
@@ -73,7 +72,7 @@ class LocalAgent(Agent):
         max_polls: int = None,
         agent_address: str = None,
         no_cloud_logs: bool = False,
-        storage_labels: bool = True,
+        storage_labels: bool = None,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
@@ -97,18 +96,12 @@ class LocalAgent(Agent):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
 
-        if storage_labels:
-            all_storage_labels = [
-                "azure-flow-storage",
-                "gcs-flow-storage",
-                "s3-flow-storage",
-                "github-flow-storage",
-                "webhook-flow-storage",
-                "gitlab-flow-storage",
-            ]
-            for label in all_storage_labels:
-                if label not in self.labels:
-                    self.labels.append(label)
+        if storage_labels is not None:
+            warnings.warn(
+                "Use of `storage_labels` kwarg is deprecated and the local agent no longer has "
+                "default labels.",
+                stacklevel=2,
+            )
 
         self.logger.debug(f"Import paths: {self.import_paths}")
         self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
@@ -147,21 +140,7 @@ class LocalAgent(Agent):
             )
             raise TypeError("Unsupported Storage type: %s" % type(storage).__name__)
 
-        # If the flow is using a run_config, load it
-        if getattr(flow_run.flow, "run_config", None) is not None:
-            run_config = RunConfigSchema().load(flow_run.flow.run_config)
-            if not isinstance(run_config, LocalRun):
-                self.logger.error(
-                    "Flow run %s has a `run_config` of type `%s`, only `LocalRun` is supported",
-                    flow_run.id,
-                    type(run_config).__name__,
-                )
-                raise TypeError(
-                    "Unsupported RunConfig type: %s" % type(run_config).__name__
-                )
-        else:
-            run_config = None
-
+        run_config = self._get_run_config(flow_run, LocalRun)
         env = self.populate_env_vars(flow_run, run_config=run_config)
 
         working_dir = None if run_config is None else run_config.working_dir
@@ -178,7 +157,7 @@ class LocalAgent(Agent):
         # show flow logs, these log entries will continue to stream to the users terminal
         # until these child processes exit, even if the agent has already exited.
         p = Popen(
-            get_flow_run_command(flow_run).split(" "),
+            ["prefect", "execute", "flow-run"],
             stdout=stdout,
             stderr=STDOUT,
             env=env,
@@ -256,6 +235,7 @@ class LocalAgent(Agent):
     def generate_supervisor_conf(
         token: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
     ) -> str:
@@ -266,6 +246,8 @@ class LocalAgent(Agent):
             - token (str, optional): A `RUNNER` token to give the agent
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - env_vars (dict, optional): a dictionary of environment variables and values that
+                will be set on each flow run that this agent submits for execution
             - import_paths (List[str], optional): system paths which will be provided to each
                 Flow's runtime environment; useful for Flows which import from locally hosted
                 scripts or packages
@@ -279,6 +261,7 @@ class LocalAgent(Agent):
         # Use defaults if not provided
         token = token or ""
         labels = labels or []
+        env_vars = env_vars or {}
         import_paths = import_paths or []
 
         with open(
@@ -289,16 +272,11 @@ class LocalAgent(Agent):
         add_opts = ""
         add_opts += "-t {token} ".format(token=token) if token else ""
         add_opts += "-f " if show_flow_logs else ""
-        add_opts += (
-            " ".join("-l {label} ".format(label=label) for label in labels)
-            if labels
-            else ""
+        add_opts += " ".join("-l {label} ".format(label=label) for label in labels)
+        add_opts += " ".join(
+            "-e {k}={v} ".format(k=k, v=v) for k, v in env_vars.items()
         )
-        add_opts += (
-            " ".join("-p {path}".format(path=path) for path in import_paths)
-            if import_paths
-            else ""
-        )
+        add_opts += " ".join("-p {path}".format(path=path) for path in import_paths)
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf
 

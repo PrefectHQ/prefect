@@ -8,6 +8,7 @@ from prefect.utilities.serialization import (
     ObjectSchema,
     StatefulFunctionReference,
     to_qualified_name,
+    SortedList,
 )
 
 if TYPE_CHECKING:
@@ -71,7 +72,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     name = fields.String(allow_none=True)
     slug = fields.String(allow_none=True)
     description = fields.String(allow_none=True)
-    tags = fields.List(fields.String())
+    tags = SortedList(fields.String())
     max_retries = fields.Integer(allow_none=True)
     retry_delay = fields.TimeDelta(allow_none=True)
     inputs = fields.Method("load_inputs", allow_none=True)
@@ -123,5 +124,5 @@ class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     default = JSONCompatible(allow_none=True)
     required = fields.Boolean(allow_none=True)
     description = fields.String(allow_none=True)
-    tags = fields.List(fields.String())
+    tags = SortedList(fields.String())
     outputs = fields.Method("load_outputs", allow_none=True)

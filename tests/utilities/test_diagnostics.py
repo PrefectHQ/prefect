@@ -38,6 +38,39 @@ def test_config_overrides_populated(monkeypatch):
         assert config_overrides["config_overrides"] == {"debug": True}
 
 
+def test_config_overrides_excludes_all_default_matches(monkeypatch):
+    monkeypatch.setattr(
+        "prefect.configuration.USER_CONFIG", prefect.configuration.DEFAULT_CONFIG
+    )
+
+    config_overrides = diagnostics.config_overrides()
+
+    assert config_overrides["config_overrides"] == {}
+
+
+def test_config_overrides_excludes_some_default_matches(monkeypatch, tmpdir):
+    # Load and modify the default config
+    default_config = prefect.configuration.load_toml(
+        prefect.configuration.DEFAULT_CONFIG
+    )
+    default_config["debug"] = True
+    default_config["cloud"]["agent"]["name"] = "foo"
+
+    # Write it as a new user config
+    user_config_path = str(tmpdir.join("config.toml"))
+    file = open(user_config_path, "w+")
+    toml.dump(default_config, file)
+    file.close()
+    monkeypatch.setattr("prefect.configuration.USER_CONFIG", user_config_path)
+
+    config_overrides = diagnostics.config_overrides()
+
+    assert config_overrides["config_overrides"] == {
+        "debug": True,
+        "cloud": {"agent": {"name": True}},
+    }
+
+
 def test_config_overrides_secrets(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
         file = open("{}/config.toml".format(tempdir), "w+")
@@ -89,7 +122,7 @@ def test_flow_information():
     flow = prefect.Flow(
         "test",
         tasks=[t1, t2],
-        storage=prefect.environments.storage.Local(),
+        storage=prefect.storage.Local(),
         schedule=prefect.schedules.Schedule(clocks=[]),
         result=prefect.engine.results.PrefectResult(),
     )
@@ -98,18 +131,12 @@ def test_flow_information():
     assert flow_information
 
     # Type information
-    assert flow_information["environment"]["type"] == "LocalEnvironment"
+    assert flow_information["environment"] is False
+    assert flow_information["run_config"] is False
     assert flow_information["storage"]["type"] == "Local"
     assert flow_information["result"]["type"] == "PrefectResult"
     assert flow_information["schedule"]["type"] == "Schedule"
     assert flow_information["task_count"] == 2
-
-    # Kwargs presence check
-    assert flow_information["environment"]["executor"] is True
-    assert flow_information["environment"]["labels"] is False
-    assert flow_information["environment"]["on_start"] is False
-    assert flow_information["environment"]["on_exit"] is False
-    assert flow_information["environment"]["logger"] is True
 
 
 def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
@@ -133,7 +160,8 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
         flow = prefect.Flow(
             "test",
             tasks=[t1, t2],
-            storage=prefect.environments.storage.Local(),
+            storage=prefect.storage.Local(),
+            run_config=prefect.run_configs.LocalRun(),
             schedule=prefect.schedules.Schedule(clocks=[]),
             result=prefect.engine.results.PrefectResult(),
         )
@@ -156,18 +184,15 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
         assert flow_information
 
         # Type information
-        assert flow_information["environment"]["type"] == "LocalEnvironment"
         assert flow_information["storage"]["type"] == "Local"
         assert flow_information["result"]["type"] == "PrefectResult"
         assert flow_information["schedule"]["type"] == "Schedule"
         assert flow_information["task_count"] == 2
 
-        # Kwargs presence check
-        assert flow_information["environment"]["executor"] is True
-        assert flow_information["environment"]["labels"] is False
-        assert flow_information["environment"]["on_start"] is False
-        assert flow_information["environment"]["on_exit"] is False
-        assert flow_information["environment"]["logger"] is True
+        assert flow_information["run_config"]["type"] == "LocalRun"
+        assert flow_information["run_config"]["env"] is False
+        assert flow_information["run_config"]["labels"] is False
+        assert flow_information["run_config"]["working_dir"] is False
 
         assert system_info["prefect_version"] == prefect.__version__
         assert system_info["platform"] == platform.platform()

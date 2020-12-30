@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import warnings
 from ast import literal_eval
 from typing import Iterable
 import uuid
@@ -15,9 +16,14 @@ from prefect.utilities.graphql import GraphQLResult
 
 class FargateAgent(Agent):
     """
-    Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
-    long as the proper access configuration variables are set.  Information on using the
-    Fargate Agent can be found at https://docs.prefect.io/orchestration/agents/fargate.html
+    Agent which deploys flow runs as tasks using Fargate.
+
+    DEPRECATED: The Fargate agent is deprecated, please transition to using the
+    ECS agent instead.
+
+    This agent can run anywhere as long as the proper access configuration
+    variables are set.  Information on using the Fargate Agent can be found at
+    https://docs.prefect.io/orchestration/agents/fargate.html
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -31,12 +37,12 @@ class FargateAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's Fargate task:
     ```
-    prefect agent start fargate --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent fargate start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     boto3 kwargs being provided to the Fargate Agent:
     ```
-    prefect agent start fargate \\
+    prefect agent fargate start \\
         networkConfiguration="{\\
             'awsvpcConfiguration': {\\
                 'assignPublicIp': 'ENABLED',\\
@@ -130,6 +136,11 @@ class FargateAgent(Agent):
             agent_address=agent_address,
             no_cloud_logs=no_cloud_logs,
         )
+
+        if not kwargs.pop("_called_from_cli", False):
+            warnings.warn(
+                "`FargateAgent` is deprecated, please transition to using `ECSAgent` instead"
+            )
 
         from boto3 import client as boto3_client
         from boto3 import resource as boto3_resource

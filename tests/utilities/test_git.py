@@ -13,9 +13,17 @@ try:
 except ImportError:
     Gitlab = None
 
+try:
+    from atlassian import Bitbucket
+except ImportError:
+    Bitbucket = None
 
 import prefect
-from prefect.utilities.git import get_github_client, get_gitlab_client
+from prefect.utilities.git import (
+    get_github_client,
+    get_gitlab_client,
+    get_bitbucket_client,
+)
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -93,3 +101,58 @@ class TestGetGitLabClient:
         monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
         get_gitlab_client(host="http://localhost:1234")
         assert gitlab.call_args[0][0] == "http://localhost:1234"
+
+
+@pytest.mark.skipif(Bitbucket is None, reason="requires Bitbucket extra")
+class TestGetBitbucketClient:
+    def test_uses_context_secrets(self, monkeypatch):
+        bitbucket = MagicMock()
+        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(BITBUCKET_ACCESS_TOKEN="ACCESS_TOKEN")):
+                get_bitbucket_client()
+
+        assert (
+            bitbucket.call_args[1]["session"].headers["Authorization"]
+            == "Bearer ACCESS_TOKEN"
+        )
+
+    def test_prefers_passed_credentials_over_secrets(self, monkeypatch):
+        bitbucket = MagicMock()
+        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
+        desired_credentials = {"BITBUCKET_ACCESS_TOKEN": "PROVIDED_KEY"}
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(BITBUCKET_ACCESS_TOKEN="ACCESS_TOKEN")):
+                get_bitbucket_client(desired_credentials)
+
+        assert (
+            bitbucket.call_args[1]["session"].headers["Authorization"]
+            == "Bearer PROVIDED_KEY"
+        )
+
+    def test_creds_default_to_environment(self, monkeypatch):
+        if "BITBUCKET_ACCESS_TOKEN" in os.environ:
+            del os.environ["BITBUCKET_ACCESS_TOKEN"]
+
+        bitbucket = MagicMock()
+        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
+        get_bitbucket_client()
+        assert bitbucket.call_args[1]["session"].headers["Authorization"] == "Bearer "
+
+        monkeypatch.setenv("BITBUCKET_ACCESS_TOKEN", "TOKEN")
+        get_bitbucket_client()
+        assert (
+            bitbucket.call_args[1]["session"].headers["Authorization"] == "Bearer TOKEN"
+        )
+
+    def test_default_to_cloud(self, monkeypatch):
+        bitbucket = MagicMock()
+        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
+        get_bitbucket_client()
+        assert bitbucket.call_args[0][0] == "https://bitbucket.org"
+
+    def test_specify_host(self, monkeypatch):
+        bitbucket = MagicMock()
+        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
+        get_bitbucket_client(host="http://localhost:1234")
+        assert bitbucket.call_args[0][0] == "http://localhost:1234"

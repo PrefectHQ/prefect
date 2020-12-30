@@ -27,7 +27,7 @@ def test_run_help():
     assert "Run Prefect flows." in result.output
 
 
-def test_run_cloud(monkeypatch, cloud_api):
+def test_run_flow(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -46,7 +46,7 @@ def test_run_cloud(monkeypatch, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(
-        run, ["cloud", "--name", "flow", "--project", "project", "--version", "2"]
+        run, ["flow", "--name", "flow", "--project", "project", "--version", "2"]
     )
     assert result.exit_code == 0
     assert "Flow Run" in result.output
@@ -63,47 +63,7 @@ def test_run_cloud(monkeypatch, cloud_api):
     assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-def test_run_server(monkeypatch, server_api):
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(
-                return_value=dict(
-                    data=dict(flow=[{"id": "flow"}], tenant=[{"id": "id"}])
-                )
-            )
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
-
-    monkeypatch.setattr(
-        "prefect.client.Client.create_flow_run", MagicMock(return_value="id")
-    )
-    monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
-    )
-
-    runner = CliRunner()
-    result = runner.invoke(
-        run, ["server", "--name", "flow", "--project", "project", "--version", "2"]
-    )
-    assert result.exit_code == 0
-    assert "Flow Run" in result.output
-
-    query = """
-    query {
-        flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
-            id
-        }
-    }
-    """
-
-    assert post.called
-    assert post.call_args[1]["json"]["query"].split() == query.split()
-
-
-def test_run_cloud_watch(monkeypatch, cloud_api):
+def test_run_flow_watch(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -136,7 +96,7 @@ def test_run_cloud_watch(monkeypatch, cloud_api):
     result = runner.invoke(
         run,
         [
-            "cloud",
+            "flow",
             "--name",
             "flow",
             "--project",
@@ -152,7 +112,7 @@ def test_run_cloud_watch(monkeypatch, cloud_api):
     assert post.called
 
 
-def test_run_cloud_logs(monkeypatch, cloud_api):
+def test_run_flow_logs(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -190,7 +150,7 @@ def test_run_cloud_logs(monkeypatch, cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         run,
-        ["cloud", "--name", "flow", "--project", "project", "--version", "2", "--logs"],
+        ["flow", "--name", "flow", "--project", "project", "--version", "2", "--logs"],
     )
     assert result.exit_code == 0
     assert "test_timestamp" in result.output
@@ -199,7 +159,7 @@ def test_run_cloud_logs(monkeypatch, cloud_api):
     assert post.called
 
 
-def test_run_cloud_fails(monkeypatch, cloud_api):
+def test_run_flow_fails(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
@@ -209,18 +169,18 @@ def test_run_cloud_fails(monkeypatch, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(
-        run, ["cloud", "--name", "flow", "--project", "project", "--version", "2"]
+        run, ["flow", "--name", "flow", "--project", "project", "--version", "2"]
     )
     assert result.exit_code == 0
     assert "flow not found" in result.output
 
 
-def test_run_cloud_no_param_file(monkeypatch, cloud_api):
+def test_run_flow_no_param_file(monkeypatch, cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         run,
         [
-            "cloud",
+            "flow",
             "--name",
             "flow",
             "--project",
@@ -242,7 +202,7 @@ def test_run_cloud_no_param_file(monkeypatch, cloud_api):
     )
 
 
-def test_run_cloud_param_file(monkeypatch, cloud_api):
+def test_run_flow_param_file(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -267,7 +227,7 @@ def test_run_cloud_param_file(monkeypatch, cloud_api):
         result = runner.invoke(
             run,
             [
-                "cloud",
+                "flow",
                 "--name",
                 "flow",
                 "--project",
@@ -284,7 +244,7 @@ def test_run_cloud_param_file(monkeypatch, cloud_api):
         assert create_flow_run_mock.call_args[1]["parameters"] == {"test": 42}
 
 
-def test_run_cloud_param_string(monkeypatch, cloud_api):
+def test_run_flow_param_string(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -304,7 +264,7 @@ def test_run_cloud_param_string(monkeypatch, cloud_api):
     result = runner.invoke(
         run,
         [
-            "cloud",
+            "flow",
             "--name",
             "flow",
             "--project",
@@ -321,7 +281,7 @@ def test_run_cloud_param_string(monkeypatch, cloud_api):
     assert create_flow_run_mock.call_args[1]["parameters"] == {"test": 42}
 
 
-def test_run_cloud_context_string(monkeypatch, cloud_api):
+def test_run_flow_context_string(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -358,7 +318,7 @@ def test_run_cloud_context_string(monkeypatch, cloud_api):
     assert create_flow_run_mock.call_args[1]["context"] == {"test": 42}
 
 
-def test_run_cloud_run_name(monkeypatch, cloud_api):
+def test_run_flow_run_name(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -378,7 +338,7 @@ def test_run_cloud_run_name(monkeypatch, cloud_api):
     result = runner.invoke(
         run,
         [
-            "cloud",
+            "flow",
             "--name",
             "flow",
             "--project",
@@ -395,7 +355,7 @@ def test_run_cloud_run_name(monkeypatch, cloud_api):
     assert create_flow_run_mock.call_args[1]["run_name"] == "NAME"
 
 
-def test_run_cloud_param_string_overwrites(monkeypatch, cloud_api):
+def test_run_flow_param_string_overwrites(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -420,7 +380,7 @@ def test_run_cloud_param_string_overwrites(monkeypatch, cloud_api):
         result = runner.invoke(
             run,
             [
-                "cloud",
+                "flow",
                 "--name",
                 "flow",
                 "--project",
@@ -446,7 +406,7 @@ def test_run_cloud_param_string_overwrites(monkeypatch, cloud_api):
         ("https://api-foo.prefect.io", "https://foo.prefect.io/tslug/flow-run/id"),
     ],
 )
-def test_run_cloud_flow_run_id_link(monkeypatch, api, expected, cloud_api):
+def test_run_flow_flow_run_id_link(monkeypatch, api, expected, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -469,14 +429,14 @@ def test_run_cloud_flow_run_id_link(monkeypatch, api, expected, cloud_api):
     with set_temporary_config({"cloud.api": api, "cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(
-            run, ["cloud", "--name", "flow", "--project", "project", "--version", "2"]
+            run, ["flow", "--name", "flow", "--project", "project", "--version", "2"]
         )
         assert result.exit_code == 0
         assert "Flow Run" in result.output
         assert expected in result.output
 
 
-def test_run_cloud_flow_run_id_no_link(monkeypatch, cloud_api):
+def test_run_flow_flow_run_id_no_link(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -496,7 +456,7 @@ def test_run_cloud_flow_run_id_no_link(monkeypatch, cloud_api):
     result = runner.invoke(
         run,
         [
-            "cloud",
+            "flow",
             "--name",
             "flow",
             "--project",

@@ -174,8 +174,8 @@ class TestIntervalClock:
             timedelta(days=1), start_date=start_date, parameter_defaults=params
         )
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.parameter_defaults == params for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.parameter_defaults == params for e in output)
         assert output == [
             today.add(days=1),
             today.add(days=2),
@@ -191,8 +191,8 @@ class TestIntervalClock:
             timedelta(days=1), start_date=start_date, labels=labels
         )
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.labels == labels for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.labels == labels for e in output)
         assert output == [
             today.add(days=1),
             today.add(days=2),
@@ -272,7 +272,7 @@ class TestIntervalClockDaylightSavingsTime:
             timedelta(minutes=1, seconds=15), start_date=start_date
         )
         next_4 = islice(c.events(after=current_date), 4)
-        assert all([d > current_date for d in next_4])
+        assert all(d > current_date for d in next_4)
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_hourly_daylight_savings_time_forward_with_UTC(
@@ -394,6 +394,13 @@ class TestCronClock:
         c = clocks.CronClock("* * * * *", labels=["dev", "foo"])
         assert c.labels == ["dev", "foo"]
 
+    @pytest.mark.parametrize(
+        "input_day_or,expected_day_or", [(True, True), (False, False), (None, True)]
+    )
+    def test_create_cron_clock_with_day_or(self, input_day_or, expected_day_or):
+        c = clocks.CronClock("* * * * *", day_or=input_day_or)
+        assert c.day_or is expected_day_or
+
     def test_create_cron_clock_with_invalid_cron_string_raises_error(self):
         with pytest.raises(Exception):
             clocks.CronClock("*")
@@ -410,8 +417,8 @@ class TestCronClock:
         c = clocks.CronClock(every_day, parameter_defaults=params)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.parameter_defaults == params for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.parameter_defaults == params for e in output)
 
         assert output == [
             pendulum.today("UTC").add(days=1),
@@ -425,8 +432,8 @@ class TestCronClock:
         c = clocks.CronClock(every_day, labels=labels)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.labels == labels for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.labels == labels for e in output)
 
         assert output == [
             pendulum.today("UTC").add(days=1),
@@ -443,6 +450,20 @@ class TestCronClock:
             start_date.add(days=1),
             start_date.add(days=2),
             start_date.add(days=3),
+        ]
+
+    def test_cron_clock_events_with_day_or(self):
+        """At first tuesday of each month. Check if cron work as
+        expected using day_or parameter.
+        """
+        every_day = "0 0 1-7 * 2"
+        c = clocks.CronClock(every_day, day_or=False)
+        output = islice(c.events(), 3)
+        first_event, next_events = output[0], output[1:]
+        # one event every month
+        assert [event.start_time.month for event in next_events] == [
+            first_event.start_time.add(months=1).month,
+            first_event.start_time.add(months=2).month,
         ]
 
     def test_cron_clock_start_daylight_savings_time(self):
@@ -665,8 +686,8 @@ class TestDatesClock:
         c = clocks.DatesClock([start_date], parameter_defaults=params)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.parameter_defaults == params for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.parameter_defaults == params for e in output)
 
         assert output == [start_date]
         assert islice(c.events(), 1) == [start_date]
@@ -678,8 +699,8 @@ class TestDatesClock:
         c = clocks.DatesClock([start_date], labels=labels)
 
         output = islice(c.events(), 3)
-        assert all([isinstance(e, clocks.ClockEvent) for e in output])
-        assert all([e.labels == labels for e in output])
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.labels == labels for e in output)
 
         assert output == [start_date]
         assert islice(c.events(), 1) == [start_date]

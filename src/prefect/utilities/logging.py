@@ -217,7 +217,6 @@ def _create_logger(name: str) -> logging.Logger:
     formatter = logging.Formatter(
         context.config.logging.format, context.config.logging.datefmt
     )
-    formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(context.config.logging.level)
@@ -313,6 +312,10 @@ class RedirectToLog:
         Args:
             s (str): the message from stdout to be logged
         """
+        if not isinstance(s, str):
+            # stdout is expecting str
+            raise TypeError(f"string argument expected, got {type(s)}")
+
         if s.strip():
             self.stdout_logger.info(s)
 

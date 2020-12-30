@@ -28,7 +28,7 @@ def test_create_schedule():
     s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(days=1))])
     output = s.next(3, after=dt)
 
-    assert all([not isinstance(e, clocks.ClockEvent) for e in output])
+    assert all(not isinstance(e, clocks.ClockEvent) for e in output)
     assert output == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
 
 
@@ -37,10 +37,10 @@ def test_create_schedule_emits_events_if_asked():
     s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(days=1))])
     output = s.next(3, after=dt, return_events=True)
 
-    assert all([isinstance(e, clocks.ClockEvent) for e in output])
-    assert all([e.parameter_defaults == dict() for e in output])
+    assert all(isinstance(e, clocks.ClockEvent) for e in output)
+    assert all(e.parameter_defaults == dict() for e in output)
 
-    output == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
+    assert output == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
 
 
 def test_create_schedule_multiple_overlapping_clocks():
@@ -54,7 +54,7 @@ def test_create_schedule_multiple_overlapping_clocks():
         ]
     )
     output = s.next(6, after=dt)
-    assert all([not isinstance(e, clocks.ClockEvent) for e in output])
+    assert all(not isinstance(e, clocks.ClockEvent) for e in output)
 
     assert output == [
         dt.add(days=1),
@@ -102,8 +102,8 @@ def test_create_schedule_multiple_overlapping_clocks_emit_events_if_asked():
         ]
     )
     output = s.next(6, after=dt, return_events=True)
-    assert all([isinstance(e, clocks.ClockEvent) for e in output])
-    assert all([e.parameter_defaults == dict() for e in output])
+    assert all(isinstance(e, clocks.ClockEvent) for e in output)
+    assert all(e.parameter_defaults == dict() for e in output)
     assert output == [
         dt.add(days=1),
         dt.add(days=2),
@@ -124,7 +124,7 @@ def test_create_schedule_multiple_overlapping_clocks_emit_events_with_correct_pa
     dt = pendulum.datetime(2019, 1, 1)
     output = s.next(6, after=dt, return_events=True)
 
-    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+    assert all(isinstance(e, clocks.ClockEvent) for e in output)
     assert [e.parameter_defaults["x"] for e in output] == [1, 0, 1, 1, 0, 1]
     assert [e.start_time for e in output] == [
         dt.add(hours=12),

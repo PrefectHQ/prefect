@@ -6,8 +6,8 @@ import pytest
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
 from prefect.environments import LocalEnvironment
-from prefect.environments.storage import Docker, Local
-from prefect.run_configs import DockerRun, LocalRun
+from prefect.storage import Docker, Local
+from prefect.run_configs import DockerRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -110,7 +110,7 @@ def test_populate_env_vars_from_agent_config(api):
     agent = DockerAgent(env_vars=dict(AUTH_THING="foo"))
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
 
     assert env_vars["AUTH_THING"] == "foo"
@@ -120,7 +120,7 @@ def test_populate_env_vars(api):
     agent = DockerAgent()
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
 
     expected_vars = {
@@ -129,6 +129,7 @@ def test_populate_env_vars(api):
         "PREFECT__CLOUD__AGENT__LABELS": "[]",
         "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
         "PREFECT__CONTEXT__FLOW_ID": "foo",
+        "PREFECT__CONTEXT__IMAGE": "test-image",
         "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
         "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
         "PREFECT__LOGGING__LEVEL": "INFO",
@@ -143,7 +144,7 @@ def test_populate_env_vars_includes_agent_labels(api):
     agent = DockerAgent(labels=["42", "marvin"])
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
     assert env_vars["PREFECT__CLOUD__AGENT__LABELS"] == "['42', 'marvin']"
 
@@ -153,7 +154,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api):
     agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
     assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
@@ -173,7 +174,8 @@ def test_populate_env_vars_from_run_config(api):
                 "flow": {"id": "foo", "run_config": run.serialize()},
             }
         ),
-        run,
+        "test-image",
+        run_config=run,
     )
     assert env_vars["KEY1"] == "VAL1"
     assert env_vars["KEY2"] == "OVERRIDE"
@@ -198,6 +200,7 @@ def test_docker_agent_deploy_flow(core_version, command, api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -218,6 +221,11 @@ def test_docker_agent_deploy_flow(core_version, command, api):
     assert api.create_host_config.call_args[1]["auto_remove"] is True
     assert api.create_container.call_args[1]["command"] == command
     assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
+    assert api.create_container.call_args[1]["labels"] == {
+        "io.prefect.flow-id": "foo",
+        "io.prefect.flow-name": "flow-name",
+        "io.prefect.flow-run-id": "id",
+    }
     assert api.start.call_args[1]["container"] == "container_id"
 
 
@@ -229,6 +237,7 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Local().serialize(),
                         "environment": LocalEnvironment(
                             metadata={"image": "repo/name:tag"}
@@ -252,18 +261,24 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
     assert api.start.call_args[1]["container"] == "container_id"
 
 
-@pytest.mark.parametrize("image_on_run_config", [True, False])
-def test_docker_agent_deploy_flow_run_config(api, image_on_run_config):
-    if image_on_run_config:
-        storage = Local()
-        image = "on-run-config"
-        run = DockerRun(image=image, env={"TESTING": "VALUE"})
-    else:
+@pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
+@pytest.mark.parametrize("has_docker_storage", [True, False])
+def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
+    if has_docker_storage:
         storage = Docker(
             registry_url="testing", image_name="on-storage", image_tag="tag"
         )
         image = "testing/on-storage:tag"
-        run = DockerRun(env={"TESTING": "VALUE"})
+    else:
+        storage = Local()
+        image = "on-run-config" if run_kind == "docker" else "prefecthq/prefect:0.13.11"
+
+    if run_kind == "docker":
+        env = {"TESTING": "VALUE"}
+        run = DockerRun(image=image, env=env)
+    else:
+        env = {}
+        run = None if run_kind == "missing" else UniversalRun()
 
     agent = DockerAgent()
     agent.deploy_flow(
@@ -272,8 +287,9 @@ def test_docker_agent_deploy_flow_run_config(api, image_on_run_config):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": storage.serialize(),
-                        "run_config": run.serialize(),
+                        "run_config": run.serialize() if run else None,
                         "core_version": "0.13.11",
                     }
                 ),
@@ -285,13 +301,18 @@ def test_docker_agent_deploy_flow_run_config(api, image_on_run_config):
 
     assert api.create_container.called
     assert api.create_container.call_args[0][0] == image
-    assert api.create_container.call_args[1]["environment"]["TESTING"] == "VALUE"
+    res_env = api.create_container.call_args[1]["environment"]
+    for k, v in env.items():
+        assert res_env[k] == v
 
 
 def test_docker_agent_deploy_flow_unsupported_run_config(api):
     agent = DockerAgent()
 
-    with pytest.raises(TypeError, match="Unsupported RunConfig type: LocalRun"):
+    with pytest.raises(
+        TypeError,
+        match="`run_config` of type `LocalRun`, only `DockerRun` is supported",
+    ):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
@@ -300,6 +321,7 @@ def test_docker_agent_deploy_flow_unsupported_run_config(api):
                             "storage": Local().serialize(),
                             "run_config": LocalRun().serialize(),
                             "id": "foo",
+                            "name": "flow-name",
                             "core_version": "0.13.0",
                         }
                     ),
@@ -326,6 +348,7 @@ def test_docker_agent_deploy_flow_storage_raises(monkeypatch, api):
                         {
                             "storage": Local().serialize(),
                             "id": "foo",
+                            "name": "flow-name",
                             "environment": LocalEnvironment().serialize(),
                             "core_version": "0.13.0",
                         }
@@ -348,6 +371,7 @@ def test_docker_agent_deploy_flow_no_pull(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -374,6 +398,7 @@ def test_docker_agent_deploy_flow_no_pull_using_environment_metadata(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Local().serialize(),
                         "environment": LocalEnvironment(
                             metadata={"image": "name:tag"}
@@ -401,6 +426,7 @@ def test_docker_agent_deploy_flow_reg_allow_list_allowed(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test1", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -429,6 +455,7 @@ def test_docker_agent_deploy_flow_reg_allow_list_not_allowed(api):
                     "flow": GraphQLResult(
                         {
                             "id": "foo",
+                            "name": "flow-name",
                             "storage": Docker(
                                 registry_url="test2", image_name="name", image_tag="tag"
                             ).serialize(),
@@ -464,6 +491,7 @@ def test_docker_agent_deploy_flow_show_flow_logs(api, monkeypatch):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -510,6 +538,7 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -800,6 +829,7 @@ def test_docker_agent_network(api):
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -831,6 +861,7 @@ def test_docker_agent_deploy_with_interface_check_linux(
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
@@ -860,6 +891,7 @@ def test_docker_agent_deploy_with_no_interface_check_linux(
                 "flow": GraphQLResult(
                     {
                         "id": "foo",
+                        "name": "flow-name",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),

@@ -234,7 +234,7 @@ class CloudFlowRunner(FlowRunner):
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
         task_runner_state_handlers: Iterable[Callable] = None,
-        executor: "prefect.engine.executors.Executor" = None,
+        executor: "prefect.executors.Executor" = None,
         context: Dict[str, Any] = None,
         task_contexts: Dict[Task, Dict[str, Any]] = None,
     ) -> State:
@@ -265,7 +265,8 @@ class CloudFlowRunner(FlowRunner):
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
         """
-        context = context or {}
+        context = (context or {}).copy()
+        context.update(running_with_backend=True)
 
         end_state = super().run(
             state=state,
