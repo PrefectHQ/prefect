@@ -71,10 +71,10 @@ def test_get_flow_image_run_config_docker_storage(run_config):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "run_config": run_config.serialize() if run_config else None,
                     "id": "id",
                 }
             ),
+            "run_config": run_config.serialize() if run_config else None,
             "id": "id",
         }
     )
@@ -91,10 +91,10 @@ def test_get_flow_image_run_config_default_value_from_core_version(run_config, v
                 {
                     "core_version": version,
                     "storage": Local().serialize(),
-                    "run_config": run_config.serialize() if run_config else None,
                     "id": "id",
                 }
             ),
+            "run_config": run_config.serialize() if run_config else None,
             "id": "id",
         }
     )
@@ -109,10 +109,10 @@ def test_get_flow_image_run_config_image_on_RunConfig():
             "flow": GraphQLResult(
                 {
                     "storage": Local().serialize(),
-                    "run_config": KubernetesRun(image="myfancyimage").serialize(),
                     "id": "id",
                 }
             ),
+            "run_config": KubernetesRun(image="myfancyimage").serialize(),
             "id": "id",
         }
     )

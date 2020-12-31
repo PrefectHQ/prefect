@@ -21,6 +21,7 @@ import toml
 from slugify import slugify
 
 import prefect
+from prefect.run_configs import RunConfig
 from prefect.utilities.exceptions import (
     AuthorizationError,
     ClientError,
@@ -1024,6 +1025,7 @@ class Client:
         flow_id: str = None,
         context: dict = None,
         parameters: dict = None,
+        run_config: RunConfig = None,
         labels: List[str] = None,
         scheduled_start_time: datetime.datetime = None,
         idempotency_key: str = None,
@@ -1039,6 +1041,8 @@ class Client:
             - flow_id (str, optional): the id of the Flow you wish to schedule
             - context (dict, optional): the run context
             - parameters (dict, optional): a dictionary of parameter values to pass to the flow run
+            - run_config (RunConfig, optional): a run-config to use for this
+                flow run, overriding any existing flow settings.
             - labels (List[str], optional): a list of labels to apply to the flow run
             - scheduled_start_time (datetime, optional): the time to schedule the execution
                 for; if not provided, defaults to now
@@ -1067,24 +1071,26 @@ class Client:
         if not flow_id and not version_group_id:
             raise ValueError("One of flow_id or version_group_id must be provided")
 
+        inputs = {}  # type: Dict[str, Any]
         if flow_id:
-            inputs = dict(flow_id=flow_id)
+            inputs["flow_id"] = flow_id
         else:
-            inputs = dict(version_group_id=version_group_id)  # type: ignore
+            inputs["version_group_id"] = version_group_id
+
         if parameters is not None:
-            inputs.update(parameters=parameters)  # type: ignore
+            inputs["parameters"] = parameters
+        if run_config is not None:
+            inputs["run_config"] = run_config.serialize()
         if labels is not None:
-            inputs.update(labels=labels)  # type: ignore
+            inputs["labels"] = labels
         if context is not None:
-            inputs.update(context=context)  # type: ignore
+            inputs["context"] = context
         if idempotency_key is not None:
-            inputs.update(idempotency_key=idempotency_key)  # type: ignore
+            inputs["idempotency_key"] = idempotency_key
         if scheduled_start_time is not None:
-            inputs.update(
-                scheduled_start_time=scheduled_start_time.isoformat()
-            )  # type: ignore
+            inputs["scheduled_start_time"] = scheduled_start_time.isoformat()
         if run_name is not None:
-            inputs.update(flow_run_name=run_name)  # type: ignore
+            inputs["flow_run_name"] = run_name
         res = self.graphql(create_mutation, variables=dict(input=inputs))
         return res.data.create_flow_run.id  # type: ignore
 

@@ -1346,12 +1346,13 @@ def test_create_flow_run_requires_flow_id_or_version_group_id():
         client.create_flow_run()
 
 
-@pytest.mark.parametrize("kwargs", [dict(flow_id="blah"), dict(version_group_id="cat")])
-def test_create_flow_run_with_input(patch_post, kwargs):
+@pytest.mark.parametrize("use_flow_id", [False, True])
+@pytest.mark.parametrize("use_extra_args", [False, True])
+def test_create_flow_run_with_input(patch_post, use_flow_id, use_extra_args):
     response = {
         "data": {"create_flow_run": {"id": "FOO"}},
     }
-    patch_post(response)
+    post = patch_post(response)
 
     with set_temporary_config(
         {
@@ -1362,7 +1363,36 @@ def test_create_flow_run_with_input(patch_post, kwargs):
     ):
         client = Client()
 
+    kwargs = (
+        {"flow_id": "my-flow-id"}
+        if use_flow_id
+        else {"version_group_id": "my-version-group-id"}
+    )
+    if use_extra_args:
+        extra_kwargs = {
+            "parameters": {"x": 1},
+            "run_config": LocalRun(),
+            "labels": ["b"],
+            "context": {"key": "val"},
+            "idempotency_key": "my-idem-key",
+            "scheduled_start_time": datetime.datetime.now(),
+            "run_name": "my-run-name",
+        }
+        expected = extra_kwargs.copy()
+        expected.update(
+            flow_run_name=expected.pop("run_name"),
+            run_config=expected["run_config"].serialize(),
+            scheduled_start_time=expected["scheduled_start_time"].isoformat(),
+            **kwargs,
+        )
+        kwargs.update(extra_kwargs)
+    else:
+        expected = kwargs
+
     assert client.create_flow_run(**kwargs) == "FOO"
+    variables = json.loads(post.call_args[1]["json"]["variables"])
+    input = variables["input"]
+    assert variables["input"] == expected
 
 
 def test_get_default_tenant_slug_as_user(patch_post):

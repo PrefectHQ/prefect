@@ -1098,11 +1098,11 @@ class TestK8sAgentRunConfig:
                 "flow": GraphQLResult(
                     {
                         "storage": storage.serialize(),
-                        "run_config": None if config is None else config.serialize(),
                         "id": "new_id",
                         "core_version": core_version,
                     }
                 ),
+                "run_config": None if config is None else config.serialize(),
                 "id": "id",
             }
         )

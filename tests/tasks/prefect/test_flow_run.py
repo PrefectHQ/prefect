@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
+from prefect.run_configs import UniversalRun
 from prefect.tasks.prefect.flow_run import StartFlowRun
 
 
@@ -40,6 +41,7 @@ def test_deprecated_old_name():
 class TestStartFlowRunCloud:
     def test_initialization(self, cloud_api):
         now = pendulum.now()
+        run_config = UniversalRun()
 
         # verify that the task is initialized as expected
         task = StartFlowRun(
@@ -49,6 +51,7 @@ class TestStartFlowRunCloud:
             flow_name="Test Flow",
             new_flow_context={"foo": "bar"},
             parameters={"test": "ing"},
+            run_config=run_config,
             run_name="test-run",
             scheduled_start_time=now,
         )
@@ -58,6 +61,7 @@ class TestStartFlowRunCloud:
         assert task.flow_name == "Test Flow"
         assert task.new_flow_context == {"foo": "bar"}
         assert task.parameters == {"test": "ing"}
+        assert task.run_config == run_config
         assert task.run_name == "test-run"
         assert task.scheduled_start_time == now
 
@@ -66,11 +70,14 @@ class TestStartFlowRunCloud:
     def test_flow_run_task_submit_args(
         self, client, cloud_api, idempotency_key, task_run_id
     ):
+        run_config = UniversalRun()
+
         # verify that create_flow_run was called
         task = StartFlowRun(
             project_name="Test Project",
             flow_name="Test Flow",
             parameters={"test": "ing"},
+            run_config=run_config,
             run_name="test-run",
         )
         # verify that run returns the new flow run ID
@@ -85,6 +92,7 @@ class TestStartFlowRunCloud:
         assert client.create_flow_run.call_args[1] == dict(
             flow_id="abc123",
             parameters={"test": "ing"},
+            run_config=run_config,
             idempotency_key=idempotency_key or task_run_id,
             context=None,
             run_name="test-run",
@@ -110,6 +118,7 @@ class TestStartFlowRunCloud:
             context=None,
             run_name=None,
             scheduled_start_time=in_one_hour,
+            run_config=None,
         )
 
     def test_flow_run_task_without_flow_name(self, cloud_api):
@@ -191,6 +200,7 @@ class TestStartFlowRunServer:
             context=None,
             run_name="test-run",
             scheduled_start_time=None,
+            run_config=None,
         )
 
     def test_flow_run_task_without_flow_name(self, server_api):

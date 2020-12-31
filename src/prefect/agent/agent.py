@@ -586,11 +586,11 @@ class Agent:
                     "serialized_state": True,
                     "parameters": True,
                     "scheduled_start_time": True,
+                    "run_config": True,
                     "flow": {
                         "id",
                         "name",
                         "environment",
-                        "run_config",
                         "storage",
                         "version",
                         "core_version",
@@ -698,8 +698,8 @@ class Agent:
                 environment-based flow.
         """
         # If the flow is using a run_config, load it
-        if getattr(flow_run.flow, "run_config", None) is not None:
-            run_config = RunConfigSchema().load(flow_run.flow.run_config)
+        if getattr(flow_run, "run_config", None) is not None:
+            run_config = RunConfigSchema().load(flow_run.run_config)
             if isinstance(run_config, UniversalRun):
                 # Convert to agent-specific run-config
                 return run_config_cls(labels=run_config.labels)
