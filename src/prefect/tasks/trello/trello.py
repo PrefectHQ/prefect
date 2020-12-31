@@ -49,7 +49,7 @@ class CreateCard(Task):
           where you've stored your server token
 
         Returns:
-          Status code of POST request (200 for success)
+          - Status code of POST request (200 for success)
         """
 
         if list_id is None:
