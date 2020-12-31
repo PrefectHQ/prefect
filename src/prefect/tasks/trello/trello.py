@@ -45,7 +45,8 @@ class CreateCard(Task):
           - card_name (str, optional): the title of the card to add
           - card_info (str, optional): the description for the back of the card
           - trello_api_key (str): the name of the Prefect Secret where you've stored your API key
-          - trello_server_token (str): the name of the Prefect Secret where you've stored your server token
+          - trello_server_token (str): the name of the Prefect Secret
+          where you've stored your server token
 
         Returns:
           Status code of POST request (200 for success)
@@ -53,7 +54,9 @@ class CreateCard(Task):
 
         if list_id is None:
             raise ValueError(
-                "A list ID must be provided. See https://developer.atlassian.com/cloud/trello/rest/api-group-boards/#api-boards-id-lists-get for details."
+                """A list ID must be provided. See
+https://developer.atlassian.com/cloud/trello/rest/api-group-boards/#api-boards-id-lists-get
+for details."""
             )
 
         if trello_api_key is None:
@@ -63,7 +66,8 @@ class CreateCard(Task):
 
         if trello_server_token is None:
             raise ValueError(
-                "A server token must be provided. Click the 'Token' link on https://trello.com/app-key to generate."
+                """A server token must be provided.
+Click the 'Token' link on https://trello.com/app-key to generate."""
             )
 
         url = "https://api.trello.com/1/cards/"
