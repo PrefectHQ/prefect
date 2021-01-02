@@ -59,14 +59,17 @@ def get_boto_client(
         region_name = kwargs.pop("region_name", None)
         botocore_session = kwargs.pop("botocore_session", None)
         session = boto3.session.Session(
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
             profile_name=profile_name,
             region_name=region_name,
             botocore_session=botocore_session,
         )
-        return session.client(resource, **kwargs)
+        return session.client(
+            resource,
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            **kwargs
+        )
     else:
         return boto3.client(
             resource,

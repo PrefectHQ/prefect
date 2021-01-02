@@ -121,13 +121,16 @@ class TestGetBotoClient:
         )
         session_kwargs = session.call_args[1]
         assert session_kwargs == {
-            "aws_access_key_id": None,
-            "aws_secret_access_key": None,
-            "aws_session_token": None,
             "botocore_session": None,
             "profile_name": "TestProfile",
             "region_name": None,
         }
 
-        kwargs = client.method_calls[0][1]
-        assert kwargs == ("not a real resource",)
+        args = client.method_calls[0][1]
+        assert args == ("not a real resource",)
+        kwargs = client.method_calls[0][2]
+        assert kwargs == {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+        }
