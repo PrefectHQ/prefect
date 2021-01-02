@@ -113,20 +113,20 @@ class TestGetBotoClient:
         session = MagicMock(return_value=client)
         boto3 = MagicMock(session=MagicMock(Session=session))
         monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
-        monkeypatch.setattr("prefect.utilities.aws.boto3.session.Session.client", client)
+        monkeypatch.setattr(
+            "prefect.utilities.aws.boto3.session.Session.client", client
+        )
         get_boto_client(
-            resource="not a real resource",
-            use_session=True,
-            profile_name="TestProfile"
+            resource="not a real resource", use_session=True, profile_name="TestProfile"
         )
         session_kwargs = session.call_args[1]
         assert session_kwargs == {
-            'aws_access_key_id': None,
-            'aws_secret_access_key': None,
-            'aws_session_token': None,
-            'botocore_session': None,
-            'profile_name': 'TestProfile',
-            'region_name': None
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+            "botocore_session": None,
+            "profile_name": "TestProfile",
+            "region_name": None,
         }
 
         kwargs = client.method_calls[0][1]
