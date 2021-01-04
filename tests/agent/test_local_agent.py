@@ -447,7 +447,7 @@ def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
     popen = MockPopen()
     # expect a process to be called with the following command (with specified behavior)
     popen.set_command(
-        f"{sys.executable} -m prefect execute flow-run",
+        [sys.executable, "-m", "prefect", "execute", "flow-run"],
         stdout=b"awesome output!",
         stderr=b"blerg, eRroR!",
         returncode=returncode,
