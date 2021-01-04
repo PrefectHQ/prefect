@@ -1,5 +1,6 @@
 import os
 import signal
+import sys
 import threading
 from time import sleep as time_sleep
 from typing import Any, Callable, Dict, Iterable, Optional, Iterator
@@ -73,7 +74,15 @@ class CloudFlowRunner(FlowRunner):
             # use empty string for testing purposes
             flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
             self.client.update_flow_run_heartbeat(flow_run_id)
-            self.heartbeat_cmd = ["prefect", "heartbeat", "flow-run", "-i", flow_run_id]
+            self.heartbeat_cmd = [
+                sys.executable,
+                "-m",
+                "prefect",
+                "heartbeat",
+                "flow-run",
+                "-i",
+                flow_run_id,
+            ]
 
             query = {
                 "query": {

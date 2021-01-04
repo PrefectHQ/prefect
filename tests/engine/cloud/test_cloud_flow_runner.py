@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import sys
 import time
 import threading
 from datetime import timedelta
@@ -413,7 +414,15 @@ def test_flow_runner_heartbeat_sets_command(monkeypatch, setting_available):
         res = runner._heartbeat()
 
     assert res is True
-    assert runner.heartbeat_cmd == ["prefect", "heartbeat", "flow-run", "-i", "foo"]
+    assert runner.heartbeat_cmd == [
+        sys.executable,
+        "-m",
+        "prefect",
+        "heartbeat",
+        "flow-run",
+        "-i",
+        "foo",
+    ]
 
 
 def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch):
