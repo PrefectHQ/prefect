@@ -107,3 +107,30 @@ class TestGetBotoClient:
             "aws_secret_access_key": "true_secret",
             "aws_session_token": "session",
         }
+
+    def test_session_with_profile_name(self, monkeypatch):
+        client = MagicMock()
+        session = MagicMock(return_value=client)
+        boto3 = MagicMock(session=MagicMock(Session=session))
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        monkeypatch.setattr(
+            "prefect.utilities.aws.boto3.session.Session.client", client
+        )
+        get_boto_client(
+            resource="not a real resource", use_session=True, profile_name="TestProfile"
+        )
+        session_kwargs = session.call_args[1]
+        assert session_kwargs == {
+            "botocore_session": None,
+            "profile_name": "TestProfile",
+            "region_name": None,
+        }
+
+        args = client.method_calls[0][1]
+        assert args == ("not a real resource",)
+        kwargs = client.method_calls[0][2]
+        assert kwargs == {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+        }
