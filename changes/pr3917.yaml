@@ -1,0 +1,2 @@
+fix:
+  - "Remove unused `description` field on `Task` serializer - [#3917](https://github.com/PrefectHQ/prefect/pull/3917)"
