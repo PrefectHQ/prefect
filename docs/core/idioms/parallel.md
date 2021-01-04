@@ -73,7 +73,9 @@ Whenever you run this flow it will by default use Prefect's [`LocalExecutor`](/a
 
 ```python
 from prefect.executors import DaskExecutor
-flow.run(parameters={"stop": 5}, executor=DaskExecutor())
+
+if __name__ == "__main__":
+    flow.run(parameters={"stop": 5}, executor=DaskExecutor())
 ```
 
 By not specifying a scheduler address the Dask Executor will create a local Dask cluster, begin executing tasks on it, and then it will be torn down upon flow completion. If you stand up a Dask cluster somewhere else then a scheduler address can be provided to distribute task execution to the remote Dask cluster.
