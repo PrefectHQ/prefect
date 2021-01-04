@@ -321,6 +321,32 @@ class TestApplyMap:
         assert state.result[b].is_skipped()
         assert state.result[c].is_skipped()
 
+    def test_apply_map_inputs_added_to_subflow_before_calling_func(self):
+        """We need to ensure all args to `appy_map` are added to the temporary
+        subflow *before* calling the mapped func. Otherwise things like
+        `case`/`resource_manager` statements that check the subgraph can get
+        confused and create new edges that shouldn't exist, leading to cycles."""
+
+        def func(cond, a, b):
+            with case(cond, True):
+                res1 = a + 1
+            with case(cond, False):
+                res2 = b + 1
+            return merge(res1, res2)
+
+        @tasks.task
+        def identity(x):
+            return x
+
+        with Flow("test") as flow:
+            cond = identity([True, False, True])
+            a = identity([1, 2, 3])
+            b = identity([4, 5, 6])
+            c = apply_map(func, cond, a, b)
+
+        state = flow.run()
+        assert state.result[c].result == [2, 6, 4]
+
 
 class TestAsTask:
     @pytest.mark.parametrize(
