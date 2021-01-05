@@ -141,7 +141,6 @@ def test_context_loads_secrets_from_config(monkeypatch):
 
 def test_context_contextmanager_prioritizes_new_keys_even_on_context_exit(monkeypatch):
     """Previously exiting a context block would reload from the config,
-
     overwriting any explicitly set values in a nested context. This was due to
     the `Context` constructor being implicitly called when stashing the old
     context, and the constructor prioritizing `config.context` over explicit
