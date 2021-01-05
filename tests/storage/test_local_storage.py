@@ -41,21 +41,22 @@ def test_create_local_storage_without_validation():
     assert storage.result.dir == storage.directory
 
 
-def test_add_flow_to_storage():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = Local(directory=tmpdir)
-        f = Flow("test")
-        assert f.name not in storage
+def test_add_flow_to_storage(tmpdir):
+    storage = Local(directory=str(tmpdir))
+    f = Flow("test")
+    assert f.name not in storage
 
-        res = storage.add_flow(f)
-        assert res.endswith("test.prefect")
-        assert f.name in storage
+    res = storage.add_flow(f)
 
-        with open(os.path.join(tmpdir, "test.prefect"), "rb") as f:
-            wat = f.read()
+    flow_dir = os.path.join(tmpdir, "test")
+    assert os.path.exists(flow_dir)
+    assert len(os.listdir(flow_dir)) == 1
+    assert res.startswith(flow_dir)
 
-    assert isinstance(wat, bytes)
-    assert cloudpickle.loads(wat).name == "test"
+    assert f.name in storage
+
+    f2 = storage.get_flow(res)
+    assert f2.name == "test"
 
 
 def test_add_flow_file_to_storage(tmpdir):
