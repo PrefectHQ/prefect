@@ -106,6 +106,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
         arg_info[a2] = (is_mapped, is_constant)
         if not is_constant:
             flow.add_task(a2)  # type: ignore
+            flow2.add_task(a2)  # type: ignore
         if is_mapped and is_constant:
             id_to_const[id(a2.value)] = a2  # type: ignore
         return a2
