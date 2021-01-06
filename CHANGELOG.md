@@ -28,7 +28,6 @@ Released on January 6, 2021.
 ### Contributors
 
 - [Albert Franzi](https://github.com/afranzi)
-- [Allyson Lubimir](https://github.com/whimsicallyson)
 
 ## 0.14.1 <Badge text="beta" type="success" />
 
