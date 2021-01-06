@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.14.2 <Badge text="beta" type="success" />
+
+Released on January 6, 2021.
+
+### Features
+
+- Support for specifying `run_config` for an individual flow run - [#3903](https://github.com/PrefectHQ/prefect/pull/3903)
+- Allow the usage of a profile_name on get_boto_client - [#3916](https://github.com/PrefectHQ/prefect/pull/3916)
+
+### Enhancements
+
+- Support executing Prefect agents/flows without having the `prefect` CLI on path - [#3918](https://github.com/PrefectHQ/prefect/pull/3918)
+
+### Task Library
+
+- Add support for specifying a `run_config` in `StartFlowRun` - [#3903](https://github.com/PrefectHQ/prefect/pull/3903)
+- Task to add Trello card for task library - [#3910](https://github.com/PrefectHQ/prefect/pull/3910)
+
+### Fixes
+
+- Remove unused `description` field on `Task` serializer - [#3917](https://github.com/PrefectHQ/prefect/pull/3917)
+- Fix edge case in `apply_map` that resulted in cycles in the `Flow` graph - [#3920](https://github.com/PrefectHQ/prefect/pull/3920)
+- Support storing multiple local flows with the same name when using `Local` storage - [#3923](https://github.com/PrefectHQ/prefect/pull/3923)
+- Fix bug in `prefect.context` contextmanager that resulted in context fields reverting to their initially configured values - [#3924](https://github.com/PrefectHQ/prefect/pull/3924)
+
+### Contributors
+
+- [Albert Franzi](https://github.com/afranzi)
+- [Allyson Lubimir](https://github.com/whimsicallyson)
+
 ## 0.14.1 <Badge text="beta" type="success" />
 
 Released on December 29, 2020.

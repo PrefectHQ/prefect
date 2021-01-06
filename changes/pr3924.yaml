@@ -1,2 +1,0 @@
-fix:
-  - "Fix bug in `prefect.context` contextmanager that resulted in context fields reverting to their initially configured values - [#3924](https://github.com/PrefectHQ/prefect/pull/3924)"
