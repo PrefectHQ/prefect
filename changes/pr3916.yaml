@@ -1,5 +1,0 @@
-feature:
-  - "Allow the usage of a profile_name on get_boto_client - [#3916](https://github.com/PrefectHQ/prefect/pull/3916)"
-
-contributor:
-  - "[Albert Franzi](https://github.com/afranzi)"

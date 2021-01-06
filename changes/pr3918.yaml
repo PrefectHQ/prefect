@@ -1,2 +1,0 @@
-enhancement:
-  - "Support executing Prefect agents/flows without having the `prefect` CLI on path - [#3918](https://github.com/PrefectHQ/prefect/pull/3918)"
