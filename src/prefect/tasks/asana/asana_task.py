@@ -13,10 +13,6 @@ class OpenAsanaToDo(Task):
     Task for opening / creating new Asana tasks using the Asana REST API.
 
     Args:
-        - data (dict, optional): full coinfigured data object to include in the task.
-            See https://developers.asana.com/docs/create-a-task for more information.
-            If a data object is included, other inputs will be ignored; can also be provided to the
-            `run` method
         - project (str; , required): The GID of the project the task will be posted to;
             can also be provided to the `run` method
         - name (str, optional): the name of the task to create; can also be provided to the
@@ -29,24 +25,21 @@ class OpenAsanaToDo(Task):
 
     def __init__(
         self,
-        data: str = None,
         name: str = None,
         notes: str = None,
         project: str = None,
         token: str = None,
         **kwargs: Any
     ):
-        self.data = data
         self.name = name
         self.notes = notes
         self.project = project
         self.token = token
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("data", "name", "notes", "project", "token")
+    @defaults_from_attrs("name", "notes", "project", "token")
     def run(
         self,
-        data: str = None,
         name: str = None,
         notes: str = None,
         project: str = None,
@@ -57,10 +50,6 @@ class OpenAsanaToDo(Task):
         Flow context, or by using `Task.bind`.
 
         Args:
-        - data (dict, optional): full coinfigured data object to include in the task.
-            See https://developers.asana.com/docs/create-a-task for more information.
-            If a data object is included, other inputs will be ignored;
-            can also be provided at initialization
         - name (str, optional): the name of the task to create; can also be provided at initialization
         - project (str; , required): The GID of the project the task will be posted to;
             can also be provided at initialization
@@ -84,11 +73,7 @@ class OpenAsanaToDo(Task):
 
         client = asana.Client.access_token(token)
 
-        if data:
-            result = client.tasks.create_task({"data": data, "projects": [project]})
-
-        else:
-            result = client.tasks.create_task(
+        result = client.tasks.create_task(
                 {"name": name, "notes": notes, "projects": [project]}
             )
 

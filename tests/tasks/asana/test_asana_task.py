@@ -31,9 +31,3 @@ class TestInitialization:
         with pytest.raises(ValueError, match="project"):
             task.run()
     
-    def test_uses_data_if_provided(self):
-        t = OpenAsanaToDo(data = {'name': "test", 'notes': 'bar', 'token': "1234a", 'project': 'project2'}, project='project2')
-        print('t', t)
-        assert t.project == "project2"
-        assert t.data == {'name': "test", 'notes': 'bar', 'token': "1234a", 'project': 'project2'}
-        
