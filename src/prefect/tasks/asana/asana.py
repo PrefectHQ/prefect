@@ -12,11 +12,11 @@ class OpenAsanaToDo(Task):
     Task for opening / creating new Asana tasks using the Asana REST API.
 
     Args:
-        - data (dict, optional): full coinfigured data object to include in the task.  
-            See https://developers.asana.com/docs/create-a-task for more information.  
+        - data (dict, optional): full coinfigured data object to include in the task.
+            See https://developers.asana.com/docs/create-a-task for more information.
             If a data object is included, other inputs will be ignored; can also be provided to the
             `run` method
-        - project (str; , required): The GID of the project the task will be posted to; 
+        - project (str; , required): The GID of the project the task will be posted to;
             can also be provided to the `run` method
         - name (str, optional): the name of the task to create; can also be provided to the
             `run` method
@@ -27,7 +27,13 @@ class OpenAsanaToDo(Task):
     """
 
     def __init__(
-        self, data: str = None, name: str = None, notes: str = None, project: str = None, token: str = None, **kwargs: Any
+        self,
+        data: str = None,
+        name: str = None,
+        notes: str = None,
+        project: str = None,
+        token: str = None,
+        **kwargs: Any
     ):
         self.data = data
         self.name = name
@@ -50,12 +56,12 @@ class OpenAsanaToDo(Task):
         Flow context, or by using `Task.bind`.
 
         Args:
-        - data (dict, optional): full coinfigured data object to include in the task.  
-            See https://developers.asana.com/docs/create-a-task for more information.  
-            If a data object is included, other inputs will be ignored; 
+        - data (dict, optional): full coinfigured data object to include in the task.
+            See https://developers.asana.com/docs/create-a-task for more information.
+            If a data object is included, other inputs will be ignored;
             can also be provided at initialization
         - name (str, optional): the name of the task to create; can also be provided at initialization
-        - project (str; , required): The GID of the project the task will be posted to; 
+        - project (str; , required): The GID of the project the task will be posted to;
             can also be provided at initialization
         - notes (str, optional): the contents of the task; can also be provided at initialization
         - token (str): an ASANA Personal Access Token
