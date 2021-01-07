@@ -819,9 +819,7 @@ class Client:
             inputs.update(idempotency_key=idempotency_key)
 
         res = self.graphql(
-            create_mutation,
-            variables=dict(input=inputs),
-            retry_on_api_error=False,
+            create_mutation, variables=dict(input=inputs), retry_on_api_error=False,
         )  # type: Any
 
         flow_id = (
@@ -1212,9 +1210,7 @@ class Client:
         """
         mutation = {
             "mutation($input: set_flow_run_name_input!)": {
-                "set_flow_run_name(input: $input)": {
-                    "success": True,
-                }
+                "set_flow_run_name(input: $input)": {"success": True,}
             }
         }
 
@@ -1410,9 +1406,7 @@ class Client:
         """
         mutation = {
             "mutation($input: set_task_run_name_input!)": {
-                "set_task_run_name(input: $input)": {
-                    "success": True,
-                }
+                "set_task_run_name(input: $input)": {"success": True,}
             }
         }
 
@@ -1434,9 +1428,7 @@ class Client:
         """
         mutation = {
             "mutation($input: cancel_flow_run_input!)": {
-                "cancel_flow_run(input: $input)": {
-                    "state": True,
-                }
+                "cancel_flow_run(input: $input)": {"state": True,}
             }
         }
         result = self.graphql(

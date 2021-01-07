@@ -70,10 +70,7 @@ def test_create_schedule_multiple_overlapping_clocks_distinguishes_parameters():
     dt = pendulum.datetime(2019, 1, 1)
     special_day = pendulum.datetime(2020, 3, 1)
     s = schedules.Schedule(
-        clocks=[
-            clocks.DatesClock([special_day]),
-            clocks.DatesClock([special_day]),
-        ]
+        clocks=[clocks.DatesClock([special_day]), clocks.DatesClock([special_day]),]
     )
     output = s.next(2, after=dt, return_events=True)
     assert len(output) == 1

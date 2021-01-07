@@ -113,8 +113,7 @@ def test_get_flow_codecommit(monkeypatch):
     f = Flow("test")
 
     monkeypatch.setattr(
-        "prefect.storage.github.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.github.extract_flow_from_file", MagicMock(return_value=f),
     )
 
     with pytest.raises(ValueError):

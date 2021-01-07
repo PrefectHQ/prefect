@@ -68,11 +68,7 @@ def test_serialize_kubernetes_run(config):
     "config",
     [
         LocalRun(),
-        LocalRun(
-            env={"test": "foo"},
-            working_dir="/path/to/dir",
-            labels=["a", "b"],
-        ),
+        LocalRun(env={"test": "foo"}, working_dir="/path/to/dir", labels=["a", "b"],),
     ],
 )
 def test_serialize_local_run(config):
@@ -86,14 +82,7 @@ def test_serialize_local_run(config):
 
 @pytest.mark.parametrize(
     "config",
-    [
-        DockerRun(),
-        DockerRun(
-            env={"test": "foo"},
-            image="testing",
-            labels=["a", "b"],
-        ),
-    ],
+    [DockerRun(), DockerRun(env={"test": "foo"}, image="testing", labels=["a", "b"],),],
 )
 def test_serialize_docker_run(config):
     msg = RunConfigSchema().dump(config)

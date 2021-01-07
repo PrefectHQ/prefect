@@ -447,10 +447,7 @@ class DockerAgent(Agent):
         # All arguments to multiprocessing.Process need to be pickleable
         proc = multiprocessing.Process(
             target=_stream_container_logs,
-            kwargs={
-                "base_url": self.base_url,
-                "container_id": container_id,
-            },
+            kwargs={"base_url": self.base_url, "container_id": container_id,},
         )
         proc.start()
         self.processes.append(proc)

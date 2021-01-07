@@ -10,7 +10,6 @@ except ImportError:
     pass
 
 
-
 class OpenAsanaToDo(Task):
     """
     Task for opening / creating new Asana tasks using the Asana REST API.
@@ -29,11 +28,7 @@ class OpenAsanaToDo(Task):
     """
 
     def __init__(
-        self,
-        data: str = None,
-        name: str = None,
-        notes: str = None,
-        **kwargs: Any
+        self, data: str = None, name: str = None, notes: str = None, **kwargs: Any
     ):
         self.data = data
         self.name = name
@@ -80,18 +75,12 @@ class OpenAsanaToDo(Task):
         client = asana.Client.access_token(token)
 
         if data:
-            result = client.tasks.create_task({
-            'data': data
-        })
+            result = client.tasks.create_task({"data": data})
 
-        else: 
-            result = client.tasks.create_task({
-                'name': name,
-                'notes': notes,
-                'projects': [
-                    project
-                ]
-            })
+        else:
+            result = client.tasks.create_task(
+                {"name": name, "notes": notes, "projects": [project]}
+            )
 
         if not result:
             raise ValueError("Creating Asana Task failed")

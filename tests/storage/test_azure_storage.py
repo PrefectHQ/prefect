@@ -16,10 +16,7 @@ def test_create_azure_storage():
 
 def test_create_azure_storage_init_args():
     storage = Azure(
-        container="test",
-        connection_string="conn",
-        blob_name="name",
-        secrets=["foo"],
+        container="test", connection_string="conn", blob_name="name", secrets=["foo"],
     )
     assert storage
     assert storage.flows == dict()
@@ -230,8 +227,7 @@ def test_get_flow_from_file_azure_runs(monkeypatch):
     f = Flow("test")
 
     monkeypatch.setattr(
-        "prefect.storage.azure.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.azure.extract_flow_from_file", MagicMock(return_value=f),
     )
 
     storage = Azure(container="container", stored_as_script=True)

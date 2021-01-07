@@ -162,9 +162,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api):
 def test_populate_env_vars_from_run_config(api):
     agent = DockerAgent(env_vars={"KEY1": "VAL1", "KEY2": "VAL2"})
 
-    run = DockerRun(
-        env={"KEY2": "OVERRIDE", "PREFECT__LOGGING__LEVEL": "TEST"},
-    )
+    run = DockerRun(env={"KEY2": "OVERRIDE", "PREFECT__LOGGING__LEVEL": "TEST"},)
 
     env_vars = agent.populate_env_vars(
         GraphQLResult(

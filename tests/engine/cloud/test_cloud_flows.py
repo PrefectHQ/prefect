@@ -1032,10 +1032,7 @@ def test_can_queue_successfully_and_run(monkeypatch):
                 id=str(uuid.uuid4()), task_slug=flow.slugs[t1], flow_run_id=flow_run_id
             )
             for t in flow.tasks
-            if t
-            not in [
-                t1,
-            ]
+            if t not in [t1,]
         ],
         monkeypatch=monkeypatch,
         num_times_in_queue=6,

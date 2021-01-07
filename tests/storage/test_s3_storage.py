@@ -358,8 +358,7 @@ def test_get_flow_as_file_s3_runs(monkeypatch):
     f = Flow("test")
 
     monkeypatch.setattr(
-        "prefect.storage.s3.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.s3.extract_flow_from_file", MagicMock(return_value=f),
     )
 
     storage = S3(bucket="bucket", stored_as_script=True)

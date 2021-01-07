@@ -77,8 +77,7 @@ def test_get_flow_github(monkeypatch):
     monkeypatch.setattr("prefect.utilities.git.Github", github)
 
     monkeypatch.setattr(
-        "prefect.storage.github.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.github.extract_flow_from_file", MagicMock(return_value=f),
     )
 
     with pytest.raises(ValueError):
