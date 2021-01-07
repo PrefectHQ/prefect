@@ -28,7 +28,7 @@ class OpenAsanaToDo(Task):
     """
 
     def __init__(
-        self, data: str = None, name: str = None, notes: str = None, **kwargs: Any
+        self, data: str = None, name: str = None, notes: str = None, project: str = None, token: str = None, **kwargs: Any
     ):
         self.data = data
         self.name = name
@@ -53,6 +53,7 @@ class OpenAsanaToDo(Task):
         Args:
         - data (dict, optional): full coinfigured data object to include in the task.  See https://developers.asana.com/docs/create-a-task for more information.  If a data object is included, other inputs will be ignored; can also be provided at initialization
         - name (str, optional): the name of the task to create; can also be provided at initialization
+        - project (str; , required): The GID of the project the task will be posted to; can also be provided at initialization
         - notes (str, optional): the contents of the task; can also be provided at initialization
         - token (str): an ASANA Personal Access Token
 
@@ -64,6 +65,7 @@ class OpenAsanaToDo(Task):
         Returns:
             - None
         """
+
         if project is None:
             raise ValueError("An Asana project must be provided.")
 
