@@ -315,6 +315,11 @@ title = "DBT Tasks"
 module = "prefect.tasks.dbt"
 classes = ["DbtShellTask"]
 
+[pages.tasks.asana]
+title = "Asana Tasks"
+module = "prefect.tasks.asana"
+classes = ["OpenAsanaToDo"]
+
 [pages.tasks.docker]
 title = "Docker Tasks"
 module = "prefect.tasks.docker"
