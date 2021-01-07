@@ -33,15 +33,17 @@ class OpenAsanaToDo(Task):
         self.data = data
         self.name = name
         self.notes = notes
+        self.project = project
+        self.token = token
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("data", "name", "notes", "followers")
+    @defaults_from_attrs("data", "name", "notes", "project", "token")
     def run(
         self,
         data: str = None,
         name: str = None,
         notes: str = None,
-        followers: List[str] = None,
+        project: str = None,
         token: str = None,
     ) -> None:
         """
@@ -67,10 +69,6 @@ class OpenAsanaToDo(Task):
 
         if token is None:
             raise ValueError("An Asana access token must be provided.")
-
-        # 'import requests' is expensive time-wise, we should do this just-in-time to keep
-        # the 'import prefect' time low
-        import requests
 
         client = asana.Client.access_token(token)
 
