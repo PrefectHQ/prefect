@@ -55,6 +55,7 @@ In addition, Prefect Cloud supplies some additional context variables:
 | `task_id` | the id of the current task |
 | `task_run_id` | the id of the current task run |
 | `task_run_version` | the state version of the current task run |
+| `resume` | boolean showing if the current task run was manually restarted |
 
 Users can also provide values to context at runtime. For more information, see
 the [Context concept
