@@ -85,7 +85,7 @@ class OpenAsanaToDo(Task):
         client = asana.Client.access_token(token)
 
         if data:
-            result = client.tasks.create_task({"data": data})
+            result = client.tasks.create_task({"data": data, "projects": [project]})
 
         else:
             result = client.tasks.create_task(
