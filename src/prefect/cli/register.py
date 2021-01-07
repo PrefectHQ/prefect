@@ -55,7 +55,11 @@ def register():
     default=None,
 )
 @click.option(
-    "--label", "-l", required=False, hidden=True, multiple=True,
+    "--label",
+    "-l",
+    required=False,
+    hidden=True,
+    multiple=True,
 )
 def flow(file, name, project, label):
     """

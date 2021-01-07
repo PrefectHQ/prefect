@@ -380,7 +380,10 @@ class BigQueryLoadGoogleCloudStorage(Task):
         if schema:
             job_config.schema = schema
         load_job = client.load_table_from_uri(
-            uri, table_ref, location=location, job_config=job_config,
+            uri,
+            table_ref,
+            location=location,
+            job_config=job_config,
         )
         load_job.result()  # block until job is finished
 

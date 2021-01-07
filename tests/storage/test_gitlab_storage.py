@@ -82,7 +82,8 @@ def test_get_flow_gitlab(monkeypatch):
     monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
 
     monkeypatch.setattr(
-        "prefect.storage.gitlab.extract_flow_from_file", MagicMock(return_value=f),
+        "prefect.storage.gitlab.extract_flow_from_file",
+        MagicMock(return_value=f),
     )
 
     with pytest.raises(ValueError) as ex:

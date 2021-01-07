@@ -49,7 +49,9 @@ def test_bitbucket_client_server(monkeypatch):
     monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
 
     storage = Bitbucket(
-        project="PROJECT", repo="test-repo", host="http://localhost:1234",
+        project="PROJECT",
+        repo="test-repo",
+        host="http://localhost:1234",
     )
 
     credentials = "ACCESS_TOKEN"
@@ -85,7 +87,8 @@ def test_get_flow_bitbucket(monkeypatch):
     monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
 
     monkeypatch.setattr(
-        "prefect.storage.bitbucket.extract_flow_from_file", MagicMock(return_value=f),
+        "prefect.storage.bitbucket.extract_flow_from_file",
+        MagicMock(return_value=f),
     )
 
     with pytest.raises(ValueError) as ex:

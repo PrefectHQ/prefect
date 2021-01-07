@@ -247,7 +247,8 @@ def test_server_start_volume_options(monkeypatch, macos_platform):
 
     runner = CliRunner()
     result = runner.invoke(
-        server, ["start", "--use-volume", "--volume-path", "test/path"],
+        server,
+        ["start", "--use-volume", "--volume-path", "test/path"],
     )
     assert result.exit_code == 1
 
@@ -267,7 +268,10 @@ def test_create_tenant(monkeypatch, cloud_api):
     )
 
     runner = CliRunner()
-    result = runner.invoke(server, ["create-tenant", "-n", "name", "-s", "slug"],)
+    result = runner.invoke(
+        server,
+        ["create-tenant", "-n", "name", "-s", "slug"],
+    )
     assert result.exit_code == 0
     assert "my_id" in result.output
 

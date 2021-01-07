@@ -13,9 +13,14 @@ COMMON_START_OPTIONS = [
     ),
     click.option("--api", "-a", required=False, help="A Prefect API URL."),
     click.option(
-        "--agent-config-id", help="An agent ID to link this agent instance with",
+        "--agent-config-id",
+        help="An agent ID to link this agent instance with",
     ),
-    click.option("--name", "-n", help="A name to use for the agent",),
+    click.option(
+        "--name",
+        "-n",
+        help="A name to use for the agent",
+    ),
     click.option(
         "--label",
         "-l",
@@ -59,7 +64,11 @@ COMMON_START_OPTIONS = [
 
 
 COMMON_INSTALL_OPTIONS = [
-    click.option("--token", "-t", help="A Prefect Cloud API token with RUNNER scope.",),
+    click.option(
+        "--token",
+        "-t",
+        help="A Prefect Cloud API token with RUNNER scope.",
+    ),
     click.option(
         "--label",
         "-l",
@@ -206,7 +215,8 @@ def docker():
     ),
 )
 @click.option(
-    "--network", help="Add containers to an existing docker network",
+    "--network",
+    help="Add containers to an existing docker network",
 )
 @click.option(
     "--no-docker-interface",
@@ -242,7 +252,8 @@ def kubernetes():
 @kubernetes.command()
 @add_options(COMMON_START_OPTIONS)
 @click.option(
-    "--namespace", help="Kubernetes namespace to deploy in. Defaults to `default`.",
+    "--namespace",
+    help="Kubernetes namespace to deploy in. Defaults to `default`.",
 )
 @click.option(
     "--job-template",
@@ -502,7 +513,9 @@ _agents = {
     hidden=True,
 )
 @click.option(
-    "--network", help="Add containers to an existing docker network", hidden=True,
+    "--network",
+    help="Add containers to an existing docker network",
+    hidden=True,
 )
 @click.option(
     "--no-docker-interface",
