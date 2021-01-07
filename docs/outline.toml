@@ -104,7 +104,9 @@ functions = [
     "between_times",
     "is_weekday",
     "is_weekend",
-    "is_month_end"
+    "is_day_of_week",
+    "is_month_end",
+    "is_month_start"
 ]
 
 [pages.schedules.adjustments]
