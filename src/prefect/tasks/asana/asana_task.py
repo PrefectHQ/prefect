@@ -79,3 +79,5 @@ class OpenAsanaToDo(Task):
 
         if not result:
             raise ValueError("Creating Asana Task failed")
+
+        return result
