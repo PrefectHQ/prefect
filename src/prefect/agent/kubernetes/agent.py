@@ -263,7 +263,9 @@ class KubernetesAgent(Agent):
                             failed_pods.append(pod.metadata.name)
                             pod_status_logs = [f"Pod {pod.metadata.name} failed."]
                             if not pod.status.container_statuses:
-                                pod_status_logs.append(f"\tNo container statuses found for pod")
+                                pod_status_logs.append(
+                                    f"\tNo container statuses found for pod"
+                                )
                             else:
                                 for status in pod.status.container_statuses:
                                     state = (
