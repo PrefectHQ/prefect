@@ -262,36 +262,39 @@ class KubernetesAgent(Agent):
                             # Format pod failure error message
                             failed_pods.append(pod.metadata.name)
                             pod_status_logs = [f"Pod {pod.metadata.name} failed."]
-                            for status in pod.status.container_statuses:
-                                state = (
-                                    "running"
-                                    if status.state.running
-                                    else "waiting"
-                                    if status.state.waiting
-                                    else "terminated"
-                                    if status.state.terminated
-                                    else "Not Found"
-                                )
-                                pod_status_logs.append(
-                                    f"\tContainer '{status.name}' state: {state}"
-                                )
-
-                                if status.state.terminated:
-                                    pod_status_logs.append(
-                                        f"\t\tExit Code:: {status.state.terminated.exit_code}"
+                            if not pod.status.container_statuses:
+                                pod_status_logs.append(f"\tNo container statuses found for pod")
+                            else:
+                                for status in pod.status.container_statuses:
+                                    state = (
+                                        "running"
+                                        if status.state.running
+                                        else "waiting"
+                                        if status.state.waiting
+                                        else "terminated"
+                                        if status.state.terminated
+                                        else "Not Found"
                                     )
-                                    if status.state.terminated.message:
+                                    pod_status_logs.append(
+                                        f"\tContainer '{status.name}' state: {state}"
+                                    )
+
+                                    if status.state.terminated:
                                         pod_status_logs.append(
-                                            f"\t\tMessage: {status.state.terminated.message}"
+                                            f"\t\tExit Code:: {status.state.terminated.exit_code}"
                                         )
-                                    if status.state.terminated.reason:
-                                        pod_status_logs.append(
-                                            f"\t\tReason: {status.state.terminated.reason}"
-                                        )
-                                    if status.state.terminated.signal:
-                                        pod_status_logs.append(
-                                            f"\t\tSignal: {status.state.terminated.signal}"
-                                        )
+                                        if status.state.terminated.message:
+                                            pod_status_logs.append(
+                                                f"\t\tMessage: {status.state.terminated.message}"
+                                            )
+                                        if status.state.terminated.reason:
+                                            pod_status_logs.append(
+                                                f"\t\tReason: {status.state.terminated.reason}"
+                                            )
+                                        if status.state.terminated.signal:
+                                            pod_status_logs.append(
+                                                f"\t\tSignal: {status.state.terminated.signal}"
+                                            )
 
                             # Send pod failure information to flow run logs
                             self.client.write_run_logs(
