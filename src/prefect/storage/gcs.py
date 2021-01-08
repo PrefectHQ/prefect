@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Any, Dict
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
@@ -8,7 +7,11 @@ import prefect
 from prefect.engine.results import GCSResult
 from prefect.storage import Storage
 from prefect.utilities.exceptions import StorageError
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_from_bytes_pickle,
+    flow_to_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -109,7 +112,7 @@ class GCS(Storage):
         if self.stored_as_script:
             return extract_flow_from_file(file_contents=content)
 
-        return cloudpickle.loads(content)
+        return flow_from_bytes_pickle(content)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -183,7 +186,7 @@ class GCS(Storage):
             return self
 
         for flow_name, flow in self._flows.items():
-            content = cloudpickle.dumps(flow)
+            content = flow_to_bytes_pickle(flow)
 
             bucket = self._gcs_client.get_bucket(self.bucket)
 

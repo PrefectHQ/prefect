@@ -1,8 +1,16 @@
+import binascii
 import importlib
+import json
+import sys
+import warnings
 from operator import attrgetter
 from typing import TYPE_CHECKING
+from distutils.version import LooseVersion
+
+import cloudpickle
 
 import prefect
+from prefect.utilities.exceptions import StorageError
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -143,3 +151,87 @@ def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
                 return attr
 
     raise ValueError("No flow found in module.")
+
+
+def flow_to_bytes_pickle(flow: "Flow") -> bytes:
+    """Serialize a flow to bytes.
+
+    The flow is serialized using `cloudpickle`, with some extra metadata on
+    included via JSON. The flow can be reloaded using `flow_from_bytes_pickle`.
+
+    Args:
+        - flow (Flow): the flow to be serialized.
+
+    Returns:
+        - bytes: a serialized representation of the flow.
+    """
+    flow_data = binascii.b2a_base64(
+        cloudpickle.dumps(flow, protocol=4), newline=False
+    ).decode("utf-8")
+    out = json.dumps({"flow": flow_data, "versions": _get_versions()})
+    return out.encode("utf-8")
+
+
+def _get_versions() -> dict:
+    """Get version info on libraries where a version-mismatch between
+    registration and execution environment may cause a flow to fail to load
+    properly"""
+    return {
+        "cloudpickle": cloudpickle.__version__,
+        "prefect": prefect.__version__,
+        "python": "%d.%d.%d" % sys.version_info[:3],
+    }
+
+
+def flow_from_bytes_pickle(data: bytes) -> "Flow":
+    """Load a flow from bytes."""
+    try:
+        info = json.loads(data.decode("utf-8"))
+    except Exception:
+        # Serialized using older version of prefect, use cloudpickle directly
+        flow_bytes = data
+        reg_versions = {}
+    else:
+        flow_bytes = binascii.a2b_base64(info["flow"])
+        reg_versions = info["versions"]
+
+    run_versions = _get_versions()
+
+    try:
+        flow = cloudpickle.loads(flow_bytes)
+    except Exception as exc:
+        parts = ["An error occurred while unpickling the flow:", f"  {exc!r}"]
+        # Check other versions to provide a better warning if possible
+        mismatches = []
+        for name, v1 in sorted(reg_versions.items()):
+            if name in run_versions:
+                v2 = run_versions[name]
+                if LooseVersion(v1) != v2:
+                    mismatches.append(
+                        f"  - {name}: (flow built with {v1!r}, currently running with {v2!r})"
+                    )
+        if mismatches:
+            parts.append(
+                "This may be due to one of the following version mismatches between "
+                "the flow build and execution environments:"
+            )
+            parts.extend(mismatches)
+        if isinstance(exc, ImportError):
+            prefix = "This also may" if mismatches else "This may"
+            parts.append(
+                f"{prefix} be due to a missing Python module in your current "
+                "environment. Please ensure you have all required flow "
+                "dependencies installed."
+            )
+        raise StorageError("\n".join(parts)) from exc
+
+    run_prefect = run_versions["prefect"]
+    reg_prefect = reg_versions.get("prefect")
+    if reg_prefect and LooseVersion(reg_prefect) != run_prefect:
+        warnings.warn(
+            f"This flow was built using Prefect {reg_prefect!r}, but you currently "
+            f"have Prefect {run_prefect!r} installed. We recommend loading flows "
+            "with the same Prefect version they were built with, failure to do so "
+            "may result in errors."
+        )
+    return flow
