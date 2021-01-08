@@ -62,7 +62,7 @@ class OpenAsanaToDo(Task):
             - ValueError: if no result is returned
 
         Returns:
-            - None
+            - The result object with details of the new asana task
         """
 
         if project is None:
@@ -79,3 +79,5 @@ class OpenAsanaToDo(Task):
 
         if not result:
             raise ValueError("Creating Asana Task failed")
+
+        return result
