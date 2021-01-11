@@ -58,6 +58,21 @@ register a flow with no labels it will only be picked up by Agents which also
 do not have labels specified.
 :::
 
+:::tip Automatic Labels
+If your Flow is configured for [Local Storage](storage.md#local), which is the
+default, then flow runs generated from it will automatically be given a label
+matching the hostname of the machine where the flow run was created. This behavior can be disabled
+by adding the following to your `config.toml`:
+
+    [flows.defaults]
+        [flows.defaults.storage]
+
+        add_default_labels = false
+
+However, doing this does not enable you to use Local Storage with any agent
+besides the [local agent](/orchestration/agents/local.md).
+:::
+
 ## Types
 
 Prefect has a number of different `RunConfig` implementations - we'll briefly
