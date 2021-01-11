@@ -70,7 +70,8 @@ by adding the following to your `config.toml`:
         add_default_labels = false
 
 However, doing this does not enable you to use Local Storage with any agent
-besides the [local agent](/orchestration/agents/local.md).
+besides the [local agent](/orchestration/agents/local.md), which expects
+the hostname label to be there by default.
 :::
 
 ## Types
