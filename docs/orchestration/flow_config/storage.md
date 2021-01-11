@@ -147,6 +147,11 @@ which means both upload (build) and download (local agent) times need to have
 the proper Google Application Credentials configuration.
 :::
 
+:::tip Extra dependency
+You need to install `google` PIP extra (`pip install prefect[google]`) to use
+GCS Storage.
+:::
+
 ## GitHub
 
 [GitHub Storage](/api/latest/storage.md#github) is a storage
