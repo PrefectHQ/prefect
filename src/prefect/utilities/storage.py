@@ -201,7 +201,7 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
         flow = cloudpickle.loads(flow_bytes)
     except Exception as exc:
         parts = ["An error occurred while unpickling the flow:", f"  {exc!r}"]
-        # Check for mismatched versions to provide a better warning if possible
+        # Check for mismatched versions to provide a better error if possible
         mismatches = []
         for name, v1 in sorted(reg_versions.items()):
             if name in run_versions:
