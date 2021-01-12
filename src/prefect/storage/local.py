@@ -2,14 +2,18 @@ import os
 import socket
 from typing import TYPE_CHECKING, Any, Dict, List
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
 import prefect
 from prefect.engine.results import LocalResult
 from prefect.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file, extract_flow_from_module
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    extract_flow_from_module,
+    flow_from_bytes_pickle,
+    flow_to_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -102,7 +106,7 @@ class Local(Storage):
                     return extract_flow_from_file(file_path=flow_location)
                 else:
                     with open(flow_location, "rb") as f:
-                        return cloudpickle.load(f)
+                        return flow_from_bytes_pickle(f.read())
             # otherwise the path is given in the module format
             else:
                 return extract_flow_from_module(module_str=flow_location)
@@ -147,7 +151,7 @@ class Local(Storage):
                 )
             os.makedirs(os.path.dirname(flow_location), exist_ok=True)
             with open(flow_location, "wb") as f:
-                cloudpickle.dump(flow, f)
+                f.write(flow_to_bytes_pickle(flow))
 
         self.flows[flow.name] = flow_location
         self._flows[flow.name] = flow

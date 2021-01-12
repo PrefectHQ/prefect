@@ -1,13 +1,16 @@
 import os
 from typing import TYPE_CHECKING, Any, Dict
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
 from prefect.engine.results import AzureResult
 from prefect.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_to_bytes_pickle,
+    flow_from_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -93,7 +96,7 @@ class Azure(Storage):
         if self.stored_as_script:
             return extract_flow_from_file(file_contents=content)  # type: ignore
 
-        return cloudpickle.loads(content)
+        return flow_from_bytes_pickle(content)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -152,7 +155,7 @@ class Azure(Storage):
             return self
 
         for flow_name, flow in self._flows.items():
-            data = cloudpickle.dumps(flow)
+            data = flow_to_bytes_pickle(flow)
 
             client = self._azure_block_blob_service.get_blob_client(
                 container=self.container, blob=self.flows[flow_name]

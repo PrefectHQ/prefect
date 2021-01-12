@@ -27,7 +27,6 @@ from typing import (
     Union,
 )
 
-import cloudpickle
 import pendulum
 from mypy_extensions import TypedDict
 from slugify import slugify
@@ -1503,13 +1502,15 @@ class Flow:
             - fpath (str): either the absolute filepath where your Flow will be loaded from,
                 or the name of the Flow you wish to load
         """
+        from prefect.utilities.storage import flow_from_bytes_pickle
+
         if not os.path.isabs(fpath):
             path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
             fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
                 slugify(fpath)
             )  # type: ignore
         with open(str(fpath), "rb") as f:
-            return cloudpickle.load(f)
+            return flow_from_bytes_pickle(f.read())
 
     def save(self, fpath: str = None) -> str:
         """
@@ -1523,6 +1524,8 @@ class Flow:
         Returns:
             - str: the full location the Flow was saved to
         """
+        from prefect.utilities.storage import flow_to_bytes_pickle
+
         if fpath is None:
             path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
             fpath = Path(  # type: ignore
@@ -1533,7 +1536,7 @@ class Flow:
             assert fpath is not None  # mypy assert
             fpath.parent.mkdir(exist_ok=True, parents=True)
         with open(str(fpath), "wb") as f:
-            cloudpickle.dump(self, f)
+            f.write(flow_to_bytes_pickle(self))
 
         return str(fpath)
 

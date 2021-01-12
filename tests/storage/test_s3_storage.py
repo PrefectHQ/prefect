@@ -6,6 +6,7 @@ import pytest
 
 from prefect import context, Flow
 from prefect.storage import S3
+from prefect.utilities.storage import flow_from_bytes_pickle
 
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
@@ -210,7 +211,7 @@ def test_upload_flow_to_s3_flow_byte_stream(monkeypatch):
     flow_as_bytes = boto3.upload_fileobj.call_args[0][0]
     assert isinstance(flow_as_bytes, io.BytesIO)
 
-    new_flow = cloudpickle.loads(flow_as_bytes.read())
+    new_flow = flow_from_bytes_pickle(flow_as_bytes.read())
     assert new_flow.name == "test"
 
     state = new_flow.run()

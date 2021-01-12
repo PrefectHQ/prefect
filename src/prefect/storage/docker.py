@@ -11,13 +11,16 @@ import warnings
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Union
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
 import prefect
 from prefect.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_from_bytes_pickle,
+    flow_to_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     import docker
@@ -309,7 +312,7 @@ class Docker(Storage):
             return extract_flow_from_file(file_path=flow_location)
 
         with open(flow_location, "rb") as f:
-            return cloudpickle.load(f)
+            return flow_from_bytes_pickle(f.read())
 
     @property
     def name(self) -> str:
@@ -519,7 +522,7 @@ class Docker(Storage):
                 clean_name = slugify(flow_name)
                 flow_path = os.path.join(directory, "{}.flow".format(clean_name))
                 with open(flow_path, "wb") as f:
-                    cloudpickle.dump(self._flows[flow_name], f)
+                    f.write(flow_to_bytes_pickle(self._flows[flow_name]))
                 copy_flows += "COPY {source} {dest}\n".format(
                     source=(
                         flow_path.replace("\\", "/")

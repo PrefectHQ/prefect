@@ -1,4 +1,3 @@
-import cloudpickle
 import os
 import string
 import warnings
@@ -13,7 +12,11 @@ from requests.packages.urllib3.util.retry import Retry
 
 from prefect.client import Secret
 from prefect.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_from_bytes_pickle,
+    flow_to_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -260,7 +263,7 @@ class Webhook(Storage):
             flow_script_content = response.content.decode("utf-8")
             return extract_flow_from_file(file_contents=flow_script_content)  # type: ignore
 
-        return cloudpickle.loads(response.content)
+        return flow_from_bytes_pickle(response.content)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -347,7 +350,7 @@ class Webhook(Storage):
         for flow_name, flow in self._flows.items():
             self.logger.info("Uploading flow '{}'".format(flow_name))
 
-            data = cloudpickle.dumps(flow)
+            data = flow_to_bytes_pickle(flow)
             if self.stored_as_script:
 
                 # these checks are here in build() instead of the constructor

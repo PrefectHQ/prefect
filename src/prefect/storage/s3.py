@@ -1,14 +1,17 @@
 import io
 from typing import TYPE_CHECKING, Any, Dict
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
 import prefect
 from prefect.engine.results import S3Result
 from prefect.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_from_bytes_pickle,
+    flow_to_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -112,7 +115,7 @@ class S3(Storage):
         if self.stored_as_script:
             return extract_flow_from_file(file_contents=output)  # type: ignore
 
-        return cloudpickle.loads(output)
+        return flow_from_bytes_pickle(output)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -195,13 +198,10 @@ class S3(Storage):
 
         for flow_name, flow in self._flows.items():
             # Pickle Flow
-            data = cloudpickle.dumps(flow)
+            data = flow_to_bytes_pickle(flow)
 
             # Write pickled Flow to stream
-            try:
-                stream = io.BytesIO(data)
-            except TypeError:
-                stream = io.BytesIO(data.encode())
+            stream = io.BytesIO(data)
 
             self.logger.info(
                 "Uploading {} to {}".format(self.flows[flow_name], self.bucket)

@@ -5,7 +5,9 @@ deployment issues early on.
 """
 
 import ast
+import binascii
 import importlib
+import json
 import sys
 import warnings
 
@@ -35,9 +37,11 @@ def system_check(python_version: str):
 def cloudpickle_deserialization_check(flow_file_paths: list):
     flows = []
     for flow_file in flow_file_paths:
-        with open(flow_file, "rb") as f:
+        with open(flow_file, encoding="utf-8") as f:
             try:
-                flows.append(cloudpickle.load(f))
+                # Match implementation in prefect.utilities.storage.flow_from_bytes_pickle
+                flow_bytes = binascii.a2b_base64(json.loads(f.read())["flow"])
+                flows.append(cloudpickle.loads(flow_bytes))
             except ModuleNotFoundError:
                 warnings.warn(
                     "Flow uses module which is not importable. Refer to documentation "
