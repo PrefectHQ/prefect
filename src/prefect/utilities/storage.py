@@ -201,7 +201,7 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
         flow = cloudpickle.loads(flow_bytes)
     except Exception as exc:
         parts = ["An error occurred while unpickling the flow:", f"  {exc!r}"]
-        # Check other versions to provide a better warning if possible
+        # Check for mismatched versions to provide a better warning if possible
         mismatches = []
         for name, v1 in sorted(reg_versions.items()):
             if name in run_versions:
@@ -217,6 +217,8 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
             )
             parts.extend(mismatches)
         if isinstance(exc, ImportError):
+            # If it's an import error, also note that the user may need to package
+            # their dependencies
             prefix = "This also may" if mismatches else "This may"
             parts.append(
                 f"{prefix} be due to a missing Python module in your current "
@@ -228,6 +230,9 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
     run_prefect = run_versions["prefect"]
     reg_prefect = reg_versions.get("prefect")
     if reg_prefect and LooseVersion(reg_prefect) != run_prefect:
+        # If we didn't error above, still check that the prefect versions match
+        # and warn if they don't. Prefect version mismatches *may* work, but
+        # they may also error later leading to confusing behavior.
         warnings.warn(
             f"This flow was built using Prefect {reg_prefect!r}, but you currently "
             f"have Prefect {run_prefect!r} installed. We recommend loading flows "

@@ -39,6 +39,7 @@ def cloudpickle_deserialization_check(flow_file_paths: list):
     for flow_file in flow_file_paths:
         with open(flow_file, encoding="utf-8") as f:
             try:
+                # Match implementation in prefect.utilities.storage.flow_from_bytes_pickle
                 flow_bytes = binascii.a2b_base64(json.loads(f.read())["flow"])
                 flows.append(cloudpickle.loads(flow_bytes))
             except ModuleNotFoundError:
