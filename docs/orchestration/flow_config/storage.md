@@ -44,7 +44,8 @@ from prefect.storage import Local
 flow = Flow("local-flow", storage=Local())
 ```
 
-After registration, the flow will be stored at `~/.prefect/flows/local-flow.prefect`.
+After registration, the flow will be stored at
+`~/.prefect/flows/<slugified-flow-name>/<slugified-current-timestamp>`.
 
 :::tip Automatic Labels
 Flows registered with this storage option will automatically be labeled with
@@ -70,7 +71,7 @@ flow = Flow("s3-flow", storage=S3(bucket="<my-bucket>"))
 ```
 
 After registration, the flow will be stored in the specified bucket under
-`s3-flow/<slugified-current-timestamp>`.
+`<slugified-flow-name>/<slugified-current-timestamp>`.
 
 :::tip Flow Results
 Flows configured with `S3` storage also default to using a `S3Result` for
@@ -103,7 +104,7 @@ flow = Flow(
 ```
 
 After registration, the flow will be stored in the container under
-`azure-flow/<slugified-current-timestamp>`.
+`<slugified-flow-name>/<slugified-current-timestamp>`.
 
 :::tip Flow Results
 Flows configured with `Azure` storage also default to using an `AzureResult` for
@@ -132,7 +133,7 @@ flow = Flow("gcs-flow", storage=GCS(bucket="<my-bucket>"))
 ```
 
 After registration the flow will be stored in the specified bucket under
-`gcs-flow/<slugified-current-timestamp>`.
+`<slugified-flow-name>/<slugified-current-timestamp>`.
 
 :::tip Flow Results
 Flows configured with `GCS` storage also default to using a `GCSResult` for
@@ -283,13 +284,13 @@ from prefect import Flow
 from prefect.storage import Docker
 
 flow = Flow(
-    "gcs-flow",
+    "docker-flow",
     storage=Docker(registry_url="<my-registry.io>", image_name="my_flow")
 )
 ```
 
 After registration, the flow's image will be stored in the container registry
-under `my-registry.io/my_flow:<slugified-current-timestamp>`. Note that each
+under `my-registry.io/<slugified-flow-name>:<slugified-current-timestamp>`. Note that each
 type of container registry uses a different format for image naming (e.g.
 DockerHub vs GCR).
 

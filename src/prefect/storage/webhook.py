@@ -104,9 +104,6 @@ class Webhook(Storage):
     strings which will be filled in dynamically from environment variables
     or Prefect secrets.
 
-     **Note**: Flows registered with this Storage option will automatically be
-     labeled with `webhook-flow-storage`.
-
     Args:
         - build_request_kwargs (dict): Dictionary of keyword arguments to the
             function from `requests` used to store the flow. Do not supply

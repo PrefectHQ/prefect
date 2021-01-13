@@ -29,9 +29,6 @@ class GCS(Storage):
     when stored in GCS. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
 
-    **Note**: Flows registered with this Storage option will automatically be
-     labeled with `gcs-flow-storage`.
-
     Args:
         - bucket (str, optional): the name of the GCS Bucket to store the Flow
         - key (str, optional): a unique key to use for uploading this Flow to GCS. This
