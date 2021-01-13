@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.14.3 <Badge text="beta" type="success" />
+
+Released on January 13, 2021.
+
+### Enhancements
+
+- Better errors/warnings when flow fails to load in execution environment - [#3940](https://github.com/PrefectHQ/prefect/pull/3940)
+
+### Task Library
+
+- Add an Asana task to add tasks to an asana project - [#3935](https://github.com/PrefectHQ/prefect/pull/3935)
+
+### Fixes
+
+- Fix `prefect server start` failure when given a custom graphql host port - [#3933](https://github.com/PrefectHQ/prefect/pull/3933)
+- Fix Kubernetes Agent attempting to report container info for failed pods when no container statuses are found - [#3941](https://github.com/PrefectHQ/prefect/pull/3941)
+- Avoid race condition when creating task run artifacts for mapped tasks - [#3953](https://github.com/PrefectHQ/prefect/pull/3953)
+- Propogate agent labels info to k8s flow runs, to match other agent behavior - [#3954](https://github.com/PrefectHQ/prefect/pull/3954)
+
 ## 0.14.2 <Badge text="beta" type="success" />
 
 Released on January 6, 2021.
@@ -7,7 +26,7 @@ Released on January 6, 2021.
 ### Features
 
 - Support for specifying `run_config` for an individual flow run - [#3903](https://github.com/PrefectHQ/prefect/pull/3903)
-- Allow the usage of a profile_name on get_boto_client - [#3916](https://github.com/PrefectHQ/prefect/pull/3916)
+- Allow the usage of a `profile_name` on `get_boto_client` - [#3916](https://github.com/PrefectHQ/prefect/pull/3916)
 
 ### Enhancements
 
