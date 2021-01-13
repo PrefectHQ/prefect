@@ -25,9 +25,6 @@ class Azure(Storage):
     when stored in Azure. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
 
-    **Note**: Flows registered with this Storage option will automatically be
-     labeled with `azure-flow-storage`.
-
     Args:
         - container (str): the name of the Azure Blob Container to store the Flow
         - connection_string (str, optional): an Azure connection string for communicating with
