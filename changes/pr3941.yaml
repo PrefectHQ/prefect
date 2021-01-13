@@ -1,2 +1,0 @@
-fix:
-  - "Fix Kubernetes Agent attempting to report container info for failed pods when no container statuses are found- [#3941](https://github.com/PrefectHQ/prefect/pull/3941)"
