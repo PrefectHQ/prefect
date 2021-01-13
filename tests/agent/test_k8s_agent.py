@@ -1302,6 +1302,7 @@ class TestK8sAgentRunConfig:
         env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
         env = {item["name"]: item["value"] for item in env_list}
         assert env == {
+            "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": prefect.config.cloud.agent.auth_token,
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",

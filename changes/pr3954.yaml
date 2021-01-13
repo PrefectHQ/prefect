@@ -1,0 +1,2 @@
+fix:
+  - "Propogate agent labels info to k8s flow runs, to match other agent behavior - [#3954](https://github.com/PrefectHQ/prefect/pull/3954)"
