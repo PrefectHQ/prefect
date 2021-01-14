@@ -1,6 +1,10 @@
 import pytest
 
-from prefect.tasks.sql_server import SqlServerExecute, SqlServerExecuteMany, SqlServerFetch
+from prefect.tasks.sql_server import (
+    SqlServerExecute,
+    SqlServerExecuteMany,
+    SqlServerFetch,
+)
 
 
 class TestSqlServerExecute:
