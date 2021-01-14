@@ -341,11 +341,11 @@ class Client:
             start_time = time.time()
 
         if method == "GET":
-            response = session.get(url, headers=headers, params=params, timeout=30)
+            response = session.get(url, headers=headers, params=params, timeout=15)
         elif method == "POST":
-            response = session.post(url, headers=headers, json=params, timeout=30)
+            response = session.post(url, headers=headers, json=params, timeout=15)
         elif method == "DELETE":
-            response = session.delete(url, headers=headers, timeout=30)
+            response = session.delete(url, headers=headers, timeout=15)
         else:
             raise ValueError("Invalid method: {}".format(method))
 
