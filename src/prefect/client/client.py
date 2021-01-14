@@ -438,7 +438,7 @@ class Client:
         retries = requests.packages.urllib3.util.retry.Retry(
             total=retry_total,
             backoff_factor=1,
-            status_forcelist=[500, 502, 503, 504],
+            status_forcelist=[429, 500, 502, 503, 504],
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
