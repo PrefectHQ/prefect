@@ -86,7 +86,7 @@ class SqlServerExecute(Task):
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
-            with cnxn.cursor() as crsr:
+            with cnxn.cursor() as cursor:
                 executed = cursor.execute(query=query, vars=data)
                 if commit:
                     cnxn.commit()
@@ -188,10 +188,10 @@ class SqlServerExecuteMany(Task):
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
-            with cnxn.cursor() as crsr:
+            with cnxn.cursor() as cursor:
 
                 if fast_executemany:
-                    crsr.fast_executemany = True
+                    cursor.fast_executemany = True
 
                 executed = cursor.executemany(query, data)
 
