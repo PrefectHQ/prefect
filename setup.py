@@ -68,6 +68,7 @@ extras = {
     "pandas": ["pandas >= 1.0.1"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
     "mysql": ["pymysql >= 0.9.3"],
+    "sql_server": ["pyodbc >= 4.0.30"],
     "pushbullet": ["pushbullet.py >= 0.11.0"],
     "redis": ["redis >= 3.2.1"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
@@ -92,7 +93,9 @@ extras["all_orchestration_extras"] = sum(orchestration_extras.values(), [])
 # CI extras to control dependencies for tests
 extras["task_library_ci"] = sum(extras.values(), [])
 extras["task_library_ci"] = [
-    r for r in extras["task_library_ci"] if not r.startswith("dask_cloudprovider")
+    r
+    for r in extras["task_library_ci"]
+    if not r.startswith("dask_cloudprovider") and not r.startswith("pyodbc")
 ]
 
 extras["base_library_ci"] = (
