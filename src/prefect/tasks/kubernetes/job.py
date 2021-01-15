@@ -722,10 +722,9 @@ class RunNamespacedJob(Task):
         )
         self.logger.info(f"Job {job_name} has been created.")
 
-        pool = ThreadPoolExecutor()
-        pod_log_streams = dict()
+        pod_log_streams = {}
 
-        try:
+        with ThreadPoolExecutor() as pool:
             completed = False
             while not completed:
                 job = api_client_job.read_namespaced_job_status(
@@ -778,7 +777,3 @@ class RunNamespacedJob(Task):
                     body=client.V1DeleteOptions(propagation_policy="Foreground"),
                 )
                 self.logger.info(f"Job {job_name} has been deleted.")
-        finally:
-            if pool:
-                pool.shutdown()
-                pool = None
