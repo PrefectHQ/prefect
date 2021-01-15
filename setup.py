@@ -95,7 +95,7 @@ extras["task_library_ci"] = sum(extras.values(), [])
 extras["task_library_ci"] = [
     r
     for r in extras["task_library_ci"]
-    if not r.startswith("dask_cloudprovider") and not r.startswith("sql_server")
+    if not r.startswith("dask_cloudprovider") and not r.startswith("pyodbc")
 ]
 
 extras["base_library_ci"] = (
