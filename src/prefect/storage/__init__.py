@@ -8,7 +8,7 @@ within a given unit), and exposes the following methods and attributes:
 location of the given flow in the Storage unit (note flow uploading/saving does not happen until `build`)
 - the `__contains__(self, obj) -> bool` special method for determining whether the Storage contains a
 given Flow
-- one of `get_flow(flow_location: str)` for retrieving a way of interfacing with either `flow.run` or a
+- one of `get_flow(flow_name: str)` for retrieving a way of interfacing with either `flow.run` or a
 `FlowRunner` for the flow
 - a `build() -> Storage` method for "building" the storage. In storage options where flows are stored in
 an external service (such as S3 and the filesystem) the flows are uploaded/saved during this step
