@@ -228,7 +228,7 @@ class GCSUpload(GCSBaseTask):
         bucket: str,
         blob: str = None,
         project: str = None,
-        chunk_size: int=104857600,  # 1024 * 1024 B * 100 = 100 MB
+        chunk_size: int = 104857600,  # 1024 * 1024 B * 100 = 100 MB
         create_bucket: bool = False,
         encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
@@ -259,7 +259,7 @@ class GCSUpload(GCSBaseTask):
         bucket: str = None,
         blob: str = None,
         project: str = None,
-        chunk_size: int=None,
+        chunk_size: int = None,
         credentials: dict = None,
         encryption_key: str = None,
         create_bucket: bool = False,
