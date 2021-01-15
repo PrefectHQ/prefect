@@ -64,7 +64,7 @@ def flow_run():
             secrets[secret] = PrefectSecret(name=secret).run()
 
         with prefect.context(secrets=secrets, loading_flow=True):
-            flow = storage.get_flow(storage.flows[flow_data.name])
+            flow = storage.get_flow(flow_data.name)
 
         with prefect.context(secrets=secrets):
             if flow_data.run_config is not None:

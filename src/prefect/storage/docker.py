@@ -285,31 +285,22 @@ class Docker(Storage):
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
 
-    def get_flow(self, flow_location: str = None) -> "prefect.core.flow.Flow":
+    def get_flow(self, flow_name: str) -> "prefect.core.flow.Flow":
         """
-        Given a file path within this Docker container, returns the underlying Flow.
-        Note that this method should only be run _within_ the container itself.
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str, optional): the file path of a flow within this container. Will use
-                `path` if not provided.
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.path:
-            flow_location = self.path
-        else:
-            raise ValueError("No flow location provided")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_location = self.flows[flow_name]
 
         if self.stored_as_script:
-            return extract_flow_from_file(file_path=flow_location)
+            return extract_flow_from_file(file_path=flow_location, flow_name=flow_name)
 
         with open(flow_location, "rb") as f:
             return flow_from_bytes_pickle(f.read())

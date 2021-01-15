@@ -86,21 +86,16 @@ def test_get_flow_bitbucket(monkeypatch):
     bitbucket = MagicMock()
     monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
 
+    extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
-        "prefect.storage.bitbucket.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.bitbucket.extract_flow_from_file", extract_flow_from_file
     )
-
-    with pytest.raises(ValueError) as ex:
-        storage = Bitbucket(project="PROJECT", repo="test-repo")
-        storage.get_flow()
-
-    assert "No flow location provided" in str(ex.value)
 
     storage = Bitbucket(project="PROJECT", repo="test-repo", path="test-flow.py")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
+    assert extract_flow_from_file.call_args[1]["flow_name"] == f.name
     assert new_flow.run()

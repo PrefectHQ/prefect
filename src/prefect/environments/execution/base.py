@@ -169,7 +169,7 @@ def load_and_run_flow() -> None:
             secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
 
         with prefect.context(secrets=secrets):
-            flow = storage.get_flow(storage.flows[flow_data.name])
+            flow = storage.get_flow(flow_data.name)
             flow.environment.run(flow)
     except Exception as exc:
         logger.exception("Unexpected error raised during flow run: {}".format(exc))
