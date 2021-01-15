@@ -18,7 +18,7 @@ Visit the [Concept](/orchestration/concepts/api.html) docs for actions such as
 working directly with Prefect's [GraphQL
 API](/orchestration/concepts/graphql.html), diving into the
 [CLI](/orchestration/concepts/cli.html), setting [concurrency
-limits](/orchestration/concepts/concurrency-limiting.html) on your Cloud runs,
+limits](/orchestration/concepts/task-concurrency-limiting.html) on your Cloud runs,
 and more.
 
 ## Agents
@@ -31,7 +31,7 @@ information on platform specific agents visit the
 ## Flow Configuration
 
 For information on all the options for configuring a flow for deployment, see
-the [Flow Configuration](/orchestration/flow_config.md) documentation.
+the [Flow Configuration](/orchestration/flow_config/overview.html) documentation.
 
 ## Deployment Recipes
 
