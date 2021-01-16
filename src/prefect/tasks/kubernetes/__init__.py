@@ -30,6 +30,7 @@ try:
         PatchNamespacedPod,
         ReadNamespacedPod,
         ReplaceNamespacedPod,
+        ReadNamespacedPodLogs,
     )
     from prefect.tasks.kubernetes.service import (
         CreateNamespacedService,

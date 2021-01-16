@@ -303,6 +303,7 @@ classes = [
         "ListNamespacedPod",
         "PatchNamespacedPod",
         "ReadNamespacedPod",
+        "ReadNamespacedPodLogs",
         "ReplaceNamespacedPod",
         "CreateNamespacedService",
         "DeleteNamespacedService",
