@@ -43,6 +43,7 @@ class S3Download(Task):
         credentials: str = None,
         bucket: str = None,
         compression: str = None,
+        use_session: bool = False,
     ):
         """
         Task run method.
@@ -57,6 +58,9 @@ class S3Download(Task):
             - bucket (str, optional): the name of the S3 Bucket to download from
             - compression (str, optional): specifies a file format for decompression, decompressing
                 data upon download. Currently supports `'gzip'`.
+            - use_session (bool, optional): specifies whether the `boto3` client should
+                be loaded as a session. Defaults to `False`. Using a session requires
+                more overhead to create the client, but ensures that it is thread-safe.
 
         Returns:
             - str: the contents of this Key / Bucket, as a string
@@ -64,7 +68,9 @@ class S3Download(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+        s3_client = get_boto_client(
+            "s3", credentials=credentials, use_session=use_session, **self.boto_kwargs
+        )
 
         stream = io.BytesIO()
 
@@ -121,6 +127,7 @@ class S3Upload(Task):
         credentials: dict = None,
         bucket: str = None,
         compression: str = None,
+        use_session: bool = False,
     ):
         """
         Task run method.
@@ -137,6 +144,9 @@ class S3Upload(Task):
             - bucket (str, optional): the name of the S3 Bucket to upload to
             - compression (str, optional): specifies a file format for compression,
                 compressing data before upload. Currently supports `'gzip'`.
+            - use_session (bool, optional): specifies whether the `boto3` client should
+                be loaded as a session. Defaults to `False`. Using a session requires
+                more overhead to create the client, but ensures that it is thread-safe.
 
         Returns:
             - str: the name of the Key the data payload was uploaded to
@@ -144,7 +154,9 @@ class S3Upload(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+        s3_client = get_boto_client(
+            "s3", credentials=credentials, use_session=use_session, **self.boto_kwargs
+        )
 
         # compress data if compression is specified
         if compression:
