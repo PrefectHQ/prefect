@@ -581,7 +581,7 @@ jobs:
           name: Upload Package to PyPI
           command: twine upload dist/*
 
-  pin_netlify_doc_build:
+  run_prefect_cloud_flow:
     docker:
       - image: prefecthq/prefect:latest
         auth:
@@ -692,7 +692,7 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - pin_netlify_doc_build:
+      - run_prefect_cloud_flow:
           flow_id: 'b7e01b17-0a70-4df0-8b0a-859575c9e5c6'
           filters:
             branches:
