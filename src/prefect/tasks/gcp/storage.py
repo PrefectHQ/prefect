@@ -22,7 +22,7 @@ class GCSBaseTask(Task):
         chunk_size: int = 104857600,  # 1024 * 1024 B * 100 = 100 MB
         encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
-        **kwargs
+        **kwargs,
     ):
         self.bucket = bucket
         self.blob = blob
@@ -112,7 +112,7 @@ class GCSDownload(GCSBaseTask):
         chunk_size: int = None,
         encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             bucket=bucket,
@@ -121,7 +121,7 @@ class GCSDownload(GCSBaseTask):
             chunk_size=chunk_size,
             encryption_key_secret=encryption_key_secret,
             request_timeout=request_timeout,
-            **kwargs
+            **kwargs,
         )
 
     @defaults_from_attrs(
@@ -232,7 +232,7 @@ class GCSUpload(GCSBaseTask):
         create_bucket: bool = False,
         encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             bucket=bucket,
@@ -242,7 +242,7 @@ class GCSUpload(GCSBaseTask):
             create_bucket=create_bucket,
             encryption_key_secret=encryption_key_secret,
             request_timeout=request_timeout,
-            **kwargs
+            **kwargs,
         )
 
     @defaults_from_attrs(
@@ -300,6 +300,7 @@ class GCSUpload(GCSBaseTask):
                 Can also be passed as a tuple (connect_timeout, read_timeout).
 
         Raises:
+            - ValueError: if data is neither string nor bytes.
             - google.cloud.exception.NotFound: if `create_bucket=False` and the bucket name is
                 not found
 
@@ -335,6 +336,8 @@ class GCSUpload(GCSBaseTask):
             if content_encoding:
                 gcs_blob.content_encoding = content_encoding
             gcs_blob.upload_from_file(io.BytesIO(data), timeout=request_timeout)
+        else:
+            raise ValueError(f"data must be str or bytes: got {type(data)} instead")
         return gcs_blob.name
 
 
@@ -373,7 +376,7 @@ class GCSCopy(GCSBaseTask):
         dest_blob: str = None,
         project: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
-        **kwargs
+        **kwargs,
     ):
         self.source_bucket = source_bucket
         self.source_blob = source_blob
