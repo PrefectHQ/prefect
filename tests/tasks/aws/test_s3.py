@@ -47,6 +47,51 @@ class TestS3Download:
         with pytest.raises(ValueError, match="gz_fake"):
             task.run("key", compression="gz_fake")
 
+    def test_use_session_true_creates_session_client(self, monkeypatch):
+        """ Test fix for issue #3925 """
+        task = S3Download(bucket="test")
+        client = MagicMock()
+        boto3 = MagicMock(client=MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
+                )
+            ):
+                task.run(key="foo", use_session=True)
+        assert "session.Session" in boto3.mock_calls[0]
+
+    def test_use_session_false_creates_sessionless_client(self, monkeypatch):
+        """ Test fix for issue #3925 """
+        task = S3Download(bucket="test")
+        client = MagicMock()
+        boto3 = MagicMock(client=MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
+                )
+            ):
+                task.run(key="foo", use_session=False)
+        assert "session.Session" not in boto3.mock_calls[0]
+
+    def test_use_session_omitted_creates_sessionless_client(self, monkeypatch):
+        """ Test fix for issue #3925 """
+        task = S3Download(bucket="test")
+        client = MagicMock()
+        boto3 = MagicMock(client=MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
+                )
+            ):
+                task.run(key="foo")
+        assert "session.Session" not in boto3.mock_calls[0]
+
 
 class TestS3Upload:
     def test_initialization(self):
@@ -97,6 +142,51 @@ class TestS3Upload:
 
         with pytest.raises(ValueError, match="gz_fake"):
             task.run(b"data", compression="gz_fake")
+
+    def test_use_session_true_creates_session_client(self, monkeypatch):
+        """ Test fix for issue #3925 """
+        task = S3Upload(bucket="test")
+        client = MagicMock()
+        boto3 = MagicMock(client=MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
+                )
+            ):
+                task.run(data="foo", use_session=True)
+        assert "session.Session" in boto3.mock_calls[0]
+
+    def test_use_session_false_creates_sessionless_client(self, monkeypatch):
+        """ Test fix for issue #3925 """
+        task = S3Upload(bucket="test")
+        client = MagicMock()
+        boto3 = MagicMock(client=MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
+                )
+            ):
+                task.run(data="foo", use_session=False)
+        assert "session.Session" not in boto3.mock_calls[0]
+
+    def test_use_session_omitted_creates_sessionless_client(self, monkeypatch):
+        """ Test fix for issue #3925 """
+        task = S3Upload(bucket="test")
+        client = MagicMock()
+        boto3 = MagicMock(client=MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
+                )
+            ):
+                task.run(data="foo")
+        assert "session.Session" not in boto3.mock_calls[0]
 
 
 class TestS3List:
