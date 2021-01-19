@@ -234,12 +234,12 @@ def test_local_empty_serialize():
 def test_local_roundtrip():
     with tempfile.TemporaryDirectory() as tmpdir:
         s = storage.Local(directory=tmpdir, secrets=["AUTH"])
-        flow_loc = s.add_flow(prefect.Flow("test"))
+        s.add_flow(prefect.Flow("test"))
         serialized = LocalSchema().dump(s)
         deserialized = LocalSchema().load(serialized)
 
         assert "test" in deserialized
-        runner = deserialized.get_flow(flow_loc)
+        runner = deserialized.get_flow("test")
 
     assert runner.run().is_successful()
     assert deserialized.secrets == ["AUTH"]

@@ -66,27 +66,19 @@ class GCS(Storage):
         result = GCSResult(bucket=bucket)
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
-    def get_flow(self, flow_location: str = None) -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to. Will use `key` if not provided.
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.key:
-            flow_location = self.key
-        else:
-            raise ValueError("No flow location provided")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_location = self.flows[flow_name]
 
         bucket = self._gcs_client.get_bucket(self.bucket)
 
@@ -107,7 +99,7 @@ class GCS(Storage):
         )
 
         if self.stored_as_script:
-            return extract_flow_from_file(file_contents=content)
+            return extract_flow_from_file(file_contents=content, flow_name=flow_name)
 
         return flow_from_bytes_pickle(content)
 
