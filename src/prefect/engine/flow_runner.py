@@ -427,8 +427,8 @@ class FlowRunner(Runner):
                 ):
                     task_states[task] = task_state = Success(result=task.value)
 
-                # Always restart completed resource setup/cleanup tasks unless
-                # they were explicitly cached.
+                # Always restart completed resource setup/cleanup tasks and
+                # secret tasks unless they were explicitly cached.
                 # TODO: we only need to rerun these tasks if any pending
                 # downstream tasks depend on them.
                 if (
@@ -437,6 +437,7 @@ class FlowRunner(Runner):
                         (
                             prefect.tasks.core.resource_manager.ResourceSetupTask,
                             prefect.tasks.core.resource_manager.ResourceCleanupTask,
+                            prefect.tasks.secrets.SecretBase,
                         ),
                     )
                     and task_state is not None
