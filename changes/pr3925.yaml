@@ -1,5 +1,0 @@
-task:
-  - "Added `use_session` argument to `S3Upload` and `S3Download` tasks, to enable thread-safe execution - [#3925](https://github.com/PrefectHQ/prefect/pull/3925)"
-
-contributor:
-  - "[Gregory Roche](https://github.com/gregoryroche)"
