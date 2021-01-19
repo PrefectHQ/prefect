@@ -1,6 +1,6 @@
 import pytest
 
-from prefect import Flow, Task, case, Parameter
+from prefect import Flow, Task, case, Parameter, resource_manager
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.state import Paused, Resume
 from prefect.utilities import tasks, edges
@@ -302,24 +302,50 @@ class TestApplyMap:
         assert res == sol
 
     def test_apply_map_inside_case_statement_works(self):
-        def func(x):
-            return add(x, 1), add(x, 2)
+        def func(x, a):
+            return add(x, 1), add(x, a)
 
         with Flow("test") as flow:
             branch = Parameter("branch")
             with case(branch, True):
-                a, b = apply_map(func, range(4))
-                c = add.map(a, b)
+                a = inc(1)
+                b, c = apply_map(func, range(4), edges.unmapped(a))
+                d = add.map(b, c)
 
         state = flow.run(branch=True)
-        assert state.result[a].result == [1, 2, 3, 4]
-        assert state.result[b].result == [2, 3, 4, 5]
-        assert state.result[c].result == [3, 5, 7, 9]
+        assert state.result[a].result == 2
+        assert state.result[b].result == [1, 2, 3, 4]
+        assert state.result[c].result == [2, 3, 4, 5]
+        assert state.result[d].result == [3, 5, 7, 9]
 
         state = flow.run(branch=False)
         assert state.result[a].is_skipped()
         assert state.result[b].is_skipped()
         assert state.result[c].is_skipped()
+        assert state.result[d].is_skipped()
+
+    def test_apply_map_inside_resource_manager_works(self):
+        @resource_manager
+        class MyResource:
+            def setup(self):
+                return 1
+
+            def cleanup(self, _):
+                pass
+
+        def func(x, a):
+            return add(x, a), add(x, 2)
+
+        with Flow("test") as flow:
+            with MyResource() as a:
+                b, c = apply_map(func, range(4), edges.unmapped(a))
+                d = add.map(b, c)
+
+        state = flow.run()
+        assert state.result[a].result == 1
+        assert state.result[b].result == [1, 2, 3, 4]
+        assert state.result[c].result == [2, 3, 4, 5]
+        assert state.result[d].result == [3, 5, 7, 9]
 
     def test_apply_map_inputs_added_to_subflow_before_calling_func(self):
         """We need to ensure all args to `appy_map` are added to the temporary
@@ -380,7 +406,7 @@ class TestAsTask:
         assert res.result[val].result == obj
 
     def test_as_task_toggles_constants(self):
-        with Flow("test") as f:
+        with Flow("test"):
             t = tasks.as_task(4)
 
         assert isinstance(t, Task)
@@ -409,7 +435,7 @@ class TestAsTask:
         ],
     )
     def test_nested_collections_of_mixed_constants_are_not_constants(self, val):
-        with Flow("test") as f:
+        with Flow("test"):
             task = tasks.as_task(val)
         assert not isinstance(task, Constant)
 
