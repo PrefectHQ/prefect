@@ -4,18 +4,15 @@
 
 Released on January 19, 2021.
 
-### Features
-
-- Add ReadNamespacedPodLogs which reads or streams logs from Kubernetes pod - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)
-
 ### Enhancements
 
-- Stream log output from Kubernetes RunNamespacedJob - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)
 - Retry on additional status codes - [#3959](https://github.com/PrefectHQ/prefect/pull/3959)
 - Rerun secret tasks on flow-run restart - [#3977](https://github.com/PrefectHQ/prefect/pull/3977)
 
 ### Task Library
 
+- Stream log output from Kubernetes RunNamespacedJob - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)
+- Add ReadNamespacedPodLogs which reads or streams logs from Kubernetes pod - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)
 - Add SQL Server task to query SQL Server databases - [#3958](https://github.com/PrefectHQ/prefect/pull/3958)
 - Add chunking to GCP storage tasks - [#3968](https://github.com/PrefectHQ/prefect/pull/3968)
 
