@@ -19,6 +19,7 @@ class GCSBaseTask(Task):
         blob: str = None,
         project: str = None,
         create_bucket: bool = False,
+        chunk_size: int = 104857600,  # 1024 * 1024 B * 100 = 100 MB
         encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
         **kwargs
@@ -34,6 +35,7 @@ class GCSBaseTask(Task):
                 UserWarning,
                 stacklevel=2,
             )
+        self.chunk_size = chunk_size
         self.encryption_key_secret = encryption_key_secret
         self.request_timeout = request_timeout
         super().__init__(**kwargs)
@@ -54,12 +56,16 @@ class GCSBaseTask(Task):
         self,
         bucket: str,
         blob: str,
+        chunk_size: int = None,
         encryption_key: str = None,
         encryption_key_secret: str = None,
     ):
         "Retrieves blob based on user settings."
         if blob is None:
             blob = "prefect-" + context.get("task_run_id", "no-id-" + str(uuid.uuid4()))
+
+        if chunk_size is None:
+            chunk_size = self.chunk_size
 
         # pull encryption_key if requested
         if encryption_key_secret is not None:
@@ -71,7 +77,7 @@ class GCSBaseTask(Task):
             )
             encryption_key = Secret(encryption_key_secret).get()
 
-        return bucket.blob(blob, encryption_key=encryption_key)
+        return bucket.blob(blob, encryption_key=encryption_key, chunk_size=chunk_size)
 
 
 class GCSDownload(GCSBaseTask):
@@ -83,6 +89,8 @@ class GCSDownload(GCSBaseTask):
         - blob (str, optional): default blob name to download.
         - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
+        - chunk_size (int, optional): The size of a chunk of data whenever iterating (in bytes).
+            This must be a multiple of 256 KB per the API specification.
         - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
             storing an optional `encryption_key` to be used when downloading the Blob
         - request_timeout (Union[float, Tuple[float, float]], optional): default number of
@@ -101,6 +109,7 @@ class GCSDownload(GCSBaseTask):
         bucket: str,
         blob: str = None,
         project: str = None,
+        chunk_size: int = None,
         encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
         **kwargs
@@ -109,6 +118,7 @@ class GCSDownload(GCSBaseTask):
             bucket=bucket,
             blob=blob,
             project=project,
+            chunk_size=chunk_size,
             encryption_key_secret=encryption_key_secret,
             request_timeout=request_timeout,
             **kwargs
@@ -122,6 +132,7 @@ class GCSDownload(GCSBaseTask):
         bucket: str = None,
         blob: str = None,
         project: str = None,
+        chunk_size: int = None,
         credentials: dict = None,
         encryption_key: str = None,
         encryption_key_secret: str = None,
@@ -139,6 +150,8 @@ class GCSDownload(GCSBaseTask):
             - blob (str, optional): blob name to download from
             - project (str, optional): Google Cloud project to work within. If not provided
                 here or at initialization, will be inferred from your Google Cloud credentials
+            - chunk_size (int, optional): The size of a chunk of data whenever iterating (in bytes).
+                This must be a multiple of 256 KB per the API specification.
             - credentials (dict, optional): a JSON document containing Google Cloud
                 credentials.  You should provide these at runtime with an upstream Secret task.
                 If not provided, Prefect will first check `context` for `GCP_CREDENTIALS` and
@@ -171,6 +184,7 @@ class GCSDownload(GCSBaseTask):
         blob = self._get_blob(
             bucket,
             blob,
+            chunk_size=chunk_size,
             encryption_key=encryption_key,
             encryption_key_secret=encryption_key_secret,
         )
@@ -192,6 +206,8 @@ class GCSUpload(GCSBaseTask):
             beginning with `prefect-` and containing the Task Run ID will be used
         - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
+        - chunk_size (int, optional): The size of a chunk of data whenever iterating (in bytes).
+            This must be a multiple of 256 KB per the API specification.
         - create_bucket (bool, optional): boolean specifying whether to create the bucket if it
             does not exist, otherwise an Exception is raised. Defaults to `False`.
         - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
@@ -212,6 +228,7 @@ class GCSUpload(GCSBaseTask):
         bucket: str,
         blob: str = None,
         project: str = None,
+        chunk_size: int = 104857600,  # 1024 * 1024 B * 100 = 100 MB
         create_bucket: bool = False,
         encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
@@ -221,6 +238,7 @@ class GCSUpload(GCSBaseTask):
             bucket=bucket,
             blob=blob,
             project=project,
+            chunk_size=chunk_size,
             create_bucket=create_bucket,
             encryption_key_secret=encryption_key_secret,
             request_timeout=request_timeout,
@@ -241,6 +259,7 @@ class GCSUpload(GCSBaseTask):
         bucket: str = None,
         blob: str = None,
         project: str = None,
+        chunk_size: int = None,
         credentials: dict = None,
         encryption_key: str = None,
         create_bucket: bool = False,
@@ -263,6 +282,8 @@ class GCSUpload(GCSBaseTask):
                 a string beginning with `prefect-` and containing the Task Run ID will be used
             - project (str, optional): Google Cloud project to work within. Can be inferred
                 from credentials if not provided.
+            - chunk_size (int, optional): The size of a chunk of data whenever iterating (in bytes).
+                This must be a multiple of 256 KB per the API specification.
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
                 You should provide these at runtime with an upstream Secret task.  If not
                 provided, Prefect will first check `context` for `GCP_CREDENTIALS` and lastly
@@ -297,6 +318,7 @@ class GCSUpload(GCSBaseTask):
         gcs_blob = self._get_blob(
             bucket,
             blob,
+            chunk_size=chunk_size,
             encryption_key=encryption_key,
             encryption_key_secret=encryption_key_secret,
         )
