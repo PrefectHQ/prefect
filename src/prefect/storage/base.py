@@ -88,12 +88,12 @@ class Storage(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def get_flow(self, flow_location: str) -> "prefect.core.flow.Flow":
+    def get_flow(self, flow_name: str) -> "prefect.core.flow.Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str): the location of a flow within this Storage
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow

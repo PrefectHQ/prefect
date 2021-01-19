@@ -13,8 +13,8 @@ class DummyStorage(Local):
         self.flows[flow.name] = flow
         return flow.name
 
-    def get_flow(self, location):
-        return self.flows[location]
+    def get_flow(self, flow_name):
+        return self.flows[flow_name]
 
 
 def test_create_environment():

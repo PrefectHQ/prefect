@@ -1,7 +1,6 @@
 import io
 from unittest.mock import MagicMock
 
-import cloudpickle
 import pytest
 
 from prefect import context, Flow
@@ -259,13 +258,11 @@ def test_get_flow_s3(monkeypatch):
 
     storage = S3(bucket="bucket")
 
-    with pytest.raises(ValueError):
-        storage.get_flow()
-
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    assert storage.get_flow(flow_location)
+    f2 = storage.get_flow(f.name)
+    assert f2.name == f.name
     assert boto3.download_fileobj.called
     assert f.name in storage
 
@@ -281,10 +278,10 @@ def test_get_flow_s3_client_error(monkeypatch):
     storage = S3(bucket="bucket")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
     with pytest.raises(ClientError):
-        storage.get_flow(flow_location)
+        storage.get_flow(f.name)
 
     assert boto3.download_fileobj.called
 
@@ -301,9 +298,9 @@ def test_get_flow_s3_bucket_key(monkeypatch):
     storage = S3(bucket="bucket", key="key")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    assert storage.get_flow(flow_location)
+    assert storage.get_flow(f.name)
     assert boto3.download_fileobj.call_args[1]["Bucket"] == "bucket"
     assert boto3.download_fileobj.call_args[1]["Key"] == "key"
 
@@ -322,7 +319,7 @@ def test_get_flow_s3_not_in_storage(monkeypatch):
     assert f.name not in storage
 
     with pytest.raises(ValueError):
-        storage.get_flow("test/test")
+        storage.get_flow(f.name)
 
 
 def test_get_flow_s3_runs(monkeypatch):
@@ -337,9 +334,9 @@ def test_get_flow_s3_runs(monkeypatch):
     storage = S3(bucket="bucket")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
     assert boto3.download_fileobj.called
     assert f.name in storage
 
@@ -358,18 +355,20 @@ def test_get_flow_as_file_s3_runs(monkeypatch):
 
     f = Flow("test")
 
+    extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
         "prefect.storage.s3.extract_flow_from_file",
-        MagicMock(return_value=f),
+        extract_flow_from_file,
     )
 
     storage = S3(bucket="bucket", stored_as_script=True)
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
     assert boto3.download_fileobj.called
+    assert extract_flow_from_file.call_args[1]["flow_name"] == f.name
     assert f.name in storage
 
     assert isinstance(new_flow, Flow)
@@ -378,54 +377,3 @@ def test_get_flow_as_file_s3_runs(monkeypatch):
 
     state = new_flow.run()
     assert state.is_successful()
-
-
-def test_get_flow_s3_from_init_key(monkeypatch):
-    client = MagicMock()
-    boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
-
-    f = Flow("test")
-
-    monkeypatch.setattr("cloudpickle.loads", MagicMock(return_value=f))
-
-    storage = S3(bucket="bucket", key="key")
-
-    assert len(storage.flows) == 0
-    assert len(storage._flows) == 0
-
-    downloaded_flow = storage.get_flow()
-
-    assert downloaded_flow.name == "test"
-
-
-def test_get_flow_s3_from_init_key_run(monkeypatch):
-    client = MagicMock()
-    boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
-
-    f = Flow("test")
-
-    monkeypatch.setattr("cloudpickle.loads", MagicMock(return_value=f))
-
-    storage = S3(bucket="bucket", key="key")
-
-    downloaded_flow = storage.get_flow()
-    assert isinstance(downloaded_flow, Flow)
-    state = downloaded_flow.run()
-    assert state.is_successful()
-
-
-def test_get_flow_s3_no_location_set(monkeypatch):
-    client = MagicMock()
-    boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
-    monkeypatch.setattr("prefect.storage.S3._boto3_client", boto3)
-
-    f = Flow("test")
-
-    monkeypatch.setattr("cloudpickle.loads", MagicMock(return_value=f))
-
-    storage = S3(bucket="bucket")
-
-    with pytest.raises(ValueError):
-        storage.get_flow()

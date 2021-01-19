@@ -76,43 +76,32 @@ class Local(Storage):
         else:
             return []
 
-    def get_flow(self, flow_location: str = None) -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage; in this case,
-                a file path or python path where a Flow has been serialized to. Will use `path`
-                if not provided.
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.path:
-            flow_location = self.path
-        else:
-            raise ValueError("No flow location provided")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_location = self.flows[flow_name]
 
         # check if the path given is a file path
-        try:
-            if os.path.isfile(flow_location):
-                if self.stored_as_script:
-                    return extract_flow_from_file(file_path=flow_location)
-                else:
-                    with open(flow_location, "rb") as f:
-                        return flow_from_bytes_pickle(f.read())
-            # otherwise the path is given in the module format
+        if os.path.isfile(flow_location):
+            if self.stored_as_script:
+                return extract_flow_from_file(
+                    file_path=flow_location, flow_name=flow_name
+                )
             else:
-                return extract_flow_from_module(module_str=flow_location)
-        except Exception:
-            self.logger.exception(f"Failed to load Flow from {flow_location}")
-            raise
+                with open(flow_location, "rb") as f:
+                    return flow_from_bytes_pickle(f.read())
+        # otherwise the path is given in the module format
+        else:
+            return extract_flow_from_module(module_str=flow_location)
 
     def add_flow(self, flow: "Flow") -> str:
         """

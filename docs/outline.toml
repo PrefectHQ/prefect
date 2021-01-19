@@ -303,6 +303,7 @@ classes = [
         "ListNamespacedPod",
         "PatchNamespacedPod",
         "ReadNamespacedPod",
+        "ReadNamespacedPodLogs",
         "ReplaceNamespacedPod",
         "CreateNamespacedService",
         "DeleteNamespacedService",
@@ -409,6 +410,11 @@ classes = ["EmailTask", "SlackTask", "PushbulletTask"]
 title = "Postgres Tasks"
 module = "prefect.tasks.postgres"
 classes = ["PostgresExecute", "PostgresExecuteMany", "PostgresFetch"]
+
+[pages.tasks.sql_server]
+title = "SQL Server Tasks"
+module = "prefect.tasks.sql_server"
+classes = ["SqlServerExecute", "SqlServerExecuteMany", "SqlServerFetch"]
 
 [pages.tasks.redis]
 title = "Redis Tasks"
