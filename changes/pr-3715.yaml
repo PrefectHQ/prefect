@@ -1,8 +1,0 @@
-feature:
-  - "Add ReadNamespacedPodLogs which reads or streams logs from Kubernetes pod - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)"
-
-enhancement:
-  - "Stream log output from Kubernetes RunNamespacedJob - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)"
-
-contributor:
-  - "[Joël Luijmes](https://github.com/joelluijmes)"

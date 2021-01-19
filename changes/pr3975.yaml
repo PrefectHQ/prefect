@@ -1,2 +1,0 @@
-fix:
-  - "Fix regression in `apply_map` which prevented use in `case`/`resource_manager` blocks - [#3975](https://github.com/PrefectHQ/prefect/pull/3975)"

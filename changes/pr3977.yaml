@@ -1,2 +1,0 @@
-enhancement:
-  - "Rerun secret tasks on flow-run restart - [#3977](https://github.com/PrefectHQ/prefect/pull/3977)"
