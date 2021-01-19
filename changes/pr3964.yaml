@@ -1,2 +1,0 @@
-fix:
-  - "Properly handle `NotImplementedError` exceptions raised by a result's serializer - [#3964](https://github.com/PrefectHQ/prefect/pull/3964)"

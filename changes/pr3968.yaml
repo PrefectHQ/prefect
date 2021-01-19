@@ -1,5 +1,0 @@
-task:
-  - "Add chunking to GCP storage tasks - [#3968](https://github.com/PrefectHQ/prefect/pull/3968)"
-
-contributor:
-  - "[wangjoshuah](https://github.com/wangjoshuah)"

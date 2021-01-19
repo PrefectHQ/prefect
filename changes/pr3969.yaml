@@ -1,2 +1,0 @@
-fix:
-  - "Fix support for storing multiple flows in a single script in storage - [#3969](https://github.com/PrefectHQ/prefect/pull/3969)"

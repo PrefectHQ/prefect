@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.14.4 <Badge text="beta" type="success" />
+
+Released on January 19, 2021.
+
+### Enhancements
+
+- Retry on additional status codes - [#3959](https://github.com/PrefectHQ/prefect/pull/3959)
+- Rerun secret tasks on flow-run restart - [#3977](https://github.com/PrefectHQ/prefect/pull/3977)
+
+### Task Library
+
+- Stream log output from Kubernetes RunNamespacedJob - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)
+- Add ReadNamespacedPodLogs which reads or streams logs from Kubernetes pod - [#3715](https://github.com/PrefectHQ/prefect/pull/3715)
+- Add SQL Server task to query SQL Server databases - [#3958](https://github.com/PrefectHQ/prefect/pull/3958)
+- Add chunking to GCP storage tasks - [#3968](https://github.com/PrefectHQ/prefect/pull/3968)
+
+### Fixes
+
+- Properly handle `NotImplementedError` exceptions raised by a result's serializer - [#3964](https://github.com/PrefectHQ/prefect/pull/3964)
+- Fix support for storing multiple flows in a single script in storage - [#3969](https://github.com/PrefectHQ/prefect/pull/3969)
+- Fix regression in `apply_map` which prevented use in `case`/`resource_manager` blocks - [#3975](https://github.com/PrefectHQ/prefect/pull/3975)
+
+### Contributors
+
+- [Joël Luijmes](https://github.com/joelluijmes)
+- [Peyton Runyan](https://github.com/peytonrunyan/)
+- [wangjoshuah](https://github.com/wangjoshuah)
+
 ## 0.14.3 <Badge text="beta" type="success" />
 
 Released on January 13, 2021.
