@@ -281,6 +281,23 @@ def test_secrets_dynamically_pull_from_context():
     assert flow_state.is_successful()
 
 
+def test_secrets_are_rerun_on_restart():
+    @prefect.task
+    def identity(x):
+        return x
+
+    with Flow("test") as flow:
+        secret = PrefectSecret("key")
+        val = identity(secret)
+
+    with prefect.context(secrets={"key": "val"}):
+        state = FlowRunner(flow=flow).run(
+            task_states={secret: Success()}, return_tasks=[val]
+        )
+    assert state.is_successful()
+    assert state.result[val].result == "val"
+
+
 def test_flow_runner_doesnt_return_by_default():
     flow = Flow(name="test")
     task1 = SuccessTask()
