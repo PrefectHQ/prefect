@@ -596,16 +596,6 @@ jobs:
       - checkout
 
       - run:
-          # since this job is kicked off on *any* tag (that matches the version pattern), we want to bail if this
-          # commit is not on master.
-          name: Master branch check
-          command: |
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
-              exit 1
-            fi
-
-      - run:
           # Set token manually for this job so it doesn't interfere with others
           name: Set Cloud Token
           command: export PREFECT__CLOUD__AUTH_TOKEN=$CLOUD_TENANT_TOKEN
