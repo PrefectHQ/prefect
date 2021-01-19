@@ -581,6 +581,39 @@ jobs:
           name: Upload Package to PyPI
           command: twine upload dist/*
 
+  run_prefect_cloud_flow:
+    docker:
+      - image: prefecthq/prefect:latest
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    parameters:
+      flow_id:
+        type: string
+    environment:
+      FLOW_ID: << parameters.flow_id >>
+    steps:
+      - checkout
+
+      - run:
+          # since this job is kicked off on *any* tag (that matches the version pattern), we want to bail if this
+          # commit is not on master.
+          name: Master branch check
+          command: |
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+              exit 1
+            fi
+
+      - run:
+          # Set token manually for this job so it doesn't interfere with others
+          name: Set Cloud Token
+          command: export PREFECT__CLOUD__AUTH_TOKEN=$CLOUD_TENANT_TOKEN
+
+      - run:
+          name: Run Flow
+          command: prefect run flow $FLOW_ID
+
 orbs:
   docker: circleci/docker@1.0.0
 
@@ -659,6 +692,13 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - promote_server_artifacts:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - run_prefect_cloud_flow:
+          flow_id: 'b7e01b17-0a70-4df0-8b0a-859575c9e5c6'
           filters:
             branches:
               ignore: /.*/
