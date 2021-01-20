@@ -300,7 +300,7 @@ class GCSUpload(GCSBaseTask):
                 Can also be passed as a tuple (connect_timeout, read_timeout).
 
         Raises:
-            - ValueError: if data is neither string nor bytes.
+            - TypeError: if data is neither string nor bytes.
             - google.cloud.exception.NotFound: if `create_bucket=False` and the bucket name is
                 not found
 
@@ -337,7 +337,7 @@ class GCSUpload(GCSBaseTask):
                 gcs_blob.content_encoding = content_encoding
             gcs_blob.upload_from_file(io.BytesIO(data), timeout=request_timeout)
         else:
-            raise ValueError(f"data must be str or bytes: got {type(data)} instead")
+            raise TypeError(f"data must be str or bytes: got {type(data)} instead")
         return gcs_blob.name
 
 

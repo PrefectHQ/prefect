@@ -140,6 +140,6 @@ class TestRuntimeValidation:
         monkeypatch.setattr("prefect.tasks.gcp.storage.get_storage_client", client)
 
         with pytest.raises(
-            ValueError, match="data must be str or bytes: got .* instead"
+            TypeError, match="data must be str or bytes: got .* instead"
         ):
             task.run([1, 2, 3])
