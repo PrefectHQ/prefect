@@ -126,3 +126,20 @@ class TestBlob:
         task.run(blob="run-time", credentials={})
 
         assert blob.call_args[0] == ("run-time",)
+
+
+class TestRuntimeValidation:
+    def test_invalid_data_type_raises_error(self, monkeypatch):
+        task = GCSUpload(bucket="test", blob="blobber")
+
+        blob = MagicMock()
+        client = MagicMock()
+        client.return_value = MagicMock(
+            get_bucket=MagicMock(return_value=MagicMock(blob=blob))
+        )
+        monkeypatch.setattr("prefect.tasks.gcp.storage.get_storage_client", client)
+
+        with pytest.raises(
+            TypeError, match="data must be str or bytes: got .* instead"
+        ):
+            task.run([1, 2, 3])

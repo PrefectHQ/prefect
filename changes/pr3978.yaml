@@ -1,0 +1,5 @@
+fix:
+- "GCSUpload task now explicitely fails when ran on non-supported types - [#3978](https://github.com/PrefectHQ/prefect/pull/3978)"
+
+contributor:
+- "[Loïc Macherel](https://github.com/LoicEm)"
