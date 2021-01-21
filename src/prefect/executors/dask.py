@@ -397,7 +397,7 @@ class DaskExecutor(Executor):
         return self.client.gather(futures)
 
 
-def _multiprocessing_pool_initializer():
+def _multiprocessing_pool_initializer() -> None:
     """Initialize a process used in a `multiprocssing.Pool`.
 
     Ensures the standard atexit handlers are run."""
@@ -445,6 +445,9 @@ class LocalDaskExecutor(Executor):
 
     def _interrupt_pool(self) -> None:
         """Interrupt all tasks in the backing `pool`, if any."""
+        if self._pool is None:
+            return
+
         # Terminate the pool
         self._pool.terminate()
 

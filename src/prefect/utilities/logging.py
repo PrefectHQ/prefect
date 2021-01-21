@@ -15,7 +15,7 @@ import threading
 import time
 import warnings
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, List
 
 import pendulum
 
@@ -39,18 +39,15 @@ MAX_BATCH_LOG_LENGTH = 50_000_000  # 50 MB - max total batch size for log messag
 class LogManager:
     """A global log manager for managing all logs to be sent to Prefect"""
 
-    def __init__(self):
-        self.queue = Queue()
-        self.pending_logs = []
+    def __init__(self) -> None:
+        self.queue = Queue()  # type: Queue[dict]
+        self.pending_logs = []  # type: List[dict]
         self.pending_length = 0
-        self.client = None
-        self.logging_period = None
-        self.thread = None
         self._stopped = False
 
     def ensure_started(self) -> None:
         """Ensure the log manager is started"""
-        if self.thread is None:
+        if not hasattr(self, "thread"):
             self.client = prefect.Client()
             self.logging_period = context.config.cloud.logging_heartbeat
             self.thread = threading.Thread(
@@ -61,7 +58,7 @@ class LogManager:
             self.thread.start()
             atexit.register(self._on_shutdown)
 
-    def _on_shutdown(self):
+    def _on_shutdown(self) -> None:
         """Called via atexit, flushes all logs and stops the background thread"""
         # Sometimes a signal can hit the process at shutdown multiple times,
         # interrupting an active shutdown hook. To give a better chance of the
@@ -77,12 +74,12 @@ class LogManager:
 
     def stop(self) -> None:
         """Flush all logs and stop the background thread"""
-        if self.thread is not None:
+        if hasattr(self, "thread"):
             self._stopped = True
             self.thread.join()
             self._write_logs()
-            self.thread = None
-            self.client = None
+            del self.thread
+            del self.client
 
     def _write_logs_loop(self) -> None:
         """Runs in a background thread, uploads logs periodically in a loop"""

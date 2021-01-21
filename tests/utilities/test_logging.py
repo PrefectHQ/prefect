@@ -74,15 +74,15 @@ def test_cloud_handler_emit_noop_if_cloud_logging_disabled(logger, log_manager):
     with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
         logger.info("testing")
     assert not log_manager.enqueue.called
-    assert log_manager.client is None
-    assert log_manager.thread is None
+    assert not hasattr(log_manager, "client")
+    assert not hasattr(log_manager, "thread")
 
 
 def test_cloud_handler_emit_noop_if_below_log_level(logger, log_manager):
     logger.debug("testing")
     assert not log_manager.enqueue.called
-    assert log_manager.client is None
-    assert log_manager.thread is None
+    assert not hasattr(log_manager, "client")
+    assert not hasattr(log_manager, "thread")
 
 
 def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manager):
@@ -91,8 +91,8 @@ def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manag
     with utilities.configuration.set_temporary_config({"logging.level": "WARNING"}):
         logger.info("testing")
     assert not log_manager.enqueue.called
-    assert log_manager.client is None
-    assert log_manager.thread is None
+    assert not hasattr(log_manager, "client")
+    assert not hasattr(log_manager, "thread")
 
 
 def test_cloud_handler_emit_warns_and_truncates_long_messages(
@@ -174,13 +174,13 @@ def test_cloud_handler_emit_json_spec_exception(
 
 def test_log_manager_startup_and_shutdown(logger, log_manager):
     # On creation, neither thread or client are initialized
-    assert log_manager.thread is None
-    assert log_manager.client is None
+    assert not hasattr(log_manager, "client")
+    assert not hasattr(log_manager, "thread")
 
     # After enqueue, thread and client are started
     logger.info("testing")
-    assert log_manager.thread is not None
-    assert log_manager.client is not None
+    assert hasattr(log_manager, "client")
+    assert hasattr(log_manager, "thread")
 
     client = log_manager.client
 
@@ -189,8 +189,8 @@ def test_log_manager_startup_and_shutdown(logger, log_manager):
     log_manager._on_shutdown()
     assert log_manager.queue.empty()
     assert client.write_run_logs.called
-    assert log_manager.thread is None
-    assert log_manager.client is None
+    assert not hasattr(log_manager, "client")
+    assert not hasattr(log_manager, "thread")
 
     # Calling `stop` is idempotent
     log_manager.stop()
