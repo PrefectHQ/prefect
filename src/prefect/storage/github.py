@@ -1,3 +1,5 @@
+import os
+import subprocess
 from typing import TYPE_CHECKING, Any, Dict
 
 
@@ -36,15 +38,57 @@ class GitHub(Storage):
     """
 
     def __init__(
-        self, repo: str, path: str = None, ref: str = "master", **kwargs: Any
+        self, repo: str = None, path: str = None, ref: str = "master", **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
-        self.repo = repo
-        self.path = path
+
+        # Given a path that exists, we'll look at git for info
+        if os.path.exists(path) and (not repo or not path):
+            inferred_repo, inferred_path = self._infer_git_info(path)
+        else:
+            inferred_repo = None
+            inferred_path = None
+
+        self.repo = repo or inferred_repo
+        self.path = path or inferred_path
         self.ref = ref
 
+        if not self.repo:
+            raise ValueError("`repo` was not provided and could not be detected.")
+
+        if not self.path:
+            raise ValueError("`path` was not provided and could not be detected.")
+
         super().__init__(**kwargs)
+
+    @staticmethod
+    def _infer_git_info(path):
+        pathdir = os.path.dirname(path)
+        repo_cmd = subprocess.run(
+            "git config --get remote.origin.url".split(),
+            cwd=pathdir,
+            capture_output=True,
+        )
+        if not repo_cmd.returncode:
+            repo = (
+                repo_cmd.stdout.decode()
+                .strip()
+                .split("github.com/")[1]
+                .replace(".git", "")
+            )
+        else:
+            repo = None
+
+        path_cmd = subprocess.run(
+            "git rev-parse --show-toplevel".split(), cwd=pathdir, capture_output=True
+        )
+        if not path_cmd.returncode:
+            path = os.path.relpath(path, path_cmd.stdout.decode().strip())
+        else:
+            path = None
+
+        return repo, path
 
     def get_flow(self, flow_name: str) -> "Flow":
         """
