@@ -397,6 +397,15 @@ class DaskExecutor(Executor):
         return self.client.gather(futures)
 
 
+def _multiprocessing_pool_initializer():
+    """Initialize a process used in a `multiprocssing.Pool`.
+
+    Ensures the standard atexit handlers are run."""
+    import signal
+
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit())
+
+
 class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable
@@ -436,7 +445,10 @@ class LocalDaskExecutor(Executor):
 
     def _interrupt_pool(self) -> None:
         """Interrupt all tasks in the backing `pool`, if any."""
-        if self.scheduler == "threads" and self._pool is not None:
+        # Terminate the pool
+        self._pool.terminate()
+
+        if self.scheduler == "threads":
             # `ThreadPool.terminate()` doesn't stop running tasks, only
             # prevents new tasks from running. In CPython we can attempt to
             # raise an exception in all threads. This exception will be raised
@@ -502,7 +514,9 @@ class LocalDaskExecutor(Executor):
                     from dask.multiprocessing import get_context
 
                     context = get_context()
-                    self._pool = context.Pool(num_workers)
+                    self._pool = context.Pool(
+                        num_workers, initializer=_multiprocessing_pool_initializer
+                    )
             try:
                 exiting_early = False
                 yield
@@ -511,9 +525,10 @@ class LocalDaskExecutor(Executor):
                 raise
             finally:
                 if self._pool is not None:
-                    self._pool.terminate()
                     if exiting_early:
                         self._interrupt_pool()
+                    else:
+                        self._pool.close()
                     self._pool.join()
                     self._pool = None
 
