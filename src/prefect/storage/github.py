@@ -43,22 +43,19 @@ class GitHub(Storage):
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
 
-        # Given a path that exists, we'll look at git for info
-        if os.path.exists(path) and (not repo or not path):
-            inferred_repo, inferred_path = self._infer_git_info(path)
-        else:
-            inferred_repo = None
-            inferred_path = None
+        # Given a path that exists and no repo, we'll try to infer it
+        if path and os.path.exists(path) and not repo:
+            repo, path = self._infer_git_info(path)
 
-        self.repo = repo or inferred_repo
-        self.path = path or inferred_path
+        self.repo = repo
+        self.path = path
         self.ref = ref
 
         if not self.repo:
-            raise ValueError("`repo` was not provided and could not be detected.")
+            raise ValueError("`repo` was not provided or failed to be inferred.")
 
         if not self.path:
-            raise ValueError("`path` was not provided and could not be detected.")
+            raise ValueError("`path` was not provided or failed to be inferred.")
 
         super().__init__(**kwargs)
 
