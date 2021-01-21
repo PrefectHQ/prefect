@@ -42,7 +42,7 @@ class DbtShellTask(ShellTask):
     Example:
         ```python
         from prefect import Flow
-        from ccde.prefect.tasks.dbt import DbtShellTask
+        from prefect.tasks.dbt import DbtShellTask
 
         with Flow(name="dbt_flow") as f:
             task = DbtShellTask(
