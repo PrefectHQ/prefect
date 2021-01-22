@@ -692,6 +692,7 @@ class ConnectGetNamespacedPodExec(Task):
     This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
+
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
     methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
@@ -703,6 +704,7 @@ class ConnectGetNamespacedPodExec(Task):
     instantiation and then provide `kube_kwargs = {"more": "info"}` at run time which will make
     `kube_kwargs = {"info": "here", "more": "info"}`. *Note*: Keys present in both instantiation
     and runtime will be replaced with the runtime value.
+
     Args:
         - pod_name (str, optional): The name of a pod in which the command is to be run
         - container_name (str, optional): The name of a container to use in the pod
@@ -756,6 +758,7 @@ class ConnectGetNamespacedPodExec(Task):
     ) -> None:
         """
         Task run method.
+
         Args:
             - pod_name (str, optional): The name of a pod in which the command is to be run
             - container_name (str, optional): The name of a container to use in the pod
@@ -767,8 +770,10 @@ class ConnectGetNamespacedPodExec(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
         Returns:
             - api_response: If the method is called asynchronously, returns the request thread
+
         Raises:
             - ValueError: if `pod_name` is `None` or `container_name` is `None`
             - TypeError: `exec_command` is not a list
