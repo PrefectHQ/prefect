@@ -1,0 +1,3 @@
+enhancement:
+  - "`GitHub` storage now logs the commit sha used when loading a flow - [#3998](https://github.com/PrefectHQ/prefect/pull/3998)"
+  - "`GitHub` storage now loads from a repo's default branch, allowing default branch names other than 'master' - [#3998](https://github.com/PrefectHQ/prefect/pull/3998)"
