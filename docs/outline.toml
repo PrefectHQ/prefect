@@ -298,6 +298,7 @@ classes = [
         "ReadNamespacedJob",
         "ReplaceNamespacedJob",
         "RunNamespacedJob",
+        "ConnectGetNamespacedPodExec",
         "CreateNamespacedPod",
         "DeleteNamespacedPod",
         "ListNamespacedPod",
@@ -310,7 +311,7 @@ classes = [
         "ListNamespacedService",
         "PatchNamespacedService",
         "ReadNamespacedService",
-        "ReplaceNamespacedService"
+        "ReplaceNamespacedService",
         ]
 
 [pages.tasks.dbt]
