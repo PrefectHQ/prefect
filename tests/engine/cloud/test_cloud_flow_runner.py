@@ -504,12 +504,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
         ):
             return run_task(*args, **kwargs)
 
-    calls = []
-
     class Client(MagicMock):
-        def write_run_logs(self, *args, **kwargs):
-            calls.append(args)
-
         def set_task_run_state(self, *args, **kwargs):
             return kwargs.get("state")
 
@@ -551,19 +546,21 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
 
-    time.sleep(0.75)
-    logs = [log for call in calls for log in call[0]]
+    # LOG_MANAGER.enqueue is mocked out in `no_cloud_logs` in conftest.py
+    logs = [
+        c[0][0] for c in prefect.utilities.logging.LOG_MANAGER.enqueue.call_args_list
+    ]
     assert len(logs) >= 5  # actual number of logs
 
-    loggers = [c["name"] for c in logs]
-    assert set(loggers) == {
+    loggers = {l["name"] for l in logs}
+    assert loggers == {
         "prefect.CloudTaskRunner",
         "prefect.CloudFlowRunner",
         "prefect.log_stuff",
     }
 
-    task_run_ids = [c["task_run_id"] for c in logs if c["task_run_id"]]
-    assert set(task_run_ids) == {"TESTME"}
+    task_run_ids = {c["task_run_id"] for c in logs if c["task_run_id"]}
+    assert task_run_ids == {"TESTME"}
 
 
 class TestCloudFlowRunnerQueuedState:
