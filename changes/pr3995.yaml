@@ -1,0 +1,2 @@
+enhancement:
+  - "S3 storage now logs `ETag`, `LastModified` timestamp, and `VersionId` (if present) when loading a flow - [#3995](https://github.com/PrefectHQ/prefect/pull/3995)"
