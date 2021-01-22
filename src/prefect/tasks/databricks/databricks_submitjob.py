@@ -99,7 +99,7 @@ class DatabricksSubmitRun(Task):
     }
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksSubmitRun(databricks_conn_string=conn, json=json)
+    notebook_run = DatabricksSubmitRun(databricks_conn_secret=conn, json=json)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -118,7 +118,7 @@ class DatabricksSubmitRun(Task):
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
     notebook_run = DatabricksSubmitRun(
-        databricks_conn_string=conn,
+        databricks_conn_secret=conn,
         new_cluster=new_cluster,
         notebook_task=notebook_task)
     ```
@@ -136,7 +136,7 @@ class DatabricksSubmitRun(Task):
 
     with Flow('my flow') as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-        DatabricksSubmitRun(databricks_conn_string=conn, json=...)
+        DatabricksSubmitRun(databricks_conn_secret=conn, json=...)
     ```
 
     Currently the named parameters that `DatabricksSubmitRun` task supports are
@@ -395,7 +395,7 @@ class DatabricksRunNow(Task):
         }
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksRunNow(databricks_conn_string=conn, json=json)
+    notebook_run = DatabricksRunNow(databricks_conn_secret=conn, json=json)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -417,7 +417,7 @@ class DatabricksRunNow(Task):
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
     notebook_run = DatabricksRunNow(
-        databricks_conn_string=conn,
+        databricks_conn_secret=conn,
         notebook_params=notebook_params,
         python_params=python_params,
         spark_submit_params=spark_submit_params
@@ -437,7 +437,7 @@ class DatabricksRunNow(Task):
 
     with Flow('my flow') as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-        DatabricksRunNow(databricks_conn_string=conn, json=...)
+        DatabricksRunNow(databricks_conn_secret=conn, json=...)
     ```
 
     Currently the named parameters that `DatabricksRunNow` task supports are
