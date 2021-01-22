@@ -344,6 +344,9 @@ class DatabricksSubmitRun(Task):
         ), "`databricks_conn_secret` must be supplied as a valid dictionary."
         self.databricks_conn_secret = databricks_conn_secret
 
+        if json:
+            self.json = json
+
         # Initialize Databricks Connections
         hook = self.get_hook()
 
@@ -637,6 +640,9 @@ class DatabricksRunNow(Task):
             databricks_conn_secret, dict
         ), "`databricks_conn_secret` must be supplied as a valid dictionary."
         self.databricks_conn_secret = databricks_conn_secret
+
+        if json:
+            self.json = json
 
         # Initialize Databricks Connections
         hook = self.get_hook()
