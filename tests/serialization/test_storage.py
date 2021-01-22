@@ -1,6 +1,5 @@
 import json
 import os
-import socket
 import tempfile
 
 import pytest
@@ -9,12 +8,12 @@ import prefect
 from prefect import storage
 from prefect.serialization.storage import (
     AzureSchema,
-    BaseStorageSchema,
     DockerSchema,
     GCSSchema,
     LocalSchema,
     S3Schema,
     WebhookSchema,
+    GitHubSchema,
     GitLabSchema,
     BitbucketSchema,
 )
@@ -331,7 +330,7 @@ def test_webhook_full_serialize():
         secrets=["CREDS"],
     )
     f = prefect.Flow("test")
-    webhook.flows["test"] = "key"
+    webhook.add_flow(f)
 
     serialized = WebhookSchema().dump(webhook)
 
@@ -355,6 +354,19 @@ def test_webhook_full_serialize():
     }
     assert serialized["get_flow_request_http_method"] == "POST"
     assert serialized["stored_as_script"] is False
+
+
+@pytest.mark.parametrize("ref", [None, "testref"])
+def test_github_serialize(ref):
+    github = storage.GitHub(repo="test/repo", path="flow.py")
+    if ref is not None:
+        github.ref = ref
+    serialized = GitHubSchema().dump(github)
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["repo"] == "test/repo"
+    assert serialized["path"] == "flow.py"
+    assert serialized["ref"] == ref
+    assert serialized["secrets"] == []
 
 
 def test_gitlab_empty_serialize():
