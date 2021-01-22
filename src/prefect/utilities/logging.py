@@ -15,7 +15,7 @@ import threading
 import time
 import warnings
 from queue import Empty, Queue
-from typing import Any, List
+from typing import Any, List, Optional
 
 import pendulum
 
@@ -33,7 +33,7 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 )
 
 MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 50_000_000  # 50 MB - max total batch size for log messages
+MAX_BATCH_LOG_LENGTH = 20_000_000  # 20 MB - max total batch size for log messages
 
 
 class LogManager:
@@ -42,12 +42,14 @@ class LogManager:
     def __init__(self) -> None:
         self.queue = Queue()  # type: Queue[dict]
         self.pending_logs = []  # type: List[dict]
+        self.thread = None  # type: Optional[threading.Thread]
+        self.client = None  # type: Optional[prefect.Client]
         self.pending_length = 0
         self._stopped = False
 
     def ensure_started(self) -> None:
         """Ensure the log manager is started"""
-        if not hasattr(self, "thread"):
+        if self.thread is None:
             self.client = prefect.Client()
             self.logging_period = context.config.cloud.logging_heartbeat
             self.thread = threading.Thread(
@@ -74,12 +76,12 @@ class LogManager:
 
     def stop(self) -> None:
         """Flush all logs and stop the background thread"""
-        if hasattr(self, "thread"):
+        if self.thread is not None:
             self._stopped = True
             self.thread.join()
             self._write_logs()
-            del self.thread
-            del self.client
+            self.thread = None
+            self.client = None
 
     def _write_logs_loop(self) -> None:
         """Runs in a background thread, uploads logs periodically in a loop"""
@@ -95,6 +97,8 @@ class LogManager:
         Returns:
             - bool: Whether `_write_logs` should be called again this round.
         """
+        assert self.client is not None  # mypy
+
         # Read all logs from the queue into the `pending_logs` list. This
         # is stored on the manager to ensure that logs aren't dropped in
         # the case of an upload error, and will be retried later. This
