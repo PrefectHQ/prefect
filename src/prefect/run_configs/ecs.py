@@ -23,7 +23,7 @@ class ECSRun(RunConfig):
 
     Args:
         - task_definition (dict, optional): An in-memory task definition spec
-            to use. See the [ECS.Client.register_task_definition][3] docs for
+            to use. See the [ECS.Client.register_task_definition][1] docs for
             more information on task definitions. Note that this definition
             will be stored directly in Prefect Cloud/Server - use
             `task_definition_path` instead if you wish to avoid this.
