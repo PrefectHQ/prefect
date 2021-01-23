@@ -25,6 +25,14 @@ def test_secret_raises_if_doesnt_exist():
             secret.get()
 
 
+def test_secret_raises_informative_error_for_server():
+    secret = Secret(name="test")
+    with set_temporary_config({"cloud.use_local_secrets": False, "backend": "server"}):
+        with pytest.raises(ValueError) as exc:
+            secret.get()
+    assert str(exc.value) == 'Local Secret "test" was not found.'
+
+
 def test_secret_value_pulled_from_context():
     secret = Secret(name="test")
     with set_temporary_config({"cloud.use_local_secrets": True}):
