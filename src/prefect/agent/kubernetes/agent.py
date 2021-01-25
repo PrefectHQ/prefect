@@ -202,7 +202,7 @@ class KubernetesAgent(Agent):
                                         except ClientError as exc:
                                             self.logger.error(
                                                 "Error attempting to set flow run state for "
-                                                f"{flow_run_id}:"
+                                                f"{flow_run_id}: "
                                                 f"{exc}"
                                             )
 
@@ -339,7 +339,7 @@ class KubernetesAgent(Agent):
                                 )
                             except ClientError as exc:
                                 self.logger.error(
-                                    f"Error attempting to set flow run state for {flow_run_id}:"
+                                    f"Error attempting to set flow run state for {flow_run_id}: "
                                     f"{exc}"
                                 )
 
