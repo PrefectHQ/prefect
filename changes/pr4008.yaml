@@ -1,0 +1,2 @@
+enhancement:
+  - "Better error message when passing parameters to `StartFlowRun` constructor - [#4008](https://github.com/PrefectHQ/prefect/pull/4008)"
