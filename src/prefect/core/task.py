@@ -17,6 +17,7 @@ from typing import (
     Mapping,
     Optional,
     Union,
+    Tuple,
 )
 
 import prefect
@@ -162,6 +163,17 @@ class TaskMetaclass(type):
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
         return type.__new__(cls, name, parents, methods)  # type: ignore
+
+    @property
+    def _reserved_attributes(self) -> Tuple[str]:
+        """A tuple of attributes reserved for use by the `Task` class.
+
+        Dynamically computed to make it easier to keep up to date. Lazily
+        computed to avoid circular import issues.
+        """
+        if not hasattr(Task, "_cached_reserved_attributes"):
+            Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
+        return Task._cached_reserved_attributes  # type: ignore
 
 
 class instance_property:
@@ -313,6 +325,15 @@ class Task(metaclass=TaskMetaclass):
         task_run_name: Union[str, Callable] = None,
         nout: int = None,
     ):
+        if type(self) is not Task:
+            for attr in Task._reserved_attributes:
+                if hasattr(self, attr):
+                    warnings.warn(
+                        f"`{type(self).__name__}` sets a `{attr}` attribute, which "
+                        "will be overwritten by `prefect.Task`. Please rename this "
+                        "attribute to avoid this issue."
+                    )
+
         self.name = name or type(self).__name__
         self.slug = slug
 
@@ -1241,6 +1262,7 @@ EXTRA_CALL_PARAMETERS = [
     for p in inspect.Signature.from_callable(Task.__call__).parameters.values()
     if p.kind == inspect.Parameter.KEYWORD_ONLY
 ]
+
 
 # DEPRECATED - this is to allow backwards-compatible access to Parameters
 # https://github.com/PrefectHQ/prefect/pull/2758
