@@ -199,11 +199,11 @@ class KubernetesAgent(Agent):
                                                     )
                                                 ),
                                             )
-                                        except ClientError as exc:
+                                        except ClientError:
                                             self.logger.error(
                                                 "Error attempting to set flow run state for "
-                                                f"{flow_run_id}:"
-                                                f"{exc}"
+                                                f"{flow_run_id}",
+                                                exc_info=True,
                                             )
 
                                         delete_job = True
@@ -337,10 +337,10 @@ class KubernetesAgent(Agent):
                                         )
                                     ),
                                 )
-                            except ClientError as exc:
+                            except ClientError:
                                 self.logger.error(
-                                    f"Error attempting to set flow run state for {flow_run_id}:"
-                                    f"{exc}"
+                                    f"Error attempting to set flow run state for {flow_run_id}",
+                                    exc_info=True,
                                 )
 
                     # Delete job if it is successful or failed
