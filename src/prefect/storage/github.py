@@ -30,14 +30,13 @@ class GitHub(Storage):
 
     Args:
         - repo (str): the name of a GitHub repository to store this Flow
-        - path (str, optional): a path pointing to a flow file in the repo
-        - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if not specified
+        - path (str): a path pointing to a flow file in the repo
+        - ref (str, optional): a commit SHA-1 value, tag, or branch name. If not specified,
+            defaults to the default branch for the repo.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
-    def __init__(
-        self, repo: str, path: str = None, ref: str = "master", **kwargs: Any
-    ) -> None:
+    def __init__(self, repo: str, path: str, ref: str = None, **kwargs: Any) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
@@ -58,22 +57,49 @@ class GitHub(Storage):
         """
         if flow_name not in self.flows:
             raise ValueError("Flow is not contained in this Storage")
-        flow_location = self.flows[flow_name]
+        path = self.flows[flow_name]
 
         from github import UnknownObjectException
 
-        repo = self._github_client.get_repo(self.repo)
+        # Log info about the active storage object. Only include `ref` if
+        # explicitly set.
+        self.logger.info(
+            "Downloading flow from GitHub storage - repo: %r, path: %r%s",
+            self.repo,
+            path,
+            f", ref: {self.ref!r}" if self.ref is not None else "",
+        )
 
         try:
-            contents = repo.get_contents(flow_location, ref=self.ref)
-            decoded_contents = contents.decoded_content
-        except UnknownObjectException as exc:
+            repo = self._github_client.get_repo(self.repo)
+        except UnknownObjectException:
             self.logger.error(
-                "Error retrieving file contents from {} on repo {}. Ensure the file exists.".format(
-                    flow_location, self.repo
-                )
+                "Repo %r not found. Check that it exists (and is spelled correctly), "
+                "and that you have configured the proper credentials for accessing it.",
+                self.repo,
             )
-            raise exc
+            raise
+
+        # Use the default branch if unspecified
+        ref = self.ref or repo.default_branch
+
+        # Get the current commit sha for this ref
+        try:
+            commit = repo.get_commit(ref).sha
+        except UnknownObjectException:
+            self.logger.error("Ref %r not found in repo %r.", ref, self.repo)
+            raise
+
+        try:
+            contents = repo.get_contents(path, ref=commit)
+            decoded_contents = contents.decoded_content
+        except UnknownObjectException:
+            self.logger.error(
+                "File %r not found in repo %r, ref %r", path, self.repo, ref
+            )
+            raise
+
+        self.logger.info("Flow successfully downloaded. Using commit: %s", commit)
 
         return extract_flow_from_file(
             file_contents=decoded_contents, flow_name=flow_name
