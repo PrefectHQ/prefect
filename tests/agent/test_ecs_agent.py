@@ -164,7 +164,7 @@ def test_agent_defaults(default_task_definition):
     assert agent.cluster is None
     assert agent.launch_type == "FARGATE"
     assert agent.task_role_arn is None
-    # assert agent.execution_role_arn is None
+    assert agent.execution_role_arn is None
 
 
 class TestAgentTaskDefinitionPath:
