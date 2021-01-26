@@ -220,16 +220,8 @@ class Agent:
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
 
-        try:
-            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
-        except Exception as exc:
-            if config.backend == "cloud":
-                raise exc
-            else:
-                self.logger.warning(
-                    f"Unable to register agent to {self.client.api_server}. "
-                    f"Make sure the server is running on the latest version."
-                )
+        # Register agent with backend API
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         try:
             self.setup()
