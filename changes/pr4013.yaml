@@ -1,0 +1,2 @@
+enhancement:
+  - "Add support for `EXTRA_PIP_PACKAGES` environment variable in `prefecthq/prefect` images, simplifying installation of dependencies during development - [#4013](https://github.com/PrefectHQ/prefect/pull/4013)"
