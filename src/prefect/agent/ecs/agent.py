@@ -121,9 +121,8 @@ class ECSAgent(Agent):
             `"FARGATE"` (default) or `"EC2"`.
         - task_role_arn (str, optional): The default task role ARN to use when
             registering ECS tasks created by this agent.
-        - execution_role_arn (str, optional): The full ARN for the role
-            that grants Amazon ECS agent permission to make AWS API calls on
-            your behalf.
+        - execution_role_arn (str, optional): The default execution role ARN
+            to use when registering ECS tasks created by this agent.
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.

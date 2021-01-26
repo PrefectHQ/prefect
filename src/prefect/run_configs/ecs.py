@@ -54,9 +54,9 @@ class ECSRun(RunConfig):
         - task_role_arn (str, optional): The name or full ARN for the IAM role
             to use for this task. If not provided, the default on the agent
             will be used (if configured).
-        - execution_role_arn(str, optional): The full ARN for the role
-            that grants Amazon ECS agent permission to make AWS API calls on
-            your behalf.
+        - execution_role_arn (str, optional): The execution role ARN to use
+            when registering a task definition for this task. If not provided,
+            the default on the agent will be used (if configured).
         - run_task_kwargs (dict, optional): Additional keyword arguments to
             pass to `run_task` when starting this task. See the
             [ECS.Client.run_task][3] docs for more information.

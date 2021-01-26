@@ -381,7 +381,7 @@ def ecs():
 )
 @click.option(
     "--execution-role-arn",
-    help="The default execution role ARN to use for AWS ECS agent to make AWS API calls on your behalf.",
+    help="The default execution role ARN to use for ECS tasks started by this agent.",
 )
 @click.option(
     "--task-definition",
