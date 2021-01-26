@@ -46,7 +46,7 @@ class ECSRunSchema(RunConfigSchemaBase):
     cpu = fields.String(allow_none=True)
     memory = fields.String(allow_none=True)
     task_role_arn = fields.String(allow_none=True)
-    # execution_role_arn = fields.String(allow_none=True)
+    execution_role_arn = fields.String(allow_none=True)
     run_task_kwargs = JSONCompatible(allow_none=True)
 
 
