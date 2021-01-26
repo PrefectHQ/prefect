@@ -1,2 +1,0 @@
-fix:
-  - "Fix Agent registration possibly skipping on server connection issues - [#3972](https://github.com/PrefectHQ/prefect/issues/3972)"

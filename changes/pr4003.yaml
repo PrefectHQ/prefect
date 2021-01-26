@@ -1,2 +1,0 @@
-enhancement:
-  - "Improve error message when Secrets are missing with Server - [#4003](https://github.com/PrefectHQ/prefect/pull/4003)"

@@ -1,2 +1,0 @@
-fix:
-  - "Make logging to Prefect cloud more robust in the presence of errors or process shutdown - [#3989](https://github.com/PrefectHQ/prefect/pull/3989)"

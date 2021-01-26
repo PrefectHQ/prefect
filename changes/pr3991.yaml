@@ -1,2 +1,0 @@
-task:
-  - "Add ConnectGetNamespacedPodExec which runs an exec command in provided pod container - [#3991](https://github.com/PrefectHQ/prefect/pull/3991)"
