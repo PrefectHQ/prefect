@@ -16,6 +16,7 @@ def test_no_args():
     assert config.cpu is None
     assert config.memory is None
     assert config.task_role_arn is None
+    assert config.execution_role_arn is None
     assert config.run_task_kwargs is None
     assert config.labels == set()
 
@@ -28,6 +29,7 @@ def test_all_args():
         cpu=1024,
         memory=2048,
         task_role_arn="my-task-role",
+        execution_role_arn="execution-role",
         run_task_kwargs={"overrides": {"taskRoleArn": "example"}},
         labels=["a", "b"],
     )
@@ -37,6 +39,7 @@ def test_all_args():
     assert config.cpu == "1024"
     assert config.memory == "2048"
     assert config.task_role_arn == "my-task-role"
+    assert config.execution_role_arn == "execution-role"
     assert config.run_task_kwargs == {"overrides": {"taskRoleArn": "example"}}
     assert config.labels == {"a", "b"}
 
