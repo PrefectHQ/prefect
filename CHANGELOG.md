@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.14.5 <Badge text="beta" type="success" />
+
+Released on January 26, 2021.
+
+### Enhancements
+
+- S3 storage now logs `ETag`, `LastModified` timestamp, and `VersionId` (if present) when loading a flow - [#3995](https://github.com/PrefectHQ/prefect/pull/3995)
+- `GitHub` storage now logs the commit sha used when loading a flow - [#3998](https://github.com/PrefectHQ/prefect/pull/3998)
+- `GitHub` storage now loads from a repo's default branch, allowing default branch names other than 'master' - [#3998](https://github.com/PrefectHQ/prefect/pull/3998)
+- Improve error message when Secrets are missing with Server - [#4003](https://github.com/PrefectHQ/prefect/pull/4003)
+- Better error message when passing parameters to `StartFlowRun` constructor - [#4008](https://github.com/PrefectHQ/prefect/pull/4008)
+- Add warning if user-defined class shadows an attribute used by the base class - [#4011](https://github.com/PrefectHQ/prefect/pull/4011)
+- Add support for `EXTRA_PIP_PACKAGES` environment variable in `prefecthq/prefect` images, simplifying installation of dependencies during development - [#4013](https://github.com/PrefectHQ/prefect/pull/4013)
+- Add execution role arn parameter to ecs run config and agent - [#4015](https://github.com/PrefectHQ/prefect/pull/4015)
+
+### Task Library
+
+- Add `ConnectGetNamespacedPodExec` task which runs an exec command in provided pod container - [#3991](https://github.com/PrefectHQ/prefect/pull/3991)
+- Ensure connection secrets can be passed to Databricks tasks at runtime - [#4001](https://github.com/PrefectHQ/prefect/pull/4001)
+
+### Fixes
+
+- Fix Agent registration possibly skipping on server connection issues - [#3972](https://github.com/PrefectHQ/prefect/issues/3972)
+- `GCSUpload` task now explicitely fails when ran on non-supported types - [#3978](https://github.com/PrefectHQ/prefect/pull/3978)
+- Make logging to Prefect cloud more robust in the presence of errors or process shutdown - [#3989](https://github.com/PrefectHQ/prefect/pull/3989)
+- Handle setting state for missing flow runs in Kubernetes agent resource management - [#4006](https://github.com/PrefectHQ/prefect/pull/4006)
+
+### Contributors
+
+- [Loïc Macherel](https://github.com/LoicEm)
+- [Thomas Baldwin](https://github.com/baldwint)
+
 ## 0.14.4 <Badge text="beta" type="success" />
 
 Released on January 19, 2021.

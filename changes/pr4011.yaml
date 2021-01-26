@@ -1,2 +1,0 @@
-enhancement:
-  - "Add warning if user-defined class shadows an attribute used by the base class - [#4011](https://github.com/PrefectHQ/prefect/pull/4011)"
