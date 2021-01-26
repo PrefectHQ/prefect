@@ -10,16 +10,13 @@ from prefect.utilities.configuration import set_temporary_config
 
 @pytest.fixture
 def mocked_boto_client(monkeypatch):
-    client = MagicMock()
-    session = MagicMock(client=MagicMock(return_value=client))
-    boto3 = MagicMock(
-        client=MagicMock(return_value=client), session=MagicMock(return_value=session)
-    )
+    boto3 = MagicMock()
+    client = boto3.session.Session().client()
+    boto3.client = MagicMock(return_value=client)
     monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
     return client
 
 
-@pytest.mark.usefixtures("mocked_boto_client")
 class TestS3Download:
     def test_initialization(self):
         task = S3Download()
@@ -51,8 +48,15 @@ class TestS3Download:
         with pytest.raises(ValueError, match="gz_fake"):
             task.run("key", compression="gz_fake")
 
+    def test_boto3_client_is_created_with_session(self, mocked_boto_client):
+        """ Tests the fix for #3925 """
+        task = S3Download("test")
+        result = task.run("key")
+        assert (
+            "session.Session()" in mocked_boto_client.return_value._extract_mock_name()
+        )
 
-@pytest.mark.usefixtures("mocked_boto_client")
+
 class TestS3Upload:
     def test_initialization(self):
         task = S3Upload()
@@ -91,6 +95,14 @@ class TestS3Upload:
         task = S3Upload("test")
         with pytest.raises(ValueError, match="gz_fake"):
             task.run(b"data", compression="gz_fake")
+
+    def test_boto3_client_is_created_with_session(self, mocked_boto_client):
+        """ Tests the fix for #3925 """
+        task = S3Upload("test")
+        result = task.run("key")
+        assert (
+            "session.Session()" in mocked_boto_client.return_value._extract_mock_name()
+        )
 
 
 class TestS3List:
