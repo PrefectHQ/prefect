@@ -94,9 +94,9 @@ def flow(
 
     \b
     Options:
-        --name, -n                  TEXT        The name of a flow to run [required]
-        --project, -p               TEXT        The name of a project that contains
-                                                the flow [required]
+        --id, -i                    TEXT        The ID of a flow to run
+        --name, -n                  TEXT        The name of a flow to run
+        --project, -p               TEXT        The name of a project that contains the flow
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing
                                                 parameters
@@ -115,6 +115,10 @@ def flow(
                                                 link
 
     \b
+    Either `id` or both `name` and `project` must be provided to run a flow. If all three
+    are provided then `id` will be used when calling the mutation.
+
+    \b
     If both `--parameters-file` and `--parameters-string` are provided then the values
     passed in through the string will override the values provided from the file.
 
@@ -131,7 +135,8 @@ def flow(
     """
     if not id and not (name and project):
         click.secho(
-            "A flow ID or some combination of flow name and project must be provided.", fg="red"
+            "A flow ID or some combination of flow name and project must be provided.",
+            fg="red",
         )
         return
 

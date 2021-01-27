@@ -468,3 +468,47 @@ def test_run_flow_flow_run_id_no_link(monkeypatch, cloud_api):
     )
     assert result.exit_code == 0
     assert "Flow Run ID" in result.output
+
+
+def test_run_flow_using_id(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    create_flow_run_mock = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+            "--id",
+            "id",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Flow Run" in result.output
+    assert create_flow_run_mock.called
+
+
+def test_run_flow_no_id_or_name_and_project():
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+        ],
+    )
+    assert (
+        "A flow ID or some combination of flow name and project must be provided"
+        in result.output
+    )
