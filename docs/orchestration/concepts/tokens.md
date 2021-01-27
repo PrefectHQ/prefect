@@ -35,7 +35,7 @@ After you click create you will be prompted with the token which you can copy an
 To create a token with the CLI run the `create-token` command with the desired token name and scope. For more information on how to use the CLI go [here](cli.html).
 
 ```
-$ prefect auth create-token -n my-runner-token -r RUNNER
+$ prefect auth create-token -n my-runner-token -s RUNNER
 ```
 
 ### GraphQL
