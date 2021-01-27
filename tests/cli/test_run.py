@@ -512,3 +512,23 @@ def test_run_flow_no_id_or_name_and_project():
         "A flow ID or some combination of flow name and project must be provided"
         in result.output
     )
+
+
+def test_run_flow_no_id_or_name_and_project():
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+            "--id",
+            "id",
+            "--name",
+            "flow",
+            "--project",
+            "project",
+        ],
+    )
+    assert (
+        "Both a flow ID and a name/project combination cannot be provided"
+        in result.output
+    )

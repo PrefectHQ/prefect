@@ -115,8 +115,7 @@ def flow(
                                                 link
 
     \b
-    Either `id` or both `name` and `project` must be provided to run a flow. If all three
-    are provided then `id` will be used when calling the mutation.
+    Either `id` or both `name` and `project` must be provided to run a flow.
 
     \b
     If both `--parameters-file` and `--parameters-string` are provided then the values
@@ -136,6 +135,13 @@ def flow(
     if not id and not (name and project):
         click.secho(
             "A flow ID or some combination of flow name and project must be provided.",
+            fg="red",
+        )
+        return
+
+    if id and (name or project):
+        click.secho(
+            "Both a flow ID and a name/project combination cannot be provided.",
             fg="red",
         )
         return
