@@ -35,12 +35,15 @@ def run():
 
 @run.command(hidden=True)
 @click.option(
-    "--name", "-n", required=True, help="The name of a flow to run.", hidden=True
+    "--id", "-i", required=False, help="The id of a flow to run.", hidden=True
+)
+@click.option(
+    "--name", "-n", required=False, help="The name of a flow to run.", hidden=True
 )
 @click.option(
     "--project",
     "-p",
-    required=True,
+    required=False,
     help="The project that contains the flow.",
     hidden=True,
 )
@@ -74,6 +77,7 @@ def run():
     hidden=True,
 )
 def flow(
+    id,
     name,
     project,
     version,
@@ -125,46 +129,54 @@ def flow(
         $ prefect run flow -n "Test-Flow" -p "My Project" -ps '{"my_param": 42}'
         Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
     """
+    if not id and not (name and project):
+        click.secho(
+            "A flow ID or some combination of flow name and project must be provided.", fg="red"
+        )
+        return
+
     if watch and logs:
         click.secho(
             "Streaming state and logs not currently supported together.", fg="red"
         )
         return
 
-    where_clause = {
-        "_and": {
-            "name": {"_eq": name},
-            "version": {"_eq": version},
-            "project": {"name": {"_eq": project}},
-        }
-    }
-
-    query = {
-        "query": {
-            with_args(
-                "flow",
-                {
-                    "where": where_clause,
-                    "order_by": {
-                        "name": EnumValue("asc"),
-                        "version": EnumValue("desc"),
-                    },
-                    "distinct_on": EnumValue("name"),
-                },
-            ): {"id": True}
-        }
-    }
-
     client = Client()
-    result = client.graphql(query)
+    flow_id = id
+    if not flow_id:
+        where_clause = {
+            "_and": {
+                "name": {"_eq": name},
+                "version": {"_eq": version},
+                "project": {"name": {"_eq": project}},
+            }
+        }
 
-    flow_data = result.data.flow
+        query = {
+            "query": {
+                with_args(
+                    "flow",
+                    {
+                        "where": where_clause,
+                        "order_by": {
+                            "name": EnumValue("asc"),
+                            "version": EnumValue("desc"),
+                        },
+                        "distinct_on": EnumValue("name"),
+                    },
+                ): {"id": True}
+            }
+        }
 
-    if flow_data:
-        flow_id = flow_data[0].id
-    else:
-        click.secho("{} not found".format(name), fg="red")
-        return
+        result = client.graphql(query)
+
+        flow_data = result.data.flow
+
+        if flow_data:
+            flow_id = flow_data[0].id
+        else:
+            click.secho("{} not found".format(name), fg="red")
+            return
 
     # Load parameters from file if provided
     file_params = {}
