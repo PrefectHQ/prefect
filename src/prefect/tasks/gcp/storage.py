@@ -524,6 +524,8 @@ class GCSBlobExists(GCSBaseTask):
             - blob (str, optional): object for which to search within the bucket
             - project (str, optional): default Google Cloud project to work within.
                 If not provided, will be inferred from your Google Cloud credentials
+            - wait_seconds(int, optional): retry until file is found or until wait_seconds,
+                whichever is first.  Defaults to 0
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
                 You should provide these at runtime with an upstream Secret task.  If not
                 provided, Prefect will first check `context` for `GCP_CREDENTIALS` and lastly
