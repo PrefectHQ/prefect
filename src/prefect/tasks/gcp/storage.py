@@ -14,6 +14,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 from google.cloud import storage
 
+
 class GCSBaseTask(Task):
     def __init__(
         self,
