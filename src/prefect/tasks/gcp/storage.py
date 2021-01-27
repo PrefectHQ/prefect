@@ -2,6 +2,7 @@ import uuid
 import warnings
 from typing import Tuple, Union
 import io
+from time import sleep
 
 from google.cloud.exceptions import NotFound
 
@@ -11,6 +12,7 @@ from prefect.core import Task
 from prefect.utilities.gcp import get_storage_client
 from prefect.utilities.tasks import defaults_from_attrs
 
+from google.cloud import storage
 
 class GCSBaseTask(Task):
     def __init__(
@@ -455,3 +457,103 @@ class GCSCopy(GCSBaseTask):
         )
 
         return dest_blob
+
+
+class GCSBlobExists(GCSBaseTask):
+    """
+    Task template for checking a Google Cloud Storage bucket for a given object
+
+    Args:
+        - bucket_name (str, optional): the bucket to check
+        - blob (str, optional): object for which to search within the bucket
+        - project (str, optional): default Google Cloud project to work within.
+            If not provided, will be inferred from your Google Cloud credentials
+        - wait_seconds(int, optional): retry until file is found or until wait_seconds,
+            whichever is first.  Defaults to 0
+        - request_timeout (Union[float, Tuple[float, float]], optional): default number of
+            seconds the transport should wait for the server response.
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+
+    Note that the design of this task allows you to initialize a _template_ with default
+    settings.  Each inidividual occurence of the task in a Flow can overwrite any of these
+    default settings for custom use (for example, if you want to pull different credentials for
+    a given Task, or specify the Blob name at runtime).
+    """
+
+    def __init__(
+        self,
+        bucket_name: str = None,
+        blob: str = None,
+        project: str = None,
+        wait_seconds: int = 0,
+        request_timeout: Union[float, Tuple[float, float]] = 60,
+        **kwargs,
+    ):
+        self.bucket_name = bucket_name
+        self.blob = blob
+        self.project = project
+        self.wait_seconds = wait_seconds
+        self.request_timeout = request_timeout
+
+        super().__init__(project=project, request_timeout=request_timeout, **kwargs)
+
+    @defaults_from_attrs(
+        "bucket_name", "blob", "project", "request_timeout", "wait_seconds"
+    )
+    def run(
+        self,
+        bucket_name: str = None,
+        blob: str = None,
+        project: str = None,
+        wait_seconds: int = 0,
+        credentials: dict = None,
+        request_timeout: Union[float, Tuple[float, float]] = 60,
+    ) -> str:
+        """
+        Run method for this Task. Invoked by _calling_ this Task after initialization
+        within a Flow context.
+
+        Note that some arguments are required for the task to run, and must be
+        provided _either_ at initialization _or_ as arguments.
+
+        Args:
+            - bucket_name (str, optional): the bucket to check
+            - blob (str, optional): object for which to search within the bucket
+            - project (str, optional): default Google Cloud project to work within.
+                If not provided, will be inferred from your Google Cloud credentials
+            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
+                You should provide these at runtime with an upstream Secret task.  If not
+                provided, Prefect will first check `context` for `GCP_CREDENTIALS` and lastly
+                will use default Google client logic.
+            - request_timeout (Union[float, Tuple[float, float]], optional): the number of
+                seconds the transport should wait for the server response.
+                Can also be passed as a tuple (connect_timeout, read_timeout).
+
+        Returns:
+            - bool: the object exists
+
+        Raises:
+            - ValueError: if `bucket_name` or `blob` are missing
+
+        """
+        if None in [bucket_name, blob]:
+            raise ValueError("Missing bucket_name or blob")
+
+        # create client
+        client = get_storage_client(project=project, credentials=credentials)
+
+        bucket = client.bucket(bucket_name)
+        blob_exists = None
+
+        wait, n = 0, 1
+        while wait <= wait_seconds and not blob_exists:
+            print("here")
+            print(wait, n, wait_seconds)
+            sleep(n)
+            wait += n
+            n *= 2
+            blob_exists = storage.Blob(bucket=bucket, name=blob).exists(client)
+
+        return blob_exists

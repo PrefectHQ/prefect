@@ -355,6 +355,7 @@ classes = [
         "GCSDownload",
         "GCSUpload",
         "GCSCopy",
+        "GCSBlobExists",
         "BigQueryTask",
         "BigQueryStreamingInsert",
         "CreateBigQueryTable",
