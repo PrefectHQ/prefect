@@ -15,7 +15,7 @@ warnings.warn(
     stacklevel=2,
 )
 
-from prefect.tasks.gcp.storage import GCSDownload, GCSUpload, GCSCopy
+from prefect.tasks.gcp.storage import GCSDownload, GCSUpload, GCSCopy, GCSBlobExists
 from prefect.tasks.gcp.bigquery import (
     BigQueryTask,
     BigQueryLoadGoogleCloudStorage,
