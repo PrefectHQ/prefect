@@ -552,8 +552,6 @@ class GCSBlobExists(GCSBaseTask):
 
         wait, n = 0, 1
         while wait <= wait_seconds and not blob_exists:
-            print("here")
-            print(wait, n, wait_seconds)
             sleep(n)
             wait += n
             n *= 2
