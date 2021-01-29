@@ -13,6 +13,7 @@ from prefect.utilities.gcp import get_storage_client
 from prefect.utilities.tasks import defaults_from_attrs
 
 from google.cloud import storage
+from prefect.engine.signals import FAIL
 
 
 class GCSBaseTask(Task):
@@ -474,6 +475,8 @@ class GCSBlobExists(GCSBaseTask):
         - request_timeout (Union[float, Tuple[float, float]], optional): default number of
             seconds the transport should wait for the server response.
             Can also be passed as a tuple (connect_timeout, read_timeout).
+        - fail_if_not_found (bool, optional):  Will raise Fail signal on task if
+            blob is not found.  Defaults to True
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
 
@@ -489,6 +492,7 @@ class GCSBlobExists(GCSBaseTask):
         blob: str = None,
         project: str = None,
         wait_seconds: int = 0,
+        fail_if_not_found: bool = True,
         request_timeout: Union[float, Tuple[float, float]] = 60,
         **kwargs,
     ):
@@ -497,11 +501,17 @@ class GCSBlobExists(GCSBaseTask):
         self.project = project
         self.wait_seconds = wait_seconds
         self.request_timeout = request_timeout
+        self.fail_if_not_found = fail_if_not_found
 
         super().__init__(project=project, request_timeout=request_timeout, **kwargs)
 
     @defaults_from_attrs(
-        "bucket_name", "blob", "project", "request_timeout", "wait_seconds"
+        "bucket_name",
+        "blob",
+        "project",
+        "request_timeout",
+        "wait_seconds",
+        "fail_if_not_found",
     )
     def run(
         self,
@@ -509,6 +519,7 @@ class GCSBlobExists(GCSBaseTask):
         blob: str = None,
         project: str = None,
         wait_seconds: int = 0,
+        fail_if_not_found: bool = True,
         credentials: dict = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
     ) -> str:
@@ -526,6 +537,8 @@ class GCSBlobExists(GCSBaseTask):
                 If not provided, will be inferred from your Google Cloud credentials
             - wait_seconds(int, optional): retry until file is found or until wait_seconds,
                 whichever is first.  Defaults to 0
+            - fail_if_not_found (bool, optional):  Will raise Fail signal on task if
+                blob is not found.  Defaults to True
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
                 You should provide these at runtime with an upstream Secret task.  If not
                 provided, Prefect will first check `context` for `GCP_CREDENTIALS` and lastly
@@ -539,6 +552,7 @@ class GCSBlobExists(GCSBaseTask):
 
         Raises:
             - ValueError: if `bucket_name` or `blob` are missing
+            - FAIL: if object not found and fail_if_not_found is True
 
         """
         if None in [bucket_name, blob]:
@@ -556,5 +570,6 @@ class GCSBlobExists(GCSBaseTask):
             wait += n
             n *= 2
             blob_exists = storage.Blob(bucket=bucket, name=blob).exists(client)
-
+        if fail_if_not_found and not blob_exists:
+            raise FAIL(message="Blob not found")
         return blob_exists
