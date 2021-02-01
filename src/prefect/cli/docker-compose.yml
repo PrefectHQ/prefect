@@ -103,9 +103,7 @@ services:
       - prefect-server
     # Test GraphQL Apollo endpoint as health-check
     healthcheck:
-      test: |
-        curl --fail --silent "http://apollo:4200/graphql" -H 'Content-Type: application/json' \
-          --data-binary '{"query":"query{hello}"}' &>/dev/null || echo "failed"
+      test: curl --fail --silent "http://apollo:4200/.well-known/apollo/server-health" || exit 1
       interval: 5s
       timeout: 2s
       retries: 18
@@ -126,6 +124,11 @@ services:
       PREFECT_SERVER__APOLLO_URL: ${APOLLO_URL:-http://localhost:4200/graphql}
     networks:
       - prefect-server
+    healthcheck:
+      test: curl --fail --silent -I "http://ui:8080/" &> /dev/null || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5
     restart: always
     depends_on:
       apollo:
