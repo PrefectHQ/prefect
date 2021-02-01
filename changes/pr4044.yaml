@@ -1,0 +1,4 @@
+task:
+  - Adds four new tasks for communication with an Exasol database.
+contributor:
+  - "[Timo S.](https://github.com/sti0)"

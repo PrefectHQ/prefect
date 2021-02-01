@@ -62,7 +62,7 @@ class ExasolExecute(Task):
             - autocommit (bool, optional): turn autocommit on or off (default: False)
             - commit (bool, optional): set to True to commit transaction, defaults to false
                 (only necessary if autocommit = False)
-            - kwargs (dict, optional): additional connection parameter (connection_timeout...)
+            - **kwargs (dict, optional): additional connection parameter (connection_timeout...)
 
         Returns:
             - ExaStatement object
@@ -153,7 +153,7 @@ class ExasolFetch(Task):
                 to fetch, defaults to 10
             - query (str, optional): query to execute against database
             - query_params (dict, optional): Values for SQL query placeholders
-            - kwargs (dict, optional): additional connection parameter
+            - **kwargs (dict, optional): additional connection parameter
                 (autocommit, connection_timeout...)
 
         Returns:
@@ -264,7 +264,7 @@ class ExasolImportFromIterable(Task):
             - autocommit (bool, optional): turn autocommit on or off (default: False)
             - commit (bool, optional): set to True to commit transaction, defaults to false
                 (only necessary if autocommit = False)
-            - kwargs (dict, optional): additional connection parameter (connection_timeout...)
+            - **kwargs (dict, optional): additional connection parameter (connection_timeout...)
 
         Returns:
             - Nothing
@@ -371,7 +371,7 @@ class ExasolExportToFile(Task):
                     3. (schemaname, tablename)
             - query_params (dict, optional): Values for SQL query placeholders
             - export_params (dict, optional): custom parameters for EXPORT query
-            - kwargs (dict, optional): additional connection parameter (connection_timeout...)
+            - **kwargs (dict, optional): additional connection parameter (connection_timeout...)
 
         Returns:
             - Nothing
