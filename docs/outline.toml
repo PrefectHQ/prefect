@@ -348,6 +348,16 @@ title = "Dropbox Tasks"
 module = "prefect.tasks.dropbox"
 classes = ["DropboxDownload"]
 
+[pages.tasks.exasol]
+title = "Exasol Tasks"
+module = "prefect.tasks.exasol"
+classes = [
+        "ExasolFetch",
+        "ExasolExecute",
+        "ExasolImportFromIterable",
+        "ExasolExportToFile"
+        ]
+
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.gcp"

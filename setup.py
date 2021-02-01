@@ -79,6 +79,7 @@ extras = {
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
     "dremio": ["pyarrow>=0.15.1"],
+    "exasol": ["pyexasol >= 0.16.1"],
 }
 
 
