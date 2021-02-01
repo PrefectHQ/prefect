@@ -145,7 +145,6 @@ class DockerAgent(Agent):
                 "Use `networks` instead.",
                 UserWarning,
             )
-        # TODO: Only keep `self.networks` when `network` parameter gets removed.
         self.network = network
         self.logger.debug(f"Docker network set to {self.network}")
         self.networks = networks
@@ -434,15 +433,19 @@ class DockerAgent(Agent):
             "io.prefect.flow-id": flow_run.flow.id,
             "io.prefect.flow-run-id": flow_run.id,
         }
-        container = self.docker_client.create_container(
-            image,
-            command=get_flow_run_command(flow_run),
-            environment=env_vars,
-            volumes=container_mount_paths,
-            host_config=self.docker_client.create_host_config(**host_config),
-            networking_config=networking_config,
-            labels=labels,
-        )
+        try:
+            container = self.docker_client.create_container(
+                image,
+                command=get_flow_run_command(flow_run),
+                environment=env_vars,
+                volumes=container_mount_paths,
+                host_config=self.docker_client.create_host_config(**host_config),
+                networking_config=networking_config,
+                labels=labels,
+            )
+        except Exception as exc:
+            self.logger.exception(exc)
+            raise exc
         # Connect the rest of the networks
         if self.networks:
             for network in self.networks[1:]:
@@ -454,7 +457,11 @@ class DockerAgent(Agent):
             "Starting Docker container with ID {}".format(container.get("Id"))
         )
         if self.networks:
-            self.logger.debug(f"Adding container to docker networks: {self.networks}")
+            self.logger.debug(
+                "Adding container with ID {} to docker networks: {}.".format(
+                    container.get("Id"), self.networks
+                )
+            )
         if self.network:
             self.logger.debug(
                 "Adding container to docker network: {}".format(self.network)
