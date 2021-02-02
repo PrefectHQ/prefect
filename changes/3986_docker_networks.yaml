@@ -3,3 +3,6 @@ enhancement:
 
 contributor:
   - "[Peter Roelants](https://github.com/peterroelants)"
+
+deprecation:
+  - "Docker agent `network` kwarg deprecated in favor of `networks`"
