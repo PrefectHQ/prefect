@@ -58,12 +58,13 @@ def test_help(cmd):
             "prefect.agent.docker.DockerAgent",
             (
                 "--base-url testurl --no-pull --show-flow-logs --volume volume1 "
-                "--volume volume2 --network testnetwork --no-docker-interface"
+                "--volume volume2 --network testnetwork1 --network testnetwork2 "
+                "--no-docker-interface"
             ),
             {
                 "base_url": "testurl",
                 "volumes": ["volume1", "volume2"],
-                "network": "testnetwork",
+                "networks": ("testnetwork1", "testnetwork2"),
                 "no_pull": True,
                 "show_flow_logs": True,
                 "docker_interface": False,

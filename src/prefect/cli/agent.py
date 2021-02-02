@@ -216,7 +216,13 @@ def docker():
 )
 @click.option(
     "--network",
-    help="Add containers to an existing docker network",
+    "networks",
+    multiple=True,
+    help=(
+        "Add containers to existing Docker networks. "
+        "Can be provided multiple times to pass multiple networks "
+        "(e.g. `--network network1 --network network2`)"
+    ),
 )
 @click.option(
     "--no-docker-interface",
@@ -518,7 +524,8 @@ _agents = {
 )
 @click.option(
     "--network",
-    help="Add containers to an existing docker network",
+    multiple=True,
+    help="Add containers to existing Docker networks.",
     hidden=True,
 )
 @click.option(
@@ -608,7 +615,9 @@ def start(
         --volume            TEXT    Host paths for Docker bind mount volumes attached to
                                     each Flow runtime container. Multiple values supported.
                                         e.g. `--volume /some/path`
-        --network           TEXT    Add containers to an existing docker network
+        --network           TEXT    Add containers to existing Docker networks.
+                                    Multiple values supported.
+                                        e.g. `--network network1 --network network2`
         --no-docker-interface       Disable the check of a Docker interface on this machine.
                                     Note: This is mostly relevant for some Docker-in-Docker
                                     setups that users may be running their agent with.
@@ -691,7 +700,7 @@ def start(
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
                 volumes=list(volume),
-                network=network,
+                networks=tuple(network),
                 docker_interface=not no_docker_interface,
             ).start()
         elif agent_option == "fargate":

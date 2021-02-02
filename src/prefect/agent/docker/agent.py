@@ -5,6 +5,7 @@ import re
 import sys
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
+import warnings
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -74,6 +75,8 @@ class DockerAgent(Agent):
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any
             and all created containers.
         - network (str, optional): Add containers to an existing docker network
+            (deprecated in favor of `networks`).
+        - networks (List[str], optional): Add containers to existing Docker networks.
         - docker_interface (bool, optional): Toggle whether or not a `docker0` interface is
             present on this machine.  Defaults to `True`. **Note**: This is mostly relevant for
             some Docker-in-Docker setups that users may be running their agent with.
@@ -95,6 +98,7 @@ class DockerAgent(Agent):
         volumes: List[str] = None,
         show_flow_logs: bool = False,
         network: str = None,
+        networks: List[str] = None,
         docker_interface: bool = True,
         reg_allow_list: List[str] = None,
     ) -> None:
@@ -130,9 +134,21 @@ class DockerAgent(Agent):
             self.host_spec,
         ) = self._parse_volume_spec(volumes or [])
 
-        # Add containers to a docker network
+        # Add containers to the given Docker networks
+        if networks and network:
+            raise ValueError(
+                "Only provide either `network` or `networks` argument, not both!"
+            )
+        if network:
+            warnings.warn(
+                "DockerAgent `network` argument is deprecated and will be removed from Prefect. "
+                "Use `networks` instead.",
+                UserWarning,
+            )
         self.network = network
-        self.logger.debug("Docker network set to {}".format(self.network))
+        self.logger.debug(f"Docker network set to {self.network}")
+        self.networks = networks
+        self.logger.debug(f"Docker networks set to {self.networks}")
 
         self.docker_interface = docker_interface
         self.logger.debug(
@@ -156,11 +172,10 @@ class DockerAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
-
         self.logger.debug(f"Base URL: {self.base_url}")
         self.logger.debug(f"No pull: {self.no_pull}")
         self.logger.debug(f"Volumes: {volumes}")
-        self.logger.debug(f"Network: {self.network}")
+        self.logger.debug(f"Networks: {self.networks}")
         self.logger.debug(f"Docker interface: {self.docker_interface}")
 
     def _get_docker_client(self) -> "docker.APIClient":
@@ -399,17 +414,25 @@ class DockerAgent(Agent):
             host_config.update(extra_hosts={"host.docker.internal": docker_internal_ip})
 
         networking_config = None
+        # At the time of creation, you can only connect a container to a single network,
+        # however you can create more connections after creation.
+        # Connect first network in the creation step. If no network is connected here the container
+        # is connected to the default `bridge` network.
+        # The rest of the networks are connected after creation.
+        if self.networks:
+            networking_config = self.docker_client.create_networking_config(
+                {self.networks[0]: self.docker_client.create_endpoint_config()}
+            )
+        # Try fallback on old, deprecated, behaviour.
         if self.network:
             networking_config = self.docker_client.create_networking_config(
                 {self.network: self.docker_client.create_endpoint_config()}
             )
-
         labels = {
             "io.prefect.flow-name": flow_run.flow.name,
             "io.prefect.flow-id": flow_run.flow.id,
             "io.prefect.flow-run-id": flow_run.id,
         }
-
         container = self.docker_client.create_container(
             image,
             command=get_flow_run_command(flow_run),
@@ -419,11 +442,22 @@ class DockerAgent(Agent):
             networking_config=networking_config,
             labels=labels,
         )
-
+        # Connect the rest of the networks
+        if self.networks:
+            for network in self.networks[1:]:
+                self.docker_client.connect_container_to_network(
+                    container=container, net_id=network
+                )
         # Start the container
         self.logger.debug(
             "Starting Docker container with ID {}".format(container.get("Id"))
         )
+        if self.networks:
+            self.logger.debug(
+                "Adding container with ID {} to docker networks: {}.".format(
+                    container.get("Id"), self.networks
+                )
+            )
         if self.network:
             self.logger.debug(
                 "Adding container to docker network: {}".format(self.network)
