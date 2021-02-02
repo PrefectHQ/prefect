@@ -2,131 +2,106 @@
 Utility functions for interacting with git-based clients.
 """
 import os
-import prefect
+from typing import TYPE_CHECKING
+
 import requests
 
-from typing import Any
+import prefect
 
-try:
+if TYPE_CHECKING:
     from github import Github
-except ImportError:
-    Github = None  # type: ignore
-
-try:
     from gitlab import Gitlab
-except ImportError:
-    Gitlab = None  # type: ignore
-
-try:
     from atlassian import Bitbucket
-except ImportError:
-    Bitbucket = None  # type: ignore
 
 
-def get_github_client(credentials: dict = None, **kwargs: Any) -> "Github":
+def get_github_client() -> "Github":
     """
-    Utility function for loading github client objects from a given set of credentials.
-
-    Args:
-        - credentials (dict, optional): a dictionary of Github credentials used to
-            initialize the Client; if not provided, will attempt to load the
-            Client using ambient environment settings
-        - **kwargs (Any, optional): additional keyword arguments to pass to the github Client
+    Utility function for loading github client objects from the default prefect
+    credentials.
 
     Returns:
-        - Client: an initialized and authenticated github Client
+        - Github: an initialized and authenticated github client
     """
-    if not Github:
+    try:
+        from github import Github
+    except ImportError as exc:
         raise ImportError(
             "Unable to import Github, please ensure you have installed the github extra"
-        )
+        ) from exc
 
-    access_token = None
+    # Load the access token from (in priority order)
+    # - Active credentials
+    # - Local secrets
+    # - Environment variable
+    key = "GITHUB_ACCESS_TOKEN"
+    access_token = prefect.context.get("credentials", {}).get(key)
+    if access_token is None:
+        access_token = prefect.context.get("secrets", {}).get(key)
+    if access_token is None:
+        access_token = os.getenv(key)
 
-    if credentials:
-        access_token = credentials.get("GITHUB_ACCESS_TOKEN")
-    else:
-        access_token = prefect.context.get("secrets", {}).get(
-            "GITHUB_ACCESS_TOKEN", None
-        )
-
-    # Attempt to grab out of env if not provided directly or through Prefect Secret
-    if not access_token:
-        access_token = os.getenv("GITHUB_ACCESS_TOKEN", None)
-
-    return Github(access_token, **kwargs)
+    return Github(access_token)
 
 
-def get_gitlab_client(
-    credentials: dict = None, host: str = None, **kwargs: Any
-) -> "Gitlab":
+def get_gitlab_client(host: str = None) -> "Gitlab":
     """
     Utility function for loading gitlab client objects from a given set of credentials.
 
     Args:
-        - credentials (dict, optional): a dictionary of Gitlab credentials used to
-            initialize the Client; if not provided, will attempt to load the
-            Client using ambient environment settings
-        - host (str, optional): the host string for gitlab server users. If not provided, defaults
-            to https://gitlab.com
-        - **kwargs (Any, optional): additional keyword arguments to pass to the gitlab Client
+        - host (str, optional): the host string for gitlab server users.
+            If not provided, defaults to `https://gitlab.com`.
 
     Returns:
-        - Client: an initialized and authenticated gitlab Client
+        - Gitlab: an initialized and authenticated gitlab client
     """
-    if not Gitlab:
+    try:
+        from gitlab import Gitlab
+    except ImportError as exc:
         raise ImportError(
             "Unable to import Gitlab, please ensure you have installed the gitlab extra"
-        )
+        ) from exc
 
-    if credentials:
-        access_token = credentials.get("GITLAB_ACCESS_TOKEN")
-    else:
-        access_token = prefect.context.get("secrets", {}).get(
-            "GITLAB_ACCESS_TOKEN", None
-        )
+    # Load the access token from (in priority order)
+    # - Active credentials
+    # - Local secrets
+    # - Environment variable
+    key = "GITLAB_ACCESS_TOKEN"
+    access_token = prefect.context.get("credentials", {}).get(key)
+    if access_token is None:
+        access_token = prefect.context.get("secrets", {}).get(key)
+    if access_token is None:
+        access_token = os.getenv(key)
 
-    if not access_token:
-        access_token = os.getenv("GITLAB_ACCESS_TOKEN", None)
-
-    if not host:
+    if host is None:
         host = "https://gitlab.com"
 
-    return Gitlab(host, private_token=access_token, **kwargs)
+    return Gitlab(host, private_token=access_token)
 
 
-def get_bitbucket_client(
-    credentials: dict = None, host: str = None, **kwargs: Any
-) -> "Bitbucket":
+def get_bitbucket_client(host: str = None) -> "Bitbucket":
     """
     Utility function for loading Bitbucket client objects from a given set of credentials.
 
     Args:
-        - credentials (dict, optional): a dictionary of Bitbucket credentials used to
-            initialize the Client; if not provided, will attempt to load the
-            Client using ambient environment settings
-        - host (str, optional): the host string for bitbucket server users. If not provided, defaults
-            to https://bitbucket.org
-        - **kwargs (Any, optional): additional keyword arguments to pass to the Bitbucket Client
-            Bitbucket accepts: "cloud", "api_version", "api_root"
+        - host (str, optional): the host string for bitbucket server users.
+            If not provided, defaults to `https://bitbucket.org`.
 
     Returns:
         - Client: an initialized and authenticated Bitbucket Client
     """
-    if not Bitbucket:
+    try:
+        from atlassian import Bitbucket
+    except ImportError as exc:
         raise ImportError(
             "Unable to import Bitbucket, please ensure you have installed the bitbucket extra"
-        )
+        ) from exc
 
-    if credentials:
-        access_token = credentials["BITBUCKET_ACCESS_TOKEN"]
-    else:
-        access_token = prefect.context.get("secrets", {}).get(
-            "BITBUCKET_ACCESS_TOKEN", None
-        )
-
-    if not access_token:
-        access_token = os.getenv("BITBUCKET_ACCESS_TOKEN", None)
+    key = "BITBUCKET_ACCESS_TOKEN"
+    access_token = prefect.context.get("credentials", {}).get(key)
+    if access_token is None:
+        access_token = prefect.context.get("secrets", {}).get(key)
+    if access_token is None:
+        access_token = os.getenv(key)
 
     if not host:
         host = "https://bitbucket.org"
@@ -136,4 +111,4 @@ def get_bitbucket_client(
         session.headers["Authorization"] = "Bearer "
     else:
         session.headers["Authorization"] = "Bearer " + access_token
-    return Bitbucket(host, session=session, **kwargs)
+    return Bitbucket(host, session=session)
