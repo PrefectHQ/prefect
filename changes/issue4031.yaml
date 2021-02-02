@@ -1,2 +1,0 @@
-fix:
-  - "Fix issue with fixed duration Paused states not resuming properly - [#4031](https://github.com/PrefectHQ/prefect/issues/4031)"

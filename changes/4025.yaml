@@ -1,2 +1,0 @@
-task:
-  - "Add GCSBlobExists which checks for the existence of an object in a given GCS bucket - [#4025](https://github.com/PrefectHQ/prefect/pull/4025)"
