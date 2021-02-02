@@ -1,3 +1,0 @@
-enhancement:
-  - "Add option to provide flow ID to `run flow` CLI command - [#4021](https://github.com/PrefectHQ/prefect/pull/4021)"
-  - "Flow name and project are no longer required options when calling `run flow` CLI command - [#4021](https://github.com/PrefectHQ/prefect/pull/4021)"

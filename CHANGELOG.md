@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.14.6 <Badge text="beta" type="success" />
+
+Released on February 2, 2021.
+
+### Enhancements
+
+- Add option to provide flow ID to `run flow` CLI command - [#4021](https://github.com/PrefectHQ/prefect/pull/4021)
+- Flow name and project are no longer required options when calling `run flow` CLI command - [#4021](https://github.com/PrefectHQ/prefect/pull/4021)
+
+### Task Library
+
+- Add GCSBlobExists which checks for the existence of an object in a given GCS bucket - [#4025](https://github.com/PrefectHQ/prefect/pull/4025)
+- Use boto3 session in `S3Upload` and `S3Download` tasks, to ensure thread-safe execution - [#3981](https://github.com/PrefectHQ/prefect/pull/3981)
+
+### Fixes
+
+- Fix issue with fixed duration Paused states not resuming properly - [#4031](https://github.com/PrefectHQ/prefect/issues/4031)
+
+### Contributors
+
+- [Gregory Roche](https://github.com/gregoryroche)
+
 ## 0.14.5 <Badge text="beta" type="success" />
 
 Released on January 26, 2021.
