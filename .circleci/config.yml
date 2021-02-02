@@ -602,7 +602,7 @@ jobs:
 
       - run:
           name: Run Flow
-          command: prefect run flow $FLOW_ID
+          command: prefect run flow --id $FLOW_ID
 
 orbs:
   docker: circleci/docker@1.0.0
