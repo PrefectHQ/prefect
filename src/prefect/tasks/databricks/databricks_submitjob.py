@@ -99,7 +99,8 @@ class DatabricksSubmitRun(Task):
     }
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksSubmitRun(databricks_conn_string=conn, json=json)
+    notebook_run = DatabricksSubmitRun(json=json)
+    notebook_run(databricks_conn_secret=conn)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -118,9 +119,9 @@ class DatabricksSubmitRun(Task):
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
     notebook_run = DatabricksSubmitRun(
-        databricks_conn_string=conn,
         new_cluster=new_cluster,
         notebook_task=notebook_task)
+    notebook_run(databricks_conn_secret=conn)
     ```
 
     In the case where both the json parameter **AND** the named parameters
@@ -136,7 +137,8 @@ class DatabricksSubmitRun(Task):
 
     with Flow('my flow') as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-        DatabricksSubmitRun(databricks_conn_string=conn, json=...)
+        notebook_run = DatabricksSubmitRun(json=...)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     Currently the named parameters that `DatabricksSubmitRun` task supports are
@@ -340,6 +342,10 @@ class DatabricksSubmitRun(Task):
         assert isinstance(
             databricks_conn_secret, dict
         ), "`databricks_conn_secret` must be supplied as a valid dictionary."
+        self.databricks_conn_secret = databricks_conn_secret
+
+        if json:
+            self.json = json
 
         # Initialize Databricks Connections
         hook = self.get_hook()
@@ -395,7 +401,8 @@ class DatabricksRunNow(Task):
         }
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksRunNow(databricks_conn_string=conn, json=json)
+    notebook_run = DatabricksRunNow(json=json)
+    notebook_run(databricks_conn_secret=conn)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -417,11 +424,11 @@ class DatabricksRunNow(Task):
 
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
     notebook_run = DatabricksRunNow(
-        databricks_conn_string=conn,
         notebook_params=notebook_params,
         python_params=python_params,
         spark_submit_params=spark_submit_params
     )
+    notebook_run(databricks_conn_secret=conn)
     ```
 
     In the case where both the json parameter **AND** the named parameters
@@ -437,7 +444,8 @@ class DatabricksRunNow(Task):
 
     with Flow('my flow') as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-        DatabricksRunNow(databricks_conn_string=conn, json=...)
+        notebook_run = DatabricksRunNow(json=...)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     Currently the named parameters that `DatabricksRunNow` task supports are
@@ -631,6 +639,10 @@ class DatabricksRunNow(Task):
         assert isinstance(
             databricks_conn_secret, dict
         ), "`databricks_conn_secret` must be supplied as a valid dictionary."
+        self.databricks_conn_secret = databricks_conn_secret
+
+        if json:
+            self.json = json
 
         # Initialize Databricks Connections
         hook = self.get_hook()

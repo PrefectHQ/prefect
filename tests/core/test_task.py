@@ -743,7 +743,7 @@ def test_passing_task_to_task_constructor_raises_helpful_warning():
             self.b = b
             super().__init__(**kwargs)
 
-    with Flow("test") as flow:
+    with Flow("test"):
         a = Task()()
         with pytest.warns(
             UserWarning, match="A Task was passed as an argument to MyTask"
@@ -752,3 +752,15 @@ def test_passing_task_to_task_constructor_raises_helpful_warning():
         # Warning doesn't stop normal operation
         assert t.a == 1
         assert t.b == a
+
+
+def test_task_init_uses_reserved_attribute_raises_helpful_warning():
+    class MyTask(Task):
+        def __init__(self, **kwargs):
+            self.a = 1
+            self.target = "oh no!"
+            super().__init__(**kwargs)
+
+    with Flow("test"):
+        with pytest.warns(UserWarning, match="`MyTask` sets a `target` attribute"):
+            MyTask()

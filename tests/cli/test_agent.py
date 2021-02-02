@@ -109,6 +109,22 @@ def test_help(cmd):
                 "run_task_kwargs_path": "run-task-kwargs-path.yaml",
             },
         ),
+        (
+            "ecs",
+            "prefect.agent.ecs.ECSAgent",
+            (
+                "--cluster TEST-CLUSTER --launch-type FARGATE --execution-role-arn TEST-EXECUTION-ROLE-ARN "
+                "--task-definition task-definition-path.yaml --run-task-kwargs "
+                "run-task-kwargs-path.yaml"
+            ),
+            {
+                "cluster": "TEST-CLUSTER",
+                "launch_type": "FARGATE",
+                "execution_role_arn": "TEST-EXECUTION-ROLE-ARN",
+                "task_definition_path": "task-definition-path.yaml",
+                "run_task_kwargs_path": "run-task-kwargs-path.yaml",
+            },
+        ),
     ],
 )
 def test_agent_start(

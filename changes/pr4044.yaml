@@ -1,0 +1,4 @@
+task:
+  - Add new tasks for communication with an Exasol database - [#4044](https://github.com/PrefectHQ/prefect/pull/4044)
+contributor:
+  - "[Timo S.](https://github.com/sti0)"

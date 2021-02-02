@@ -14,6 +14,7 @@ from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.run_configs import KubernetesRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import ClientError
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -1041,6 +1042,49 @@ def test_k8s_agent_manage_jobs_client_call(monkeypatch, cloud_api):
     )
     client = MagicMock()
     client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    job_mock = MagicMock()
+    job_mock.metadata.labels = {
+        "prefect.io/identifier": "id",
+        "prefect.io/flow_run_id": "fr",
+    }
+    job_mock.metadata.name = "my_job"
+    job_mock.status.failed = False
+    job_mock.status.succeeded = False
+    batch_client = MagicMock()
+    list_job = MagicMock()
+    list_job.metadata._continue = 0
+    list_job.items = [job_mock]
+    batch_client.list_namespaced_job.return_value = list_job
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
+    )
+
+    pod = MagicMock()
+    pod.metadata.name = "pod_name"
+    c_status = MagicMock()
+    c_status.state.waiting.reason = "ErrImagePull"
+    pod.status.container_statuses = [c_status]
+    core_client = MagicMock()
+    list_pods = MagicMock()
+    list_pods.items = [pod]
+    core_client.list_namespaced_pod.return_value = list_pods
+    monkeypatch.setattr(
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    agent = KubernetesAgent()
+    agent.manage_jobs()
+
+
+def test_k8s_agent_manage_jobs_continues_on_client_error(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(data=MagicMock(set_flow_run_state=None))
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    client.return_value.set_flow_run_state = MagicMock(side_effect=ClientError)
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     job_mock = MagicMock()

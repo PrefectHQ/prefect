@@ -429,6 +429,23 @@ class TestInitializeRun:
             result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
 
+    def test_task_runner_puts_resume_in_context_if_paused_start_time_elapsed(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc")), context=ctx
+            )
+            assert result.context.resume is True
+
+    def test_task_runner_ignores_resume_in_context_if_paused_start_time_in_future(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc").add(seconds=10)),
+                context=ctx,
+            )
+            assert "resume" not in ctx
+
     def test_task_runner_puts_checkpointing_in_context(self):
         with prefect.context() as ctx:
             assert "checkpointing" not in ctx

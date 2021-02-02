@@ -380,6 +380,10 @@ def ecs():
     help="The default task role ARN to use for ECS tasks started by this agent.",
 )
 @click.option(
+    "--execution-role-arn",
+    help="The default execution role ARN to use for ECS tasks started by this agent.",
+)
+@click.option(
     "--task-definition",
     "task_definition_path",
     help=(

@@ -164,6 +164,7 @@ def test_agent_defaults(default_task_definition):
     assert agent.cluster is None
     assert agent.launch_type == "FARGATE"
     assert agent.task_role_arn is None
+    assert agent.execution_role_arn is None
 
 
 class TestAgentTaskDefinitionPath:
@@ -366,6 +367,23 @@ class TestGenerateTaskDefinition:
             ECSRun(task_role_arn=on_run_config), task_role_arn=on_agent
         )
         assert taskdef.get("taskRoleArn") == expected
+
+    @pytest.mark.parametrize(
+        "on_run_config, on_agent, expected",
+        [
+            (None, None, None),
+            ("execution-role-1", None, "execution-role-1"),
+            (None, "execution-role-2", "execution-role-2"),
+            ("execution-role-1", "execution-role-2", "execution-role-1"),
+        ],
+    )
+    def test_generate_task_definition_execution_role_arn(
+        self, on_run_config, on_agent, expected
+    ):
+        taskdef = self.generate_task_definition(
+            ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
+        )
+        assert taskdef.get("executionRoleArn") == expected
 
     def test_generate_task_definition_environment(self):
         run_config = ECSRun(

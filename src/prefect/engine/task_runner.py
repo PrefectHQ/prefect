@@ -25,6 +25,7 @@ from prefect.engine.state import (
     Failed,
     Looped,
     Mapped,
+    Paused,
     Pending,
     Resume,
     Retrying,
@@ -141,7 +142,13 @@ class TaskRunner(Runner):
         else:
             run_count = state.context.get("task_run_count", 1)
 
-        if isinstance(state, Resume):
+        # detect if currently Paused with a recent start_time
+        should_resume = (
+            isinstance(state, Paused)
+            and state.start_time
+            and state.start_time <= pendulum.now("utc")  # type: ignore
+        )
+        if isinstance(state, Resume) or should_resume:
             context.update(resume=True)
 
         if "_loop_count" in state.context:
