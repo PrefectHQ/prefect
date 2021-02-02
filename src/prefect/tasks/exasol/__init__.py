@@ -9,7 +9,7 @@ try:
         ExasolImportFromIterable,
         ExasolExportToFile,
     )
-except ImportError:
+except ImportError as exc:
     raise ImportError(
         'Using `prefect.tasks.exasol` requires Prefect to be installed with the "exasol" extra.'
-    )
+    ) from exc
