@@ -5,4 +5,4 @@ contributor:
   - "[Peter Roelants](https://github.com/peterroelants)"
 
 deprecation:
-  - "Docker agent `network` kwarg deprecated in favor of `networks`"
+  - "Docker agent `network` kwarg deprecated in favor of `networks` - [#3986](https://github.com/PrefectHQ/prefect/issues/3986)"
