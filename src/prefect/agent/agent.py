@@ -673,7 +673,7 @@ class Agent:
             version=flow_run.version,
             state=Failed(message=str(exc)),
         )
-        self.logger.error("Error while deploying flow: {}".format(repr(exc)))
+        self.logger.error("Error while deploying flow: {}".format(repr(exc)), exc_info=exc)
 
     def _get_run_config(
         self, flow_run: GraphQLResult, run_config_cls: Type[RunConfig]

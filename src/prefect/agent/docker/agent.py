@@ -433,19 +433,15 @@ class DockerAgent(Agent):
             "io.prefect.flow-id": flow_run.flow.id,
             "io.prefect.flow-run-id": flow_run.id,
         }
-        try:
-            container = self.docker_client.create_container(
-                image,
-                command=get_flow_run_command(flow_run),
-                environment=env_vars,
-                volumes=container_mount_paths,
-                host_config=self.docker_client.create_host_config(**host_config),
-                networking_config=networking_config,
-                labels=labels,
-            )
-        except Exception as exc:
-            self.logger.exception(exc)
-            raise exc
+        container = self.docker_client.create_container(
+            image,
+            command=get_flow_run_command(flow_run),
+            environment=env_vars,
+            volumes=container_mount_paths,
+            host_config=self.docker_client.create_host_config(**host_config),
+            networking_config=networking_config,
+            labels=labels,
+        )
         # Connect the rest of the networks
         if self.networks:
             for network in self.networks[1:]:
