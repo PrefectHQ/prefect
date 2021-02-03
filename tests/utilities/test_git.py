@@ -1,54 +1,9 @@
-import os
 from unittest.mock import MagicMock
 
 import pytest
 
 import prefect
-from prefect.utilities.git import (
-    get_gitlab_client,
-    get_bitbucket_client,
-)
-from prefect.utilities.configuration import set_temporary_config
-
-
-@pytest.fixture
-def gitlab(monkeypatch):
-    pytest.importorskip("gitlab")
-    gitlab = MagicMock()
-    monkeypatch.setattr("gitlab.Gitlab", gitlab)
-    return gitlab
-
-
-def test_gitlab_credentials_precedence(gitlab, monkeypatch):
-    key = "GITLAB_ACCESS_TOKEN"
-
-    monkeypatch.delenv(key, raising=False)
-    with prefect.context(secrets={}):
-        # No token by default
-        get_gitlab_client()
-        assert gitlab.call_args[1]["private_token"] is None
-
-        # Load from env if present
-        monkeypatch.setenv(key, "from-env")
-        get_gitlab_client()
-        assert gitlab.call_args[1]["private_token"] == "from-env"
-
-        # Load from local secrets if present
-        prefect.context.secrets[key] = "from-secret"
-        get_gitlab_client()
-        assert gitlab.call_args[1]["private_token"] == "from-secret"
-
-        # Load from credentials if present
-        prefect.context.setdefault("credentials", {})[key] = "from-credentials"
-        get_gitlab_client()
-        assert gitlab.call_args[1]["private_token"] == "from-credentials"
-
-
-@pytest.mark.parametrize("host", [None, "http://localhost:1234"])
-def test_gitlab_hostname(gitlab, host):
-    get_gitlab_client(host=host)
-    expected = host or "https://gitlab.com"
-    assert gitlab.call_args[0][0] == expected
+from prefect.utilities.git import get_bitbucket_client
 
 
 @pytest.fixture

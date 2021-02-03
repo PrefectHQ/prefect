@@ -1,11 +1,15 @@
+import os
 from typing import TYPE_CHECKING, Any, Dict
 from urllib.parse import quote_plus
 
+import prefect
+from prefect.client import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
+    from gitlab import Gitlab
 
 
 class GitLab(Storage):
@@ -31,10 +35,12 @@ class GitLab(Storage):
 
     Args:
         - repo (str): the project path (i.e., 'namespace/project') or ID
-        - host (str, optional): If using Gitlab server, the server host. If not specified, defaults
-            to Gitlab cloud.
+        - host (str, optional): If using GitLab server, the server host. If not
+            specified, defaults to Gitlab cloud.
         - path (str, optional): a path pointing to a flow file in the repo
         - ref (str, optional): a commit SHA-1 value or branch name
+        - access_token_secret (str, optional): The name of a Prefect secret
+            that contains a GitLab access token to use when loading this flow.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -44,6 +50,7 @@ class GitLab(Storage):
         host: str = None,
         path: str = None,
         ref: str = None,
+        access_token_secret: str = None,
         **kwargs: Any,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
@@ -52,6 +59,7 @@ class GitLab(Storage):
         self.host = host
         self.path = path
         self.ref = ref
+        self.access_token_secret = access_token_secret
 
         super().__init__(**kwargs)
 
@@ -65,20 +73,27 @@ class GitLab(Storage):
         Returns:
             - Flow: the requested flow
         """
+        try:
+            from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import gitlab, please ensure you have installed the gitlab extra"
+            ) from exc
+
         if flow_name not in self.flows:
             raise ValueError("Flow is not contained in this Storage")
         flow_location = self.flows[flow_name]
 
         ref = self.ref or "master"
 
-        from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
+        client = self._get_gitlab_client()
 
         try:
-            project = self._gitlab_client.projects.get(quote_plus(self.repo))
+            project = client.projects.get(quote_plus(self.repo))
             contents = project.files.get(file_path=flow_location, ref=ref)
         except GitlabAuthenticationError:
             self.logger.error(
-                "Unable to authenticate Gitlab account. Please check your credentials."
+                "Unable to authenticate GitLab account. Please check your credentials."
             )
             raise
         except GitlabGetError:
@@ -138,8 +153,18 @@ class GitLab(Storage):
             return False
         return obj in self.flows
 
-    @property
-    def _gitlab_client(self):  # type: ignore
-        from prefect.utilities.git import get_gitlab_client
+    def _get_gitlab_client(self) -> "Gitlab":
+        from gitlab import Gitlab
 
-        return get_gitlab_client(host=self.host)
+        if self.access_token_secret is not None:
+            # If access token secret specified, load it
+            access_token = Secret(self.access_token_secret).get()
+        else:
+            # Otherwise, fallback to loading from local secret or environment variable
+            access_token = prefect.context.get("secrets", {}).get("GITLAB_ACCESS_TOKEN")
+            if access_token is None:
+                access_token = os.getenv("GITLAB_ACCESS_TOKEN")
+
+        host = "https://gitlab.com" if self.host is None else self.host
+
+        return Gitlab(host, private_token=access_token)

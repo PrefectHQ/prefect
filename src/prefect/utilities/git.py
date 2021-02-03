@@ -9,43 +9,7 @@ import requests
 import prefect
 
 if TYPE_CHECKING:
-    from gitlab import Gitlab
     from atlassian import Bitbucket
-
-
-def get_gitlab_client(host: str = None) -> "Gitlab":
-    """
-    Utility function for loading gitlab client objects from a given set of credentials.
-
-    Args:
-        - host (str, optional): the host string for gitlab server users.
-            If not provided, defaults to `https://gitlab.com`.
-
-    Returns:
-        - Gitlab: an initialized and authenticated gitlab client
-    """
-    try:
-        from gitlab import Gitlab
-    except ImportError as exc:
-        raise ImportError(
-            "Unable to import Gitlab, please ensure you have installed the gitlab extra"
-        ) from exc
-
-    # Load the access token from (in priority order)
-    # - Active credentials
-    # - Local secrets
-    # - Environment variable
-    key = "GITLAB_ACCESS_TOKEN"
-    access_token = prefect.context.get("credentials", {}).get(key)
-    if access_token is None:
-        access_token = prefect.context.get("secrets", {}).get(key)
-    if access_token is None:
-        access_token = os.getenv(key)
-
-    if host is None:
-        host = "https://gitlab.com"
-
-    return Gitlab(host, private_token=access_token)
 
 
 def get_bitbucket_client(host: str = None) -> "Bitbucket":
