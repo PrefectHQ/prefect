@@ -43,7 +43,6 @@ def test_get_gitlab_client(monkeypatch, secret_name, secret_arg, host):
 
 
 def test_get_gitlab_client_errors_if_secret_provided_and_not_found(monkeypatch):
-    orig_gitlab = gitlab.Gitlab
     mock_gitlab = MagicMock(wraps=gitlab.Gitlab)
     monkeypatch.setattr("gitlab.Gitlab", mock_gitlab)
     storage = GitLab(repo="test/repo", path="flow.py", access_token_secret="MISSING")

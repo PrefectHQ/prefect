@@ -107,6 +107,7 @@ class GitLabSchema(BaseStorageSchema):
     path = fields.String(allow_none=True)
     host = fields.String(allow_none=True)
     ref = fields.String(allow_none=True)
+    access_token_secret = fields.String(allow_none=True)
 
 
 class BitbucketSchema(BaseStorageSchema):
@@ -118,6 +119,7 @@ class BitbucketSchema(BaseStorageSchema):
     host = fields.String(allow_none=True)
     path = fields.String(allow_none=True)
     ref = fields.String(allow_none=True)
+    access_token_secret = fields.String(allow_none=True)
 
 
 class CodeCommitSchema(BaseStorageSchema):

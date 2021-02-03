@@ -64,7 +64,6 @@ def test_github_access_token_secret(monkeypatch, secret_name, secret_arg):
 
 
 def test_github_access_token_errors_if_provided_and_not_found(monkeypatch):
-    orig_github = github.Github
     mock_github = MagicMock(wraps=github.Github)
     monkeypatch.setattr("github.Github", mock_github)
     storage = GitHub(repo="test/repo", path="flow.py", access_token_secret="MISSING")

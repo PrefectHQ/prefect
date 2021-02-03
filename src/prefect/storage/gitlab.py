@@ -40,7 +40,8 @@ class GitLab(Storage):
         - path (str, optional): a path pointing to a flow file in the repo
         - ref (str, optional): a commit SHA-1 value or branch name
         - access_token_secret (str, optional): The name of a Prefect secret
-            that contains a GitLab access token to use when loading this flow.
+            that contains a GitLab access token to use when loading flows from
+            this storage.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 

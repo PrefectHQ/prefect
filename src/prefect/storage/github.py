@@ -37,7 +37,8 @@ class GitHub(Storage):
         - ref (str, optional): a commit SHA-1 value, tag, or branch name. If not specified,
             defaults to the default branch for the repo.
         - access_token_secret (str, optional): The name of a Prefect secret
-            that contains a GitHub access token to use when loading this flow.
+            that contains a GitHub access token to use when loading flows from
+            this storage.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
