@@ -1,0 +1,2 @@
+enhancement:
+  - "Add `access_token_secret` to `GitHub`, `GitLab`, and `Bitbucket` storage, making the Prefect secret containing an access token to these services configurable - [#4059](https://github.com/PrefectHQ/prefect/pull/4059)"
