@@ -117,14 +117,6 @@ class Azure(Storage):
         self._flows[flow.name] = flow
         return blob_name
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
     def build(self) -> "Storage":
         """
         Build the Azure storage object by uploading Flows to an Azure Blob container.

@@ -206,14 +206,6 @@ class S3(Storage):
 
         return self
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
     @property
     def _boto3_client(self):  # type: ignore
         from prefect.utilities.aws import get_boto_client

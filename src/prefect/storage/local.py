@@ -146,14 +146,6 @@ class Local(Storage):
         self._flows[flow.name] = flow
         return flow_location
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
     def build(self) -> "Storage":
         """
         Build the Storage object.

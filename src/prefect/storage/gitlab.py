@@ -146,14 +146,6 @@ class GitLab(Storage):
 
         return self
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
     def _get_gitlab_client(self) -> "Gitlab":
         from gitlab import Gitlab
 
