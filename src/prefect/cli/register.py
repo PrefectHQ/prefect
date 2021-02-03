@@ -61,7 +61,8 @@ def register():
     hidden=True,
     multiple=True,
 )
-def flow(file, name, project, label):
+@click.option("--detect-changes", is_flag=True, help="Detect changes to the flow")
+def flow(file, name, project, label, detect_changes):
     """
     Register a flow from a file. This call will pull a Flow object out of a `.py` file
     and call `flow.register` on it.
@@ -74,15 +75,19 @@ def flow(file, name, project, label):
         --project, -p   TEXT    The name of a Prefect project to register this flow
         --label, -l     TEXT    A label to set on the flow, extending any existing labels.
                                 Multiple labels are supported, eg. `-l label1 -l label2`.
+        --detect-changes        If toggled, passes a serialized hash of the flow to the register
+                                function's idempotency key. This allows you to avoid bumping the
+                                registered flow's version if the flow has not changed.
 
     \b
     Examples:
         $ prefect register flow --file my_flow.py --name My-Flow -l label1 -l label2
     """
-
     # Don't run extra `run` and `register` functions inside file
     file_path = os.path.abspath(file)
     with prefect.context({"loading_flow": True, "local_script_path": file_path}):
         flow = extract_flow_from_file(file_path=file_path, flow_name=name)
 
-    flow.register(project_name=project, labels=label)
+    idempotency_key = flow.serialized_hash() if detect_changes else None
+
+    flow.register(project_name=project, labels=label, idempotency_key=idempotency_key)
