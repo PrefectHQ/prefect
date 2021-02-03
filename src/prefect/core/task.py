@@ -48,7 +48,7 @@ class NoDefault(enum.Enum):
 
 
 def _validate_run_signature(run: Callable) -> None:
-    func = getattr(run, "__wrapped__", run)
+    func = inspect.unwrap(run)
     try:
         run_sig = inspect.getfullargspec(func)
     except TypeError as exc:
