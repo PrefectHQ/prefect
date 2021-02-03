@@ -99,7 +99,9 @@ class Local(Storage):
                     return flow_from_bytes_pickle(f.read())
         # otherwise the path is given in the module format
         else:
-            return extract_flow_from_module(module_str=flow_location)
+            return extract_flow_from_module(
+                module_str=flow_location, flow_name=flow_name
+            )
 
     def add_flow(self, flow: "Flow") -> str:
         """
