@@ -68,6 +68,12 @@ services:
       PREFECT_CORE_VERSION: ${PREFECT_CORE_VERSION:-"UNKNOWN"}
     networks:
       - prefect-server
+    healthcheck:
+      test: curl --fail --silent "http://graphql:4201/health" &> /dev/null || exit 1
+      interval: 5s
+      timeout: 2s
+      retries: 18
+      start_period: 1s
     restart: always
     depends_on:
       hasura:
@@ -84,7 +90,8 @@ services:
       - prefect-server
     restart: "always"
     depends_on:
-      - graphql
+      graphql:
+        condition: service_healthy
 
   # Apollo: the main endpoint for interacting with the server
   apollo:
@@ -103,14 +110,15 @@ services:
       - prefect-server
     # Test GraphQL Apollo endpoint as health-check
     healthcheck:
-      test: curl --fail --silent "http://apollo:4200/.well-known/apollo/server-health" || exit 1
+      test: curl --fail --silent "http://apollo:4200/.well-known/apollo/server-health" &> /dev/null || exit 1
       interval: 5s
       timeout: 2s
       retries: 18
       start_period: 1s
     restart: always
     depends_on:
-      - graphql
+      graphql:
+        condition: service_healthy
 
   # UI: the user interface that provides a visual dashboard for mutating and querying metadata
   # The UI is a standalone web interface and only communicates with the Apollo GraphQL API via
@@ -125,14 +133,14 @@ services:
     networks:
       - prefect-server
     healthcheck:
-      test: curl --fail --silent -I "http://ui:8080/" &> /dev/null || exit 1
+      test: curl --fail --silent --head "http://ui:8080/" &> /dev/null || exit 1
       interval: 30s
       timeout: 5s
       retries: 5
     restart: always
     depends_on:
       apollo:
-        condition: service_healthy
+        condition: service_started
 
 networks:
   prefect-server:
