@@ -357,7 +357,8 @@ def test_webhook_full_serialize():
 
 
 @pytest.mark.parametrize("ref", [None, "testref"])
-def test_github_serialize(ref):
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_github_serialize(ref, access_token_secret):
     github = storage.GitHub(repo="test/repo", path="flow.py")
     if ref is not None:
         github.ref = ref
@@ -367,6 +368,7 @@ def test_github_serialize(ref):
     assert serialized["path"] == "flow.py"
     assert serialized["ref"] == ref
     assert serialized["secrets"] == []
+    assert serialized["access_token_secret"] == access_token_secret
 
 
 def test_gitlab_empty_serialize():

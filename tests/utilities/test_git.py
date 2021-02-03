@@ -5,44 +5,10 @@ import pytest
 
 import prefect
 from prefect.utilities.git import (
-    get_github_client,
     get_gitlab_client,
     get_bitbucket_client,
 )
 from prefect.utilities.configuration import set_temporary_config
-
-
-@pytest.fixture
-def github(monkeypatch):
-    pytest.importorskip("github")
-    github = MagicMock()
-    monkeypatch.setattr("github.Github", github)
-    return github
-
-
-def test_github_credentials_precedence(github, monkeypatch):
-    key = "GITHUB_ACCESS_TOKEN"
-
-    monkeypatch.delenv(key, raising=False)
-    with prefect.context(secrets={}):
-        # No token by default
-        get_github_client()
-        assert github.call_args[0][0] is None
-
-        # Load from env if present
-        monkeypatch.setenv(key, "from-env")
-        get_github_client()
-        assert github.call_args[0][0] == "from-env"
-
-        # Load from local secrets if present
-        prefect.context.secrets[key] = "from-secret"
-        get_github_client()
-        assert github.call_args[0][0] == "from-secret"
-
-        # Load from credentials if present
-        prefect.context.setdefault("credentials", {})[key] = "from-credentials"
-        get_github_client()
-        assert github.call_args[0][0] == "from-credentials"
 
 
 @pytest.fixture

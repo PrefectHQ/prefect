@@ -96,6 +96,7 @@ class GitHubSchema(BaseStorageSchema):
     repo = fields.String(allow_none=False)
     ref = fields.String(allow_none=True)
     path = fields.String(allow_none=False)
+    access_token_secret = fields.String(allow_none=True)
 
 
 class GitLabSchema(BaseStorageSchema):

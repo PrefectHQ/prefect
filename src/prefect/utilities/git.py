@@ -9,38 +9,8 @@ import requests
 import prefect
 
 if TYPE_CHECKING:
-    from github import Github
     from gitlab import Gitlab
     from atlassian import Bitbucket
-
-
-def get_github_client() -> "Github":
-    """
-    Utility function for loading github client objects from the default prefect
-    credentials.
-
-    Returns:
-        - Github: an initialized and authenticated github client
-    """
-    try:
-        from github import Github
-    except ImportError as exc:
-        raise ImportError(
-            "Unable to import Github, please ensure you have installed the github extra"
-        ) from exc
-
-    # Load the access token from (in priority order)
-    # - Active credentials
-    # - Local secrets
-    # - Environment variable
-    key = "GITHUB_ACCESS_TOKEN"
-    access_token = prefect.context.get("credentials", {}).get(key)
-    if access_token is None:
-        access_token = prefect.context.get("secrets", {}).get(key)
-    if access_token is None:
-        access_token = os.getenv(key)
-
-    return Github(access_token)
 
 
 def get_gitlab_client(host: str = None) -> "Gitlab":
