@@ -1,0 +1,3 @@
+enhancements:
+  - "Add `--detect-changes` to `prefect register flow` CLI command that avoids bumping flow version if flow has not changed - [#4061](https://github.com/PrefectHQ/prefect/pull/4061)"
+  - "Add `--skip-if-exists` to `prefect create project` CLI command that safely skips if the project has already been created - [#4061](https://github.com/PrefectHQ/prefect/pull/4061)"
