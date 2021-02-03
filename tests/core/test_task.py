@@ -1,5 +1,6 @@
 import inspect
 import logging
+import functools
 from datetime import timedelta
 from typing import Any, Tuple
 
@@ -130,10 +131,63 @@ class TestCreateTask:
         with pytest.raises(TypeError):
             Task(state_handlers=lambda *a: 1)
 
+    def test_class_instantiation_allows_for_decorator_chaining(self):
+        def simple_dec(func):
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return wrapped
+
+        @task
+        @simple_dec
+        def run(x):
+            pass
+
+        class A(Task):
+            @simple_dec
+            def run(self, x):
+                pass
+
+        @task
+        @simple_dec
+        @simple_dec
+        def run(x):
+            pass
+
+        class A(Task):
+            @simple_dec
+            @simple_dec
+            def run(self, x):
+                pass
+
     def test_class_instantiation_rejects_varargs(self):
         with pytest.raises(ValueError):
 
             class VarArgsTask(Task):
+                def run(self, x, *y):
+                    pass
+
+    def test_class_instantiation_rejects_varargs_with_chained_decorator(self):
+        def simple_dec(func):
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return wrapped
+
+        with pytest.raises(ValueError):
+
+            class VarArgsTask(Task):
+                @simple_dec
+                def run(self, x, *y):
+                    pass
+
+        with pytest.raises(ValueError):
+
+            class VarArgsTask(Task):
+                @simple_dec
+                @simple_dec
                 def run(self, x, *y):
                     pass
 
