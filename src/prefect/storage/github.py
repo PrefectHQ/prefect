@@ -1,11 +1,14 @@
-from typing import TYPE_CHECKING, Any, Dict
+import os
+from typing import TYPE_CHECKING, Any
 
-
+import prefect
+from prefect.client import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
+    from github import Github
 
 
 class GitHub(Storage):
@@ -33,15 +36,24 @@ class GitHub(Storage):
         - path (str): a path pointing to a flow file in the repo
         - ref (str, optional): a commit SHA-1 value, tag, or branch name. If not specified,
             defaults to the default branch for the repo.
+        - access_token_secret (str, optional): The name of a Prefect secret
+            that contains a GitHub access token to use when loading flows from
+            this storage.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
-    def __init__(self, repo: str, path: str, ref: str = None, **kwargs: Any) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
+    def __init__(
+        self,
+        repo: str,
+        path: str,
+        ref: str = None,
+        access_token_secret: str = None,
+        **kwargs: Any,
+    ) -> None:
         self.repo = repo
         self.path = path
         self.ref = ref
+        self.access_token_secret = access_token_secret
 
         super().__init__(**kwargs)
 
@@ -55,11 +67,16 @@ class GitHub(Storage):
         Returns:
             - Flow: the requested flow
         """
+        try:
+            from github import UnknownObjectException
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import Github, please ensure you have installed the github extra"
+            ) from exc
+
         if flow_name not in self.flows:
             raise ValueError("Flow is not contained in this Storage")
         path = self.flows[flow_name]
-
-        from github import UnknownObjectException
 
         # Log info about the active storage object. Only include `ref` if
         # explicitly set.
@@ -70,8 +87,10 @@ class GitHub(Storage):
             f", ref: {self.ref!r}" if self.ref is not None else "",
         )
 
+        client = self._get_github_client()
+
         try:
-            repo = self._github_client.get_repo(self.repo)
+            repo = client.get_repo(self.repo)
         except UnknownObjectException:
             self.logger.error(
                 "Repo %r not found. Check that it exists (and is spelled correctly), "
@@ -92,7 +111,8 @@ class GitHub(Storage):
 
         try:
             contents = repo.get_contents(path, ref=commit)
-            decoded_contents = contents.decoded_content
+            assert not isinstance(contents, list)  # mypy
+            decoded_contents = contents.decoded_content.decode()
         except UnknownObjectException:
             self.logger.error(
                 "File %r not found in repo %r, ref %r", path, self.repo, ref
@@ -143,16 +163,16 @@ class GitHub(Storage):
 
         return self
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
+    def _get_github_client(self) -> "Github":
+        from github import Github
 
-    @property
-    def _github_client(self):  # type: ignore
-        from prefect.utilities.git import get_github_client
+        if self.access_token_secret is not None:
+            # If access token secret specified, load it
+            access_token = Secret(self.access_token_secret).get()
+        else:
+            # Otherwise, fallback to loading from local secret or environment variable
+            access_token = prefect.context.get("secrets", {}).get("GITHUB_ACCESS_TOKEN")
+            if access_token is None:
+                access_token = os.getenv("GITHUB_ACCESS_TOKEN")
 
-        return get_github_client()
+        return Github(access_token)

@@ -160,9 +160,9 @@ from prefect.storage import GitHub
 flow = Flow(
     "github-flow",
     GitHub(
-        repo="org/repo",                 # name of repo
-        path="flows/my_flow.py",         # location of flow file in repo
-        secrets=["GITHUB_ACCESS_TOKEN"]  # name of personal access token secret
+        repo="org/repo",                           # name of repo
+        path="flows/my_flow.py",                   # location of flow file in repo
+        access_token_secret="GITHUB_ACCESS_TOKEN"  # name of personal access token secret
     )
 )
 ```
@@ -188,9 +188,9 @@ from prefect.storage import GitLab
 flow = Flow(
     "gitlab-flow",
     GitLab(
-        repo="org/repo",                 # name of repo
-        path="flows/my_flow.py",         # location of flow file in repo
-        secrets=["GITLAB_ACCESS_TOKEN"]  # name of personal access token secret
+        repo="org/repo",                           # name of repo
+        path="flows/my_flow.py",                   # location of flow file in repo
+        access_token_secret="GITLAB_ACCESS_TOKEN"  # name of personal access token secret
     )
 )
 ```
@@ -221,10 +221,10 @@ from prefect.storage import Bitbucket
 flow = Flow(
     "bitbucket-flow",
     Bitbucket(
-        project="project",                  # name of project
-        repo="project.repo",                # name of repo in project
-        path="flows/my_flow.py",            # location of flow file in repo
-        secrets=["BITBUCKET_ACCESS_TOKEN"]  # name of personal access token secret
+        project="project",                            # name of project
+        repo="project.repo",                          # name of repo in project
+        path="flows/my_flow.py",                      # location of flow file in repo
+        access_token_secret="BITBUCKET_ACCESS_TOKEN"  # name of personal access token secret
     )
 )
 ```
