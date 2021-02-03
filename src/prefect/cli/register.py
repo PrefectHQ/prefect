@@ -42,7 +42,7 @@ def register():
     "--name",
     "-n",
     required=False,
-    help="The `flow.name` to pull out of the file provided.",
+    help="The `flow.name` to pull out of the file provided",
     hidden=True,
     default=None,
 )
@@ -50,7 +50,7 @@ def register():
     "--project",
     "-p",
     required=False,
-    help="The name of a Prefect project to register this flow.",
+    help="The name of a Prefect project to register this flow",
     hidden=True,
     default=None,
 )
@@ -61,7 +61,12 @@ def register():
     hidden=True,
     multiple=True,
 )
-@click.option("--detect-changes", is_flag=True, help="Detect changes to the flow")
+@click.option(
+    "--detect-changes",
+    is_flag=True,
+    help="Detect changes to the flow on registration",
+    hidden=True,
+)
 def flow(file, name, project, label, detect_changes):
     """
     Register a flow from a file. This call will pull a Flow object out of a `.py` file
