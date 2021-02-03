@@ -1,6 +1,6 @@
 import os
 import socket
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, List
 
 import pendulum
 from slugify import slugify
@@ -54,8 +54,6 @@ class Local(Storage):
         **kwargs: Any,
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
 
         self.path = path
 

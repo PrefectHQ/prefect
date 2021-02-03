@@ -9,7 +9,7 @@ import textwrap
 import uuid
 import warnings
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Iterable, List, Union
 
 import pendulum
 from slugify import slugify
@@ -162,8 +162,6 @@ class Docker(Storage):
         )
 
         self.files = files or {}
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.local_image = local_image
         self.installation_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
@@ -220,47 +218,6 @@ class Docker(Storage):
                 ).format(", ".join(not_absolute))
             )
         super().__init__(stored_as_script=stored_as_script, **kwargs)
-
-    def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
-        """
-        Given a flow_location within this Storage object, returns something with a
-        `run()` method which accepts the standard runner kwargs and can run the flow.
-
-        Args:
-            - flow_location (str): the location of a flow within this Storage
-
-        Returns:
-            - a runner interface (something with a `run()` method for running the flow)
-        """
-
-        def runner(env: dict) -> None:
-            """
-            Given a dictionary of environment variables, calls `flow.run()` with these
-            environment variables set.
-            """
-            image = "{}:{}".format(self.image_name, self.image_tag)
-            client = self._get_client()
-            container = client.create_container(image, command="tail -f /dev/null")
-            client.start(container=container.get("Id"))
-            python_script = (
-                f"import cloudpickle; f = open('{flow_location}', 'rb'); "
-                f"flow = cloudpickle.load(f); f.close(); flow.run()"
-            )
-            try:
-                ee = client.exec_create(
-                    container.get("Id"),
-                    'python -c "{}"'.format(python_script),
-                    environment=env,
-                )
-                output = client.exec_start(exec_id=ee, stream=True)
-                for item in output:
-                    for line in item.decode("utf-8").split("\n"):
-                        if line:
-                            print(line)
-            finally:
-                client.stop(container=container.get("Id"))
-
-        return runner
 
     def add_flow(self, flow: "prefect.core.flow.Flow") -> str:
         """

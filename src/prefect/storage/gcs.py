@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 from slugify import slugify
@@ -53,9 +53,6 @@ class GCS(Storage):
         local_script_path: str = None,
         **kwargs: Any
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
-
         self.bucket = bucket
         self.key = key
         self.project = project

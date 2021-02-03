@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import prefect
 from prefect.client import Secret
@@ -50,8 +50,6 @@ class GitHub(Storage):
         access_token_secret: str = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
         self.path = path
         self.ref = ref

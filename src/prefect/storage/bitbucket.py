@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 
 import requests
@@ -61,8 +61,6 @@ class Bitbucket(Storage):
         access_token_secret: str = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.project = project
         self.repo = repo
         self.host = host
