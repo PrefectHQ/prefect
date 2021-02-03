@@ -1,3 +1,4 @@
+import functools
 import pytest
 
 from prefect import Flow, Task, case, Parameter, resource_manager
@@ -85,6 +86,59 @@ class TestTaskDecorator:
 
             @tasks.task
             def fn(upstream_tasks):
+                pass
+
+    def test_task_decorator_allows_for_decorator_chaining(self):
+        def simple_dec(func):
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return wrapped
+
+        @tasks.task
+        @simple_dec
+        def run(x):
+            pass
+
+        class A(Task):
+            @simple_dec
+            def run(self, x):
+                pass
+
+        @tasks.task
+        @simple_dec
+        @simple_dec
+        def run(x):
+            pass
+
+        class A(Task):
+            @simple_dec
+            @simple_dec
+            def run(self, x):
+                pass
+
+    def test_task_decorator_rejects_varargs_with_chained_decorator(self):
+        def simple_dec(func):
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return wrapped
+
+        with pytest.raises(ValueError):
+
+            @tasks.task
+            @simple_dec
+            def run(self, x, *y):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @tasks.task
+            @simple_dec
+            @simple_dec
+            def run(self, x, *y):
                 pass
 
 
