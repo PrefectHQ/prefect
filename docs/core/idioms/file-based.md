@@ -54,9 +54,9 @@ with Flow("file-based-flow") as flow:
     print_data(data)
 
 flow.storage = GitHub(
-    repo="org/repo",                 # name of repo
-    path="flows/my_flow.py",        # location of flow file in repo
-    secrets=["GITHUB_ACCESS_TOKEN"]  # name of personal access token secret
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    access_token_secret="GITHUB_ACCESS_TOKEN"   # name of personal access token secret
 )
 ```
 
@@ -64,9 +64,10 @@ Here's a breakdown of the three kwargs set on the `GitHub` storage:
 
 - `repo`: the name of the repo that this code will live in
 - `path`: the location of the flow file in the repo. This must be an exact match to the path of the file.
-- `secrets`: the name of a [default Prefect secret](/core/concepts/secrets.html#default-secrets) which
-is a GitHub [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line). This is set so that when the flow is executed
-it has the proper permissions to pull the file from the repo.
+- `access_token_secret`: If your flow is stored in a private repo, you'll need
+  to provide credentials to access the repo. This takes the name of a
+  [Prefect secret](/core/concepts/secrets.html) which contains a GitHub
+  [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line).
 
 Push this code to the repository:
 
@@ -115,10 +116,10 @@ Bitbucket storage also operates largely the same way. Replace `GitHub` with `Bit
 
 ```python
 flow.storage = Bitbucket(
-    project="project",              # name of project that repo resides in
-    repo="org/repo",                 # name of repo
-    path="flows/my_flow.py",        # location of flow file in repo
-    secrets=["BITBUCKET_ACCESS_TOKEN"]  # name of personal access token secret
+    project="project",                              # name of project that repo resides in
+    repo="org/repo",                                # name of repo
+    path="flows/my_flow.py",                        # location of flow file in repo
+    access_token_secret="BITBUCKET_ACCESS_TOKEN"    # name of personal access token secret
 )
 ```
 :::
