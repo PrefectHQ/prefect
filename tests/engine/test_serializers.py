@@ -170,6 +170,12 @@ class TestCompressedSerializer:
 
 
 def test_equality():
+    assert PickleSerializer() == PickleSerializer()
+    assert JSONSerializer() == JSONSerializer()
+    assert PickleSerializer() != JSONSerializer()
+
+
+def test_compressed_serializer_equality():
     COMPRESSION_KWARGS = {
         "compress": lzma.compress,
         "decompress": lzma.decompress,
@@ -177,12 +183,9 @@ def test_equality():
         "decompress_kwargs": {"format": lzma.FORMAT_AUTO},
     }
 
-    assert PickleSerializer() == PickleSerializer()
-    assert JSONSerializer() == JSONSerializer()
     assert CompressedSerializer(
         PickleSerializer(), **COMPRESSION_KWARGS
     ) == CompressedSerializer(PickleSerializer(), **COMPRESSION_KWARGS)
-    assert PickleSerializer() != JSONSerializer()
     assert CompressedSerializer(
         PickleSerializer(), **COMPRESSION_KWARGS
     ) != CompressedSerializer(JSONSerializer(), **COMPRESSION_KWARGS)
@@ -190,6 +193,14 @@ def test_equality():
         PickleSerializer(), **COMPRESSION_KWARGS
     ) != CompressedSerializer(
         PickleSerializer(), compress=gzip.compress, decompress=gzip.decompress
+    )
+    assert CompressedSerializer(
+        PickleSerializer(), compress=gzip.compress, decompress=gzip.decompress
+    ) != CompressedSerializer(
+        PickleSerializer(),
+        compress=gzip.compress,
+        decompress=gzip.decompress,
+        compress_kwargs={"compresslevel": 8},
     )
 
 
