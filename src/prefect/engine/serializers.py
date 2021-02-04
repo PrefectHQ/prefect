@@ -255,6 +255,15 @@ class CompressedSerializer(Serializer):
     """
     A Serializer that wraps another Serializer and a compression function to serialize
     Python objects with compression.
+
+    Args:
+        - serializer (Serializer): the serializer that this serializer wraps
+        - compress (Callable[..., bytes]): the compression function
+        - decompress (Callable[..., bytes]): the decompression function
+        - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
+            compression function
+        - decompress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
+            decompression function
     """
 
     def __init__(
@@ -265,19 +274,6 @@ class CompressedSerializer(Serializer):
         compress_kwargs: Dict[str, Any] = None,
         decompress_kwargs: Dict[str, Any] = None,
     ):
-        """
-        Initialize the compressed serializer with the wrapped serializer and the
-        compression and decompression functions.
-
-        Args:
-            - serializer (Serializer): the serializer that this serializer wraps
-            - compress (Callable[..., bytes]): the compression function
-            - decompress (Callable[..., bytes]): the decompression function
-            - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
-                compression function
-            - decompress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
-                decompression function
-        """
         self._serializer = serializer
         self._compress = compress
         self._decompress = decompress
