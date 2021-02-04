@@ -1,7 +1,7 @@
 import base64
 import io
 import json
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict
 
 import cloudpickle
 import pendulum
@@ -249,3 +249,75 @@ class PandasSerializer(Serializer):
             raise ValueError(
                 "Could not find serialization methods for {}".format(self.file_type)
             ) from exc
+
+
+class CompressedSerializer(Serializer):
+    """
+    A Serializer that wraps another Serializer and a compression function to serialize
+    Python objects with compression.
+    """
+
+    def __init__(
+        self,
+        serializer: Serializer,
+        compress: Callable[..., bytes],
+        decompress: Callable[..., bytes],
+        compress_kwargs: Dict[str, Any] = None,
+        decompress_kwargs: Dict[str, Any] = None,
+    ):
+        """
+        Initialize the compressed serializer with the wrapped serializer and the
+        compression and decompression functions.
+
+        Args:
+            - serializer (Serializer): the serializer that this serializer wraps
+            - compress (Callable[..., bytes]): the compression function
+            - decompress (Callable[..., bytes]): the decompression function
+            - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
+                compression function
+            - decompress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
+                decompression function
+        """
+        self._serializer = serializer
+        self._compress = compress
+        self._decompress = decompress
+        self._compress_kwargs = compress_kwargs or {}
+        self._decompress_kwargs = decompress_kwargs or {}
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            type(self) == type(other)
+            and self._serializer == other._serializer
+            and self._compress == other._compress
+            and self._decompress == other._decompress
+            and self._compress_kwargs == other._compress_kwargs
+            and self._decompress_kwargs == other._decompress_kwargs
+        )
+
+    def serialize(self, value: Any) -> bytes:
+        """
+        Serialize an object to compressed bytes.
+
+        Args:
+            - value (Any): the value to serialize
+
+        Returns:
+            - bytes: the compressed serialized value
+        """
+        return self._compress(
+            self._serializer.serialize(value), **self._compress_kwargs
+        )
+
+    def deserialize(self, value: bytes) -> Any:
+        """
+        Deserialize an object from compressed bytes.
+
+        Args:
+            - value (bytes): the compressed value to deserialize
+
+        Returns:
+            - Any: the deserialized value
+        """
+        return self._serializer.deserialize(
+            self._decompress(value, **self._decompress_kwargs)
+        )
