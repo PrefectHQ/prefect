@@ -62,12 +62,12 @@ def register():
     multiple=True,
 )
 @click.option(
-    "--detect-changes",
+    "--skip-if-flow-metadata-unchanged",
     is_flag=True,
-    help="Detect changes to the flow on registration",
+    help="Skips registration if flow metadata is unchanged",
     hidden=True,
 )
-def flow(file, name, project, label, detect_changes):
+def flow(file, name, project, label, skip_if_flow_metadata_unchanged):
     """
     Register a flow from a file. This call will pull a Flow object out of a `.py` file
     and call `flow.register` on it.
@@ -80,9 +80,11 @@ def flow(file, name, project, label, detect_changes):
         --project, -p   TEXT    The name of a Prefect project to register this flow
         --label, -l     TEXT    A label to set on the flow, extending any existing labels.
                                 Multiple labels are supported, eg. `-l label1 -l label2`.
-        --detect-changes        If toggled, passes a serialized hash of the flow to the register
-                                function's idempotency key. This allows you to avoid bumping the
-                                registered flow's version if the flow has not changed.
+
+        --skip-if-flow-metadata-unchanged       If toggled, passes a serialized hash of the flow to the
+                                                register function's idempotency key. This allows you to
+                                                avoid bumping the registered flow's version if the flow
+                                                metadata (structure) has not changed.
 
     \b
     Examples:
@@ -93,6 +95,8 @@ def flow(file, name, project, label, detect_changes):
     with prefect.context({"loading_flow": True, "local_script_path": file_path}):
         flow = extract_flow_from_file(file_path=file_path, flow_name=name)
 
-    idempotency_key = flow.serialized_hash() if detect_changes else None
+    idempotency_key = (
+        flow.serialized_hash() if skip_if_flow_metadata_unchanged else None
+    )
 
     flow.register(project_name=project, labels=label, idempotency_key=idempotency_key)

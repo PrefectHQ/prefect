@@ -68,7 +68,7 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
         "test-flow",
         "--project",
         "project",
-        "--detect-changes",
+        "--skip-if-flow-metadata-unchanged",
     ]
     for l in labels:
         args.extend(["-l", l])
