@@ -50,7 +50,11 @@ After registration, the flow will be stored at
 :::tip Automatic Labels
 Flows registered with this storage option will automatically be labeled with
 the hostname of the machine from which it was registered; this prevents agents
-not running on the same machine from attempting to run this flow.
+not running on the same machine from attempting to run this flow. This behavior
+can be overridden by passing `add_default_labels = False` to the constructor:
+```python
+flow = Flow("local-flow", storage=Local(add_default_labels = False))
+```
 :::
 
 :::tip Flow Results
