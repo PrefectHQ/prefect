@@ -22,10 +22,10 @@ services:
     # Use `pg_isready` to check the connection status of the PostgreSQL server
     healthcheck:
       test: pg_isready -q -d $${POSTGRES_DB} -U $${POSTGRES_USER} || exit 1
-      interval: 5s
+      interval: 1s
       timeout: 2s
-      retries: 18
-      start_period: 1s
+      retries: 60
+      start_period: 2s
     restart: always
 
   # Hasura: the GraphQL API that layers on top of Postgres for querying metadata
@@ -45,9 +45,9 @@ services:
     # /healthz endpoints returns OK when not unhealthy
     healthcheck:
       test: wget -O - http://hasura:$${HASURA_GRAPHQL_SERVER_PORT}/healthz &>/dev/null || exit 1
-      interval: 5s
+      interval: 1s
       timeout: 2s
-      retries: 18
+      retries: 60
       start_period: 1s
     restart: always
     depends_on:
@@ -70,9 +70,9 @@ services:
       - prefect-server
     healthcheck:
       test: curl --fail --silent "http://graphql:4201/health" &> /dev/null || exit 1
-      interval: 5s
+      interval: 1s
       timeout: 2s
-      retries: 18
+      retries: 60
       start_period: 1s
     restart: always
     depends_on:
@@ -111,13 +111,15 @@ services:
     # Test GraphQL Apollo endpoint as health-check
     healthcheck:
       test: curl --fail --silent "http://apollo:4200/.well-known/apollo/server-health" &> /dev/null || exit 1
-      interval: 5s
+      interval: 1s
       timeout: 2s
-      retries: 18
+      retries: 60
       start_period: 1s
     restart: always
     depends_on:
       graphql:
+        condition: service_healthy
+      hasura:
         condition: service_healthy
 
   # UI: the user interface that provides a visual dashboard for mutating and querying metadata
@@ -136,7 +138,7 @@ services:
       test: curl --fail --silent --head "http://ui:8080/" &> /dev/null || exit 1
       interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
     restart: always
     depends_on:
       apollo:
