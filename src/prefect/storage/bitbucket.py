@@ -1,10 +1,16 @@
-from typing import TYPE_CHECKING, Any, Dict
+import os
+from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 
+import requests
+
+import prefect
+from prefect.client import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
+    import atlassian
     from prefect.core.flow import Flow
 
 
@@ -39,6 +45,9 @@ class Bitbucket(Storage):
             to Bitbucket cloud.
         - path (str, optional): a path pointing to a flow file in the repo
         - ref (str, optional): a commit SHA-1 value or branch name
+        - access_token_secret (str, optional): The name of a Prefect secret
+            that contains a Bitbucket access token to use when loading flows from
+            this storage.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -49,15 +58,15 @@ class Bitbucket(Storage):
         host: str = None,
         path: str = None,
         ref: str = None,
+        access_token_secret: str = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.project = project
         self.repo = repo
         self.host = host
         self.path = path
         self.ref = ref
+        self.access_token_secret = access_token_secret
 
         super().__init__(**kwargs)
 
@@ -78,8 +87,10 @@ class Bitbucket(Storage):
         # Use ref attribute if present, defaulting to "master"
         ref = self.ref or "master"
 
+        client = self._get_bitbucket_client()
+
         try:
-            contents = self._bitbucket_client.get_content_of_file(
+            contents = client.get_content_of_file(
                 self.project,
                 self.repo,
                 flow_location,
@@ -143,16 +154,30 @@ class Bitbucket(Storage):
 
         return self
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
+    def _get_bitbucket_client(self) -> "atlassian.Bitbucket":
+        try:
+            from atlassian import Bitbucket
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import atlassian, please ensure you have installed the bitbucket extra"
+            ) from exc
 
-    @property
-    def _bitbucket_client(self):  # type: ignore
-        from prefect.utilities.git import get_bitbucket_client
+        if self.access_token_secret is not None:
+            # If access token secret specified, load it
+            access_token = Secret(self.access_token_secret).get()
+        else:
+            # Otherwise, fallback to loading from local secret or environment variable
+            access_token = prefect.context.get("secrets", {}).get(
+                "BITBUCKET_ACCESS_TOKEN"
+            )
+            if access_token is None:
+                access_token = os.getenv("BITBUCKET_ACCESS_TOKEN")
 
-        return get_bitbucket_client(host=self.host)
+        host = "https://bitbucket.org" if self.host is None else self.host
+
+        session = requests.Session()
+        if access_token is None:
+            session.headers["Authorization"] = "Bearer "
+        else:
+            session.headers["Authorization"] = "Bearer " + access_token
+        return Bitbucket(host, session=session)

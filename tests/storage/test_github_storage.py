@@ -8,6 +8,19 @@ from prefect.storage import GitHub
 github = pytest.importorskip("github")
 
 
+@pytest.fixture
+def github_client(monkeypatch):
+    client = MagicMock(spec=github.Github)
+    monkeypatch.setattr("github.Github", MagicMock(return_value=client))
+    repo = client.get_repo.return_value
+    repo.default_branch = "main"
+    repo.get_commit.return_value.sha = "mycommitsha"
+    repo.get_contents.return_value.decoded_content = (
+        b"from prefect import Flow\nflow=Flow('extra')\nflow=Flow('test')"
+    )
+    return client
+
+
 def test_create_github_storage():
     storage = GitHub(repo="test/repo", path="flow.py")
     assert storage
@@ -36,17 +49,27 @@ def test_serialize_github_storage():
     assert serialized_storage["secrets"] == ["auth"]
 
 
-def test_github_client_property(monkeypatch):
-    github = MagicMock()
-    monkeypatch.setattr("prefect.utilities.git.Github", github)
+@pytest.mark.parametrize(
+    "secret_name,secret_arg", [("TEST", "TEST"), ("GITHUB_ACCESS_TOKEN", None)]
+)
+def test_github_access_token_secret(monkeypatch, secret_name, secret_arg):
+    orig_github = github.Github
+    mock_github = MagicMock(wraps=github.Github)
+    monkeypatch.setattr("github.Github", mock_github)
+    storage = GitHub(repo="test/repo", path="flow.py", access_token_secret=secret_arg)
+    with context(secrets={secret_name: "TEST-VAL"}):
+        client = storage._get_github_client()
+    assert isinstance(client, orig_github)
+    assert mock_github.call_args[0][0] == "TEST-VAL"
 
-    storage = GitHub(repo="test/repo", path="flow.py")
 
-    credentials = "ACCESS_TOKEN"
-    with context(secrets=dict(GITHUB_ACCESS_TOKEN=credentials)):
-        github_client = storage._github_client
-    assert github_client
-    github.assert_called_with("ACCESS_TOKEN")
+def test_github_access_token_errors_if_provided_and_not_found(monkeypatch):
+    mock_github = MagicMock(wraps=github.Github)
+    monkeypatch.setattr("github.Github", mock_github)
+    storage = GitHub(repo="test/repo", path="flow.py", access_token_secret="MISSING")
+    with context(secrets={}):
+        with pytest.raises(Exception, match="MISSING"):
+            storage._get_github_client()
 
 
 def test_add_flow_to_github_storage():
@@ -68,19 +91,6 @@ def test_add_flow_to_github_already_added():
 
     with pytest.raises(ValueError):
         storage.add_flow(f)
-
-
-@pytest.fixture
-def github_client(monkeypatch):
-    client = MagicMock(spec=github.Github)
-    monkeypatch.setattr("prefect.utilities.git.Github", MagicMock(return_value=client))
-    repo = client.get_repo.return_value
-    repo.default_branch = "main"
-    repo.get_commit.return_value.sha = "mycommitsha"
-    repo.get_contents.return_value.decoded_content = (
-        b"from prefect import Flow\nflow=Flow('extra')\nflow=Flow('test')"
-    )
-    return client
 
 
 @pytest.mark.parametrize("ref", [None, "myref"])

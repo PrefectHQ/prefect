@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 from slugify import slugify
@@ -45,9 +45,6 @@ class Azure(Storage):
         stored_as_script: bool = False,
         **kwargs: Any
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
-
         self.connection_string = connection_string or os.getenv(
             "AZURE_STORAGE_CONNECTION_STRING"
         )
@@ -116,14 +113,6 @@ class Azure(Storage):
         self.flows[flow.name] = blob_name
         self._flows[flow.name] = flow
         return blob_name
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
 
     def build(self) -> "Storage":
         """

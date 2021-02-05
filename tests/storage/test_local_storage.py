@@ -86,12 +86,6 @@ def test_add_flow_raises_if_name_conflict(tmpdir):
         storage.add_flow(g)
 
 
-def test_get_env_runner_raises():
-    s = Local()
-    with pytest.raises(NotImplementedError):
-        s.get_env_runner("")
-
-
 def test_get_flow_raises_if_flow_not_present():
     s = Local()
     with pytest.raises(ValueError):

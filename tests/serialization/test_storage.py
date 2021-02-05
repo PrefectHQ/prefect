@@ -357,8 +357,11 @@ def test_webhook_full_serialize():
 
 
 @pytest.mark.parametrize("ref", [None, "testref"])
-def test_github_serialize(ref):
-    github = storage.GitHub(repo="test/repo", path="flow.py")
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_github_serialize(ref, access_token_secret):
+    github = storage.GitHub(
+        repo="test/repo", path="flow.py", access_token_secret=access_token_secret
+    )
     if ref is not None:
         github.ref = ref
     serialized = GitHubSchema().dump(github)
@@ -367,6 +370,7 @@ def test_github_serialize(ref):
     assert serialized["path"] == "flow.py"
     assert serialized["ref"] == ref
     assert serialized["secrets"] == []
+    assert serialized["access_token_secret"] == access_token_secret
 
 
 def test_gitlab_empty_serialize():
@@ -380,13 +384,15 @@ def test_gitlab_empty_serialize():
     assert serialized["secrets"] == []
 
 
-def test_gitlab_full_serialize():
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_gitlab_full_serialize(access_token_secret):
     gitlab = storage.GitLab(
         repo="test/repo",
         path="path/to/flow.py",
         host="http://localhost:1234",
         ref="test-branch",
         secrets=["token"],
+        access_token_secret=access_token_secret,
     )
 
     serialized = GitLabSchema().dump(gitlab)
@@ -396,6 +402,7 @@ def test_gitlab_full_serialize():
     assert serialized["path"] == "path/to/flow.py"
     assert serialized["ref"] == "test-branch"
     assert serialized["secrets"] == ["token"]
+    assert serialized["access_token_secret"] == access_token_secret
 
 
 def test_bitbucket_empty_serialize():
@@ -411,7 +418,8 @@ def test_bitbucket_empty_serialize():
     assert serialized["secrets"] == []
 
 
-def test_bitbucket_full_serialize():
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_bitbucket_full_serialize(access_token_secret):
     bitbucket = storage.Bitbucket(
         project="PROJECT",
         repo="test-repo",
@@ -419,6 +427,7 @@ def test_bitbucket_full_serialize():
         host="http://localhost:7990",
         ref="develop",
         secrets=["token"],
+        access_token_secret=access_token_secret,
     )
 
     serialized = BitbucketSchema().dump(bitbucket)
@@ -429,3 +438,4 @@ def test_bitbucket_full_serialize():
     assert serialized["host"] == "http://localhost:7990"
     assert serialized["ref"] == "develop"
     assert serialized["secrets"] == ["token"]
+    assert serialized["access_token_secret"] == access_token_secret

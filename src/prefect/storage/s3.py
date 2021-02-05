@@ -1,6 +1,6 @@
 import io
 from contextlib import closing
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 from slugify import slugify
@@ -50,8 +50,6 @@ class S3(Storage):
         client_options: dict = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
         self.local_script_path = local_script_path or prefect.context.get(
@@ -205,14 +203,6 @@ class S3(Storage):
                 raise err
 
         return self
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
 
     @property
     def _boto3_client(self):  # type: ignore

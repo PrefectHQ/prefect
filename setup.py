@@ -47,7 +47,7 @@ extras = {
         "azure-cosmos >= 3.1.1, <3.2",
     ],
     "bitbucket": orchestration_extras["bitbucket"],
-    "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0, < 1.0"],
+    "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
     "ge": ["great_expectations >= 0.11.1"],
