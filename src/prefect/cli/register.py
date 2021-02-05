@@ -81,10 +81,8 @@ def flow(file, name, project, label, skip_if_flow_metadata_unchanged):
         --label, -l     TEXT    A label to set on the flow, extending any existing labels.
                                 Multiple labels are supported, eg. `-l label1 -l label2`.
 
-        --skip-if-flow-metadata-unchanged       If toggled, passes a serialized hash of the flow to the
-                                                register function's idempotency key. This allows you to
-                                                avoid bumping the registered flow's version if the flow
-                                                metadata (structure) has not changed.
+        --skip-if-flow-metadata-unchanged       If set, the flow will only be re-registered if its
+                                                metadata or structure has changed.
 
     \b
     Examples:
