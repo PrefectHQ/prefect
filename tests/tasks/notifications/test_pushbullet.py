@@ -22,9 +22,7 @@ class TestInitialization:
         task = PushbulletTask(msg="test")
         client = MagicMock()
         pushbullet = MagicMock(client=client)
-        monkeypatch.setattr(
-            "prefect.tasks.notifications.pushbullet_task.Pushbullet", pushbullet
-        )
+        monkeypatch.setattr("pushbullet.Pushbullet", pushbullet)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(PUSHBULLET_TOKEN=42)):
                 task.run()
@@ -40,9 +38,7 @@ class TestInitialization:
         task = PushbulletTask()
         client = MagicMock()
         pushbullet = MagicMock(client=client)
-        monkeypatch.setattr(
-            "prefect.tasks.notifications.pushbullet_task.Pushbullet", pushbullet
-        )
+        monkeypatch.setattr("pushbullet.Pushbullet", pushbullet)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(PUSHBULLET_TOKEN=42)):
                 with pytest.raises(ValueError, match="message"):
