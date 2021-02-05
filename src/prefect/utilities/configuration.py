@@ -6,6 +6,8 @@ intended to be used for testing.
 from contextlib import contextmanager
 from typing import Iterator
 
+import toml
+
 import prefect
 from prefect.configuration import Config
 
@@ -43,3 +45,28 @@ def set_temporary_config(temp_config: dict) -> Iterator:
     finally:
         prefect.config.clear()
         prefect.config.update(old_config)
+
+
+def set_permanent_user_config(extra_config: dict, config_path: str = None) -> bool:
+    """
+    Update user config file with a specific dictionary
+
+    Args:
+        extra_config:
+        config_path:
+
+    Returns:
+
+    """
+    from prefect.configuration import USER_CONFIG, load_toml, interpolate_env_vars
+
+    if config_path is None:
+        config_path = interpolate_env_vars(USER_CONFIG)
+
+    user_toml = load_toml(config_path)
+    user_toml.update(extra_config)
+
+    with open(config_path, "w") as fd:
+        toml.dump(user_toml, fd)
+
+    return config_path

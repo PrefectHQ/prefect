@@ -17,7 +17,7 @@ from .run import run as _run
 from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
 from .register import register as _register
-
+from ..utilities.configuration import set_permanent_user_config
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -119,11 +119,29 @@ def diagnostics(include_secret_names):
 @click.argument("api")
 def backend(api):
     """
-    Switch Prefect API backend to either `server` or `cloud`
-    """
-    if api not in ["server", "cloud"]:
-        click.secho("{} is not a valid backend API".format(api), fg="red")
-        return
+    \b
+    Switch Prefect API backend :
+        - `cloud` for using prefect cloud
+        - `server` for using a localhost server
+        - any other string for specifying a custom server host
+            (~/.prefect/config.toml will be updated)
 
-    backend_util.save_backend(api)
-    click.secho("Backend switched to {}".format(api), fg="green")
+    """
+    if api == "cloud":
+        backend_util.save_backend(api)
+        click.secho("Backend switched to {}".format(api), fg="green")
+
+    if api == "server":
+        backend_util.save_backend(api)
+        click.secho("Backend switched to {}".format(api), fg="green")
+
+        # Set back to default localhost
+        fp = set_permanent_user_config({'server': {'host': "localhost"}})
+
+    if api not in ["server", "cloud"]:
+        # Switch backend to server
+        backend_util.save_backend("server")
+
+        # Expect a server hostname
+        fp = set_permanent_user_config({'server': {'host': api}})
+        click.secho(f"User config {fp} updated with server.host = {api}", fg="green")
