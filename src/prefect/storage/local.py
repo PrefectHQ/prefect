@@ -145,14 +145,3 @@ class Local(Storage):
         self.flows[flow.name] = flow_location
         self._flows[flow.name] = flow
         return flow_location
-
-    def build(self) -> "Storage":
-        """
-        Build the Storage object.
-
-        Returns:
-            - Storage: a Storage object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
-        return self

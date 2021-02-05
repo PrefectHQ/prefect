@@ -140,20 +140,6 @@ class Bitbucket(Storage):
         self._flows[flow.name] = flow
         return self.path  # type: ignore
 
-    def build(self) -> "Storage":
-        """
-        Build the Bitbucket storage object and run basic healthchecks. Due to this object
-        supporting file based storage no files are committed to the repository during
-        this step. Instead, all files should be committed independently.
-
-        Returns:
-            - Storage: a Bitbucket object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
-
-        return self
-
     def _get_bitbucket_client(self) -> "atlassian.Bitbucket":
         try:
             from atlassian import Bitbucket

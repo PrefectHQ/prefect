@@ -72,14 +72,3 @@ class Module(Storage):
         self.flows[flow.name] = self.module
         self._flows[flow.name] = flow
         return self.module
-
-    def build(self) -> "Module":
-        """
-        Build the Storage object.
-
-        Returns:
-            - Storage: a Storage object that contains information about how and where
-                each flow is stored.
-        """
-        self.run_basic_healthchecks()
-        return self
