@@ -233,7 +233,7 @@ classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun"
 [pages.storage]
 title = "Storage"
 module = "prefect.storage"
-classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab", "Bitbucket", "CodeCommit"]
+classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab", "Bitbucket", "CodeCommit", "Module"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"

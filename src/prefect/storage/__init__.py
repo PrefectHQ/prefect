@@ -25,17 +25,18 @@ from warnings import warn
 
 import prefect
 from prefect import config
-from .base import Storage
-from .docker import Docker
-from .local import Local
-from .azure import Azure
-from .gcs import GCS
-from .s3 import S3
-from .github import GitHub
-from .gitlab import GitLab
-from .bitbucket import Bitbucket
-from .codecommit import CodeCommit
-from .webhook import Webhook
+from prefect.storage.base import Storage
+from prefect.storage.azure import Azure
+from prefect.storage.bitbucket import Bitbucket
+from prefect.storage.codecommit import CodeCommit
+from prefect.storage.docker import Docker
+from prefect.storage.gcs import GCS
+from prefect.storage.github import GitHub
+from prefect.storage.gitlab import GitLab
+from prefect.storage.local import Local
+from prefect.storage.module import Module
+from prefect.storage.s3 import S3
+from prefect.storage.webhook import Webhook
 
 
 def get_default_storage_class() -> type:
