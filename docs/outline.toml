@@ -573,7 +573,7 @@ functions = ["merge_dicts", "as_nested_dict", "dict_to_flatdict", "flatdict_to_d
 [pages.utilities.configuration]
 title = "Configuration"
 module = "prefect.utilities.configuration"
-functions = ["set_temporary_config"]
+functions = ["set_temporary_config", "set_permanent_user_config"]
 
 [pages.utilities.context]
 title = "Context"
