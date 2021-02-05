@@ -42,7 +42,7 @@ def register():
     "--name",
     "-n",
     required=False,
-    help="The `flow.name` to pull out of the file provided.",
+    help="The `flow.name` to pull out of the file provided",
     hidden=True,
     default=None,
 )
@@ -50,7 +50,7 @@ def register():
     "--project",
     "-p",
     required=False,
-    help="The name of a Prefect project to register this flow.",
+    help="The name of a Prefect project to register this flow",
     hidden=True,
     default=None,
 )
@@ -61,7 +61,13 @@ def register():
     hidden=True,
     multiple=True,
 )
-def flow(file, name, project, label):
+@click.option(
+    "--skip-if-flow-metadata-unchanged",
+    is_flag=True,
+    help="Skips registration if flow metadata is unchanged",
+    hidden=True,
+)
+def flow(file, name, project, label, skip_if_flow_metadata_unchanged):
     """
     Register a flow from a file. This call will pull a Flow object out of a `.py` file
     and call `flow.register` on it.
@@ -75,14 +81,20 @@ def flow(file, name, project, label):
         --label, -l     TEXT    A label to set on the flow, extending any existing labels.
                                 Multiple labels are supported, eg. `-l label1 -l label2`.
 
+        --skip-if-flow-metadata-unchanged       If set, the flow will only be re-registered if its
+                                                metadata or structure has changed.
+
     \b
     Examples:
         $ prefect register flow --file my_flow.py --name My-Flow -l label1 -l label2
     """
-
     # Don't run extra `run` and `register` functions inside file
     file_path = os.path.abspath(file)
     with prefect.context({"loading_flow": True, "local_script_path": file_path}):
         flow = extract_flow_from_file(file_path=file_path, flow_name=name)
 
-    flow.register(project_name=project, labels=label)
+    idempotency_key = (
+        flow.serialized_hash() if skip_if_flow_metadata_unchanged else None
+    )
+
+    flow.register(project_name=project, labels=label, idempotency_key=idempotency_key)
