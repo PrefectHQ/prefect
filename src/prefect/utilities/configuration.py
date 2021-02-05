@@ -52,10 +52,13 @@ def set_permanent_user_config(extra_config: dict, config_path: str = None) -> bo
     Update user config file with a specific dictionary
 
     Args:
-        extra_config:
-        config_path:
+        extra_config (dict): any dict with new key/values to add
+        config_path str: config file path, ~/.prefect/config.toml by default
 
-    Returns:
+    Example:
+        ```python
+        set_permanent_user_config({'server': {'host': 'my-server'}})
+        ```
 
     """
     from prefect.configuration import USER_CONFIG, load_toml, interpolate_env_vars
