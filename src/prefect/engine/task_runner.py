@@ -1,5 +1,4 @@
 from contextlib import redirect_stdout
-from dask.base import tokenize
 from contextlib import AbstractContextManager
 from typing import (
     Any,
@@ -707,6 +706,8 @@ class TaskRunner(Runner):
         Returns:
             - State: the state of the task after running the check
         """
+        from dask.base import tokenize
+
         result = self.result
         target = self.task.target
 
@@ -928,6 +929,8 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        from dask.base import tokenize
+
         if (
             state.is_successful()
             and not state.is_skipped()
