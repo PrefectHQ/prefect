@@ -57,7 +57,7 @@ def set_permanent_user_config(extra_config: dict, config_path: str = None) -> bo
 
     Example:
         ```python
-        set_permanent_user_config({'server': {'host': 'my-server'}})
+        set_permanent_user_config({'server': {'host': 'http://my-server'}})
         ```
 
     """

@@ -123,7 +123,7 @@ def backend(api):
     Switch Prefect API backend :
         - `cloud` for using prefect cloud
         - `server` for using a localhost server
-        - any other string for specifying a custom server host
+        - any other string for specifying a custom server host, eg. http://my-prefect-server.com
             (~/.prefect/config.toml will be updated)
 
     """
@@ -136,7 +136,7 @@ def backend(api):
         click.secho("Backend switched to {}".format(api), fg="green")
 
         # Set back to default localhost
-        fp = set_permanent_user_config({'server': {'host': "localhost"}})
+        set_permanent_user_config({'server': {'host': "http://localhost"}})
 
     if api not in ["server", "cloud"]:
         # Switch backend to server
