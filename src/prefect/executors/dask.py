@@ -97,6 +97,8 @@ class DaskExecutor(Executor):
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
 
+    Examples:
+
     Using a temporary local dask cluster:
 
     ```python
