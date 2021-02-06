@@ -1125,6 +1125,13 @@ class Client:
                         "version": True,
                         "serialized_state": True,
                     },
+                    "flow": {
+                        "name": True,
+                        "project": {
+                            "name": True,
+                            "id": True
+                        }
+                    },
                 }
             }
         }
