@@ -1,7 +1,9 @@
 import base64
+import bz2
 import gzip
 import json
 import lzma
+import zlib
 
 import cloudpickle
 import pendulum
@@ -128,45 +130,68 @@ class TestPandasSerializer:
 
 
 class TestCompressedSerializer:
-    COMPRESSION_KWARGS = {
-        "compress": lzma.compress,
-        "decompress": lzma.decompress,
-        "compress_kwargs": {"format": lzma.FORMAT_XZ},
-        "decompress_kwargs": {"format": lzma.FORMAT_AUTO},
-    }
+    def test_constructor_accepts_known_formats(self) -> None:
+        serializer = PickleSerializer()
+        for module in (bz2, gzip, lzma, zlib):
+            assert CompressedSerializer(
+                serializer, compression_format=module.__name__
+            ) == CompressedSerializer(
+                serializer, compress=module.compress, decompress=module.decompress
+            )
 
-    def test_serialize_returns_bytes(self):
+    def test_constructor_rejects_unknown_formats(self) -> None:
+        with pytest.raises(ValueError):
+            CompressedSerializer(PickleSerializer(), compression_format="foo")
+
+    def test_constructor_requires_format_or_functions(self) -> None:
+        with pytest.raises(ValueError):
+            CompressedSerializer(PickleSerializer())
+
+    def test_serialize_returns_bytes(self) -> None:
         value = ["abc", 123, pendulum.now()]
         serialized = CompressedSerializer(
-            PickleSerializer(), **self.COMPRESSION_KWARGS
+            PickleSerializer(), compression_format="bz2"
         ).serialize(value)
         assert isinstance(serialized, bytes)
 
-    def test_deserialize_returns_objects(self):
+    def test_deserialize_returns_objects(self) -> None:
         value = ["abc", 123, pendulum.now()]
         serialized = CompressedSerializer(
-            PickleSerializer(), **self.COMPRESSION_KWARGS
+            PickleSerializer(), compression_format="gzip"
         ).serialize(value)
         deserialized = CompressedSerializer(
-            PickleSerializer(), **self.COMPRESSION_KWARGS
+            PickleSerializer(), compression_format="gzip"
         ).deserialize(serialized)
         assert deserialized == value
 
-    def test_pickle_serialize_returns_compressed_cloudpickle(self):
+    def test_deserialize_with_functions_returns_objects(self) -> None:
         value = ["abc", 123, pendulum.now()]
-        serialized = CompressedSerializer(
-            PickleSerializer(), **self.COMPRESSION_KWARGS
-        ).serialize(value)
-        deserialized = cloudpickle.loads(lzma.decompress(serialized))
+        serializer = CompressedSerializer(
+            PickleSerializer(),
+            compress=lzma.compress,
+            decompress=lzma.decompress,
+            compress_kwargs={"format": lzma.FORMAT_XZ},
+            decompress_kwargs={"format": lzma.FORMAT_AUTO},
+        )
+        serialized = serializer.serialize(value)
+        deserialized = serializer.deserialize(serialized)
         assert deserialized == value
 
-    def test_pickle_deserialize_raises_meaningful_errors(self):
+    def test_pickle_serialize_returns_compressed_cloudpickle(self) -> None:
+        value = ["abc", 123, pendulum.now()]
+        serialized = CompressedSerializer(
+            PickleSerializer(), compression_format="zlib"
+        ).serialize(value)
+        deserialized = cloudpickle.loads(zlib.decompress(serialized))
+        assert deserialized == value
+
+    def test_pickle_deserialize_raises_meaningful_errors(self) -> None:
         # when pickle deserialization involving decompression fails, show the original
         # error, not the backwards-compatible error
         with pytest.raises(cloudpickle.pickle.UnpicklingError, match="stack underflow"):
             CompressedSerializer(
-                PickleSerializer(), **self.COMPRESSION_KWARGS
-            ).deserialize(lzma.compress(b"bad-bytes"))
+                PickleSerializer(), compression_format="zlib"
+            ).deserialize(zlib.compress(b"bad-bytes"))
 
 
 def test_equality():
@@ -175,22 +200,15 @@ def test_equality():
     assert PickleSerializer() != JSONSerializer()
 
 
-def test_compressed_serializer_equality():
-    COMPRESSION_KWARGS = {
-        "compress": lzma.compress,
-        "decompress": lzma.decompress,
-        "compress_kwargs": {"format": lzma.FORMAT_XZ},
-        "decompress_kwargs": {"format": lzma.FORMAT_AUTO},
-    }
-
+def test_compressed_serializer_equality() -> None:
     assert CompressedSerializer(
-        PickleSerializer(), **COMPRESSION_KWARGS
-    ) == CompressedSerializer(PickleSerializer(), **COMPRESSION_KWARGS)
+        PickleSerializer(), compression_format="bz2"
+    ) == CompressedSerializer(PickleSerializer(), compression_format="bz2")
     assert CompressedSerializer(
-        PickleSerializer(), **COMPRESSION_KWARGS
-    ) != CompressedSerializer(JSONSerializer(), **COMPRESSION_KWARGS)
+        PickleSerializer(), compression_format="bz2"
+    ) != CompressedSerializer(JSONSerializer(), compression_format="bz2")
     assert CompressedSerializer(
-        PickleSerializer(), **COMPRESSION_KWARGS
+        PickleSerializer(), compression_format="bz2"
     ) != CompressedSerializer(
         PickleSerializer(), compress=gzip.compress, decompress=gzip.decompress
     )

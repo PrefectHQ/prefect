@@ -1,7 +1,11 @@
 import base64
+import bz2
+import gzip
 import io
 import json
-from typing import TYPE_CHECKING, Any, Callable, Dict
+import lzma
+from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple
+import zlib
 
 import cloudpickle
 import pendulum
@@ -15,7 +19,15 @@ __all__ = (
     "JSONSerializer",
     "DateTimeSerializer",
     "PandasSerializer",
+    "CompressedSerializer",
 )
+
+COMPRESSION_FORMATS: Dict[str, Tuple[Callable[..., bytes], Callable[..., bytes]]] = {
+    "bz2": (bz2.compress, bz2.decompress),
+    "gzip": (gzip.compress, gzip.decompress),
+    "lzma": (lzma.compress, lzma.decompress),
+    "zlib": (zlib.compress, zlib.decompress),
+}
 
 
 class Serializer:
@@ -258,8 +270,10 @@ class CompressedSerializer(Serializer):
 
     Args:
         - serializer (Serializer): the serializer that this serializer wraps
-        - compress (Callable[..., bytes]): the compression function
-        - decompress (Callable[..., bytes]): the decompression function
+        - compression_format (str): name of the selected pre-defined compression format
+            (bz2, gzip, lzma, or zlib)
+        - compress (Callable[..., bytes]): the custom compression function
+        - decompress (Callable[..., bytes]): the custom decompression function
         - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
             compression function
         - decompress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
@@ -269,14 +283,32 @@ class CompressedSerializer(Serializer):
     def __init__(
         self,
         serializer: Serializer,
-        compress: Callable[..., bytes],
-        decompress: Callable[..., bytes],
+        compression_format: str = None,
+        compress: Callable[..., bytes] = None,
+        decompress: Callable[..., bytes] = None,
         compress_kwargs: Dict[str, Any] = None,
         decompress_kwargs: Dict[str, Any] = None,
     ):
         self._serializer = serializer
-        self._compress = compress
-        self._decompress = decompress
+
+        if compression_format:
+            try:
+                self._compress, self._decompress = COMPRESSION_FORMATS[
+                    compression_format
+                ]
+            except KeyError as e:
+                raise ValueError(
+                    "unknown compression format: {}".format(compression_format)
+                ) from e
+        elif compress and decompress:
+            self._compress = compress
+            self._decompress = decompress
+        else:
+            raise ValueError(
+                "CompressedSerializer must be provided the compression format or the "
+                "compression/decompression functions."
+            )
+
         self._compress_kwargs = compress_kwargs or {}
         self._decompress_kwargs = decompress_kwargs or {}
 
