@@ -1,0 +1,2 @@
+enhancement:
+  - "Add new `Module` storage class, for referencing flows importable from a Python module - [#4073](https://github.com/PrefectHQ/prefect/pull/4073)"
