@@ -68,7 +68,7 @@ environment).
 
 ```python
 from prefect import Flow
-from prefect.storage import Local
+from prefect.storage import Module
 
 flow = Flow("module example", storage=Module("mymodule.flows"))
 
