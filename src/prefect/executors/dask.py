@@ -583,11 +583,31 @@ class LocalDaskExecutor(Executor):
         # Since multiprocessing tasks execute in a remote process, this
         # shouldn't affect user code.
         if self.scheduler == "processes":
+
+            @contextmanager
+            def patch() -> Iterator[None]:
+                # Patch around https://github.com/PrefectHQ/prefect/issues/4086
+                # We can remove this after we drop support for dask 2021.02.0
+                from dask.optimization import cull
+
+                def cull2(dsk, keys):  # type: ignore
+                    return cull(dsk if type(dsk) is dict else dict(dsk), keys)
+
+                dask.multiprocessing.cull = cull2
+                try:
+                    yield
+                finally:
+                    dask.multiprocessing.cull = cull
+
             config = {"optimization.fuse.active": False}
         else:
             config = {}
 
-        with dask.config.set(config):
+            @contextmanager
+            def patch() -> Iterator[None]:
+                yield
+
+        with patch(), dask.config.set(config):
             return dask.compute(
                 futures, scheduler=self.scheduler, pool=self._pool, optimize_graph=False
             )[0]
