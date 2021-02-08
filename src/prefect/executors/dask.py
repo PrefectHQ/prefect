@@ -594,8 +594,10 @@ class LocalDaskExecutor(Executor):
                     return cull(dsk if type(dsk) is dict else dict(dsk), keys)
 
                 dask.multiprocessing.cull = cull2
-                yield
-                dask.multiprocessing.cull = cull
+                try:
+                    yield
+                finally:
+                    dask.multiprocessing.cull = cull
 
             config = {"optimization.fuse.active": False}
         else:
