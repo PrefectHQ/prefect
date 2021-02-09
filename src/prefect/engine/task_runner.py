@@ -42,6 +42,7 @@ from prefect.utilities.executors import (
     tail_recursive,
 )
 from prefect.utilities.compatibility import nullcontext
+from prefect.utilities.exceptions import TaskTimeoutError
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -869,7 +870,7 @@ class TaskRunner(Runner):
                 )
 
         # inform user of timeout
-        except TimeoutError as exc:
+        except TaskTimeoutError as exc:
             if prefect.context.get("raise_on_exception"):
                 raise exc
             state = TimedOut("Task timed out during execution.", result=exc)
