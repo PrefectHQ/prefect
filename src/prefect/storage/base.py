@@ -122,7 +122,6 @@ class Storage(metaclass=ABCMeta):
             return False
         return obj in self.flows
 
-    @abstractmethod
     def build(self) -> "Storage":
         """
         Build the Storage object.
@@ -131,7 +130,9 @@ class Storage(metaclass=ABCMeta):
             - Storage: a Storage object that contains information about how and where
                 each flow is stored
         """
-        raise NotImplementedError()
+        self.run_basic_healthchecks()
+
+        return self
 
     def serialize(self) -> dict:
         """

@@ -3,16 +3,17 @@ from typing import Any
 from marshmallow import fields, post_load
 
 from prefect.storage import (
-    GCS,
-    S3,
     Azure,
-    Docker,
-    Local,
-    Storage,
-    GitHub,
-    GitLab,
     Bitbucket,
     CodeCommit,
+    Docker,
+    GCS,
+    GitHub,
+    GitLab,
+    Local,
+    Module,
+    S3,
+    Storage,
     Webhook,
 )
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
@@ -145,6 +146,13 @@ class WebhookSchema(BaseStorageSchema):
     stored_as_script = fields.Bool(allow_none=True)
 
 
+class ModuleSchema(BaseStorageSchema):
+    class Meta:
+        object_class = Module
+
+    module = fields.String(allow_none=False)
+
+
 class StorageSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -153,14 +161,15 @@ class StorageSchema(OneOfSchema):
     # map class name to schema
     type_schemas = {
         "Azure": AzureSchema,
-        "Docker": DockerSchema,
-        "GCS": GCSSchema,
-        "Local": LocalSchema,
-        "Storage": BaseStorageSchema,
-        "S3": S3Schema,
-        "GitHub": GitHubSchema,
-        "GitLab": GitLabSchema,
         "Bitbucket": BitbucketSchema,
         "CodeCommit": CodeCommitSchema,
+        "Docker": DockerSchema,
+        "GCS": GCSSchema,
+        "GitHub": GitHubSchema,
+        "GitLab": GitLabSchema,
+        "Local": LocalSchema,
+        "Module": ModuleSchema,
+        "S3": S3Schema,
+        "Storage": BaseStorageSchema,
         "Webhook": WebhookSchema,
     }
