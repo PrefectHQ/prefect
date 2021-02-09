@@ -36,6 +36,7 @@ from prefect.engine.state import (
 from prefect.tasks.secrets import PrefectSecret
 from prefect.triggers import manual_only
 from prefect.utilities.debug import raise_on_exception
+from prefect.utilities.exceptions import TaskTimeoutError
 
 
 class SuccessTask(Task):
@@ -842,7 +843,7 @@ def test_flow_runner_handles_timeouts(executor):
     assert state.is_failed()
     assert isinstance(state.result[res], TimedOut)
     assert "timed out" in state.result[res].message
-    assert isinstance(state.result[res].result, TimeoutError)
+    assert isinstance(state.result[res].result, TaskTimeoutError)
 
 
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
@@ -854,7 +855,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
     assert state.is_failed()
     assert isinstance(state.result[res], TimedOut)
-    assert isinstance(state.result[res].result, TimeoutError)
+    assert isinstance(state.result[res].result, TaskTimeoutError)
 
 
 handler_results = collections.defaultdict(lambda: 0)

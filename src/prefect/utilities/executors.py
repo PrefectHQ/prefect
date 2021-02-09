@@ -15,6 +15,7 @@ from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Mapping
 
 import prefect
+from prefect.utilities.exceptions import TaskTimeoutError
 from prefect.utilities.logging import get_logger
 
 if TYPE_CHECKING:
@@ -96,7 +97,7 @@ def run_with_thread_timeout(
         - args (Sequence): arguments to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
-            `TimeoutError`, represented as an integer in seconds
+            `TaskTimeoutError`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.executors.run_with_thread_timeout` namespace will be created.
         - name (str): an optional name to attach to logs for this function run, defaults
@@ -107,7 +108,7 @@ def run_with_thread_timeout(
         - the result of `fn(*args, **kwargs)`
 
     Raises:
-        - TimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutError: if function execution exceeds the allowed timeout
         - ValueError: if run from outside the main thread
     """
     logger = logger or get_logger()
@@ -118,7 +119,7 @@ def run_with_thread_timeout(
         return fn(*args, **kwargs)
 
     def error_handler(signum, frame):  # type: ignore
-        raise TimeoutError("Execution timed out.")
+        raise TaskTimeoutError("Execution timed out.")
 
     try:
         # Set the signal handler for alarms
@@ -197,7 +198,7 @@ def run_with_multiprocess_timeout(
         - args (Sequence): arguments to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
-            `TimeoutError`, represented as an integer in seconds
+            `TaskTimeoutError`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.` namespace will be created.
         - name (str): an optional name to attach to logs for this function run, defaults
@@ -209,7 +210,7 @@ def run_with_multiprocess_timeout(
 
     Raises:
         - AssertionError: if run from a daemonic process
-        - TimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutError: if function execution exceeds the allowed timeout
     """
     logger = logger or get_logger()
     name = name or f"Function '{fn.__name__}'"
@@ -252,7 +253,7 @@ def run_with_multiprocess_timeout(
             raise result
         return result
     else:
-        raise TimeoutError(f"Execution timed out for {name}.")
+        raise TaskTimeoutError(f"Execution timed out for {name}.")
 
 
 def run_task_with_timeout(
@@ -267,7 +268,7 @@ def run_task_with_timeout(
     The exact implementation varies depending on whether this function is being
     run in the main thread or a non-daemonic subprocess.  If this is run from a
     daemonic subprocess or on Windows, the task is run in a `ThreadPoolExecutor`
-    and only a soft timeout is enforced, meaning a `TimeoutError` is raised at the
+    and only a soft timeout is enforced, meaning a `TaskTimeoutError` is raised at the
     appropriate time but the task continues running in the background.
 
     The task is passed instead of a function so we can give better logs and messages.
@@ -287,7 +288,7 @@ def run_task_with_timeout(
         - the result of `f(*args, **kwargs)`
 
     Raises:
-        - TimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutError: if function execution exceeds the allowed timeout
     """
     logger = logger or get_logger()
     name = prefect.context.get("task_full_name", task.name)
@@ -361,7 +362,7 @@ def run_task_with_timeout(
     try:
         return fut.result(timeout=task.timeout)
     except FutureTimeout as exc:
-        raise TimeoutError(
+        raise TaskTimeoutError(
             f"Execution timed out but was executed {soft_timeout_reason} and will "
             "continue to run in the background."
         ) from exc
