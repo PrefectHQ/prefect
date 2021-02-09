@@ -1,0 +1,2 @@
+enhancement:
+  - "Raise custom TimeoutError for task timeouts to allow for more granular user control - [#4091](https://github.com/PrefectHQ/prefect/issues/4091)"

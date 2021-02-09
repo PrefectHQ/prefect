@@ -61,6 +61,24 @@ Flows configured with `Local` storage also default to using a `LocalResult` for
 persisting any task results in the same filesystem.
 :::
 
+## Module
+
+[Module Storage](/api/latest/storage.md#module) is useful for flows that are
+importable from a Python module. If you package your flows as part of a Python
+module, you can use `Module` storage to reference and load them at execution
+time (provided the module is installed and importable in the execution
+environment).
+
+```python
+from prefect import Flow
+from prefect.storage import Module
+
+flow = Flow("module example", storage=Module("mymodule.flows"))
+
+# Tip: you can use `__name__` to automatically reference the current module.
+flow = Flow("module example", storage=Module(__name__))
+```
+
 ## AWS S3
 
 [S3 Storage](/api/latest/storage.md#s3) is a storage option that
