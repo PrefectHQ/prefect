@@ -1,5 +1,0 @@
-enhancement:
-  - "Add healthchecks to prefect server - [#4041](https://github.com/PrefectHQ/prefect/pull/4041)"
-
-contributor:
-  - "[Peter Roelants](https://github.com/peterroelants)"

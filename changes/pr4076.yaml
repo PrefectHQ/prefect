@@ -1,2 +1,0 @@
-fix:
-  - "Forward Prefect backend type to deployed flow runs, ensuring backend-specific logic functions properly - [#4076](https://github.com/PrefectHQ/prefect/pull/4076)"
