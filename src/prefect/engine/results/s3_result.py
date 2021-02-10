@@ -7,6 +7,7 @@ from prefect.engine.result import Result
 if TYPE_CHECKING:
     import boto3
 
+S3_CLIENT = None
 
 class S3Result(Result):
     """
@@ -45,13 +46,17 @@ class S3Result(Result):
         Initializes an S3 Client.
         """
         from prefect.utilities.aws import get_boto_client
-
-        # use a new boto session when initializing in case we are in a new thread see
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
-        s3_client = get_boto_client(
-            "s3", credentials=None, use_session=True, **self.boto3_kwargs
-        )
-        self.client = s3_client
+        global S3_CLIENT
+        if S3_CLIENT:
+            self.client = S3_CLIENT
+        else:
+            # use a new boto session when initializing in case we are in a new thread see
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
+            s3_client = get_boto_client(
+                "s3", credentials=None, use_session=True, **self.boto3_kwargs
+            )
+            self.client = s3_client
+            S3_CLIENT = s3_client
 
     @property
     def client(self) -> "boto3.client":
