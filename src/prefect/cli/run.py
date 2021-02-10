@@ -142,7 +142,7 @@ def flow(
     """
     if not id and not (name and project) and not version_group_id:
         click.secho(
-            "A flow ID, version group ID,  or some combination of flow name and project must be provided.",
+            "A flow ID, version group ID, or a combination of flow name and project must be provided.",
             fg="red",
         )
         return
