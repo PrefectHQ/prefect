@@ -489,11 +489,7 @@ def test_run_flow_using_id(monkeypatch, cloud_api):
     runner = CliRunner()
     result = runner.invoke(
         run,
-        [
-            "flow",
-            "--id",
-            "id",
-        ],
+        ["flow", "--id", "id", "--version-group-id", "v_id"],
     )
     assert result.exit_code == 0
     assert "Flow Run" in result.output
