@@ -596,13 +596,8 @@ jobs:
       - checkout
 
       - run:
-          # Set token manually for this job so it doesn't interfere with others
-          name: Set Cloud Token
-          command: export PREFECT__CLOUD__AUTH_TOKEN=$CLOUD_TENANT_TOKEN
-
-      - run:
           name: Run Flow
-          command: prefect run flow --id $FLOW_ID
+          command: PREFECT__CLOUD__AUTH_TOKEN=$CLOUD_TENANT_TOKEN && prefect run flow --id $FLOW_ID
 
 orbs:
   docker: circleci/docker@1.0.0
