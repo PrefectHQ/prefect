@@ -147,9 +147,9 @@ def flow(
         )
         return
 
-    if (id or version_group_id) and (name or project):
+    if sum(map(bool, (id, version_group_id, name))) != 1:
         click.secho(
-            "Both a flow ID/version group ID and a name/project combination cannot be provided.",
+            "Only one of flow ID, version group ID, or a name/project combination can be provided.",
             fg="red",
         )
         return
