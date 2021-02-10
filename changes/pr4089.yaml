@@ -1,2 +1,0 @@
-fix:
-  - "Patch around bug in dask's multiprocessing scheduler introduced in Dask 2021.02.0 - [#4089](https://github.com/PrefectHQ/prefect/pull/4089)"

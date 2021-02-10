@@ -1,2 +1,0 @@
-enhancement:
-  - "Drop resource limits from manifest generated using `prefect agent kubernetes install` - [#4077](https://github.com/PrefectHQ/prefect/pull/4077)"
