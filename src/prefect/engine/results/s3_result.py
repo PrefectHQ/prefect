@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 S3_CLIENT = None
 
+
 class S3Result(Result):
     """
     Result that is written to and retrieved from an AWS S3 Bucket.
@@ -46,6 +47,7 @@ class S3Result(Result):
         Initializes an S3 Client.
         """
         from prefect.utilities.aws import get_boto_client
+
         global S3_CLIENT
         if S3_CLIENT:
             self.client = S3_CLIENT
