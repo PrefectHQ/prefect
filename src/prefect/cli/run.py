@@ -123,7 +123,7 @@ def flow(
                                                 link
 
     \b
-    Either `id` or both `name` and `project` must be provided to run a flow.
+    Either `id`, `version-group-id`, or both `name` and `project` must be provided to run a flow.
 
     \b
     If both `--parameters-file` and `--parameters-string` are provided then the values
@@ -140,16 +140,16 @@ def flow(
         $ prefect run flow -n "Test-Flow" -p "My Project" -ps '{"my_param": 42}'
         Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
     """
-    if not id and not (name and project):
+    if not id and not (name and project) and not version_group_id:
         click.secho(
-            "A flow ID or some combination of flow name and project must be provided.",
+            "A flow ID, version group ID,  or some combination of flow name and project must be provided.",
             fg="red",
         )
         return
 
-    if id and (name or project):
+    if (id or version_group_id) and (name or project):
         click.secho(
-            "Both a flow ID and a name/project combination cannot be provided.",
+            "Both a flow ID/version group ID and a name/project combination cannot be provided.",
             fg="red",
         )
         return

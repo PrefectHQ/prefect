@@ -525,6 +525,6 @@ def test_run_flow_no_id_or_name_and_project():
         ],
     )
     assert (
-        "Both a flow ID and a name/project combination cannot be provided"
+        "Both a flow ID/version group ID and a name/project combination cannot be provided."
         in result.output
     )
