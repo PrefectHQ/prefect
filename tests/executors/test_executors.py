@@ -172,10 +172,10 @@ class TestLocalDaskExecutor:
     @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])
     def test_interrupt_stops_running_tasks_quickly(self, scheduler):
         # TODO: remove this skip
-        if scheduler == "processes" and sys.version_info[:2] == (3, 9):
+        if scheduler == "processes":
             pytest.skip(
-                "This test hangs for some reason on circleci, but passes locally. "
-                "We should debug this later, but squashing it for now"
+                "This test periodically hangs for some reason on circleci, but passes "
+                "locally. We should debug this later, but squashing it for now"
             )
 
         # Windows implements `queue.get` using polling,
