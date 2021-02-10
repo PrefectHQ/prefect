@@ -592,12 +592,13 @@ jobs:
         type: string
     environment:
       FLOW_ID: << parameters.flow_id >>
+      PREFECT__CLOUD__AUTH_TOKEN: $CLOUD_TENANT_TOKEN
     steps:
       - checkout
 
       - run:
           name: Run Flow
-          command: PREFECT__CLOUD__AUTH_TOKEN=$CLOUD_TENANT_TOKEN && prefect run flow --id $FLOW_ID
+          command: prefect run flow --id $FLOW_ID
 
 orbs:
   docker: circleci/docker@1.0.0
