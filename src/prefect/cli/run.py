@@ -38,6 +38,12 @@ def run():
     "--id", "-i", required=False, help="The id of a flow to run.", hidden=True
 )
 @click.option(
+    "--version-group-id",
+    required=False,
+    help="The id of a flow version group to run.",
+    hidden=True,
+)
+@click.option(
     "--name", "-n", required=False, help="The name of a flow to run.", hidden=True
 )
 @click.option(
@@ -78,6 +84,7 @@ def run():
 )
 def flow(
     id,
+    version_group_id,
     name,
     project,
     version,
@@ -95,6 +102,7 @@ def flow(
     \b
     Options:
         --id, -i                    TEXT        The ID of a flow to run
+        --version-group-id          TEXT        The ID of a flow version group to run
         --name, -n                  TEXT        The name of a flow to run
         --project, -p               TEXT        The name of a project that contains the flow
         --version, -v               INTEGER     A flow version to run
@@ -154,7 +162,7 @@ def flow(
 
     client = Client()
     flow_id = id
-    if not flow_id:
+    if not flow_id and not version_group_id:
         where_clause = {
             "_and": {
                 "name": {"_eq": name},
@@ -204,6 +212,7 @@ def flow(
         context = json.loads(context)
     flow_run_id = client.create_flow_run(
         flow_id=flow_id,
+        version_group_id=version_group_id,
         context=context,
         parameters={**file_params, **string_params},
         run_name=run_name,
