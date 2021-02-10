@@ -592,13 +592,9 @@ jobs:
         type: string
     environment:
       FLOW_ID: << parameters.flow_id >>
+      PREFECT__CLOUD__AUTH_TOKEN: $CLOUD_TENANT_TOKEN
     steps:
       - checkout
-
-      - run:
-          # Set token manually for this job so it doesn't interfere with others
-          name: Set Cloud Token
-          command: export PREFECT__CLOUD__AUTH_TOKEN=$CLOUD_TENANT_TOKEN
 
       - run:
           name: Run Flow
