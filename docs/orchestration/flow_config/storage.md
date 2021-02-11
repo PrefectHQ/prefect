@@ -71,7 +71,7 @@ This has a few nice properties:
   range of Prefect/Python/dependency versions.
 
 The downside is you may have to do a bit more configuration to tell prefect
-where your script is located (since it can't always automatically inferred).
+where your script is located (since it can't always be automatically inferred).
 
 Some storage classes (e.g. `GitHub`, `Bitbucket`, `GitLab`, ...) only support
 script-based flow storage. Other classes (e.g. `Local`, `S3`, `GCS`, ...)
