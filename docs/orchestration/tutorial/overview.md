@@ -17,7 +17,7 @@ Welcome to the Prefect Deployment Tutorial! This tutorial will cover:
 - Using a [Prefect Agent](/orchestration/agents/overview.md) to run that Flow
 
 If you haven't yet, you might want to go through the [Prefect Core
-Tutorial](http://localhost:8080/core/tutorial/01-etl-before-prefect.html),
+Tutorial](/core/tutorial/01-etl-before-prefect.html),
 which covers in greater detail how to write Prefect Flows.
 
 ## Install Prefect
