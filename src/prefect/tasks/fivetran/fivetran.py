@@ -84,6 +84,7 @@ class FivetranSyncTask(Task):
         connector_details = resp.json()['data']
         setup_state = connector_details['status']['setup_state']
         if setup_state != 'connected':
+            # @TODO can we put a link to the connector's setup here?
             raise Exception('Fivetran connector "{}" not correctly configured, status: {}'.format(
                 connector_id,
                 setup_state
@@ -105,6 +106,8 @@ class FivetranSyncTask(Task):
 
         # Set connector to manual sync mode, required to force sync through the API
         resp = session.patch(URL_CONNECTOR,
+            # @TODO why does Fivetran API require json.dumps() here? requests
+            # should handle this
             data=json.dumps({'schedule_type': 'manual'}),
             headers={'Content-Type': 'application/json;version=2'},
             auth=(api_key, api_secret))
@@ -112,7 +115,6 @@ class FivetranSyncTask(Task):
         resp = session.post(URL_CONNECTOR + "/force", auth=(api_key, api_secret))
 
         loop: bool = True
-        next_state: list = ['scheduled', 'syncing']
         while loop:
             resp = session.get(URL_CONNECTOR,  auth=(api_key, api_secret))
             current_details = resp.json()['data']
@@ -121,8 +123,6 @@ class FivetranSyncTask(Task):
             succeeded_at = parse_timestamp(current_details['succeeded_at'])
             failed_at = parse_timestamp(current_details['failed_at'])
             current_completed_at = succeeded_at if succeeded_at > failed_at else failed_at
-            if current_completed_at > previous_completed_at:
-                loop = False
             # The only way to tell if a sync failed is to check if its latest failed_at value
             # is greater than then last known "sync completed at" value.
             if failed_at > previous_completed_at:
@@ -136,16 +136,14 @@ class FivetranSyncTask(Task):
             # Capture the transition from 'scheduled' to 'syncing' or 'rescheduled',
             # and then back to 'scheduled' on completion.
             sync_state = current_details['status']['sync_state']
-            if sync_state in next_state:
-                if sync_state == 'syncing':
-                    next_state = ['syncing', 'rescheduled']
-                self.logger.info('Connector "{}" current sync_state = {}'.format(
-                    connector_id,
-                    sync_state
-                ))
-                time.sleep(poll_status_every_n_seconds)
-            else:
+            self.logger.info('Connector "{}" current sync_state = {}'.format(
+                connector_id,
+                sync_state
+            ))
+            if current_completed_at > previous_completed_at:
                 loop = False
+            else:
+                time.sleep(poll_status_every_n_seconds)
 
         return {
             "succeeded_at": succeeded_at.to_iso8601_string(),
