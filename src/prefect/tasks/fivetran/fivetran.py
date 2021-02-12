@@ -82,22 +82,27 @@ class FivetranSyncTask(Task):
         # Make sure connector configuration has been completed successfully and is not broken.
         resp = session.get(URL_CONNECTOR,  auth=(api_key, api_secret))
         connector_details = resp.json()['data']
+        URL_LOGS = 'https://fivetran.com/dashboard/connectors/{}/{}/logs'.format(
+            connector_details['service'],
+            connector_details['schema']
+        )
+        URL_SETUP = 'https://fivetran.com/dashboard/connectors/{}/{}/setup'.format(
+            connector_details['service'],
+            connector_details['schema']
+        )
         setup_state = connector_details['status']['setup_state']
         if setup_state != 'connected':
-            # @TODO can we put a link to the connector's setup here?
-            raise Exception('Fivetran connector "{}" not correctly configured, status: {}'.format(
+            EXC_SETUP: str = 'Fivetran connector "{}" not correctly configured, status: {}; please complete setup at {}'
+            raise Exception(EXC_SETUP.format(
                 connector_id,
-                setup_state
+                setup_state,
+                URL_SETUP
             ))
         # We need to know the previous job's completion time to know if the job succeeded or failed
         succeeded_at = parse_timestamp(connector_details['succeeded_at'])
         failed_at = parse_timestamp(connector_details['failed_at'])
         previous_completed_at = succeeded_at if succeeded_at > failed_at else failed_at
         # URL for connector logs within the UI
-        URL_LOGS = 'https://fivetran.com/dashboard/connectors/{}/{}/logs'.format(
-            connector_details['service'],
-            connector_details['schema']
-        )
         self.logger.info("Connector type: {}, connector schema: {}".format(
             connector_details['service'],
             connector_details['schema']
@@ -106,8 +111,6 @@ class FivetranSyncTask(Task):
 
         # Set connector to manual sync mode, required to force sync through the API
         resp = session.patch(URL_CONNECTOR,
-            # @TODO why does Fivetran API require json.dumps() here? requests
-            # should handle this
             data=json.dumps({'schedule_type': 'manual'}),
             headers={'Content-Type': 'application/json;version=2'},
             auth=(api_key, api_secret))
