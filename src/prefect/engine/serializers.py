@@ -296,6 +296,14 @@ class CompressedSerializer(Serializer):
                 self._compress, self._decompress = COMPRESSION_FORMATS[format]
             except KeyError as e:
                 raise ValueError("unknown compression format: {}".format(format)) from e
+
+            if (compress and compress != self._compress) or (
+                decompress and decompress != self._decompress
+            ):
+                raise ValueError(
+                    "Both compression format and custom compression/decompression "
+                    "functions provided but are incompatible."
+                )
         elif compress and decompress:
             self._compress = compress
             self._decompress = decompress

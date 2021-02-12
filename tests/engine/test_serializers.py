@@ -147,6 +147,25 @@ class TestCompressedSerializer:
         with pytest.raises(ValueError):
             CompressedSerializer(PickleSerializer())
 
+    def test_constructor_accepts_compatible_format_and_functions(self) -> None:
+        assert CompressedSerializer(
+            PickleSerializer(), format="gzip"
+        ) == CompressedSerializer(
+            PickleSerializer(),
+            format="gzip",
+            compress=gzip.compress,
+            decompress=gzip.decompress,
+        )
+
+    def test_constructor_rejects_conflicting_format_and_functions(self) -> None:
+        with pytest.raises(ValueError):
+            CompressedSerializer(
+                PickleSerializer(),
+                format="bz2",
+                compress=gzip.compress,
+                decompress=gzip.decompress,
+            )
+
     def test_serialize_returns_bytes(self) -> None:
         value = ["abc", 123, pendulum.now()]
         serialized = CompressedSerializer(PickleSerializer(), format="bz2").serialize(
