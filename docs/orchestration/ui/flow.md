@@ -28,10 +28,14 @@ You can use markdown to add a Read Me description for your flow group in the flo
 <div class="add-shadow">
   <img src="/orchestration/ui/flow-description-edit.png">
 </div>
+
 ## Run
 
-From this page, you can schedule a new run of your flow. You may provide parameter values, if appropriate, and give your run a name for easy queries or retrieval in the future.
-![](/orchestration/ui/flow-run.png)
+From this page, you can schedule a new run of your flow for now or some point in the future. You may provide parameter values, if appropriate; update your run configuration; and give your run a name for easy queries or retrieval in the future.
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-run.png">
+</div>
 
 ## Settings
 
