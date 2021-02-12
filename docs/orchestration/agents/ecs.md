@@ -121,7 +121,7 @@ prefect agent ecs start --launch-type EC2
 
 ECS tasks use [task
 roles](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html)
-to provide additional permissions to tasks. You can configure a default task
+to provide additional permissions to tasks to make AWS API calls. You can configure a default task
 role for tasks started by the agent using the `--task-role-arn` option:
 
 ```bash
@@ -209,8 +209,8 @@ DaskExecutor to create the temporary cluster.
 ```
 ### Execution Role ARN
 
-The following policy is the AmazonECSTaskExecutionPolicy. One example use for the execution-role-arn 
-is if the image used by the containers is stored in Amazon ECR. More information for creating this role
+The following policy is the AmazonECSTaskExecutionPolicy. The execution-role-arn 
+can be used to pull the image from ECR or enable logs in CloudWatch. More information for creating this role
 can be found [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html). 
 You can configure a default execution role for tasks started by the agent using the `--execution-role-arn` option:
 
