@@ -37,16 +37,16 @@ class FivetranSyncTask(Task):
         """
         Task run method for Fivetran connector syncs.
 
-        An invocation of `run` will attempt to start a sync job for the specified `connector_id`. `run` will
-        poll Fivetran for connector status, and will only complete when the sync has completed or when it
-        receives an error status code from an API call.
+        An invocation of `run` will attempt to start a sync job for the specified `connector_id`. `run`
+        will poll Fivetran for connector status, and will only complete when the sync has completed or
+        when it receives an error status code from an API call.
 
         Args:
             - api_key (str): `API key` per https://fivetran.com/account/settings; should be secret!
             - api_secret (str): `API secret` per https://fivetran.com/account/settings; should be secret!
             - connector_id (str, optional): if provided, will overwrite value provided at init.
-            - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status, if provided
-                this value will override the default polling time of 15 seconds.
+            - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status,
+                if provided this value will override the default polling time of 15 seconds.
 
         Returns:
             - dict: connector_id (str) and succeeded_at (timestamp str)
@@ -93,7 +93,10 @@ class FivetranSyncTask(Task):
         )
         setup_state = connector_details["status"]["setup_state"]
         if setup_state != "connected":
-            EXC_SETUP: str = 'Fivetran connector "{}" not correctly configured, status: {}; please complete setup at {}'
+            EXC_SETUP: str = (
+                'Fivetran connector "{}" not correctly configured, status: {}; '
+                + "please complete setup at {}"
+            )
             raise Exception(EXC_SETUP.format(connector_id, setup_state, URL_SETUP))
         # We need to know the previous job's completion time to know if the job succeeded or failed
         succeeded_at = parse_timestamp(connector_details["succeeded_at"])
