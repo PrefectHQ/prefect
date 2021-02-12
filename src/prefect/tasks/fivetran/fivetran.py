@@ -12,9 +12,13 @@ class FivetranSyncTask(Task):
     """
     Task for running Fivetran connector sync jobs.
 
+    This task assumes the user is a Fivetran user (https://fivetran.com) who has
+    successfully setup a connector and has access to the API credentials for
+    that user (https://fivetran.com/account/settings, "API Config").
+
     Args:
         - connector_id (str, optional): Default connector id to use for sync jobs, if none is
-            specified to `run()`.
+            specified to `run`.
         - **kwargs (Any, optional): additional kwargs to pass to the base Task constructor
     """
     def __init__(
@@ -45,9 +49,11 @@ class FivetranSyncTask(Task):
             - api_key (str): `API key` per https://fivetran.com/account/settings; should be secret!
             - api_secret (str): `API secret` per https://fivetran.com/account/settings; should be secret!
             - connector_id (str, optional): if provided, will overwrite value provided at init.
+            - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status, if provided
+                this value will override the default polling time of 15 seconds.
 
         Returns:
-            - dict: some info about the Fivetran job
+            - dict: connector_id (str) and succeeded_at (timestamp str)
         """
         def parse_timestamp(api_time: str):
             """Returns either the pendulum-parsed actual timestamp or
