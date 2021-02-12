@@ -193,10 +193,6 @@ class Webhook(Storage):
         flow_script_path: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
-
-        # set up logic for authenticating with Saturn back-end service
         retry_logic = HTTPAdapter(max_retries=Retry(total=3))
         self._session = Session()
         self._session.mount("http://", retry_logic)
@@ -275,8 +271,8 @@ class Webhook(Storage):
         Returns:
             - str: the name of the flow
         """
-        self.flows = {flow.name: flow.name}
-        self._flows = {flow.name: flow}
+        self.flows = {flow.name: flow.name}  # type: Dict[str, str]
+        self._flows = {flow.name: flow}  # type: Dict[str, Flow]
         return flow.name
 
     def build(self) -> "Webhook":
@@ -386,12 +382,3 @@ class Webhook(Storage):
             self.logger.info("Successfully uploaded flow '{}'".format(flow_name))
 
         return self
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is
-        contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows

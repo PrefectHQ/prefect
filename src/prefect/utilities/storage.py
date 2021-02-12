@@ -108,49 +108,51 @@ def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
             Additionally, `:` can be used to access module's attribute, for example,
             'myrepo.mymodule.myflow:flow' or 'myrepo.mymodule.myflow:MyObj.newflow'.
         - flow_name (str, optional): A specific name of a flow to extract from a file.
-            If not set then the first flow object retrieved from file will be returned.
-            The "first" flow object will be based on the dir(module) ordering, which
-            is alphabetical and capitalized letters come first.
+            If not provided, the `module_str` must have an attribute specifier
+            or only one `Flow` object must be present in the module, otherwise
+            an error will be raised.
 
     Returns:
         - Flow: A flow object extracted from a file
     """
+    mod_name, obj_name_present, obj_name = module_str.partition(":")
 
-    # load the module
-    module_parts = module_str.split(":", 2)
+    module = importlib.import_module(mod_name)
 
-    if len(module_parts) == 2 and flow_name is not None:
-        raise ValueError(
-            "Provide either `module_str` without an attribute specifier or remove `flow_name`."
-        )
-    elif len(module_parts) == 2:
-        module_name, flow_name = module_parts
-    else:
-        module_name = module_str
-
-    module = importlib.import_module(module_name)
-
-    # if flow_name is specified, grab it from the module
-    if flow_name:
-        attr = attrgetter(flow_name)(module)
-
-        if callable(attr):
-            attr = attr()
-
-        if isinstance(attr, prefect.Flow):
-            return attr
-        else:
-            raise ValueError(
-                f"{module_name}:{flow_name} must return `prefect.Flow`, not {type(attr)}."
+    if obj_name_present:
+        try:
+            flow = attrgetter(obj_name)(module)
+        except AttributeError:
+            raise ValueError(f"Failed to find flow at {module_str!r}") from None
+        if callable(flow):
+            flow = flow()
+        if not isinstance(flow, prefect.Flow):
+            raise TypeError(
+                f"Object at {module_str!r} is a {type(flow)} not a `prefect.Flow`"
             )
-    # otherwise loop until we get a Flow object
+        if flow_name is not None and flow.name != flow_name:
+            raise ValueError(
+                f"Flow at {module_str!r} is named {flow.name!r}, expected {flow_name!r}"
+            )
+        return flow
     else:
-        for var in dir(module):
-            attr = getattr(module, var)
-            if isinstance(attr, prefect.Flow):
-                return attr
-
-    raise ValueError("No flow found in module.")
+        flows = {}
+        for attr in dir(module):
+            obj = getattr(module, attr, None)
+            if isinstance(obj, prefect.Flow):
+                flows[obj.name] = obj
+        if flow_name is not None:
+            if flow_name in flows:
+                return flows[flow_name]
+            raise ValueError(f"Failed to find flow {flow_name!r} in {module_str!r}")
+        elif len(flows) == 1:
+            return flows.popitem()[1]
+        elif len(flows) > 1:
+            raise ValueError(
+                "Multiple flows found in {module_str!r}, please provide `flow_name` to select one."
+            )
+        else:
+            raise ValueError("No flows found in {module_str!r}")
 
 
 def flow_to_bytes_pickle(flow: "Flow") -> bytes:

@@ -46,6 +46,7 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
+from prefect.utilities.exceptions import TaskTimeoutError
 from prefect.utilities.tasks import pause_task
 
 
@@ -343,7 +344,7 @@ def test_timeout_actually_stops_execution():
 
     assert state.is_failed()
     assert isinstance(state, TimedOut)
-    assert isinstance(state.result, TimeoutError)
+    assert isinstance(state.result, TaskTimeoutError)
 
 
 def test_task_runner_can_handle_timeouts_by_default():
@@ -354,7 +355,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
-    assert isinstance(state.result, TimeoutError)
+    assert isinstance(state.result, TaskTimeoutError)
 
 
 def test_task_runner_handles_secrets():
@@ -428,6 +429,23 @@ class TestInitializeRun:
             assert "resume" not in ctx
             result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
+
+    def test_task_runner_puts_resume_in_context_if_paused_start_time_elapsed(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc")), context=ctx
+            )
+            assert result.context.resume is True
+
+    def test_task_runner_ignores_resume_in_context_if_paused_start_time_in_future(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc").add(seconds=10)),
+                context=ctx,
+            )
+            assert "resume" not in ctx
 
     def test_task_runner_puts_checkpointing_in_context(self):
         with prefect.context() as ctx:

@@ -1,6 +1,5 @@
 import json
 import os
-import socket
 import tempfile
 
 import pytest
@@ -9,12 +8,12 @@ import prefect
 from prefect import storage
 from prefect.serialization.storage import (
     AzureSchema,
-    BaseStorageSchema,
     DockerSchema,
     GCSSchema,
     LocalSchema,
     S3Schema,
     WebhookSchema,
+    GitHubSchema,
     GitLabSchema,
     BitbucketSchema,
 )
@@ -331,7 +330,7 @@ def test_webhook_full_serialize():
         secrets=["CREDS"],
     )
     f = prefect.Flow("test")
-    webhook.flows["test"] = "key"
+    webhook.add_flow(f)
 
     serialized = WebhookSchema().dump(webhook)
 
@@ -357,6 +356,23 @@ def test_webhook_full_serialize():
     assert serialized["stored_as_script"] is False
 
 
+@pytest.mark.parametrize("ref", [None, "testref"])
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_github_serialize(ref, access_token_secret):
+    github = storage.GitHub(
+        repo="test/repo", path="flow.py", access_token_secret=access_token_secret
+    )
+    if ref is not None:
+        github.ref = ref
+    serialized = GitHubSchema().dump(github)
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["repo"] == "test/repo"
+    assert serialized["path"] == "flow.py"
+    assert serialized["ref"] == ref
+    assert serialized["secrets"] == []
+    assert serialized["access_token_secret"] == access_token_secret
+
+
 def test_gitlab_empty_serialize():
     gitlab = storage.GitLab(repo="test/repo")
     serialized = GitLabSchema().dump(gitlab)
@@ -368,13 +384,15 @@ def test_gitlab_empty_serialize():
     assert serialized["secrets"] == []
 
 
-def test_gitlab_full_serialize():
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_gitlab_full_serialize(access_token_secret):
     gitlab = storage.GitLab(
         repo="test/repo",
         path="path/to/flow.py",
         host="http://localhost:1234",
         ref="test-branch",
         secrets=["token"],
+        access_token_secret=access_token_secret,
     )
 
     serialized = GitLabSchema().dump(gitlab)
@@ -384,6 +402,7 @@ def test_gitlab_full_serialize():
     assert serialized["path"] == "path/to/flow.py"
     assert serialized["ref"] == "test-branch"
     assert serialized["secrets"] == ["token"]
+    assert serialized["access_token_secret"] == access_token_secret
 
 
 def test_bitbucket_empty_serialize():
@@ -399,7 +418,8 @@ def test_bitbucket_empty_serialize():
     assert serialized["secrets"] == []
 
 
-def test_bitbucket_full_serialize():
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_bitbucket_full_serialize(access_token_secret):
     bitbucket = storage.Bitbucket(
         project="PROJECT",
         repo="test-repo",
@@ -407,6 +427,7 @@ def test_bitbucket_full_serialize():
         host="http://localhost:7990",
         ref="develop",
         secrets=["token"],
+        access_token_secret=access_token_secret,
     )
 
     serialized = BitbucketSchema().dump(bitbucket)
@@ -417,3 +438,10 @@ def test_bitbucket_full_serialize():
     assert serialized["host"] == "http://localhost:7990"
     assert serialized["ref"] == "develop"
     assert serialized["secrets"] == ["token"]
+    assert serialized["access_token_secret"] == access_token_secret
+
+
+def test_module_serialize():
+    module = storage.Module("test")
+    serialized = module.serialize()
+    assert serialized["module"] == "test"

@@ -64,7 +64,9 @@ class S3Download(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+        s3_client = get_boto_client(
+            "s3", credentials=credentials, use_session=True, **self.boto_kwargs
+        )
 
         stream = io.BytesIO()
 
@@ -144,7 +146,9 @@ class S3Upload(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+        s3_client = get_boto_client(
+            "s3", credentials=credentials, use_session=True, **self.boto_kwargs
+        )
 
         # compress data if compression is specified
         if compression:

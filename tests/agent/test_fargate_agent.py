@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import prefect
 from prefect.agent.fargate import FargateAgent
 from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
@@ -931,7 +932,10 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     ],
 )
 def test_deploy_flow_register_task_definition_all_args(
-    core_version, command, monkeypatch, cloud_api
+    core_version,
+    command,
+    monkeypatch,
+    backend,
 ):
     boto3_client = MagicMock()
 
@@ -1002,14 +1006,13 @@ def test_deploy_flow_register_task_definition_all_args(
         ],
     }
 
-    with set_temporary_config({"logging.log_to_cloud": True}):
-        agent = FargateAgent(
-            aws_access_key_id="id",
-            aws_secret_access_key="secret",
-            aws_session_token="token",
-            region_name="region",
-            **kwarg_dict
-        )
+    agent = FargateAgent(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        **kwarg_dict
+    )
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -1042,7 +1045,8 @@ def test_deploy_flow_register_task_definition_all_args(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", command],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__BACKEND", "value": backend},
+                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                 {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
@@ -1177,7 +1181,8 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", "prefect execute flow-run"],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__BACKEND", "value": "cloud"},
+                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                 {
                     "name": "PREFECT__CLOUD__AGENT__LABELS",
                     "value": "['aws', 'staging']",
@@ -1281,7 +1286,8 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute flow-run"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                    {"name": "PREFECT__BACKEND", "value": "cloud"},
+                    {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
@@ -1659,7 +1665,8 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute flow-run"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                    {"name": "PREFECT__BACKEND", "value": "cloud"},
+                    {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                     {
                         "name": "PREFECT__CLOUD__AGENT__LABELS",
                         "value": "['aws', 'staging']",

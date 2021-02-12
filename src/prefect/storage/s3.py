@@ -1,5 +1,6 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict
+from contextlib import closing
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 from slugify import slugify
@@ -49,8 +50,6 @@ class S3(Storage):
         client_options: dict = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
         self.local_script_path = local_script_path or prefect.context.get(
@@ -78,26 +77,25 @@ class S3(Storage):
         """
         if flow_name not in self.flows:
             raise ValueError("Flow is not contained in this Storage")
-        flow_location = self.flows[flow_name]
+        key = self.flows[flow_name]
 
-        stream = io.BytesIO()
-
-        self.logger.info("Downloading {} from {}".format(flow_location, self.bucket))
-
-        # Download stream from S3
-        from botocore.exceptions import ClientError
+        self.logger.info(f"Downloading flow from s3://{self.bucket}/{key}")
 
         try:
-            self._boto3_client.download_fileobj(
-                Bucket=self.bucket, Key=flow_location, Fileobj=stream
-            )
-        except ClientError as err:
+            obj = self._boto3_client.get_object(Bucket=self.bucket, Key=key)
+            body = obj["Body"]
+            with closing(body):
+                output = body.read()
+        except Exception as err:
             self.logger.error("Error downloading Flow from S3: {}".format(err))
-            raise err
+            raise
 
-        # prepare data and return
-        stream.seek(0)
-        output = stream.read()
+        self.logger.info(
+            "Flow successfully downloaded. ETag: %s, LastModified: %s, VersionId: %s",
+            obj["ETag"],
+            obj["LastModified"].isoformat(),
+            obj.get("VersionId"),
+        )
 
         if self.stored_as_script:
             return extract_flow_from_file(file_contents=output, flow_name=flow_name)  # type: ignore
@@ -205,14 +203,6 @@ class S3(Storage):
                 raise err
 
         return self
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
 
     @property
     def _boto3_client(self):  # type: ignore

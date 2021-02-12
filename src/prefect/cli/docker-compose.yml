@@ -1,6 +1,7 @@
 version: "3.7"
 
 services:
+  # PostgreSQL: the database persistence layer where metadata is stored
   postgres:
     image: "postgres:11"
     ports:
@@ -13,12 +14,21 @@ services:
       - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
     networks:
       - prefect-server
-    restart: "always"
     command:
       - "postgres"
       # explicitly set max connections
       - "-c"
       - "max_connections=150"
+    # Use `pg_isready` to check the connection status of the PostgreSQL server
+    healthcheck:
+      test: pg_isready -q -d $${POSTGRES_DB} -U $${POSTGRES_USER} || exit 1
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 2s
+    restart: always
+
+  # Hasura: the GraphQL API that layers on top of Postgres for querying metadata
   hasura:
     image: "hasura/graphql-engine:v1.3.0"
     ports:
@@ -32,9 +42,19 @@ services:
       HASURA_GRAPHQL_LOG_LEVEL: "warn"
     networks:
       - prefect-server
-    restart: "always"
+    # /healthz endpoints returns OK when not unhealthy
+    healthcheck:
+      test: wget -O - http://hasura:$${HASURA_GRAPHQL_SERVER_PORT}/healthz &>/dev/null || exit 1
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 1s
+    restart: always
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
+  # GraphQL: the server's business logic that exposes GraphQL mutations
   graphql:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
     ports:
@@ -48,9 +68,18 @@ services:
       PREFECT_CORE_VERSION: ${PREFECT_CORE_VERSION:-"UNKNOWN"}
     networks:
       - prefect-server
-    restart: "always"
+    healthcheck:
+      test: curl --fail --silent "http://graphql:4201/health" &> /dev/null || exit 1
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 1s
+    restart: always
     depends_on:
-      - hasura
+      hasura:
+        condition: service_healthy
+
+  # Towel: runs utilities that are responsible for server maintenance
   towel:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
     command: "python src/prefect_server/services/towel/__main__.py"
@@ -61,7 +90,10 @@ services:
       - prefect-server
     restart: "always"
     depends_on:
-      - graphql
+      graphql:
+        condition: service_healthy
+
+  # Apollo: the main endpoint for interacting with the server
   apollo:
     image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
     ports:
@@ -76,9 +108,23 @@ services:
       GRAPHQL_SERVICE_PORT: 4201
     networks:
       - prefect-server
-    restart: "always"
+    # Test GraphQL Apollo endpoint as health-check
+    healthcheck:
+      test: curl --fail --silent "http://apollo:4200/.well-known/apollo/server-health" &> /dev/null || exit 1
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 1s
+    restart: always
     depends_on:
-      - graphql
+      graphql:
+        condition: service_healthy
+      hasura:
+        condition: service_healthy
+
+  # UI: the user interface that provides a visual dashboard for mutating and querying metadata
+  # The UI is a standalone web interface and only communicates with the Apollo GraphQL API via
+  #  the host from which it is accessed.
   ui:
     image: "prefecthq/ui:${PREFECT_UI_TAG:-latest}"
     ports:
@@ -88,9 +134,15 @@ services:
       PREFECT_SERVER__APOLLO_URL: ${APOLLO_URL:-http://localhost:4200/graphql}
     networks:
       - prefect-server
-    restart: "always"
+    healthcheck:
+      test: curl --fail --silent --head "http://ui:8080/" &> /dev/null || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: always
     depends_on:
-      - apollo
+      apollo:
+        condition: service_started
 
 networks:
   prefect-server:

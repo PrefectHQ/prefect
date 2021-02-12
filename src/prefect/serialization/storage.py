@@ -3,45 +3,47 @@ from typing import Any
 from marshmallow import fields, post_load
 
 from prefect.storage import (
-    GCS,
-    S3,
     Azure,
-    Docker,
-    Local,
-    Storage,
-    GitHub,
-    GitLab,
     Bitbucket,
     CodeCommit,
+    Docker,
+    GCS,
+    GitHub,
+    GitLab,
+    Local,
+    Module,
+    S3,
+    Storage,
     Webhook,
 )
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
-
-
-class AzureSchema(ObjectSchema):
-    class Meta:
-        object_class = Azure
-
-    container = fields.String(allow_none=False)
-    blob_name = fields.String(allow_none=True)
-    stored_as_script = fields.Bool(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Azure:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
 
 
 class BaseStorageSchema(ObjectSchema):
     class Meta:
         object_class = Storage
 
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
 
-class DockerSchema(ObjectSchema):
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> Storage:
+        flows = data.pop("flows", {})
+        base_obj = super().create_object(data, **kwargs)
+        base_obj.flows = flows
+        return base_obj
+
+
+class AzureSchema(BaseStorageSchema):
+    class Meta:
+        object_class = Azure
+
+    container = fields.String(allow_none=False)
+    blob_name = fields.String(allow_none=True)
+    stored_as_script = fields.Bool(allow_none=True)
+
+
+class DockerSchema(BaseStorageSchema):
     class Meta:
         object_class = Docker
 
@@ -50,19 +52,10 @@ class DockerSchema(ObjectSchema):
     image_tag = fields.String(allow_none=True)
     path = fields.Str(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
     prefect_version = fields.String(allow_none=False)
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
 
 
-class GCSSchema(ObjectSchema):
+class GCSSchema(BaseStorageSchema):
     class Meta:
         object_class = GCS
 
@@ -70,76 +63,44 @@ class GCSSchema(ObjectSchema):
     key = fields.Str(allow_none=True)
     project = fields.Str(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> GCS:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
 
 
-class LocalSchema(ObjectSchema):
+class LocalSchema(BaseStorageSchema):
     class Meta:
         object_class = Local
 
     directory = fields.Str(allow_none=False)
     path = fields.Str(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
-        flows = data.pop("flows", dict())
-        data.update(validate=False)
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
+    def create_object(self, data: dict, **kwargs: Any) -> Storage:
+        return super().create_object({"validate": False, **data}, **kwargs)
 
 
-class S3Schema(ObjectSchema):
+class S3Schema(BaseStorageSchema):
     class Meta:
         object_class = S3
 
     bucket = fields.String(allow_none=False)
     key = fields.String(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
     client_options = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> S3:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
 
 
-class GitHubSchema(ObjectSchema):
+class GitHubSchema(BaseStorageSchema):
     class Meta:
         object_class = GitHub
 
     repo = fields.String(allow_none=False)
-    ref = fields.String(allow_none=False)
-    path = fields.String(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> GitHub:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
+    ref = fields.String(allow_none=True)
+    path = fields.String(allow_none=False)
+    access_token_secret = fields.String(allow_none=True)
 
 
-class GitLabSchema(ObjectSchema):
+class GitLabSchema(BaseStorageSchema):
     class Meta:
         object_class = GitLab
 
@@ -147,18 +108,10 @@ class GitLabSchema(ObjectSchema):
     path = fields.String(allow_none=True)
     host = fields.String(allow_none=True)
     ref = fields.String(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> GitHub:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
+    access_token_secret = fields.String(allow_none=True)
 
 
-class BitbucketSchema(ObjectSchema):
+class BitbucketSchema(BaseStorageSchema):
     class Meta:
         object_class = Bitbucket
 
@@ -167,18 +120,10 @@ class BitbucketSchema(ObjectSchema):
     host = fields.String(allow_none=True)
     path = fields.String(allow_none=True)
     ref = fields.String(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Bitbucket:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
+    access_token_secret = fields.String(allow_none=True)
 
 
-class CodeCommitSchema(ObjectSchema):
+class CodeCommitSchema(BaseStorageSchema):
     class Meta:
         object_class = CodeCommit
 
@@ -188,18 +133,9 @@ class CodeCommitSchema(ObjectSchema):
     client_options = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> CodeCommit:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
 
 
-class WebhookSchema(ObjectSchema):
+class WebhookSchema(BaseStorageSchema):
     class Meta:
         object_class = Webhook
 
@@ -208,15 +144,13 @@ class WebhookSchema(ObjectSchema):
     get_flow_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
     get_flow_request_http_method = fields.String(allow_none=False)
     stored_as_script = fields.Bool(allow_none=True)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.Str(), allow_none=True)
 
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Webhook:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
+
+class ModuleSchema(BaseStorageSchema):
+    class Meta:
+        object_class = Module
+
+    module = fields.String(allow_none=False)
 
 
 class StorageSchema(OneOfSchema):
@@ -227,14 +161,15 @@ class StorageSchema(OneOfSchema):
     # map class name to schema
     type_schemas = {
         "Azure": AzureSchema,
-        "Docker": DockerSchema,
-        "GCS": GCSSchema,
-        "Local": LocalSchema,
-        "Storage": BaseStorageSchema,
-        "S3": S3Schema,
-        "GitHub": GitHubSchema,
-        "GitLab": GitLabSchema,
         "Bitbucket": BitbucketSchema,
         "CodeCommit": CodeCommitSchema,
+        "Docker": DockerSchema,
+        "GCS": GCSSchema,
+        "GitHub": GitHubSchema,
+        "GitLab": GitLabSchema,
+        "Local": LocalSchema,
+        "Module": ModuleSchema,
+        "S3": S3Schema,
+        "Storage": BaseStorageSchema,
         "Webhook": WebhookSchema,
     }

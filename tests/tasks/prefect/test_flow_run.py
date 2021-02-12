@@ -65,6 +65,12 @@ class TestStartFlowRunCloud:
         assert task.run_name == "test-run"
         assert task.scheduled_start_time == now
 
+    def test_init_errors_if_tasks_passed_to_parameters(self, cloud_api):
+        with pytest.raises(TypeError, match="An instance of `Task` was passed"):
+            StartFlowRun(
+                name="testing", parameters={"a": 1, "b": prefect.Parameter("b")}
+            )
+
     @pytest.mark.parametrize("idempotency_key", [None, "my-key"])
     @pytest.mark.parametrize("task_run_id", [None, "test-id"])
     def test_flow_run_task_submit_args(

@@ -220,16 +220,8 @@ class Agent:
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
 
-        try:
-            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
-        except Exception as exc:
-            if config.backend == "cloud":
-                raise exc
-            else:
-                self.logger.warning(
-                    f"Unable to register agent to {self.client.api_server}. "
-                    f"Make sure the server is running on the latest version."
-                )
+        # Register agent with backend API
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         try:
             self.setup()
@@ -299,6 +291,14 @@ class Agent:
             )
 
             def run() -> None:
+                # Ensure there's an active event loop in this thread
+                import asyncio
+
+                try:
+                    asyncio.get_event_loop()
+                except RuntimeError:
+                    asyncio.set_event_loop(asyncio.new_event_loop())
+
                 self.logger.debug(
                     f"Agent API server listening on port {self.agent_address}"
                 )
@@ -681,7 +681,7 @@ class Agent:
             version=flow_run.version,
             state=Failed(message=str(exc)),
         )
-        self.logger.error("Error while deploying flow: {}".format(repr(exc)))
+        self.logger.error("Error while deploying flow", exc_info=exc)
 
     def _get_run_config(
         self, flow_run: GraphQLResult, run_config_cls: Type[RunConfig]

@@ -20,9 +20,11 @@ prefect.utilities.logging.get_logger().setLevel("DEBUG")
 
 
 @pytest.fixture(autouse=True)
-def logging_heartbeat():
-    with configuration.set_temporary_config({"cloud.logging_heartbeat": 0.15}):
-        yield
+def no_cloud_logs(monkeypatch):
+    """Prevent cloud logging from doing anything actually sending requests to
+    Prefect, regardless of status of `logging.log_to_cloud`. Test checking
+    cloud logging works explicitly may need to override this mock."""
+    monkeypatch.setattr("prefect.utilities.logging.LOG_MANAGER.enqueue", MagicMock())
 
 
 @pytest.fixture(autouse=True)
@@ -179,9 +181,20 @@ def cloud_api():
 @pytest.fixture()
 def server_api():
     with prefect.utilities.configuration.set_temporary_config(
-        {"cloud.api": "https:/localhost:4200", "backend": "server"}
+        {"cloud.api": "https://localhost:4200", "backend": "server"}
     ):
         yield
+
+
+@pytest.fixture(
+    params=[("cloud", "https://api.prefect.io"), ("server", "https://localhost:4200")]
+)
+def backend(request):
+    backend, api = request.param
+    with prefect.utilities.configuration.set_temporary_config(
+        {"cloud.api": api, "backend": backend}
+    ):
+        yield backend
 
 
 @pytest.fixture()

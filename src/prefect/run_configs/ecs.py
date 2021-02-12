@@ -23,7 +23,7 @@ class ECSRun(RunConfig):
 
     Args:
         - task_definition (dict, optional): An in-memory task definition spec
-            to use. See the [ECS.Client.register_task_definition][3] docs for
+            to use. See the [ECS.Client.register_task_definition][1] docs for
             more information on task definitions. Note that this definition
             will be stored directly in Prefect Cloud/Server - use
             `task_definition_path` instead if you wish to avoid this.
@@ -54,6 +54,9 @@ class ECSRun(RunConfig):
         - task_role_arn (str, optional): The name or full ARN for the IAM role
             to use for this task. If not provided, the default on the agent
             will be used (if configured).
+        - execution_role_arn (str, optional): The execution role ARN to use
+            when registering a task definition for this task. If not provided,
+            the default on the agent will be used (if configured).
         - run_task_kwargs (dict, optional): Additional keyword arguments to
             pass to `run_task` when starting this task. See the
             [ECS.Client.run_task][3] docs for more information.
@@ -108,6 +111,7 @@ ecs.html#ECS.Client.run_task
         cpu: Union[int, str] = None,
         memory: Union[int, str] = None,
         task_role_arn: str = None,
+        execution_role_arn: str = None,
         run_task_kwargs: dict = None,
         labels: Iterable[str] = None,
     ) -> None:
@@ -147,4 +151,5 @@ ecs.html#ECS.Client.run_task
         self.cpu = cpu
         self.memory = memory
         self.task_role_arn = task_role_arn
+        self.execution_role_arn = execution_role_arn
         self.run_task_kwargs = run_task_kwargs

@@ -97,6 +97,8 @@ class DaskExecutor(Executor):
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
 
+    Examples:
+
     Using a temporary local dask cluster:
 
     ```python
@@ -397,6 +399,15 @@ class DaskExecutor(Executor):
         return self.client.gather(futures)
 
 
+def _multiprocessing_pool_initializer() -> None:
+    """Initialize a process used in a `multiprocssing.Pool`.
+
+    Ensures the standard atexit handlers are run."""
+    import signal
+
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit())
+
+
 class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable
@@ -436,7 +447,13 @@ class LocalDaskExecutor(Executor):
 
     def _interrupt_pool(self) -> None:
         """Interrupt all tasks in the backing `pool`, if any."""
-        if self.scheduler == "threads" and self._pool is not None:
+        if self._pool is None:
+            return
+
+        # Terminate the pool
+        self._pool.terminate()
+
+        if self.scheduler == "threads":
             # `ThreadPool.terminate()` doesn't stop running tasks, only
             # prevents new tasks from running. In CPython we can attempt to
             # raise an exception in all threads. This exception will be raised
@@ -502,7 +519,9 @@ class LocalDaskExecutor(Executor):
                     from dask.multiprocessing import get_context
 
                     context = get_context()
-                    self._pool = context.Pool(num_workers)
+                    self._pool = context.Pool(
+                        num_workers, initializer=_multiprocessing_pool_initializer
+                    )
             try:
                 exiting_early = False
                 yield
@@ -511,9 +530,10 @@ class LocalDaskExecutor(Executor):
                 raise
             finally:
                 if self._pool is not None:
-                    self._pool.terminate()
                     if exiting_early:
                         self._interrupt_pool()
+                    else:
+                        self._pool.close()
                     self._pool.join()
                     self._pool = None
 
@@ -563,11 +583,31 @@ class LocalDaskExecutor(Executor):
         # Since multiprocessing tasks execute in a remote process, this
         # shouldn't affect user code.
         if self.scheduler == "processes":
+
+            @contextmanager
+            def patch() -> Iterator[None]:
+                # Patch around https://github.com/PrefectHQ/prefect/issues/4086
+                # We can remove this after we drop support for dask 2021.02.0
+                from dask.optimization import cull
+
+                def cull2(dsk, keys):  # type: ignore
+                    return cull(dsk if type(dsk) is dict else dict(dsk), keys)
+
+                dask.multiprocessing.cull = cull2
+                try:
+                    yield
+                finally:
+                    dask.multiprocessing.cull = cull
+
             config = {"optimization.fuse.active": False}
         else:
             config = {}
 
-        with dask.config.set(config):
+            @contextmanager
+            def patch() -> Iterator[None]:
+                yield
+
+        with patch(), dask.config.set(config):
             return dask.compute(
                 futures, scheduler=self.scheduler, pool=self._pool, optimize_graph=False
             )[0]

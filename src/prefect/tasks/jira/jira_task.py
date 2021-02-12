@@ -4,11 +4,6 @@ from prefect.utilities.tasks import defaults_from_attrs
 from typing import cast
 from typing import Any
 
-try:
-    from jira import JIRA
-except ImportError:
-    pass
-
 
 class JiraTask(Task):
     """
@@ -107,6 +102,12 @@ class JiraTask(Task):
         Returns:
             - None
         """
+        try:
+            from jira import JIRA
+        except ImportError as exc:
+            raise ImportError(
+                'Using Jira tasks requires Prefect to be installed with the "jira" extra.'
+            ) from exc
 
         jira_credentials = cast(dict, Secret("JIRASECRETS").get())
 

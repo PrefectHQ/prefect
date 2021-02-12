@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
@@ -46,8 +46,6 @@ class CodeCommit(Storage):
         client_options: dict = None,
         **kwargs: Any
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
         self.path = path
         self.commit = commit
@@ -113,28 +111,6 @@ class CodeCommit(Storage):
         self.flows[flow.name] = self.path  # type: ignore
         self._flows[flow.name] = flow
         return self.path  # type: ignore
-
-    def build(self) -> "Storage":
-        """
-        Build the CodeCommit storage object and run basic healthchecks. Due to this object
-        supporting file based storage no files are committed to the repository during
-        this step. Instead, all files should be committed independently.
-
-        Returns:
-            - Storage: a CodeCommit object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
-
-        return self
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
 
     @property
     def _boto3_client(self):  # type: ignore

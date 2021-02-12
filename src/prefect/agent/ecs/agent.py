@@ -121,6 +121,8 @@ class ECSAgent(Agent):
             `"FARGATE"` (default) or `"EC2"`.
         - task_role_arn (str, optional): The default task role ARN to use when
             registering ECS tasks created by this agent.
+        - execution_role_arn (str, optional): The default execution role ARN
+            to use when registering ECS tasks created by this agent.
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
@@ -149,6 +151,7 @@ class ECSAgent(Agent):
         cluster: str = None,
         launch_type: str = None,
         task_role_arn: str = None,
+        execution_role_arn: str = None,
         botocore_config: dict = None,
     ) -> None:
         super().__init__(
@@ -167,6 +170,7 @@ class ECSAgent(Agent):
         self.cluster = cluster
         self.launch_type = launch_type.upper() if launch_type else "FARGATE"
         self.task_role_arn = task_role_arn
+        self.execution_role_arn = execution_role_arn
 
         # Load boto configuration. We want to use the standard retry mode by
         # default (which isn't boto's default due to backwards compatibility).
@@ -228,6 +232,11 @@ class ECSAgent(Agent):
         # the agent's default template.
         if self.task_role_arn:
             self.task_definition["taskRoleArn"] = self.task_role_arn
+
+        # If `execution_role_arn` is configured on the agent, add it to the
+        # default task definition template.
+        if self.execution_role_arn:
+            self.task_definition["executionRoleArn"] = self.execution_role_arn
 
         # If running on fargate, auto-configure `networkConfiguration` for the
         # user if they didn't configure it themselves.
@@ -433,6 +442,10 @@ class ECSAgent(Agent):
         if run_config.task_role_arn:
             taskdef["taskRoleArn"] = run_config.task_role_arn
 
+        # Set executionRoleArn if configured
+        if run_config.execution_role_arn:
+            taskdef["executionRoleArn"] = run_config.execution_role_arn
+
         # Populate static environment variables from the following sources,
         # with precedence:
         # - Static environment variables, hardcoded below
@@ -505,6 +518,7 @@ class ECSAgent(Agent):
             env.update(run_config.env)
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,

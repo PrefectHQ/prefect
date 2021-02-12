@@ -233,7 +233,7 @@ classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun"
 [pages.storage]
 title = "Storage"
 module = "prefect.storage"
-classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab", "Bitbucket", "CodeCommit"]
+classes = {"Storage" = ["add_flow", "build"], "Azure" = [], "Bitbucket" = [], "CodeCommit" = [], "Docker" = [], "GCS" = [], "GitHub" = [], "GitLab" = [], "Local" = [], "Module" = [], "S3" = [], "Webhook" = []}
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -298,6 +298,7 @@ classes = [
         "ReadNamespacedJob",
         "ReplaceNamespacedJob",
         "RunNamespacedJob",
+        "ConnectGetNamespacedPodExec",
         "CreateNamespacedPod",
         "DeleteNamespacedPod",
         "ListNamespacedPod",
@@ -310,7 +311,7 @@ classes = [
         "ListNamespacedService",
         "PatchNamespacedService",
         "ReadNamespacedService",
-        "ReplaceNamespacedService"
+        "ReplaceNamespacedService",
         ]
 
 [pages.tasks.dbt]
@@ -347,6 +348,16 @@ title = "Dropbox Tasks"
 module = "prefect.tasks.dropbox"
 classes = ["DropboxDownload"]
 
+[pages.tasks.exasol]
+title = "Exasol Tasks"
+module = "prefect.tasks.exasol"
+classes = [
+        "ExasolFetch",
+        "ExasolExecute",
+        "ExasolImportFromIterable",
+        "ExasolExportToFile"
+        ]
+
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.gcp"
@@ -354,6 +365,7 @@ classes = [
         "GCSDownload",
         "GCSUpload",
         "GCSCopy",
+        "GCSBlobExists",
         "BigQueryTask",
         "BigQueryStreamingInsert",
         "CreateBigQueryTable",

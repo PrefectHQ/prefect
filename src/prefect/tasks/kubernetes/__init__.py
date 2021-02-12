@@ -24,6 +24,7 @@ try:
         RunNamespacedJob,
     )
     from prefect.tasks.kubernetes.pod import (
+        ConnectGetNamespacedPodExec,
         CreateNamespacedPod,
         DeleteNamespacedPod,
         ListNamespacedPod,

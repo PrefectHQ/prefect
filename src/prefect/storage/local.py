@@ -1,6 +1,6 @@
 import os
 import socket
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, List
 
 import pendulum
 from slugify import slugify
@@ -54,8 +54,6 @@ class Local(Storage):
         **kwargs: Any,
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
 
         self.path = path
 
@@ -101,7 +99,9 @@ class Local(Storage):
                     return flow_from_bytes_pickle(f.read())
         # otherwise the path is given in the module format
         else:
-            return extract_flow_from_module(module_str=flow_location)
+            return extract_flow_from_module(
+                module_str=flow_location, flow_name=flow_name
+            )
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -145,22 +145,3 @@ class Local(Storage):
         self.flows[flow.name] = flow_location
         self._flows[flow.name] = flow
         return flow_location
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
-    def build(self) -> "Storage":
-        """
-        Build the Storage object.
-
-        Returns:
-            - Storage: a Storage object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
-        return self

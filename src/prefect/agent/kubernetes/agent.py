@@ -15,6 +15,7 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
+from prefect.utilities.exceptions import ClientError
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
 
@@ -189,14 +190,21 @@ class KubernetesAgent(Agent):
                                         self.logger.debug(
                                             f"Failing flow run {flow_run_id} due to pod {waiting.reason}"
                                         )
-                                        self.client.set_flow_run_state(
-                                            flow_run_id=flow_run_id,
-                                            state=Failed(
-                                                message="Kubernetes Error: {}".format(
-                                                    container_status.state.waiting.message
-                                                )
-                                            ),
-                                        )
+                                        try:
+                                            self.client.set_flow_run_state(
+                                                flow_run_id=flow_run_id,
+                                                state=Failed(
+                                                    message="Kubernetes Error: {}".format(
+                                                        container_status.state.waiting.message
+                                                    )
+                                                ),
+                                            )
+                                        except ClientError as exc:
+                                            self.logger.error(
+                                                "Error attempting to set flow run state for "
+                                                f"{flow_run_id}: "
+                                                f"{exc}"
+                                            )
 
                                         delete_job = True
                                         break
@@ -320,14 +328,20 @@ class KubernetesAgent(Agent):
                             self.logger.debug(
                                 f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
                             )
-                            self.client.set_flow_run_state(
-                                flow_run_id=flow_run_id,
-                                state=Failed(
-                                    message="Kubernetes Error: pods {} failed for this job".format(
-                                        failed_pods
-                                    )
-                                ),
-                            )
+                            try:
+                                self.client.set_flow_run_state(
+                                    flow_run_id=flow_run_id,
+                                    state=Failed(
+                                        message="Kubernetes Error: pods {} failed for this job".format(
+                                            failed_pods
+                                        )
+                                    ),
+                                )
+                            except ClientError as exc:
+                                self.logger.error(
+                                    f"Error attempting to set flow run state for {flow_run_id}: "
+                                    f"{exc}"
+                                )
 
                     # Delete job if it is successful or failed
                     if delete_job:
@@ -653,6 +667,7 @@ class KubernetesAgent(Agent):
             env.update(run_config.env)
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,

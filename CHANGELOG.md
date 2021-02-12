@@ -1,5 +1,112 @@
 # Changelog
 
+## 0.14.8 <Badge text="beta" type="success" />
+
+Released on February 11, 2021.
+
+### Enhancements
+
+- Add option to provide version group ID to `prefect run flow` CLI command - [#4100](https://github.com/PrefectHQ/prefect/pull/4100)
+
+### Fixes
+
+- Fix bug in agent healthcheck route that was introduced in 0.14.7 - [#4109](https://github.com/PrefectHQ/prefect/pull/4109)
+
+## 0.14.7 <Badge text="beta" type="success" />
+
+Released on February 10, 2021.
+
+### Enhancements
+
+- Support multiple docker networks with Docker Agent - [#3986](https://github.com/PrefectHQ/prefect/issues/3986)
+- Add healthchecks to prefect server - [#4041](https://github.com/PrefectHQ/prefect/pull/4041)
+- Raise custom `TimeoutError` for task timeouts to allow for more granular user control - [#4091](https://github.com/PrefectHQ/prefect/issues/4091)
+- Add `access_token_secret` to `GitHub`, `GitLab`, and `Bitbucket` storage, making the Prefect secret containing an access token to these services configurable - [#4059](https://github.com/PrefectHQ/prefect/pull/4059)
+- Add `--skip-if-flow-metadata-unchanged` to `prefect register flow` CLI command that avoids bumping flow version if flow metadata has not changed - [#4061](https://github.com/PrefectHQ/prefect/pull/4061)
+- Add `--skip-if-exists` to `prefect create project` CLI command that safely skips if the project has already been created - [#4061](https://github.com/PrefectHQ/prefect/pull/4061)
+- Add new `Module` storage class, for referencing flows importable from a Python module - [#4073](https://github.com/PrefectHQ/prefect/pull/4073)
+- Drop resource limits from manifest generated using `prefect agent kubernetes install` - [#4077](https://github.com/PrefectHQ/prefect/pull/4077)
+
+### Task Library
+
+- Add new tasks for communication with an Exasol database - [#4044](https://github.com/PrefectHQ/prefect/pull/4044)
+
+### Fixes
+
+- Fix task decorator chaining by using `inspect.unwrap` instead of `__wrap__` - [#4053](https://github.com/PrefectHQ/prefect/pull/4053)
+- Forward Prefect backend type to deployed flow runs, ensuring backend-specific logic functions properly - [#4076](https://github.com/PrefectHQ/prefect/pull/4076)
+- Patch around bug in dask's multiprocessing scheduler introduced in Dask 2021.02.0 - [#4089](https://github.com/PrefectHQ/prefect/pull/4089)
+
+### Deprecations
+
+- Docker agent `network` kwarg deprecated in favor of `networks` - [#3986](https://github.com/PrefectHQ/prefect/issues/3986)
+
+### Breaking Changes
+
+- Remove unused `Storage.get_env_runner` method - [#4059](https://github.com/PrefectHQ/prefect/pull/4059)
+- Remove private utilities in `prefect.utilities.git` - [#4059](https://github.com/PrefectHQ/prefect/pull/4059)
+
+### Contributors
+
+- [Alex P.](https://github.com/alexifm)
+- [Marwan S.](https://github.com/marwan116)
+- [Peter Roelants](https://github.com/peterroelants)
+- [Timo S.](https://github.com/sti0)
+
+## 0.14.6 <Badge text="beta" type="success" />
+
+Released on February 2, 2021.
+
+### Enhancements
+
+- Add option to provide flow ID to `run flow` CLI command - [#4021](https://github.com/PrefectHQ/prefect/pull/4021)
+- Flow name and project are no longer required options when calling `run flow` CLI command - [#4021](https://github.com/PrefectHQ/prefect/pull/4021)
+
+### Task Library
+
+- Add GCSBlobExists which checks for the existence of an object in a given GCS bucket - [#4025](https://github.com/PrefectHQ/prefect/pull/4025)
+- Use boto3 session in `S3Upload` and `S3Download` tasks, to ensure thread-safe execution - [#3981](https://github.com/PrefectHQ/prefect/pull/3981)
+
+### Fixes
+
+- Fix issue with fixed duration Paused states not resuming properly - [#4031](https://github.com/PrefectHQ/prefect/issues/4031)
+
+### Contributors
+
+- [Gregory Roche](https://github.com/gregoryroche)
+
+## 0.14.5 <Badge text="beta" type="success" />
+
+Released on January 26, 2021.
+
+### Enhancements
+
+- S3 storage now logs `ETag`, `LastModified` timestamp, and `VersionId` (if present) when loading a flow - [#3995](https://github.com/PrefectHQ/prefect/pull/3995)
+- `GitHub` storage now logs the commit sha used when loading a flow - [#3998](https://github.com/PrefectHQ/prefect/pull/3998)
+- `GitHub` storage now loads from a repo's default branch, allowing default branch names other than 'master' - [#3998](https://github.com/PrefectHQ/prefect/pull/3998)
+- Improve error message when Secrets are missing with Server - [#4003](https://github.com/PrefectHQ/prefect/pull/4003)
+- Better error message when passing parameters to `StartFlowRun` constructor - [#4008](https://github.com/PrefectHQ/prefect/pull/4008)
+- Add warning if user-defined class shadows an attribute used by the base class - [#4011](https://github.com/PrefectHQ/prefect/pull/4011)
+- Add support for `EXTRA_PIP_PACKAGES` environment variable in `prefecthq/prefect` images, simplifying installation of dependencies during development - [#4013](https://github.com/PrefectHQ/prefect/pull/4013)
+- Add execution role arn parameter to ecs run config and agent - [#4015](https://github.com/PrefectHQ/prefect/pull/4015)
+
+### Task Library
+
+- Add `ConnectGetNamespacedPodExec` task which runs an exec command in provided pod container - [#3991](https://github.com/PrefectHQ/prefect/pull/3991)
+- Ensure connection secrets can be passed to Databricks tasks at runtime - [#4001](https://github.com/PrefectHQ/prefect/pull/4001)
+
+### Fixes
+
+- Fix Agent registration possibly skipping on server connection issues - [#3972](https://github.com/PrefectHQ/prefect/issues/3972)
+- `GCSUpload` task now explicitely fails when ran on non-supported types - [#3978](https://github.com/PrefectHQ/prefect/pull/3978)
+- Make logging to Prefect cloud more robust in the presence of errors or process shutdown - [#3989](https://github.com/PrefectHQ/prefect/pull/3989)
+- Handle setting state for missing flow runs in Kubernetes agent resource management - [#4006](https://github.com/PrefectHQ/prefect/pull/4006)
+
+### Contributors
+
+- [Loïc Macherel](https://github.com/LoicEm)
+- [Thomas Baldwin](https://github.com/baldwint)
+
 ## 0.14.4 <Badge text="beta" type="success" />
 
 Released on January 19, 2021.

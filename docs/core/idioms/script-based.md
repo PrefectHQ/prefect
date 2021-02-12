@@ -1,18 +1,19 @@
-# Using file based flow storage
+# Using script based flow storage
 
-As of Prefect version `0.12.5` all storage options support storing flows as files. This means that flow
-code can change in between (or even during) runs without needing to be reregistered. As long as the
-structure of the flow itself does not change, only the task content, then a Prefect API backend will be
-able to execute the flow. This is a useful storage mechanism especially for testing, debugging, CI/CD
-processes, and more!
+As of Prefect version `0.12.5` all storage options support storing flows as
+source files instead of pickled objects. This means that flow code can change
+in between (or even during) runs without needing to be reregistered. As long as
+the structure of the flow itself does not change, only the task content, then a
+Prefect API backend will be able to execute the flow. This is a useful storage
+mechanism especially for testing, debugging, CI/CD processes, and more!
 
-### Enable file storage
+### Enable script storage
 
-GitHub storage only supports files however the other storage options (Local, Docker, S3, etc.) store
-flows both as pickles and files. To switch to using file storage and enable the workflow above set
-`stored_as_script=True` on the storage object.
+Some storage classes (e.g. `GitHub`, `GitLab`, `Bitbucket`, ...) only support
+script based storage. All other classes require you to opt-in by passing
+`stored_as_script=True` to the storage class constructor.
 
-### Example file based workflow
+### Example script based workflow
 
 ::: warning GitHub dependency
 This idiom requires that `git` is installed as well as Prefect's `github` extra dependencies:
@@ -49,14 +50,14 @@ def get_data():
 def print_data(data):
     print(data)
 
-with Flow("file-based-flow") as flow:
+with Flow("example") as flow:
     data = get_data()
     print_data(data)
 
 flow.storage = GitHub(
-    repo="org/repo",                 # name of repo
-    path="flows/my_flow.py",        # location of flow file in repo
-    secrets=["GITHUB_ACCESS_TOKEN"]  # name of personal access token secret
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    access_token_secret="GITHUB_ACCESS_TOKEN"   # name of personal access token secret
 )
 ```
 
@@ -64,9 +65,10 @@ Here's a breakdown of the three kwargs set on the `GitHub` storage:
 
 - `repo`: the name of the repo that this code will live in
 - `path`: the location of the flow file in the repo. This must be an exact match to the path of the file.
-- `secrets`: the name of a [default Prefect secret](/core/concepts/secrets.html#default-secrets) which
-is a GitHub [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line). This is set so that when the flow is executed
-it has the proper permissions to pull the file from the repo.
+- `access_token_secret`: If your flow is stored in a private repo, you'll need
+  to provide credentials to access the repo. This takes the name of a
+  [Prefect secret](/core/concepts/secrets.html) which contains a GitHub
+  [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line).
 
 Push this code to the repository:
 
@@ -115,15 +117,15 @@ Bitbucket storage also operates largely the same way. Replace `GitHub` with `Bit
 
 ```python
 flow.storage = Bitbucket(
-    project="project",              # name of project that repo resides in
-    repo="org/repo",                 # name of repo
-    path="flows/my_flow.py",        # location of flow file in repo
-    secrets=["BITBUCKET_ACCESS_TOKEN"]  # name of personal access token secret
+    project="project",                              # name of project that repo resides in
+    repo="org/repo",                                # name of repo
+    path="flows/my_flow.py",                        # location of flow file in repo
+    access_token_secret="BITBUCKET_ACCESS_TOKEN"    # name of personal access token secret
 )
 ```
 :::
 
-### File based Docker storage
+### Script based Docker storage
 
 ```python
 flow.storage = Docker(
@@ -138,7 +140,7 @@ Docker storage build step:
 
 - `path`: the path that the file is stored in the Docker image
 - `files`: a dictionary of local file source to path destination in image
-- `stored_as_script`: boolean enabling file based storage
+- `stored_as_script`: boolean enabling script based storage
 
 If your Docker storage is using an image that already has your flow files added into it then you only
 need to specify the following:
@@ -150,9 +152,9 @@ flow.storage = Docker(
 )
 ```
 
-### File based cloud storage
+### Script based cloud storage
 
-File based storage of flows is also supported for flows stored in S3 and GCS buckets. The following
+Script based storage of flows is also supported for flows stored in S3 and GCS buckets. The following
 snippet shows S3 and GCS storage options where a flow is stored as a script and the `key` points to the
 specific file path in the bucket.
 

@@ -58,12 +58,13 @@ def test_help(cmd):
             "prefect.agent.docker.DockerAgent",
             (
                 "--base-url testurl --no-pull --show-flow-logs --volume volume1 "
-                "--volume volume2 --network testnetwork --no-docker-interface"
+                "--volume volume2 --network testnetwork1 --network testnetwork2 "
+                "--no-docker-interface"
             ),
             {
                 "base_url": "testurl",
                 "volumes": ["volume1", "volume2"],
-                "network": "testnetwork",
+                "networks": ("testnetwork1", "testnetwork2"),
                 "no_pull": True,
                 "show_flow_logs": True,
                 "docker_interface": False,
@@ -105,6 +106,22 @@ def test_help(cmd):
                 "cluster": "TEST-CLUSTER",
                 "launch_type": "EC2",
                 "task_role_arn": "TEST-TASK-ROLE-ARN",
+                "task_definition_path": "task-definition-path.yaml",
+                "run_task_kwargs_path": "run-task-kwargs-path.yaml",
+            },
+        ),
+        (
+            "ecs",
+            "prefect.agent.ecs.ECSAgent",
+            (
+                "--cluster TEST-CLUSTER --launch-type FARGATE --execution-role-arn TEST-EXECUTION-ROLE-ARN "
+                "--task-definition task-definition-path.yaml --run-task-kwargs "
+                "run-task-kwargs-path.yaml"
+            ),
+            {
+                "cluster": "TEST-CLUSTER",
+                "launch_type": "FARGATE",
+                "execution_role_arn": "TEST-EXECUTION-ROLE-ARN",
                 "task_definition_path": "task-definition-path.yaml",
                 "run_task_kwargs_path": "run-task-kwargs-path.yaml",
             },
