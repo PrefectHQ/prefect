@@ -131,6 +131,117 @@ prefect agent ecs start --task-role-arn my-task-role-arn
 Flows can override this agent default by passing the `task_role_arn` option to
 their respective [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run_config`.
 
+The following policy is needed for the task-role-arn if using a Temporary Fargate Cluster. This allows the
+DaskExecutor to create the temporary cluster. 
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateTags",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcs",
+                "ec2:DeleteSecurityGroup",
+                "ecs:CreateCluster",
+                "ecs:DeleteCluster",
+                "ecs:DeregisterTaskDefinition",
+                "ecs:DescribeClusters",
+                "ecs:DescribeTaskDefinition",
+                "ecs:DescribeTasks",
+                "ecs:ListAccountSettings",
+                "ecs:ListClusters",
+                "ecs:ListTaskDefinitions",
+                "ecs:RegisterTaskDefinition",
+                "ecs:RunTask",
+                "ecs:StopTask",
+                "iam:AttachRolePolicy",
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:DetachRolePolicy",
+                "iam:ListAttachedRolePolicies",
+                "iam:ListInstanceProfiles",
+                "iam:ListRolePolicies",
+                "iam:ListRoles",
+                "iam:ListRoleTags",
+                "iam:TagRole",
+                "logs:DescribeLogGroups",
+                "logs:GetLogEvents"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Action": "iam:PassRole",
+            "Effect": "Allow",
+            "Resource": [
+                "*"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "iam:PassedToService": "ecs-tasks.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Action": "iam:PassRole",
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:iam::*:role/ecsAutoscaleRole*"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "iam:PassedToService": [
+                        "application-autoscaling.amazonaws.com",
+                        "application-autoscaling.amazonaws.com.cn"
+                    ]
+                }
+            }
+        }
+    ]
+}
+```
+### Execution Role ARN
+
+The following policy is the AmazonECSTaskExecutionPolicy. One example use for the execution-role-arn 
+is if the image used by the containers is stored in Amazon ECR. More information for creating this role
+can be found [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html). 
+You can configure a default execution role for tasks started by the agent using the `--execution-role-arn` option:
+
+```bash
+prefect agent ecs start --execution-role-arn my-execution-role-arn
+```
+
+Flows can override this agent default by passing the `execution_role_arn` option to
+their respective [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run_config`.
+
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 ### Custom Task Definition Template
 
 For deeper customization of the Tasks created by the agent, you may want to
