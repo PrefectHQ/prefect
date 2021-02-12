@@ -24,6 +24,10 @@ You can use markdown to add a Read Me description for your flow group in the flo
   <img src="/orchestration/ui/flow-description.png">
 </div>
 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-description-edit.png">
+</div>
 ## Run
 
 From this page, you can schedule a new run of your flow. You may provide parameter values, if appropriate, and give your run a name for easy queries or retrieval in the future.
