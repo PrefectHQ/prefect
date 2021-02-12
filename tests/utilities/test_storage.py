@@ -1,4 +1,6 @@
 import os
+import sys
+import types
 
 import pytest
 import cloudpickle
@@ -98,69 +100,71 @@ def test_extract_flow_from_file_raises_on_run_register(tmpdir):
             extract_flow_from_file(file_path=full_path)
 
 
-flow = Flow("test-module-loading")
+@pytest.fixture
+def mymodule(monkeypatch):
+    mod_name = "mymodule"
+    module = types.ModuleType(mod_name)
+    monkeypatch.setitem(sys.modules, mod_name, module)
+    return module
 
 
-def test_extract_flow_from_module():
-    module_name = "tests.utilities.test_storage"
+def test_extract_flow_from_module(mymodule):
+    class Obj:
+        flow = Flow("multi-level flow")
 
-    multi_level_flow = Flow("test-module-loading-multilevel")
-    factory_flow = Flow("test-module-loading-callable")
+    mymodule.flow = Flow("top level flow")
+    mymodule.multi_level = Obj()
+    mymodule.bad_type = 1
 
-    test_extract_flow_from_module.multi_level_flow = multi_level_flow
-    test_extract_flow_from_module.not_a_flow = None
-    test_extract_flow_from_module.not_a_flow_factory = lambda: object()
-    test_extract_flow_from_module.invalid_callable = lambda _a, _b, **_kwargs: None
+    # module with single top-level flow has flow auto-inferred
+    assert extract_flow_from_module("mymodule") is mymodule.flow
+    # Specifying name/attribute still works
+    assert extract_flow_from_module("mymodule", "top level flow") is mymodule.flow
+    assert extract_flow_from_module("mymodule:flow", "top level flow") is mymodule.flow
 
-    class FlowFactory:
-        @classmethod
-        def default_flow(cls):
-            return factory_flow
+    # Multi-level attrs work
+    assert extract_flow_from_module("mymodule:multi_level.flow") is Obj.flow
 
-    test_extract_flow_from_module.callable_flow = FlowFactory.default_flow
+    # Multiple top-level flows
+    mymodule.flow2 = Flow("a second flow")
+    assert extract_flow_from_module("mymodule", "top level flow") is mymodule.flow
+    assert extract_flow_from_module("mymodule", "a second flow") is mymodule.flow2
 
-    default_flow = extract_flow_from_module(module_name)
-    attribute_flow = extract_flow_from_module(module_name, "flow")
-    module_flow = extract_flow_from_module(f"{module_name}:flow")
-    multi_level_default_flow = extract_flow_from_module(
-        f"{module_name}:test_extract_flow_from_module.multi_level_flow"
-    )
-    multi_level_arg_flow = extract_flow_from_module(
-        module_name, "test_extract_flow_from_module.multi_level_flow"
-    )
-    callable_flow = extract_flow_from_module(
-        f"{module_name}:test_extract_flow_from_module.callable_flow"
-    )
+    # Multiple flows not auto-inferred
+    with pytest.raises(ValueError, match="Multiple flows found"):
+        extract_flow_from_module("mymodule")
 
-    assert flow == default_flow == attribute_flow == module_flow
-    assert multi_level_flow == multi_level_default_flow == multi_level_arg_flow
-    assert factory_flow == callable_flow
+    # Name not found
+    with pytest.raises(ValueError, match="Failed to find flow"):
+        extract_flow_from_module("mymodule", "unknown name")
 
-    with pytest.raises(AttributeError):
-        extract_flow_from_module("tests.utilities.test_storage:should_not_exist_flow")
+    # Name doesn't match specified object
+    with pytest.raises(ValueError, match="Flow at 'mymodule:flow' is named"):
+        extract_flow_from_module("mymodule:flow", "incorrect name")
 
-    with pytest.raises(AttributeError):
-        extract_flow_from_module(
-            "tests.utilities.test_storage", "should_not_exist_flow"
-        )
+    # Not a flow object
+    with pytest.raises(TypeError, match="Object at 'mymodule:bad_type'"):
+        extract_flow_from_module("mymodule:bad_type")
 
-    with pytest.raises(ValueError, match="without an attribute specifier or remove"):
-        extract_flow_from_module("tests.utilities.test_storage:flow", "flow")
 
-    with pytest.raises(ValueError, match="must return `prefect.Flow`"):
-        extract_flow_from_module(
-            f"{module_name}:test_extract_flow_from_module.not_a_flow"
-        )
+def test_extract_flow_from_module_callable_objects(mymodule):
+    flow1 = Flow("flow 1")
+    flow2 = Flow("flow 2")
 
-    with pytest.raises(ValueError, match="must return `prefect.Flow`"):
-        extract_flow_from_module(
-            f"{module_name}:test_extract_flow_from_module.not_a_flow_factory"
-        )
+    class Obj:
+        def build_flow(self):
+            return flow2
 
-    with pytest.raises(TypeError):
-        extract_flow_from_module(
-            f"{module_name}:test_extract_flow_from_module.invalid_callable"
-        )
+    mymodule.build_flow = lambda: flow1
+    mymodule.multi_level = Obj()
+    mymodule.bad_type = lambda: 1
+
+    assert extract_flow_from_module("mymodule:build_flow") is flow1
+    assert extract_flow_from_module("mymodule:build_flow", "flow 1") is flow1
+    assert extract_flow_from_module("mymodule:multi_level.build_flow") is flow2
+
+    with pytest.raises(TypeError, match="Object at 'mymodule:bad_type'"):
+        extract_flow_from_module("mymodule:bad_type")
 
 
 class RaiseOnLoad(Task):

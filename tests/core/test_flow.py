@@ -48,6 +48,7 @@ from prefect.run_configs import LocalRun, UniversalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import TaskTimeoutError
 from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.tasks import task
 from prefect.utilities.edges import unmapped
@@ -3114,7 +3115,7 @@ def test_timeout_actually_stops_execution(
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
-    assert isinstance(state.result[slow_fn].result, TimeoutError)
+    assert isinstance(state.result[slow_fn].result, TaskTimeoutError)
     # We cannot capture the UserWarning because it is being run by a Dask worker
     # but we can make sure the TimeoutError includes a note about it
     assert (

@@ -667,6 +667,7 @@ class KubernetesAgent(Agent):
             env.update(run_config.env)
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,

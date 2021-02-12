@@ -439,3 +439,9 @@ def test_bitbucket_full_serialize(access_token_secret):
     assert serialized["ref"] == "develop"
     assert serialized["secrets"] == ["token"]
     assert serialized["access_token_secret"] == access_token_secret
+
+
+def test_module_serialize():
+    module = storage.Module("test")
+    serialized = module.serialize()
+    assert serialized["module"] == "test"
