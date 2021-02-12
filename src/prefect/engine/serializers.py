@@ -270,8 +270,8 @@ class CompressedSerializer(Serializer):
 
     Args:
         - serializer (Serializer): the serializer that this serializer wraps
-        - compression_format (str): name of the selected pre-defined compression format
-            (bz2, gzip, lzma, or zlib)
+        - format (str): name of the selected pre-defined compression format (bz2, gzip,
+            lzma, or zlib)
         - compress (Callable[..., bytes]): the custom compression function
         - decompress (Callable[..., bytes]): the custom decompression function
         - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
@@ -283,7 +283,7 @@ class CompressedSerializer(Serializer):
     def __init__(
         self,
         serializer: Serializer,
-        compression_format: str = None,
+        format: str = None,
         compress: Callable[..., bytes] = None,
         decompress: Callable[..., bytes] = None,
         compress_kwargs: Dict[str, Any] = None,
@@ -291,15 +291,11 @@ class CompressedSerializer(Serializer):
     ):
         self._serializer = serializer
 
-        if compression_format:
+        if format:
             try:
-                self._compress, self._decompress = COMPRESSION_FORMATS[
-                    compression_format
-                ]
+                self._compress, self._decompress = COMPRESSION_FORMATS[format]
             except KeyError as e:
-                raise ValueError(
-                    "unknown compression format: {}".format(compression_format)
-                ) from e
+                raise ValueError("unknown compression format: {}".format(format)) from e
         elif compress and decompress:
             self._compress = compress
             self._decompress = decompress
