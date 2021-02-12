@@ -5,14 +5,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import context, Flow
-from prefect.storage import S3
-from prefect.utilities.storage import flow_from_bytes_pickle, flow_to_bytes_pickle
-
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
 
+from prefect import context, Flow
+from prefect.storage import S3
+from prefect.utilities.storage import flow_from_bytes_pickle, flow_to_bytes_pickle
+from prefect.utilities.aws import _CACHE
+
 from botocore.exceptions import ClientError
+
+
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CACHE.clear()
 
 
 @pytest.fixture
@@ -83,6 +89,7 @@ def test_boto3_client_property(monkeypatch):
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="session",
+        region_name=None,
         endpoint_url="http://some-endpoint",
         use_ssl=False,
     )

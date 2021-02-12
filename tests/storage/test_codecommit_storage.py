@@ -2,11 +2,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import context, Flow
-from prefect.storage import CodeCommit
-
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
+
+from prefect import context, Flow
+from prefect.storage import CodeCommit
+from prefect.utilities.aws import _CACHE
+
+
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CACHE.clear()
 
 
 def test_create_codecommit_storage():
@@ -77,6 +83,7 @@ def test_codecommit_client_property(monkeypatch):
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="session",
+        region_name=None,
         endpoint_url="http://some-endpoint",
         use_ssl=False,
     )

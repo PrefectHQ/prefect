@@ -2,18 +2,24 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+pytestmark = pytest.mark.filterwarnings("ignore:`FargateAgent` is deprecated")
+
+from botocore.exceptions import ClientError
+
 import prefect
 from prefect.agent.fargate import FargateAgent
 from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.aws import _CACHE
 
-pytest.importorskip("boto3")
-pytest.importorskip("botocore")
-pytestmark = pytest.mark.filterwarnings("ignore:`FargateAgent` is deprecated")
 
-from botocore.exceptions import ClientError
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CACHE.clear()
 
 
 def test_fargate_agent_init(monkeypatch, cloud_api):
