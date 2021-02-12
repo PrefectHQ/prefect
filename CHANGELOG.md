@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.8 <Badge text="beta" type="success" />
+
+Released on February 11, 2021.
+
+### Enhancements
+
+- Add option to provide version group ID to `prefect run flow` CLI command - [#4100](https://github.com/PrefectHQ/prefect/pull/4100)
+
+### Fixes
+
+- Fix bug in agent healthcheck route that was introduced in 0.14.7 - [#4109](https://github.com/PrefectHQ/prefect/pull/4109)
+
 ## 0.14.7 <Badge text="beta" type="success" />
 
 Released on February 10, 2021.
