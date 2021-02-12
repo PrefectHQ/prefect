@@ -588,17 +588,17 @@ jobs:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
     parameters:
-      flow_id:
+      version_group_id:
         type: string
     environment:
-      FLOW_ID: << parameters.flow_id >>
+      VERSION_GROUP_ID: << parameters.version_group_id >>
       PREFECT__CLOUD__AUTH_TOKEN: $CLOUD_TENANT_TOKEN
     steps:
       - checkout
 
       - run:
           name: Run Flow
-          command: prefect run flow --id $FLOW_ID
+          command: prefect run flow --version-group-id $VERSION_GROUP_ID
 
 orbs:
   docker: circleci/docker@1.0.0
@@ -684,7 +684,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - run_prefect_cloud_flow:
-          flow_id: 'b7e01b17-0a70-4df0-8b0a-859575c9e5c6'
+          version_group_id: 'b7e01b17-0a70-4df0-8b0a-859575c9e5c6'
           filters:
             branches:
               ignore: /.*/
