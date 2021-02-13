@@ -97,7 +97,7 @@ class FivetranSyncTask(Task):
                 'Fivetran connector "{}" not correctly configured, status: {}; '
                 + "please complete setup at {}"
             )
-            raise Exception(EXC_SETUP.format(connector_id, setup_state, URL_SETUP))
+            raise ValueError(EXC_SETUP.format(connector_id, setup_state, URL_SETUP))
         # We need to know the previous job's completion time to know if the job succeeded or failed
         succeeded_at = parse_timestamp(connector_details["succeeded_at"])
         failed_at = parse_timestamp(connector_details["failed_at"])
@@ -134,7 +134,7 @@ class FivetranSyncTask(Task):
             # The only way to tell if a sync failed is to check if its latest failed_at value
             # is greater than then last known "sync completed at" value.
             if failed_at > previous_completed_at:
-                raise Exception(
+                raise ValueError(
                     'Fivetran sync for connector "{}" failed; please see logs at {}'.format(
                         connector_id, URL_LOGS
                     )
