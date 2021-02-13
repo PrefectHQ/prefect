@@ -291,19 +291,18 @@ class CompressedSerializer(Serializer):
     ):
         self._serializer = serializer
 
-        if format:
+        if format and (compress or decompress):
+            raise ValueError(
+                "You must specify either `format` or `compress`/`decompress`, "
+                "but not both."
+            )
+        elif format:
             try:
                 self._compress, self._decompress = COMPRESSION_FORMATS[format]
             except KeyError as e:
                 raise ValueError(
                     "`format` must be one of: {}".format(", ".join(COMPRESSION_FORMATS))
                 ) from e
-
-            if compress or decompress:
-                raise ValueError(
-                    "You must specify either `format` or `compress`/`decompress`, "
-                    "but not both."
-                )
         elif compress and decompress:
             self._compress = compress
             self._decompress = decompress
