@@ -1,0 +1,5 @@
+fix:
+  - "Bumps client request timeout from 15s to 60s - [#4118](https://github.com/PrefectHQ/prefect/issues/4118)"
+
+contributor:
+  - "[Andrew Hannigan](https://github.com/AndrewHannigan)"
