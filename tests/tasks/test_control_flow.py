@@ -388,6 +388,14 @@ class TestFilterTask:
         assert len(res) == 5
         assert res == [None, 0, 1, "", exc]
 
+    def test_log_func(self, caplog):
+        task = FilterTask(
+            filter_func=lambda r: r != 5,
+            log_func=lambda x: f"Valid Values: {','.join([str(y) for y in x])}",
+        )
+        task.run([1, 2, 3, 4, 5, 6, 7])
+        assert "Valid Values: 1,2,3,4,6,7" in caplog.text
+
 
 @task
 def identity(x):
