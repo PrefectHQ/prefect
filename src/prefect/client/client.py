@@ -341,14 +341,25 @@ class Client:
             start_time = time.time()
 
         if method == "GET":
-            response = session.get(url, headers=headers, params=params,
-                                timeout=prefect.context.config.cloud.request_timeout)
+            response = session.get(
+                url,
+                headers=headers,
+                params=params,
+                timeout=prefect.context.config.cloud.request_timeout,
+            )
         elif method == "POST":
-            response = session.post(url, headers=headers, json=params,
-                                timeout=prefect.context.config.cloud.request_timeout)
+            response = session.post(
+                url,
+                headers=headers,
+                json=params,
+                timeout=prefect.context.config.cloud.request_timeout,
+            )
         elif method == "DELETE":
-            response = session.delete(url, headers=headers,
-                                timeout=prefect.context.config.cloud.request_timeout)
+            response = session.delete(
+                url,
+                headers=headers,
+                timeout=prefect.context.config.cloud.request_timeout,
+            )
         else:
             raise ValueError("Invalid method: {}".format(method))
 
