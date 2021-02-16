@@ -1,7 +1,11 @@
 import base64
+import bz2
+import gzip
 import io
 import json
-from typing import TYPE_CHECKING, Any, Callable
+import lzma
+from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple
+import zlib
 
 import cloudpickle
 import pendulum
@@ -15,7 +19,15 @@ __all__ = (
     "JSONSerializer",
     "DateTimeSerializer",
     "PandasSerializer",
+    "CompressedSerializer",
 )
+
+COMPRESSION_FORMATS: Dict[str, Tuple[Callable[..., bytes], Callable[..., bytes]]] = {
+    "bz2": (bz2.compress, bz2.decompress),
+    "gzip": (gzip.compress, gzip.decompress),
+    "lzma": (lzma.compress, lzma.decompress),
+    "zlib": (zlib.compress, zlib.decompress),
+}
 
 
 class Serializer:
@@ -249,3 +261,93 @@ class PandasSerializer(Serializer):
             raise ValueError(
                 "Could not find serialization methods for {}".format(self.file_type)
             ) from exc
+
+
+class CompressedSerializer(Serializer):
+    """
+    A Serializer that wraps another Serializer and a compression function to serialize
+    Python objects with compression.
+
+    Args:
+        - serializer (Serializer): the serializer that this serializer wraps
+        - format (str): name of the selected pre-defined compression format (bz2, gzip,
+            lzma, or zlib)
+        - compress (Callable[..., bytes]): the custom compression function
+        - decompress (Callable[..., bytes]): the custom decompression function
+        - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
+            compression function
+        - decompress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
+            decompression function
+    """
+
+    def __init__(
+        self,
+        serializer: Serializer,
+        format: str = None,
+        compress: Callable[..., bytes] = None,
+        decompress: Callable[..., bytes] = None,
+        compress_kwargs: Dict[str, Any] = None,
+        decompress_kwargs: Dict[str, Any] = None,
+    ):
+        self._serializer = serializer
+
+        if format and (compress or decompress):
+            raise ValueError(
+                "You must specify either `format` or `compress`/`decompress`, "
+                "but not both."
+            )
+        elif format:
+            try:
+                self._compress, self._decompress = COMPRESSION_FORMATS[format]
+            except KeyError as e:
+                raise ValueError(
+                    "`format` must be one of: {}".format(", ".join(COMPRESSION_FORMATS))
+                ) from e
+        elif compress and decompress:
+            self._compress = compress
+            self._decompress = decompress
+        else:
+            raise ValueError(
+                "You must specify either `format` or `compress`/`decompress`."
+            )
+
+        self._compress_kwargs = compress_kwargs or {}
+        self._decompress_kwargs = decompress_kwargs or {}
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            type(self) == type(other)
+            and self._serializer == other._serializer
+            and self._compress == other._compress
+            and self._decompress == other._decompress
+            and self._compress_kwargs == other._compress_kwargs
+            and self._decompress_kwargs == other._decompress_kwargs
+        )
+
+    def serialize(self, value: Any) -> bytes:
+        """
+        Serialize an object to compressed bytes.
+
+        Args:
+            - value (Any): the value to serialize
+
+        Returns:
+            - bytes: the compressed serialized value
+        """
+        return self._compress(
+            self._serializer.serialize(value), **self._compress_kwargs
+        )
+
+    def deserialize(self, value: bytes) -> Any:
+        """
+        Deserialize an object from compressed bytes.
+
+        Args:
+            - value (bytes): the compressed value to deserialize
+
+        Returns:
+            - Any: the deserialized value
+        """
+        return self._serializer.deserialize(
+            self._decompress(value, **self._decompress_kwargs)
+        )
