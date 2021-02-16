@@ -2,6 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytest.importorskip("boto3")
+
 import prefect
 from prefect.tasks.aws import AWSSecretsManager
 from prefect.utilities.configuration import set_temporary_config

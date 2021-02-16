@@ -4,6 +4,9 @@ import box
 import pytest
 import yaml
 
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+
 import prefect
 from prefect.agent.ecs.agent import (
     merge_run_task_kwargs,
@@ -15,9 +18,12 @@ from prefect.run_configs import ECSRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.aws import _CLIENT_CACHE
 
-pytest.importorskip("boto3")
-pytest.importorskip("botocore")
+
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CLIENT_CACHE.clear()
 
 
 @pytest.fixture

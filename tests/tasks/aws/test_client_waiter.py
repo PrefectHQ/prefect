@@ -1,5 +1,7 @@
 import pytest
 
+pytest.importorskip("boto3")
+
 from unittest.mock import MagicMock
 
 from botocore.waiter import WaiterModel

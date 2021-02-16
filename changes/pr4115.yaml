@@ -1,0 +1,5 @@
+fix:
+  - "Reduce the number of boto3 clients created across Prefect when interacting with AWS services - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)"
+
+deprecation:
+  - "Deprecate the `use_session` argument in all AWS-related components - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)"
