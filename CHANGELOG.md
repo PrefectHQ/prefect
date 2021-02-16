@@ -4,18 +4,15 @@
 
 Released on February 16, 2021.
 
-### Features
-
-- Add `CompressedSerializer` class. - [#4063](https://github.com/PrefectHQ/prefect/pull/4063)
-
 ### Enhancements
 
+- Add `CompressedSerializer` class - [#4063](https://github.com/PrefectHQ/prefect/pull/4063)
 - Allow `Client` timeout seconds to be configurable through configuration - [#4118](https://github.com/PrefectHQ/prefect/issues/4118)
 
 ### Task Library
 
-- FilterTask: Add ability to log the filtered output by a function - [#4121](https://github.com/PrefectHQ/prefect/pull/4121)
-- Initial release of the FivetranSyncTask, to manage your [Fivetran](https://fivetran.com) connector sync process.
+- Update `FilterTask` to allow logging the filtered output via a function - [#4121](https://github.com/PrefectHQ/prefect/pull/4121)
+- Add `FivetranSyncTask`, to manage your [Fivetran](https://fivetran.com) connector sync process - [#4116](https://github.com/PrefectHQ/prefect/pull/4116)
 
 ### Fixes
 
