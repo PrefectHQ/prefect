@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     import botocore.client
 
 
-_CACHE = (
+_CLIENT_CACHE = (
     weakref.WeakValueDictionary()
 )  # type: MutableMapping[tuple, botocore.client.BaseClient]
 _LOCK = threading.Lock()
@@ -29,6 +29,10 @@ def get_boto_client(
 ) -> "botocore.client.BaseClient":
     """
     Utility function for loading boto3 client objects from a given set of credentials.
+
+    Note: this utility is threadsafe, and will cache _active_ clients to be
+    potentially reused by other concurrent callers, reducing the overhead of
+    client creation.
 
     Args:
         - resource (str): the name of the resource to retrieve a client for
@@ -97,8 +101,8 @@ def get_boto_client(
         )
 
         # If no extra kwargs and client already created, use the cached client
-        if not kwargs and cache_key in _CACHE:
-            return _CACHE[cache_key]
+        if not kwargs and cache_key in _CLIENT_CACHE:
+            return _CLIENT_CACHE[cache_key]
 
         if profile_name or botocore_session:
             session = boto3.session.Session(
@@ -119,6 +123,6 @@ def get_boto_client(
         )
         # Cache the client if no extra kwargs
         if not kwargs:
-            _CACHE[cache_key] = client
+            _CLIENT_CACHE[cache_key] = client
 
     return client

@@ -13,9 +13,9 @@ pytest.importorskip("botocore")
 
 @pytest.fixture
 def mock_boto3(monkeypatch):
-    from prefect.utilities.aws import _CACHE
+    from prefect.utilities.aws import _CLIENT_CACHE
 
-    _CACHE.clear()
+    _CLIENT_CACHE.clear()
 
     boto3 = MagicMock()
     monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)

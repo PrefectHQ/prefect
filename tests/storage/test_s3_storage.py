@@ -11,14 +11,14 @@ pytest.importorskip("botocore")
 from prefect import context, Flow
 from prefect.storage import S3
 from prefect.utilities.storage import flow_from_bytes_pickle, flow_to_bytes_pickle
-from prefect.utilities.aws import _CACHE
+from prefect.utilities.aws import _CLIENT_CACHE
 
 from botocore.exceptions import ClientError
 
 
 @pytest.fixture(autouse=True)
 def clear_boto3_cache():
-    _CACHE.clear()
+    _CLIENT_CACHE.clear()
 
 
 @pytest.fixture

@@ -3,6 +3,6 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def clear_client_cache():
-    from prefect.utilities.aws import _CACHE
+    from prefect.utilities.aws import _CLIENT_CACHE
 
-    _CACHE.clear()
+    _CLIENT_CACHE.clear()

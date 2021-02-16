@@ -14,12 +14,12 @@ from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
-from prefect.utilities.aws import _CACHE
+from prefect.utilities.aws import _CLIENT_CACHE
 
 
 @pytest.fixture(autouse=True)
 def clear_boto3_cache():
-    _CACHE.clear()
+    _CLIENT_CACHE.clear()
 
 
 def test_fargate_agent_init(monkeypatch, cloud_api):
