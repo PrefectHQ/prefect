@@ -60,7 +60,16 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
     with open(full_path, "w") as f:
         f.write(contents)
 
-    args = ["flow", "--file", full_path, "--name", "test-flow", "--project", "project"]
+    args = [
+        "flow",
+        "--file",
+        full_path,
+        "--name",
+        "test-flow",
+        "--project",
+        "project",
+        "--skip-if-flow-metadata-unchanged",
+    ]
     for l in labels:
         args.extend(["-l", l])
 
@@ -68,6 +77,7 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
     result = runner.invoke(register, args)
     assert client.register.called
     assert client.register.call_args[1]["project_name"] == "project"
+    assert client.register.call_args[1]["idempotency_key"] is not None
 
     # Check additional labels are set if specified
     flow = client.register.call_args[1]["flow"]

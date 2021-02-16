@@ -1,5 +1,4 @@
 from contextlib import redirect_stdout
-from dask.base import tokenize
 from contextlib import AbstractContextManager
 from typing import (
     Any,
@@ -43,6 +42,7 @@ from prefect.utilities.executors import (
     tail_recursive,
 )
 from prefect.utilities.compatibility import nullcontext
+from prefect.utilities.exceptions import TaskTimeoutError
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -707,6 +707,8 @@ class TaskRunner(Runner):
         Returns:
             - State: the state of the task after running the check
         """
+        from dask.base import tokenize
+
         result = self.result
         target = self.task.target
 
@@ -868,7 +870,7 @@ class TaskRunner(Runner):
                 )
 
         # inform user of timeout
-        except TimeoutError as exc:
+        except TaskTimeoutError as exc:
             if prefect.context.get("raise_on_exception"):
                 raise exc
             state = TimedOut("Task timed out during execution.", result=exc)
@@ -928,6 +930,8 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        from dask.base import tokenize
+
         if (
             state.is_successful()
             and not state.is_skipped()

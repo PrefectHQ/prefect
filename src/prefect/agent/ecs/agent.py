@@ -518,6 +518,7 @@ class ECSAgent(Agent):
             env.update(run_config.env)
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,

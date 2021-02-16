@@ -216,6 +216,7 @@ class LocalAgent(Agent):
         # 6. Non-overrideable required env vars
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),

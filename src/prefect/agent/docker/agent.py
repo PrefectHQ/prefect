@@ -529,6 +529,7 @@ class DockerAgent(Agent):
         # 4. Non-overrideable required env vars
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": api,
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),

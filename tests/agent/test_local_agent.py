@@ -8,6 +8,7 @@ from marshmallow.exceptions import ValidationError
 from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
+import prefect
 from prefect.agent.local import LocalAgent
 from prefect.storage import (
     Docker,
@@ -81,7 +82,7 @@ def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch):
     assert "IP" in agent.labels
 
 
-def test_populate_env_vars(monkeypatch):
+def test_populate_env_vars(monkeypatch, backend):
     agent = LocalAgent()
 
     # The python path may be a single item and we want to ensure the correct separator
@@ -97,7 +98,8 @@ def test_populate_env_vars(monkeypatch):
     expected.update(
         {
             "PYTHONPATH": os.getcwd() + os.pathsep + expected.get("PYTHONPATH", ""),
-            "PREFECT__CLOUD__API": "https://api.prefect.io",
+            "PREFECT__BACKEND": backend,
+            "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
             "PREFECT__CLOUD__AGENT__LABELS": str(DEFAULT_AGENT_LABELS),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",

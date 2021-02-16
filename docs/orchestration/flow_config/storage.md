@@ -1,8 +1,8 @@
 # Storage
 
-`Storage` objects define where a Flow should be stored. Examples include things
-like `Local` storage (which uses the local filesystem) or `S3` (which stores
-flows remotely on AWS S3). Flows themselves are never stored directly in
+`Storage` objects define where a Flow's definition is stored. Examples include
+things like `Local` storage (which uses the local filesystem) or `S3` (which
+stores flows remotely on AWS S3). Flows themselves are never stored directly in
 Prefect's backend; only a reference to the storage location is persisted. This
 helps keep your flow's code secure, as the Prefect servers never have direct
 access.
@@ -26,11 +26,89 @@ with Flow("example") as flow:
 flow.storage = Local()
 ```
 
+## Pickle vs Script Based Storage
+
+Prefect Storage classes support two ways of storing a flow's definition:
+
+### Pickle based storage
+
+Pickle based flow storage uses the `cloudpickle` library to "pickle"
+(serialize) the `Flow` object. At runtime the flow is unpickled and can then be
+executed.
+
+This means that the flow's definition is effectively "frozen" at registration
+time. Anything executed at the top-level of the script will only execute at
+flow *registration* time, not at flow *execution* time.
+
+```python
+from prefect import Flow
+
+# Top-level functionality (like this print statement) runs only at flow
+# *registration* time, it will not run during each flow run. If you want
+# something to run as part of a flow, you must write it as a task.
+print("This print only runs at flow registration time")
+
+with Flow("example") as flow:
+    pass
+```
+
+### Script based storage
+
+Script based flow storage uses the Python script that created the flow as the
+flow definition. Each time the flow is run, the script will be run to recreate
+the `Flow` object.
+
+This has a few nice properties:
+
+- Script based flows allow you to make small edits to the source of your flow
+  without re-registration. Changing the flow's structure (e.g. adding new tasks
+  or edges) or the flow's metadata (e.g. updating the run config) will require
+  re-registration, but editing the definitions for individual tasks is fine.
+
+- Pickle based flows are prone to breakage if the internals of Prefect or a
+  dependent library changes (even if the public-facing API remains the same).
+  Using a script based flow storage your flow is likely to work across a larger
+  range of Prefect/Python/dependency versions.
+
+The downside is you may have to do a bit more configuration to tell prefect
+where your script is located (since it can't always be automatically inferred).
+
+Some storage classes (e.g. `GitHub`, `Bitbucket`, `GitLab`, ...) only support
+script-based flow storage. Other classes (e.g. `Local`, `S3`, `GCS`, ...)
+support both - pickle is used by default, but you can opt in to script-based
+storage by passing `stored_as_script=True`. See the [script based storage
+idiom](/core/idioms/script-based.html) for more information.
+
+## Choosing a Storage Class
+
+Prefect's storage mechanism is flexible, supporting many different backends and
+deployment strategies. However, such flexibility can be daunting for both new
+and experienced users. Below we provide a few general recommendations for
+deciding what Storage mechanism is right for you.
+
+- If you're deploying flows locally using a [local
+  agent](/orchestration/agents/local.md), you likely want to use the default
+  [Local](#local) storage class. It requires no external resources, and is
+  quick to configure.
+
+- If you store your flows in a code repository you may want to use the
+  corresponding storage class (e.g. [GitHub](#github), [Bitbucket](#bitbucket),
+  [GitLab](#gitlab), ...).  During a flow run your flow source will be pulled
+  from the repo (optionally from a specific commit/branch) before execution.
+
+- If you're making use of cloud storage within your flows, you may want to
+  store your flow source in the same location. Storage classes like
+  [S3](#aws-s3), [GCS](#google-cloud-storage), and [Azure](#azure-blob-storage)
+  make it possible to specify a single location for hosting both your flow
+  source and results from that flow.
+
+## Storage Types
+
 Prefect has a number of different `Storage` implementations - we'll briefly
 cover each below. See [the API documentation](/api/latest/storage.md) for more
 information.
 
-## Local
+### Local
 
 [Local Storage](/api/latest/storage.md#local) is the default
 `Storage` option for all flows. Flows using local storage are stored as files
@@ -50,7 +128,11 @@ After registration, the flow will be stored at
 :::tip Automatic Labels
 Flows registered with this storage option will automatically be labeled with
 the hostname of the machine from which it was registered; this prevents agents
-not running on the same machine from attempting to run this flow.
+not running on the same machine from attempting to run this flow. This behavior
+can be overridden by passing `add_default_labels=False` to the object:
+```python
+flow = Flow("local-flow", storage=Local(add_default_labels=False))
+```
 :::
 
 :::tip Flow Results
@@ -58,7 +140,25 @@ Flows configured with `Local` storage also default to using a `LocalResult` for
 persisting any task results in the same filesystem.
 :::
 
-## AWS S3
+### Module
+
+[Module Storage](/api/latest/storage.md#module) is useful for flows that are
+importable from a Python module. If you package your flows as part of a Python
+module, you can use `Module` storage to reference and load them at execution
+time (provided the module is installed and importable in the execution
+environment).
+
+```python
+from prefect import Flow
+from prefect.storage import Module
+
+flow = Flow("module example", storage=Module("mymodule.flows"))
+
+# Tip: you can use `__name__` to automatically reference the current module.
+flow = Flow("module example", storage=Module(__name__))
+```
+
+### AWS S3
 
 [S3 Storage](/api/latest/storage.md#s3) is a storage option that
 uploads flows to an AWS S3 bucket.
@@ -85,7 +185,7 @@ which means both upload (build) and download (local agent) times need to have
 proper AWS credential configuration.
 :::
 
-## Azure Blob Storage
+### Azure Blob Storage
 
 [Azure Storage](/api/latest/storage.md#azure) is a storage
 option that uploads flows to an Azure Blob container.
@@ -120,7 +220,7 @@ environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to
 the class directly.
 :::
 
-## Google Cloud Storage
+### Google Cloud Storage
 
 [GCS Storage](/api/latest/storage.md#gcs) is a storage option
 that uploads flows to a Google Cloud Storage bucket.
@@ -148,7 +248,7 @@ which means both upload (build) and download (local agent) times need to have
 the proper Google Application Credentials configuration.
 :::
 
-## GitHub
+### GitHub
 
 [GitHub Storage](/api/latest/storage.md#github) is a storage
 option for referencing flows stored in a GitHub repository as `.py` files.
@@ -167,8 +267,8 @@ flow = Flow(
 )
 ```
 
-For a detailed look on how to use GitHub storage visit the [Using file based
-storage](/core/idioms/file-based.md) idiom.
+For a detailed look on how to use GitHub storage visit the [Using script based
+storage](/core/idioms/script-based.md) idiom.
 
 :::tip GitHub Credentials
 GitHub storage uses a [personal access
@@ -176,7 +276,7 @@ token](https://help.github.com/en/github/authenticating-to-github/creating-a-per
 for authenticating with repositories.
 :::
 
-## GitLab
+### GitLab
 
 [GitLab Storage](/api/latest/storage.md#gitlab) is a storage
 option for referencing flows stored in a GitLab repository as `.py` files.
@@ -195,8 +295,8 @@ flow = Flow(
 )
 ```
 
-Much of the GitHub example in the [file based
-storage](/core/idioms/file-based.md) documentation applies to GitLab as well.
+Much of the GitHub example in the [script based
+storage](/core/idioms/script-based.md) documentation applies to GitLab as well.
 
 :::tip GitLab Credentials
 GitLab storage uses a [personal access
@@ -209,7 +309,7 @@ GitLab server users can point the `host` argument to their personal GitLab
 instance.
 :::
 
-## Bitbucket
+### Bitbucket
 
 [Bitbucket Storage](/api/latest/storage.html#github) is a
 storage option that uploads flows to a Bitbucket repository as `.py` files.
@@ -229,8 +329,8 @@ flow = Flow(
 )
 ```
 
-Much of the GitHub example in the [file based
-storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well.
+Much of the GitHub example in the [script based
+storage](/core/idioms/script-based.html) documentation applies to Bitbucket as well.
 
 :::tip Bitbucket Credentials
 Bitbucket storage uses a [personal access
@@ -244,7 +344,7 @@ must be associated with a Project. Bitbucket storage requires a `project` argume
 pointing to the correct project name.
 :::
 
-## CodeCommit
+### CodeCommit
 
 [CodeCommit Storage](/api/latest/storage.html#codecommit) is a
 storage option that uploads flows to a CodeCommit repository as `.py` files.
@@ -270,14 +370,13 @@ which means both upload (build) and download (local agent) times need to
 have proper AWS credential configuration.
 :::
 
-## Docker
+### Docker
 
-[Docker Storage](/api/latest/storage.md#docker) is a storage
-option that puts flows inside of a Docker image and pushes them to a container
-registry. This method of Storage has deployment compatability with the [Docker
-Agent](/orchestration/agents/docker.md), [Kubernetes
-Agent](/orchestration/agents/kubernetes.md), and [Fargate
-Agent](/orchestration/agents/fargate.md).
+[Docker Storage](/api/latest/storage.md#docker) is a storage option that puts
+flows inside of a Docker image and pushes them to a container registry. As
+such, it will not work with flows deployed via a [local
+agent](/orchestration/agents/local.md), since docker images aren't supported
+there.
 
 ```python
 from prefect import Flow
@@ -309,7 +408,7 @@ Additionally make sure whichever platform Agent deploys the container also has
 permissions to pull from that same registry.
 :::
 
-## Webhook
+### Webhook
 
 [Webhook Storage](/api/latest/storage.md#webhook) is a storage
 option that stores and retrieves flows with HTTP requests. This type of storage

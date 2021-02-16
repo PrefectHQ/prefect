@@ -1314,7 +1314,7 @@ class TestK8sAgentRunConfig:
         args = job["spec"]["template"]["spec"]["containers"][0]["args"]
         assert args == expected.split()
 
-    def test_generate_job_spec_environment_variables(self, tmpdir):
+    def test_generate_job_spec_environment_variables(self, tmpdir, backend):
         """Check that environment variables are set in precedence order
 
         - CUSTOM1 & CUSTOM2 are set on the template
@@ -1346,6 +1346,7 @@ class TestK8sAgentRunConfig:
         env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
         env = {item["name"]: item["value"] for item in env_list}
         assert env == {
+            "PREFECT__BACKEND": backend,
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": prefect.config.cloud.agent.auth_token,

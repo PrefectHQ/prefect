@@ -130,20 +130,6 @@ class GitLab(Storage):
         self._flows[flow.name] = flow
         return self.path  # type: ignore
 
-    def build(self) -> "Storage":
-        """
-        Build the GitLab storage object and run basic healthchecks. Due to this object
-        supporting file based storage no files are committed to the repository during
-        this step. Instead, all files should be committed independently.
-
-        Returns:
-            - Storage: a GitLab object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
-
-        return self
-
     def _get_gitlab_client(self) -> "Gitlab":
         from gitlab import Gitlab
 

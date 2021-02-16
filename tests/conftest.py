@@ -181,9 +181,20 @@ def cloud_api():
 @pytest.fixture()
 def server_api():
     with prefect.utilities.configuration.set_temporary_config(
-        {"cloud.api": "https:/localhost:4200", "backend": "server"}
+        {"cloud.api": "https://localhost:4200", "backend": "server"}
     ):
         yield
+
+
+@pytest.fixture(
+    params=[("cloud", "https://api.prefect.io"), ("server", "https://localhost:4200")]
+)
+def backend(request):
+    backend, api = request.param
+    with prefect.utilities.configuration.set_temporary_config(
+        {"cloud.api": api, "backend": backend}
+    ):
+        yield backend
 
 
 @pytest.fixture()

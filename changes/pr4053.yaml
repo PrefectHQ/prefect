@@ -1,5 +1,0 @@
-fix:
-  - Fix task decorator chaining by using inspect.unwrap instead of __wrap__ - [#4053](https://github.com/PrefectHQ/prefect/pull/4053)
-contributor:
-  - "[Alex P.](https://github.com/alexifm)" 
-  - "[Marwan S.](https://github.com/marwan116)"
