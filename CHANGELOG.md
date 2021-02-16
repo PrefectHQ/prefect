@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.14.9 <Badge text="beta" type="success" />
+
+Released on February 16, 2021.
+
+### Features
+
+- Add `CompressedSerializer` class. - [#4063](https://github.com/PrefectHQ/prefect/pull/4063)
+
+### Enhancements
+
+- Allow `Client` timeout seconds to be configurable through configuration - [#4118](https://github.com/PrefectHQ/prefect/issues/4118)
+
+### Task Library
+
+- FilterTask: Add ability to log the filtered output by a function - [#4121](https://github.com/PrefectHQ/prefect/pull/4121)
+- Initial release of the FivetranSyncTask, to manage your [Fivetran](https://fivetran.com) connector sync process.
+
+### Fixes
+
+- Reduce the number of boto3 clients created across Prefect when interacting with AWS services - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)
+
+### Deprecations
+
+- Deprecate the `use_session` argument in all AWS-related components - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)
+
+### Contributors
+
+- [Amanda Wee](https://github.com/amanda-wee)
+- [Andrew Hannigan](https://github.com/AndrewHannigan)
+- [Craig Wright](https://github.com/crw)
+- [Nick Acosta](https://github.com/PubChimps)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.14.8 <Badge text="beta" type="success" />
 
 Released on February 11, 2021.
