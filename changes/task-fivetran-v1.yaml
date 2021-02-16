@@ -1,7 +1,0 @@
-
-task:
-  - "Initial release of the FivetranSyncTask, to manage your [Fivetran](https://fivetran.com) connector sync process."
-
-contributor:
-  - "[Craig Wright](https://github.com/crw)"
-  - "[Nick Acosta](https://github.com/PubChimps)"

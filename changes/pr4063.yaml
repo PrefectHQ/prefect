@@ -1,5 +1,0 @@
-feature:
-  - "Add `CompressedSerializer` class. - [#4063](https://github.com/PrefectHQ/prefect/pull/4063)"
-
-contributor:
-  - "[Amanda Wee](https://github.com/amanda-wee)"

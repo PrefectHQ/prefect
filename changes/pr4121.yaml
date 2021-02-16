@@ -1,5 +1,0 @@
-task:
-  - "FilterTask: Add ability to log the filtered output by a function - [#4121](https://github.com/PrefectHQ/prefect/pull/4121)"
-
-contributor:
-  - "[Timo S.](https://github.com/sti0)"
