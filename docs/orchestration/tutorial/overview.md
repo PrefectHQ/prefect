@@ -67,8 +67,7 @@ Token](/orchestration/concepts/tokens.html#user) and configure it with the
 [Prefect Command Line Interface](/orchestration/concepts/cli.html#cli).
 
 - Login to [https://cloud.prefect.io](https://cloud.prefect.io)
-- In the hamburger menu in the top left corner go to **User** -> **Personal
-  Access Tokens** -> **Create A Token**.
+- Navigate to the [Personal Access Tokens page](https://cloud.prefect.io/user/tokens). In the User menu in the top right corner go to **Account Settings** -> **Personal Access Tokens** -> **Create A Token**.
 - Copy the created token
 - Configure the CLI to use the access token by running
 
