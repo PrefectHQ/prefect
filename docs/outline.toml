@@ -358,6 +358,15 @@ classes = [
         "ExasolExportToFile"
         ]
 
+[pages.tasks.filehandling]
+title = "Filehandling Tasks"
+module = "prefect.tasks.filehandling"
+classes = [
+        "Move",
+        "Unzip",
+        "Zip",
+        ]
+
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.gcp"
