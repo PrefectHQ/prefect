@@ -21,11 +21,11 @@ class TestMove:
         assert not m.create_target_if_not_exists
 
     def test_source_path_not_found(self):
-        source_path = "/tmp/folder/myfile.txt"
+        source_path = Path("/tmp/folder/myfile.txt")
         with pytest.raises(ValueError) as exc_info:
             Move(source_path=source_path).run()
 
-        assert f"Source path ({source_path}) not found!" in exc_info.value.args[0]
+        assert f"Source path ({str(source_path)}) not found!" in exc_info.value.args[0]
 
     @patch.object(Move, "_check_target_path")
     @patch.object(Path, "is_file", return_value=True)

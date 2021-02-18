@@ -24,24 +24,24 @@ class TestUnzip:
         assert not uz.create_target_if_not_exists
 
     def test_source_file_not_found(self):
-        zip = "/a/path/file.zip"
+        zip = Path("/a/path/file.zip")
         target_dir = "/some/path"
         uz = Unzip(zip, target_dir)
         with pytest.raises(ValueError) as exc_info:
             uz.run()
 
-        assert f"Source file ({zip}) not found!" in exc_info.value.args[0]
+        assert f"Source file ({str(zip)}) not found!" in exc_info.value.args[0]
 
     @patch.object(Path, "is_file")
     def test_source_file_is_not_a_zip_file(self, mock_is_file):
-        zip = "/a/path/file.rar"
+        zip = Path("/a/path/file.rar")
         target_dir = "/some/path"
         mock_is_file.return_value = True
         uz = Unzip(zip, target_dir)
         with pytest.raises(TypeError) as exc_info:
             uz.run()
 
-        assert f"Source file ({zip}) is not a zip file" in exc_info.value.args[0]
+        assert f"Source file ({str(zip)}) is not a zip file" in exc_info.value.args[0]
 
     @patch.object(Path, "is_file", return_value=True)
     @patch.object(Path, "mkdir")
@@ -81,11 +81,11 @@ class TestUnzip:
         mock_is_file,
         caplog,
     ):
-        zip = "/a/path/file.rar"
+        zip = Path("/a/path/file.rar")
         target_dir = "/some/path"
         uz = Unzip(zip, target_dir)
         uz.run(remove_after_unzip=True)
-        assert f"Removing {zip} after extraction." in caplog.text
+        assert f"Removing {str(zip)} after extraction." in caplog.text
 
 
 class TestZip:
