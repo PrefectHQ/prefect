@@ -684,7 +684,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - run_prefect_cloud_flow:
-          version_group_id: 'b7e01b17-0a70-4df0-8b0a-859575c9e5c6'
+          version_group_id: 'b54fca5c-a89b-4035-9b31-48710aed45df'
           filters:
             branches:
               ignore: /.*/

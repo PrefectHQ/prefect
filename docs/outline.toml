@@ -271,6 +271,11 @@ classes = ["DatasetCreateFromDelimitedFiles",
            "DatastoreGet",
            "DatastoreUpload"]
 
+[pages.tasks.fivetran]
+title = "Fivetran Tasks"
+module = "prefect.tasks.fivetran"
+classes = ["FivetranSyncTask"]
+
 [pages.tasks.prefect]
 title = "Prefect Tasks"
 module = "prefect.tasks.prefect"
