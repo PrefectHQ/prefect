@@ -144,7 +144,6 @@ class Zip(FileBase):
         source_path: Union[str, Path, List[str], List[Path]] = "",
         target_directory: Union[str, Path] = "",
         zip_file_name: str = "",
-        zip_password: str = None,
         create_target_if_not_exists: bool = False,
         compression: int = None,
         compression_level: int = None,
@@ -153,7 +152,6 @@ class Zip(FileBase):
         self.source_path = source_path
         self.target_directory = target_directory
         self.zip_file_name = zip_file_name
-        self.zip_password = zip_password
         self.create_target_if_not_exists = create_target_if_not_exists
         self.compression = compression
         self.compression_level = compression_level
@@ -163,7 +161,6 @@ class Zip(FileBase):
         "source_path",
         "target_directory",
         "zip_file_name",
-        "zip_password",
         "create_target_if_not_exists",
     )
     def run(
@@ -171,7 +168,6 @@ class Zip(FileBase):
         source_path: Union[str, Path, List[str], List[Path]] = "",
         target_directory: Union[str, Path] = "",
         zip_file_name: str = "",
-        zip_password: str = None,
         create_target_if_not_exists: bool = False,
     ):
         """

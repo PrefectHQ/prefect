@@ -50,7 +50,6 @@ class Move(FileBase):
         target_path: Union[str, Path] = "",
         target_filename: str = None,
         create_target_if_not_exists: bool = False,
-        add_source_filename_to_target: bool = True,
     ):
         """
         Task run method.

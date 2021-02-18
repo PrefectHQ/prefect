@@ -2,5 +2,5 @@
 These tasks are supposed to handle file operations.
 """
 
-import prefect.tasks.filehandling.compression
-import prefect.tasks.filehandling.operations
+from prefect.tasks.filehandling.compression import Unzip, Zip
+from prefect.tasks.filehandling.operations import Move
