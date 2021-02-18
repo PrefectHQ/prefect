@@ -3,6 +3,7 @@ The tasks in this module can be used to handle file compression like zipping or
 unzipping files.
 """
 import os
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any, List, Union
@@ -135,6 +136,7 @@ class Zip(FileBase):
             https://docs.python.org/3/library/zipfile.html?highlight=zipfile#zipfile-objects
         - compression_level(int, optional): pass in a supported compression level
             https://docs.python.org/3/library/zipfile.html?highlight=zipfile#zipfile-objects
+            Only supported on Python >= 3.7
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -215,12 +217,22 @@ class Zip(FileBase):
 
         target_zip = target_directory.joinpath(zip_file_name)
 
-        with ZipFile(
-            target_zip,
-            "w",
-            compression=self.compression,
-            compresslevel=self.compression_level,
-        ) as zip:
+        if sys.version_info >= (3, 7):
+            # compresslevel was added in 3.7
+            zip_file = ZipFile(
+                target_zip,
+                "w",
+                compression=self.compression,
+                compresslevel=self.compression_level,
+            )
+        else:
+            zip_file = ZipFile(
+                target_zip,
+                "w",
+                compression=self.compression,
+            )
+
+        with zip_file as zip:
             self.logger.info(f"Creating zip archive {target_zip}")
             print(zip)
             print(type(zip.write()), dir(zip), dir(zip.write()))
