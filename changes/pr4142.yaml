@@ -1,0 +1,2 @@
+fix:
+  - "Add init to apollo/graphql deployment to reap healthcheck zombies - [#4142](https://github.com/PrefectHQ/prefect/pull/4142)"
