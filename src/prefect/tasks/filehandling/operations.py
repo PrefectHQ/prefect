@@ -1,12 +1,7 @@
 from pathlib import Path
 from typing import Union, Any
-from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 from prefect.tasks.filehandling.base import FileBase
-
-
-class Copy(Task):
-    pass
 
 
 class Move(FileBase):
