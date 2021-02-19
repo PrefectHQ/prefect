@@ -57,6 +57,7 @@ services:
   # GraphQL: the server's business logic that exposes GraphQL mutations
   graphql:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
+    init: true
     ports:
       - "${GRAPHQL_HOST_PORT:-4201}:4201"
     command: bash -c "${PREFECT_SERVER_DB_CMD} && python src/prefect_server/services/graphql/server.py"
@@ -96,6 +97,7 @@ services:
   # Apollo: the main endpoint for interacting with the server
   apollo:
     image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
+    init: true
     ports:
       - "${APOLLO_HOST_PORT:-4200}:4200"
     command: bash -c "./post-start.sh && npm run serve"
