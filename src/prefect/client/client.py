@@ -1045,11 +1045,16 @@ class Client:
         idempotency_key: str = None,
         run_name: str = None,
         version_group_id: str = None,
+        project_name: str = None,
+        flow_name: str = None,
+        flow_version: int = None,
     ) -> str:
         """
-        Create a new flow run for the given flow id.  If `start_time` is not provided, the flow
-        run will be scheduled to start immediately.  If both `flow_id` and `version_group_id`
-        are provided, only the `flow_id` will be used.
+        Create a new flow run for the given flow_id. Alternatively, the Flow may be indicated
+        by (a) version_group_id or (b) project_name, flow_name, and (optional)
+        flow_version. If more than one of these is provided, only the highest priorty will
+        be used (top priority is flow_id and then version_group_id). If `start_time` is not
+        provided, the flow run will be scheduled to start immediately.
 
         Args:
             - flow_id (str, optional): the id of the Flow you wish to schedule
@@ -1070,6 +1075,10 @@ class Client:
             - version_group_id (str, optional): if provided, the unique unarchived flow within
                 this version group will be scheduled to run.  This input can be used as a
                 stable API for running flows which are regularly updated.
+            - project_name (str, optional): the name of the Project the Flow resides in
+            - flow_name (str, optional): the name of the Flow you wish to schedule
+            - flow_version (int, optional): the version of the flow you wish to schedule; if left
+                as None, then the Flow with highest/most recent version is used
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -1082,14 +1091,67 @@ class Client:
                 "create_flow_run(input: $input)": {"id": True}
             }
         }
-        if not flow_id and not version_group_id:
-            raise ValueError("One of flow_id or version_group_id must be provided")
 
         inputs = {}  # type: Dict[str, Any]
         if flow_id:
             inputs["flow_id"] = flow_id
-        else:
+        elif version_group_id:
             inputs["version_group_id"] = version_group_id
+        elif project_name and flow_name:
+
+            # This code is copied and modified from prefect.cli.run.flow function
+            # I think duplicate code should be removed. Specifically, I'd move the
+            # cli code to this Client class. Then the cli should simply call
+            # the client.create_flow_run method here. -jacksund
+
+            # OPTIMIZE: this is involves a separate query to the database just to
+            # grab the flow_id. The second request is a mutation to create the new
+            # flow run. For efficiency, this should be possible within one request.
+            # The function prefect.cli.run.flow has this same issue.
+
+            where_clause = {
+                "_and": {
+                    "name": {"_eq": flow_name},
+                    # BUG: will this throw an error if flow_version left at None?
+                    "version": {"_eq": flow_version},
+                    "project": {"name": {"_eq": project_name}},
+                }
+            }
+
+            query = {
+                "query": {
+                    with_args(
+                        "flow",
+                        {
+                            "where": where_clause,
+                            "order_by": {
+                                "name": EnumValue("asc"),
+                                "version": EnumValue("desc"),
+                            },
+                            "distinct_on": EnumValue("name"),  # use limit: 1 instead?
+                        },
+                    ): {"id": True}
+                }
+            }
+
+            result = self.graphql(query)
+
+            flow_data = result.data.flow
+
+            if flow_data:
+                flow_id = flow_data[0].id
+            else:
+                ValueError(
+                    "Could not find a Flow matching the project_name, flow_name,"
+                    " and flow_version provided"
+                )
+
+            inputs["flow_id"] = flow_id
+        else:
+            raise ValueError(
+                "Either (1) flow_id, (2) version_group_id, or"
+                " (3) project_name and flow_name must be provided"
+            )
 
         if parameters is not None:
             inputs["parameters"] = parameters
