@@ -1348,9 +1348,9 @@ def test_create_flow_run_requires_flow_id_or_version_group_id():
         client.create_flow_run()
 
 
-@pytest.mark.parametrize("use_flow_id", [False, True])
+@pytest.mark.parametrize("use_input_type", ["flow_id", "version_id", "names"])
 @pytest.mark.parametrize("use_extra_args", [False, True])
-def test_create_flow_run_with_input(patch_post, use_flow_id, use_extra_args):
+def test_create_flow_run_with_input(patch_post, use_input_type, use_extra_args):
     response = {
         "data": {"create_flow_run": {"id": "FOO"}},
     }
@@ -1365,11 +1365,17 @@ def test_create_flow_run_with_input(patch_post, use_flow_id, use_extra_args):
     ):
         client = Client()
 
-    kwargs = (
-        {"flow_id": "my-flow-id"}
-        if use_flow_id
-        else {"version_group_id": "my-version-group-id"}
-    )
+    if use_input_type == "flow_id":
+        kwargs = {"flow_id": "my-flow-id"}
+    elif use_input_type == "version_id":
+        kwargs = {"version_group_id": "my-version-group-id"}
+    elif use_input_type == "names":
+        kwargs = {
+            "flow_name": "my-flow-name",
+            "project_name": "my-project-name",
+            "flow_version": "my-flow-version",
+        }
+
     if use_extra_args:
         extra_kwargs = {
             "parameters": {"x": 1},

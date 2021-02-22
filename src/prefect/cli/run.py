@@ -141,6 +141,20 @@ def flow(
         Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
     """
 
+    # if not id and not (name and project) and not version_group_id:
+    #     click.secho(
+    #         "A flow ID, version group ID, or a combination of flow name and project must be provided.",
+    #         fg="red",
+    #     )
+    #     return
+
+    # if sum(map(bool, (id, version_group_id, name))) != 1:
+    #     click.secho(
+    #         "Only one of flow ID, version group ID, or a name/project combination can be provided.",
+    #         fg="red",
+    #     )
+    #     return
+
     if watch and logs:
         click.secho(
             "Streaming state and logs not currently supported together.", fg="red"

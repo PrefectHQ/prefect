@@ -1107,7 +1107,6 @@ class Client:
             where_clause = {
                 "_and": {
                     "name": {"_eq": flow_name},
-                    # BUG: will this throw an error if flow_version left at None?
                     "version": {"_eq": flow_version},
                     "project": {"name": {"_eq": project_name}},
                 }
@@ -1129,7 +1128,16 @@ class Client:
                 }
             }
 
+            # raise Exception(query) # FOR TESTING
+            
+            # BUG: >>> the result returned here is
+            #   {'data': {'create_flow_run': {'id': 'FOO'}}}
+            # when it should be
+            #   {'data': {'flow': [{'id': 'FOO'},]}}
+            # Why is this happening?
             result = self.graphql(query)
+
+            # raise Exception(result)  # FOR TESTING
 
             flow_data = result.data.flow
 
