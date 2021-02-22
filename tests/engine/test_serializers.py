@@ -127,7 +127,7 @@ class TestPandasSerializer:
 
 class TestCompressedSerializer:
     @pytest.mark.parametrize("format", ["bz2", "gzip", "lzma", "zlib"])
-    def test_constructor_accepts_known_formats(self, format) -> None:
+    def test_constructor_accepts_standard_formats(self, format) -> None:
         serializer = PickleSerializer()
         module = pytest.importorskip(format)
         assert CompressedSerializer(
