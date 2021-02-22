@@ -1099,7 +1099,7 @@ class Client:
 
         if not flow_id and not version_group_id:
 
-            # OPTIMIZE: this is involves a separate query to the database just to
+            # OPTIMIZE: this input type involves a separate query to the database just to
             # grab the flow_id. The second request is a mutation to create the new
             # flow run. For efficiency, this should be possible within a single request.
             # To do this, functionaliy should be moved to the graphql create_flow_run method
