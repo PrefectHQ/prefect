@@ -217,6 +217,7 @@ def test_equality():
 
 
 def test_compressed_serializer_equality() -> None:
+    gzip = pytest.importorskip("gzip")
     assert CompressedSerializer(
         PickleSerializer(), format="bz2"
     ) == CompressedSerializer(PickleSerializer(), format="bz2")
