@@ -346,10 +346,10 @@ class CompressedSerializer(Serializer):
     ) -> Tuple[Callable[..., bytes], Callable[..., bytes]]:
         """
         Attempt to pull a compression format from a library. Typically one of
-            "lzma", "gzip", "zlib", "bz2"
+        "lzma", "gzip", "zlib", "bz2"
 
         Args:
-            compression_format: The format to load
+            compression_format: The compression format/library to load
 
         Returns:
             A tuple of functions for compression and decompression
