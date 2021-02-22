@@ -261,8 +261,10 @@ class CompressedSerializer(Serializer):
 
     Args:
         - serializer (Serializer): the serializer that this serializer wraps
-        - format (str): name of the selected pre-defined compression format (bz2, gzip,
-            lzma, or zlib)
+        - format (str): name of the compression format library. Typically one of the
+            python standard compression libraries: bz2, gzip, lzma, or zlib. Attempts
+            to import the given format's  module and retrieves the compress/decompress
+            functions.
         - compress (Callable[..., bytes]): the custom compression function
         - decompress (Callable[..., bytes]): the custom decompression function
         - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
@@ -345,11 +347,12 @@ class CompressedSerializer(Serializer):
         """
         Attempt to pull a compression format from a library. Typically one of
             "lzma", "gzip", "zlib", "bz2"
+
         Args:
-            compression_format:
+            compression_format: The format to load
 
         Returns:
-
+            A tuple of functions for compression and decompression
         """
         common_libs = {"lzma", "gzip", "zlib", "bz2"}
 
