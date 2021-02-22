@@ -1341,7 +1341,9 @@ def test_create_flow_run_requires_flow_id_or_version_group_id():
         client = Client()
 
     with pytest.raises(
-        ValueError, match="flow_id or version_group_id must be provided"
+        ValueError,
+        match="A flow ID, version group ID, or a combination of flow"
+        " name and project must be provided.",
     ):
         client.create_flow_run()
 

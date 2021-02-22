@@ -1086,28 +1086,23 @@ class Client:
         Raises:
             - ClientError: if the GraphQL query is bad for any reason
         """
-        create_mutation = {
-            "mutation($input: create_flow_run_input!)": {
-                "create_flow_run(input: $input)": {"id": True}
-            }
-        }
 
-        inputs = {}  # type: Dict[str, Any]
-        if flow_id:
-            inputs["flow_id"] = flow_id
-        elif version_group_id:
-            inputs["version_group_id"] = version_group_id
-        elif project_name and flow_name:
+        if not flow_id and not (flow_name and project_name) and not version_group_id:
+            raise ValueError(
+                "A flow ID, version group ID, or a combination of flow name and project must be provided."
+            )
 
-            # This code is copied and modified from prefect.cli.run.flow function
-            # I think duplicate code should be removed. Specifically, I'd move the
-            # cli code to this Client class. Then the cli should simply call
-            # the client.create_flow_run method here. -jacksund
+        if sum(map(bool, (flow_id, version_group_id, flow_name))) != 1:
+            raise ValueError(
+                "Only one of flow ID, version group ID, or a name/project combination can be provided."
+            )
+
+        if not flow_id and not version_group_id:
 
             # OPTIMIZE: this is involves a separate query to the database just to
             # grab the flow_id. The second request is a mutation to create the new
-            # flow run. For efficiency, this should be possible within one request.
-            # The function prefect.cli.run.flow has this same issue.
+            # flow run. For efficiency, this should be possible within a single request.
+            # To do this, functionaliy should be moved to the graphql create_flow_run method
 
             where_clause = {
                 "_and": {
@@ -1141,17 +1136,19 @@ class Client:
             if flow_data:
                 flow_id = flow_data[0].id
             else:
-                ValueError(
-                    "Could not find a Flow matching the project_name, flow_name,"
-                    " and flow_version provided"
-                )
+                raise ValueError(f"{flow_name} not found")
 
+        create_mutation = {
+            "mutation($input: create_flow_run_input!)": {
+                "create_flow_run(input: $input)": {"id": True}
+            }
+        }
+
+        inputs = {}  # type: Dict[str, Any]
+        if flow_id:
             inputs["flow_id"] = flow_id
-        else:
-            raise ValueError(
-                "Either (1) flow_id, (2) version_group_id, or"
-                " (3) project_name and flow_name must be provided"
-            )
+        elif version_group_id:
+            inputs["version_group_id"] = version_group_id
 
         if parameters is not None:
             inputs["parameters"] = parameters
