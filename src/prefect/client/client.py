@@ -1122,27 +1122,19 @@ class Client:
                                 "name": EnumValue("asc"),
                                 "version": EnumValue("desc"),
                             },
-                            "distinct_on": EnumValue("name"),  # use limit: 1 instead?
+                            "limit": 1,  # or use "distinct_on": EnumValue("name")?
                         },
                     ): {"id": True}
                 }
             }
 
-            # raise Exception(query) # FOR TESTING
-            
-            # BUG: >>> the result returned here is
-            #   {'data': {'create_flow_run': {'id': 'FOO'}}}
-            # when it should be
-            #   {'data': {'flow': [{'id': 'FOO'},]}}
-            # Why is this happening?
             result = self.graphql(query)
 
-            # raise Exception(result)  # FOR TESTING
-
-            flow_data = result.data.flow
+            # BUG: why is this not result.data.flow?
+            flow_data = result.data.create_flow_run
 
             if flow_data:
-                flow_id = flow_data[0].id
+                flow_id = flow_data.id
             else:
                 raise ValueError(f"{flow_name} not found")
 

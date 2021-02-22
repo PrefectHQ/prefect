@@ -141,19 +141,19 @@ def flow(
         Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
     """
 
-    # if not id and not (name and project) and not version_group_id:
-    #     click.secho(
-    #         "A flow ID, version group ID, or a combination of flow name and project must be provided.",
-    #         fg="red",
-    #     )
-    #     return
+    if not id and not (name and project) and not version_group_id:
+        click.secho(
+            "A flow ID, version group ID, or a combination of flow name and project must be provided.",
+            fg="red",
+        )
+        return
 
-    # if sum(map(bool, (id, version_group_id, name))) != 1:
-    #     click.secho(
-    #         "Only one of flow ID, version group ID, or a name/project combination can be provided.",
-    #         fg="red",
-    #     )
-    #     return
+    if sum(map(bool, (id, version_group_id, name))) != 1:
+        click.secho(
+            "Only one of flow ID, version group ID, or a name/project combination can be provided.",
+            fg="red",
+        )
+        return
 
     if watch and logs:
         click.secho(
@@ -162,6 +162,41 @@ def flow(
         return
 
     client = Client()
+    flow_id = id
+    if not flow_id and not version_group_id:
+        where_clause = {
+            "_and": {
+                "name": {"_eq": name},
+                "version": {"_eq": version},
+                "project": {"name": {"_eq": project}},
+            }
+        }
+
+        query = {
+            "query": {
+                with_args(
+                    "flow",
+                    {
+                        "where": where_clause,
+                        "order_by": {
+                            "name": EnumValue("asc"),
+                            "version": EnumValue("desc"),
+                        },
+                        "distinct_on": EnumValue("name"),
+                    },
+                ): {"id": True}
+            }
+        }
+
+        result = client.graphql(query)
+
+        flow_data = result.data.flow
+
+        if flow_data:
+            flow_id = flow_data[0].id
+        else:
+            click.secho("{} not found".format(name), fg="red")
+            return
 
     # Load parameters from file if provided
     file_params = {}
@@ -177,11 +212,8 @@ def flow(
     if context:
         context = json.loads(context)
     flow_run_id = client.create_flow_run(
-        flow_id=id,
+        flow_id=flow_id,
         version_group_id=version_group_id,
-        project_name=project,
-        flow_name=name,
-        flow_version=version,
         context=context,
         parameters={**file_params, **string_params},
         run_name=run_name,

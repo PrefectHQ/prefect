@@ -1365,16 +1365,25 @@ def test_create_flow_run_with_input(patch_post, use_input_type, use_extra_args):
     ):
         client = Client()
 
+    # kwargs_in are the kwargs called in client.create_flow_run()
+    # whereas kwargs_out are the kwargs called to graphql.create_flow_run
+    # These differ only in the use_input_type == "names" case
     if use_input_type == "flow_id":
-        kwargs = {"flow_id": "my-flow-id"}
+        kwargs_in = {"flow_id": "my-flow-id"}
+        kwargs_out = {"flow_id": "my-flow-id"}
     elif use_input_type == "version_id":
-        kwargs = {"version_group_id": "my-version-group-id"}
+        kwargs_in = {"version_group_id": "my-version-group-id"}
+        kwargs_out = {"version_group_id": "my-version-group-id"}
     elif use_input_type == "names":
-        kwargs = {
+        kwargs_in = {
             "flow_name": "my-flow-name",
             "project_name": "my-project-name",
             "flow_version": "my-flow-version",
         }
+        # this is different because a separate query is made for flow_id before
+        # the expected create_flow_run mutation is requested. The queried flow_id
+        # returns 'FOO' in testing.
+        kwargs_out = {'flow_id': 'FOO'}
 
     if use_extra_args:
         extra_kwargs = {
@@ -1391,13 +1400,13 @@ def test_create_flow_run_with_input(patch_post, use_input_type, use_extra_args):
             flow_run_name=expected.pop("run_name"),
             run_config=expected["run_config"].serialize(),
             scheduled_start_time=expected["scheduled_start_time"].isoformat(),
-            **kwargs,
+            **kwargs_out,
         )
-        kwargs.update(extra_kwargs)
+        kwargs_in.update(extra_kwargs)
     else:
-        expected = kwargs
+        expected = kwargs_out
 
-    assert client.create_flow_run(**kwargs) == "FOO"
+    assert client.create_flow_run(**kwargs_in) == "FOO"
     variables = json.loads(post.call_args[1]["json"]["variables"])
     input = variables["input"]
     assert variables["input"] == expected
