@@ -368,7 +368,7 @@ class CompressedSerializer(Serializer):
             ) from exc
 
         try:
-            funcs = (module.compress, module.decompress)
+            funcs = (module.compress, module.decompress)  # type: ignore
         except AttributeError as exc:
             raise ValueError(
                 f"Given compression format {compression_format!r} module does not have "
