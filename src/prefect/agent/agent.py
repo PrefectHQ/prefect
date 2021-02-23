@@ -483,8 +483,8 @@ class Agent:
         """
         flow_runs = None
         try:
-            # pre-fetch runs that are scheduled to start up to a minute from now
-            flow_runs = self.query_flow_runs(before=pendulum.now().add(seconds=60))
+            # pre-fetch runs that are scheduled to start soon
+            flow_runs = self.query_flow_runs(before=pendulum.now().add(seconds=10))
 
             if flow_runs:
                 self.logger.info(
