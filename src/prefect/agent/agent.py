@@ -1,3 +1,4 @@
+import datetime
 import functools
 import logging
 import math
@@ -8,7 +9,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Set, Optional, cast, Type
+from typing import Any, Generator, Iterable, Optional, Set, Type, cast
 from urllib.parse import urlparse
 
 import pendulum
@@ -18,9 +19,9 @@ from tornado.ioloop import IOLoop
 from prefect import config
 from prefect.client import Client
 from prefect.engine.state import Failed, Submitted
+from prefect.run_configs import RunConfig, UniversalRun
 from prefect.serialization import state
 from prefect.serialization.run_config import RunConfigSchema
-from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities.context import context
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
@@ -81,10 +82,10 @@ class Agent:
     Base class for Agents. Information on using the Prefect agents can be found at
     https://docs.prefect.io/orchestration/agents/overview.html
 
-    This Agent class is a standard point for executing Flows in Prefect Cloud. It is meant to
+    This Agent class is a standard point for executing Flows through the Prefect API. It is meant to
     have subclasses which inherit functionality from this class. The only piece that the
     subclasses should implement is the `deploy_flows` function, which specifies how to run a
-    Flow on the given platform. It is built in this way to keep Prefect Cloud logic standard
+    Flow on the given platform. It is built in this way to keep Prefect API logic standard
     but allows for platform specific customizability.
 
     In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
@@ -100,7 +101,7 @@ class Agent:
             identifiers used by Prefect Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will
             be set on each flow run that this agent submits for execution
-        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
+        - max_polls (int, optional): maximum number of times the agent will poll the Prefect API
             for flow runs; defaults to infinite
         - agent_address (str, optional): Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server
@@ -400,16 +401,21 @@ class Agent:
 
         self.logger.info("Waiting for flow runs...")
 
-    def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:
+    def deploy_and_update_flow_run(
+        self, flow_run: "GraphQLResult", delay_seconds=0
+    ) -> None:
         """
         Deploy a flow run and update Cloud with the resulting deployment info.
         If any errors occur when submitting the flow run, capture the error and log to Cloud.
 
         Args:
             - flow_run (GraphQLResult): The specific flow run to deploy
+            - delay_seconds (int): a number of seconds to delay submitting the run. This is useful
+                for pre-fetching scheduled runs and ensuring they start on time.
         """
         # Deploy flow run and mark failed if any deployment error
         try:
+            time.sleep(delay_seconds)
             self.update_state(flow_run)
             deployment_info = self.deploy_flow(flow_run)
             if getattr(flow_run, "id", None):
@@ -477,7 +483,8 @@ class Agent:
         """
         flow_runs = None
         try:
-            flow_runs = self.query_flow_runs()
+            # pre-fetch runs that are scheduled to start up to a minute from now
+            flow_runs = self.query_flow_runs(before=pendulum.now().add(seconds=60))
 
             if flow_runs:
                 self.logger.info(
@@ -487,7 +494,24 @@ class Agent:
                 )
 
             for flow_run in flow_runs:
-                fut = executor.submit(self.deploy_and_update_flow_run, flow_run)
+                # for pre-fetched runs, compute the number of seconds until they are
+                # supposed to start. `deploy_and_update_flow_run` will sleep for this
+                # amount of time before starting pre-fetched runs on time.
+                if flow_run.scheduled_start_time:
+                    start_time = pendulum.parse(flow_run.scheduled_start_time)
+                    delay_seconds = max(
+                        0, (start_time - pendulum.now()).total_seconds()
+                    )
+                else:
+                    delay_seconds = 0
+
+                # submit runs to be deployed, waiting `delay_seconds` to deploy at
+                # their scheduled start times
+                fut = executor.submit(
+                    self.deploy_and_update_flow_run,
+                    flow_run,
+                    delay_seconds=delay_seconds,
+                )
                 self.submitting_flow_runs.add(flow_run.id)
                 fut.add_done_callback(
                     functools.partial(
@@ -500,9 +524,9 @@ class Agent:
 
         return bool(flow_runs)
 
-    def query_flow_runs(self) -> list:
+    def query_flow_runs(self, before: datetime.datetime = None) -> list:
         """
-        Query Prefect Cloud for flow runs which need to be deployed and executed
+        Query the Prefect API for flow runs which need to be deployed and executed
 
         Returns:
             - list: A list of GraphQLResult flow run objects
@@ -524,7 +548,7 @@ class Agent:
             mutation,
             variables={
                 "input": {
-                    "before": now.isoformat(),
+                    "before": str(before or now),
                     "labels": list(self.labels),
                     "tenant_id": self.client.active_tenant_id,
                 }
