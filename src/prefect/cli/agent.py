@@ -97,7 +97,7 @@ def add_options(options):
 
 def start_agent(agent_cls, token, api, label, env, log_level, **kwargs):
     labels = sorted(set(label))
-    env_vars = dict(e.split("=", 2) for e in env)
+    env_vars = dict(e.split("=", 1) for e in env)
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
@@ -177,7 +177,7 @@ def install(label, env, import_paths, **kwargs):
 
     conf = LocalAgent.generate_supervisor_conf(
         labels=sorted(set(label)),
-        env_vars=dict(e.split("=", 2) for e in env),
+        env_vars=dict(e.split("=", 1) for e in env),
         import_paths=list(import_paths),
         **kwargs,
     )
@@ -313,7 +313,7 @@ def install(label, env, **kwargs):
     from prefect.agent.kubernetes import KubernetesAgent
 
     deployment = KubernetesAgent.generate_deployment_yaml(
-        labels=sorted(set(label)), env_vars=dict(e.split("=", 2) for e in env), **kwargs
+        labels=sorted(set(label)), env_vars=dict(e.split("=", 1) for e in env), **kwargs
     )
     click.echo(deployment)
 
@@ -354,7 +354,7 @@ def start(ctx, **kwargs):
     warn_fargate_deprecated()
 
     for item in ctx.args:
-        k, v = item.replace("--", "").split("=", 2)
+        k, v = item.replace("--", "").split("=", 1)
         kwargs[k] = v
 
     start_agent(FargateAgent, _called_from_cli=True, **kwargs)
@@ -637,7 +637,7 @@ def start(
     kwargs = dict()
     for item in ctx.args:
         item = item.replace("--", "")
-        kwargs.update([item.split("=")])
+        kwargs.update([item.split("=", 1)])
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
@@ -668,7 +668,7 @@ def start(
 
         env_vars = dict()
         for env_var in env:
-            k, v = env_var.split("=")
+            k, v = env_var.split("=", 1)
             env_vars[k] = v
 
         labels = sorted(set(label))
@@ -921,7 +921,7 @@ def install(
 
     env_vars = dict()
     for env_var in env:
-        k, v = env_var.split("=")
+        k, v = env_var.split("=", 1)
         env_vars[k] = v
 
     labels = sorted(set(label))
