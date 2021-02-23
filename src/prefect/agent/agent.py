@@ -402,7 +402,7 @@ class Agent:
         self.logger.info("Waiting for flow runs...")
 
     def deploy_and_update_flow_run(
-        self, flow_run: "GraphQLResult", delay_seconds=0
+        self, flow_run: "GraphQLResult", delay_seconds: int = 0
     ) -> None:
         """
         Deploy a flow run and update Cloud with the resulting deployment info.
