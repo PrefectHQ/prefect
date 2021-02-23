@@ -497,13 +497,8 @@ class Agent:
                 # for pre-fetched runs, compute the number of seconds until they are
                 # supposed to start. `deploy_and_update_flow_run` will sleep for this
                 # amount of time before starting pre-fetched runs on time.
-                if flow_run.scheduled_start_time:
-                    start_time = pendulum.parse(flow_run.scheduled_start_time)
-                    delay_seconds = max(
-                        0, (start_time - pendulum.now()).total_seconds()
-                    )
-                else:
-                    delay_seconds = 0
+                start_time = pendulum.parse(flow_run.scheduled_start_time)
+                delay_seconds = max(0, (start_time - pendulum.now()).total_seconds())
 
                 # submit runs to be deployed, waiting `delay_seconds` to deploy at
                 # their scheduled start times
