@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.10 <Badge text="beta" type="success" />
+
+Released on February 23, 2021.
+
+### Fixes
+
+- Dynamically import compression libraries for `CompressedSerializer` - [#4150](https://github.com/PrefectHQ/prefect/pull/4150)
+- Support passing environment variables containing `=` through agent CLI `--env` flag - [#4160](https://github.com/PrefectHQ/prefect/pull/4160)
+
 ## 0.14.9 <Badge text="beta" type="success" />
 
 Released on February 16, 2021.

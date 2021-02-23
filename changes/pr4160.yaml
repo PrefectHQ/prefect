@@ -1,2 +1,0 @@
-fix:
-  - "Support passing environment variables containing `=` through agent CLI `--env` flag - [#4160](https://github.com/PrefectHQ/prefect/pull/4160)"
