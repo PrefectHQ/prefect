@@ -1,2 +1,0 @@
-fix:
-  - "Dynamically import compression libraries for `CompressedSerializer` - [#4150](https://github.com/PrefectHQ/prefect/pull/4150)"
