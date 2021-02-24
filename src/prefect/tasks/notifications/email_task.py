@@ -131,8 +131,8 @@ class EmailTask(Task):
             message["Bcc"] = email_to_bcc
 
         # https://docs.python.org/3/library/email.examples.html
-        # If present, first set the plain content of the email. After which the html version is 
-        # added. This converts the message into a multipart/alternative container, with the 
+        # If present, first set the plain content of the email. After which the html version is
+        # added. This converts the message into a multipart/alternative container, with the
         # original text message as the first part and the new html message as the second part.
         if msg_plain:
             message.set_content(msg_plain, subtype="plain")
