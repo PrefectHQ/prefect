@@ -132,12 +132,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml
-
-      - persist_to_workspace:
-          root: *workspace_root
-          paths:
-            - coverage
+          command: pytest tests -vvrfEsx
 
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
@@ -167,12 +162,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml
-
-      - persist_to_workspace:
-          root: *workspace_root
-          paths:
-            - coverage
+          command: pytest tests -vvrfEsx
 
   # test task library explicitly
   test_task_library:
@@ -236,12 +226,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml
-
-      - persist_to_workspace:
-          root: *workspace_root
-          paths:
-            - coverage
+          command: pytest tests --ignore=tests/tasks -vvrfEsx
 
   test_37:
     docker:
@@ -332,18 +317,6 @@ jobs:
       - run:
           name: Run tests
           command: pytest tests --ignore=tests/tasks -vvrfEsx
-
-  upload_coverage:
-    docker:
-      - image: python:3.7
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
-    steps:
-      - *attach_workspace
-      - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
   build_docker_image:
     docker:
@@ -615,12 +588,6 @@ workflows:
       - test_lower_prefect
       - test_vanilla_prefect
       - test_task_library
-      - upload_coverage:
-          requires:
-            - test_36
-            - test_37
-            - test_39
-            - test_vanilla_prefect
 
   'Check code style and docs':
     jobs:

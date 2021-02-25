@@ -1,11 +1,9 @@
 import base64
-import bz2
-import gzip
 import io
 import json
-import lzma
+import importlib
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple
-import zlib
 
 import cloudpickle
 import pendulum
@@ -21,13 +19,6 @@ __all__ = (
     "PandasSerializer",
     "CompressedSerializer",
 )
-
-COMPRESSION_FORMATS: Dict[str, Tuple[Callable[..., bytes], Callable[..., bytes]]] = {
-    "bz2": (bz2.compress, bz2.decompress),
-    "gzip": (gzip.compress, gzip.decompress),
-    "lzma": (lzma.compress, lzma.decompress),
-    "zlib": (zlib.compress, zlib.decompress),
-}
 
 
 class Serializer:
@@ -270,8 +261,10 @@ class CompressedSerializer(Serializer):
 
     Args:
         - serializer (Serializer): the serializer that this serializer wraps
-        - format (str): name of the selected pre-defined compression format (bz2, gzip,
-            lzma, or zlib)
+        - format (str): name of the compression format library. Typically one of the
+            python standard compression libraries: bz2, gzip, lzma, or zlib. Attempts
+            to import the given format's  module and retrieves the compress/decompress
+            functions.
         - compress (Callable[..., bytes]): the custom compression function
         - decompress (Callable[..., bytes]): the custom decompression function
         - compress_kwargs (Dict[str, Any]): keyword arguments to be passed to the
@@ -297,12 +290,7 @@ class CompressedSerializer(Serializer):
                 "but not both."
             )
         elif format:
-            try:
-                self._compress, self._decompress = COMPRESSION_FORMATS[format]
-            except KeyError as e:
-                raise ValueError(
-                    "`format` must be one of: {}".format(", ".join(COMPRESSION_FORMATS))
-                ) from e
+            self._compress, self._decompress = self.compression_from_lib(format)
         elif compress and decompress:
             self._compress = compress
             self._decompress = decompress
@@ -351,3 +339,42 @@ class CompressedSerializer(Serializer):
         return self._serializer.deserialize(
             self._decompress(value, **self._decompress_kwargs)
         )
+
+    @staticmethod
+    def compression_from_lib(
+        compression_format: str,
+    ) -> Tuple[Callable[..., bytes], Callable[..., bytes]]:
+        """
+        Attempt to pull a compression format from a library. Typically one of
+        "lzma", "gzip", "zlib", "bz2"
+
+        Args:
+            - compression_format: The compression format/library to load
+
+        Returns:
+            A tuple of functions for compression and decompression
+        """
+        common_libs = {"lzma", "gzip", "zlib", "bz2"}
+
+        # Don't suggest them a format they've just requested
+        common_libs.discard(compression_format)
+
+        try:
+            module = importlib.import_module(compression_format)
+        except ImportError as exc:
+            raise ImportError(
+                f"Compression module for {compression_format!r} is not installed. "
+                f"Did you mean to use one of {common_libs}?"
+            ) from exc
+
+        try:
+            funcs = (module.compress, module.decompress)  # type: ignore
+        except AttributeError as exc:
+            raise ValueError(
+                f"Given compression format {compression_format!r} module does not have "
+                f"'compress' and 'decompress' attributes. Pass these functions "
+                f"manually instead if you intend to use a non-standard library. "
+                f"Otherwise, use one of the common compression libraries: {common_libs}"
+            ) from exc
+
+        return funcs

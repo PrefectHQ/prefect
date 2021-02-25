@@ -42,7 +42,7 @@ class TestInitialization:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with context({"secrets": dict(EMAIL_USERNAME="foo", EMAIL_PASSWORD="bar")}):
                 res = t.run()
-        assert smtp.SMTP_SSL.return_value.sendmail.call_args[0][0] == ("test@lvh.me")
+        assert smtp.SMTP_SSL.return_value.send_message.call_count == 1
 
     def test_kwargs_for_smtp_server_get_passed_to_task_init(self):
         t = EmailTask(smtp_server="mail.lvh.me", smtp_port=587, smtp_type="STARTTLS")
