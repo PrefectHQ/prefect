@@ -89,8 +89,8 @@ class Zip(FileBase):
     Args:
         - source (Union[str, Path, List[str], List[Path]], optional): a path or paths to compress
              into a single zip archive.
-        - target (Union[str, Path], optional): path to the output archive file. Any parent directories
-            of `target` must already exist.
+        - target (Union[str, Path], optional): path to the output archive file. Any parent
+            directories of `target` must already exist.
         - compression_method (str, optional): the compression method to use. Options are
             "deflate", "store", "bzip2", and "lzma". Defaults to `"deflate"`.
         - compression_level (int, optional). Compression level to use,
@@ -140,8 +140,8 @@ class Zip(FileBase):
         Args:
             - source (Union[str, Path, List[str], List[Path]], optional): a path or paths to compress
                 into a single zip archive.
-            - target_path (Union[str, Path], optional): path to the output archive file. Any parent directories
-                of `target` must already exist.
+            - target_path (Union[str, Path], optional): path to the output archive file. Any parent
+                directories of `target` must already exist.
 
         Returns:
             - None
