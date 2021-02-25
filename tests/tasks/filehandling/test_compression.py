@@ -56,7 +56,24 @@ class TestZip:
 
         assert z.source == zip
         assert z.target_path == target_dir
+
+    def test_compression_method(self):
+        z = Zip()
         assert z.compression == zipfile.ZIP_DEFLATED
+
+        z = Zip(compression_method="store")
+        assert z.compression == zipfile.ZIP_STORED
+
+        z = Zip(compression_method="bzip2")
+        assert z.compression == zipfile.ZIP_BZIP2
+
+        z = Zip(compression_method="lzma")
+        assert z.compression == zipfile.ZIP_LZMA
+
+        with pytest.raises(ValueError) as exc_info:
+            Zip(compression_method="blabla")
+
+        assert "Compression method blabla is not supported!" in exc_info.value.args[0]
 
     def test_source_path_not_defined(self):
         with pytest.raises(ValueError) as exc_info:

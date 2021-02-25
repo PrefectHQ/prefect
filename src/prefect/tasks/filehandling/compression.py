@@ -89,11 +89,11 @@ class Zip(FileBase):
     Args:
         - source (Union[str, Path, List[str], List[Path]], optional): a path or paths to compress
              into a single zip archive.
-        - target (Union[str, Path], optional): path to the output archive file. Any parent
+        - target_path (Union[str, Path], optional): path to the output archive file. Any parent
             directories of `target` must already exist.
         - compression_method (str, optional): the compression method to use. Options are
             "deflate", "store", "bzip2", and "lzma". Defaults to `"deflate"`.
-        - compression_level (int, optional). Compression level to use,
+        - compression_level (int, optional): Compression level to use,
             see https://docs.python.org/3/library/zipfile.html#zipfile.ZipFile for more info.
             !! Python 3.7+ only !!
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -104,23 +104,25 @@ class Zip(FileBase):
         self,
         source: Union[str, Path, List[str], List[Path]] = "",
         target_path: Union[str, Path] = "",
-        compression: str = "deflate",
+        compression_method: str = "deflate",
         compression_level: int = None,
         **kwargs: Any,
     ):
         self.source = source
         self.target_path = target_path
 
-        if compression == "store":
+        if compression_method == "store":
             self.compression = zipfile.ZIP_STORED
-        elif compression == "deflate":
+        elif compression_method == "deflate":
             self.compression = zipfile.ZIP_DEFLATED
-        elif compression == "bzip2":
+        elif compression_method == "bzip2":
             self.compression = zipfile.ZIP_BZIP2
-        elif compression == "lzma":
+        elif compression_method == "lzma":
             self.compression = zipfile.ZIP_LZMA
         else:
-            raise ValueError(f"Compression type {compression} is not supported.")
+            raise ValueError(
+                f"Compression method {compression_method} is not supported!"
+            )
 
         self.compression_level = compression_level
         super().__init__(**kwargs)
