@@ -13,7 +13,7 @@ from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 
 
-def make_env(fname=None):
+def make_env(include_local: bool = True):
     # replace localhost with postgres to use docker-compose dns
     PREFECT_ENV = dict(
         DB_CONNECTION_URL=config.server.database.connection_url.replace(
@@ -54,15 +54,9 @@ def make_env(fname=None):
 
     HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
-    ENV = os.environ.copy()
+    ENV = os.environ.copy() if include_local else {}
     ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
 
-    if fname is not None:
-        list_of_pairs = [
-            f"{k}={v!r}" if "\n" in v else f"{k}={v}" for k, v in ENV.items()
-        ]
-        with open(fname, "w") as f:
-            f.write("\n".join(list_of_pairs))
     return ENV.copy()
 
 
@@ -127,6 +121,15 @@ def server():
     "-d",
     help="Detached mode. Runs Server containers in the background",
     is_flag=True,
+    hidden=True,
+)
+@click.option(
+    "--dump",
+    help=(
+        "Instead of running the Server, dump the generated docker-compose.yml file and "
+        ".env file to the given directory"
+    ),
+    type=click.Path(exists=True, file_okay=False, writable=True),
     hidden=True,
 )
 @click.option(
@@ -211,6 +214,7 @@ def start(
     no_upgrade,
     no_ui,
     detach,
+    dump,
     postgres_port,
     hasura_port,
     graphql_port,
@@ -240,6 +244,8 @@ def start(
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
         --detach, -d                Detached mode. Runs Server containers in the background
+        --dump, -d          TEXT    Instead of starting the server, dump the configured
+                                    docker-compose file and .env to the given directory
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
@@ -318,7 +324,9 @@ def start(
             "server.database.volume_path": volume_path,
         }
     ):
-        env = make_env()
+        # We exclude the current environment if dumping the file where we just want
+        # the proper Prefect env
+        env = make_env(include_local=not bool(dump))
 
     base_version = prefect.__version__.split("+")
     if len(base_version) > 1:
@@ -339,6 +347,20 @@ def start(
 
     # Pass the Core version so the Server API can return it
     env.update(PREFECT_CORE_VERSION=prefect.__version__)
+
+    if dump:
+        dump_dir = Path(dump)
+        Path(compose_dir_path).joinpath("docker-compose.yml").rename(
+            dump_dir.joinpath("docker-compose.yml")
+        )
+        with dump_dir.joinpath(".env").open("w") as fout:
+            env_vars = [
+                f"{k}={v!r}" if "\n" in v else f"{k}={v}" for k, v in env.items()
+            ]
+            fout.write("\n".join(env_vars) + "\n")
+
+        click.secho(f"Dumped docker-compose.yml and .env to '{dump_dir}', exiting...")
+        return
 
     proc = None
     try:
