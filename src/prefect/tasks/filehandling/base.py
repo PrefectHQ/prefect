@@ -8,17 +8,12 @@ class FileBase(Task):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _check_target_path(
-        self,
-        target_directory: Path,
-        create_target_if_not_exists: bool,
-    ):
-        """This checks if the target path exists. If not, target directory will
-        be created if create_target_if_not_exists is set to True
-        """
-        if not target_directory.is_dir():
-            if create_target_if_not_exists:
-                self.logger.info(f"Creating target directory: {target_directory}")
-                target_directory.mkdir()
-            else:
-                raise ValueError(f"Target directory ({target_directory}) not found!")
+    def _check_path_is_set(self, path: Path, name: str):
+        """Checks if a path is set. Otherwise raise an exception."""
+        if not path:
+            raise ValueError(f"{name.capitalize()} path is not set!")
+
+    def _check_path_exists(self, path: Path, name: str):
+        """Checks if a source path exists. Otherwise raise an exception."""
+        if not path.exists():
+            raise ValueError(f"{name.capitalize()} path ({path}) not found!")

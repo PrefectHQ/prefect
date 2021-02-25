@@ -1,24 +1,21 @@
 from pathlib import Path
-from unittest.mock import patch
-
 import pytest
-
 from prefect.tasks.filehandling.base import FileBase
 
 
 class TestCompressionBase:
-    def test_check_target_path_not_found(self):
+    def test_path_not_set(self):
         x = FileBase()
-        target_dir = Path("/some/path")
+        source_path = None
         with pytest.raises(ValueError) as exc_info:
-            x._check_target_path(target_dir, False)
+            x._check_path_is_set(source_path, "Source")
 
-        assert f"Target directory ({target_dir}) not found!" in exc_info.value.args[0]
+        assert "Source path is not set!" in exc_info.value.args[0]
 
-    @patch.object(Path, "mkdir")
-    def test_check_target_path_create_path(self, mock_mkdir, caplog):
+    def test_path_exists(self):
         x = FileBase()
-        target_dir = Path("/some/path")
-        x._check_target_path(target_dir, True)
+        source_path = Path("/tmp/folder/myfile.txt")
+        with pytest.raises(ValueError) as exc_info:
+            x._check_path_exists(source_path, "Source")
 
-        assert f"Creating target directory: {target_dir}" in caplog.text
+        assert f"Source path ({str(source_path)}) not found!" in exc_info.value.args[0]

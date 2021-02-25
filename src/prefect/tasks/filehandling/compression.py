@@ -18,102 +18,68 @@ class Unzip(FileBase):
     Task for unzipping data.
 
     Args:
-        - zip_file_path (Union[str, Path], optional): path to the zip file
-        - target_directory (Union[str, Path], optional): path to the target directory
-        - zip_password (str, optional): password for extraction. This must be utf-8 encoded.
-        - create_target_if_not_exists (bool, optional): Create the target directory if it
-            doesn't exist (default: False)
-        - use_filename_as_target_dir (bool, optional): Extracts data within a folder named
-            like the zip archive (without extension). If True, the basename of the zip archive will
-            be attached to the target_directory and may create a new folder. (default: False)
-        - remove_after_unzip (bool, optional): Removes the zip archive after extraction (default: False)
+        - source (Union[str, Path], optional): the path to the zip file
+        - target_path (Union[str, Path], optional): directory to extract the zip file into.
+            If not provided, the current working directory will be used. This directory must
+            already exist.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
     def __init__(
         self,
-        zip_file_path: Union[str, Path] = "",
-        target_directory: Union[str, Path] = "",
-        zip_password: str = None,
-        create_target_if_not_exists: bool = False,
-        use_filename_as_target_dir: bool = False,
-        remove_after_unzip: bool = False,
+        source: Union[str, Path] = "",
+        target_path: Union[str, Path] = "",
         **kwargs: Any,
     ):
-        self.zip_file_path = zip_file_path
-        self.target_directory = target_directory
-        self.zip_password = zip_password
-        self.create_target_if_not_exists = create_target_if_not_exists
-        self.use_filename_as_target_dir = use_filename_as_target_dir
-        self.remove_after_unzip = remove_after_unzip
+        self.source = source
+        self.target_path = target_path
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "zip_file_path",
-        "target_directory",
-        "zip_password",
-        "create_target_if_not_exists",
-        "use_filename_as_target_dir",
-        "remove_after_unzip",
+        "source",
+        "target_path",
     )
     def run(
         self,
-        zip_file_path: Union[str, Path] = "",
-        target_directory: Union[str, Path] = "",
-        zip_password: str = None,
-        create_target_if_not_exists: bool = False,
-        use_filename_as_target_dir: bool = False,
-        remove_after_unzip: bool = False,
+        source: Union[str, Path] = "",
+        target_path: Union[str, Path] = "",
+        password: str = None,
     ):
         """
         Task run method.
 
         Args:
-            - zip_file_path (Union[str, Path], optional): path to the zip file
-            - target_directory (Union[str, Path], optional): path to the target directory
-            - zip_password (str, optional): password for extraction. This must be utf-8 encoded.
-            - create_target_if_not_exists (bool, optional): Create the target directory if it
-                doesn't exist (default: False)
-            - use_filename_as_target_dir (bool, optional): Extracts data within a folder named
-                like the zip archive (without extension). If True, the basename of the zip archive will
-                be attached to the target_directory and may create a new folder. (default: False)
-            - remove_after_unzip (bool, optional): Removes the zip archive after
-                extraction (default: False)
+            - source (Union[str, Path], optional): the path to the zip file
+            - target_path (Union[str, Path], optional): directory to extract the zip file into.
+                If not provided, the current working directory will be used. This directory must
+                already exist.
+            - password (str, optional): password for unzipping a password-protected zip file.
+                This must be utf-8 encoded.
 
         Returns:
             - Target directory as a Path object
 
         Raises:
-            - ValueError: if source_file not found
-            - TypeError: if source_file is not a zip file
-            - ValueError: if target_directory not found and create_target_if_not_exists = False
+            - ValueError: if source not found
+            - TypeError: if source is not a zip file
         """
-        zip_file_path = Path(zip_file_path)
-        target_directory = Path(target_directory)
-        if not zip_file_path.is_file():
-            raise ValueError(f"Source file ({zip_file_path}) not found!")
-        elif not zipfile.is_zipfile(zip_file_path):
-            raise TypeError(f"Source file ({zip_file_path}) is not a zip file")
+        source = Path(source)
+        target_path = Path(target_path or Path.cwd())
 
-        self._check_target_path(target_directory, create_target_if_not_exists)
+        self._check_path_exists(source, "Source")
 
-        if use_filename_as_target_dir:
-            target_directory = target_directory.joinpath(zip_file_path.stem)
-            target_directory.mkdir(exist_ok=True)
+        if not zipfile.is_zipfile(source):
+            raise TypeError(f"Source file ({source}) is not a zip file")
 
-        self.logger.info(f"Extracting {zip_file_path} to {target_directory}")
+        self.logger.info(f"Extracting {source} to {target_path}")
 
-        if zip_password:
-            zip_password = bytes(zip_password, "utf-8")
-        with ZipFile(zip_file_path, "r") as zip:
-            zip.extractall(target_directory, pwd=zip_password)
+        if password:
+            password = bytes(password, "utf-8")
+        with ZipFile(source, "r") as zip:
+            zip.extractall(target_path, pwd=password)
 
-        if remove_after_unzip:
-            self.logger.info(f"Removing {zip_file_path} after extraction.")
-            os.remove(zip_file_path)
-
-        return target_directory
+        return target_path
 
 
 class Zip(FileBase):
@@ -121,123 +87,103 @@ class Zip(FileBase):
     Task to create a zip archive.
 
     Args:
-        - source_path (Union[str, Path, List[str], List[Path]], optional): a single path or a list of
-            multiple paths for compression into a single zip archive.
-        - target_directory (Union[str, Path], optional): path to the target directory
-        - zip_file_name (str, optional): name of the zip archive. If not set the name will be generated
-            by the following rules:
-                1. if the first object in the source_path is a single file
-                    => basename of the source file without extension
-                2. if the first object in the source_path is a directory
-                    => parent name of the directory
-        - create_target_if_not_exists (bool, optional): Create the target directory if it
-            doesn't exist (default: False)
-        - compression: (int, optional): pass in a supported compression method
-            https://docs.python.org/3/library/zipfile.html?highlight=zipfile#zipfile-objects
-        - compression_level(int, optional): pass in a supported compression level
-            https://docs.python.org/3/library/zipfile.html?highlight=zipfile#zipfile-objects
-            Only supported on Python >= 3.7
+        - source (Union[str, Path, List[str], List[Path]], optional): a path or paths to compress
+             into a single zip archive.
+        - target (Union[str, Path], optional): path to the output archive file. Any parent directories
+            of `target` must already exist.
+        - compression_method (str, optional): the compression method to use. Options are
+            "deflate", "store", "bzip2", and "lzma". Defaults to `"deflate"`.
+        - compression_level (int, optional). Compression level to use,
+            see https://docs.python.org/3/library/zipfile.html#zipfile.ZipFile for more info.
+            !! Python 3.7+ only !!
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
     def __init__(
         self,
-        source_path: Union[str, Path, List[str], List[Path]] = "",
-        target_directory: Union[str, Path] = "",
-        zip_file_name: str = "",
-        create_target_if_not_exists: bool = False,
-        compression: int = None,
+        source: Union[str, Path, List[str], List[Path]] = "",
+        target_path: Union[str, Path] = "",
+        compression: str = "deflate",
         compression_level: int = None,
         **kwargs: Any,
     ):
-        self.source_path = source_path
-        self.target_directory = target_directory
-        self.zip_file_name = zip_file_name
-        self.create_target_if_not_exists = create_target_if_not_exists
-        self.compression = compression
+        self.source = source
+        self.target_path = target_path
+
+        if compression == "store":
+            self.compression = zipfile.ZIP_STORED
+        elif compression == "deflate":
+            self.compression = zipfile.ZIP_DEFLATED
+        elif compression == "bzip2":
+            self.compression = zipfile.ZIP_BZIP2
+        elif compression == "lzma":
+            self.compression = zipfile.ZIP_LZMA
+        else:
+            raise ValueError(f"Compression type {compression} is not supported.")
+
         self.compression_level = compression_level
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "source_path",
-        "target_directory",
-        "zip_file_name",
-        "create_target_if_not_exists",
+        "source",
+        "target_path",
     )
     def run(
         self,
-        source_path: Union[str, Path, List[str], List[Path]] = "",
-        target_directory: Union[str, Path] = "",
-        zip_file_name: str = "",
-        create_target_if_not_exists: bool = False,
+        source: Union[str, Path, List[str], List[Path]] = "",
+        target_path: Union[str, Path] = "",
     ):
         """
         Task run method.
 
         Args:
-            - source_path (Union[str, Path, List[str], List[Path]], optional): a single path or a list of
-                multiple paths for compression into a single zip archive.
-            - target_directory (Union[str, Path], optional): path to the target directory
-            - zip_file_name (str, optional): name of the zip archive. If not set the name will be
-                generated by the following rules:
-                    1. if the first object in the source_path is a single file
-                        => basename of the source file without extension
-                    2. if the first object in the source_path is a directory
-                        => parent name of the directory
-            - create_target_if_not_exists (bool, optional): Create the target directory if it
-                doesn't exist (default: False)
+            - source (Union[str, Path, List[str], List[Path]], optional): a path or paths to compress
+                into a single zip archive.
+            - target_path (Union[str, Path], optional): path to the output archive file. Any parent directories
+                of `target` must already exist.
 
         Returns:
-            - Path object of the created zip archive
+            - None
 
         Raises:
-            - ValueError: if source_path not set
-            - ValueError: if target_directory not found and create_target_if_not_exists = False
+            - ValueError: if source not set
+            - ValueError: if target is not set
+            - TypeError: if target is not a .zip file
         """
-        if not source_path:
-            raise ValueError("Source path is not defined.")
 
-        target_directory = Path(target_directory)
-        self._check_target_path(target_directory, create_target_if_not_exists)
+        self._check_path_is_set(source, "Source")
+        self._check_path_is_set(target_path, "Target")
 
-        if not isinstance(source_path, list):
-            source_path = [Path(source_path)]
+        if target_path.suffix != ".zip":
+            raise TypeError("Archive name don't end with .zip.")
         else:
-            source_path = [Path(sp) for sp in source_path]
+            target = Path(target_path)
 
-        if not zip_file_name:
-            if source_path[0].is_file():
-                zip_file_name = f"{source_path[0].stem}.zip"
-            else:
-                zip_file_name = f"{source_path[0].name}.zip"
+        if not isinstance(source, list):
+            source_path = [Path(source)]
         else:
-            if not zip_file_name.endswith(".zip"):
-                zip_file_name += ".zip"
-
-        target_zip = target_directory.joinpath(zip_file_name)
+            source_path = [Path(sp) for sp in source]
 
         if sys.version_info >= (3, 7):
             # compresslevel was added in 3.7
             zip_file = ZipFile(
-                target_zip,
+                target,
                 "w",
                 compression=self.compression,
                 compresslevel=self.compression_level,
             )
         else:
             zip_file = ZipFile(
-                target_zip,
+                target,
                 "w",
                 compression=self.compression,
             )
 
         with zip_file as zip:
-            self.logger.info(f"Creating zip archive {target_zip}")
-            print(zip)
-            print(type(zip.write()), dir(zip), dir(zip.write()))
+            self.logger.info(f"Creating zip archive {target}")
             for f in source_path:
-                self.logger.info(f"Adding {f.name} to {zip_file_name}")
+                self.logger.info(f"Adding {f.name} to {target}")
                 if f.is_file():
                     zip.write(f, arcname=f.name)
                 else:
@@ -245,5 +191,3 @@ class Zip(FileBase):
                         for file in files:
                             fp = Path(root).joinpath(file)
                             zip.write(fp, arcname=fp.relative_to(f.parent))
-
-        return target_zip
