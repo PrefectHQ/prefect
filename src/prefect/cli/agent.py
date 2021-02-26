@@ -3,6 +3,7 @@ import click
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
+from prefect.utilities.cli import add_options
 
 COMMON_START_OPTIONS = [
     click.option(
@@ -82,17 +83,6 @@ COMMON_INSTALL_OPTIONS = [
         help="Environment variables to set on each submitted flow run.",
     ),
 ]
-
-
-def add_options(options):
-    """A decorator for adding a list of options to a click command"""
-
-    def decorator(func):
-        for opt in reversed(options):
-            func = opt(func)
-        return func
-
-    return decorator
 
 
 def start_agent(agent_cls, token, api, label, env, log_level, **kwargs):

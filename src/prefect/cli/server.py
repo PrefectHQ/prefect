@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import warnings
 import time
 from pathlib import Path
 
@@ -10,54 +11,7 @@ import yaml
 
 import prefect
 from prefect import config
-from prefect.utilities.configuration import set_temporary_config
-
-
-def make_env(include_local: bool = True):
-    # replace localhost with postgres to use docker-compose dns
-    PREFECT_ENV = dict(
-        DB_CONNECTION_URL=config.server.database.connection_url.replace(
-            "localhost", "postgres"
-        ),
-        GRAPHQL_HOST_PORT=config.server.graphql.host_port,
-        UI_HOST_PORT=config.server.ui.host_port,
-    )
-
-    APOLLO_ENV = dict(
-        HASURA_API_URL="http://hasura:{}/v1alpha1/graphql".format(
-            config.server.hasura.port
-        ),
-        HASURA_WS_URL="ws://hasura:{}/v1alpha1/graphql".format(
-            config.server.hasura.port
-        ),
-        PREFECT_API_URL="http://graphql:{port}{path}".format(
-            port=config.server.graphql.port, path=config.server.graphql.path
-        ),
-        PREFECT_API_HEALTH_URL="http://graphql:{port}/health".format(
-            port=config.server.graphql.port
-        ),
-        APOLLO_HOST_PORT=config.server.host_port,
-        PREFECT_SERVER__TELEMETRY__ENABLED=(
-            "true" if config.server.telemetry.enabled is True else "false"
-        ),
-    )
-
-    POSTGRES_ENV = dict(
-        POSTGRES_HOST_PORT=config.server.database.host_port,
-        POSTGRES_USER=config.server.database.username,
-        POSTGRES_PASSWORD=config.server.database.password,
-        POSTGRES_DB=config.server.database.name,
-        POSTGRES_DATA_PATH=config.server.database.volume_path,
-    )
-
-    UI_ENV = dict(APOLLO_URL=config.server.ui.apollo_url)
-
-    HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
-
-    ENV = os.environ.copy() if include_local else {}
-    ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
-
-    return ENV.copy()
+from prefect.utilities.cli import add_options
 
 
 @click.group(hidden=True)
@@ -71,51 +25,370 @@ def server():
 
     \b
     Arguments:
-        start                   Start the Prefect server using docker-compose
+        start                   Start Prefect Server using docker-compose
         stop                    Stop Prefect Server by removing all containers and networks
         create-tenant           Creates a new tenant in the server instance
                                     Note: running `start` already creates a default tenant
+        config                  Write the configured docker-compose.yml to standard
+                                    output for manual deployment
 
     \b
     Examples:
         $ prefect server start
         ...
+
+        $ prefect server config > docker-compose.yml
     """
 
 
+COMMON_SERVER_OPTIONS = [
+    click.option(
+        "--version",
+        "-v",
+        help="The server image versions to use (for example, '0.1.0' or 'master')",
+        hidden=True,
+    ),
+    click.option(
+        "--ui-version",
+        "-uv",
+        help="The UI image version to use (for example, '0.1.0' or 'master')",
+        hidden=True,
+    ),
+    click.option(
+        "--no-upgrade",
+        "-n",
+        help="Pass this flag to avoid running a database upgrade when the database spins up",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--no-ui",
+        "-u",
+        help="Pass this flag to avoid starting the UI",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--postgres-port",
+        help="The port used to serve Postgres",
+        default=config.server.database.host_port,
+        type=str,
+        hidden=True,
+    ),
+    click.option(
+        "--hasura-port",
+        help="The port used to serve Hasura",
+        default=config.server.hasura.host_port,
+        type=str,
+        hidden=True,
+    ),
+    click.option(
+        "--graphql-port",
+        help="The port used to serve the GraphQL API",
+        default=config.server.graphql.host_port,
+        type=str,
+        hidden=True,
+    ),
+    click.option(
+        "--ui-port",
+        help="The port used to serve the UI",
+        default=config.server.ui.host_port,
+        type=str,
+        hidden=True,
+    ),
+    click.option(
+        "--server-port",
+        help="The port used to serve the Core server",
+        default=config.server.host_port,
+        type=str,
+        hidden=True,
+    ),
+    click.option(
+        "--no-postgres-port",
+        help="Disable port map of Postgres to host",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--no-hasura-port",
+        help="Disable port map of Hasura to host",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--no-graphql-port",
+        help="Disable port map of the GraphqlAPI to host",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--no-ui-port",
+        help="Disable port map of the UI to host",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--no-server-port",
+        help="Disable port map of the Core server to host",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--use-volume",
+        help="Enable the use of a volume for the postgres service",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
+        "--volume-path",
+        help="A path to use for the postgres volume",
+        default=config.server.database.volume_path,
+        type=str,
+        hidden=True,
+    ),
+]
+
+
+def setup_compose_file(
+    no_ui,
+    no_postgres_port,
+    no_hasura_port,
+    no_graphql_port,
+    no_ui_port,
+    no_server_port,
+    use_volume,
+) -> str:
+    base_compose_path = Path(__file__).parents[0].joinpath("docker-compose.yml")
+
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, "docker-compose.yml")
+
+    # Copy the docker-compose file to the temp location
+    shutil.copy2(base_compose_path, temp_path)
+
+    # Exit early if no changes have been made to the compose file
+    if not (
+        no_postgres_port
+        or no_hasura_port
+        or no_graphql_port
+        or no_ui_port
+        or no_server_port
+        or not use_volume
+        or no_ui
+    ):
+        return temp_path
+
+    # Otherwise, modify the file
+    with open(temp_path, "r") as file:
+        compose_yml = yaml.safe_load(file)
+
+        if no_postgres_port:
+            del compose_yml["services"]["postgres"]["ports"]
+
+        if no_hasura_port:
+            del compose_yml["services"]["hasura"]["ports"]
+
+        if no_graphql_port:
+            del compose_yml["services"]["graphql"]["ports"]
+
+        if no_ui_port:
+            del compose_yml["services"]["ui"]["ports"]
+
+        if no_server_port:
+            del compose_yml["services"]["apollo"]["ports"]
+
+        if not use_volume:
+            del compose_yml["services"]["postgres"]["volumes"]
+
+        if no_ui:
+            del compose_yml["services"]["ui"]
+
+    with open(temp_path, "w") as f:
+        yaml.safe_dump(compose_yml, f)
+
+    return temp_path
+
+
+def setup_compose_env(
+    version,
+    ui_version,
+    no_upgrade,
+    postgres_port,
+    hasura_port,
+    graphql_port,
+    ui_port,
+    server_port,
+    volume_path,
+):
+    # Pull current version information
+    base_version = prefect.__version__.split("+")
+    if len(base_version) > 1:
+        default_tag = "master"
+    else:
+        default_tag = f"core-{base_version[0]}"
+
+    PREFECT_ENV = dict(
+        # replace localhost with postgres to use docker-compose dns
+        DB_CONNECTION_URL=config.server.database.connection_url.replace(
+            "localhost", "postgres"
+        ),
+        GRAPHQL_HOST_PORT=str(graphql_port),
+        UI_HOST_PORT=str(ui_port),
+        # Pass the Core version so the Server API can return it
+        PREFECT_CORE_VERSION=prefect.__version__,
+        # Set the server image tag
+        PREFECT_SERVER_TAG=version or default_tag,
+    )
+
+    APOLLO_ENV = dict(
+        HASURA_API_URL=f"http://hasura:{hasura_port}/v1alpha1/graphql",
+        HASURA_WS_URL=f"ws://hasura:{hasura_port}/v1alpha1/graphql",
+        PREFECT_API_URL=f"http://graphql:{graphql_port}{config.server.graphql.path}",
+        PREFECT_API_HEALTH_URL=f"http://graphql:{graphql_port}/health",
+        APOLLO_HOST_PORT=str(server_port),
+        PREFECT_SERVER__TELEMETRY__ENABLED=(
+            "true" if config.server.telemetry.enabled is True else "false"
+        ),
+    )
+
+    POSTGRES_ENV = dict(
+        POSTGRES_HOST_PORT=str(postgres_port),
+        POSTGRES_USER=config.server.database.username,
+        POSTGRES_PASSWORD=config.server.database.password,
+        POSTGRES_DB=config.server.database.name,
+        POSTGRES_DATA_PATH=volume_path,
+    )
+
+    UI_ENV = dict(
+        APOLLO_URL=config.server.ui.apollo_url, PREFECT_UI_TAG=ui_version or default_tag
+    )
+
+    HASURA_ENV = dict(HASURA_HOST_PORT=str(hasura_port))
+
+    env = os.environ.copy()
+
+    # Check for env var / cli conflict
+    # TODO: Consider removal in next major version, previously the env would override
+    #       the cli without warning
+
+    if "PREFECT_UI_TAG" in env and ui_version and env["PREFECT_UI_TAG"] != ui_version:
+        warnings.warn(
+            "The UI version has been set in the environment via `PREFECT_UI_TAG` and "
+            f"the CLI. The environment variable value (={env['PREFECT_UI_TAG']}) will "
+            "be ignored."
+        )
+
+    if "PREFECT_SERVER_TAG" in env and version and env["PREFECT_SERVER_TAG"] != version:
+        warnings.warn(
+            "The version has been set in the environment via `PREFECT_SERVER_TAG` and "
+            f"the CLI. The environment variable value (={env['PREFECT_SERVER_TAG']}) "
+            "will be ignored."
+        )
+
+    if "PREFECT_SERVER_DB_CMD" in env and no_upgrade:
+        warnings.warn(
+            "The database startup command has been set in the environment via "
+            "`PREFECT_SERVER_DB_CMD` and `--no-upgrade` has been passed via CLI. The "
+            "environment variable value (={env['PREFECT_SERVER_DB_CMD']}) will be "
+            "ignored."
+        )
+    else:
+        # Allow a more complex database command to be passed via env
+        env.setdefault(
+            "PREFECT_SERVER_DB_CMD",
+            "prefect-server database upgrade -y"
+            if not no_upgrade
+            else "echo 'DATABASE MIGRATIONS SKIPPED'",
+        )
+
+    env.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
+
+    return env
+
+
+@server.command(hidden=True, name="config")
+@add_options(COMMON_SERVER_OPTIONS)
+def config_cmd(
+    version,
+    ui_version,
+    no_upgrade,
+    no_ui,
+    postgres_port,
+    hasura_port,
+    graphql_port,
+    ui_port,
+    server_port,
+    no_postgres_port,
+    no_hasura_port,
+    no_graphql_port,
+    no_ui_port,
+    no_server_port,
+    use_volume,
+    volume_path,
+):
+    """
+    This command writes the configured docker-compose.yml file to standard output
+
+    \b
+    Options:
+        --version, -v       TEXT    The server image versions to use (for example, '0.1.0'
+                                    or 'master'). Defaults to `core-a.b.c` where `a.b.c.`
+                                    is the version of Prefect Core currently running.
+        --ui-version, -uv   TEXT    The UI image version to use (for example, '0.1.0' or
+                                    'master'). Defaults to `core-a.b.c` where `a.b.c.` is
+                                    the version of Prefect Core currently running.
+        --no-upgrade, -n            Flag to avoid running a database upgrade when the
+                                    database spins up
+        --no-ui, -u                 Flag to avoid starting the UI
+
+    \b
+        --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
+        --hasura-port       TEXT    Port used to serve Hasura, defaults to '3000'
+        --graphql-port      TEXT    Port used to serve the GraphQL API, defaults to '4201'
+        --ui-port           TEXT    Port used to serve the UI, defaults to '8080'
+        --server-port       TEXT    Port used to serve the Core server, defaults to '4200'
+
+    \b
+        --no-postgres-port          Disable port map of Postgres to host
+        --no-hasura-port            Disable port map of Hasura to host
+        --no-graphql-port           Disable port map of the GraphQL API to host
+        --no-ui-port                Disable port map of the UI to host
+        --no-server-port            Disable port map of the Core server to host
+
+    \b
+        --use-volume                Enable the use of a volume for the Postgres service
+        --volume-path       TEXT    A path to use for the Postgres volume, defaults to
+                                    '~/.prefect/pg_data'
+    """
+    compose_path = setup_compose_file(
+        no_ui=no_ui,
+        no_postgres_port=no_postgres_port,
+        no_hasura_port=no_hasura_port,
+        no_graphql_port=no_graphql_port,
+        no_ui_port=no_ui_port,
+        no_server_port=no_server_port,
+        use_volume=use_volume,
+    )
+
+    compose_dir_path = str(Path(compose_path).parent)
+
+    env = setup_compose_env(
+        version=version,
+        ui_version=ui_version,
+        no_upgrade=no_upgrade,
+        postgres_port=postgres_port,
+        hasura_port=hasura_port,
+        graphql_port=graphql_port,
+        ui_port=ui_port,
+        server_port=server_port,
+        volume_path=volume_path,
+    )
+
+    subprocess.check_call(["docker-compose", "config"], cwd=compose_dir_path, env=env)
+
+
 @server.command(hidden=True)
-@click.option(
-    "--version",
-    "-v",
-    help="The server image versions to use (for example, '0.1.0' or 'master')",
-    hidden=True,
-)
-@click.option(
-    "--ui-version",
-    "-uv",
-    help="The UI image version to use (for example, '0.1.0' or 'master')",
-    hidden=True,
-)
-@click.option(
-    "--skip-pull",
-    help="Pass this flag to skip pulling new images (if available)",
-    is_flag=True,
-    hidden=True,
-)
-@click.option(
-    "--no-upgrade",
-    "-n",
-    help="Pass this flag to avoid running a database upgrade when the database spins up",
-    is_flag=True,
-    hidden=True,
-)
-@click.option(
-    "--no-ui",
-    "-u",
-    help="Pass this flag to avoid starting the UI",
-    is_flag=True,
-    hidden=True,
-)
+@add_options(COMMON_SERVER_OPTIONS)
 @click.option(
     "--detach",
     "-d",
@@ -124,87 +397,9 @@ def server():
     hidden=True,
 )
 @click.option(
-    "--dump",
-    help=(
-        "Instead of running the Server, dump the generated docker-compose.yml file and "
-        ".env file to the given directory"
-    ),
-    type=click.Path(exists=True, file_okay=False, writable=True),
-    hidden=True,
-)
-@click.option(
-    "--postgres-port",
-    help="The port used to serve Postgres",
-    default=config.server.database.host_port,
-    type=str,
-    hidden=True,
-)
-@click.option(
-    "--hasura-port",
-    help="The port used to serve Hasura",
-    default=config.server.hasura.host_port,
-    type=str,
-    hidden=True,
-)
-@click.option(
-    "--graphql-port",
-    help="The port used to serve the GraphQL API",
-    default=config.server.graphql.host_port,
-    type=str,
-    hidden=True,
-)
-@click.option(
-    "--ui-port",
-    help="The port used to serve the UI",
-    default=config.server.ui.host_port,
-    type=str,
-    hidden=True,
-)
-@click.option(
-    "--server-port",
-    help="The port used to serve the Core server",
-    default=config.server.host_port,
-    type=str,
-    hidden=True,
-)
-@click.option(
-    "--no-postgres-port",
-    help="Disable port map of Postgres to host",
+    "--skip-pull",
+    help="Pass this flag to skip pulling new images (if available)",
     is_flag=True,
-    hidden=True,
-)
-@click.option(
-    "--no-hasura-port",
-    help="Disable port map of Hasura to host",
-    is_flag=True,
-    hidden=True,
-)
-@click.option(
-    "--no-graphql-port",
-    help="Disable port map of the GraphqlAPI to host",
-    is_flag=True,
-    hidden=True,
-)
-@click.option(
-    "--no-ui-port", help="Disable port map of the UI to host", is_flag=True, hidden=True
-)
-@click.option(
-    "--no-server-port",
-    help="Disable port map of the Core server to host",
-    is_flag=True,
-    hidden=True,
-)
-@click.option(
-    "--use-volume",
-    help="Enable the use of a volume for the postgres service",
-    is_flag=True,
-    hidden=True,
-)
-@click.option(
-    "--volume-path",
-    help="A path to use for the postgres volume",
-    default=config.server.database.volume_path,
-    type=str,
     hidden=True,
 )
 def start(
@@ -214,7 +409,6 @@ def start(
     no_upgrade,
     no_ui,
     detach,
-    dump,
     postgres_port,
     hasura_port,
     graphql_port,
@@ -239,13 +433,9 @@ def start(
         --ui-version, -uv   TEXT    The UI image version to use (for example, '0.1.0' or
                                     'master'). Defaults to `core-a.b.c` where `a.b.c.` is
                                     the version of Prefect Core currently running.
-        --skip-pull                 Flag to skip pulling new images (if available)
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
-        --detach, -d                Detached mode. Runs Server containers in the background
-        --dump, -d          TEXT    Instead of starting the server, dump the configured
-                                    docker-compose file and .env to the given directory
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
@@ -265,102 +455,35 @@ def start(
         --use-volume                Enable the use of a volume for the Postgres service
         --volume-path       TEXT    A path to use for the Postgres volume, defaults to
                                     '~/.prefect/pg_data'
+
+    \b
+        --detach, -d                Detached mode. Runs Server containers in the background
+        --skip-pull                 Flag to skip pulling new images (if available)
     """
 
-    docker_dir = Path(__file__).parents[0]
-    compose_dir_path = docker_dir
+    compose_path = setup_compose_file(
+        no_ui=no_ui,
+        no_postgres_port=no_postgres_port,
+        no_hasura_port=no_hasura_port,
+        no_graphql_port=no_graphql_port,
+        no_ui_port=no_ui_port,
+        no_server_port=no_server_port,
+        use_volume=use_volume,
+    )
 
-    # Remove port mappings if specified
-    if (
-        no_postgres_port
-        or no_hasura_port
-        or no_graphql_port
-        or no_ui_port
-        or no_server_port
-        or not use_volume
-        or no_ui
-    ):
-        temp_dir = tempfile.gettempdir()
-        temp_path = os.path.join(temp_dir, "docker-compose.yml")
-        shutil.copy2(os.path.join(docker_dir, "docker-compose.yml"), temp_path)
+    compose_dir_path = str(Path(compose_path).parent)
 
-        with open(temp_path, "r") as file:
-            y = yaml.safe_load(file)
-
-            if no_postgres_port:
-                del y["services"]["postgres"]["ports"]
-
-            if no_hasura_port:
-                del y["services"]["hasura"]["ports"]
-
-            if no_graphql_port:
-                del y["services"]["graphql"]["ports"]
-
-            if no_ui_port:
-                del y["services"]["ui"]["ports"]
-
-            if no_server_port:
-                del y["services"]["apollo"]["ports"]
-
-            if not use_volume:
-                del y["services"]["postgres"]["volumes"]
-
-            if no_ui:
-                del y["services"]["ui"]
-
-        with open(temp_path, "w") as f:
-            y = yaml.safe_dump(y, f)
-
-        compose_dir_path = temp_dir
-
-    # Temporary config set for port allocation
-    with set_temporary_config(
-        {
-            "server.database.host_port": str(postgres_port),
-            "server.hasura.host_port": str(hasura_port),
-            "server.graphql.host_port": str(graphql_port),
-            "server.ui.host_port": str(ui_port),
-            "server.host_port": str(server_port),
-            "server.database.volume_path": volume_path,
-        }
-    ):
-        # We exclude the current environment if dumping the file where we just want
-        # the proper Prefect env
-        env = make_env(include_local=not bool(dump))
-
-    base_version = prefect.__version__.split("+")
-    if len(base_version) > 1:
-        default_tag = "master"
-    else:
-        default_tag = f"core-{base_version[0]}"
-    if "PREFECT_SERVER_TAG" not in env:
-        env.update(PREFECT_SERVER_TAG=version or default_tag)
-    if "PREFECT_UI_TAG" not in env:
-        env.update(PREFECT_UI_TAG=ui_version or default_tag)
-    if "PREFECT_SERVER_DB_CMD" not in env:
-        cmd = (
-            "prefect-server database upgrade -y"
-            if not no_upgrade
-            else "echo 'DATABASE MIGRATIONS SKIPPED'"
-        )
-        env.update(PREFECT_SERVER_DB_CMD=cmd)
-
-    # Pass the Core version so the Server API can return it
-    env.update(PREFECT_CORE_VERSION=prefect.__version__)
-
-    if dump:
-        dump_dir = Path(dump)
-        Path(compose_dir_path).joinpath("docker-compose.yml").rename(
-            dump_dir.joinpath("docker-compose.yml")
-        )
-        with dump_dir.joinpath(".env").open("w") as fout:
-            env_vars = [
-                f"{k}={v!r}" if "\n" in v else f"{k}={v}" for k, v in env.items()
-            ]
-            fout.write("\n".join(env_vars) + "\n")
-
-        click.secho(f"Dumped docker-compose.yml and .env to '{dump_dir}', exiting...")
-        return
+    env = setup_compose_env(
+        version=version,
+        ui_version=ui_version,
+        no_upgrade=no_upgrade,
+        postgres_port=postgres_port,
+        hasura_port=hasura_port,
+        graphql_port=graphql_port,
+        ui_port=ui_port,
+        server_port=server_port,
+        volume_path=volume_path,
+    )
 
     proc = None
     try:
