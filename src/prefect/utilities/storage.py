@@ -68,34 +68,38 @@ def extract_flow_from_file(
     Raises:
         - ValueError: if both `file_path` and `file_contents` are provided or neither are.
     """
-    if file_path and file_contents:
-        raise ValueError("Provide either `file_path` or `file_contents` but not both.")
+    if file_path is not None:
+        if file_contents is not None:
+            raise ValueError(
+                "Provide either `file_path` or `file_contents` but not both."
+            )
 
-    if not file_path and not file_contents:
-        raise ValueError("Provide either `file_path` or `file_contents`.")
-
-    # Read file contents
-    if file_path:
         with open(file_path, "r") as f:
             contents = f.read()
-
-    # Use contents directly
-    if file_contents:
+    elif file_contents is not None:
         contents = file_contents
+    else:
+        raise ValueError("Provide either `file_path` or `file_contents`.")
 
     # Load objects from file into dict
     exec_vals = {}  # type: ignore
     exec(contents, exec_vals)
 
     # Grab flow name from values loaded via exec
-    for var in exec_vals:
-        if isinstance(exec_vals[var], prefect.Flow):
-            if flow_name and exec_vals[var].name == flow_name:
-                return exec_vals[var]
-            elif not flow_name:
-                return exec_vals[var]
-
-    raise ValueError("No flow found in file.")
+    flows = {o.name: o for o in exec_vals.values() if isinstance(o, prefect.Flow)}
+    if flows:
+        if flow_name:
+            if flow_name in flows:
+                return flows[flow_name]
+            else:
+                flows_list = "\n".join("- %r" % n for n in sorted(flows))
+                raise ValueError(
+                    f"Flow {flow_name!r} not found in file. Found flows:\n{flows_list}"
+                )
+        else:
+            return list(flows.values())[0]
+    else:
+        raise ValueError("No flows found in file.")
 
 
 def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
