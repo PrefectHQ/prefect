@@ -422,11 +422,14 @@ class DatabricksRunNow(Task):
 
     spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
 
+    jar_params = ["john doe","35"]
+
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
     notebook_run = DatabricksRunNow(
         notebook_params=notebook_params,
         python_params=python_params,
-        spark_submit_params=spark_submit_params
+        spark_submit_params=spark_submit_params,
+        jar_params=jar_params
     )
     notebook_run(databricks_conn_secret=conn)
     ```
@@ -455,6 +458,7 @@ class DatabricksRunNow(Task):
     - `notebook_params`
     - `python_params`
     - `spark_submit_params`
+    - `jar_params`
 
     Args:
         - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
@@ -501,6 +505,13 @@ class DatabricksRunNow(Task):
             in job setting.
             The json representation of this field cannot exceed 10,000 bytes.
             https://docs.databricks.com/api/latest/jobs.html#run-now
+        - jar_params (list[str], optional): A list of parameters for jobs with JAR tasks,
+            e.g. "jar_params": ["john doe", "35"]. The parameters will be used to invoke the main
+            function of the main class specified in the Spark JAR task. If not specified upon
+            run-now, it will default to an empty list. jar_params cannot be specified in conjunction
+            with notebook_params. The JSON representation of this field (i.e.
+            {"jar_params":["john doe","35"]}) cannot exceed 10,000 bytes.
+            https://docs.databricks.com/api/latest/jobs.html#run-now
         - timeout_seconds (int, optional): The timeout for this run. By default a value of 0 is used
             which means to have no timeout.
             This field will be templated.
@@ -522,6 +533,7 @@ class DatabricksRunNow(Task):
         notebook_params: dict = None,
         python_params: List[str] = None,
         spark_submit_params: List[str] = None,
+        jar_params: List[str] = None,
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
@@ -534,6 +546,7 @@ class DatabricksRunNow(Task):
         self.notebook_params = notebook_params
         self.python_params = python_params
         self.spark_submit_params = spark_submit_params
+        self.jar_params = jar_params
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
@@ -556,6 +569,7 @@ class DatabricksRunNow(Task):
         "notebook_params",
         "python_params",
         "spark_submit_params",
+        "jar_params",
         "polling_period_seconds",
         "databricks_retry_limit",
         "databricks_retry_delay",
@@ -568,6 +582,7 @@ class DatabricksRunNow(Task):
         notebook_params: dict = None,
         python_params: List[str] = None,
         spark_submit_params: List[str] = None,
+        jar_params: List[str] = None,
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
@@ -622,6 +637,13 @@ class DatabricksRunNow(Task):
                 in job setting.
                 The json representation of this field cannot exceed 10,000 bytes.
                 https://docs.databricks.com/api/latest/jobs.html#run-now
+            - jar_params (list[str], optional): A list of parameters for jobs with JAR tasks,
+                e.g. "jar_params": ["john doe", "35"]. The parameters will be used to invoke the main
+                function of the main class specified in the Spark JAR task. If not specified upon
+                run-now, it will default to an empty list. jar_params cannot be specified in conjunction
+                with notebook_params. The JSON representation of this field (i.e.
+                {"jar_params":["john doe","35"]}) cannot exceed 10,000 bytes.
+                https://docs.databricks.com/api/latest/jobs.html#run-now
             - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
                 this run. By default the task will poll every 30 seconds.
             - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
@@ -655,7 +677,8 @@ class DatabricksRunNow(Task):
             self.json["python_params"] = self.python_params
         if self.spark_submit_params is not None:
             self.json["spark_submit_params"] = self.spark_submit_params
-
+        if self.jar_params is not None:
+            self.json["jar_params"] = self.jar_params
         # Validate the dictionary to a valid JSON object
         self.json = _deep_string_coerce(self.json)
 
