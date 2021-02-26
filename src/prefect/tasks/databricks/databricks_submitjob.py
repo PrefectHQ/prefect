@@ -679,6 +679,7 @@ class DatabricksRunNow(Task):
             self.json["spark_submit_params"] = self.spark_submit_params
         if self.jar_params is not None:
             self.json["jar_params"] = self.jar_params
+
         # Validate the dictionary to a valid JSON object
         self.json = _deep_string_coerce(self.json)
 
