@@ -953,7 +953,7 @@ class Task(metaclass=TaskMetaclass):
             - Task
         """
         return prefect.tasks.core.operators.GetItem(
-            checkpoint=self.checkpoint, result=self.result
+            checkpoint=self.checkpoint, name=f"{self.name}[{key}]", result=self.result
         ).bind(self, key)
 
     def __or__(self, other: object) -> object:
