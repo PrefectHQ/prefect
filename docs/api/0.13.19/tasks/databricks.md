@@ -83,7 +83,7 @@ Currently the named parameters that `DatabricksSubmitRun` task supports are
 <br>
 
  ## DatabricksRunNow
- <div class='class-sig' id='prefect-tasks-databricks-databricks-submitjob-databricksrunnow'><p class="prefect-sig">class </p><p class="prefect-class">prefect.tasks.databricks.databricks_submitjob.DatabricksRunNow</p>(databricks_conn_secret=None, job_id=None, json=None, notebook_params=None, python_params=None, spark_submit_params=None, jar_params=None, polling_period_seconds=30, databricks_retry_limit=3, databricks_retry_delay=1, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/databricks/databricks_submitjob.py#L374">[source]</a></span></div>
+ <div class='class-sig' id='prefect-tasks-databricks-databricks-submitjob-databricksrunnow'><p class="prefect-sig">class </p><p class="prefect-class">prefect.tasks.databricks.databricks_submitjob.DatabricksRunNow</p>(databricks_conn_secret=None, job_id=None, json=None, notebook_params=None, python_params=None, spark_submit_params=None, polling_period_seconds=30, databricks_retry_limit=3, databricks_retry_delay=1, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/databricks/databricks_submitjob.py#L374">[source]</a></span></div>
 
 Runs an existing Spark job run to Databricks using the `api/2.0/jobs/run-now <https://docs.databricks.com/api/latest/jobs.html#run-now>`_ API endpoint.
 
