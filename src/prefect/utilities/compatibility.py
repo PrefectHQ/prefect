@@ -25,8 +25,9 @@ else:
 # Provide 3.6/3.7 `call` with `.args` and `.kwargs`
 
 
-def Call(call):
+def Call(call):  # type: ignore
     # Takes a `unittest.mock.call` and adds args/kwargs properties
+    # We cannot enforce type-checks here because unittest.mock._Call is private
 
     if sys.version_info < (3, 8):
         # Properties were added in 3.8
