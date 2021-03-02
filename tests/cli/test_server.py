@@ -159,6 +159,69 @@ class TestSetupComposeEnv:
             assert env[key] == expected_value
 
 
+class TestSetupComposeFile:
+    @pytest.mark.parametrize(
+        "service", ["postgres", "hasura", "graphql", "ui", "server"]
+    )
+    def test_disable_port_mapping(self, service):
+        compose_file = setup_compose_file(**{f"no_{service}_port": True})
+
+        with open(compose_file) as file:
+            compose_yml = yaml.safe_load(file)
+
+        default_compose_file = setup_compose_file()
+        with open(default_compose_file) as file:
+            default_compose_yml = yaml.safe_load(file)
+
+        if service == "server":
+            service = "apollo"
+
+        # Ensure ports is not set
+        assert "ports" not in compose_yml["services"][service]
+
+        # Ensure nothing else has changed
+        default_compose_yml["services"][service].pop("ports")
+        assert compose_yml == default_compose_yml
+
+    def test_disable_ui_service(
+        self,
+    ):
+        compose_file = setup_compose_file(no_ui=True)
+
+        with open(compose_file) as file:
+            compose_yml = yaml.safe_load(file)
+
+        default_compose_file = setup_compose_file()
+        with open(default_compose_file) as file:
+            default_compose_yml = yaml.safe_load(file)
+
+        # Ensure ui is not set
+        assert "ui" not in compose_yml["services"]
+
+        # Ensure nothing else has changed
+        default_compose_yml["services"].pop("ui")
+        assert compose_yml == default_compose_yml
+
+    def test_disable_postgres_volumes(
+        self,
+    ):
+        compose_file = setup_compose_file(use_volume=False)
+
+        with open(compose_file) as file:
+            compose_yml = yaml.safe_load(file)
+
+        default_compose_file = setup_compose_file()
+        with open(default_compose_file) as file:
+            default_compose_yml = yaml.safe_load(file)
+
+        # Ensure ui is not set
+        assert "volumes" not in compose_yml["services"]["postgres"]
+
+        # Ensure nothing else has changed
+        default_compose_yml["services"]["postgres"].pop("volumes")
+        assert compose_yml == default_compose_yml
+
+
 # Test commands ------------------------------------------------------------------------
 
 

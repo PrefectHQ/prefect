@@ -150,14 +150,17 @@ COMMON_SERVER_OPTIONS = [
 
 
 def setup_compose_file(
-    no_ui,
-    no_postgres_port,
-    no_hasura_port,
-    no_graphql_port,
-    no_ui_port,
-    no_server_port,
-    use_volume,
+    no_ui=False,
+    no_postgres_port=False,
+    no_hasura_port=False,
+    no_graphql_port=False,
+    no_ui_port=False,
+    no_server_port=False,
+    use_volume=True,
 ) -> str:
+    # Defaults should be set in the `click` command option, these defaults are to
+    # simplify testing
+
     base_compose_path = Path(__file__).parents[0].joinpath("docker-compose.yml")
 
     temp_dir = tempfile.gettempdir()
@@ -220,6 +223,9 @@ def setup_compose_env(
     server_port=None,
     volume_path=None,
 ):
+    # Defaults should be set in the `click` command option, these should _not_ be `None`
+    # at runtime.
+
     # Pull current version information
     base_version = prefect.__version__.split("+")
     if len(base_version) > 1:
