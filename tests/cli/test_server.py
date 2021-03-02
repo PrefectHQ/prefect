@@ -9,6 +9,7 @@ import yaml
 import prefect
 from prefect.cli.server import server, setup_compose_env, setup_compose_file
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.compatibility import Call
 
 
 @pytest.fixture()
@@ -37,20 +38,21 @@ def assert_command_not_called(mock: MagicMock, command: List[str]) -> None:
     """
     Assert a mocked `subprocess` was not called with the given command
     """
-    for call in mock.mock_calls:
-        if call.args:
-            assert call.args[0] != command
+    for call_ in mock.mock_calls:
+        call_ = call(call_)
+        if call_.args:
+            assert call_.args[0] != command
 
 
 def get_command_call(mock: MagicMock, command: List[str]) -> call:
     """
     Get a mock `call` by command from the a mocked `subprocess` creation
     """
-    for call in mock.mock_calls:
+    for call in map(Call, mock.mock_calls):
         if call.args and call.args[0] == command:
             return call
 
-    call_commands = [call.args[0] for call in mock.mock_calls if call.args]
+    call_commands = [call.args[0] for call in map(Call, mock.mock_calls) if call.args]
     raise ValueError(f"{command} was not found in {call_commands}")
 
 
