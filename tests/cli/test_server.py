@@ -240,9 +240,7 @@ def test_server_help():
 
 
 class TestPrefectServerStart:
-    def test_server_start_setup_and_teardown(
-        self, monkeypatch, macos_platform, mock_subprocess
-    ):
+    def test_server_start_setup_and_teardown(self, macos_platform, mock_subprocess):
         # Pull current version information to test default values
         base_version = prefect.__version__.split("+")
         if len(base_version) > 1:
@@ -286,7 +284,7 @@ class TestPrefectServerStart:
         # Ensure the docker-compose.yml exists at the tmpdir
         assert os.path.exists(os.path.join(cwd, "docker-compose.yml"))
 
-    def test_server_start_skip_pull(self, monkeypatch, macos_platform, mock_subprocess):
+    def test_server_start_skip_pull(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
             server,
             ["start", "--skip-pull"],
@@ -294,9 +292,7 @@ class TestPrefectServerStart:
         assert_command_not_called(mock_subprocess, ["docker-compose", "pull"])
         assert get_command_call(mock_subprocess, ["docker-compose", "up"])
 
-    def test_server_start_no_upgrade(
-        self, monkeypatch, macos_platform, mock_subprocess
-    ):
+    def test_server_start_no_upgrade(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
             server,
             ["start", "--no-upgrade"],
@@ -305,9 +301,7 @@ class TestPrefectServerStart:
         env = up.kwargs.get("env")
         assert env["PREFECT_SERVER_DB_CMD"] == "echo 'DATABASE MIGRATIONS SKIPPED'"
 
-    def test_server_start_port_options(
-        self, monkeypatch, macos_platform, mock_subprocess
-    ):
+    def test_server_start_port_options(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
             server,
             [
@@ -332,17 +326,14 @@ class TestPrefectServerStart:
         assert env["UI_HOST_PORT"] == "4"
         assert env["APOLLO_HOST_PORT"] == "5"
 
-    def test_server_start_detach(self, monkeypatch, macos_platform, mock_subprocess):
-
+    def test_server_start_detach(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
             server,
             ["start", "--detach"],
         )
         assert get_command_call(mock_subprocess, ["docker-compose", "up", "--detach"])
 
-    def test_server_start_disable_port_mapping(
-        self, monkeypatch, macos_platform, mock_subprocess
-    ):
+    def test_server_start_disable_port_mapping(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
             server,
             [
@@ -367,9 +358,7 @@ class TestPrefectServerStart:
         assert "ports" not in compose_yml["services"]["apollo"]
         assert "volumes" not in compose_yml["services"]["postgres"]
 
-    def test_server_start_no_ui_service(
-        self, monkeypatch, macos_platform, mock_subprocess
-    ):
+    def test_server_start_no_ui_service(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
             server,
             ["start", "--no-ui"],
