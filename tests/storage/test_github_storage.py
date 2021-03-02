@@ -29,13 +29,14 @@ def test_create_github_storage():
 
 def test_create_github_storage_init_args():
     storage = GitHub(
-        repo="test/repo", path="flow.py", ref="my_branch", secrets=["auth"]
+        repo="test/repo", path="flow.py", ref="my_branch", base_url="https://some-url", secrets=["auth"]
     )
     assert storage
     assert storage.flows == dict()
     assert storage.repo == "test/repo"
     assert storage.path == "flow.py"
     assert storage.ref == "my_branch"
+    assert storage.base_url == "https://some-url"
     assert storage.secrets == ["auth"]
 
 
@@ -70,6 +71,17 @@ def test_github_access_token_errors_if_provided_and_not_found(monkeypatch):
     with context(secrets={}):
         with pytest.raises(Exception, match="MISSING"):
             storage._get_github_client()
+
+
+def test_github_base_url(monkeypatch):
+    orig_github = github.Github
+    mock_github = MagicMock(wraps=github.Github)
+    monkeypatch.setattr("github.Github", mock_github)
+    storage = GitHub(repo="test/repo", path="flow.py", access_token_secret="TEST", base_url="https://some-url")
+    with context(secrets={"TEST": "TEST-VAL"}):
+        client = storage._get_github_client()
+    assert isinstance(client, orig_github)
+    assert mock_github.call_args[1]['base_url'] == "https://some-url"
 
 
 def test_add_flow_to_github_storage():
