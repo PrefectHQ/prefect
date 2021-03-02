@@ -215,6 +215,7 @@ module.exports = {
             'flow_config/storage',
             'flow_config/run_configs',
             'flow_config/executors',
+            'flow_config/docker',
             'flow_config/upgrade'
           ]
         },
