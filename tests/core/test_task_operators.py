@@ -92,7 +92,7 @@ class TestMagicInteractionMethods:
             y = Parameter("y")["a"]
             assert y.name == "y['a']"
             z = Parameter("z")[Parameter("a")]
-            assert z.name == "z[<Parameter: a>]"
+            assert z.name == "z[a]"
 
     # -----------------------------------------
     # or / pipe / |
