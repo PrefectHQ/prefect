@@ -210,15 +210,15 @@ def setup_compose_file(
 
 
 def setup_compose_env(
-    version,
-    ui_version,
-    no_upgrade,
-    postgres_port,
-    hasura_port,
-    graphql_port,
-    ui_port,
-    server_port,
-    volume_path,
+    version=None,
+    ui_version=None,
+    no_upgrade=None,
+    postgres_port=None,
+    hasura_port=None,
+    graphql_port=None,
+    ui_port=None,
+    server_port=None,
+    volume_path=None,
 ):
     # Pull current version information
     base_version = prefect.__version__.split("+")
@@ -292,14 +292,15 @@ def setup_compose_env(
             "environment variable value (={env['PREFECT_SERVER_DB_CMD']}) will be "
             "ignored."
         )
-    else:
-        # Allow a more complex database command to be passed via env
-        env.setdefault(
-            "PREFECT_SERVER_DB_CMD",
-            "prefect-server database upgrade -y"
-            if not no_upgrade
-            else "echo 'DATABASE MIGRATIONS SKIPPED'",
-        )
+        env.pop("PREFECT_SERVER_DB_CMD")
+
+    # Allow a more complex database command to be passed via env
+    env.setdefault(
+        "PREFECT_SERVER_DB_CMD",
+        "prefect-server database upgrade -y"
+        if not no_upgrade
+        else "echo 'DATABASE MIGRATIONS SKIPPED'",
+    )
 
     env.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
 
