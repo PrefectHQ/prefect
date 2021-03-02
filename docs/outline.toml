@@ -363,9 +363,9 @@ classes = [
         "ExasolExportToFile"
         ]
 
-[pages.tasks.filehandling]
-title = "Filehandling Tasks"
-module = "prefect.tasks.filehandling"
+[pages.tasks.files]
+title = "File and Filesystem Tasks"
+module = "prefect.tasks.files"
 classes = [
         "Move",
         "Unzip",
