@@ -29,7 +29,11 @@ def test_create_github_storage():
 
 def test_create_github_storage_init_args():
     storage = GitHub(
-        repo="test/repo", path="flow.py", ref="my_branch", base_url="https://some-url", secrets=["auth"]
+        repo="test/repo",
+        path="flow.py",
+        ref="my_branch",
+        base_url="https://some-url",
+        secrets=["auth"],
     )
     assert storage
     assert storage.flows == dict()
@@ -77,11 +81,16 @@ def test_github_base_url(monkeypatch):
     orig_github = github.Github
     mock_github = MagicMock(wraps=github.Github)
     monkeypatch.setattr("github.Github", mock_github)
-    storage = GitHub(repo="test/repo", path="flow.py", access_token_secret="TEST", base_url="https://some-url")
+    storage = GitHub(
+        repo="test/repo",
+        path="flow.py",
+        access_token_secret="TEST",
+        base_url="https://some-url",
+    )
     with context(secrets={"TEST": "TEST-VAL"}):
         client = storage._get_github_client()
     assert isinstance(client, orig_github)
-    assert mock_github.call_args[1]['base_url'] == "https://some-url"
+    assert mock_github.call_args[1]["base_url"] == "https://some-url"
 
 
 def test_add_flow_to_github_storage():

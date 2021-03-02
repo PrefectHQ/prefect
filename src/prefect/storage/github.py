@@ -50,7 +50,7 @@ class GitHub(Storage):
         path: str,
         ref: str = None,
         access_token_secret: str = None,
-        base_url = None,
+        base_url=None,
         **kwargs: Any,
     ) -> None:
         self.repo = repo
