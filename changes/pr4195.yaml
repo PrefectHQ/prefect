@@ -1,0 +1,6 @@
+fix:
+  - "Ensure the S3 storage properly initialize the S3Result with client_option"
+
+
+contributor:
+  - "[David Zucker](https://github.com/davzucky)"
