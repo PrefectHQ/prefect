@@ -391,7 +391,7 @@ class TestPrefectServerStart:
 
 
 class TestPrefectServerConfig:
-    def test_server_config_setup(self):
+    def test_server_config_setup(self, mock_subprocess):
         # Pull current version information to test default values
         base_version = prefect.__version__.split("+")
         if len(base_version) > 1:
