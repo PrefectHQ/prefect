@@ -1,5 +1,0 @@
-enhancement:
-  - "Improve generated names for `GetItem` tasks - [#4183](https://github.com/PrefectHQ/prefect/pull/4183)"
-
-contributor:
-  - "[Jacob Hayes](https://github.com/JacobHayes)"

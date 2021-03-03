@@ -1,5 +1,0 @@
-enhancement:
-  - "DatabricksRunNow: accept jar_params - [#4157](https://github.com/PrefectHQ/prefect/pull/4178)"
-
-contributor:
-  - "[Yogi Patel](https://github.com/ypatel-whitepages)"

@@ -1,2 +1,0 @@
-fix:
-  - "Make task slug generation robust to modifying existing task names - [#4189](https://github.com/PrefectHQ/prefect/pull/4189)"

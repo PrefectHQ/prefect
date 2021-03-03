@@ -1,6 +1,0 @@
-fix:
-  - "Forward `client_options` to `S3Result` from `S3` storage - [#4195](https://github.com/PrefectHQ/prefect/pull/4195"
-
-
-contributor:
-  - "[David Zucker](https://github.com/davzucky)"
