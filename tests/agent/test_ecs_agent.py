@@ -4,6 +4,10 @@ import box
 import pytest
 import yaml
 
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+
+import prefect
 from prefect.agent.ecs.agent import (
     merge_run_task_kwargs,
     ECSAgent,
@@ -14,9 +18,12 @@ from prefect.run_configs import ECSRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.aws import _CLIENT_CACHE
 
-pytest.importorskip("boto3")
-pytest.importorskip("botocore")
+
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CLIENT_CACHE.clear()
 
 
 @pytest.fixture
@@ -484,7 +491,7 @@ class TestGetRunTaskKwargs:
             "overrides": {"cpu": "2048", "memory": "2048", "taskRoleArn": "testing"},
         }
 
-    def test_get_run_task_kwargs_environment(self, tmpdir):
+    def test_get_run_task_kwargs_environment(self, tmpdir, backend):
         path = str(tmpdir.join("kwargs.yaml"))
         with open(path, "w") as f:
             yaml.safe_dump(
@@ -512,7 +519,8 @@ class TestGetRunTaskKwargs:
         env_list = kwargs["overrides"]["containerOverrides"][0]["environment"]
         env = {item["name"]: item["value"] for item in env_list}
         assert env == {
-            "PREFECT__CLOUD__API": "https://api.prefect.io",
+            "PREFECT__BACKEND": backend,
+            "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",

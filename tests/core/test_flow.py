@@ -48,6 +48,7 @@ from prefect.run_configs import LocalRun, UniversalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import TaskTimeoutError
 from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.tasks import task
 from prefect.utilities.edges import unmapped
@@ -3114,7 +3115,7 @@ def test_timeout_actually_stops_execution(
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
-    assert isinstance(state.result[slow_fn].result, TimeoutError)
+    assert isinstance(state.result[slow_fn].result, TaskTimeoutError)
     # We cannot capture the UserWarning because it is being run by a Dask worker
     # but we can make sure the TimeoutError includes a note about it
     assert (
@@ -3195,12 +3196,16 @@ def test_run_agent_passes_flow_labels(monkeypatch, kind):
 
 class TestSlugGeneration:
     def test_slugs_are_stable(self):
-        tasks = [Task(name=str(x)) for x in range(10)]
+        tasks = [Task(name="add") for _ in range(5)]
+        tasks.extend(Task(name="mul") for _ in range(5))
         flow_one = Flow("one", tasks=tasks)
         flow_two = Flow("two", tasks=tasks)
 
-        assert set(flow_one.slugs.values()) == set([str(x) + "-1" for x in range(10)])
-        assert flow_one.slugs == flow_two.slugs
+        sol = {f"add-{i}" for i in range(1, 6)}
+        sol.update(f"mul-{i}" for i in range(1, 6))
+
+        assert set(flow_one.slugs.values()) == sol
+        assert set(flow_two.slugs.values()) == sol
 
     def test_slugs_incorporate_tags_and_order(self):
         with Flow("one") as flow_one:
@@ -3223,3 +3228,27 @@ class TestSlugGeneration:
             "a-tag1-1",
             "b-tag1-tag2-1",
         }
+
+    def test_generated_slugs_dont_collide_with_user_provided_slugs(self):
+        with Flow("test") as flow:
+            a3 = Task("a", slug="a-3")
+            flow.add_task(a3)
+            a1 = Task("a")
+            flow.add_task(a1)
+            a2 = Task("a")
+            flow.add_task(a2)
+            a4 = Task("a")
+            flow.add_task(a4)
+
+        assert flow.slugs == {a1: "a-1", a2: "a-2", a3: "a-3", a4: "a-4"}
+
+    def test_slugs_robust_to_task_name_changes(self):
+        "See https://github.com/PrefectHQ/prefect/issues/4185"
+        with Flow("test") as flow:
+            a1 = Task("a")
+            flow.add_task(a1)
+            a1.name = "changed"
+            a2 = Task("a")
+            flow.add_task(a2)
+
+        assert flow.slugs == {a1: "a-1", a2: "a-2"}

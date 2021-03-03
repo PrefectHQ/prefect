@@ -2,6 +2,10 @@ class PrefectError(Exception):
     pass
 
 
+class TaskTimeoutError(PrefectError):
+    pass
+
+
 class ContextError(KeyError, PrefectError):
     pass
 

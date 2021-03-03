@@ -1,4 +1,6 @@
 import os
+import sys
+import types
 
 import pytest
 import cloudpickle
@@ -47,120 +49,138 @@ def test_get_flow_image_raises_on_missing_info():
         get_flow_image(flow=flow)
 
 
-def test_extract_flow_from_file(tmpdir):
-    contents = """from prefect import Flow\nf=Flow('test-flow')"""
+class TestExtractFlowFromFile:
+    @pytest.fixture
+    def flow_path(self, tmpdir):
+        contents = """from prefect import Flow\nf=Flow('flow-1')\nf2=Flow('flow-2')"""
 
-    full_path = os.path.join(tmpdir, "flow.py")
+        full_path = os.path.join(tmpdir, "flow.py")
 
-    with open(full_path, "w") as f:
-        f.write(contents)
+        with open(full_path, "w") as f:
+            f.write(contents)
 
-    flow = extract_flow_from_file(file_path=full_path)
-    assert flow.run().is_successful()
+        return full_path
 
-    flow = extract_flow_from_file(file_contents=contents)
-    assert flow.run().is_successful()
+    def test_extract_flow_from_file_path(self, flow_path):
+        flow = extract_flow_from_file(file_path=flow_path)
+        assert flow.name == "flow-1"
+        assert flow.run().is_successful()
 
-    flow = extract_flow_from_file(file_path=full_path, flow_name="test-flow")
-    assert flow.run().is_successful()
+        flow = extract_flow_from_file(file_path=flow_path, flow_name="flow-1")
+        assert flow.name == "flow-1"
 
-    with pytest.raises(ValueError):
-        extract_flow_from_file(file_path=full_path, flow_name="not-real")
+        flow = extract_flow_from_file(file_path=flow_path, flow_name="flow-2")
+        assert flow.name == "flow-2"
 
-    with pytest.raises(ValueError):
-        extract_flow_from_file(file_path=full_path, file_contents=contents)
+    def test_extract_flow_from_file_contents(self, flow_path):
+        with open(flow_path, "r") as f:
+            contents = f.read()
 
-    with pytest.raises(ValueError):
-        extract_flow_from_file()
+        flow = extract_flow_from_file(file_contents=contents)
+        assert flow.name == "flow-1"
+        assert flow.run().is_successful()
 
+        flow = extract_flow_from_file(file_contents=contents, flow_name="flow-1")
+        assert flow.name == "flow-1"
 
-def test_extract_flow_from_file_raises_on_run_register(tmpdir):
-    contents = """from prefect import Flow\nf=Flow('test-flow')\nf.run()"""
+        flow = extract_flow_from_file(file_contents=contents, flow_name="flow-2")
+        assert flow.name == "flow-2"
 
-    full_path = os.path.join(tmpdir, "flow.py")
+    def test_extract_flow_from_file_errors(self, flow_path):
+        with pytest.raises(ValueError, match="but not both"):
+            extract_flow_from_file(file_path="", file_contents="")
 
-    with open(full_path, "w") as f:
-        f.write(contents)
+        with pytest.raises(ValueError, match="Provide either"):
+            extract_flow_from_file()
 
-    with prefect.context({"loading_flow": True}):
-        with pytest.warns(Warning):
-            extract_flow_from_file(file_path=full_path)
-
-    contents = """from prefect import Flow\nf=Flow('test-flow')\nf.register()"""
-
-    full_path = os.path.join(tmpdir, "flow.py")
-
-    with open(full_path, "w") as f:
-        f.write(contents)
-
-    with prefect.context({"loading_flow": True}):
-        with pytest.warns(Warning):
-            extract_flow_from_file(file_path=full_path)
-
-
-flow = Flow("test-module-loading")
-
-
-def test_extract_flow_from_module():
-    module_name = "tests.utilities.test_storage"
-
-    multi_level_flow = Flow("test-module-loading-multilevel")
-    factory_flow = Flow("test-module-loading-callable")
-
-    test_extract_flow_from_module.multi_level_flow = multi_level_flow
-    test_extract_flow_from_module.not_a_flow = None
-    test_extract_flow_from_module.not_a_flow_factory = lambda: object()
-    test_extract_flow_from_module.invalid_callable = lambda _a, _b, **_kwargs: None
-
-    class FlowFactory:
-        @classmethod
-        def default_flow(cls):
-            return factory_flow
-
-    test_extract_flow_from_module.callable_flow = FlowFactory.default_flow
-
-    default_flow = extract_flow_from_module(module_name)
-    attribute_flow = extract_flow_from_module(module_name, "flow")
-    module_flow = extract_flow_from_module(f"{module_name}:flow")
-    multi_level_default_flow = extract_flow_from_module(
-        f"{module_name}:test_extract_flow_from_module.multi_level_flow"
-    )
-    multi_level_arg_flow = extract_flow_from_module(
-        module_name, "test_extract_flow_from_module.multi_level_flow"
-    )
-    callable_flow = extract_flow_from_module(
-        f"{module_name}:test_extract_flow_from_module.callable_flow"
-    )
-
-    assert flow == default_flow == attribute_flow == module_flow
-    assert multi_level_flow == multi_level_default_flow == multi_level_arg_flow
-    assert factory_flow == callable_flow
-
-    with pytest.raises(AttributeError):
-        extract_flow_from_module("tests.utilities.test_storage:should_not_exist_flow")
-
-    with pytest.raises(AttributeError):
-        extract_flow_from_module(
-            "tests.utilities.test_storage", "should_not_exist_flow"
+        expected = (
+            "Flow 'not-real' not found in file. Found flows:\n- 'flow-1'\n- 'flow-2'"
         )
+        with pytest.raises(ValueError, match=expected):
+            extract_flow_from_file(file_path=flow_path, flow_name="not-real")
 
-    with pytest.raises(ValueError, match="without an attribute specifier or remove"):
-        extract_flow_from_module("tests.utilities.test_storage:flow", "flow")
+        with pytest.raises(ValueError, match="No flows found in file."):
+            extract_flow_from_file(file_contents="")
 
-    with pytest.raises(ValueError, match="must return `prefect.Flow`"):
-        extract_flow_from_module(
-            f"{module_name}:test_extract_flow_from_module.not_a_flow"
-        )
+    @pytest.mark.parametrize("method", ["run", "register"])
+    def test_extract_flow_from_file_raises_on_run_register(self, tmpdir, method):
+        contents = f"from prefect import Flow\nf=Flow('test-flow')\nf.{method}()"
 
-    with pytest.raises(ValueError, match="must return `prefect.Flow`"):
-        extract_flow_from_module(
-            f"{module_name}:test_extract_flow_from_module.not_a_flow_factory"
-        )
+        full_path = os.path.join(tmpdir, "flow.py")
 
-    with pytest.raises(TypeError):
-        extract_flow_from_module(
-            f"{module_name}:test_extract_flow_from_module.invalid_callable"
-        )
+        with open(full_path, "w") as f:
+            f.write(contents)
+
+        with prefect.context({"loading_flow": True}):
+            with pytest.warns(Warning):
+                extract_flow_from_file(file_path=full_path)
+
+
+@pytest.fixture
+def mymodule(monkeypatch):
+    mod_name = "mymodule"
+    module = types.ModuleType(mod_name)
+    monkeypatch.setitem(sys.modules, mod_name, module)
+    return module
+
+
+def test_extract_flow_from_module(mymodule):
+    class Obj:
+        flow = Flow("multi-level flow")
+
+    mymodule.flow = Flow("top level flow")
+    mymodule.multi_level = Obj()
+    mymodule.bad_type = 1
+
+    # module with single top-level flow has flow auto-inferred
+    assert extract_flow_from_module("mymodule") is mymodule.flow
+    # Specifying name/attribute still works
+    assert extract_flow_from_module("mymodule", "top level flow") is mymodule.flow
+    assert extract_flow_from_module("mymodule:flow", "top level flow") is mymodule.flow
+
+    # Multi-level attrs work
+    assert extract_flow_from_module("mymodule:multi_level.flow") is Obj.flow
+
+    # Multiple top-level flows
+    mymodule.flow2 = Flow("a second flow")
+    assert extract_flow_from_module("mymodule", "top level flow") is mymodule.flow
+    assert extract_flow_from_module("mymodule", "a second flow") is mymodule.flow2
+
+    # Multiple flows not auto-inferred
+    with pytest.raises(ValueError, match="Multiple flows found"):
+        extract_flow_from_module("mymodule")
+
+    # Name not found
+    with pytest.raises(ValueError, match="Failed to find flow"):
+        extract_flow_from_module("mymodule", "unknown name")
+
+    # Name doesn't match specified object
+    with pytest.raises(ValueError, match="Flow at 'mymodule:flow' is named"):
+        extract_flow_from_module("mymodule:flow", "incorrect name")
+
+    # Not a flow object
+    with pytest.raises(TypeError, match="Object at 'mymodule:bad_type'"):
+        extract_flow_from_module("mymodule:bad_type")
+
+
+def test_extract_flow_from_module_callable_objects(mymodule):
+    flow1 = Flow("flow 1")
+    flow2 = Flow("flow 2")
+
+    class Obj:
+        def build_flow(self):
+            return flow2
+
+    mymodule.build_flow = lambda: flow1
+    mymodule.multi_level = Obj()
+    mymodule.bad_type = lambda: 1
+
+    assert extract_flow_from_module("mymodule:build_flow") is flow1
+    assert extract_flow_from_module("mymodule:build_flow", "flow 1") is flow1
+    assert extract_flow_from_module("mymodule:multi_level.build_flow") is flow2
+
+    with pytest.raises(TypeError, match="Object at 'mymodule:bad_type'"):
+        extract_flow_from_module("mymodule:bad_type")
 
 
 class RaiseOnLoad(Task):

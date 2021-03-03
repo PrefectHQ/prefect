@@ -7,6 +7,7 @@ import time
 import pytest
 
 import prefect
+from prefect.utilities.exceptions import TaskTimeoutError
 from prefect.utilities.executors import (
     run_with_thread_timeout,
     run_with_multiprocess_timeout,
@@ -27,7 +28,7 @@ TIMEOUT_HANDLERS = [run_with_thread_timeout, run_with_multiprocess_timeout]
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_times_out(timeout_handler):
     slow_fn = lambda: time.sleep(2)
-    with pytest.raises(TimeoutError):
+    with pytest.raises(TaskTimeoutError):
         timeout_handler(slow_fn, timeout=1)
 
 
@@ -57,7 +58,7 @@ def test_timeout_handler_actually_stops_execution(timeout_handler, tmpdir):
 
     start_time = time.time()
     stop_time = start_time + wait_time + max_overhead
-    with pytest.raises(TimeoutError):
+    with pytest.raises(TaskTimeoutError):
         timeout_handler(
             slow_fn, args=(start_path, finish_path, wait_time), timeout=timeout
         )

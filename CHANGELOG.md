@@ -1,5 +1,97 @@
 # Changelog
 
+## 0.14.10 <Badge text="beta" type="success" />
+
+Released on February 23, 2021.
+
+### Fixes
+
+- Dynamically import compression libraries for `CompressedSerializer` - [#4150](https://github.com/PrefectHQ/prefect/pull/4150)
+- Support passing environment variables containing `=` through agent CLI `--env` flag - [#4160](https://github.com/PrefectHQ/prefect/pull/4160)
+
+## 0.14.9 <Badge text="beta" type="success" />
+
+Released on February 16, 2021.
+
+### Enhancements
+
+- Add `CompressedSerializer` class - [#4063](https://github.com/PrefectHQ/prefect/pull/4063)
+- Allow `Client` timeout seconds to be configurable through configuration - [#4118](https://github.com/PrefectHQ/prefect/issues/4118)
+
+### Task Library
+
+- Update `FilterTask` to allow logging the filtered output via a function - [#4121](https://github.com/PrefectHQ/prefect/pull/4121)
+- Add `FivetranSyncTask`, to manage your [Fivetran](https://fivetran.com) connector sync process - [#4116](https://github.com/PrefectHQ/prefect/pull/4116)
+
+### Fixes
+
+- Reduce the number of boto3 clients created across Prefect when interacting with AWS services - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)
+
+### Deprecations
+
+- Deprecate the `use_session` argument in all AWS-related components - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)
+
+### Contributors
+
+- [Amanda Wee](https://github.com/amanda-wee)
+- [Andrew Hannigan](https://github.com/AndrewHannigan)
+- [Craig Wright](https://github.com/crw)
+- [Nick Acosta](https://github.com/PubChimps)
+- [Timo S.](https://github.com/sti0)
+
+## 0.14.8 <Badge text="beta" type="success" />
+
+Released on February 11, 2021.
+
+### Enhancements
+
+- Add option to provide version group ID to `prefect run flow` CLI command - [#4100](https://github.com/PrefectHQ/prefect/pull/4100)
+
+### Fixes
+
+- Fix bug in agent healthcheck route that was introduced in 0.14.7 - [#4109](https://github.com/PrefectHQ/prefect/pull/4109)
+
+## 0.14.7 <Badge text="beta" type="success" />
+
+Released on February 10, 2021.
+
+### Enhancements
+
+- Support multiple docker networks with Docker Agent - [#3986](https://github.com/PrefectHQ/prefect/issues/3986)
+- Add healthchecks to prefect server - [#4041](https://github.com/PrefectHQ/prefect/pull/4041)
+- Raise custom `TimeoutError` for task timeouts to allow for more granular user control - [#4091](https://github.com/PrefectHQ/prefect/issues/4091)
+- Add `access_token_secret` to `GitHub`, `GitLab`, and `Bitbucket` storage, making the Prefect secret containing an access token to these services configurable - [#4059](https://github.com/PrefectHQ/prefect/pull/4059)
+- Add `--skip-if-flow-metadata-unchanged` to `prefect register flow` CLI command that avoids bumping flow version if flow metadata has not changed - [#4061](https://github.com/PrefectHQ/prefect/pull/4061)
+- Add `--skip-if-exists` to `prefect create project` CLI command that safely skips if the project has already been created - [#4061](https://github.com/PrefectHQ/prefect/pull/4061)
+- Add new `Module` storage class, for referencing flows importable from a Python module - [#4073](https://github.com/PrefectHQ/prefect/pull/4073)
+- Drop resource limits from manifest generated using `prefect agent kubernetes install` - [#4077](https://github.com/PrefectHQ/prefect/pull/4077)
+
+### Task Library
+
+- Add new tasks for communication with an Exasol database - [#4044](https://github.com/PrefectHQ/prefect/pull/4044)
+
+### Fixes
+
+- Fix task decorator chaining by using `inspect.unwrap` instead of `__wrap__` - [#4053](https://github.com/PrefectHQ/prefect/pull/4053)
+- Forward Prefect backend type to deployed flow runs, ensuring backend-specific logic functions properly - [#4076](https://github.com/PrefectHQ/prefect/pull/4076)
+- Patch around bug in dask's multiprocessing scheduler introduced in Dask 2021.02.0 - [#4089](https://github.com/PrefectHQ/prefect/pull/4089)
+
+### Deprecations
+
+- Docker agent `network` kwarg deprecated in favor of `networks` - [#3986](https://github.com/PrefectHQ/prefect/issues/3986)
+
+### Breaking Changes
+
+- Remove unused `Storage.get_env_runner` method - [#4059](https://github.com/PrefectHQ/prefect/pull/4059)
+- Remove private utilities in `prefect.utilities.git` - [#4059](https://github.com/PrefectHQ/prefect/pull/4059)
+
+### Contributors
+
+- [Alex P.](https://github.com/alexifm)
+- [Marwan S.](https://github.com/marwan116)
+- [Peter Roelants](https://github.com/peterroelants)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.14.6 <Badge text="beta" type="success" />
 
 Released on February 2, 2021.

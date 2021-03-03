@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import prefect
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
 from prefect.environments import LocalEnvironment
@@ -116,15 +117,21 @@ def test_populate_env_vars_from_agent_config(api):
     assert env_vars["AUTH_THING"] == "foo"
 
 
-def test_populate_env_vars(api):
+def test_populate_env_vars(api, backend):
     agent = DockerAgent()
 
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
 
+    if backend == "server":
+        cloud_api = "http://host.docker.internal:4200"
+    else:
+        cloud_api = prefect.config.cloud.api
+
     expected_vars = {
-        "PREFECT__CLOUD__API": "https://api.prefect.io",
+        "PREFECT__BACKEND": backend,
+        "PREFECT__CLOUD__API": cloud_api,
         "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
         "PREFECT__CLOUD__AGENT__LABELS": "[]",
         "PREFECT__CONTEXT__FLOW_RUN_ID": "id",

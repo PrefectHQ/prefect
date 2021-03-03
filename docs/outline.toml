@@ -208,7 +208,7 @@ classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult
 [pages.engine.serializers]
 title = "Result Serializers"
 module = "prefect.engine.serializers"
-classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer"]
+classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer", "CompressedSerializer"]
 
 [pages.engine.cloud]
 title = "Cloud"
@@ -233,7 +233,7 @@ classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun"
 [pages.storage]
 title = "Storage"
 module = "prefect.storage"
-classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook", "GitLab", "Bitbucket", "CodeCommit"]
+classes = {"Storage" = ["add_flow", "build"], "Azure" = [], "Bitbucket" = [], "CodeCommit" = [], "Docker" = [], "GCS" = [], "GitHub" = [], "GitLab" = [], "Local" = [], "Module" = [], "S3" = [], "Webhook" = []}
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -270,6 +270,11 @@ classes = ["DatasetCreateFromDelimitedFiles",
            "DatastoreList",
            "DatastoreGet",
            "DatastoreUpload"]
+
+[pages.tasks.fivetran]
+title = "Fivetran Tasks"
+module = "prefect.tasks.fivetran"
+classes = ["FivetranSyncTask"]
 
 [pages.tasks.prefect]
 title = "Prefect Tasks"
@@ -356,6 +361,15 @@ classes = [
         "ExasolExecute",
         "ExasolImportFromIterable",
         "ExasolExportToFile"
+        ]
+
+[pages.tasks.files]
+title = "File and Filesystem Tasks"
+module = "prefect.tasks.files"
+classes = [
+        "Move",
+        "Unzip",
+        "Zip",
         ]
 
 [pages.tasks.gcp]

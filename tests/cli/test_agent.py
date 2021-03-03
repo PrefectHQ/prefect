@@ -139,7 +139,7 @@ def test_agent_start(
         (
             "--token TEST-TOKEN --api TEST-API --agent-config-id TEST-AGENT-CONFIG-ID "
             "--name TEST-NAME -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
-            "--max-polls 10 --agent-address 127.0.0.1:8080"
+            "-e KEY3=VALUE=WITH=EQUALS --max-polls 10 --agent-address 127.0.0.1:8080"
         ).split()
     )
     if deprecated:
@@ -161,7 +161,7 @@ def test_agent_start(
         "agent_config_id": "TEST-AGENT-CONFIG-ID",
         "name": "TEST-NAME",
         "labels": ["label1", "label2"],
-        "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
+        "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2", "KEY3": "VALUE=WITH=EQUALS"},
         "max_polls": 10,
         "agent_address": "127.0.0.1:8080",
         "no_cloud_logs": False,

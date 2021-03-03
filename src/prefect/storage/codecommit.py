@@ -112,25 +112,9 @@ class CodeCommit(Storage):
         self._flows[flow.name] = flow
         return self.path  # type: ignore
 
-    def build(self) -> "Storage":
-        """
-        Build the CodeCommit storage object and run basic healthchecks. Due to this object
-        supporting file based storage no files are committed to the repository during
-        this step. Instead, all files should be committed independently.
-
-        Returns:
-            - Storage: a CodeCommit object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
-
-        return self
-
     @property
     def _boto3_client(self):  # type: ignore
         from prefect.utilities.aws import get_boto_client
 
         kwargs = self.client_options or {}
-        return get_boto_client(
-            resource="codecommit", credentials=None, use_session=False, **kwargs
-        )
+        return get_boto_client(resource="codecommit", credentials=None, **kwargs)

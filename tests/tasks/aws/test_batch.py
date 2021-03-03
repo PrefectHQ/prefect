@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import MagicMock
 
+pytest.importorskip("boto3")
+
 from prefect.engine.signals import FAIL
 from prefect.tasks.aws import BatchSubmit
 

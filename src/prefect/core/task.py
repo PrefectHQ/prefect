@@ -952,8 +952,12 @@ class Task(metaclass=TaskMetaclass):
         Returns:
             - Task
         """
+        if isinstance(key, Task):
+            name = f"{self.name}[{key.name}]"
+        else:
+            name = f"{self.name}[{key!r}]"
         return prefect.tasks.core.operators.GetItem(
-            checkpoint=self.checkpoint, result=self.result
+            checkpoint=self.checkpoint, name=name, result=self.result
         ).bind(self, key)
 
     def __or__(self, other: object) -> object:

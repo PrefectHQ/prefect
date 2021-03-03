@@ -291,6 +291,14 @@ class Agent:
             )
 
             def run() -> None:
+                # Ensure there's an active event loop in this thread
+                import asyncio
+
+                try:
+                    asyncio.get_event_loop()
+                except RuntimeError:
+                    asyncio.set_event_loop(asyncio.new_event_loop())
+
                 self.logger.debug(
                     f"Agent API server listening on port {self.agent_address}"
                 )

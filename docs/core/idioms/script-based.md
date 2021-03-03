@@ -1,18 +1,19 @@
-# Using file based flow storage
+# Using script based flow storage
 
-As of Prefect version `0.12.5` all storage options support storing flows as files. This means that flow
-code can change in between (or even during) runs without needing to be reregistered. As long as the
-structure of the flow itself does not change, only the task content, then a Prefect API backend will be
-able to execute the flow. This is a useful storage mechanism especially for testing, debugging, CI/CD
-processes, and more!
+As of Prefect version `0.12.5` all storage options support storing flows as
+source files instead of pickled objects. This means that flow code can change
+in between (or even during) runs without needing to be reregistered. As long as
+the structure of the flow itself does not change, only the task content, then a
+Prefect API backend will be able to execute the flow. This is a useful storage
+mechanism especially for testing, debugging, CI/CD processes, and more!
 
-### Enable file storage
+### Enable script storage
 
-GitHub storage only supports files however the other storage options (Local, Docker, S3, etc.) store
-flows both as pickles and files. To switch to using file storage and enable the workflow above set
-`stored_as_script=True` on the storage object.
+Some storage classes (e.g. `GitHub`, `GitLab`, `Bitbucket`, ...) only support
+script based storage. All other classes require you to opt-in by passing
+`stored_as_script=True` to the storage class constructor.
 
-### Example file based workflow
+### Example script based workflow
 
 ::: warning GitHub dependency
 This idiom requires that `git` is installed as well as Prefect's `github` extra dependencies:
@@ -49,7 +50,7 @@ def get_data():
 def print_data(data):
     print(data)
 
-with Flow("file-based-flow") as flow:
+with Flow("example") as flow:
     data = get_data()
     print_data(data)
 
@@ -124,7 +125,7 @@ flow.storage = Bitbucket(
 ```
 :::
 
-### File based Docker storage
+### Script based Docker storage
 
 ```python
 flow.storage = Docker(
@@ -139,7 +140,7 @@ Docker storage build step:
 
 - `path`: the path that the file is stored in the Docker image
 - `files`: a dictionary of local file source to path destination in image
-- `stored_as_script`: boolean enabling file based storage
+- `stored_as_script`: boolean enabling script based storage
 
 If your Docker storage is using an image that already has your flow files added into it then you only
 need to specify the following:
@@ -151,9 +152,9 @@ flow.storage = Docker(
 )
 ```
 
-### File based cloud storage
+### Script based cloud storage
 
-File based storage of flows is also supported for flows stored in S3 and GCS buckets. The following
+Script based storage of flows is also supported for flows stored in S3 and GCS buckets. The following
 snippet shows S3 and GCS storage options where a flow is stored as a script and the `key` points to the
 specific file path in the bucket.
 
