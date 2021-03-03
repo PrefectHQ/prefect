@@ -71,7 +71,7 @@ commands = ["flow"]
 [pages.cli.server]
 title = "server"
 module = "prefect.cli.server"
-commands = ["start", "create_tenant"]
+commands = ["start", "create_tenant", "stop", "config_cmd"]
 
 [pages.schedules.schedules]
 title = "Schedules"
