@@ -44,7 +44,7 @@ class Unzip(Task):
         self,
         zip_path: Union[str, Path] = "",
         extract_dir: Union[str, Path] = "",
-        password: str = None,
+        password: Union[bytes, str] = None,
     ) -> Path:
         """
         Task run method.
