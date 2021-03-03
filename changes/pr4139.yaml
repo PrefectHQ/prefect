@@ -1,0 +1,5 @@
+task:
+  - "Add filehandling tasks `Move`, `Unzip`, `Zip` - [#4131](https://github.com/PrefectHQ/prefect/pull/4139)"
+
+contributor:
+  - "[Timo S.](https://github.com/sti0)"
