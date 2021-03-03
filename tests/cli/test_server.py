@@ -214,7 +214,7 @@ class TestSetupComposeFile:
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 
-        # Ensure ui is not set
+        # Ensure volumes is not set
         assert "volumes" not in compose_yml["services"]["postgres"]
 
         # Ensure nothing else has changed
@@ -374,6 +374,20 @@ class TestPrefectServerStart:
             compose_yml = yaml.safe_load(file)
 
         assert "ui" not in compose_yml["services"]
+
+    def test_server_start_with_volume(self, macos_platform, mock_subprocess):
+        CliRunner().invoke(
+            server,
+            ["start", "--use-volume", "--volume-path", "/foo"],
+        )
+        up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
+        tmpdir = up_kwargs["cwd"]
+
+        with open(os.path.join(tmpdir, "docker-compose.yml"), "r") as file:
+            compose_yml = yaml.safe_load(file)
+
+        assert "volumes" in compose_yml["services"]["postgres"]
+        assert up_kwargs["env"]["POSTGRES_DATA_PATH"] == "/foo"
 
 
 class TestPrefectServerConfig:
