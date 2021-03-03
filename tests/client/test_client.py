@@ -881,8 +881,9 @@ def test_get_flow_run_info(patch_post):
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "name": "flow-run-name",
+            "flow": {"project": {"id": "my-project-id", "name": "my-project-name"}},
             "version": 0,
-            "parameters": {},
+            "parameters": {"a": 1},
             "context": None,
             "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
             "serialized_state": {
@@ -933,8 +934,10 @@ def test_get_flow_run_info(patch_post):
     assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.version == 0
-    assert isinstance(result.parameters, dict)
-    assert result.context is None
+    assert result.project.name == "my-project-name"
+    assert result.project.id == "my-project-id"
+    assert result.parameters == {"a": 1}
+    assert result.context == {}
 
 
 def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
@@ -943,6 +946,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "name": "flow-run-name",
+            "flow": {"project": {"id": "my-project-id", "name": "my-project-name"}},
             "version": 0,
             "parameters": {"x": {"deep": {"nested": 5}}},
             "context": {"my_val": "test"},
@@ -995,6 +999,8 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
     assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.version == 0
+    assert result.project.name == "my-project-name"
+    assert result.project.id == "my-project-id"
     assert isinstance(result.parameters, dict)
     assert result.parameters["x"]["deep"]["nested"] == 5
     # ensures all sub-dictionaries are actually dictionaries
