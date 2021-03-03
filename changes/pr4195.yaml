@@ -1,5 +1,5 @@
 fix:
-  - "Ensure the S3 storage properly initialize the S3Result with client_option"
+  - "Forward `client_options` to `S3Result` from `S3` storage - [#4195](https://github.com/PrefectHQ/prefect/pull/4195"
 
 
 contributor:
