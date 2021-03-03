@@ -73,8 +73,7 @@ class Copy(Task):
     Args:
         - source_path (Union[str, Path], optional): the path to the source directory/file.
         - target_path (Union[str, Path], optional): the path to the target directory/file.
-            If copying a directory: directory content will be copied directly into the
-            target directory, no extra directory will be added!
+            If copying a directory: the `target_path` must not exists.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -104,8 +103,7 @@ class Copy(Task):
         Args:
             - source_path (Union[str, Path], optional): the path to the source directory/file.
             - target_path (Union[str, Path], optional): the path to the target directory/file.
-                If copying a whole directory: directory content will be copied directly into the
-                target directory, no extra directory will be added!
+                If copying a directory: the `target_path` must not exists.
 
         Returns:
             - Path: resulting path of the copied file / directory
@@ -126,7 +124,7 @@ class Copy(Task):
         if source_path.is_file():
             out = shutil.copy(source_path, target_path)
         else:
-            out = shutil.copytree(source_path, target_path, dirs_exist_ok=True)
+            out = shutil.copytree(source_path, target_path)
         return Path(out)
 
 

@@ -108,13 +108,8 @@ class TestCopy:
     def test_run_copy_directory_to_directory(self, tmpdir):
         source = tmpdir.mkdir("source").mkdir("test")
 
-        c = Copy(str(source), str(tmpdir))
+        c = Copy(str(source), tmpdir.join("test2"))
         res = c.run()
-        exp = tmpdir
-        assert res == Path(str(tmpdir))
-        assert source.exists()
-
-        res = c.run(target_path=tmpdir.join("test2"))
         exp = tmpdir.join("test2")
         assert res == Path(str(exp))
         assert exp.exists()
