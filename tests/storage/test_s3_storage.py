@@ -121,6 +121,7 @@ def test_s3_storage_init_properly_result_with_boto3_args(monkeypatch):
         use_ssl=False,
     )
 
+
 def test_add_flow_to_S3():
     storage = S3(bucket="bucket")
 
