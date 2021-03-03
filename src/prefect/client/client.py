@@ -44,31 +44,31 @@ JSONLike = Union[bool, dict, list, str, int, float, None]
 
 # type definitions for GraphQL results
 
-TaskRunInfoResult = NamedTuple(
-    "TaskRunInfoResult",
-    [
-        ("id", str),
-        ("task_id", str),
-        ("task_slug", str),
-        ("version", int),
-        ("state", "prefect.engine.state.State"),
-    ],
-)
 
-FlowRunInfoResult = NamedTuple(
-    "FlowRunInfoResult",
-    [
-        ("id", str),
-        ("name", str),
-        ("flow_id", str),
-        ("parameters", Dict[str, Any]),
-        ("context", Dict[str, Any]),
-        ("version", int),
-        ("scheduled_start_time", datetime.datetime),
-        ("state", "prefect.engine.state.State"),
-        ("task_runs", List[TaskRunInfoResult]),
-    ],
-)
+class TaskRunInfoResult(NamedTuple):
+    id: str
+    task_id: str
+    task_slug: str
+    version: int
+    state: "prefect.engine.state.State"
+
+
+class ProjectInfo(NamedTuple):
+    id: str
+    name: str
+
+
+class FlowRunInfoResult(NamedTuple):
+    id: str
+    name: str
+    flow_id: str
+    project: ProjectInfo
+    parameters: Dict[str, Any]
+    context: Dict[str, Any]
+    version: int
+    scheduled_start_time: datetime.datetime
+    state: "prefect.engine.state.State"
+    task_runs: List[TaskRunInfoResult]
 
 
 class Client:
@@ -1121,6 +1121,8 @@ class Client:
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
         """
+        from prefect.engine.state import State
+
         query = {
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
@@ -1139,41 +1141,40 @@ class Client:
                         "version": True,
                         "serialized_state": True,
                     },
+                    "flow": {"project": {"name": True, "id": True}},
                 }
             }
         }
         result = self.graphql(query).data.flow_run_by_pk  # type: ignore
-
         if result is None:
             raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
 
-        # convert scheduled_start_time from string to datetime
-        result.scheduled_start_time = pendulum.parse(result.scheduled_start_time)
-
-        # create "state" attribute from serialized_state
-        result.state = prefect.engine.state.State.deserialize(
-            result.pop("serialized_state")
-        )
-
-        # reformat task_runs
-        task_runs = []
-        for tr in result.task_runs:
-            tr.state = prefect.engine.state.State.deserialize(
-                tr.pop("serialized_state")
+        task_runs = [
+            TaskRunInfoResult(
+                id=tr.id,
+                version=tr.version,
+                task_id=tr.task.id,
+                task_slug=tr.task.slug,
+                state=State.deserialize(tr.serialized_state),
             )
-            task_info = tr.pop("task")
-            tr.task_id = task_info["id"]
-            tr.task_slug = task_info["slug"]
-            task_runs.append(TaskRunInfoResult(**tr))
-
-        result.task_runs = task_runs
-        result.context = (
-            result.context.to_dict() if result.context is not None else None
+            for tr in result.task_runs
+        ]
+        return FlowRunInfoResult(
+            id=result.id,
+            name=result.name,
+            flow_id=result.flow_id,
+            version=result.version,
+            task_runs=task_runs,
+            state=State.deserialize(result.serialized_state),
+            scheduled_start_time=pendulum.parse(result.scheduled_start_time),  # type: ignore
+            project=ProjectInfo(
+                id=result.flow.project.id, name=result.flow.project.name
+            ),
+            parameters=(
+                {} if result.parameters is None else result.parameters.to_dict()
+            ),
+            context=({} if result.context is None else result.context.to_dict()),
         )
-        result.parameters = (
-            result.parameters.to_dict() if result.parameters is not None else None
-        )
-        return FlowRunInfoResult(**result)
 
     def update_flow_run_heartbeat(self, flow_run_id: str) -> None:
         """
