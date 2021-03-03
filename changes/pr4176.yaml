@@ -1,2 +1,0 @@
-feature:
-  - "Add command `prefect server config` to output configured docker-compose yaml - [#4176](https://github.com/PrefectHQ/prefect/pull/4176)"

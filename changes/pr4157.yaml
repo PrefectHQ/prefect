@@ -1,5 +1,0 @@
-enhancement:
-  - "EmailTask: accept msg_plain, email_to_cc and email_to_bcc - [#4157](https://github.com/PrefectHQ/prefect/pull/4157)"
-
-contributor:
-  - "[Joël Luijmes](https://github.com/joelluijmes)"

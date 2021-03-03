@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.14.11 <Badge text="beta" type="success" />
+
+Released on March 3, 2021.
+
+### Features
+
+- Add command `prefect server config` to output configured docker-compose yaml - [#4176](https://github.com/PrefectHQ/prefect/pull/4176)
+
+### Enhancements
+
+- Add `project_name` and `project_id` to context during Cloud/Server flow runs - [#4083](https://github.com/PrefectHQ/prefect/pull/4083)
+- Better error message when flow not found in file - [#4182](https://github.com/PrefectHQ/prefect/pull/4182)
+- Improve generated names for `GetItem` tasks - [#4183](https://github.com/PrefectHQ/prefect/pull/4183)
+- Add `base_url` option to `GitHub` storage - [#4194](https://github.com/PrefectHQ/prefect/pull/4194)
+
+### Task Library
+
+- Add filehandling tasks `Move`, `Unzip`, `Zip` - [#4131](https://github.com/PrefectHQ/prefect/pull/4139)
+- Add `msg_plain`, `email_to_cc`, and `email_to_bcc` options to `EmailTask` - [#4157](https://github.com/PrefectHQ/prefect/pull/4157)
+- Add `jar_params` option to `DatabricksRunNow` task - [#4157](https://github.com/PrefectHQ/prefect/pull/4178)
+
+### Fixes
+
+- Make task slug generation robust to modifying existing task names - [#4189](https://github.com/PrefectHQ/prefect/pull/4189)
+- Forward `client_options` to `S3Result` from `S3` storage - [#4195](https://github.com/PrefectHQ/prefect/pull/4195)
+
+### Contributors
+
+- [David Zucker](https://github.com/davzucky)
+- [Jacob Hayes](https://github.com/JacobHayes)
+- [Joël Luijmes](https://github.com/joelluijmes)
+- [Timo S.](https://github.com/sti0)
+- [Yogi Patel](https://github.com/ypatel-whitepages)
+
 ## 0.14.10 <Badge text="beta" type="success" />
 
 Released on February 23, 2021.
