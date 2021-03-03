@@ -1,5 +1,5 @@
 import os
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 from typing import List
 
 from click.testing import CliRunner
@@ -9,7 +9,6 @@ import yaml
 import prefect
 from prefect.cli.server import server, setup_compose_env, setup_compose_file
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.compatibility import Call
 
 
 @pytest.fixture()
@@ -38,21 +37,20 @@ def assert_command_not_called(mock: MagicMock, command: List[str]) -> None:
     """
     Assert a mocked `subprocess` was not called with the given command
     """
-    for call_ in mock.mock_calls:
-        call_ = call(call_)
-        if call_.args:
-            assert call_.args[0] != command
+    for _, args, kwargs in mock.mock_calls:
+        if args:
+            assert args[0] != command
 
 
-def get_command_call(mock: MagicMock, command: List[str]) -> call:
+def get_command_call(mock: MagicMock, command: List[str]):
     """
     Get a mock `call` by command from the a mocked `subprocess` creation
     """
-    for call in map(Call, mock.mock_calls):
-        if call.args and call.args[0] == command:
-            return call
+    for _, args, kwargs in mock.mock_calls:
+        if args and args[0] == command:
+            return args, kwargs
 
-    call_commands = [call.args[0] for call in map(Call, mock.mock_calls) if call.args]
+    call_commands = [args[0] for _, args, kwargs in mock.mock_calls if args]
     raise ValueError(f"{command} was not found in {call_commands}")
 
 
@@ -264,21 +262,25 @@ class TestPrefectServerStart:
 
         CliRunner().invoke(server, ["start"])
 
-        pull = get_command_call(mock_subprocess, ["docker-compose", "pull"])
-        up = get_command_call(mock_subprocess, ["docker-compose", "up"])
-        down = get_command_call(mock_subprocess, ["docker-compose", "down"])
+        pull_args, pull_kwargs = get_command_call(
+            mock_subprocess, ["docker-compose", "pull"]
+        )
+        up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
+        down_args, down_kwargs = get_command_call(
+            mock_subprocess, ["docker-compose", "down"]
+        )
 
         # Ensure that cwd, env were passed and used consistently
-        cwd = pull.kwargs.get("cwd")
-        env = pull.kwargs.get("env")
+        cwd = pull_kwargs.get("cwd")
+        env = pull_kwargs.get("env")
 
         assert env is not None
         assert cwd is not None
 
-        assert up.kwargs.get("cwd") == cwd
-        assert up.kwargs.get("env") == env
-        assert down.kwargs.get("cwd") == cwd
-        assert down.kwargs.get("env") == env
+        assert up_kwargs.get("cwd") == cwd
+        assert up_kwargs.get("env") == env
+        assert down_kwargs.get("cwd") == cwd
+        assert down_kwargs.get("env") == env
 
         # Check the environment matches expected defaults
         assert env == expected_env
@@ -299,8 +301,8 @@ class TestPrefectServerStart:
             server,
             ["start", "--no-upgrade"],
         )
-        up = get_command_call(mock_subprocess, ["docker-compose", "up"])
-        env = up.kwargs.get("env")
+        up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
+        env = up_kwargs.get("env")
         assert env["PREFECT_SERVER_DB_CMD"] == "echo 'DATABASE MIGRATIONS SKIPPED'"
 
     def test_server_start_port_options(self, macos_platform, mock_subprocess):
@@ -320,8 +322,8 @@ class TestPrefectServerStart:
                 "5",
             ],
         )
-        up = get_command_call(mock_subprocess, ["docker-compose", "up"])
-        env = up.kwargs.get("env")
+        up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
+        env = up_kwargs.get("env")
         assert env["POSTGRES_HOST_PORT"] == "1"
         assert env["HASURA_HOST_PORT"] == "2"
         assert env["GRAPHQL_HOST_PORT"] == "3"
@@ -347,8 +349,8 @@ class TestPrefectServerStart:
                 "--no-server-port",
             ],
         )
-        up = get_command_call(mock_subprocess, ["docker-compose", "up"])
-        tmpdir = up.kwargs["cwd"]
+        up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
+        tmpdir = up_kwargs["cwd"]
 
         with open(os.path.join(tmpdir, "docker-compose.yml"), "r") as file:
             compose_yml = yaml.safe_load(file)
@@ -365,8 +367,8 @@ class TestPrefectServerStart:
             server,
             ["start", "--no-ui"],
         )
-        up = get_command_call(mock_subprocess, ["docker-compose", "up"])
-        tmpdir = up.kwargs["cwd"]
+        up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
+        tmpdir = up_kwargs["cwd"]
 
         with open(os.path.join(tmpdir, "docker-compose.yml"), "r") as file:
             compose_yml = yaml.safe_load(file)
