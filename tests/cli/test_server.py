@@ -376,6 +376,70 @@ class TestPrefectServerStart:
         assert "ui" not in compose_yml["services"]
 
 
+class TestPrefectServerConfig:
+    def test_server_config_setup(self):
+        # Pull current version information to test default values
+        base_version = prefect.__version__.split("+")
+        if len(base_version) > 1:
+            default_tag = "master"
+        else:
+            default_tag = f"core-{base_version[0]}"
+
+        expected_env = setup_compose_env(
+            version=default_tag,
+            ui_version=default_tag,
+            ui_port=prefect.config.server.ui.host_port,
+            hasura_port=prefect.config.server.hasura.host_port,
+            graphql_port=prefect.config.server.graphql.host_port,
+            postgres_port=prefect.config.server.database.host_port,
+            server_port=prefect.config.server.host_port,
+            no_upgrade=False,
+            volume_path=prefect.config.server.database.volume_path,
+        )
+
+        CliRunner().invoke(server, ["config"])
+
+        config_args, config_kwargs = get_command_call(
+            mock_subprocess, ["docker-compose", "config"]
+        )
+
+        # Ensure the env is correct
+        assert config_kwargs["env"] == expected_env
+
+        # Ensure the docker-compose.yml exists at the tmpdir
+        assert os.path.exists(os.path.join(config_kwargs["cwd"], "docker-compose.yml"))
+
+    @pytest.mark.parametrize("with_flags", [True, False])
+    def test_server_config_passes_cli_args_to_setup_compose_file(
+        self, monkeypatch, mock_subprocess, with_flags
+    ):
+        mock = MagicMock()
+        monkeypatch.setattr("prefect.cli.server.setup_compose_file", mock)
+
+        cmd = ["config"]
+        if with_flags:
+            cmd += [
+                "--no-postgres-port",
+                "--no-hasura-port",
+                "--no-graphql-port",
+                "--no-ui-port",
+                "--no-server-port",
+                "--no-ui",
+                "--use-volume",
+            ]
+        CliRunner().invoke(server, cmd)
+
+        mock.assert_called_once_with(
+            no_ui=with_flags,
+            no_postgres_port=with_flags,
+            no_hasura_port=with_flags,
+            no_graphql_port=with_flags,
+            no_ui_port=with_flags,
+            no_server_port=with_flags,
+            use_volume=with_flags,
+        )
+
+
 def test_create_tenant(monkeypatch, cloud_api):
     monkeypatch.setattr(
         "prefect.client.Client.create_tenant", MagicMock(return_value="my_id")
