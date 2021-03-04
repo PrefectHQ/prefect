@@ -178,7 +178,7 @@ class Flow:
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
         self._slug_counters = collections.defaultdict(
-            functools.partial(itertools.count, firstval=1)
+            cast(Callable, functools.partial(itertools.count, firstval=1))
         )  # type: Dict[str, Iterator[int]]
         self.slugs = {}  # type: Dict[Task, str]
         self.constants = collections.defaultdict(
