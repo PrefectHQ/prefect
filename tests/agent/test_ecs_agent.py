@@ -345,14 +345,6 @@ class TestGenerateTaskDefinition:
         taskdef = self.generate_task_definition(run_config, storage)
         assert taskdef["containerDefinitions"][0]["image"] == expected
 
-    def test_generate_task_definition_command(self):
-        taskdef = self.generate_task_definition(ECSRun())
-        assert taskdef["containerDefinitions"][0]["command"] == [
-            "/bin/sh",
-            "-c",
-            "prefect execute flow-run",
-        ]
-
     def test_generate_task_definition_resources(self):
         taskdef = self.generate_task_definition(ECSRun(cpu="2048", memory="4096"))
         assert taskdef["cpu"] == "2048"
@@ -416,9 +408,6 @@ class TestGenerateTaskDefinition:
         env = {item["name"]: item["value"] for item in env_list}
         # Agent and run-config level envs are only set at runtime
         assert env == {
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             "PREFECT__CONTEXT__IMAGE": "test-image",
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "VALUE2",
@@ -491,6 +480,14 @@ class TestGetRunTaskKwargs:
             "overrides": {"cpu": "2048", "memory": "2048", "taskRoleArn": "testing"},
         }
 
+    def test_get_run_task_kwargs_command(self):
+        kwargs = self.get_run_task_kwargs(ECSRun())
+        assert kwargs["overrides"]["containerOverrides"][0]["command"] == [
+            "/bin/sh",
+            "-c",
+            "prefect execute flow-run",
+        ]
+
     def test_get_run_task_kwargs_environment(self, tmpdir, backend):
         path = str(tmpdir.join("kwargs.yaml"))
         with open(path, "w") as f:
@@ -519,6 +516,9 @@ class TestGetRunTaskKwargs:
         env_list = kwargs["overrides"]["containerOverrides"][0]["environment"]
         env = {item["name"]: item["value"] for item in env_list}
         assert env == {
+            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             "PREFECT__BACKEND": backend,
             "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",

@@ -435,9 +435,6 @@ class ECSAgent(Agent):
         # Set flow image
         container["image"] = image = get_flow_image(flow_run)
 
-        # Set flow run command
-        container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
-
         # Set taskRoleArn if configured
         if run_config.task_role_arn:
             taskdef["taskRoleArn"] = run_config.task_role_arn
@@ -446,16 +443,8 @@ class ECSAgent(Agent):
         if run_config.execution_role_arn:
             taskdef["executionRoleArn"] = run_config.execution_role_arn
 
-        # Populate static environment variables from the following sources,
-        # with precedence:
-        # - Static environment variables, hardcoded below
-        # - Values in the task definition template
-        env = {
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__CONTEXT__IMAGE": image,
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-        }
+        # Add `PREFECT__CONTEXT__IMAGE` environment variable
+        env = {"PREFECT__CONTEXT__IMAGE": image}
         container_env = [{"name": k, "value": v} for k, v in env.items()]
         for entry in container.get("environment", []):
             if entry["name"] not in env:
@@ -508,9 +497,12 @@ class ECSAgent(Agent):
             container = {"name": "flow"}
             container_overrides.append(container)
 
+        # Set flow run command
+        container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
+
         # Populate environment variables from the following sources,
         # with precedence:
-        # - Dynamic values required for flow execution, hardcoded below
+        # - Values required for flow execution, hardcoded below
         # - Values set on the ECSRun object
         # - Values set using the `--env` CLI flag on the agent
         env = self.env_vars.copy()
@@ -518,6 +510,9 @@ class ECSAgent(Agent):
             env.update(run_config.env)
         env.update(
             {
+                "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
