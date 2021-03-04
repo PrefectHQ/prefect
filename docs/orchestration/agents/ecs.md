@@ -139,7 +139,10 @@ configured per-flow (on the
 [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run_config`), or on
 the Agent as a default for flows that don't provide their own template.
 
-Any option available to
+The flow will be executed in a container named `flow` - if a container named
+`flow` isn't part of the task definition template Prefect will add a new
+container with that name (this allows adding sidecar containers without
+requiring the user to define a `flow` container as well). Any option available to
 [`register_task_definition`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition)
 may be specified here. For reference, the default template packaged with
 Prefect can be found

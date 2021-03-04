@@ -23,10 +23,13 @@ class ECSRun(RunConfig):
 
     Args:
         - task_definition (dict, optional): An in-memory task definition spec
-            to use. See the [ECS.Client.register_task_definition][1] docs for
-            more information on task definitions. Note that this definition
-            will be stored directly in Prefect Cloud/Server - use
-            `task_definition_path` instead if you wish to avoid this.
+            to use. The flow will be executed in a container named `flow` - if
+            a container named `flow` isn't part of the task definition, Prefect
+            will add a new container with that name.  See the
+            [ECS.Client.register_task_definition][1] docs for more information
+            on task definitions. Note that this definition will be stored
+            directly in Prefect Cloud/Server - use `task_definition_path`
+            instead if you wish to avoid this.
         - task_definition_path (str, optional): Path to a task definition spec
             to use. If a local path (no file scheme, or a `file`/`local`
             scheme), the task definition will be loaded on initialization and
@@ -36,7 +39,8 @@ class ECSRun(RunConfig):
             `agent` (for paths local to the runtime agent)).
         - task_definition_arn (str, optional): A pre-registered task definition
             ARN to use (either `family`, `family:version`, or a full task
-            definition ARN).
+            definition ARN). This task definition must include a container
+            named `flow` (which will be used to run the flow).
         - image (str, optional): The image to use for this task. If not
             provided, will be either inferred from the flow's storage (if using
             `Docker` storage), or use the default configured on the agent.
