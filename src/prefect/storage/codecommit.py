@@ -117,6 +117,4 @@ class CodeCommit(Storage):
         from prefect.utilities.aws import get_boto_client
 
         kwargs = self.client_options or {}
-        return get_boto_client(
-            resource="codecommit", credentials=None, use_session=False, **kwargs
-        )
+        return get_boto_client(resource="codecommit", credentials=None, **kwargs)

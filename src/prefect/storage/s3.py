@@ -58,7 +58,7 @@ class S3(Storage):
 
         self.client_options = client_options
 
-        result = S3Result(bucket=bucket)
+        result = S3Result(bucket=bucket, boto3_kwargs=client_options)
         super().__init__(
             result=result,
             stored_as_script=stored_as_script,
@@ -209,6 +209,4 @@ class S3(Storage):
         from prefect.utilities.aws import get_boto_client
 
         kwargs = self.client_options or {}
-        return get_boto_client(
-            resource="s3", credentials=None, use_session=False, **kwargs
-        )
+        return get_boto_client(resource="s3", credentials=None, **kwargs)

@@ -71,7 +71,7 @@ commands = ["flow"]
 [pages.cli.server]
 title = "server"
 module = "prefect.cli.server"
-commands = ["start", "create_tenant"]
+commands = ["start", "create_tenant", "stop", "config_cmd"]
 
 [pages.schedules.schedules]
 title = "Schedules"
@@ -208,7 +208,7 @@ classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult
 [pages.engine.serializers]
 title = "Result Serializers"
 module = "prefect.engine.serializers"
-classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer"]
+classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer", "CompressedSerializer"]
 
 [pages.engine.cloud]
 title = "Cloud"
@@ -270,6 +270,11 @@ classes = ["DatasetCreateFromDelimitedFiles",
            "DatastoreList",
            "DatastoreGet",
            "DatastoreUpload"]
+
+[pages.tasks.fivetran]
+title = "Fivetran Tasks"
+module = "prefect.tasks.fivetran"
+classes = ["FivetranSyncTask"]
 
 [pages.tasks.prefect]
 title = "Prefect Tasks"
@@ -356,6 +361,15 @@ classes = [
         "ExasolExecute",
         "ExasolImportFromIterable",
         "ExasolExportToFile"
+        ]
+
+[pages.tasks.files]
+title = "File and Filesystem Tasks"
+module = "prefect.tasks.files"
+classes = [
+        "Move",
+        "Unzip",
+        "Zip",
         ]
 
 [pages.tasks.gcp]

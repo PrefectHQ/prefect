@@ -58,6 +58,7 @@ use_local_secrets = true
 heartbeat_interval = 30.0
 check_cancellation_interval = 15.0
 diagnostics = false
+request_timeout = 15
 
 # rate at which to batch upload logs
 logging_heartbeat = 5

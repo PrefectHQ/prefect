@@ -5,7 +5,7 @@
 a Local Agent, `DockerRun` pairs with a Docker Agent, ...). The options
 available on a `RunConfig` depend on the type, but generally include options
 for setting environment variables, configuring resources (CPU/memory), or
-selecting a docker image to use (if not using `Docker` storage).
+selecting a [docker image](./docker.md) to use (if not using `Docker` storage).
 
 To configure a Flow's `run_config`, you can either specify the `run_config` as
 part of the `Flow` constructor, or set it as an attribute later before calling
@@ -138,7 +138,7 @@ Set an environment variable in the flow run container:
 flow.run_config = DockerRun(env={"SOME_VAR": "value"})
 ```
 
-Specify a docker image to use, if not using `Docker` storage:
+Specify a [docker image](./docker.md) to use, if not using `Docker` storage:
 
 ```python
 flow.run_config = DockerRun(image="example/image-name:with-tag")
@@ -166,7 +166,7 @@ Set an environment variable in the flow run container:
 flow.run_config = KubernetesRun(env={"SOME_VAR": "value"})
 ```
 
-Specify an image to use, if not using `Docker` storage:
+Specify an [image](./docker.md) to use, if not using `Docker` storage:
 
 ```python
 flow.run_config = KubernetesRun(image="example/image-name:with-tag")
@@ -207,7 +207,7 @@ Set an environment variable in the flow run container:
 flow.run_config = ECSRun(env={"SOME_VAR": "value"})
 ```
 
-Specify an image to use, if not using `Docker` storage:
+Specify an [image](./docker.md) to use, if not using `Docker` storage:
 
 ```python
 flow.run_config = ECSRun(image="example/image-name:with-tag")

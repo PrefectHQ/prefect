@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.14.11 <Badge text="beta" type="success" />
+
+Released on March 3, 2021.
+
+### Features
+
+- Add command `prefect server config` to output configured docker-compose yaml - [#4176](https://github.com/PrefectHQ/prefect/pull/4176)
+
+### Enhancements
+
+- Add `project_name` and `project_id` to context during Cloud/Server flow runs - [#4083](https://github.com/PrefectHQ/prefect/pull/4083)
+- Better error message when flow not found in file - [#4182](https://github.com/PrefectHQ/prefect/pull/4182)
+- Improve generated names for `GetItem` tasks - [#4183](https://github.com/PrefectHQ/prefect/pull/4183)
+- Add `base_url` option to `GitHub` storage - [#4194](https://github.com/PrefectHQ/prefect/pull/4194)
+
+### Task Library
+
+- Add filehandling tasks `Move`, `Unzip`, `Zip` - [#4131](https://github.com/PrefectHQ/prefect/pull/4139)
+- Add `msg_plain`, `email_to_cc`, and `email_to_bcc` options to `EmailTask` - [#4157](https://github.com/PrefectHQ/prefect/pull/4157)
+- Add `jar_params` option to `DatabricksRunNow` task - [#4157](https://github.com/PrefectHQ/prefect/pull/4178)
+
+### Fixes
+
+- Make task slug generation robust to modifying existing task names - [#4189](https://github.com/PrefectHQ/prefect/pull/4189)
+- Forward `client_options` to `S3Result` from `S3` storage - [#4195](https://github.com/PrefectHQ/prefect/pull/4195)
+
+### Contributors
+
+- [David Zucker](https://github.com/davzucky)
+- [Jacob Hayes](https://github.com/JacobHayes)
+- [Joël Luijmes](https://github.com/joelluijmes)
+- [Timo S.](https://github.com/sti0)
+- [Yogi Patel](https://github.com/ypatel-whitepages)
+
+## 0.14.10 <Badge text="beta" type="success" />
+
+Released on February 23, 2021.
+
+### Fixes
+
+- Dynamically import compression libraries for `CompressedSerializer` - [#4150](https://github.com/PrefectHQ/prefect/pull/4150)
+- Support passing environment variables containing `=` through agent CLI `--env` flag - [#4160](https://github.com/PrefectHQ/prefect/pull/4160)
+
+## 0.14.9 <Badge text="beta" type="success" />
+
+Released on February 16, 2021.
+
+### Enhancements
+
+- Add `CompressedSerializer` class - [#4063](https://github.com/PrefectHQ/prefect/pull/4063)
+- Allow `Client` timeout seconds to be configurable through configuration - [#4118](https://github.com/PrefectHQ/prefect/issues/4118)
+
+### Task Library
+
+- Update `FilterTask` to allow logging the filtered output via a function - [#4121](https://github.com/PrefectHQ/prefect/pull/4121)
+- Add `FivetranSyncTask`, to manage your [Fivetran](https://fivetran.com) connector sync process - [#4116](https://github.com/PrefectHQ/prefect/pull/4116)
+
+### Fixes
+
+- Reduce the number of boto3 clients created across Prefect when interacting with AWS services - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)
+
+### Deprecations
+
+- Deprecate the `use_session` argument in all AWS-related components - [#4115](https://github.com/PrefectHQ/prefect/pull/4115)
+
+### Contributors
+
+- [Amanda Wee](https://github.com/amanda-wee)
+- [Andrew Hannigan](https://github.com/AndrewHannigan)
+- [Craig Wright](https://github.com/crw)
+- [Nick Acosta](https://github.com/PubChimps)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.14.8 <Badge text="beta" type="success" />
 
 Released on February 11, 2021.

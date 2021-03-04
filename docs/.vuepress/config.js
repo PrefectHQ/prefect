@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.8)', link: '/api/latest/' },
+          { text: 'Latest (0.14.11)', link: '/api/latest/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
@@ -215,6 +215,7 @@ module.exports = {
             'flow_config/storage',
             'flow_config/run_configs',
             'flow_config/executors',
+            'flow_config/docker',
             'flow_config/upgrade'
           ]
         },

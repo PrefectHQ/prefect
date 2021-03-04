@@ -39,6 +39,8 @@ class GitHub(Storage):
         - access_token_secret (str, optional): The name of a Prefect secret
             that contains a GitHub access token to use when loading flows from
             this storage.
+        - base_url(str, optional): the Github REST api url for the repo. If not specified,
+            https://api.github.com is used.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -48,12 +50,14 @@ class GitHub(Storage):
         path: str,
         ref: str = None,
         access_token_secret: str = None,
+        base_url: str = None,
         **kwargs: Any,
     ) -> None:
         self.repo = repo
         self.path = path
         self.ref = ref
         self.access_token_secret = access_token_secret
+        self.base_url = base_url
 
         super().__init__(**kwargs)
 
@@ -161,4 +165,7 @@ class GitHub(Storage):
             if access_token is None:
                 access_token = os.getenv("GITHUB_ACCESS_TOKEN")
 
-        return Github(access_token)
+        if self.base_url:
+            return Github(login_or_token=access_token, base_url=self.base_url)
+        else:
+            return Github(access_token)
