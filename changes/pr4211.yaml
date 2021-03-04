@@ -1,0 +1,2 @@
+fix:
+  - "Move `command` and `environment` configuration for ECS tasks to runtime in the ECS agent - [#4211](https://github.com/PrefectHQ/prefect/pull/4211)"
