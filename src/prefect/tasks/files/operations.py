@@ -133,7 +133,7 @@ class Remove(Task):
     Task for removing files or directories within the file system.
 
     Args:
-        - remove_path (Union[str, Path], optional): file or directory to be removed
+        - path (Union[str, Path], optional): file or directory to be removed
             If deleting a directory, the directory must be empty.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -141,33 +141,33 @@ class Remove(Task):
 
     def __init__(
         self,
-        remove_path: Union[str, Path] = "",
+        path: Union[str, Path] = "",
         **kwargs: Any,
     ):
-        self.remove_path = remove_path
+        self.path = path
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "remove_path",
+        "path",
     )
-    def run(self, remove_path: Union[str, Path] = "") -> None:
+    def run(self, path: Union[str, Path] = "") -> None:
         """
         Task run method.
 
         Args:
-            - remove_path (Union[str, Path], optional): file or directory to be removed
+            - path (Union[str, Path], optional): file or directory to be removed
         """
-        if not remove_path:
-            raise ValueError("No `remove_path` provided.")
+        if not path:
+            raise ValueError("No `path` provided.")
 
-        remove_path = Path(remove_path)
+        path = Path(path)
 
-        if not remove_path.exists():
-            raise ValueError(f"Path ({remove_path}) not found")
+        if not path.exists():
+            raise ValueError(f"Path ({path}) not found")
 
-        self.logger.info(f"Removing {remove_path}...")
+        self.logger.info(f"Removing {path}...")
 
-        if remove_path.is_file():
-            remove_path.unlink()
+        if path.is_file():
+            path.unlink()
         else:
-            remove_path.rmdir()
+            path.rmdir()

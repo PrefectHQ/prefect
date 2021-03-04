@@ -119,15 +119,15 @@ class TestCopy:
 
 class TestRemove:
     def test_initialization(self):
-        r = Remove(remove_path="rmdir")
-        assert r.remove_path == "rmdir"
+        r = Remove(path="rmdir")
+        assert r.path == "rmdir"
 
         r = Remove()
-        assert r.remove_path == ""
+        assert r.path == ""
 
-    def test_remove_path_not_provided(self, tmpdir):
+    def test_path_not_provided(self, tmpdir):
         r = Remove()
-        with pytest.raises(ValueError, match="No `remove_path` provided"):
+        with pytest.raises(ValueError, match="No `path` provided"):
             r.run()
 
     def test_remove_file(self, tmpdir):
@@ -135,12 +135,12 @@ class TestRemove:
         source.write_binary(b"test")
         assert source.exists()
 
-        Remove(remove_path=source).run()
+        Remove(path=source).run()
         assert not source.exists()
 
     def test_remove_directory(self, tmpdir):
         source = tmpdir.mkdir("source")
         assert source.exists()
 
-        Remove(remove_path=source).run()
+        Remove(path=source).run()
         assert not source.exists()
