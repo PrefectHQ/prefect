@@ -711,7 +711,9 @@ class Task(metaclass=TaskMetaclass):
                         t=type(arg), preview=repr(arg)[:10]
                     )
                 )
-        new = self.copy(**(task_args or {}))
+        task_args = task_args.copy() if task_args else {}
+        task_args.setdefault("nout", None)
+        new = self.copy(**task_args)
         return new.bind(
             *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs
         )
