@@ -49,7 +49,9 @@ def cloud_settings(cloud_api):
 @pytest.fixture()
 def client(monkeypatch):
     cloud_client = MagicMock(
-        get_flow_run_info=MagicMock(return_value=MagicMock(state=None, parameters={})),
+        get_flow_run_info=MagicMock(
+            return_value=MagicMock(state=Pending(), parameters={})
+        ),
         set_flow_run_state=MagicMock(
             side_effect=lambda flow_run_id, version, state: state
         ),
@@ -244,39 +246,53 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(
     assert states == [Running(), Success(result={})]
 
 
-def test_flow_runner_loads_parameters_from_cloud(monkeypatch):
+def test_flow_runner_initializes_context_from_cloud(monkeypatch):
+    from prefect.client.client import FlowRunInfoResult, ProjectInfo
 
     flow = prefect.Flow(name="test")
-    get_flow_run_info = MagicMock(return_value=MagicMock(parameters={"a": 1}))
-    set_flow_run_state = MagicMock()
+    scheduled_start_time = pendulum.parse("19860920")
+    get_flow_run_info = MagicMock(
+        return_value=FlowRunInfoResult(
+            id="my-flow-run-id",
+            name="my-flow-run-name",
+            flow_id="my-flow-id",
+            version=1,
+            task_runs=[],
+            state=Pending(),
+            scheduled_start_time=scheduled_start_time,
+            project=ProjectInfo(id="my-project-id", name="my-project-name"),
+            parameters={"p1": 1, "p2": 2},
+            context={"c1": 1, "c2": 2},
+        )
+    )
     client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=MagicMock()
     )
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     res = CloudFlowRunner(flow=flow).initialize_run(
-        state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
+        state=Pending(),
+        task_states={},
+        context={"c2": "two", "c3": 3},
+        task_contexts={},
+        parameters={"p2": "two", "p3": 3},
     )
 
-    assert res.context["parameters"]["a"] == 1
+    assert res.context["flow_id"] == "my-flow-id"
+    assert res.context["flow_run_id"] == "my-flow-run-id"
+    assert res.context["flow_run_version"] == 1
+    assert res.context["flow_run_name"] == "my-flow-run-name"
+    assert res.context["scheduled_start_time"] == scheduled_start_time
+    assert res.context["project_name"] == "my-project-name"
+    assert res.context["project_id"] == "my-project-id"
 
-
-def test_flow_runner_loads_context_from_cloud(monkeypatch):
-    flow = prefect.Flow(name="test")
-    get_flow_run_info = MagicMock(return_value=MagicMock(context={"a": 1}))
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert res.context["a"] == 1
+    # Explicitly provided parameters override those in cloud
+    assert res.context["parameters"] == {"p1": 1, "p2": "two", "p3": 3}
+    # Explicitly provided context overridden by cloud
+    assert res.context["c1"] == 1
+    assert res.context["c2"] == 2
+    assert res.context["c3"] == 3
 
 
 def test_flow_runner_puts_running_with_backend_in_context(client):
@@ -288,68 +304,6 @@ def test_flow_runner_puts_running_with_backend_in_context(client):
     res = CloudFlowRunner(flow=flow).run()
 
     assert res.is_successful()
-
-
-def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
-    flow = prefect.Flow(name="test")
-    date = pendulum.parse("19860920")
-    get_flow_run_info = MagicMock(
-        return_value=MagicMock(context={}, scheduled_start_time=date)
-    )
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=None, task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert "scheduled_start_time" in res.context
-    assert isinstance(res.context["scheduled_start_time"], datetime.datetime)
-    assert res.context["scheduled_start_time"].strftime("%Y-%m-%d") == "1986-09-20"
-
-
-def test_flow_runner_puts_flow_run_name_in_context(monkeypatch):
-    flow = prefect.Flow(name="test")
-
-    # we can't pass a `name` argument to a mock
-    # https://docs.python.org/3/library/unittest.mock.html#mock-names-and-the-name-attribute
-    info_mock = MagicMock(context={})
-    info_mock.name = "flow run name"
-    get_flow_run_info = MagicMock(return_value=info_mock)
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=None, task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert res.context["flow_run_name"] == "flow run name"
-
-
-def test_flow_runner_prioritizes_user_context_over_default_context(monkeypatch):
-    flow = prefect.Flow(name="test")
-    get_flow_run_info = MagicMock(return_value=MagicMock(context={"today": "is a day"}))
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=None, task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert "today" in res.context
-    assert res.context["today"] == "is a day"
 
 
 def test_client_is_always_called_even_during_failures(client):

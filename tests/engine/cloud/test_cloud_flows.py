@@ -7,7 +7,12 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
+from prefect.client.client import (
+    Client,
+    ProjectInfo,
+    FlowRunInfoResult,
+    TaskRunInfoResult,
+)
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.executors import LocalExecutor
 from prefect.engine.result import Result
@@ -143,6 +148,7 @@ class MockedCloudClient(MagicMock):
             id=flow_run.id,
             flow_id=flow_run.flow_id,
             name=flow_run.name,
+            project=ProjectInfo(id="my-project-id", name="my-project-name"),
             parameters={},
             context=None,
             version=flow_run.version,

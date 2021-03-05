@@ -71,7 +71,7 @@ commands = ["flow"]
 [pages.cli.server]
 title = "server"
 module = "prefect.cli.server"
-commands = ["start", "create_tenant"]
+commands = ["start", "create_tenant", "stop", "config_cmd"]
 
 [pages.schedules.schedules]
 title = "Schedules"
@@ -361,6 +361,17 @@ classes = [
         "ExasolExecute",
         "ExasolImportFromIterable",
         "ExasolExportToFile"
+        ]
+
+[pages.tasks.files]
+title = "File and Filesystem Tasks"
+module = "prefect.tasks.files"
+classes = [
+        "Copy",
+        "Move",
+        "Remove",
+        "Unzip",
+        "Zip",
         ]
 
 [pages.tasks.gcp]

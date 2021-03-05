@@ -4,6 +4,7 @@ import copy
 import functools
 import hashlib
 import inspect
+import itertools
 import json
 import os
 import tempfile
@@ -176,7 +177,10 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
-        self.slugs = dict()  # type: Dict[Task, str]
+        self._slug_counters = collections.defaultdict(
+            cast(Callable, functools.partial(itertools.count, 1))
+        )  # type: Dict[str, Iterator[int]]
+        self.slugs = {}  # type: Dict[Task, str]
         self.constants = collections.defaultdict(
             dict
         )  # type: Dict[Task, Dict[str, Any]]
@@ -486,12 +490,14 @@ class Flow:
         Returns:
             - str: the corresponding slug
         """
-        slug_bases = []
-        for t in self.tasks:
-            slug_bases.append(f"{t.name}-" + "-".join(sorted(t.tags)))
-        new_slug = f"{task.name}-" + "-".join(sorted(task.tags))
-        index = slug_bases.count(new_slug)
-        return f"{new_slug}{'' if new_slug.endswith('-') else '-'}{index + 1}"
+        parts = [task.name]
+        parts.extend(sorted(task.tags))
+        prefix = "-".join(parts)
+        while True:
+            ind = next(self._slug_counters[prefix])
+            slug = f"{prefix}-{ind}"
+            if slug not in self.slugs.values():
+                return slug
 
     def add_task(self, task: Task) -> Task:
         """

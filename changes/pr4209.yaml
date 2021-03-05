@@ -1,0 +1,5 @@
+task:
+  - "fix: make slug_counters use partial instead of lambda ` - [#4209](https://github.com/PrefectHQ/prefect/pull/4209)"
+
+contributor:
+  - "[Marwan S.](https://github.com/marwan116)"

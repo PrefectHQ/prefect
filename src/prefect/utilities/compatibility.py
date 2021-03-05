@@ -5,7 +5,6 @@ only be used internally.
 
 import sys
 
-
 # Provide `nullcontext`
 
 if sys.version_info < (3, 7):
