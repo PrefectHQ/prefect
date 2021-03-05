@@ -162,6 +162,7 @@ class Flow:
         result: Optional[Result] = None,
     ):
         self._cache = {}  # type: dict
+        self._registration_id = None
 
         if not name:
             raise ValueError("A name must be provided for the flow.")
@@ -1256,6 +1257,44 @@ class Flow:
                 )
         return state
 
+    def run_with_api(self):
+        if not self._registration_id:
+            raise ValueError("Flow has not been registered.")
+
+        client = prefect.Client()
+
+        self.logger.info("Creating a flow run on the API...")
+        flow_run_id = client.create_flow_run(flow_id=self._registration_id)
+        self.logger.info(f"Created flow run {flow_run_id}")
+
+        last_state = None
+        total_time = 0
+        warning_time = 0
+        loop_time = 1
+        while True:
+            flow_run_state = client.get_flow_run_info(flow_run_id).state
+
+            if flow_run_state != last_state:
+                self.logger.info(f"Flow run entered new state: {flow_run_state}")
+
+            last_state = flow_run_state
+
+            if flow_run_state.is_finished():
+                break
+
+            if warning_time >= 10 and flow_run_state.is_scheduled():
+                self.logger.info(
+                    f"Your flow run is still in a scheduled state after "
+                    f"{total_time} seconds. Do you have an agent running?"
+                )
+                warning_time = 0
+
+            total_time += loop_time
+            warning_time += loop_time
+            time.sleep(loop_time)
+
+        self.logger.info("Flow run complete!")
+
     # Visualization ------------------------------------------------------------
 
     def visualize(
@@ -1671,6 +1710,7 @@ class Flow:
 
         client = prefect.Client()
 
+        self.logger.info("Registering flow with API...")
         registered_flow = client.register(
             flow=self,
             build=build,
@@ -1680,6 +1720,9 @@ class Flow:
             no_url=no_url,
             idempotency_key=idempotency_key,
         )
+
+        self._registration_id = registered_flow
+
         return registered_flow
 
     def __mifflin__(self) -> None:  # coverage: ignore
