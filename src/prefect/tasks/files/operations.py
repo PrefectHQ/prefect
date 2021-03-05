@@ -171,3 +171,52 @@ class Remove(Task):
             path.unlink()
         else:
             path.rmdir()
+
+
+class ListDirectory(Task):
+    """
+    This task returns the content of a given directory within the file system.
+
+    Args:
+        - path (Union[str, Path], optional): directory path
+        - recursive (bool, optional): If True, all subdirectories are returned
+            recursively. (defaults to False)
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        path: Union[str, Path] = "",
+        recursive: bool = False,
+        **kwargs: Any,
+    ):
+        self.path = path
+        self.recursive = recursive
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "path",
+    )
+    def run(self, path: Union[str, Path] = "") -> None:
+        """
+        Task run method.
+
+        Args:
+            - path (Union[str, Path], optional): directory path
+
+        Returns:
+            - List: content of the given path as Path objects
+        """
+        if not path:
+            raise ValueError("No `path` provided.")
+
+        path = Path(path)
+
+        if not path.is_dir():
+            raise ValueError(f"Path ('{path}') is not a directory")
+
+        if self.recursive:
+            return list(path.rglob("*"))
+        else:
+            return list(path.glob("*"))
