@@ -3056,7 +3056,9 @@ class TestSaveLoad:
     reason="Windows doesn't support any timeout logic",
 )
 @pytest.mark.parametrize(
-    "executor", ["local", "sync", "mthread", "mproc_local", "mproc"], indirect=True
+    "executor",
+    ["local", "sync", "mthread", "mproc_local", "mproc", "threaded_local"],
+    indirect=True,
 )
 def test_timeout_actually_stops_execution(
     executor,

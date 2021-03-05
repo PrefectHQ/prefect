@@ -75,6 +75,12 @@ def mproc_local():
     yield LocalDaskExecutor(scheduler="processes")
 
 
+@pytest.fixture()
+def threaded_local():
+    "Multithreaded executor using local dask (not distributed cluster)"
+    yield LocalDaskExecutor(scheduler="threads")
+
+
 @pytest.fixture(scope="session")
 def mproc():
     "Multi-processing executor using dask distributed"
@@ -89,7 +95,7 @@ def mproc():
 
 
 @pytest.fixture()
-def _switch(mthread, local, sync, mproc, mproc_local):
+def _switch(mthread, local, sync, mproc, mproc_local, threaded_local):
     """
     A construct needed so we can parametrize the executor fixture.
 
@@ -97,7 +103,12 @@ def _switch(mthread, local, sync, mproc, mproc_local):
     in slightly different ways.
     """
     execs = dict(
-        mthread=mthread, local=local, sync=sync, mproc=mproc, mproc_local=mproc_local
+        mthread=mthread,
+        local=local,
+        sync=sync,
+        mproc=mproc,
+        mproc_local=mproc_local,
+        threaded_local=threaded_local,
     )
     return lambda e: execs[e]
 
