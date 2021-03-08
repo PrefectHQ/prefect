@@ -343,45 +343,6 @@ class TestGenerateTaskDefinition:
         taskdef = self.generate_task_definition(run_config, storage)
         assert taskdef["containerDefinitions"][0]["image"] == expected
 
-    def test_generate_task_definition_resources(self):
-        taskdef = self.generate_task_definition(ECSRun(cpu="2048", memory="4096"))
-        assert taskdef["cpu"] == "2048"
-        assert taskdef["memory"] == "4096"
-
-    @pytest.mark.parametrize(
-        "on_run_config, on_agent, expected",
-        [
-            (None, None, None),
-            ("task-role-1", None, "task-role-1"),
-            (None, "task-role-2", "task-role-2"),
-            ("task-role-1", "task-role-2", "task-role-1"),
-        ],
-    )
-    def test_generate_task_definition_task_role_arn(
-        self, on_run_config, on_agent, expected
-    ):
-        taskdef = self.generate_task_definition(
-            ECSRun(task_role_arn=on_run_config), task_role_arn=on_agent
-        )
-        assert taskdef.get("taskRoleArn") == expected
-
-    @pytest.mark.parametrize(
-        "on_run_config, on_agent, expected",
-        [
-            (None, None, None),
-            ("execution-role-1", None, "execution-role-1"),
-            (None, "execution-role-2", "execution-role-2"),
-            ("execution-role-1", "execution-role-2", "execution-role-1"),
-        ],
-    )
-    def test_generate_task_definition_execution_role_arn(
-        self, on_run_config, on_agent, expected
-    ):
-        taskdef = self.generate_task_definition(
-            ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
-        )
-        assert taskdef.get("executionRoleArn") == expected
-
     def test_generate_task_definition_environment(self):
         run_config = ECSRun(
             image="test-image",
@@ -485,6 +446,43 @@ class TestGetRunTaskKwargs:
             "-c",
             "prefect execute flow-run",
         ]
+
+    def test_get_run_task_kwargs_resources(self):
+        kwargs = self.get_run_task_kwargs(ECSRun(cpu="2048", memory="4096"))
+        assert kwargs["overrides"]["cpu"] == "2048"
+        assert kwargs["overrides"]["memory"] == "4096"
+
+    @pytest.mark.parametrize(
+        "on_run_config, on_agent, expected",
+        [
+            (None, None, None),
+            ("task-role-1", None, "task-role-1"),
+            (None, "task-role-2", "task-role-2"),
+            ("task-role-1", "task-role-2", "task-role-1"),
+        ],
+    )
+    def test_get_task_run_kwargs_task_role_arn(self, on_run_config, on_agent, expected):
+        kwargs = self.get_run_task_kwargs(
+            ECSRun(task_role_arn=on_run_config), task_role_arn=on_agent
+        )
+        assert kwargs["overrides"].get("taskRoleArn") == expected
+
+    @pytest.mark.parametrize(
+        "on_run_config, on_agent, expected",
+        [
+            (None, None, None),
+            ("execution-role-1", None, "execution-role-1"),
+            (None, "execution-role-2", "execution-role-2"),
+            ("execution-role-1", "execution-role-2", "execution-role-1"),
+        ],
+    )
+    def test_get_task_run_kwargs_execution_role_arn(
+        self, on_run_config, on_agent, expected
+    ):
+        kwargs = self.get_run_task_kwargs(
+            ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
+        )
+        assert kwargs["overrides"].get("executionRoleArn") == expected
 
     def test_get_run_task_kwargs_environment(self, tmpdir, backend):
         path = str(tmpdir.join("kwargs.yaml"))

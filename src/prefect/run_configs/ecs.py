@@ -135,6 +135,12 @@ ecs.html#ECS.Client.run_task
                 "Can only provide one of `task_definition`, `task_definition_path`, "
                 "or `task_definition_arn`"
             )
+        if task_definition_arn is not None and image is not None:
+            raise ValueError(
+                "Cannot provide both `task_definition_arn` and `image`, since an ECS "
+                "task's `image` can only be configured as part of the task definition"
+            )
+
         if task_definition_path is not None:
             parsed = parse_path(task_definition_path)
             if parsed.scheme == "file":

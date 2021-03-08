@@ -224,17 +224,6 @@ class ECSAgent(Agent):
         else:
             self.run_task_kwargs = {}
 
-        # If `task_role_arn` is configured on the agent, add it to the default
-        # template. The agent default `task_role_arn` is only applied if using
-        # the agent's default template.
-        if self.task_role_arn:
-            self.task_definition["taskRoleArn"] = self.task_role_arn
-
-        # If `execution_role_arn` is configured on the agent, add it to the
-        # default task definition template.
-        if self.execution_role_arn:
-            self.task_definition["executionRoleArn"] = self.execution_role_arn
-
         # If running on fargate, auto-configure `networkConfiguration` for the
         # user if they didn't configure it themselves.
         if self.launch_type == "FARGATE" and not self.run_task_kwargs.get(
@@ -393,14 +382,6 @@ class ECSAgent(Agent):
         # Set flow image
         container["image"] = image = get_flow_image(flow_run)
 
-        # Set taskRoleArn if configured
-        if run_config.task_role_arn:
-            taskdef["taskRoleArn"] = run_config.task_role_arn
-
-        # Set executionRoleArn if configured
-        if run_config.execution_role_arn:
-            taskdef["executionRoleArn"] = run_config.execution_role_arn
-
         # Add `PREFECT__CONTEXT__IMAGE` environment variable
         env = {"PREFECT__CONTEXT__IMAGE": image}
         container_env = [{"name": k, "value": v} for k, v in env.items()]
@@ -409,15 +390,10 @@ class ECSAgent(Agent):
                 container_env.append(entry)
         container["environment"] = container_env
 
-        # Set resource requirements, if provided
-        # Also ensure that cpu/memory are strings not integers
-        if run_config.cpu:
-            taskdef["cpu"] = str(run_config.cpu)
-        elif "cpu" in taskdef:
+        # Ensure that cpu/memory are strings not integers
+        if "cpu" in taskdef:
             taskdef["cpu"] = str(taskdef["cpu"])
-        if run_config.memory:
-            taskdef["memory"] = str(run_config.memory)
-        elif "memory" in taskdef:
+        if "memory" in taskdef:
             taskdef["memory"] = str(taskdef["memory"])
 
         return taskdef
@@ -454,6 +430,29 @@ class ECSAgent(Agent):
         else:
             container = {"name": "flow"}
             container_overrides.append(container)
+
+        # Set taskRoleArn if configured
+        if run_config.task_role_arn:
+            overrides["taskRoleArn"] = run_config.task_role_arn
+        elif self.task_role_arn:
+            overrides["taskRoleArn"] = self.task_role_arn
+
+        # Set executionRoleArn if configured
+        if run_config.execution_role_arn:
+            overrides["executionRoleArn"] = run_config.execution_role_arn
+        elif self.execution_role_arn:
+            overrides["executionRoleArn"] = self.execution_role_arn
+
+        # Set resource requirements, if provided
+        # Also ensure that cpu/memory are strings not integers
+        if run_config.cpu:
+            overrides["cpu"] = str(run_config.cpu)
+        elif "cpu" in overrides:
+            overrides["cpu"] = str(overrides["cpu"])
+        if run_config.memory:
+            overrides["memory"] = str(run_config.memory)
+        elif "memory" in overrides:
+            overrides["memory"] = str(overrides["memory"])
 
         # Set flow run command
         container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
