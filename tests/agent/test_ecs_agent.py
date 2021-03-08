@@ -530,13 +530,13 @@ class TestGetRunTaskKwargs:
 
 
 class TestDeployFlow:
-    def deploy_flow(self, run_config, **kwargs):
+    def deploy_flow(self, run_config, storage=None, **kwargs):
         agent = ECSAgent(**kwargs)
         flow_run = GraphQLResult(
             {
                 "flow": GraphQLResult(
                     {
-                        "storage": Local().serialize(),
+                        "storage": (storage or Local()).serialize(),
                         "id": "flow-id",
                         "version": 1,
                         "name": "Test Flow",
@@ -555,6 +555,16 @@ class TestDeployFlow:
             match="`run_config` of type `LocalRun`, only `ECSRun` is supported",
         ):
             self.deploy_flow(LocalRun())
+
+    def test_deploy_flow_errors_if_mix_task_definition_arn_and_docker_storage(self):
+        with pytest.raises(
+            ValueError,
+            match="Cannot provide `task_definition_arn` when using `Docker` storage",
+        ):
+            self.deploy_flow(
+                ECSRun(task_definition_arn="my-taskdef-arn"),
+                storage=Docker(registry_url="test", image_name="name", image_tag="tag"),
+            )
 
     @pytest.mark.parametrize("run_config", [ECSRun(), UniversalRun(), None])
     def test_deploy_flow_registers_new_task_definition(self, run_config, aws):

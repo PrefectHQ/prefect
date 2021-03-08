@@ -303,6 +303,13 @@ class ECSAgent(Agent):
                 flow_run.flow.id,
             )
         else:
+            from prefect.serialization.storage import StorageSchema
+            from prefect.storage import Docker
+
+            if isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+                raise ValueError(
+                    "Cannot provide `task_definition_arn` when using `Docker` storage"
+                )
             taskdef_arn = run_config.task_definition_arn
             new_taskdef_arn = False
             self.logger.debug(
