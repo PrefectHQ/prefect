@@ -48,9 +48,7 @@ def aws(monkeypatch):
         "Subnets": [{"SubnetId": "test-subnet-id-1"}, {"SubnetId": "test-subnet-id-2"}]
     }
 
-    clients = dict(
-        ecs=MagicMock(), ec2=ec2, s3=MagicMock(), resourcegroupstaggingapi=MagicMock()
-    )
+    clients = dict(ecs=MagicMock(), ec2=ec2, s3=MagicMock())
 
     def get_client(key, **kwargs):
         if key not in clients:
@@ -533,49 +531,6 @@ class TestGetRunTaskKwargs:
         }
 
 
-@pytest.mark.parametrize("kind", ["exists", "missing", "error"])
-def test_get_task_definition_arn(aws, kind):
-    if kind == "exists":
-        aws.resourcegroupstaggingapi.get_resources.return_value = {
-            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
-        }
-        expected = "my-taskdef-arn"
-    elif kind == "missing":
-        aws.resourcegroupstaggingapi.get_resources.return_value = {
-            "ResourceTagMappingList": []
-        }
-        expected = None
-    else:
-        from botocore.exceptions import ClientError
-
-        aws.resourcegroupstaggingapi.get_resources.side_effect = ClientError(
-            {}, "GetResources"
-        )
-        expected = None
-
-    run_config = ECSRun()
-    flow_run = GraphQLResult({"flow": GraphQLResult({"id": "flow-id", "version": 1})})
-    agent = ECSAgent()
-
-    res = agent.get_task_definition_arn(flow_run, run_config)
-    assert res == expected
-    kwargs = aws.resourcegroupstaggingapi.get_resources.call_args[1]
-    assert sorted(kwargs["TagFilters"], key=lambda x: x["Key"]) == [
-        {"Key": "prefect:flow-id", "Values": ["flow-id"]},
-        {"Key": "prefect:flow-version", "Values": ["1"]},
-    ]
-    assert kwargs["ResourceTypeFilters"] == ["ecs:task-definition"]
-
-
-def test_get_task_definition_arn_provided_task_definition_arn():
-    run_config = ECSRun(task_definition_arn="my-taskdef-arn")
-    flow_run = GraphQLResult({"flow": GraphQLResult({"id": "flow-id", "version": 1})})
-    agent = ECSAgent()
-
-    res = agent.get_task_definition_arn(flow_run, run_config)
-    assert res == "my-taskdef-arn"
-
-
 class TestDeployFlow:
     def deploy_flow(self, run_config, **kwargs):
         agent = ECSAgent(**kwargs)
@@ -604,10 +559,7 @@ class TestDeployFlow:
             self.deploy_flow(LocalRun())
 
     @pytest.mark.parametrize("run_config", [ECSRun(), UniversalRun(), None])
-    def test_deploy_flow_registers_taskdef_if_not_found(self, run_config, aws):
-        aws.resourcegroupstaggingapi.get_resources.return_value = {
-            "ResourceTagMappingList": []
-        }
+    def test_deploy_flow_registers_new_task_definition(self, run_config, aws):
         aws.ecs.register_task_definition.return_value = {
             "taskDefinition": {"taskDefinitionArn": "my-taskdef-arn"}
         }
@@ -622,19 +574,11 @@ class TestDeployFlow:
         assert aws.ecs.run_task.called
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
         assert "my-task-arn" in res
-
-    def test_deploy_flow_does_not_register_taskdef_if_found(self, aws):
-        aws.resourcegroupstaggingapi.get_resources.return_value = {
-            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
-        }
-        aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
-
-        res = self.deploy_flow(ECSRun(run_task_kwargs={"enableECSManagedTags": True}))
-        assert not aws.ecs.register_task_definition.called
-        assert aws.ecs.run_task.called
-        assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
-        assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
-        assert "my-task-arn" in res
+        assert aws.ecs.deregister_task_definition.called
+        assert (
+            aws.ecs.deregister_task_definition.call_args[1]["taskDefinition"]
+            == "my-taskdef-arn"
+        )
 
     def test_deploy_flow_uses_provided_task_definition_arn(self, aws):
         aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
@@ -643,12 +587,10 @@ class TestDeployFlow:
         assert not aws.ecs.register_task_definition.called
         assert aws.ecs.run_task.called
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
+        assert not aws.ecs.deregister_task_definition.called
         assert "my-task-arn" in res
 
     def test_deploy_flow_run_task_fails(self, aws):
-        aws.resourcegroupstaggingapi.get_resources.return_value = {
-            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
-        }
         aws.ecs.run_task.return_value = {
             "tasks": [],
             "failures": [{"reason": "my-reason"}],
@@ -656,16 +598,16 @@ class TestDeployFlow:
         with pytest.raises(ValueError) as exc:
             self.deploy_flow(ECSRun())
         assert aws.ecs.run_task.called
+        assert aws.ecs.deregister_task_definition.called
         assert "my-reason" in str(exc.value)
 
     def test_deploy_flow_forwards_run_task_kwargs(self, aws):
-        aws.resourcegroupstaggingapi.get_resources.return_value = {
-            "ResourceTagMappingList": [{"ResourceARN": "my-taskdef-arn"}]
+        aws.ecs.register_task_definition.return_value = {
+            "taskDefinition": {"taskDefinitionArn": "my-taskdef-arn"}
         }
         aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
 
         res = self.deploy_flow(ECSRun(run_task_kwargs={"enableECSManagedTags": True}))
-        assert not aws.ecs.register_task_definition.called
         assert aws.ecs.run_task.called
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
         assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True

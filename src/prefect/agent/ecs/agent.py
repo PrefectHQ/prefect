@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import Iterable, Dict, Optional, Any
+from typing import Iterable, Dict, Any
 
 import slugify
 import yaml
@@ -192,9 +192,6 @@ class ECSAgent(Agent):
         )  # type: Dict[str, Any]
 
         self.ecs_client = get_boto_client("ecs", **self.boto_kwargs)
-        self.rgtag_client = get_boto_client(
-            "resourcegroupstaggingapi", **self.boto_kwargs
-        )
 
         # Load default task definition
         if not task_definition_path:
@@ -302,8 +299,7 @@ class ECSAgent(Agent):
         run_config = self._get_run_config(flow_run, ECSRun)
         assert isinstance(run_config, ECSRun)  # mypy
 
-        taskdef_arn = self.get_task_definition_arn(flow_run, run_config)
-        if taskdef_arn is None:
+        if run_config.task_definition_arn is None:
             # Register a new task definition
             self.logger.debug(
                 "Registering new task definition for flow %s", flow_run.flow.id
@@ -311,12 +307,15 @@ class ECSAgent(Agent):
             taskdef = self.generate_task_definition(flow_run, run_config)
             resp = self.ecs_client.register_task_definition(**taskdef)
             taskdef_arn = resp["taskDefinition"]["taskDefinitionArn"]
+            new_taskdef_arn = True
             self.logger.debug(
                 "Registered task definition %s for flow %s",
                 taskdef_arn,
                 flow_run.flow.id,
             )
         else:
+            taskdef_arn = run_config.task_definition_arn
+            new_taskdef_arn = False
             self.logger.debug(
                 "Using task definition %s for flow %s", taskdef_arn, flow_run.flow.id
             )
@@ -325,6 +324,12 @@ class ECSAgent(Agent):
         kwargs = self.get_run_task_kwargs(flow_run, run_config)
 
         resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
+
+        # Always deregister the task definition if a new one was registered
+        if new_taskdef_arn:
+            self.logger.debug("Deregistering task definition %s", taskdef_arn)
+            self.ecs_client.deregister_task_definition(taskDefinition=taskdef_arn)
+
         if resp.get("tasks"):
             task_arn = resp["tasks"][0]["taskArn"]
             self.logger.debug("Started task %r for flow run %r", task_arn, flow_run.id)
@@ -335,51 +340,6 @@ class ECSAgent(Agent):
                 flow_run.id, resp.get("failures")
             )
         )
-
-    def get_task_definition_tags(self, flow_run: GraphQLResult) -> dict:
-        """Get required task definition tags from a flow run.
-
-        Args:
-            - flow_run (GraphQLResult): the flow run
-
-        Returns:
-            - dict: a dict of tags to use
-        """
-        return {
-            "prefect:flow-id": flow_run.flow.id,
-            "prefect:flow-version": str(flow_run.flow.version),
-        }
-
-    def get_task_definition_arn(
-        self, flow_run: GraphQLResult, run_config: ECSRun
-    ) -> Optional[str]:
-        """Get an existing task definition ARN for a flow run.
-
-        Args:
-            - flow_run (GraphQLResult): the flow run
-            - run_config (ECSRun): The flow's run config
-
-        Returns:
-            - Optional[str]: the task definition ARN. Returns `None` if no
-                existing definition is found.
-        """
-        if run_config.task_definition_arn is not None:
-            return run_config.task_definition_arn
-
-        tags = self.get_task_definition_tags(flow_run)
-
-        from botocore.exceptions import ClientError
-
-        try:
-            res = self.rgtag_client.get_resources(
-                TagFilters=[{"Key": k, "Values": [v]} for k, v in tags.items()],
-                ResourceTypeFilters=["ecs:task-definition"],
-            )
-            if res["ResourceTagMappingList"]:
-                return res["ResourceTagMappingList"][0]["ResourceARN"]
-            return None
-        except ClientError:
-            return None
 
     def generate_task_definition(
         self, flow_run: GraphQLResult, run_config: ECSRun
@@ -411,17 +371,15 @@ class ECSAgent(Agent):
             word_boundary=True,
             save_order=True,
         )
-        family = f"prefect-{slug}"
+        taskdef["family"] = f"prefect-{slug}"
 
-        tags = self.get_task_definition_tags(flow_run)
-
-        taskdef["family"] = family
-
-        taskdef_tags = [{"key": k, "value": v} for k, v in tags.items()]
-        for entry in taskdef.get("tags", []):
-            if entry["key"] not in tags:
-                taskdef_tags.append(entry)
-        taskdef["tags"] = taskdef_tags
+        # Add some metadata tags for easier tracking by users
+        taskdef.setdefault("tags", []).extend(
+            [
+                {"key": "prefect:flow-id", "value": flow_run.flow.id},
+                {"key": "prefect:flow-version", "value": str(flow_run.flow.version)},
+            ]
+        )
 
         # Get the flow container (creating one if it doesn't already exist)
         containers = taskdef.setdefault("containerDefinitions", [])
