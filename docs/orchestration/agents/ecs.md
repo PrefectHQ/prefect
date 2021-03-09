@@ -133,18 +133,17 @@ their respective [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run
 
 ### Execution Role ARN
 
-The following policy is the AmazonECSTaskExecutionPolicy. The execution-role-arn 
-can be used to pull the image from ECR or enable logs in CloudWatch. More information for creating this role
-can be found [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html). 
-You can configure a default execution role for tasks started by the agent using the `--execution-role-arn` option:
+ECS tasks use [execution
+roles](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html)
+to grant permissions to the ECS infrastructure to make AWS API calls on your
+behalf. If actions taken to *start* your task require external AWS services
+(e.g. pulling an image from ECR), you'll need to configure an execution role.
+Permissions used by your code once your task starts are granted via [task
+roles](#task-role-arn) instead (see above).
 
-```bash
-prefect agent ecs start --execution-role-arn my-execution-role-arn
-```
-
-Flows can override this agent default by passing the `execution_role_arn` option to
-their respective [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run_config`.
-
+ECS provides a builtin policy `AmazonECSTaskExecutionPolicy` that provides
+common settings.  This supports pulling images from ECR and enables using
+CloudWatch logs. The full policy is below:
 
 ```json
 {
@@ -166,6 +165,21 @@ their respective [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run
 }
 ```
 
+Usually AWS will automatically create an IAM role with this policy named
+`ecsTaskExecutionRole` (if not, you may need to create one yourself, see [the
+AWS docs for more
+info](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html)).
+
+You can configure a default execution role for tasks started by the agent using
+the `--execution-role-arn` option:
+
+```bash
+prefect agent ecs start --execution-role-arn my-execution-role-arn
+```
+
+Flows can override this agent default by passing the `execution_role_arn` option to
+their respective [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run_config`.
+
 ### Custom Task Definition Template
 
 For deeper customization of the Tasks created by the agent, you may want to
@@ -174,7 +188,10 @@ configured per-flow (on the
 [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run_config`), or on
 the Agent as a default for flows that don't provide their own template.
 
-Any option available to
+The flow will be executed in a container named `flow` - if a container named
+`flow` isn't part of the task definition template Prefect will add a new
+container with that name (this allows adding sidecar containers without
+requiring the user to define a `flow` container as well). Any option available to
 [`register_task_definition`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition)
 may be specified here. For reference, the default template packaged with
 Prefect can be found
