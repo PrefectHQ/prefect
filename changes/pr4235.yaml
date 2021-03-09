@@ -1,0 +1,5 @@
+fix:
+  - "Fix task signature with variadic kwargs - [#4235](https://github.com/PrefectHQ/prefect/pull/4235)"
+
+contributor:
+  - "[Ben Fogelson](https://github.com/benfogelson)"
