@@ -59,7 +59,7 @@ def test_help(cmd):
             (
                 "--base-url testurl --no-pull --show-flow-logs --volume volume1 "
                 "--volume volume2 --network testnetwork1 --network testnetwork2 "
-                "--no-docker-interface"
+                "--no-docker-interface --docker-client-timeout 123"
             ),
             {
                 "base_url": "testurl",
@@ -68,6 +68,7 @@ def test_help(cmd):
                 "no_pull": True,
                 "show_flow_logs": True,
                 "docker_interface": False,
+                "docker_client_timeout": 123,
             },
         ),
         (
