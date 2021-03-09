@@ -223,6 +223,12 @@ def docker():
         "setups that users may be running their agent with."
     ),
 )
+@click.option(
+    "--docker-client-timeout",
+    default=None,
+    type=int,
+    help="The timeout to use for docker API calls, defaults to 60 seconds.",
+)
 def start(volumes, no_docker_interface, **kwargs):
     """Start a docker agent"""
     from prefect.agent.docker import DockerAgent
@@ -524,6 +530,12 @@ _agents = {
     help="Disable presence of a Docker interface.",
     hidden=True,
 )
+@click.option(
+    "--docker-client-timeout",
+    default=None,
+    type=int,
+    hidden=True,
+)
 @click.pass_context
 def start(
     ctx,
@@ -549,6 +561,7 @@ def start(
     agent_address,
     hostname_label,
     storage_labels,
+    docker_client_timeout,
 ):
     """
     Start an agent.
@@ -611,6 +624,7 @@ def start(
         --no-docker-interface       Disable the check of a Docker interface on this machine.
                                     Note: This is mostly relevant for some Docker-in-Docker
                                     setups that users may be running their agent with.
+        --docker-client-timeout     Timeout for docker api requests
 
     \b
     Kubernetes Agent:
@@ -692,6 +706,7 @@ def start(
                 volumes=list(volume),
                 networks=tuple(network),
                 docker_interface=not no_docker_interface,
+                docker_client_timeout=docker_client_timeout,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
