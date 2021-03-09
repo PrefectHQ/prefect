@@ -565,12 +565,18 @@ class Task(metaclass=TaskMetaclass):
             parameters_by_kind = defaultdict(list)
             for parameter in parameters:
                 parameters_by_kind[parameter.kind].append(parameter)
-            parameters_by_kind[inspect.Parameter.KEYWORD_ONLY].extend(EXTRA_CALL_PARAMETERS)
-            
+            parameters_by_kind[inspect.Parameter.KEYWORD_ONLY].extend(
+                EXTRA_CALL_PARAMETERS
+            )
+
             ordered_parameters = []
-            ordered_kinds = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                             inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.KEYWORD_ONLY,
-                             inspect.Parameter.VAR_KEYWORD)
+            ordered_kinds = (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.KEYWORD_ONLY,
+                inspect.Parameter.VAR_KEYWORD,
+            )
             for kind in ordered_kinds:
                 ordered_parameters.extend(parameters_by_kind[kind])
 
