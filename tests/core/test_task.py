@@ -247,7 +247,7 @@ class TestCreateTask:
 
     def test_task_signature_generation(self):
         class Test(Task):
-            def run(self, x: int, y: bool, z: int = 1):
+            def run(self, x: int, y: bool, z: int = 1, **kwargs):
                 pass
 
         t = Test()
@@ -265,6 +265,7 @@ class TestCreateTask:
         # doesn't override class signature
         class_sig = inspect.signature(Test)
         assert "name" in class_sig.parameters
+
 
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()

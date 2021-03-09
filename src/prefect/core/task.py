@@ -19,6 +19,7 @@ from typing import (
     Union,
     Tuple,
 )
+from collections import defaultdict
 
 import prefect
 import prefect.engine.cache_validators
@@ -561,9 +562,20 @@ class Task(metaclass=TaskMetaclass):
         if not hasattr(self, "_cached_signature"):
             sig = inspect.Signature.from_callable(self.run)
             parameters = list(sig.parameters.values())
-            parameters.extend(EXTRA_CALL_PARAMETERS)
+            parameters_by_kind = defaultdict(list)
+            for parameter in parameters:
+                parameters_by_kind[parameter.kind].append(parameter)
+            parameters_by_kind[inspect.Parameter.KEYWORD_ONLY].extend(EXTRA_CALL_PARAMETERS)
+            
+            ordered_parameters = []
+            ordered_kinds = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                             inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.KEYWORD_ONLY,
+                             inspect.Parameter.VAR_KEYWORD)
+            for kind in ordered_kinds:
+                ordered_parameters.extend(parameters_by_kind[kind])
+
             self._cached_signature = inspect.Signature(
-                parameters=parameters, return_annotation="Task"
+                parameters=ordered_parameters, return_annotation="Task"
             )
         return self._cached_signature
 
