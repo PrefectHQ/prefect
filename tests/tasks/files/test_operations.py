@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from prefect.tasks.files import Copy, ListDirectory, Move, Remove
+from prefect.tasks.files import Copy, Glob, Move, Remove
 
 
 class TestMove:
@@ -146,18 +146,19 @@ class TestRemove:
         assert not source.exists()
 
 
-class TestListDirectory:
+class TestGlob:
     def test_initialization(self):
-        ld = ListDirectory(path="/some/path")
+        ld = Glob(path="/some/path")
         assert ld.path == "/some/path"
         assert not ld.recursive
+        assert ld.pattern == "*"
 
-        ld = ListDirectory(recursive=True)
+        ld = Glob(recursive=True)
         assert ld.path == ""
         assert ld.recursive
 
     def test_path_not_provided(self, tmpdir):
-        ld = ListDirectory()
+        ld = Glob()
         with pytest.raises(ValueError, match="No `path` provided"):
             ld.run()
 
@@ -165,7 +166,7 @@ class TestListDirectory:
         source = tmpdir.mkdir("source").join("testfile")
         source.write_binary(b"test")
 
-        ld = ListDirectory(path=Path(tmpdir).joinpath("source"))
+        ld = Glob(path=Path(tmpdir).joinpath("source"))
         res = ld.run()
 
         assert res[0] == Path(str(source))
@@ -178,19 +179,21 @@ class TestListDirectory:
         source2 = tmpdir.join("source").mkdir("dir2").join("filetest")
         source2.write_binary(b"test")
 
-        ld = ListDirectory(path=Path(tmpdir).joinpath("source"), recursive=True)
+        ld = Glob(path=Path(tmpdir).joinpath("source"), recursive=True)
         res = ld.run()
 
         assert Path(str(source)) in res
         assert Path(str(source2)) in res
         assert len(res) == 4
 
-    def test_list_no_dir(self, tmpdir):
-        source = tmpdir.mkdir("source").join("testfile")
+    def test_glob_pattern(self, tmpdir):
+        source = tmpdir.mkdir("source").join("testfile.txt")
         source.write_binary(b"test")
+        source2 = tmpdir.join("source").join("testfile.log")
+        source2.write_binary(b"test")
 
-        ld = ListDirectory(path=str(source))
-        with pytest.raises(ValueError) as exp:
-            ld.run()
+        ld = Glob(path=Path(tmpdir).joinpath("source"), pattern="*.log")
+        res = ld.run()
 
-        assert f"Path ({str(source)!r}) is not a directory" in str(exp.value)
+        assert len(res) == 1
+        assert res[0] == Path(str(source2))

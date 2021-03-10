@@ -173,12 +173,13 @@ class Remove(Task):
             path.rmdir()
 
 
-class ListDirectory(Task):
+class Glob(Task):
     """
     This task returns the content of a given directory within the file system.
 
     Args:
         - path (Union[str, Path], optional): directory path
+        - pattern (str, optional): glob pattern, defaults to *
         - recursive (bool, optional): If True, all subdirectories are returned
             recursively. (defaults to False)
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -188,22 +189,30 @@ class ListDirectory(Task):
     def __init__(
         self,
         path: Union[str, Path] = "",
+        pattern: str = "*",
         recursive: bool = False,
         **kwargs: Any,
     ):
         self.path = path
+        self.pattern = pattern
         self.recursive = recursive
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(
-        "path",
-    )
-    def run(self, path: Union[str, Path] = "") -> None:
+    @defaults_from_attrs("path", "pattern", "recursive")
+    def run(
+        self,
+        path: Union[str, Path] = "",
+        pattern: str = "*",
+        recursive: bool = False,
+    ) -> None:
         """
         Task run method.
 
         Args:
             - path (Union[str, Path], optional): directory path
+            - pattern (str, optional): glob pattern, defaults to *
+            - recursive (bool, optional): If True, all subdirectories are returned
+                recursively. (defaults to False)
 
         Returns:
             - List: content of the given path as Path objects
@@ -211,12 +220,10 @@ class ListDirectory(Task):
         if not path:
             raise ValueError("No `path` provided.")
 
-        path = Path(path)
-
-        if not path.is_dir():
-            raise ValueError(f"Path ('{path}') is not a directory")
+        globpath = Path(path).joinpath(pattern)
+        self.logger.debug(f"Glob path: {globpath}")
 
         if self.recursive:
-            return list(path.rglob("*"))
+            return list(path.rglob(pattern))
         else:
-            return list(path.glob("*"))
+            return list(path.glob(pattern))
