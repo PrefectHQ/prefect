@@ -88,11 +88,9 @@ Finally, to register any flow with the server, call `flow.register()`. For more 
 
 If you want Prefect provides Docker images for master builds and versioned releases [here](https://hub.docker.com/r/prefecthq/prefect).
 
-To run the latest Prefect Docker image:
-
-```bash
-docker run -it prefecthq/prefect:latest
-```
+::: warning These images are intended for deployment, not development
+Many users attempt to run Prefect Server or build Docker images from within the Prefect images -- this is not a supported pattern due to complications of running docker-in-docker.  For more information about how to use these images, please see [this overview](https://docs.prefect.io/orchestration/flow_config/docker.html).
+:::
 
 Image tag breakdown:
 
