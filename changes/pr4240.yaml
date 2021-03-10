@@ -1,0 +1,2 @@
+enhancement:
+  - "Make `--slug` flag optional in `prefect server create-tenant` - [#4240](https://github.com/PrefectHQ/prefect/pull/4240)"
