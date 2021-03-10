@@ -1,0 +1,3 @@
+fix:
+  - "Move `command`, `environment`, `cpu`, `memory`, `execution_role_arn`, and `task_role_arn` configuration for ECS tasks from definition time to run time in the ECS agent - [#4211](https://github.com/PrefectHQ/prefect/pull/4211)"
+  - "Register (and deregister) a new task definition for every flow run in ECS agent - [#4211](https://github.com/PrefectHQ/prefect/pull/4211)"

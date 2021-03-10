@@ -30,7 +30,7 @@ services:
 
   # Hasura: the GraphQL API that layers on top of Postgres for querying metadata
   hasura:
-    image: "hasura/graphql-engine:v1.3.0"
+    image: "hasura/graphql-engine:v1.3.3"
     ports:
       - "${HASURA_HOST_PORT:-3000}:3000"
     command: "graphql-engine serve"

@@ -68,11 +68,12 @@ def test_docker_agent_config_options_populated(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("docker.APIClient", api)
 
-    agent = DockerAgent(base_url="url", no_pull=True)
+    agent = DockerAgent(base_url="url", no_pull=True, docker_client_timeout=123)
     assert agent.client.get_auth_token() == "TEST_TOKEN"
     assert agent.logger
     assert agent.no_pull
     assert api.call_args[1]["base_url"] == "url"
+    assert api.call_args[1]["timeout"] == 123
 
 
 def test_docker_agent_no_pull(api):
@@ -515,7 +516,11 @@ def test_docker_agent_deploy_flow_show_flow_logs(api, monkeypatch):
 
     process_kwargs = dict(
         target=_stream_container_logs,
-        kwargs={"base_url": agent.base_url, "container_id": "container_id"},
+        kwargs={
+            "base_url": agent.base_url,
+            "container_id": "container_id",
+            "timeout": 60,
+        },
     )
     process.assert_called_with(**process_kwargs)
     # Check all arguments to `multiprocessing.Process` are pickleable
