@@ -1,2 +1,0 @@
-enhancement:
-  - "Add `--docker-client-timeout` flag to docker agent, for configuring the timeout for all docker API requests - [#4232](https://github.com/PrefectHQ/prefect/pull/4232)"
