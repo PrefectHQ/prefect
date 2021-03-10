@@ -43,6 +43,7 @@ class S3Download(Task):
         credentials: str = None,
         bucket: str = None,
         compression: str = None,
+        raw: bool = False,
     ):
         """
         Task run method.
@@ -57,9 +58,10 @@ class S3Download(Task):
             - bucket (str, optional): the name of the S3 Bucket to download from
             - compression (str, optional): specifies a file format for decompression, decompressing
                 data upon download. Currently supports `'gzip'`.
+            - raw (bool, optional): mast return raw bytes
 
         Returns:
-            - str: the contents of this Key / Bucket, as a string
+            - str: the contents of this Key / Bucket, as a string or bytes
         """
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
@@ -82,7 +84,7 @@ class S3Download(Task):
             else:
                 raise ValueError(f"Unrecognized compression method '{compression}'.")
 
-        return output.decode()
+        return output if raw else output.decode()
 
 
 class S3Upload(Task):
