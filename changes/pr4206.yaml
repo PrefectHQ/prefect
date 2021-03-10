@@ -1,2 +1,0 @@
-fix:
-  - "Don't forward `nout` to mapped tasks - [#4206](https://github.com/PrefectHQ/prefect/pull/4206)"
