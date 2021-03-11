@@ -1,12 +1,12 @@
 import time
 import datetime
 import warnings
-from typing import Any
+from typing import Any, Union
 from urllib.parse import urlparse
 
 from prefect import context, Task
 from prefect.artifacts import create_link
-from prefect.client import Client
+from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.signals import signal_from_state
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args
@@ -95,7 +95,7 @@ class StartFlowRun(Task):
         idempotency_key: str = None,
         scheduled_start_time: datetime.datetime = None,
         wait: bool = None,
-    ) -> str:
+    ) -> Union[str, FlowRunInfoResult]:
         """
         Run method for the task; responsible for scheduling the specified flow run.
 
@@ -123,7 +123,12 @@ class StartFlowRun(Task):
                 state as the state of this task.  Defaults to `False`.
 
         Returns:
-            - str: the ID of the newly-scheduled flow run
+            - str (when `wait` is False): the ID of the newly-scheduled flow run,
+                returns immediately and independently of the result of the flow run
+            - FlowRunInfoResult (when `wait` is True): if the flow run succeeds, an
+                object containing information about the flow run. if the flow run fails,
+                this task will have a failure state with this result attached.
+
 
         Raises:
             - ValueError: if flow was not provided, cannot be found, or if a project name was
@@ -210,19 +215,21 @@ class StartFlowRun(Task):
         last_state = None
         while True:
             time.sleep(10)
-            flow_run_state = client.get_flow_run_info(flow_run_id).state
+            flow_run = client.get_flow_run_info(flow_run_id)
 
-            if flow_run_state != last_state:
-                self.logger.info(f"Flow run entered new state: {flow_run_state}")
-                last_state = flow_run_state
+            if flow_run.state != last_state:
+                self.logger.info(f"Flow run entered new state: {flow_run.state}")
+                last_state = flow_run.state
 
-            if flow_run_state.is_finished():
+            if flow_run.state.is_finished():
                 break
 
-        exc = signal_from_state(flow_run_state)(
-            f"{flow_run_id} finished in state {flow_run_state}"
+        # Raise the final state so this task reflects the flow's state
+        # On success, the `flow_run` details will be returned
+        raise signal_from_state(flow_run.state)(
+            message=f"{flow_run_id} finished in state {flow_run.state}",
+            result=flow_run,
         )
-        raise exc
 
 
 class FlowRunTask(StartFlowRun):
