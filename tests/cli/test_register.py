@@ -3,26 +3,12 @@ from unittest.mock import MagicMock
 import pytest
 from click.testing import CliRunner
 
-from prefect.cli.register import register
-
-
-def test_register_init():
-    runner = CliRunner()
-    result = runner.invoke(register)
-    assert result.exit_code == 0
-    assert "Register flows" in result.output
-
-
-def test_register_help():
-    runner = CliRunner()
-    result = runner.invoke(register, ["--help"])
-    assert result.exit_code == 0
-    assert "Register flows" in result.output
+from prefect.cli import cli
 
 
 def test_register_flow_help():
     runner = CliRunner()
-    result = runner.invoke(register, ["flow", "--help"])
+    result = runner.invoke(cli, ["register", "flow", "--help"])
     assert result.exit_code == 0
     assert "Register a flow" in result.output
 
@@ -61,6 +47,7 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
         f.write(contents)
 
     args = [
+        "register",
         "flow",
         "--file",
         full_path,
@@ -74,7 +61,7 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
         args.extend(["-l", l])
 
     runner = CliRunner()
-    result = runner.invoke(register, args)
+    result = runner.invoke(cli, args)
     assert client.register.called
     assert client.register.call_args[1]["project_name"] == "project"
     assert client.register.call_args[1]["idempotency_key"] is not None
