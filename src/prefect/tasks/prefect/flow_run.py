@@ -82,6 +82,7 @@ class StartFlowRun(Task):
         "new_flow_context",
         "run_name",
         "scheduled_start_time",
+        "wait",
     )
     def run(
         self,
@@ -93,6 +94,7 @@ class StartFlowRun(Task):
         run_name: str = None,
         idempotency_key: str = None,
         scheduled_start_time: datetime.datetime = None,
+        wait: bool = None,
     ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
@@ -116,6 +118,9 @@ class StartFlowRun(Task):
                 if this task is retried. If not provided, defaults to the active `task_run_id`.
             - scheduled_start_time (datetime, optional): the time to schedule the execution
                 for; if not provided, defaults to now
+            - wait (bool, optional): whether to wait the triggered flow run's state; if True, this
+                task will wait until the flow run is complete, and then reflect the corresponding
+                state as the state of this task.  Defaults to `False`.
 
         Returns:
             - str: the ID of the newly-scheduled flow run
@@ -190,7 +195,7 @@ class StartFlowRun(Task):
         run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
         create_link(urlparse(run_link).path)
 
-        if not self.wait:
+        if not wait:
             return flow_run_id
 
         while True:
