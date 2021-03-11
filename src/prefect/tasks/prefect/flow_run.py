@@ -189,23 +189,40 @@ class StartFlowRun(Task):
             scheduled_start_time=scheduled_start_time,
         )
 
-        self.logger.debug(f"Flow Run {flow_run_id} created.")
+        self.logger.info(f"Flow Run {flow_run_id} created.")
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
         run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
         create_link(urlparse(run_link).path)
 
         if not wait:
+            self.logger.debug(
+                "Returning without waiting for flow to finish. Set `wait=True` to "
+                "hang downstream tasks until this flow has reached a terminal state."
+            )
             return flow_run_id
 
+        self.logger.debug(
+            "Waiting for flow run to finish... Set `wait=False` to return immediately "
+            "after flow run creation."
+        )
+
+        last_state = None
         while True:
             time.sleep(10)
             flow_run_state = client.get_flow_run_info(flow_run_id).state
+
+            if flow_run_state != last_state:
+                self.logger.info(f"Flow run entered new state: {flow_run_state}")
+                last_state = flow_run_state
+
             if flow_run_state.is_finished():
-                exc = signal_from_state(flow_run_state)(
-                    f"{flow_run_id} finished in state {flow_run_state}"
-                )
-                raise exc
+                break
+
+        exc = signal_from_state(flow_run_state)(
+            f"{flow_run_id} finished in state {flow_run_state}"
+        )
+        raise exc
 
 
 class FlowRunTask(StartFlowRun):
