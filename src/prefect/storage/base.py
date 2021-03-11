@@ -151,4 +151,4 @@ class Storage(metaclass=ABCMeta):
         if not hasattr(self, "_flows"):
             return
 
-        _healthcheck.result_check(self._flows.values())  # type: ignore
+        _healthcheck.result_check(self._flows.values(), quiet=True)  # type: ignore

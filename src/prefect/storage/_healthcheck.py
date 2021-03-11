@@ -66,7 +66,7 @@ def import_flow_from_script_check(flow_file_paths: list):
     return flows
 
 
-def result_check(flows: list):
+def result_check(flows: list, quiet=False):
     for flow in flows:
         if flow.result is not None:
             continue
@@ -112,7 +112,8 @@ def result_check(flows: list):
                     f"more details.",
                     stacklevel=2,
                 )
-    print("Result check: OK")
+    if not quiet:
+        print("Result check: OK")
 
 
 def environment_dependency_check(flows: list):

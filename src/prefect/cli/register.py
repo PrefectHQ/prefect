@@ -1,4 +1,7 @@
 import os
+import importlib
+import sys
+from typing import NamedTuple
 
 import click
 from click.exceptions import ClickException
@@ -7,11 +10,143 @@ import prefect
 from prefect.utilities.storage import extract_flow_from_file
 
 
+class Source(NamedTuple):
+    location: str
+    is_module: bool = False
+
+
+def collect_flows_from_paths(paths):
+    from prefect.storage import Local
+
+    paths = list(paths)
+    files = []
+    flows = {}
+    for path in paths:
+        if not os.path.exists(path):
+            raise ValueError(f"Path {path!r} doesn't exist")
+        elif os.path.isdir(path):
+            with os.scandir(path) as directory:
+                files.extend(
+                    e.path for e in directory if e.is_file() and e.path.endswith(".py")
+                )
+        else:
+            files.append(path)
+
+    for path in files:
+        with open(path, "rb") as fil:
+            contents = fil.read()
+
+        ns = {}
+        with prefect.context(
+            {"loading_flow": True, "local_script_path": os.path.abspath(path)}
+        ):
+            exec(contents, ns)
+
+        new_flows = [f for f in ns.values() if isinstance(f, prefect.Flow)]
+        if new_flows:
+            storage = Local(path=os.path.abspath(path), stored_as_script=True)
+            for f in new_flows:
+                if f.storage is None:
+                    f.storage = storage
+        flows[Source(path)] = new_flows
+
+    return flows
+
+
+def collect_flows_from_modules(modules):
+    from prefect.storage import Module
+
+    flows = {}
+    for name in modules:
+        with prefect.context({"loading_flow": True}):
+            mod = importlib.import_module(name)
+        new_flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
+        if new_flows:
+            storage = Module(name)
+            for f in new_flows:
+                if f.storage is None:
+                    f.storage = storage
+        flows[Source(name, True)] = new_flows
+    return flows
+
+
 def register_flows(
     project, paths=None, modules=None, names=None, labels=None, force=False
 ):
-    # TODO
-    pass
+    from prefect.run_configs import UniversalRun
+
+    names = set(names or ())
+
+    click.echo("Collecting flows...")
+    source_to_flows = {}
+    if paths:
+        source_to_flows.update(collect_flows_from_paths(paths))
+    if modules:
+        source_to_flows.update(collect_flows_from_modules(modules))
+
+    # Ensure names are all unique
+    seen = set()
+    for flows in source_to_flows.values():
+        for flow in flows:
+            if flow.name in seen:
+                click.secho(
+                    f"Error: Multiple flows named {flow.name} found", fg="yellow"
+                )
+                sys.exit(1)
+            seen.add(flow.name)
+
+    if names:
+        # Filter by name
+        source_to_flows = {
+            source: [f for f in flows if f.name in names]
+            for source, flows in source_to_flows.items()
+        }
+        missing = names.difference(
+            f.name for flows in source_to_flows.values() for f in flows
+        )
+        if missing:
+            missing_flows = "\n".join(f"- {n}" for n in sorted(missing))
+            click.secho(f"Failed to find the following flows:\n{missing_flows}")
+            sys.exit(1)
+
+    n_flows = sum(map(len, source_to_flows.values()))
+    click.echo(f"Found {n_flows} flows to register")
+
+    for source, flows in source_to_flows.items():
+        if not flows:
+            continue
+
+        click.echo(f"Processing {source.location!r}:")
+
+        for flow in flows:
+            # Add labels and add flow to storage
+            if flow.run_config is None:
+                if flow.environment is not None:
+                    flow.environment.labels.update(labels)
+                else:
+                    flow.run_config = UniversalRun(labels=labels)
+            else:
+                flow.run_config.labels.update(labels)
+
+            flow.storage.add_flow(flow)
+
+        built = set()
+        for flow in flows:
+            if flow.storage not in built:
+                click.echo(
+                    f"  Building `{type(flow.storage).__name__}` storage...", nl=False
+                )
+                flow.storage.build()
+                built.add(flow.storage)
+                click.secho(" Done", fg="green")
+            click.echo(f"  Registering {flow.name!r}...", nl=False)
+            flow.register(
+                project_name=project,
+                build=False,
+                no_url=True,
+                idempotency_key=(None if force else flow.serialized_hash()),
+            )
+            click.secho(" Done", fg="green")
 
 
 @click.group(invoke_without_command=True)
