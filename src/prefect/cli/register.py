@@ -1,6 +1,9 @@
 import os
+import inspect
 import importlib
+import multiprocessing
 import sys
+import time
 from typing import NamedTuple
 
 import click
@@ -11,44 +14,46 @@ from prefect.utilities.storage import extract_flow_from_file
 
 
 class Source(NamedTuple):
-    location: str
-    is_module: bool = False
+    path: str
+    mtime: float
+    module: str = None
 
 
 def collect_flows_from_paths(paths):
     from prefect.storage import Local
 
     paths = list(paths)
-    files = []
+    sources = []
     flows = {}
     for path in paths:
+        path = os.path.abspath(path)
         if not os.path.exists(path):
             raise ValueError(f"Path {path!r} doesn't exist")
         elif os.path.isdir(path):
             with os.scandir(path) as directory:
-                files.extend(
-                    e.path for e in directory if e.is_file() and e.path.endswith(".py")
+                sources.extend(
+                    Source(e.path, e.stat().st_mtime)
+                    for e in directory
+                    if e.is_file() and e.path.endswith(".py")
                 )
         else:
-            files.append(path)
+            sources.append(Source(path, os.stat(path).st_mtime))
 
-    for path in files:
-        with open(path, "rb") as fil:
+    for source in sources:
+        with open(source.path, "rb") as fil:
             contents = fil.read()
 
         ns = {}
-        with prefect.context(
-            {"loading_flow": True, "local_script_path": os.path.abspath(path)}
-        ):
+        with prefect.context({"loading_flow": True, "local_script_path": source.path}):
             exec(contents, ns)
 
         new_flows = [f for f in ns.values() if isinstance(f, prefect.Flow)]
         if new_flows:
-            storage = Local(path=os.path.abspath(path), stored_as_script=True)
+            storage = Local(path=source.path, stored_as_script=True)
             for f in new_flows:
                 if f.storage is None:
                     f.storage = storage
-        flows[Source(path)] = new_flows
+        flows[source] = new_flows
 
     return flows
 
@@ -60,22 +65,27 @@ def collect_flows_from_modules(modules):
     for name in modules:
         with prefect.context({"loading_flow": True}):
             mod = importlib.import_module(name)
+        path = inspect.getsourcefile(mod)
+        mtime = os.stat(path).st_mtime
         new_flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
         if new_flows:
             storage = Module(name)
             for f in new_flows:
                 if f.storage is None:
                     f.storage = storage
-        flows[Source(name, True)] = new_flows
+        flows[Source(path, mtime, name)] = new_flows
     return flows
 
 
 def register_flows(
-    project, paths=None, modules=None, names=None, labels=None, force=False
+    project,
+    paths=None,
+    modules=None,
+    names=None,
+    labels=None,
+    force=False,
 ):
     from prefect.run_configs import UniversalRun
-
-    names = set(names or ())
 
     click.echo("Collecting flows...")
     source_to_flows = {}
@@ -84,7 +94,7 @@ def register_flows(
     if modules:
         source_to_flows.update(collect_flows_from_modules(modules))
 
-    # Ensure names are all unique
+    # Ensure flow names are all unique
     seen = set()
     for flows in source_to_flows.values():
         for flow in flows:
@@ -95,6 +105,7 @@ def register_flows(
                 sys.exit(1)
             seen.add(flow.name)
 
+    names = set(names or ())
     if names:
         # Filter by name
         source_to_flows = {
@@ -116,7 +127,7 @@ def register_flows(
         if not flows:
             continue
 
-        click.echo(f"Processing {source.location!r}:")
+        click.echo(f"Processing {(source.module or source.path)!r}:")
 
         for flow in flows:
             # Add labels and add flow to storage
@@ -147,6 +158,73 @@ def register_flows(
                 idempotency_key=(None if force else flow.serialized_hash()),
             )
             click.secho(" Done", fg="green")
+
+    return list(source_to_flows)
+
+
+def register_flows_watch(
+    project,
+    paths=None,
+    modules=None,
+    names=None,
+    labels=None,
+    force=False,
+):
+    paths = list(paths or ())
+    modules = list(modules or ())
+
+    with multiprocessing.Pool(1, maxtasksperchild=1) as pool:
+        sources = pool.apply(
+            register_flows,
+            (project,),
+            dict(paths=paths, modules=modules, names=names, labels=labels, force=force),
+        )
+        tracked = [os.path.abspath(p) for p in paths]
+        tracked.extend(s.path for s in sources if s.module)
+        cache = {s.path: s for s in sources}
+        click.echo("")
+        while True:
+            time.sleep(1)
+
+            call_paths = []
+            call_mods = []
+            for path in tracked:
+                try:
+                    with os.scandir(path) as directory:
+                        for entry in directory:
+                            if entry.is_file() and entry.path.endswith(".py"):
+                                source = cache.get(entry.path)
+                                if (
+                                    source is None
+                                    or entry.stat().st_mtime != source.mtime
+                                ):
+                                    call_paths.append(entry.path)
+                except FileNotFoundError:
+                    cache.pop(path, None)
+                except NotADirectoryError:
+                    source = cache.get(path)
+                    if source is None:
+                        call_paths.append(path)
+                    elif os.stat(path).st_mtime != source.mtime:
+                        if source.module:
+                            call_mods.append(source.module)
+                        else:
+                            call_paths.append(path)
+
+            if call_paths or call_mods:
+                sources = pool.apply(
+                    register_flows,
+                    (project,),
+                    dict(
+                        paths=call_paths,
+                        modules=call_mods,
+                        names=names,
+                        labels=labels,
+                        force=force,
+                    ),
+                )
+                cache.update({s.path: s for s in sources})
+                click.echo("")
 
 
 @click.group(invoke_without_command=True)
@@ -209,8 +287,17 @@ def register_flows(
     default=False,
     is_flag=True,
 )
+@click.option(
+    "--watch",
+    help=(
+        "If set, the specified paths and modules will be monitored and "
+        "registration re-run upon changes."
+    ),
+    default=False,
+    is_flag=True,
+)
 @click.pass_context
-def register(ctx, project, paths, modules, names, labels, force):
+def register(ctx, project, paths, modules, names, labels, force, watch):
     """Register one or more flows into a project"""
     # Since the old command was a subcommand of this, we have to do some
     # mucking to smoothly deprecate it. Can be removed with `prefect register
@@ -225,7 +312,8 @@ def register(ctx, project, paths, modules, names, labels, force):
     if project is None:
         raise ClickException("Missing required option '--project'")
 
-    register_flows(project, paths, modules, names, labels, force)
+    func = register_flows_watch if watch else register_flows
+    func(project, paths, modules, names, labels, force)
 
 
 @register.command(hidden=True)
