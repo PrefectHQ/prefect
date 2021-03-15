@@ -128,9 +128,9 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         # Verify environment is running in cluster
         try:
             config.load_incluster_config()
-        except config.config_exception.ConfigException:
+        except config.config_exception.ConfigException as err:
             self.logger.error("Environment not currently running inside a cluster")
-            raise EnvironmentError("Environment not currently inside a cluster")
+            raise EnvironmentError("Environment not currently inside a cluster") from err
 
         batch_client = client.BatchV1Api()
 
@@ -143,7 +143,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
             )
         except Exception as exc:
             self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
-            raise exc
+            raise exc from err
 
     ###############################
     # Custom YAML Spec Manipulation
