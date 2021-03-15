@@ -143,7 +143,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
             )
         except Exception as exc:
             self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
-            raise exc from err
+            raise exc
 
     ###############################
     # Custom YAML Spec Manipulation
