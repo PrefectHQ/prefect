@@ -850,7 +850,7 @@ def test_client_register_flow_id_no_output(
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert captured.out == "Result check: OK\n"
+    assert not captured.out
 
 
 def test_set_flow_run_name(patch_posts, cloud_api):

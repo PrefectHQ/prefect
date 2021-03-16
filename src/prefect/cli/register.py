@@ -5,7 +5,7 @@ import sys
 import time
 import traceback
 from collections import Counter, defaultdict
-from typing import NamedTuple
+from typing import NamedTuple, List, Dict, Iterator, Tuple
 
 import click
 from click.exceptions import ClickException
@@ -17,12 +17,26 @@ from prefect.storage import Local, Module
 from prefect.run_configs import UniversalRun
 
 
+class TerminalError(Exception):
+    pass
+
+
 class Source(NamedTuple):
     location: str
     is_module: bool = False
 
 
-def get_module_paths(modules):
+def log_exception(exc: Exception, indent: int = 0) -> None:
+    """Log an exception with traceback"""
+    prefix = " " * indent
+    lines = traceback.format_exception(
+        type(exc), exc, getattr(exc, "__traceback__", None)
+    )
+    click.echo("".join(prefix + l for l in lines))
+
+
+def get_module_paths(modules: List[str]) -> List[str]:
+    """Given a list of modules, return their file paths."""
     out = []
     for name in modules:
         try:
@@ -30,21 +44,20 @@ def get_module_paths(modules):
         except Exception as exc:
             click.secho(f"Error loading module {name}:", fg="red")
             log_exception(exc, indent=2)
-            return None
+            raise TerminalError
         if spec is None:
-            click.secho(f"No module named {name!r}", fg="red")
-            return None
+            raise TerminalError(f"No module named {name!r}")
         else:
             out.append(spec.origin)
 
 
-def expand_paths(paths):
-    paths = list(paths)
+def expand_paths(paths: List[str]) -> List[str]:
+    """Given a list of paths, expand any directories to find all contained
+    python files."""
     out = []
     for path in paths:
         if not os.path.exists(path):
-            click.secho(f"Path {path!r} doesn't exist", fg="red")
-            sys.exit(1)
+            raise TerminalError(f"Path {path!r} doesn't exist")
         elif os.path.isdir(path):
             with os.scandir(path) as directory:
                 out.extend(
@@ -55,7 +68,8 @@ def expand_paths(paths):
     return out
 
 
-def load_flows_from_path(path):
+def load_flows_from_path(path: str) -> "List[prefect.Flow]":
+    """Given a file path, load all flows found in the file"""
     with open(path, "rb") as fil:
         contents = fil.read()
 
@@ -66,7 +80,7 @@ def load_flows_from_path(path):
     except Exception as exc:
         click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, 2)
-        return None
+        raise TerminalError
 
     flows = [f for f in ns.values() if isinstance(f, prefect.Flow)]
     if flows:
@@ -77,7 +91,8 @@ def load_flows_from_path(path):
     return flows
 
 
-def load_flows_from_module(name):
+def load_flows_from_module(name: str) -> "List[prefect.Flow]":
+    """Given a module name, load all flows found in the module"""
     try:
         with prefect.context({"loading_flow": True}):
             mod = importlib.import_module(name)
@@ -87,7 +102,7 @@ def load_flows_from_module(name):
         else:
             click.secho(f"Error loading {name!r}:", fg="red")
             log_exception(exc, 2)
-        return None
+        raise TerminalError
 
     flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
     if flows:
@@ -98,33 +113,44 @@ def load_flows_from_module(name):
     return flows
 
 
-def collect_flows(paths, modules, in_watch=False):
+def collect_flows(
+    paths: List[str], modules: List[str], in_watch: bool = False
+) -> "Dict[Source, List[prefect.Flow]]":
+    """Load all flows found in `paths` & `modules`.
+
+    Args:
+        - paths (List[str]): file paths to load flows from.
+        - modules (List[str]): modules to load flows from.
+        - in_watch (bool): If true, any errors in loading the flows will be
+            logged but won't abort execution. Default is False.
+    """
     sources = [Source(p, False) for p in paths]
     sources.extend(Source(m, True) for m in modules)
 
     out = {}
     for s in sources:
-        if s.is_module:
-            flows = load_flows_from_module(s.location)
-        else:
-            flows = load_flows_from_path(s.location)
-        if flows is None:
+        try:
+            if s.is_module:
+                flows = load_flows_from_module(s.location)
+            else:
+                flows = load_flows_from_path(s.location)
+        except TerminalError:
+            # If we're running with --watch, bad files are logged and skipped
+            # rather than aborting early
             if not in_watch:
-                sys.exit(1)
-        else:
-            out[s] = flows
+                raise
+        out[s] = flows
     return out
 
 
-def log_exception(exc, indent=0):
-    prefix = " " * indent
-    lines = traceback.format_exception(
-        type(exc), exc, getattr(exc, "__traceback__", None)
-    )
-    click.echo("".join(prefix + l for l in lines))
+def finalize_flows(flows: "List[prefect.Flow]", labels: List[str] = None) -> None:
+    """Finish setting up all flows.
 
-
-def finalize_flows(flows, labels=None):
+    This does a few things:
+    - Ensure all flows have a `RunConfig` or `Environment` configured
+    - Add any extra labels to all flows
+    - Sets a default result on the flow if not specified elsewhere
+    """
     labels = set(labels) if labels else None
 
     for flow in flows:
@@ -143,8 +169,26 @@ def finalize_flows(flows, labels=None):
             flow.run_config.labels.update(labels)
 
 
-def register_flows(client, flows, project, force=False):
-    # Add all flows to their respective storage
+def build_and_register(
+    client: "prefect.Client",
+    flows: "List[prefect.Flow]",
+    project: str,
+    force: bool = False,
+) -> Counter:
+    """Build and register all flows.
+
+    Args:
+        - client (prefect.Client): the prefect client to use
+        - flows (List[prefect.Flow]): the flows to register
+        - project (str): the project in which to register the flows
+        - force (bool, optional): If false (default), an idempotency key will
+            be used to avoid unnecessary register calls.
+
+    Returns:
+        - Counter: stats about the number of successful, failed, and skipped flows.
+    """
+    # Group flows by storage instance.
+    # Also adds all flows to their respective storage instance.
     storage_to_flows = defaultdict(list)
     for flow in flows:
         flow.storage.add_flow(flow)
@@ -218,20 +262,37 @@ def register_flows(client, flows, project, force=False):
     return stats
 
 
-def register_flows_once(
-    project,
-    paths=None,
-    modules=None,
-    names=None,
-    labels=None,
-    force=False,
-    in_watch=False,
-):
+def register_internal(
+    project: str,
+    paths: List[str],
+    modules: List[str],
+    names: List[str] = None,
+    labels: List[str] = None,
+    force: bool = False,
+    in_watch: bool = False,
+) -> None:
+    """Do a single registration pass, loading, building, and registering the
+    requested flows.
+
+    Args:
+        - project (str): the project in which to register the flows.
+        - paths (List[str]): a list of file paths containing flows.
+        - modules (List[str]): a list of python modules containing flows.
+        - names (List[str], optional): a list of flow names that should be
+            registered. If not provided, all flows found will be registered.
+        - labels (List[str], optional): a list of extra labels to set on all
+            flows.
+        - force (bool, optional): If false (default), an idempotency key will
+            be used to avoid unnecessary register calls.
+        - in_watch (bool, optional): Whether this call resulted from a
+            `register --watch` call.
+    """
     click.echo("Collecting flows...")
     source_to_flows = collect_flows(paths, modules, in_watch)
 
     # Filter flows by name if requested
     if names:
+        names = set(names)
         source_to_flows = {
             source: [f for f in flows if f.name in names]
             for source, flows in source_to_flows.items()
@@ -245,7 +306,7 @@ def register_flows_once(
                 f"Failed to find the following flows:\n{missing_flows}", fg="red"
             )
             if not in_watch:
-                sys.exit(1)
+                raise TerminalError
 
     # Iterate through each file, building all storage and registering all flows
     # Log errors as they happen, but only exit once all files have been processed
@@ -257,7 +318,7 @@ def register_flows_once(
 
             finalize_flows(flows, labels=labels)
 
-            stats += register_flows(client, flows, project, force=force)
+            stats += build_and_register(client, flows, project, force=force)
 
     # Output summary message
     registered = stats["registered"]
@@ -276,36 +337,32 @@ def register_flows_once(
 
     # If not in a watch call, exit with appropriate exit code
     if not in_watch and stats["errored"]:
-        sys.exit(1)
+        raise TerminalError
 
 
-def register_flows_watch(
-    project,
-    paths=None,
-    modules=None,
-    names=None,
-    labels=None,
-    force=False,
-):
+def watch_for_changes(
+    paths: List[str] = None, modules: List[str] = None
+) -> "Iterator[Tuple[List[str], List[str]]]":
+    """Watch a list of paths and modules for changes.
+
+    Yields tuples of `(paths, modules)` whenever changes are detected, where
+    `paths` is a list of paths that changed and `modules` is a list of modules
+    that changed.
+    """
     paths = list(paths or ())
     modules = list(modules or ())
 
     for path in paths:
         if not os.path.exists(path):
-            click.secho(f"Path {path!r} doesn't exist", fg="red")
-            sys.exit(1)
-
-    ctx = multiprocessing.get_context("spawn")
+            raise TerminalError(f"Path {path!r} doesn't exist")
 
     if modules:
         # If modules are provided, we need to convert these to paths to watch.
         # There's no way in Python to do this without possibly importing the
         # defining module. As such, we run the command in a temporary process
         # pool.
-        with ctx.Pool(1) as pool:
+        with multiprocessing.get_context("spawn").Pool(1) as pool:
             module_paths = pool.apply(get_module_paths, (modules,))
-            if module_paths is None:
-                sys.exit(1)
     else:
         module_paths = []
 
@@ -341,22 +398,7 @@ def register_flows_watch(
                     change_mods.append(m)
 
             if change_paths or change_mods:
-                proc = ctx.Process(
-                    target=register_flows_once,
-                    name="prefect-register",
-                    args=(project,),
-                    kwargs=dict(
-                        paths=change_paths,
-                        modules=change_mods,
-                        names=names,
-                        labels=labels,
-                        force=force,
-                        in_watch=True,
-                    ),
-                    daemon=True,
-                )
-                proc.start()
-                proc.join()
+                yield change_paths, change_mods
                 cache.update(cache2)
 
         time.sleep(0.5)
@@ -376,7 +418,6 @@ def register_flows_watch(
         "A path to a file or a directory containing the flow(s) to register. "
         "May be passed multiple times to specify multiple paths to register."
     ),
-    default=None,
     multiple=True,
 )
 @click.option(
@@ -387,7 +428,6 @@ def register_flows_watch(
         "A python module name containing the flow(s) to register. May be "
         "passed multiple times to specify multiple modules to register."
     ),
-    default=None,
     multiple=True,
 )
 @click.option(
@@ -400,7 +440,6 @@ def register_flows_watch(
         "passed multiple times to specify multiple flows to register. If not "
         "provided, all flows found on all paths/modules will be registered."
     ),
-    default=None,
     multiple=True,
 )
 @click.option(
@@ -411,7 +450,6 @@ def register_flows_watch(
         "A label to add on all registered flow(s). May be passed multiple "
         "times to specify multiple labels."
     ),
-    default=None,
     multiple=True,
 )
 @click.option(
@@ -446,15 +484,38 @@ def register(ctx, project, paths, modules, names, labels, force, watch):
     if project is None:
         raise ClickException("Missing required option '--project'")
 
-    paths = list(paths or ())
-    modules = list(modules or ())
-    names = set(names or ())
+    try:
+        if watch:
+            ctx = multiprocessing.get_context("spawn")
 
-    if watch:
-        register_flows_watch(project, paths, modules, names, labels, force)
-    else:
-        paths = expand_paths(paths)
-        register_flows_once(project, paths, modules, names, labels, force)
+            for change_paths, change_mods in watch_for_changes(
+                paths=paths, modules=modules
+            ):
+                proc = ctx.Process(
+                    target=register_internal,
+                    name="prefect-register",
+                    args=(project,),
+                    kwargs=dict(
+                        paths=change_paths,
+                        modules=change_mods,
+                        names=names,
+                        labels=labels,
+                        force=force,
+                        in_watch=True,
+                    ),
+                    daemon=True,
+                )
+                proc.start()
+                proc.join()
+        else:
+            paths = expand_paths(list(paths or ()))
+            modules = list(modules or ())
+            register_internal(project, paths, modules, names, labels, force)
+    except TerminalError as exc:
+        msg = str(exc)
+        if msg:
+            click.secho(msg, fg="red")
+        sys.exit(1)
 
 
 @register.command(hidden=True)
