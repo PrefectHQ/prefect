@@ -130,7 +130,9 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
             config.load_incluster_config()
         except config.config_exception.ConfigException as err:
             self.logger.error("Environment not currently running inside a cluster")
-            raise EnvironmentError("Environment not currently inside a cluster") from err
+            raise EnvironmentError(
+                "Environment not currently inside a cluster"
+            ) from err
 
         batch_client = client.BatchV1Api()
 
