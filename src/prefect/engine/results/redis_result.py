@@ -57,7 +57,7 @@ class RedisResult(Result):
 
     def read(self, location: str) -> Result:
         """
-        Will return the underlying value regardless of the argument passed.
+        Read from reids and deserialize the value at location
 
         Args:
             - location (str): Redis key
@@ -70,7 +70,7 @@ class RedisResult(Result):
 
     def write(self, value_: Any, **kwargs: Any) -> Result:
         """
-        Will return the repr of the underlying value, purely for convenience.
+        Write the value into location
 
         Args:
             - value_ (Any): value to be stored
@@ -84,8 +84,7 @@ class RedisResult(Result):
 
     def exists(self, location: str, **kwargs: Any) -> bool:
         """
-        As all Python objects are valid constants, always returns `True`.
-
+        Check existence of a key in redis.
         Args:
              - location (str): The redis key.
              - **kwargs (Any): string format arguments for `location`
