@@ -41,7 +41,7 @@ try:
         ReadNamespacedService,
         ReplaceNamespacedService,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.kubernetes` requires Prefect to be installed with the "kubernetes" extra.'
-    )
+    ) from err

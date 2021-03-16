@@ -6,7 +6,7 @@ try:
         WriteGsheetRow,
         ReadGsheetRow,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.gsheets` requires Prefect to be installed with the "gsheets" extra.'
-    )
+    ) from err

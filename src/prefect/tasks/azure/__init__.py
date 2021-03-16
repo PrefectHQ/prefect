@@ -9,7 +9,7 @@ try:
         CosmosDBReadItems,
         CosmosDBQueryItems,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.azure` requires Prefect to be installed with the "azure" extra.'
-    )
+    ) from err
