@@ -11,6 +11,9 @@ from click.exceptions import ClickException
 
 import prefect
 from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.graphql import with_args, EnumValue
+from prefect.storage import Local, Module
+from prefect.run_configs import UniversalRun
 
 
 class Source(NamedTuple):
@@ -38,7 +41,6 @@ def expand_paths(paths):
     paths = list(paths)
     out = []
     for path in paths:
-        path = os.path.abspath(path)
         if not os.path.exists(path):
             click.secho(f"Path {path!r} doesn't exist", fg="yellow")
             sys.exit(1)
@@ -53,8 +55,6 @@ def expand_paths(paths):
 
 
 def load_flows_from_path(path):
-    from prefect.storage import Local
-
     with open(path, "rb") as fil:
         contents = fil.read()
 
@@ -77,8 +77,6 @@ def load_flows_from_path(path):
 
 
 def load_flows_from_module(name):
-    from prefect.storage import Module
-
     try:
         with prefect.context({"loading_flow": True}):
             mod = importlib.import_module(name)
@@ -125,12 +123,16 @@ def log_exception(exc, indent=0):
     click.echo("\n".join(prefix + l for l in lines))
 
 
-def add_labels(flows, labels=None):
-    from prefect.run_configs import UniversalRun
-
-    labels = set(labels or ())
+def finalize_flows(flows, labels=None):
+    labels = set(labels) if labels else None
 
     for flow in flows:
+        # Set the default flow result if not specified
+        if not flow.result:
+            flow.result = flow.storage.result
+
+        # Add a `run_config` if not configured explicitly
+        # Also add any extra labels to the flow
         if flow.run_config is None:
             if flow.environment is not None:
                 flow.environment.labels.update(labels)
@@ -161,11 +163,37 @@ def build_storage(flows):
     return True
 
 
-def register_flows(flows, project, force=False):
+def register_flows(client, flows, project, force=False):
     for flow in flows:
         click.echo(f"  Registering {flow.name!r}...", nl=False)
         try:
-            flow.register(
+            # Get most recent flow id for this flow. This can be removed once
+            # the registration graphql routes return more information
+            resp = client.graphql(
+                {
+                    "query": {
+                        with_args(
+                            "flow",
+                            {
+                                "where": {
+                                    "_and": {
+                                        "name": {"_eq": flow.name},
+                                        "project": {"name": {"_eq": project}},
+                                    }
+                                },
+                                "order_by": {"version": EnumValue("desc")},
+                                "limit": 1,
+                            },
+                        ): {"id"}
+                    }
+                }
+            )
+            if resp.data.flow:
+                prev_id = resp.data.flow[0].id
+            else:
+                prev_id = None
+            new_id = client.register(
+                flow=flow,
                 project_name=project,
                 build=False,
                 no_url=True,
@@ -176,7 +204,10 @@ def register_flows(flows, project, force=False):
             log_exception(exc, indent=4)
             return False
         else:
-            click.secho(" Done", fg="green")
+            if new_id == prev_id:
+                click.secho(" Skipped", fg="yellow")
+            else:
+                click.secho(" Done", fg="green")
     return True
 
 
@@ -212,17 +243,18 @@ def register_flows_once(
     # Iterate through each file, building all storage and registering all flows
     # Log errors as they happen, but only exit once all files have been processed
     ok = True
+    client = prefect.Client()
     for source, flows in source_to_flows.items():
         if flows:
             click.echo(f"Processing {source.location!r}:")
 
-            add_labels(flows, labels)
+            finalize_flows(flows, labels=labels)
 
             if not build_storage(flows):
                 ok = False
                 continue
 
-            if not register_flows(flows, project, force=True):
+            if not register_flows(client, flows, project, force=force):
                 ok = False
                 continue
 
@@ -318,7 +350,6 @@ def register_flows_watch(
     "--project",
     help="The name of the Prefect project to register this flow in. Required.",
     default=None,
-    hidden=True,
 )
 @click.option(
     "--path",
