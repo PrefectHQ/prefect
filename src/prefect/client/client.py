@@ -69,6 +69,7 @@ class FlowRunInfoResult(NamedTuple):
     scheduled_start_time: datetime.datetime
     state: "prefect.engine.state.State"
     task_runs: List[TaskRunInfoResult]
+    storage: Dict[str, Any]
 
 
 class Client:
@@ -1141,7 +1142,7 @@ class Client:
                         "version": True,
                         "serialized_state": True,
                     },
-                    "flow": {"project": {"name": True, "id": True}},
+                    "flow": {"project": {"name": True, "id": True}, "storage": True},
                 }
             }
         }
@@ -1174,6 +1175,7 @@ class Client:
                 {} if result.parameters is None else result.parameters.to_dict()
             ),
             context=({} if result.context is None else result.context.to_dict()),
+            storage=result.storage,
         )
 
     def update_flow_run_heartbeat(self, flow_run_id: str) -> None:
