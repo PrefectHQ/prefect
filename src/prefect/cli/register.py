@@ -4,6 +4,7 @@ import multiprocessing
 import sys
 import time
 import traceback
+from collections import Counter, defaultdict
 from typing import NamedTuple
 
 import click
@@ -27,11 +28,11 @@ def get_module_paths(modules):
         try:
             spec = importlib.util.find_spec(name)
         except Exception as exc:
-            click.secho(f"Error loading module {name}:", fg="yellow")
+            click.secho(f"Error loading module {name}:", fg="red")
             log_exception(exc, indent=2)
             return None
         if spec is None:
-            click.secho(f"No module named {name!r}", fg="yellow")
+            click.secho(f"No module named {name!r}", fg="red")
             return None
         else:
             out.append(spec.origin)
@@ -42,7 +43,7 @@ def expand_paths(paths):
     out = []
     for path in paths:
         if not os.path.exists(path):
-            click.secho(f"Path {path!r} doesn't exist", fg="yellow")
+            click.secho(f"Path {path!r} doesn't exist", fg="red")
             sys.exit(1)
         elif os.path.isdir(path):
             with os.scandir(path) as directory:
@@ -63,7 +64,7 @@ def load_flows_from_path(path):
         with prefect.context({"loading_flow": True, "local_script_path": path}):
             exec(contents, ns)
     except Exception as exc:
-        click.secho(f"Error loading {path!r}:", fg="yellow")
+        click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, 2)
         return None
 
@@ -82,9 +83,9 @@ def load_flows_from_module(name):
             mod = importlib.import_module(name)
     except Exception as exc:
         if isinstance(exc, ImportError) and repr(name) in str(exc):
-            click.secho(str(exc), fg="yellow")
+            click.secho(str(exc), fg="red")
         else:
-            click.secho(f"Error loading {name!r}:", fg="yellow")
+            click.secho(f"Error loading {name!r}:", fg="red")
             log_exception(exc, 2)
         return None
 
@@ -120,7 +121,7 @@ def log_exception(exc, indent=0):
     lines = traceback.format_exception(
         type(exc), exc, getattr(exc, "__traceback__", None)
     )
-    click.echo("\n".join(prefix + l for l in lines))
+    click.echo("".join(prefix + l for l in lines))
 
 
 def finalize_flows(flows, labels=None):
@@ -142,73 +143,79 @@ def finalize_flows(flows, labels=None):
             flow.run_config.labels.update(labels)
 
 
-def build_storage(flows):
+def register_flows(client, flows, project, force=False):
+    # Add all flows to their respective storage
+    storage_to_flows = defaultdict(list)
     for flow in flows:
         flow.storage.add_flow(flow)
-    built = set()
-    for flow in flows:
-        if flow.storage not in built:
-            click.echo(
-                f"  Building `{type(flow.storage).__name__}` storage...", nl=False
-            )
+        storage_to_flows[flow.storage].append(flow)
+
+    stats = Counter(registered=0, errored=0, skipped=0)
+    for storage, flows in storage_to_flows.items():
+        # Build storage
+        click.echo(f"  Building `{type(flow.storage).__name__}` storage...")
+        try:
+            flow.storage.build()
+        except Exception as exc:
+            click.secho("    Error building storage:", fg="red")
+            log_exception(exc, indent=6)
+            red_error = click.style("Error", fg="red")
+            for flow in flows:
+                click.echo(f"  Registering {flow.name!r}... {red_error}")
+                stats["errored"] += 1
+            continue
+
+        for flow in flows:
+            click.echo(f"  Registering {flow.name!r}...", nl=False)
             try:
-                flow.storage.build()
-                built.add(flow.storage)
+                # Get most recent flow id for this flow. This can be removed once
+                # the registration graphql routes return more information
+                resp = client.graphql(
+                    {
+                        "query": {
+                            with_args(
+                                "flow",
+                                {
+                                    "where": {
+                                        "_and": {
+                                            "name": {"_eq": flow.name},
+                                            "project": {"name": {"_eq": project}},
+                                        }
+                                    },
+                                    "order_by": {"version": EnumValue("desc")},
+                                    "limit": 1,
+                                },
+                            ): {"id", "version"}
+                        }
+                    }
+                )
+                if resp.data.flow:
+                    prev_id = resp.data.flow[0].id
+                    prev_version = resp.data.flow[0].version
+                else:
+                    prev_id = None
+                    prev_version = 0
+                new_id = client.register(
+                    flow=flow,
+                    project_name=project,
+                    build=False,
+                    no_url=True,
+                    idempotency_key=(None if force else flow.serialized_hash()),
+                )
             except Exception as exc:
                 click.secho(" Error", fg="red")
                 log_exception(exc, indent=4)
-                return False
+                stats["errored"] += 1
             else:
-                click.secho(" Done", fg="green")
-    return True
-
-
-def register_flows(client, flows, project, force=False):
-    for flow in flows:
-        click.echo(f"  Registering {flow.name!r}...", nl=False)
-        try:
-            # Get most recent flow id for this flow. This can be removed once
-            # the registration graphql routes return more information
-            resp = client.graphql(
-                {
-                    "query": {
-                        with_args(
-                            "flow",
-                            {
-                                "where": {
-                                    "_and": {
-                                        "name": {"_eq": flow.name},
-                                        "project": {"name": {"_eq": project}},
-                                    }
-                                },
-                                "order_by": {"version": EnumValue("desc")},
-                                "limit": 1,
-                            },
-                        ): {"id"}
-                    }
-                }
-            )
-            if resp.data.flow:
-                prev_id = resp.data.flow[0].id
-            else:
-                prev_id = None
-            new_id = client.register(
-                flow=flow,
-                project_name=project,
-                build=False,
-                no_url=True,
-                idempotency_key=(None if force else flow.serialized_hash()),
-            )
-        except Exception as exc:
-            click.secho(" Error", fg="red")
-            log_exception(exc, indent=4)
-            return False
-        else:
-            if new_id == prev_id:
-                click.secho(" Skipped", fg="yellow")
-            else:
-                click.secho(" Done", fg="green")
-    return True
+                if new_id == prev_id:
+                    click.secho(" Skipped", fg="yellow")
+                    stats["skipped"] += 1
+                else:
+                    click.secho(" Done", fg="green")
+                    click.echo(f"  └── ID: {new_id}")
+                    click.echo(f"  └── Version: {prev_version + 1}")
+                    stats["registered"] += 1
+    return stats
 
 
 def register_flows_once(
@@ -235,30 +242,40 @@ def register_flows_once(
         if missing:
             missing_flows = "\n".join(f"- {n}" for n in sorted(missing))
             click.secho(
-                f"Failed to find the following flows:\n{missing_flows}", fg="yellow"
+                f"Failed to find the following flows:\n{missing_flows}", fg="red"
             )
             if not in_watch:
                 sys.exit(1)
 
     # Iterate through each file, building all storage and registering all flows
     # Log errors as they happen, but only exit once all files have been processed
-    ok = True
     client = prefect.Client()
+    stats = Counter(registered=0, errored=0, skipped=0)
     for source, flows in source_to_flows.items():
         if flows:
             click.echo(f"Processing {source.location!r}:")
 
             finalize_flows(flows, labels=labels)
 
-            if not build_storage(flows):
-                ok = False
-                continue
+            stats += register_flows(client, flows, project, force=force)
 
-            if not register_flows(client, flows, project, force=force):
-                ok = False
-                continue
+    # Output summary message
+    registered = stats["registered"]
+    skipped = stats["skipped"]
+    errored = stats["errored"]
+    parts = [click.style(f"{registered} registered", fg="green")]
+    if skipped:
+        parts.append(click.style(f"{skipped} skipped", fg="yellow"))
+    if errored:
+        parts.append(click.style(f"{errored} errored", fg="red"))
 
-    if not in_watch and not ok:
+    msg = ", ".join(parts)
+    bar_length = max(60 - len(click.unstyle(msg)), 4) // 2
+    bar = "=" * bar_length
+    click.echo(f"{bar} {msg} {bar}")
+
+    # If not in a watch call, exit with appropriate exit code
+    if not in_watch and stats["errored"]:
         sys.exit(1)
 
 
@@ -275,7 +292,7 @@ def register_flows_watch(
 
     for path in paths:
         if not os.path.exists(path):
-            click.secho(f"Path {path!r} doesn't exist", fg="yellow")
+            click.secho(f"Path {path!r} doesn't exist", fg="red")
             sys.exit(1)
 
     ctx = multiprocessing.get_context("spawn")
