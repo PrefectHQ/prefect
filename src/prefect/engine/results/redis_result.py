@@ -15,11 +15,9 @@ class RedisResult(Result):
     Args:
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
+
     def __init__(
-        self,
-        connection_string: str = None,
-        ttl_seconds: int = None,
-        **kwargs: Any
+        self, connection_string: str = None, ttl_seconds: int = None, **kwargs: Any
     ) -> None:
         self.connection_string = connection_string or os.getenv(
             "REDIS_STORAGE_CONNECTION_STRING"
@@ -37,7 +35,7 @@ class RedisResult(Result):
             raise Exception(f"redis .. details .. {ee}")
 
     @property
-    def redis_client(self) -> "redis.client.Redis": # noqa Not imported yet
+    def redis_client(self) -> "redis.client.Redis":  # noqa Not imported yet
         if not hasattr(self, "_redis_client"):
             self.initialize_redis_client()
         return self._redis_client
