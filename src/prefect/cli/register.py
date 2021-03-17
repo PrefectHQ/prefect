@@ -411,7 +411,28 @@ def watch_for_changes(
         time.sleep(period)
 
 
-@click.group(invoke_without_command=True)
+REGISTER_EPILOG = """
+\bExamples:
+
+\b  Register all flows found in a directory.
+
+\b    $ prefect register --project my-project -p myflows/
+
+\b  Register a flow named "example" found in `flow.py`.
+
+\b    $ prefect register --project my-project -p flow.py -n "example"
+
+\b  Register all flows found in a module named `myproject.flows`.
+
+\b    $ prefect register --project my-project -m "myproject.flows"
+
+\b  Watch a directory of flows for changes, and re-register flows upon change.
+
+\b    $ prefect register --project my-project -p myflows/ --watch
+"""
+
+
+@click.group(invoke_without_command=True, epilog=REGISTER_EPILOG)
 @click.option(
     "--project",
     help="The name of the Prefect project to register this flow in. Required.",
@@ -477,7 +498,7 @@ def watch_for_changes(
 )
 @click.pass_context
 def register(ctx, project, paths, modules, names, labels, force, watch):
-    """Register one or more flows into a project"""
+    """Register one or more flows into a project."""
     # Since the old command was a subcommand of this, we have to do some
     # mucking to smoothly deprecate it. Can be removed with `prefect register
     # flow` is removed.

@@ -4,12 +4,32 @@ Flows can be registered with the Prefect API for scheduling and execution, as we
 
 ## Registration
 
+### CLI
+
+To register a flow (or flows) with the `prefect` cli, you can use the [prefect
+register](/api/latest/cli/register.md#register) command.
+
+```bash
+$ prefect register --project "my project" --path myflow.py
+```
+
+By default this will register all flows found in `myflow.py`. If you want to
+select a specific flow, you can use the `--name` flag:
+
+```bash
+$ prefect register --project "my project" --path myflow.py --name "my flow's name"
+```
+
+The CLI command supports several additional options, see the
+[docs](/api/latest/cli/register.md#register) for more information.
+
+
 ### Core Client
 
 To register a flow from Prefect Core, use its `register()` method:
 
 ```python
-flow.register(project_name="Hello, World!")
+flow.register(project_name="my project")
 ```
 
 :::warning Projects
