@@ -1,0 +1,9 @@
+feature:
+  - "Add new improved `prefect register` CLI command. This command supports
+     registering multiple flows at once (through multiple file paths or
+     directories), and also includes a new `--watch` flag for watching files
+     and automatically re-registering upon
+     changes. - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)"
+
+deprecation:
+  - "Deprecate the old `prefect register flow` CLI command in favor of `prefect register` - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)"
