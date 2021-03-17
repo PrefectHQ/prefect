@@ -1,7 +1,10 @@
 import os
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from prefect.engine.result import Result
-import prefect
+
+
+if TYPE_CHECKING:
+    import redis
 
 
 class RedisResult(Result):
@@ -35,7 +38,7 @@ class RedisResult(Result):
             raise Exception(f"redis .. details .. {ee}")
 
     @property
-    def redis_client(self) -> "redis.client.Redis":  # noqa Not imported yet
+    def redis_client(self) -> "redis.client.Redis":
         if not hasattr(self, "_redis_client"):
             self.initialize_redis_client()
         return self._redis_client
@@ -90,4 +93,4 @@ class RedisResult(Result):
         Returns:
             - bool: True, confirming the constant exists.
         """
-        return self.redis_client.exists(location)
+        return self.redis_client.exists(location) != 0
