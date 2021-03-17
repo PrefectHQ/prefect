@@ -18,12 +18,9 @@ from prefect.run_configs import UniversalRun
 
 
 class TerminalError(Exception):
+    """An error indicating the CLI should exit with a non-zero exit code"""
+
     pass
-
-
-class Source(NamedTuple):
-    location: str
-    is_module: bool = False
 
 
 def log_exception(exc: Exception, indent: int = 0) -> None:
@@ -49,6 +46,7 @@ def get_module_paths(modules: List[str]) -> List[str]:
             raise TerminalError(f"No module named {name!r}")
         else:
             out.append(spec.origin)
+    return out
 
 
 def expand_paths(paths: List[str]) -> List[str]:
@@ -111,6 +109,11 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
             if f.storage is None:
                 f.storage = storage
     return flows
+
+
+class Source(NamedTuple):
+    location: str
+    is_module: bool = False
 
 
 def collect_flows(
@@ -341,7 +344,9 @@ def register_internal(
 
 
 def watch_for_changes(
-    paths: List[str] = None, modules: List[str] = None
+    paths: List[str] = None,
+    modules: List[str] = None,
+    period: float = 0.5,
 ) -> "Iterator[Tuple[List[str], List[str]]]":
     """Watch a list of paths and modules for changes.
 
@@ -363,11 +368,12 @@ def watch_for_changes(
         # pool.
         with multiprocessing.get_context("spawn").Pool(1) as pool:
             module_paths = pool.apply(get_module_paths, (modules,))
+            path_to_module = dict(zip(module_paths, modules))
     else:
-        module_paths = []
+        path_to_module = {}
 
-    tracked = paths + module_paths
-    cache = {p: (m, None) for p, m in zip(module_paths, modules)}
+    tracked = paths + list(path_to_module)
+    cache = dict.fromkeys(path_to_module)
     while True:
         cache2 = {}
         for path in tracked:
@@ -376,32 +382,32 @@ def watch_for_changes(
                     with os.scandir(path) as directory:
                         for entry in directory:
                             if entry.is_file() and entry.path.endswith(".py"):
-                                module, old_mtime = cache.get(entry.path, (None, None))
+                                old_mtime = cache.get(entry.path)
                                 mtime = entry.stat().st_mtime
                                 if mtime != old_mtime:
-                                    cache2[entry.path] = (module, mtime)
+                                    cache2[entry.path] = mtime
                 except NotADirectoryError:
-                    module, old_mtime = cache.get(path, (None, None))
+                    old_mtime = cache.get(path)
                     mtime = os.stat(path).st_mtime
                     if mtime != old_mtime:
-                        cache2[path] = (module, mtime)
+                        cache2[path] = mtime
             except FileNotFoundError:
-                cache.pop(path)
+                cache.pop(path, None)
 
         if cache2:
             change_paths = []
             change_mods = []
-            for p, (m, _) in cache2.items():
-                if m is None:
-                    change_paths.append(p)
+            for path in cache2:
+                module = path_to_module.get(path)
+                if module is not None:
+                    change_mods.append(module)
                 else:
-                    change_mods.append(m)
-
+                    change_paths.append(path)
             if change_paths or change_mods:
                 yield change_paths, change_mods
                 cache.update(cache2)
 
-        time.sleep(0.5)
+        time.sleep(period)
 
 
 @click.group(invoke_without_command=True)
