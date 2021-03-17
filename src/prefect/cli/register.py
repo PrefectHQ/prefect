@@ -82,10 +82,9 @@ def load_flows_from_path(path: str) -> "List[prefect.Flow]":
 
     flows = [f for f in ns.values() if isinstance(f, prefect.Flow)]
     if flows:
-        storage = Local(path=path, stored_as_script=True)
         for f in flows:
             if f.storage is None:
-                f.storage = storage
+                f.storage = Local(path=path, stored_as_script=True)
     return flows
 
 
@@ -95,19 +94,24 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
         with prefect.context({"loading_flow": True}):
             mod = importlib.import_module(name)
     except Exception as exc:
-        if isinstance(exc, ImportError) and repr(name) in str(exc):
-            click.secho(str(exc), fg="red")
+        # If the requested module (or any parent module) isn't found, log
+        # without a traceback, otherwise log a general message with the
+        # traceback.
+        if isinstance(exc, ModuleNotFoundError) and (
+            name == exc.name
+            or (name.startswith(exc.name) and name[len(exc.name)] == ".")
+        ):
+            raise TerminalError(str(exc))
         else:
             click.secho(f"Error loading {name!r}:", fg="red")
             log_exception(exc, 2)
-        raise TerminalError
+            raise TerminalError
 
     flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
     if flows:
-        storage = Module(name)
         for f in flows:
             if f.storage is None:
-                f.storage = storage
+                f.storage = Module(name)
     return flows
 
 
@@ -146,16 +150,30 @@ def collect_flows(
     return out
 
 
-def finalize_flows(flows: "List[prefect.Flow]", labels: List[str] = None) -> None:
-    """Finish setting up all flows.
+def build_and_register(
+    client: "prefect.Client",
+    flows: "List[prefect.Flow]",
+    project: str,
+    labels: List[str] = None,
+    force: bool = False,
+) -> Counter:
+    """Build and register all flows.
 
-    This does a few things:
-    - Ensure all flows have a `RunConfig` or `Environment` configured
-    - Add any extra labels to all flows
-    - Sets a default result on the flow if not specified elsewhere
+    Args:
+        - client (prefect.Client): the prefect client to use
+        - flows (List[prefect.Flow]): the flows to register
+        - project (str): the project in which to register the flows
+        - labels (List[str], optional): Any extra labels to set on all flows
+        - force (bool, optional): If false (default), an idempotency key will
+            be used to avoid unnecessary register calls.
+
+    Returns:
+        - Counter: stats about the number of successful, failed, and skipped flows.
     """
     labels = set(labels) if labels else None
 
+    # Finish setting up all flows before building, to ensure a stable hash
+    # for flows sharing storage instances
     for flow in flows:
         # Set the default flow result if not specified
         if not flow.result:
@@ -171,25 +189,6 @@ def finalize_flows(flows: "List[prefect.Flow]", labels: List[str] = None) -> Non
         else:
             flow.run_config.labels.update(labels)
 
-
-def build_and_register(
-    client: "prefect.Client",
-    flows: "List[prefect.Flow]",
-    project: str,
-    force: bool = False,
-) -> Counter:
-    """Build and register all flows.
-
-    Args:
-        - client (prefect.Client): the prefect client to use
-        - flows (List[prefect.Flow]): the flows to register
-        - project (str): the project in which to register the flows
-        - force (bool, optional): If false (default), an idempotency key will
-            be used to avoid unnecessary register calls.
-
-    Returns:
-        - Counter: stats about the number of successful, failed, and skipped flows.
-    """
     # Group flows by storage instance.
     # Also adds all flows to their respective storage instance.
     storage_to_flows = defaultdict(list)
@@ -197,12 +196,14 @@ def build_and_register(
         flow.storage.add_flow(flow)
         storage_to_flows[flow.storage].append(flow)
 
+    # Register each flow, building storage as needed.
+    # Stats on success/fail/skip rates are kept for later display
     stats = Counter(registered=0, errored=0, skipped=0)
     for storage, flows in storage_to_flows.items():
         # Build storage
-        click.echo(f"  Building `{type(flow.storage).__name__}` storage...")
+        click.echo(f"  Building `{type(storage).__name__}` storage...")
         try:
-            flow.storage.build()
+            storage.build()
         except Exception as exc:
             click.secho("    Error building storage:", fg="red")
             log_exception(exc, indent=6)
@@ -290,6 +291,7 @@ def register_internal(
         - in_watch (bool, optional): Whether this call resulted from a
             `register --watch` call.
     """
+    # Load flows from all files/modules requested
     click.echo("Collecting flows...")
     source_to_flows = collect_flows(paths, modules, in_watch)
 
@@ -318,10 +320,9 @@ def register_internal(
     for source, flows in source_to_flows.items():
         if flows:
             click.echo(f"Processing {source.location!r}:")
-
-            finalize_flows(flows, labels=labels)
-
-            stats += build_and_register(client, flows, project, force=force)
+            stats += build_and_register(
+                client, flows, project, labels=labels, force=force
+            )
 
     # Output summary message
     registered = stats["registered"]
