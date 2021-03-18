@@ -1,0 +1,5 @@
+enhancement:
+  - "Add `as_bytes` option to `S3Download` task - [#4238](https://github.com/PrefectHQ/prefect/pull/4238)"
+
+contributor:
+  - "[Alexandr N. Zamaraev](https://github.com/tonal)"
