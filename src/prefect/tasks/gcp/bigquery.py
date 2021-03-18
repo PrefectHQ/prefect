@@ -389,7 +389,7 @@ class BigQueryLoadGoogleCloudStorage(Task):
         except Exception as exception:
             for error in load_job.errors:
                 self.logger(error)
-            raise FAIL(exception)
+            raise FAIL(exception) from exception
         # remove unpickleable attributes
         load_job._client = None
         load_job._completion_lock = None

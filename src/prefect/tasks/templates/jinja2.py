@@ -6,11 +6,11 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 try:
     from jinja2 import Template
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "Using `prefect.tasks.templates.jinja2` requires Prefect to be installed "
         "with the 'templates' extra."
-    )
+    ) from err
 
 
 class JinjaTemplate(Task):

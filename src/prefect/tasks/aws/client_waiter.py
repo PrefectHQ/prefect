@@ -116,7 +116,9 @@ class AWSClientWait(Task):
         try:
             waiter.wait(**waiter_kwargs)
         except WaiterError as e:
-            raise FAIL(f"AWS {client} waiter '{waiter_name}' failed with: {str(e)}")
+            raise FAIL(
+                f"AWS {client} waiter '{waiter_name}' failed with: {str(e)}"
+            ) from e
 
     @staticmethod
     def _load_prefect_waiter(
@@ -131,7 +133,7 @@ class AWSClientWait(Task):
                 waiter_model = WaiterModel(json.load(handle))
 
             return create_waiter_with_client(waiter_name, waiter_model, boto_client)
-        except Exception:
+        except Exception as err:
             raise ValueError(
                 f"Unable to load waiter '{waiter_name}' for AWS client '{client_str}'."
-            )
+            ) from err
