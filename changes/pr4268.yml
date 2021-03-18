@@ -1,5 +1,5 @@
 task:
-  - "Breaking change for Exasol tasks: assignment of user and password moved to run() method` - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)"
+  - "Exasol tasks: add `user` and `password` as runtime parameter. Both are deprecated for init() method - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)"
 
 contributor:
   - "[Timo S.](https://github.com/sti0)"
