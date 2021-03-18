@@ -112,7 +112,7 @@ class TestWatchForChanges:
             for _, _ in watch_for_changes(paths=[missing]):
                 assert False, "Should never get here"
 
-        assert missing in str(exc)
+        assert repr(missing) in str(exc.value)
 
     def test_errors_module_does_not_exist(self):
         name = "not_a_real_module_name"
