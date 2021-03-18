@@ -1012,7 +1012,7 @@ def test_slug_mismatch_raises_informative_error(monkeypatch):
     ## assert informative message; can't use `match` because the real exception is one layer depeer than the ENDRUN
     assert "KeyError" in repr(state.result)
     assert "not found" in repr(state.result)
-    assert "changing the Flow" in repr(state.result)
+    assert "mismatch between the flow version" in repr(state.result)
 
 
 def test_can_queue_successfully_and_run(monkeypatch):
