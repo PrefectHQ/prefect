@@ -108,9 +108,11 @@ def register_flow_errors_if_pass_options_to_register_group():
 class TestWatchForChanges:
     def test_errors_path_does_not_exist(self, tmpdir):
         missing = str(tmpdir.join("not-real"))
-        with pytest.raises(TerminalError, match=missing):
+        with pytest.raises(TerminalError) as exc:
             for _, _ in watch_for_changes(paths=[missing]):
                 assert False, "Should never get here"
+
+        assert missing in str(exc)
 
     def test_errors_module_does_not_exist(self):
         name = "not_a_real_module_name"
@@ -220,7 +222,7 @@ class TestRegister:
         assert flows["f2"].storage.path == path
         assert flows["f2"].storage.stored_as_script
 
-    def test_load_from_flows_error(self, tmpdir, capsys):
+    def test_load_flows_from_path_error(self, tmpdir, capsys):
         path = str(tmpdir.join("test.py"))
         with open(path, "w") as f:
             f.write("raise ValueError('oh no!')")
@@ -230,7 +232,7 @@ class TestRegister:
 
         out, _ = capsys.readouterr()
         assert "oh no!" in out
-        assert path in out
+        assert repr(path) in out
 
     def test_load_flows_from_module(self, tmpdir, monkeypatch):
         monkeypatch.syspath_prepend(str(tmpdir))
@@ -441,7 +443,7 @@ class TestRegister:
 
         # Bulk of the output is tested elsewhere, only a few smoketests here
         assert "Building `Local` storage..." in result.stdout
-        assert path in result.stdout
+        assert repr(path) in result.stdout
         if len(names) == 2:
             assert (
                 "================== 1 registered, 1 skipped =================="
