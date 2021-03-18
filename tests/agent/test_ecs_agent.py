@@ -335,9 +335,20 @@ class TestGenerateTaskDefinition:
                 "test/name:tag",
             ),
             (ECSRun(image="myimage"), Local(), "myimage"),
+            (
+                ECSRun(
+                    task_definition={
+                        "containerDefinitions": [
+                            {"name": "flow", "image": "on-template"}
+                        ]
+                    }
+                ),
+                Local(),
+                "on-template",
+            ),
             (ECSRun(), Local(), "prefecthq/prefect:0.13.0"),
         ],
-        ids=["on-storage", "on-run_config", "default"],
+        ids=["on-storage", "on-run_config", "on-template", "default"],
     )
     def test_generate_task_definition_image(self, run_config, storage, expected):
         taskdef = self.generate_task_definition(run_config, storage)

@@ -1283,19 +1283,44 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["restartPolicy"] == "Never"
 
     @pytest.mark.parametrize(
-        "run_config, storage, expected",
+        "run_config, storage, on_template, expected",
         [
             (
                 KubernetesRun(),
                 Docker(registry_url="test", image_name="name", image_tag="tag"),
+                None,
                 "test/name:tag",
             ),
-            (KubernetesRun(image="myimage"), Local(), "myimage"),
-            (KubernetesRun(), Local(), "prefecthq/prefect:0.13.0"),
+            (
+                KubernetesRun(),
+                Docker(registry_url="test", image_name="name", image_tag="tag"),
+                "default-image",
+                "test/name:tag",
+            ),
+            (KubernetesRun(image="myimage"), Local(), None, "myimage"),
+            (KubernetesRun(image="myimage"), Local(), "default-image", "myimage"),
+            (KubernetesRun(), Local(), None, "prefecthq/prefect:0.13.0"),
+            (KubernetesRun(), Local(), "default-image", "default-image"),
         ],
-        ids=["on-storage", "on-run_config", "default"],
+        ids=[
+            "on-storage",
+            "on-storage-2",
+            "on-run_config",
+            "on-run_config-2",
+            "on-template",
+            "default",
+        ],
     )
-    def test_generate_job_spec_image(self, run_config, storage, expected):
+    def test_generate_job_spec_image(
+        self, tmpdir, run_config, storage, on_template, expected
+    ):
+        if on_template:
+            template_path = str(tmpdir.join("job.yaml"))
+            template = self.read_default_template()
+            template["spec"]["template"]["spec"]["containers"][0]["image"] = on_template
+            with open(template_path, "w") as f:
+                yaml.safe_dump(template, f)
+            self.agent.job_template_path = template_path
         flow_run = self.build_flow_run(run_config, storage)
         job = self.agent.generate_job_spec(flow_run)
         image = job["spec"]["template"]["spec"]["containers"][0]["image"]

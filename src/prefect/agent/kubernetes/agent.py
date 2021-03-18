@@ -651,7 +651,9 @@ class KubernetesAgent(Agent):
         container = containers[0]
 
         # Set container image
-        container["image"] = image = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(
+            flow_run, default=container.get("image")
+        )
 
         # Set flow run command
         container["args"] = get_flow_run_command(flow_run).split()
