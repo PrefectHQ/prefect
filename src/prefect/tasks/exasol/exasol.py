@@ -12,9 +12,7 @@ class ExasolExecute(Task):
     Task for executing a query against a Exasol database.
 
     Args:
-        - dsn (str): dsn string of the database (server:port)
-        - user (str): user name used to authenticate
-        - password (str): password used to authenticate; should be provided from a `Secret` task
+        - dsn (str, optional): dsn string of the database (server:port)
         - query (str, optional): query to execute against database
         - query_params (dict, optional): Values for SQL query placeholders
         - autocommit (bool, optional): turn autocommit on or off (default: False)
@@ -26,9 +24,7 @@ class ExasolExecute(Task):
 
     def __init__(
         self,
-        dsn: str,
-        user: str,
-        password: str,
+        dsn: str = "",
         query: str = None,
         query_params: dict = None,
         autocommit: bool = False,
@@ -36,17 +32,18 @@ class ExasolExecute(Task):
         **kwargs,
     ):
         self.dsn = dsn
-        self.user = user
-        self.password = password
         self.query = query
         self.query_params = query_params
         self.autocommit = autocommit
         self.commit = commit
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "query_params", "autocommit", "commit")
+    @defaults_from_attrs("dsn", "query", "query_params", "autocommit", "commit")
     def run(
         self,
+        user: str,
+        password: str,
+        dsn: str = "",
         query: str = None,
         query_params: dict = None,
         autocommit: bool = False,
@@ -57,6 +54,9 @@ class ExasolExecute(Task):
         Task run method. Executes a query against Exasol database.
 
         Args:
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - dsn (str, optional): dsn string of the database (server:port)
             - query (str, optional): query to execute against database
             - query_params (dict, optional): Values for SQL query placeholders
             - autocommit (bool, optional): turn autocommit on or off (default: False)
@@ -68,17 +68,20 @@ class ExasolExecute(Task):
             - ExaStatement object
 
         Raises:
+            - ValueError: if dsn string is not provided
             - ValueError: if query parameter is None or a blank string
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
+        if not dsn:
+            raise ValueError("A dsn string must be provided.")
         if not query:
             raise ValueError("A query string must be provided.")
 
         con = pyexasol.connect(
-            dsn=self.dsn,
-            user=self.user,
-            password=self.password,
+            dsn=dsn,
+            user=user,
+            password=password,
             autocommit=autocommit,
             **kwargs,
         )
@@ -101,9 +104,7 @@ class ExasolFetch(Task):
     Task for fetching results of query from Exasol database.
 
     Args:
-        - dsn (str): dsn string of the database (server:port)
-        - user (str): user name used to authenticate
-        - password (str): password used to authenticate; should be provided from a `Secret` task
+        - dsn (str, optional): dsn string of the database (server:port)
         - fetch (str, optional): one of "one" "many" "val" or "all", used to determine how many
             results to fetch from executed query
         - fetch_size (int, optional): if fetch = 'many', determines the number of results to
@@ -116,9 +117,7 @@ class ExasolFetch(Task):
 
     def __init__(
         self,
-        dsn: str,
-        user: str,
-        password: str,
+        dsn: str = "",
         fetch: str = "one",
         fetch_size: int = 10,
         query: str = None,
@@ -126,17 +125,18 @@ class ExasolFetch(Task):
         **kwargs,
     ):
         self.dsn = dsn
-        self.user = user
-        self.password = password
         self.fetch = fetch
         self.fetch_size = fetch_size
         self.query = query
         self.query_params = query_params
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_size", "query", "query_params")
+    @defaults_from_attrs("dsn", "fetch", "fetch_size", "query", "query_params")
     def run(
         self,
+        user: str,
+        password: str,
+        dsn: str = "",
         fetch: str = "one",
         fetch_size: int = 10,
         query: str = None,
@@ -147,6 +147,9 @@ class ExasolFetch(Task):
         Task run method. Executes a query against Exasol database and fetches results.
 
         Args:
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - dsn (str, optional): dsn string of the database (server:port)
             - fetch (str, optional): one of "one" "many" "val" or "all", used to determine how many
                 results to fetch from executed query
             - fetch_size (int, optional): if fetch = 'many', determines the number of results
@@ -161,10 +164,13 @@ class ExasolFetch(Task):
                 records from provided query
 
         Raises:
+            - ValueError: if dsn string is not provided
             - ValueError: if query parameter is None or a blank string
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
+        if not dsn:
+            raise ValueError("A dsn string must be provided.")
         if not query:
             raise ValueError("A query string must be provided.")
 
@@ -173,9 +179,9 @@ class ExasolFetch(Task):
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'val', 'all')."
             )
         con = pyexasol.connect(
-            dsn=self.dsn,
-            user=self.user,
-            password=self.password,
+            dsn=dsn,
+            user=user,
+            password=password,
             **kwargs,
         )
         # try to execute query
@@ -197,9 +203,7 @@ class ExasolImportFromIterable(Task):
     Task for importing a iterable with data into the Exasol database.
 
     Args:
-        - dsn (str): dsn string of the database (server:port)
-        - user (str): user name used to authenticate
-        - password (str): password used to authenticate; should be provided from a `Secret` task
+        - dsn (str, optional): dsn string of the database (server:port)
         - target_schema (str, optional): target schema for importing data
         - target_table (str, optional): target table for importing data
         - data (Iterable, optional): an iterable which holds the import data
@@ -213,9 +217,7 @@ class ExasolImportFromIterable(Task):
 
     def __init__(
         self,
-        dsn: str,
-        user: str,
-        password: str,
+        dsn: str = "",
         target_schema: str = None,
         target_table: str = None,
         data: Iterable = None,
@@ -225,8 +227,6 @@ class ExasolImportFromIterable(Task):
         **kwargs,
     ):
         self.dsn = dsn
-        self.user = user
-        self.password = password
         self.target_schema = target_schema
         self.target_table = target_table
         self.data = data
@@ -236,6 +236,7 @@ class ExasolImportFromIterable(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
+        "dsn",
         "target_schema",
         "target_table",
         "data",
@@ -245,6 +246,9 @@ class ExasolImportFromIterable(Task):
     )
     def run(
         self,
+        user: str,
+        password: str,
+        dsn: str = "",
         target_schema: str = None,
         target_table: str = None,
         data: Iterable = None,
@@ -257,6 +261,9 @@ class ExasolImportFromIterable(Task):
         Task run method. Executes a query against Postgres database.
 
         Args:
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - dsn (str, optional): dsn string of the database (server:port)
             - target_schema (str, optional): target schema for importing data
             - target_table (str, optional): target table for importing data
             - data (Iterable, optional): an iterable which holds the import data
@@ -270,10 +277,14 @@ class ExasolImportFromIterable(Task):
             - Nothing
 
         Raises:
-            - ValueError: if query parameter is None or a blank string
+            - ValueError: if dsn string is not provided
+            - ValueError: if `data` is not provided or is empty
+            - ValueError: if `target_table` is not provided
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
+        if not dsn:
+            raise ValueError("A dsn string must be provided.")
         if not data or len(data) == 0:
             raise ValueError("Import Data must be provided.")
         if not target_table:
@@ -285,9 +296,9 @@ class ExasolImportFromIterable(Task):
             target = (target_schema, target_table)
 
         con = pyexasol.connect(
-            dsn=self.dsn,
-            user=self.user,
-            password=self.password,
+            dsn=dsn,
+            user=user,
+            password=password,
             autocommit=autocommit,
             **kwargs,
         )
@@ -310,9 +321,7 @@ class ExasolExportToFile(Task):
     Task for exporting data of an Exasol database into a single csv.
 
     Args:
-        - dsn (str): dsn string of the database (server:port)
-        - user (str): user name used to authenticate
-        - password (str): password used to authenticate; should be provided from a `Secret` task
+        - dsn (str, optional): dsn string of the database (server:port)
         - destination ([str, Path], optional): Path to file or file-like object
         - query_or_table (str, optional): SQL query or table for export
             could be:
@@ -327,9 +336,7 @@ class ExasolExportToFile(Task):
 
     def __init__(
         self,
-        dsn: str,
-        user: str,
-        password: str,
+        dsn: str = "",
         destination: Union[str, Path] = None,
         query_or_table: Union[str, tuple] = None,
         query_params: dict = None,
@@ -337,8 +344,6 @@ class ExasolExportToFile(Task):
         **kwargs,
     ):
         self.dsn = dsn
-        self.user = user
-        self.password = password
         self.destination = destination
         self.query_or_table = query_or_table
         self.query_params = query_params
@@ -346,6 +351,7 @@ class ExasolExportToFile(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
+        "dsn",
         "destination",
         "query_or_table",
         "query_params",
@@ -353,7 +359,10 @@ class ExasolExportToFile(Task):
     )
     def run(
         self,
-        destination: Union[str, Path],
+        user: str,
+        password: str,
+        dsn: str = "",
+        destination: Union[str, Path] = None,
         query_or_table: Union[str, tuple] = None,
         query_params: dict = None,
         export_params: dict = None,
@@ -363,6 +372,9 @@ class ExasolExportToFile(Task):
         Task run method. Executes a query against Postgres database.
 
         Args:
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - dsn (str, optional): dsn string of the database (server:port)
             - destination ([str, Path], optional): Path to file or file-like object
             - query_or_table (str, optional): SQL query or table for export
                 could be:
@@ -377,19 +389,23 @@ class ExasolExportToFile(Task):
             - Nothing
 
         Raises:
-            - ValueError: if query parameter is None or a blank string
+            - ValueError: if dsn string is not provided
+            - ValueError: if destination is not provided
+            - ValueError: if no query or table are provided
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
+        if not dsn:
+            raise ValueError("A dsn string must be provided.")
         if not destination:
             raise ValueError("A destination must be provided.")
         if not query_or_table:
             raise ValueError("A query or a table must be provided.")
 
         con = pyexasol.connect(
-            dsn=self.dsn,
-            user=self.user,
-            password=self.password,
+            dsn=dsn,
+            user=user,
+            password=password,
             **kwargs,
         )
 
