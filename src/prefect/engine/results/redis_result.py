@@ -18,13 +18,15 @@ class RedisResult(Result):
     Args:
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
-
     def __init__(
         self, connection_string: str = None, ttl_seconds: int = None, **kwargs: Any
     ) -> None:
         self.connection_string = connection_string or os.getenv(
             "REDIS_STORAGE_CONNECTION_STRING"
         )
+        if not self.connection_string:
+            raise Exception("RedisResult expects to be passed connection_string "
+                            "or present in the environment from REDIS_STORAGE_CONNECTION_STRING")
         self.ttl_seconds = ttl_seconds
         super().__init__(**kwargs)
 
