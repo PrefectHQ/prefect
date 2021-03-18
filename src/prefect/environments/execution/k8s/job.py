@@ -128,9 +128,11 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
         # Verify environment is running in cluster
         try:
             config.load_incluster_config()
-        except config.config_exception.ConfigException:
+        except config.config_exception.ConfigException as err:
             self.logger.error("Environment not currently running inside a cluster")
-            raise EnvironmentError("Environment not currently inside a cluster")
+            raise EnvironmentError(
+                "Environment not currently inside a cluster"
+            ) from err
 
         batch_client = client.BatchV1Api()
 

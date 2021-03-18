@@ -9,7 +9,7 @@ try:
         RunGreatExpectationsValidation,
         RunGreatExpectationsCheckpoint,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.great_expectations` requires Prefect to be installed with the "ge" extra.'
-    )
+    ) from err

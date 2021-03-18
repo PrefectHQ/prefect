@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.14.12 <Badge text="beta" type="success" />
+
+Released on March 10, 2021.
+
+### Enhancements
+
+- Upgrade hasura to 1.3.3 in Prefect Server - [#4126](https://github.com/PrefectHQ/prefect/pull/4126)
+- Add `--docker-client-timeout` flag to docker agent, for configuring the timeout for all docker API requests - [#4232](https://github.com/PrefectHQ/prefect/pull/4232)
+- Make `--slug` flag optional in `prefect server create-tenant` - [#4240](https://github.com/PrefectHQ/prefect/pull/4240)
+
+### Task Library
+
+- Adds new filesystem `Copy` and `Remove` tasks - [#4202](https://github.com/PrefectHQ/prefect/pull/4202)
+
+### Fixes
+
+- Don't forward `nout` to mapped tasks - [#4206](https://github.com/PrefectHQ/prefect/pull/4206)
+- Move `command`, `environment`, `cpu`, `memory`, `execution_role_arn`, and `task_role_arn` configuration for ECS tasks from definition time to run time in the ECS agent - [#4211](https://github.com/PrefectHQ/prefect/pull/4211)
+- Register (and deregister) a new task definition for every flow run in ECS agent - [#4211](https://github.com/PrefectHQ/prefect/pull/4211)
+- Fix `Task` signature generation in the presence of with variadic kwargs - [#4235](https://github.com/PrefectHQ/prefect/pull/4235)
+- Ensure `Flow` is serializable using `pickle` - [#4209](https://github.com/PrefectHQ/prefect/pull/4209)
+
+### Contributors
+
+- [Ben Fogelson](https://github.com/benfogelson)
+- [Marwan S.](https://github.com/marwan116)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.14.11 <Badge text="beta" type="success" />
 
 Released on March 3, 2021.
