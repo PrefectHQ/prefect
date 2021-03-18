@@ -397,23 +397,15 @@ class CloudFlowRunner(FlowRunner):
             try:
                 task = tasks[task_run.task_slug]
             except KeyError as exc:
-                msg = (
-                    f"Task slug {task_run.task_slug} not found in the current Flow; "
-                    "this is usually caused by a mismatch between the serialized flow "
-                    "metadata stored by the Prefect API and the flow loaded from "
-                    f"storage. Did you change the flow without re-registering it?"
-                )
-
-                # Storage with paths indicate that the user may need to update the code
-                # there e.g. GitHub storage
-                storage_has_path = flow_run_info.storage.get("path")
-                if storage_has_path:
-                    msg += (
-                        " Did you register your flow without pushing it to your "
-                        "storage location?"
-                    )
-
-                raise KeyError(msg) from exc
+                raise KeyError(
+                    f"Task slug {task_run.task_slug} is not found in the current Flow. "
+                    "This is usually caused by a mismatch between the flow version "
+                    "stored in the Prefect backend and the flow that was loaded from "
+                    "storage.\n"
+                    "- Did you change the flow without re-registering it?\n"
+                    "- Did you register the flow without updating it in your storage "
+                    "location (if applicable)?"
+                ) from exc
 
             task_states.setdefault(task, task_run.state)
             task_contexts.setdefault(task, {}).update(
