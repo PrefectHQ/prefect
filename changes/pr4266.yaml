@@ -1,0 +1,5 @@
+enhancement:
+  - Support setting flow run labels from cli - [#4266](https://github.com/PrefectHQ/prefect/pull/4266)
+
+contributor:
+  - "[Jacob Hayes](https://github.com/JacobHayes)"
