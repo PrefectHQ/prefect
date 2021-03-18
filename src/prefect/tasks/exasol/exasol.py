@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Iterable, Union
-
+import warnings
 import pyexasol
 
 from prefect import Task
@@ -13,10 +13,14 @@ class ExasolExecute(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
+        - user (str, optional): !! deprecated, pass as runtime parameter!!
+            user name used to authenticate
+        - password (str, optional): !! deprecated, pass as runtime parameter!!
+            password used to authenticate; should be provided from a `Secret` task
         - query (str, optional): query to execute against database
         - query_params (dict, optional): Values for SQL query placeholders
         - autocommit (bool, optional): turn autocommit on or off (default: False)
-        - commit (bool, optional): set to True to commit transaction, defaults to false
+        - commit (bool, optional): set to True to commit transaction, defaults to True
             (only necessary if autocommit = False)
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -25,12 +29,23 @@ class ExasolExecute(Task):
     def __init__(
         self,
         dsn: str = "",
+        user: str = "",
+        password: str = "",
         query: str = None,
         query_params: dict = None,
         autocommit: bool = False,
         commit: bool = True,
         **kwargs,
     ):
+        if user is not None or password is not None:
+            warnings.warn(
+                "Passing `user` or `password` to the `ExasolExecute` constructor "
+                "is deprecated. These should be passed as runtime arguments instead."
+            )
+
+        self.user = user
+        self.password = password
+
         self.dsn = dsn
         self.query = query
         self.query_params = query_params
@@ -38,7 +53,9 @@ class ExasolExecute(Task):
         self.commit = commit
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("dsn", "query", "query_params", "autocommit", "commit")
+    @defaults_from_attrs(
+        "dsn", "user", "password", "query", "query_params", "autocommit", "commit"
+    )
     def run(
         self,
         user: str,
@@ -60,7 +77,7 @@ class ExasolExecute(Task):
             - query (str, optional): query to execute against database
             - query_params (dict, optional): Values for SQL query placeholders
             - autocommit (bool, optional): turn autocommit on or off (default: False)
-            - commit (bool, optional): set to True to commit transaction, defaults to false
+            - commit (bool, optional): set to True to commit transaction, defaults to True
                 (only necessary if autocommit = False)
             - **kwargs (dict, optional): additional connection parameter (connection_timeout...)
 
@@ -105,6 +122,10 @@ class ExasolFetch(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
+        - user (str, optional): !! deprecated, pass as runtime parameter!!
+            user name used to authenticate
+        - password (str, optional): !! deprecated, pass as runtime parameter!!
+            password used to authenticate; should be provided from a `Secret` task
         - fetch (str, optional): one of "one" "many" "val" or "all", used to determine how many
             results to fetch from executed query
         - fetch_size (int, optional): if fetch = 'many', determines the number of results to
@@ -118,12 +139,23 @@ class ExasolFetch(Task):
     def __init__(
         self,
         dsn: str = "",
+        user: str = "",
+        password: str = "",
         fetch: str = "one",
         fetch_size: int = 10,
         query: str = None,
         query_params: dict = None,
         **kwargs,
     ):
+        if user is not None or password is not None:
+            warnings.warn(
+                "Passing `user` or `password` to the `ExasolFetch` constructor "
+                "is deprecated. These should be passed as runtime arguments instead."
+            )
+
+        self.user = user
+        self.password = password
+
         self.dsn = dsn
         self.fetch = fetch
         self.fetch_size = fetch_size
@@ -131,7 +163,9 @@ class ExasolFetch(Task):
         self.query_params = query_params
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("dsn", "fetch", "fetch_size", "query", "query_params")
+    @defaults_from_attrs(
+        "dsn", "user", "password", "fetch", "fetch_size", "query", "query_params"
+    )
     def run(
         self,
         user: str,
@@ -204,6 +238,10 @@ class ExasolImportFromIterable(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
+        - user (str, optional): !! deprecated, pass as runtime parameter!!
+            user name used to authenticate
+        - password (str, optional): !! deprecated, pass as runtime parameter!!
+            password used to authenticate; should be provided from a `Secret` task
         - target_schema (str, optional): target schema for importing data
         - target_table (str, optional): target table for importing data
         - data (Iterable, optional): an iterable which holds the import data
@@ -218,6 +256,8 @@ class ExasolImportFromIterable(Task):
     def __init__(
         self,
         dsn: str = "",
+        user: str = "",
+        password: str = "",
         target_schema: str = None,
         target_table: str = None,
         data: Iterable = None,
@@ -226,6 +266,15 @@ class ExasolImportFromIterable(Task):
         commit: bool = True,
         **kwargs,
     ):
+        if user is not None or password is not None:
+            warnings.warn(
+                "Passing `user` or `password` to the `ExasolImportFromIterable` constructor "
+                "is deprecated. These should be passed as runtime arguments instead."
+            )
+
+        self.user = user
+        self.password = password
+
         self.dsn = dsn
         self.target_schema = target_schema
         self.target_table = target_table
@@ -237,6 +286,8 @@ class ExasolImportFromIterable(Task):
 
     @defaults_from_attrs(
         "dsn",
+        "user",
+        "password",
         "target_schema",
         "target_table",
         "data",
@@ -322,6 +373,10 @@ class ExasolExportToFile(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
+        - user (str, optional): !! deprecated, pass as runtime parameter!!
+            user name used to authenticate
+        - password (str, optional): !! deprecated, pass as runtime parameter!!
+            password used to authenticate; should be provided from a `Secret` task
         - destination ([str, Path], optional): Path to file or file-like object
         - query_or_table (str, optional): SQL query or table for export
             could be:
@@ -337,12 +392,23 @@ class ExasolExportToFile(Task):
     def __init__(
         self,
         dsn: str = "",
+        user: str = "",
+        password: str = "",
         destination: Union[str, Path] = None,
         query_or_table: Union[str, tuple] = None,
         query_params: dict = None,
         export_params: dict = None,
         **kwargs,
     ):
+        if user is not None or password is not None:
+            warnings.warn(
+                "Passing `user` or `password` to the `ExasolExportToFile` constructor "
+                "is deprecated. These should be passed as runtime arguments instead."
+            )
+
+        self.user = user
+        self.password = password
+
         self.dsn = dsn
         self.destination = destination
         self.query_or_table = query_or_table
@@ -352,6 +418,8 @@ class ExasolExportToFile(Task):
 
     @defaults_from_attrs(
         "dsn",
+        "user",
+        "password",
         "destination",
         "query_or_table",
         "query_params",
