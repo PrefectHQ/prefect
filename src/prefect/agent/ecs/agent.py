@@ -387,7 +387,9 @@ class ECSAgent(Agent):
             containers.append(container)
 
         # Set flow image
-        container["image"] = image = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(
+            flow_run, default=container.get("image")
+        )
 
         # Add `PREFECT__CONTEXT__IMAGE` environment variable
         env = {"PREFECT__CONTEXT__IMAGE": image}
