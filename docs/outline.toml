@@ -61,7 +61,7 @@ commands = ["flows", "tasks", "projects", "flow_runs", "logs"]
 [pages.cli.register]
 title = "register"
 module = "prefect.cli.register"
-commands = ["flow"]
+commands = ["register"]
 
 [pages.cli.run]
 title = "run"

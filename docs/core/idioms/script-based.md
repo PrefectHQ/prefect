@@ -82,9 +82,14 @@ Now that the file exists on the repo the flow needs to be registered with a Pref
 Core's server or Prefect Cloud).
 
 ```bash
-prefect register flow -f flows/my_flow.py -p MyProject
-Result check: OK
-Flow: http://localhost:8080/flow/9f5f7bea-186e-44d1-a746-417239663614
+$ prefect register -p flows/my_flow.py --project MyProject
+Collecting flows...
+Processing 'flows/my_flow.py':
+  Building `GitHub` storage...
+  Registering 'example'... Done
+  └── ID: c0dabf5a-4234-431b-8cc1-dbb6f3d6546d
+  └── Version: 1
+======================== 1 registered ========================
 ```
 
 The flow is ready to run! Every time you need to change the code inside your flow's respective tasks all
@@ -196,8 +201,8 @@ flow.storage = GCS(
 ```
 
 The script location can also be provided when registering the flow through the
-[`register`](/api/latest/cli/register.html) CLI command through the `--file/-f` option:
+[`register`](/api/latest/cli/register.html) CLI command through the `--path/-p` option:
 
 ```bash
-prefect register flow -f my_flow.py -p MyProject
+prefect register -p my_flow.py --project MyProject
 ```
