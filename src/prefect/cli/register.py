@@ -71,16 +71,16 @@ def load_flows_from_path(path: str) -> "List[prefect.Flow]":
     with open(path, "rb") as fil:
         contents = fil.read()
 
-    ns = {}
+    namespace = {}
     try:
         with prefect.context({"loading_flow": True, "local_script_path": path}):
-            exec(contents, ns)
+            exec(contents, namespace)
     except Exception as exc:
         click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, 2)
         raise TerminalError
 
-    flows = [f for f in ns.values() if isinstance(f, prefect.Flow)]
+    flows = [f for f in namespace.values() if isinstance(f, prefect.Flow)]
     if flows:
         for f in flows:
             if f.storage is None:
