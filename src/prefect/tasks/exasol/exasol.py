@@ -37,7 +37,7 @@ class ExasolExecute(Task):
         commit: bool = True,
         **kwargs,
     ):
-        if user is not None or password is not None:
+        if user or password:
             warnings.warn(
                 "Passing `user` or `password` to the `ExasolExecute` constructor "
                 "is deprecated. These should be passed as runtime arguments instead."
@@ -147,7 +147,7 @@ class ExasolFetch(Task):
         query_params: dict = None,
         **kwargs,
     ):
-        if user is not None or password is not None:
+        if user or password:
             warnings.warn(
                 "Passing `user` or `password` to the `ExasolFetch` constructor "
                 "is deprecated. These should be passed as runtime arguments instead."
@@ -266,7 +266,7 @@ class ExasolImportFromIterable(Task):
         commit: bool = True,
         **kwargs,
     ):
-        if user is not None or password is not None:
+        if user or password:
             warnings.warn(
                 "Passing `user` or `password` to the `ExasolImportFromIterable` constructor "
                 "is deprecated. These should be passed as runtime arguments instead."
@@ -400,7 +400,7 @@ class ExasolExportToFile(Task):
         export_params: dict = None,
         **kwargs,
     ):
-        if user is not None or password is not None:
+        if user or password:
             warnings.warn(
                 "Passing `user` or `password` to the `ExasolExportToFile` constructor "
                 "is deprecated. These should be passed as runtime arguments instead."
