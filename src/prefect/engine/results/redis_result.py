@@ -19,12 +19,12 @@ class RedisResult(Result):
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
     def __init__(
-        self, connection_string: str = None, ttl_seconds: int = None, **kwargs: Any
+        self, connection_string: str = "", ttl_seconds: int = None, **kwargs: Any
     ) -> None:
         self.connection_string = connection_string or os.getenv(
-            "REDIS_STORAGE_CONNECTION_STRING"
+            "REDIS_STORAGE_CONNECTION_STRING", ""
         )
-        if not self.connection_string:
+        if self.connection_string == "":
             raise Exception("RedisResult expects to be passed connection_string "
                             "or present in the environment from REDIS_STORAGE_CONNECTION_STRING")
         self.ttl_seconds = ttl_seconds
@@ -33,7 +33,7 @@ class RedisResult(Result):
     def initialize_redis_client(self) -> None:
         import redis
 
-        self._redis_client = redis.Redis.from_url(self.connection_string)
+        self._redis_client = redis.Redis.from_url(url=self.connection_string)
         try:
             self._redis_client.ping()
         except (ConnectionError, redis.InvalidResponse) as ee:
@@ -60,7 +60,7 @@ class RedisResult(Result):
 
     def read(self, location: str) -> Result:
         """
-        Read from reids and deserialize the value at location
+        Read from Redis and deserialize the value at location
 
         Args:
             - location (str): Redis key
