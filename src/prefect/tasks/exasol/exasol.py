@@ -13,10 +13,10 @@ class ExasolExecute(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional): !! deprecated, pass as runtime parameter!!
-            user name used to authenticate
-        - password (str, optional): !! deprecated, pass as runtime parameter!!
-            password used to authenticate; should be provided from a `Secret` task
+        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
+            should be passed at runtime instead.
+        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
+            should be passed at runtime instead.
         - query (str, optional): query to execute against database
         - query_params (dict, optional): Values for SQL query placeholders
         - autocommit (bool, optional): turn autocommit on or off (default: False)
@@ -122,10 +122,10 @@ class ExasolFetch(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional): !! deprecated, pass as runtime parameter!!
-            user name used to authenticate
-        - password (str, optional): !! deprecated, pass as runtime parameter!!
-            password used to authenticate; should be provided from a `Secret` task
+        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
+            should be passed at runtime instead.
+        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
+            should be passed at runtime instead.
         - fetch (str, optional): one of "one" "many" "val" or "all", used to determine how many
             results to fetch from executed query
         - fetch_size (int, optional): if fetch = 'many', determines the number of results to
@@ -238,10 +238,10 @@ class ExasolImportFromIterable(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional): !! deprecated, pass as runtime parameter!!
-            user name used to authenticate
-        - password (str, optional): !! deprecated, pass as runtime parameter!!
-            password used to authenticate; should be provided from a `Secret` task
+        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
+            should be passed at runtime instead.
+        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
+            should be passed at runtime instead.
         - target_schema (str, optional): target schema for importing data
         - target_table (str, optional): target table for importing data
         - data (Iterable, optional): an iterable which holds the import data
@@ -373,10 +373,10 @@ class ExasolExportToFile(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional): !! deprecated, pass as runtime parameter!!
-            user name used to authenticate
-        - password (str, optional): !! deprecated, pass as runtime parameter!!
-            password used to authenticate; should be provided from a `Secret` task
+        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
+            should be passed at runtime instead.
+        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
+            should be passed at runtime instead.
         - destination ([str, Path], optional): Path to file or file-like object
         - query_or_table (str, optional): SQL query or table for export
             could be:

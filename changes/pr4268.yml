@@ -1,5 +1,8 @@
 task:
-  - "Exasol tasks: add `user` and `password` as runtime parameter. Both are deprecated for init() method - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)"
+  - "Add `user` and `password` as runtime parameters to Exasol tasks - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)"
+  
+deprecation:
+  - "Deprecate `user` and `password` arguments to Exasol task constructors in favor of runtime parameters - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)"
 
 contributor:
   - "[Timo S.](https://github.com/sti0)"
