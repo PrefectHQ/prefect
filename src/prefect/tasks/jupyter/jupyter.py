@@ -18,6 +18,8 @@ class ExecuteNotebook(Task):
             Can also be provided post-initialization by calling this task instance
         - parameters (dict, optional): dictionary of parameters to use for the notebook
             Can also be provided at runtime
+        - log_output (bool): whether or not to log notebook cell output to the
+            papermill logger.
         - output_format (str, optional): Notebook output format, should be a valid
             nbconvert Exporter name. 'json' is treated as 'notebook'.
             Valid exporter names: asciidoc, custom, html, latex, markdown,
@@ -33,6 +35,7 @@ class ExecuteNotebook(Task):
         self,
         path: str = None,
         parameters: dict = None,
+        log_output: bool = False,
         output_format: str = "notebook",
         exporter_kwargs: dict = None,
         kernel_name: str = None,
@@ -40,6 +43,7 @@ class ExecuteNotebook(Task):
     ):
         self.path = path
         self.parameters = parameters
+        self.log_output = log_output
         self.output_format = output_format
         self.kernel_name = kernel_name
         self.exporter_kwargs = exporter_kwargs
@@ -68,7 +72,11 @@ class ExecuteNotebook(Task):
             the exporter.
         """
         nb: nbformat.NotebookNode = pm.execute_notebook(
-            path, "-", parameters=parameters, kernel_name=self.kernel_name
+            path,
+            "-",
+            parameters=parameters,
+            kernel_name=self.kernel_name,
+            log_output=self.log_output,
         )
         if output_format == "json":
             output_format = "notebook"
