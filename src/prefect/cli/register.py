@@ -5,19 +5,45 @@ import multiprocessing
 import os
 import sys
 import time
+import hashlib
 import traceback
 from collections import Counter, defaultdict
-from typing import NamedTuple, List, Dict, Iterator, Tuple
+from typing import Union, NamedTuple, List, Dict, Iterator, Tuple
+from urllib.parse import urlparse
 
 import marshmallow
 import click
+import box
 from click.exceptions import ClickException
 
 import prefect
 from prefect.utilities.storage import extract_flow_from_file
-from prefect.utilities.graphql import with_args, EnumValue
+from prefect.utilities.graphql import with_args, EnumValue, compress
 from prefect.storage import Local, Module
 from prefect.run_configs import UniversalRun
+
+
+FlowLike = Union[box.Box, "prefect.Flow"]
+
+
+class SimpleFlowSchema(marshmallow.Schema):
+    """A simple flow schema, only checks the `name` field"""
+
+    class Meta:
+        unknown = marshmallow.INCLUDE
+
+    name = marshmallow.fields.Str()
+
+    @marshmallow.post_load
+    def post_load_hook(self, data, **kwargs):
+        return box.Box(**data)
+
+
+class FlowsJSONSchema(marshmallow.Schema):
+    """Schema for a `flows.json` file"""
+
+    version = marshmallow.fields.Integer()
+    flows = marshmallow.fields.List(marshmallow.fields.Nested(SimpleFlowSchema))
 
 
 class TerminalError(Exception):
@@ -85,7 +111,7 @@ def expand_paths(paths: List[str]) -> List[str]:
     return out
 
 
-def load_flows_from_path(path: str) -> "List[prefect.Flow]":
+def load_flows_from_script(path: str) -> "List[prefect.Flow]":
     """Given a file path, load all flows found in the file"""
     with open(path, "rb") as fil:
         contents = fil.read()
@@ -134,37 +160,69 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
     return flows
 
 
+def load_flows_from_json(path: str) -> "List[dict]":
+    """Given a path to a JSON file containing flows, load all flows.
+
+    Note that since `FlowSchema` doesn't roundtrip without mutation, we keep
+    the flow objects as dicts.
+    """
+    try:
+        with open(path, "r") as fil:
+            contents = json.load(fil)
+    except Exception as exc:
+        click.secho(f"Error loading {path!r}:", fg="red")
+        log_exception(exc, indent=2)
+        raise TerminalError from exc
+    try:
+        contents = FlowsJSONSchema().load(contents)
+    except Exception:
+        click.secho(f"{path!r} is not a valid Prefect flows `json` file.", fg="red")
+        raise TerminalError
+
+    if contents["version"] != 1:
+        raise TerminalError(
+            f"{path!r} is version {contents['version']}, only version 1 is supported"
+        )
+
+    return contents["flows"]
+
+
 class Source(NamedTuple):
     location: str
-    is_module: bool = False
+    kind: str
 
 
 def collect_flows(
     paths: List[str],
     modules: List[str],
+    json_paths: List[str],
     names: List[str] = None,
     in_watch: bool = False,
-) -> "Dict[Source, List[prefect.Flow]]":
+) -> "Dict[Source, List[FlowLike]]":
     """Load all flows found in `paths` & `modules`.
 
     Args:
         - paths (List[str]): file paths to load flows from.
         - modules (List[str]): modules to load flows from.
+        - json_paths (List[str]): file paths to JSON files to load flows from.
         - names (List[str], optional): a list of flow names to collect.
             If not provided, all flows found will be returned.
         - in_watch (bool): If true, any errors in loading the flows will be
             logged but won't abort execution. Default is False.
     """
-    sources = [Source(p, False) for p in paths]
-    sources.extend(Source(m, True) for m in modules)
+    sources = [Source(p, "script") for p in paths]
+    sources.extend(Source(m, "module") for m in modules)
+    sources.extend(Source(m, "json") for m in json_paths)
 
     out = {}
     for s in sources:
         try:
-            if s.is_module:
+            if s.kind == "module":
                 flows = load_flows_from_module(s.location)
+            elif s.kind == "json":
+                flows = load_flows_from_json(s.location)
             else:
-                flows = load_flows_from_path(s.location)
+                flows = load_flows_from_script(s.location)
         except TerminalError:
             # If we're running with --watch, bad files are logged and skipped
             # rather than aborting early
@@ -194,39 +252,110 @@ def collect_flows(
     return out
 
 
-def prepare_flows(flows: "List[prefect.Flow]", labels: List[str] = None) -> None:
+def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
     """Finish preparing flows.
 
     Shared code between `register` and `build` for any flow modifications
     required before building the flow's storage. Modifies the flows in-place.
     """
-    labels = set(labels) if labels else None
+    labels = set(labels or ())
 
     # Finish setting up all flows before building, to ensure a stable hash
     # for flows sharing storage instances
     for flow in flows:
-        # Set the default flow result if not specified
-        if not flow.result:
-            flow.result = flow.storage.result
-
-        # Add a `run_config` if not configured explicitly
-        # Also add any extra labels to the flow
-        if flow.run_config is None:
-            if flow.environment is not None:
-                flow.environment.labels.update(labels)
+        if isinstance(flow, dict):
+            # Add any extra labels to the flow
+            if flow.get("environment"):
+                new_labels = set(flow["environment"].get("labels") or []).union(labels)
+                flow["environment"]["labels"] = sorted(new_labels)
             else:
-                flow.run_config = UniversalRun(labels=labels)
+                new_labels = set(flow["run_config"].get("labels") or []).union(labels)
+                flow["run_config"]["labels"] = sorted(new_labels)
         else:
-            flow.run_config.labels.update(labels)
+            # Set the default flow result if not specified
+            if not flow.result:
+                flow.result = flow.storage.result
 
-        # Add the flow to storage
-        flow.storage.add_flow(flow)
+            # Add a `run_config` if not configured explicitly
+            # Also add any extra labels to the flow
+            if flow.run_config is None:
+                if flow.environment is not None:
+                    flow.environment.labels.update(labels)
+                else:
+                    flow.run_config = UniversalRun(labels=labels)
+            else:
+                flow.run_config.labels.update(labels)
+
+            # Add the flow to storage
+            flow.storage.add_flow(flow)
+
+
+def register_serialized_flow(
+    client: "prefect.Client",
+    serialized_flow: dict,
+    project_id: str,
+    force: bool = False,
+) -> Tuple[str, int, bool]:
+    # Get most recent flow id for this flow. This can be removed once
+    # the registration graphql routes return more information
+    flow_name = serialized_flow["name"]
+    resp = client.graphql(
+        {
+            "query": {
+                with_args(
+                    "flow",
+                    {
+                        "where": {
+                            "_and": {
+                                "name": {"_eq": flow_name},
+                                "project": {"id": {"_eq": project_id}},
+                            }
+                        },
+                        "order_by": {"version": EnumValue("desc")},
+                        "limit": 1,
+                    },
+                ): {"id", "version"}
+            }
+        }
+    )
+    if resp.data.flow:
+        prev_id = resp.data.flow[0].id
+        prev_version = resp.data.flow[0].version
+    else:
+        prev_id = None
+        prev_version = 0
+
+    inputs = dict(
+        project_id=project_id,
+        serialized_flow=compress(serialized_flow),
+    )
+    if not force:
+        inputs["idempotency_key"] = hashlib.sha256(
+            json.dumps(serialized_flow, sort_keys=True).encode()
+        ).hexdigest()
+
+    res = client.graphql(
+        {
+            "mutation($input: create_flow_from_compressed_string_input!)": {
+                "create_flow_from_compressed_string(input: $input)": {"id"}
+            }
+        },
+        variables=dict(input=inputs),
+        retry_on_api_error=False,
+    )
+
+    new_id = res.data.create_flow_from_compressed_string.id
+
+    if new_id == prev_id:
+        return new_id, prev_version, False
+    else:
+        return new_id, prev_version + 1, True
 
 
 def build_and_register(
     client: "prefect.Client",
-    flows: "List[prefect.Flow]",
-    project: str,
+    flows: "List[FlowLike]",
+    project_id: str,
     labels: List[str] = None,
     force: bool = False,
 ) -> Counter:
@@ -234,8 +363,8 @@ def build_and_register(
 
     Args:
         - client (prefect.Client): the prefect client to use
-        - flows (List[prefect.Flow]): the flows to register
-        - project (str): the project in which to register the flows
+        - flows (List[FlowLike]): the flows to register
+        - project_id (str): the project id in which to register the flows
         - labels (List[str], optional): Any extra labels to set on all flows
         - force (bool, optional): If false (default), an idempotency key will
             be used to avoid unnecessary register calls.
@@ -249,75 +378,51 @@ def build_and_register(
     # Group flows by storage instance.
     storage_to_flows = defaultdict(list)
     for flow in flows:
-        storage_to_flows[flow.storage].append(flow)
+        storage = flow.storage if isinstance(flow, prefect.Flow) else None
+        storage_to_flows[storage].append(flow)
 
     # Register each flow, building storage as needed.
     # Stats on success/fail/skip rates are kept for later display
     stats = Counter(registered=0, errored=0, skipped=0)
     for storage, flows in storage_to_flows.items():
-        # Build storage
-        click.echo(f"  Building `{type(storage).__name__}` storage...")
-        try:
-            storage.build()
-        except Exception as exc:
-            click.secho("    Error building storage:", fg="red")
-            log_exception(exc, indent=6)
-            red_error = click.style("Error", fg="red")
-            for flow in flows:
-                click.echo(f"  Registering {flow.name!r}... {red_error}")
-                stats["errored"] += 1
-            continue
+        # Build storage if needed
+        if storage is not None:
+            click.echo(f"  Building `{type(storage).__name__}` storage...")
+            try:
+                storage.build()
+            except Exception as exc:
+                click.secho("    Error building storage:", fg="red")
+                log_exception(exc, indent=6)
+                red_error = click.style("Error", fg="red")
+                for flow in flows:
+                    click.echo(f"  Registering {flow.name!r}... {red_error}")
+                    stats["errored"] += 1
+                continue
 
         for flow in flows:
             click.echo(f"  Registering {flow.name!r}...", nl=False)
             try:
-                # Get most recent flow id for this flow. This can be removed once
-                # the registration graphql routes return more information
-                resp = client.graphql(
-                    {
-                        "query": {
-                            with_args(
-                                "flow",
-                                {
-                                    "where": {
-                                        "_and": {
-                                            "name": {"_eq": flow.name},
-                                            "project": {"name": {"_eq": project}},
-                                        }
-                                    },
-                                    "order_by": {"version": EnumValue("desc")},
-                                    "limit": 1,
-                                },
-                            ): {"id", "version"}
-                        }
-                    }
-                )
-                if resp.data.flow:
-                    prev_id = resp.data.flow[0].id
-                    prev_version = resp.data.flow[0].version
+                if isinstance(flow, box.Box):
+                    serialized_flow = flow
                 else:
-                    prev_id = None
-                    prev_version = 0
-                new_id = client.register(
-                    flow=flow,
-                    project_name=project,
-                    build=False,
-                    no_url=True,
-                    idempotency_key=(None if force else flow.serialized_hash()),
+                    serialized_flow = flow.serialize(build=False)
+
+                flow_id, flow_version, is_new = register_serialized_flow(
+                    client, serialized_flow, project_id, force
                 )
             except Exception as exc:
                 click.secho(" Error", fg="red")
                 log_exception(exc, indent=4)
                 stats["errored"] += 1
             else:
-                if new_id == prev_id:
+                if is_new:
+                    click.secho(" Done", fg="green")
+                    click.echo(f"  └── ID: {flow_id}")
+                    click.echo(f"  └── Version: {flow_version}")
+                    stats["registered"] += 1
+                else:
                     click.secho(" Skipped", fg="yellow")
                     stats["skipped"] += 1
-                else:
-                    click.secho(" Done", fg="green")
-                    click.echo(f"  └── ID: {new_id}")
-                    click.echo(f"  └── Version: {prev_version + 1}")
-                    stats["registered"] += 1
     return stats
 
 
@@ -325,6 +430,7 @@ def register_internal(
     project: str,
     paths: List[str],
     modules: List[str],
+    json_paths: List[str] = None,
     names: List[str] = None,
     labels: List[str] = None,
     force: bool = False,
@@ -337,6 +443,8 @@ def register_internal(
         - project (str): the project in which to register the flows.
         - paths (List[str]): a list of file paths containing flows.
         - modules (List[str]): a list of python modules containing flows.
+        - json_paths (List[str]): a list of file paths containing serialied
+            flows produced by `prefect build`.
         - names (List[str], optional): a list of flow names that should be
             registered. If not provided, all flows found will be registered.
         - labels (List[str], optional): a list of extra labels to set on all
@@ -346,17 +454,31 @@ def register_internal(
         - in_watch (bool, optional): Whether this call resulted from a
             `register --watch` call.
     """
+    client = prefect.Client()
+
+    # Determine the project id, error if it doesn't exist
+    resp = client.graphql(
+        {"query": {with_args("project", {"where": {"name": {"_eq": project}}}): {"id"}}}
+    )
+    if resp.data.project:
+        project_id = resp.data.project[0].id
+    else:
+        raise TerminalError(f"Project {project!r} does not exist")
+
     # Load flows from all files/modules requested
     click.echo("Collecting flows...")
-    source_to_flows = collect_flows(paths, modules, names, in_watch)
+    source_to_flows = collect_flows(
+        paths, modules, json_paths, names=names, in_watch=in_watch
+    )
 
     # Iterate through each file, building all storage and registering all flows
     # Log errors as they happen, but only exit once all files have been processed
-    client = prefect.Client()
     stats = Counter(registered=0, errored=0, skipped=0)
     for source, flows in source_to_flows.items():
         click.echo(f"Processing {source.location!r}:")
-        stats += build_and_register(client, flows, project, labels=labels, force=force)
+        stats += build_and_register(
+            client, flows, project_id, labels=labels, force=force
+        )
 
     # Output summary message
     registered = stats["registered"]
@@ -493,6 +615,16 @@ REGISTER_EPILOG = """
     multiple=True,
 )
 @click.option(
+    "--json",
+    "-j",
+    "json_paths",
+    help=(
+        "A path or URL to a json file containing the flow(s) to register. "
+        "May be passed multiple times to specify multiple paths to register."
+    ),
+    multiple=True,
+)
+@click.option(
     "--name",
     "-n",
     "names",
@@ -532,7 +664,7 @@ REGISTER_EPILOG = """
 )
 @click.pass_context
 @handle_terminal_error
-def register(ctx, project, paths, modules, names, labels, force, watch):
+def register(ctx, project, paths, modules, json_paths, names, labels, force, watch):
     """Register one or more flows into a project."""
     # Since the old command was a subcommand of this, we have to do some
     # mucking to smoothly deprecate it. Can be removed with `prefect register
@@ -548,11 +680,22 @@ def register(ctx, project, paths, modules, names, labels, force, watch):
         raise ClickException("Missing required option '--project'")
 
     if watch:
+        if any(urlparse(j).scheme for j in json_paths):
+            raise ClickException("--watch is not supported for remote paths")
+        json_paths = set(json_paths)
+
         ctx = multiprocessing.get_context("spawn")
 
-        for change_paths, change_mods in watch_for_changes(
+        for change_paths_temp, change_mods in watch_for_changes(
             paths=paths, modules=modules
         ):
+            change_paths = []
+            change_json_paths = []
+            for p in change_paths_temp:
+                if p in json_paths:
+                    change_json_paths.append(p)
+                else:
+                    change_paths.append(p)
             proc = ctx.Process(
                 target=register_internal,
                 name="prefect-register",
@@ -560,6 +703,7 @@ def register(ctx, project, paths, modules, names, labels, force, watch):
                 kwargs=dict(
                     paths=change_paths,
                     modules=change_mods,
+                    json_paths=change_json_paths,
                     names=names,
                     labels=labels,
                     force=force,
@@ -572,23 +716,7 @@ def register(ctx, project, paths, modules, names, labels, force, watch):
     else:
         paths = expand_paths(list(paths or ()))
         modules = list(modules or ())
-        register_internal(project, paths, modules, names, labels, force)
-
-
-class SimpleFlowSchema(marshmallow.Schema):
-    """A simple flow schema, only checks the `name` field"""
-
-    class Meta:
-        unknown = marshmallow.INCLUDE
-
-    name = marshmallow.fields.Str()
-
-
-class FlowsJSONSchema(marshmallow.Schema):
-    """Schema for a `flows.json` file"""
-
-    version = marshmallow.fields.Integer()
-    flows = marshmallow.fields.List(marshmallow.fields.Nested(SimpleFlowSchema))
+        register_internal(project, paths, modules, json_paths, names, labels, force)
 
 
 @click.command()
@@ -652,34 +780,23 @@ def build(paths, modules, names, labels, output, update):
     """Build one or more flows."""
     succeeded = 0
     errored = 0
-    serialized_flows = {}
 
     # If updating, load all previously written flows first
-    if update:
-        if os.path.exists(output):
-            try:
-                with open(output, "r") as fil:
-                    existing = json.load(fil)
-            except Exception as exc:
-                click.secho(f"Error loading {output!r}:", fg="red")
-                log_exception(exc, indent=2)
-                raise TerminalError from exc
-            try:
-                existing = FlowsJSONSchema().load(existing)
-            except Exception:
-                click.secho(
-                    f"{output!r} is not a valid Prefect flows `json` file.", fg="red"
-                )
-                raise TerminalError
-            serialized_flows = {f["name"]: f for f in existing["flows"]}
+    if update and os.path.exists(output):
+        serialized_flows = {f["name"]: f for f in load_flows_from_json(output)}
+    else:
+        serialized_flows = {}
 
     # Collect flows from specified paths & modules
     paths = expand_paths(list(paths or ()))
     modules = list(modules or ())
-    source_to_flows = collect_flows(paths, modules, names)
+    source_to_flows = collect_flows(paths, modules, [], names=names)
 
     for source, flows in source_to_flows.items():
         click.echo(f"Processing {source.location!r}:")
+
+        # Finish preparing flows to ensure a stable hash later
+        prepare_flows(flows, labels)
 
         # Group flows by storage instance.
         storage_to_flows = defaultdict(list)

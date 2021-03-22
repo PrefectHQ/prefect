@@ -11,7 +11,7 @@ from prefect.cli import cli
 from prefect.cli.register import (
     TerminalError,
     watch_for_changes,
-    load_flows_from_path,
+    load_flows_from_script,
     load_flows_from_module,
     build_and_register,
 )
@@ -200,7 +200,7 @@ class TestWatchForChanges:
 
 
 class TestRegister:
-    def test_load_flows_from_path(self, tmpdir):
+    def test_load_flows_from_script(self, tmpdir):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -214,7 +214,7 @@ class TestRegister:
         with open(path, "w") as f:
             f.write(source)
 
-        flows = {f.name: f for f in load_flows_from_path(path)}
+        flows = {f.name: f for f in load_flows_from_script(path)}
         assert len(flows) == 2
         assert isinstance(flows["f1"].storage, S3)
         assert flows["f1"].storage.local_script_path == path
@@ -222,13 +222,13 @@ class TestRegister:
         assert flows["f2"].storage.path == path
         assert flows["f2"].storage.stored_as_script
 
-    def test_load_flows_from_path_error(self, tmpdir, capsys):
+    def test_load_flows_from_script_error(self, tmpdir, capsys):
         path = str(tmpdir.join("test.py"))
         with open(path, "w") as f:
             f.write("raise ValueError('oh no!')")
 
         with pytest.raises(TerminalError):
-            load_flows_from_path(path)
+            load_flows_from_script(path)
 
         out, _ = capsys.readouterr()
         assert "oh no!" in out
