@@ -18,6 +18,7 @@ from click.exceptions import ClickException
 
 import prefect
 from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import with_args, EnumValue, compress
 from prefect.storage import Local, Module
 from prefect.run_configs import UniversalRun
@@ -167,24 +168,23 @@ def load_flows_from_json(path: str) -> "List[dict]":
     the flow objects as dicts.
     """
     try:
-        with open(path, "r") as fil:
-            contents = json.load(fil)
+        contents = read_bytes_from_path(path)
     except Exception as exc:
         click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, indent=2)
         raise TerminalError from exc
     try:
-        contents = FlowsJSONSchema().load(contents)
+        flows_json = FlowsJSONSchema().load(json.loads(contents))
     except Exception:
         click.secho(f"{path!r} is not a valid Prefect flows `json` file.", fg="red")
         raise TerminalError
 
-    if contents["version"] != 1:
+    if flows_json["version"] != 1:
         raise TerminalError(
-            f"{path!r} is version {contents['version']}, only version 1 is supported"
+            f"{path!r} is version {flows_json['version']}, only version 1 is supported"
         )
 
-    return contents["flows"]
+    return flows_json["flows"]
 
 
 class Source(NamedTuple):
