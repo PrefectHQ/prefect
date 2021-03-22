@@ -9,7 +9,6 @@ import hashlib
 import traceback
 from collections import Counter, defaultdict
 from typing import Union, NamedTuple, List, Dict, Iterator, Tuple
-from urllib.parse import urlparse
 
 import marshmallow
 import click
@@ -18,7 +17,7 @@ from click.exceptions import ClickException
 
 import prefect
 from prefect.utilities.storage import extract_flow_from_file
-from prefect.utilities.filesystems import read_bytes_from_path
+from prefect.utilities.filesystems import read_bytes_from_path, parse_path
 from prefect.utilities.graphql import with_args, EnumValue, compress
 from prefect.storage import Local, Module
 from prefect.run_configs import UniversalRun
@@ -169,6 +168,8 @@ def load_flows_from_json(path: str) -> "List[dict]":
     """
     try:
         contents = read_bytes_from_path(path)
+    except FileNotFoundError:
+        raise TerminalError(f"Path {path!r} doesn't exist")
     except Exception as exc:
         click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, indent=2)
@@ -176,8 +177,7 @@ def load_flows_from_json(path: str) -> "List[dict]":
     try:
         flows_json = FlowsJSONSchema().load(json.loads(contents))
     except Exception:
-        click.secho(f"{path!r} is not a valid Prefect flows `json` file.", fg="red")
-        raise TerminalError
+        raise TerminalError(f"{path!r} is not a valid Prefect flows `json` file.")
 
     if flows_json["version"] != 1:
         raise TerminalError(
@@ -288,6 +288,16 @@ def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
 
             # Add the flow to storage
             flow.storage.add_flow(flow)
+
+
+def get_project_id(client: "prefect.Client", project: str) -> str:
+    resp = client.graphql(
+        {"query": {with_args("project", {"where": {"name": {"_eq": project}}}): {"id"}}}
+    )
+    if resp.data.project:
+        return resp.data.project[0].id
+    else:
+        raise TerminalError(f"Project {project!r} does not exist")
 
 
 def register_serialized_flow(
@@ -408,7 +418,10 @@ def build_and_register(
                     serialized_flow = flow.serialize(build=False)
 
                 flow_id, flow_version, is_new = register_serialized_flow(
-                    client, serialized_flow, project_id, force
+                    client=client,
+                    serialized_flow=serialized_flow,
+                    project_id=project_id,
+                    force=force,
                 )
             except Exception as exc:
                 click.secho(" Error", fg="red")
@@ -456,14 +469,8 @@ def register_internal(
     """
     client = prefect.Client()
 
-    # Determine the project id, error if it doesn't exist
-    resp = client.graphql(
-        {"query": {with_args("project", {"where": {"name": {"_eq": project}}}): {"id"}}}
-    )
-    if resp.data.project:
-        project_id = resp.data.project[0].id
-    else:
-        raise TerminalError(f"Project {project!r} does not exist")
+    # Determine the project id
+    project_id = get_project_id(client, project)
 
     # Load flows from all files/modules requested
     click.echo("Collecting flows...")
@@ -680,7 +687,7 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
         raise ClickException("Missing required option '--project'")
 
     if watch:
-        if any(urlparse(j).scheme for j in json_paths):
+        if any(parse_path(j).scheme != "file" for j in json_paths):
             raise ClickException("--watch is not supported for remote paths")
         json_paths = set(json_paths)
 

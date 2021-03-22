@@ -1,8 +1,10 @@
+import json
 import os
-import threading
 import textwrap
+import threading
 from unittest.mock import MagicMock
 
+import box
 import pytest
 from click.testing import CliRunner
 
@@ -13,6 +15,7 @@ from prefect.cli.register import (
     watch_for_changes,
     load_flows_from_script,
     load_flows_from_module,
+    load_flows_from_json,
     build_and_register,
 )
 from prefect.engine.results import LocalResult
@@ -199,6 +202,14 @@ class TestWatchForChanges:
         assert set(mods) == {"module1", "module2"}
 
 
+@pytest.fixture
+def mock_get_project_id(monkeypatch):
+    get_project_id = MagicMock()
+    get_project_id.return_value = "my-project-id"
+    monkeypatch.setattr("prefect.cli.register.get_project_id", get_project_id)
+    return get_project_id
+
+
 class TestRegister:
     def test_load_flows_from_script(self, tmpdir):
         path = str(tmpdir.join("test.py"))
@@ -278,6 +289,48 @@ class TestRegister:
         assert "oh no!" in out
         assert "Error loading 'mymodule2'" in out
 
+    def test_load_flows_from_json(self, monkeypatch):
+        flows = [
+            Flow("flow 1").serialize(build=False),
+            Flow("flow 2").serialize(build=False),
+        ]
+        data = json.dumps({"version": 1, "flows": flows}).encode("utf-8")
+        monkeypatch.setattr(
+            "prefect.cli.register.read_bytes_from_path", MagicMock(return_value=data)
+        )
+        res = load_flows_from_json("https://some/url/flows.json")
+        assert res == flows
+
+    def test_load_flows_from_json_fail_read(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "prefect.cli.register.read_bytes_from_path",
+            MagicMock(side_effect=ValueError("oh no!")),
+        )
+        with pytest.raises(TerminalError):
+            load_flows_from_json("https://some/url/flows.json")
+
+        out, _ = capsys.readouterr()
+        assert "Error loading 'https://some/url/flows.json'" in out
+        assert "oh no!" in out
+
+    def test_load_flows_from_json_schema_error(self, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.cli.register.read_bytes_from_path",
+            MagicMock(return_value=json.dumps({"bad": "file"})),
+        )
+        with pytest.raises(
+            TerminalError, match="is not a valid Prefect flows `json` file."
+        ):
+            load_flows_from_json("https://some/url/flows.json")
+
+    def test_load_flows_from_json_unsupported_version(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "prefect.cli.register.read_bytes_from_path",
+            MagicMock(return_value=json.dumps({"version": 2, "flows": []})),
+        )
+        with pytest.raises(TerminalError, match="is version 2, only version 1"):
+            load_flows_from_json("https://some/url/flows.json")
+
     @pytest.mark.parametrize("force", [False, True])
     def test_build_and_register(self, capsys, monkeypatch, force):
         """Build and register a few flows:
@@ -286,6 +339,7 @@ class TestRegister:
         - 1 skipped flow
         - 1 error during registration
         - 2 sharing the same storage (which fails to build properly)
+        - 2 from a pre-built JSON file
         """
         build_call_count = 0
 
@@ -299,18 +353,18 @@ class TestRegister:
                 raise ValueError("whoops!")
 
         client = MagicMock()
-        client.graphql.side_effect = [
-            GraphQLResult({"data": {"flow": []}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-2", "version": 1}]}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-3", "version": 2}]}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-4", "version": 3}]}}),
-        ]
-        client.register.side_effect = [
-            "new-id-1",
-            "old-id-2",
-            "new-id-3",
+        register_serialized_flow = MagicMock()
+        register_serialized_flow.side_effect = [
+            ("new-id-1", 1, True),
+            ("old-id-2", 2, False),
+            ("new-id-3", 3, True),
             ValueError("Oh no!"),
+            ("new-id-7", 1, True),
+            ("old-id-8", 2, False),
         ]
+        monkeypatch.setattr(
+            "prefect.cli.register.register_serialized_flow", register_serialized_flow
+        )
 
         storage1 = MyModule("testing")
         storage1.result = LocalResult()
@@ -326,30 +380,34 @@ class TestRegister:
         storage3 = BadStorage("testing")
         flow5 = Flow("flow 5", storage=storage3)
         flow6 = Flow("flow 6", storage=storage3)
-        flows = [flow1, flow2, flow3, flow4, flow5, flow6]
+        flow7 = box.Box(
+            Flow("flow 7", run_config=UniversalRun(labels=["a"])).serialize(build=False)
+        )
+        flow8 = box.Box(
+            Flow("flow 8", environment=LocalEnvironment(labels=["a"])).serialize(
+                build=False
+            )
+        )
+        flows = [flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8]
 
         stats = build_and_register(
-            client, flows, "testing", labels=["b", "c"], force=force
+            client, flows, "my-project-id", labels=["b", "c"], force=force
         )
 
         # 3 calls (one for each unique `MyModule` storage object)
         assert build_call_count == 3
 
-        # 4 register calls (6 - 2 that failed to build storage)
-        assert client.register.call_count == 4
-        for flow, (args, kwargs) in zip(flows, client.register.call_args_list):
+        # 6 register calls (8 - 2 that failed to build storage)
+        assert register_serialized_flow.call_count == 6
+        for flow, (args, kwargs) in zip(flows, register_serialized_flow.call_args_list):
             assert not args
-            assert kwargs["flow"] is flow
-            assert kwargs["project_name"] == "testing"
-            assert kwargs["build"] is False
-            assert kwargs["no_url"] is True
-            if force:
-                assert kwargs["idempotency_key"] is None
-            else:
-                assert kwargs["idempotency_key"]
+            assert kwargs["client"] is client
+            assert kwargs["serialized_flow"]
+            assert kwargs["project_id"] == "my-project-id"
+            assert kwargs["force"] == force
 
         # Stats are recorded properly
-        assert dict(stats) == {"registered": 2, "skipped": 1, "errored": 3}
+        assert dict(stats) == {"registered": 3, "skipped": 2, "errored": 3}
 
         # Flows are properly configured
         assert flow1.result is storage1.result
@@ -359,6 +417,8 @@ class TestRegister:
         assert flow3.run_config.labels == {"b", "c"}
         assert isinstance(flow4.run_config, UniversalRun)
         assert flow4.run_config.labels == {"b", "c"}
+        assert set(flow7["run_config"]["labels"]) == {"a", "b", "c"}
+        assert set(flow8["environment"]["labels"]) == {"a", "b", "c"}
 
         # The output contains a traceback, which will vary between machines
         # We only check that the following fixed sections exist in the output
@@ -389,6 +449,10 @@ class TestRegister:
                 "\n"
                 "  Registering 'flow 5'... Error\n"
                 "  Registering 'flow 6'... Error\n"
+                "  Registering 'flow 7'... Done\n"
+                "  └── ID: new-id-7\n"
+                "  └── Version: 1\n"
+                "  Registering 'flow 8'... Skipped\n"
             ),
         ]
         out, err = capsys.readouterr()
@@ -398,7 +462,7 @@ class TestRegister:
 
     @pytest.mark.parametrize("force", [False, True])
     @pytest.mark.parametrize("names", [[], ["flow 1"]])
-    def test_register_cli(self, tmpdir, monkeypatch, force, names):
+    def test_register_cli(self, tmpdir, monkeypatch, mock_get_project_id, force, names):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -411,13 +475,14 @@ class TestRegister:
         with open(path, "w") as f:
             f.write(source)
 
-        client = MagicMock()
-        client.graphql.side_effect = [
-            GraphQLResult({"data": {"flow": []}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-2", "version": 1}]}}),
+        register_serialized_flow = MagicMock()
+        register_serialized_flow.side_effect = [
+            ("new-id-1", 1, True),
+            ("old-id-2", 2, False),
         ]
-        client.register.side_effect = ["new-id-1", "old-id-2"]
-        monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
+        monkeypatch.setattr(
+            "prefect.cli.register.register_serialized_flow", register_serialized_flow
+        )
 
         cmd = ["register", "--project", "testing", "--path", path, "-l", "a", "-l", "b"]
         if force:
@@ -430,16 +495,13 @@ class TestRegister:
         if not names:
             names = ["flow 1", "flow 2"]
 
-        assert client.register.call_count == len(names)
-        for args, kwargs in client.register.call_args_list:
+        assert register_serialized_flow.call_count == len(names)
+        for args, kwargs in register_serialized_flow.call_args_list:
             assert not args
-            assert kwargs["project_name"] == "testing"
-            assert kwargs["flow"].name in names
-            assert kwargs["flow"].run_config.labels == {"a", "b"}
-            if force:
-                assert kwargs["idempotency_key"] is None
-            else:
-                assert kwargs["idempotency_key"]
+            assert kwargs["project_id"] == "my-project-id"
+            assert kwargs["serialized_flow"]["name"] in names
+            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {"a", "b"}
+            assert kwargs["force"] == force
 
         # Bulk of the output is tested elsewhere, only a few smoketests here
         assert "Building `Local` storage..." in result.stdout
@@ -455,7 +517,7 @@ class TestRegister:
                 in result.stdout
             )
 
-    def test_register_cli_name_not_found(self, tmpdir):
+    def test_register_cli_name_not_found(self, tmpdir, mock_get_project_id):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -486,7 +548,7 @@ class TestRegister:
             "Collecting flows...\n" "Failed to find the following flows:\n" "- flow 3\n"
         )
 
-    def test_register_cli_path_not_found(self, tmpdir):
+    def test_register_cli_path_not_found(self, tmpdir, mock_get_project_id):
         path = str(tmpdir.join("test.py"))
         cmd = ["register", "--project", "testing", "-p", path]
         result = CliRunner().invoke(cli, cmd)
@@ -494,7 +556,15 @@ class TestRegister:
         assert result.exit_code == 1
         assert result.stdout == f"Path {path!r} doesn't exist\n"
 
-    def test_register_cli_module_not_found(self):
+    def test_register_cli_json_path_not_found(self, tmpdir, mock_get_project_id):
+        path = str(tmpdir.join("test.json"))
+        cmd = ["register", "--project", "testing", "-j", path]
+        result = CliRunner().invoke(cli, cmd)
+
+        assert result.exit_code == 1
+        assert f"Path {path!r} doesn't exist" in result.stdout
+
+    def test_register_cli_module_not_found(self, mock_get_project_id):
         cmd = [
             "register",
             "--project",
@@ -513,3 +583,18 @@ class TestRegister:
         result = CliRunner().invoke(cli, ["register", "-p", "some_path"])
         assert result.exit_code == 1
         assert result.stdout == "Error: Missing required option '--project'\n"
+
+    def test_register_cli_project_not_found(self, monkeypatch):
+        client = MagicMock()
+        client.graphql.return_value = GraphQLResult({"data": {"project": []}})
+        monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
+        cmd = [
+            "register",
+            "--project",
+            "testing",
+            "-m",
+            "a_highly_unlikely_module_name",
+        ]
+        result = CliRunner().invoke(cli, cmd)
+        assert result.exit_code == 1
+        assert result.stdout == "Project 'testing' does not exist\n"
