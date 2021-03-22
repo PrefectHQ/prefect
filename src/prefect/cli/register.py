@@ -1,12 +1,15 @@
-import os
+import functools
 import importlib
+import json
 import multiprocessing
+import os
 import sys
 import time
 import traceback
 from collections import Counter, defaultdict
 from typing import NamedTuple, List, Dict, Iterator, Tuple
 
+import marshmallow
 import click
 from click.exceptions import ClickException
 
@@ -21,6 +24,22 @@ class TerminalError(Exception):
     """An error indicating the CLI should exit with a non-zero exit code"""
 
     pass
+
+
+def handle_terminal_error(func):
+    """Wrap a command to handle a `TerminalError`"""
+
+    @functools.wraps(func)
+    def inner(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except TerminalError as exc:
+            msg = str(exc)
+            if msg:
+                click.secho(msg, fg="red")
+            sys.exit(1)
+
+    return inner
 
 
 def log_exception(exc: Exception, indent: int = 0) -> None:
@@ -121,13 +140,18 @@ class Source(NamedTuple):
 
 
 def collect_flows(
-    paths: List[str], modules: List[str], in_watch: bool = False
+    paths: List[str],
+    modules: List[str],
+    names: List[str] = None,
+    in_watch: bool = False,
 ) -> "Dict[Source, List[prefect.Flow]]":
     """Load all flows found in `paths` & `modules`.
 
     Args:
         - paths (List[str]): file paths to load flows from.
         - modules (List[str]): modules to load flows from.
+        - names (List[str], optional): a list of flow names to collect.
+            If not provided, all flows found will be returned.
         - in_watch (bool): If true, any errors in loading the flows will be
             logged but won't abort execution. Default is False.
     """
@@ -147,7 +171,56 @@ def collect_flows(
             if not in_watch:
                 raise
         out[s] = flows
+
+    # Filter flows by name if requested
+    if names:
+        names = set(names)
+        out = {
+            source: [f for f in flows if f.name in names]
+            for source, flows in out.items()
+        }
+        missing = names.difference(f.name for flows in out.values() for f in flows)
+        if missing:
+            missing_flows = "\n".join(f"- {n}" for n in sorted(missing))
+            click.secho(
+                f"Failed to find the following flows:\n{missing_flows}", fg="red"
+            )
+            if not in_watch:
+                raise TerminalError
+
+    # Drop empty sources
+    out = {source: flows for source, flows in out.items() if flows}
+
     return out
+
+
+def prepare_flows(flows: "List[prefect.Flow]", labels: List[str] = None) -> None:
+    """Finish preparing flows.
+
+    Shared code between `register` and `build` for any flow modifications
+    required before building the flow's storage. Modifies the flows in-place.
+    """
+    labels = set(labels) if labels else None
+
+    # Finish setting up all flows before building, to ensure a stable hash
+    # for flows sharing storage instances
+    for flow in flows:
+        # Set the default flow result if not specified
+        if not flow.result:
+            flow.result = flow.storage.result
+
+        # Add a `run_config` if not configured explicitly
+        # Also add any extra labels to the flow
+        if flow.run_config is None:
+            if flow.environment is not None:
+                flow.environment.labels.update(labels)
+            else:
+                flow.run_config = UniversalRun(labels=labels)
+        else:
+            flow.run_config.labels.update(labels)
+
+        # Add the flow to storage
+        flow.storage.add_flow(flow)
 
 
 def build_and_register(
@@ -170,30 +243,12 @@ def build_and_register(
     Returns:
         - Counter: stats about the number of successful, failed, and skipped flows.
     """
-    labels = set(labels) if labels else None
-
-    # Finish setting up all flows before building, to ensure a stable hash
-    # for flows sharing storage instances
-    for flow in flows:
-        # Set the default flow result if not specified
-        if not flow.result:
-            flow.result = flow.storage.result
-
-        # Add a `run_config` if not configured explicitly
-        # Also add any extra labels to the flow
-        if flow.run_config is None:
-            if flow.environment is not None:
-                flow.environment.labels.update(labels)
-            else:
-                flow.run_config = UniversalRun(labels=labels)
-        else:
-            flow.run_config.labels.update(labels)
+    # Finish preparing flows to ensure a stable hash later
+    prepare_flows(flows, labels)
 
     # Group flows by storage instance.
-    # Also adds all flows to their respective storage instance.
     storage_to_flows = defaultdict(list)
     for flow in flows:
-        flow.storage.add_flow(flow)
         storage_to_flows[flow.storage].append(flow)
 
     # Register each flow, building storage as needed.
@@ -293,36 +348,15 @@ def register_internal(
     """
     # Load flows from all files/modules requested
     click.echo("Collecting flows...")
-    source_to_flows = collect_flows(paths, modules, in_watch)
-
-    # Filter flows by name if requested
-    if names:
-        names = set(names)
-        source_to_flows = {
-            source: [f for f in flows if f.name in names]
-            for source, flows in source_to_flows.items()
-        }
-        missing = names.difference(
-            f.name for flows in source_to_flows.values() for f in flows
-        )
-        if missing:
-            missing_flows = "\n".join(f"- {n}" for n in sorted(missing))
-            click.secho(
-                f"Failed to find the following flows:\n{missing_flows}", fg="red"
-            )
-            if not in_watch:
-                raise TerminalError
+    source_to_flows = collect_flows(paths, modules, names, in_watch)
 
     # Iterate through each file, building all storage and registering all flows
     # Log errors as they happen, but only exit once all files have been processed
     client = prefect.Client()
     stats = Counter(registered=0, errored=0, skipped=0)
     for source, flows in source_to_flows.items():
-        if flows:
-            click.echo(f"Processing {source.location!r}:")
-            stats += build_and_register(
-                client, flows, project, labels=labels, force=force
-            )
+        click.echo(f"Processing {source.location!r}:")
+        stats += build_and_register(client, flows, project, labels=labels, force=force)
 
     # Output summary message
     registered = stats["registered"]
@@ -497,6 +531,7 @@ REGISTER_EPILOG = """
     is_flag=True,
 )
 @click.pass_context
+@handle_terminal_error
 def register(ctx, project, paths, modules, names, labels, force, watch):
     """Register one or more flows into a project."""
     # Since the old command was a subcommand of this, we have to do some
@@ -512,38 +547,192 @@ def register(ctx, project, paths, modules, names, labels, force, watch):
     if project is None:
         raise ClickException("Missing required option '--project'")
 
-    try:
-        if watch:
-            ctx = multiprocessing.get_context("spawn")
+    if watch:
+        ctx = multiprocessing.get_context("spawn")
 
-            for change_paths, change_mods in watch_for_changes(
-                paths=paths, modules=modules
-            ):
-                proc = ctx.Process(
-                    target=register_internal,
-                    name="prefect-register",
-                    args=(project,),
-                    kwargs=dict(
-                        paths=change_paths,
-                        modules=change_mods,
-                        names=names,
-                        labels=labels,
-                        force=force,
-                        in_watch=True,
-                    ),
-                    daemon=True,
+        for change_paths, change_mods in watch_for_changes(
+            paths=paths, modules=modules
+        ):
+            proc = ctx.Process(
+                target=register_internal,
+                name="prefect-register",
+                args=(project,),
+                kwargs=dict(
+                    paths=change_paths,
+                    modules=change_mods,
+                    names=names,
+                    labels=labels,
+                    force=force,
+                    in_watch=True,
+                ),
+                daemon=True,
+            )
+            proc.start()
+            proc.join()
+    else:
+        paths = expand_paths(list(paths or ()))
+        modules = list(modules or ())
+        register_internal(project, paths, modules, names, labels, force)
+
+
+class SimpleFlowSchema(marshmallow.Schema):
+    """A simple flow schema, only checks the `name` field"""
+
+    class Meta:
+        unknown = marshmallow.INCLUDE
+
+    name = marshmallow.fields.Str()
+
+
+class FlowsJSONSchema(marshmallow.Schema):
+    """Schema for a `flows.json` file"""
+
+    version = marshmallow.fields.Integer()
+    flows = marshmallow.fields.List(marshmallow.fields.Nested(SimpleFlowSchema))
+
+
+@click.command()
+@click.option(
+    "--path",
+    "-p",
+    "paths",
+    help=(
+        "A path to a file or a directory containing the flow(s) to build. "
+        "May be passed multiple times to specify multiple paths to build."
+    ),
+    multiple=True,
+)
+@click.option(
+    "--module",
+    "-m",
+    "modules",
+    help=(
+        "A python module name containing the flow(s) to build. May be "
+        "passed multiple times to specify multiple modules to build."
+    ),
+    multiple=True,
+)
+@click.option(
+    "--name",
+    "-n",
+    "names",
+    help=(
+        "The name of a flow to build from the specified paths/modules. If "
+        "provided, only flows with a matching name will be built. May be "
+        "passed multiple times to specify multiple flows to build. If not "
+        "provided, all flows found on all paths/modules will be built."
+    ),
+    multiple=True,
+)
+@click.option(
+    "--label",
+    "-l",
+    "labels",
+    help=(
+        "A label to add on all built flow(s). May be passed multiple "
+        "times to specify multiple labels."
+    ),
+    multiple=True,
+)
+@click.option(
+    "--output",
+    "-o",
+    default="flows.json",
+    help="The output path. Defaults to `flows.json`",
+)
+@click.option(
+    "--update",
+    "-u",
+    is_flag=True,
+    default=False,
+    help="Updates an existing `json` file rather than overwriting it.",
+)
+@handle_terminal_error
+def build(paths, modules, names, labels, output, update):
+    """Build one or more flows."""
+    succeeded = 0
+    errored = 0
+    serialized_flows = {}
+
+    # If updating, load all previously written flows first
+    if update:
+        if os.path.exists(output):
+            try:
+                with open(output, "r") as fil:
+                    existing = json.load(fil)
+            except Exception as exc:
+                click.secho(f"Error loading {output!r}:", fg="red")
+                log_exception(exc, indent=2)
+                raise TerminalError from exc
+            try:
+                existing = FlowsJSONSchema().load(existing)
+            except Exception:
+                click.secho(
+                    f"{output!r} is not a valid Prefect flows `json` file.", fg="red"
                 )
-                proc.start()
-                proc.join()
-        else:
-            paths = expand_paths(list(paths or ()))
-            modules = list(modules or ())
-            register_internal(project, paths, modules, names, labels, force)
-    except TerminalError as exc:
-        msg = str(exc)
-        if msg:
-            click.secho(msg, fg="red")
-        sys.exit(1)
+                raise TerminalError
+            serialized_flows = {f["name"]: f for f in existing["flows"]}
+
+    # Collect flows from specified paths & modules
+    paths = expand_paths(list(paths or ()))
+    modules = list(modules or ())
+    source_to_flows = collect_flows(paths, modules, names)
+
+    for source, flows in source_to_flows.items():
+        click.echo(f"Processing {source.location!r}:")
+
+        # Group flows by storage instance.
+        storage_to_flows = defaultdict(list)
+        for flow in flows:
+            storage_to_flows[flow.storage].append(flow)
+
+        for storage, flows in storage_to_flows.items():
+            # Build storage
+            click.echo(f"  Building `{type(storage).__name__}` storage...")
+            try:
+                storage.build()
+            except Exception as exc:
+                click.secho("    Error building storage:", fg="red")
+                log_exception(exc, indent=6)
+                red_error = click.style("Error", fg="red")
+                for flow in flows:
+                    click.echo(f"  Building {flow.name!r}... {red_error}")
+                    errored += 1
+                continue
+
+            # Serialize flows
+            for flow in flows:
+                click.echo(f"  Building {flow.name!r}...", nl=False)
+                try:
+                    serialized_flows[flow.name] = flow.serialize(build=False)
+                except Exception as exc:
+                    click.secho(" Error", fg="red")
+                    log_exception(exc, indent=4)
+                    errored += 1
+                else:
+                    click.secho(" Done", fg="green")
+                    succeeded += 1
+
+    # Write output file
+    click.echo(f"Writing output to {output!r}")
+    flows = [serialized_flows[name] for name in sorted(serialized_flows)]
+    obj = {"version": 1, "flows": flows}
+    with open(output, "w") as fil:
+        json.dump(obj, fil, indent=2)
+
+    # Output summary message
+    parts = [click.style(f"{succeeded} built", fg="green")]
+    if errored:
+        parts.append(click.style(f"{errored} errored", fg="red"))
+
+    msg = ", ".join(parts)
+    bar_length = max(60 - len(click.unstyle(msg)), 4) // 2
+    bar = "=" * bar_length
+    click.echo(f"{bar} {msg} {bar}")
+
+    # Exit with appropriate status code
+    if errored:
+        raise TerminalError
 
 
 @register.command(hidden=True)
