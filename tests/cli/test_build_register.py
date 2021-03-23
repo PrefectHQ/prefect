@@ -1,19 +1,24 @@
+import json
 import os
-import threading
 import textwrap
+import threading
 from unittest.mock import MagicMock
 
+import box
 import pytest
 from click.testing import CliRunner
 
 from prefect import Flow
 from prefect.cli import cli
-from prefect.cli.register import (
+from prefect.cli.build_register import (
     TerminalError,
     watch_for_changes,
-    load_flows_from_path,
+    load_flows_from_script,
     load_flows_from_module,
+    load_flows_from_json,
     build_and_register,
+    get_project_id,
+    register_serialized_flow,
 )
 from prefect.engine.results import LocalResult
 from prefect.environments.execution import LocalEnvironment
@@ -199,8 +204,73 @@ class TestWatchForChanges:
         assert set(mods) == {"module1", "module2"}
 
 
+@pytest.fixture
+def mock_get_project_id(monkeypatch):
+    get_project_id = MagicMock()
+    get_project_id.return_value = "my-project-id"
+    monkeypatch.setattr("prefect.cli.build_register.get_project_id", get_project_id)
+    return get_project_id
+
+
 class TestRegister:
-    def test_load_flows_from_path(self, tmpdir):
+    @pytest.mark.parametrize("exists", [True, False])
+    def test_get_project_id(self, exists):
+        client = MagicMock()
+        if exists:
+            client.graphql.return_value = GraphQLResult(
+                {"data": {"project": [{"id": "my-project-id"}]}}
+            )
+        else:
+            client.graphql.return_value = GraphQLResult({"data": {"project": []}})
+
+        if exists:
+            assert get_project_id(client, "my-project") == "my-project-id"
+        else:
+            with pytest.raises(
+                TerminalError, match="Project 'my-project' does not exist"
+            ):
+                get_project_id(client, "my-project")
+
+    @pytest.mark.parametrize(
+        "already_exists, is_new_version, force, exp_version",
+        [
+            (False, True, False, 1),
+            (False, True, True, 1),
+            (True, False, False, 1),
+            (True, True, False, 2),
+            (True, True, True, 2),
+        ],
+    )
+    def test_register_serialized_flow(
+        self, already_exists, is_new_version, force, exp_version
+    ):
+        client = MagicMock()
+        client.graphql.side_effect = responses = []
+        if already_exists:
+            responses.append(
+                GraphQLResult({"data": {"flow": [{"id": "old-id", "version": 1}]}})
+            )
+        else:
+            responses.append(GraphQLResult({"data": {"flow": []}}))
+
+        exp_id = "new-id" if is_new_version else "old-id"
+        responses.append(
+            GraphQLResult(
+                {"data": {"create_flow_from_compressed_string": {"id": exp_id}}}
+            )
+        )
+
+        serialized_flow = Flow("testing").serialize(build=False)
+
+        flow_id, flow_version, is_new = register_serialized_flow(
+            client, serialized_flow, "my-project-id", force
+        )
+
+        assert flow_id == exp_id
+        assert flow_version == exp_version
+        assert is_new == is_new_version
+
+    def test_load_flows_from_script(self, tmpdir):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -214,7 +284,7 @@ class TestRegister:
         with open(path, "w") as f:
             f.write(source)
 
-        flows = {f.name: f for f in load_flows_from_path(path)}
+        flows = {f.name: f for f in load_flows_from_script(path)}
         assert len(flows) == 2
         assert isinstance(flows["f1"].storage, S3)
         assert flows["f1"].storage.local_script_path == path
@@ -222,13 +292,13 @@ class TestRegister:
         assert flows["f2"].storage.path == path
         assert flows["f2"].storage.stored_as_script
 
-    def test_load_flows_from_path_error(self, tmpdir, capsys):
+    def test_load_flows_from_script_error(self, tmpdir, capsys):
         path = str(tmpdir.join("test.py"))
         with open(path, "w") as f:
             f.write("raise ValueError('oh no!')")
 
         with pytest.raises(TerminalError):
-            load_flows_from_path(path)
+            load_flows_from_script(path)
 
         out, _ = capsys.readouterr()
         assert "oh no!" in out
@@ -278,6 +348,49 @@ class TestRegister:
         assert "oh no!" in out
         assert "Error loading 'mymodule2'" in out
 
+    def test_load_flows_from_json(self, monkeypatch):
+        flows = [
+            Flow("flow 1").serialize(build=False),
+            Flow("flow 2").serialize(build=False),
+        ]
+        data = json.dumps({"version": 1, "flows": flows}).encode("utf-8")
+        monkeypatch.setattr(
+            "prefect.cli.build_register.read_bytes_from_path",
+            MagicMock(return_value=data),
+        )
+        res = load_flows_from_json("https://some/url/flows.json")
+        assert res == flows
+
+    def test_load_flows_from_json_fail_read(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "prefect.cli.build_register.read_bytes_from_path",
+            MagicMock(side_effect=ValueError("oh no!")),
+        )
+        with pytest.raises(TerminalError):
+            load_flows_from_json("https://some/url/flows.json")
+
+        out, _ = capsys.readouterr()
+        assert "Error loading 'https://some/url/flows.json'" in out
+        assert "oh no!" in out
+
+    def test_load_flows_from_json_schema_error(self, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.cli.build_register.read_bytes_from_path",
+            MagicMock(return_value=json.dumps({"bad": "file"})),
+        )
+        with pytest.raises(
+            TerminalError, match="is not a valid Prefect flows `json` file."
+        ):
+            load_flows_from_json("https://some/url/flows.json")
+
+    def test_load_flows_from_json_unsupported_version(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "prefect.cli.build_register.read_bytes_from_path",
+            MagicMock(return_value=json.dumps({"version": 2, "flows": []})),
+        )
+        with pytest.raises(TerminalError, match="is version 2, only version 1"):
+            load_flows_from_json("https://some/url/flows.json")
+
     @pytest.mark.parametrize("force", [False, True])
     def test_build_and_register(self, capsys, monkeypatch, force):
         """Build and register a few flows:
@@ -286,6 +399,7 @@ class TestRegister:
         - 1 skipped flow
         - 1 error during registration
         - 2 sharing the same storage (which fails to build properly)
+        - 2 from a pre-built JSON file
         """
         build_call_count = 0
 
@@ -299,18 +413,19 @@ class TestRegister:
                 raise ValueError("whoops!")
 
         client = MagicMock()
-        client.graphql.side_effect = [
-            GraphQLResult({"data": {"flow": []}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-2", "version": 1}]}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-3", "version": 2}]}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-4", "version": 3}]}}),
-        ]
-        client.register.side_effect = [
-            "new-id-1",
-            "old-id-2",
-            "new-id-3",
+        register_serialized_flow = MagicMock()
+        register_serialized_flow.side_effect = [
+            ("new-id-1", 1, True),
+            ("old-id-2", 2, False),
+            ("new-id-3", 3, True),
             ValueError("Oh no!"),
+            ("new-id-7", 1, True),
+            ("old-id-8", 2, False),
         ]
+        monkeypatch.setattr(
+            "prefect.cli.build_register.register_serialized_flow",
+            register_serialized_flow,
+        )
 
         storage1 = MyModule("testing")
         storage1.result = LocalResult()
@@ -326,30 +441,34 @@ class TestRegister:
         storage3 = BadStorage("testing")
         flow5 = Flow("flow 5", storage=storage3)
         flow6 = Flow("flow 6", storage=storage3)
-        flows = [flow1, flow2, flow3, flow4, flow5, flow6]
+        flow7 = box.Box(
+            Flow("flow 7", run_config=UniversalRun(labels=["a"])).serialize(build=False)
+        )
+        flow8 = box.Box(
+            Flow("flow 8", environment=LocalEnvironment(labels=["a"])).serialize(
+                build=False
+            )
+        )
+        flows = [flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8]
 
         stats = build_and_register(
-            client, flows, "testing", labels=["b", "c"], force=force
+            client, flows, "my-project-id", labels=["b", "c"], force=force
         )
 
         # 3 calls (one for each unique `MyModule` storage object)
         assert build_call_count == 3
 
-        # 4 register calls (6 - 2 that failed to build storage)
-        assert client.register.call_count == 4
-        for flow, (args, kwargs) in zip(flows, client.register.call_args_list):
+        # 6 register calls (8 - 2 that failed to build storage)
+        assert register_serialized_flow.call_count == 6
+        for flow, (args, kwargs) in zip(flows, register_serialized_flow.call_args_list):
             assert not args
-            assert kwargs["flow"] is flow
-            assert kwargs["project_name"] == "testing"
-            assert kwargs["build"] is False
-            assert kwargs["no_url"] is True
-            if force:
-                assert kwargs["idempotency_key"] is None
-            else:
-                assert kwargs["idempotency_key"]
+            assert kwargs["client"] is client
+            assert kwargs["serialized_flow"]
+            assert kwargs["project_id"] == "my-project-id"
+            assert kwargs["force"] == force
 
         # Stats are recorded properly
-        assert dict(stats) == {"registered": 2, "skipped": 1, "errored": 3}
+        assert dict(stats) == {"registered": 3, "skipped": 2, "errored": 3}
 
         # Flows are properly configured
         assert flow1.result is storage1.result
@@ -359,6 +478,8 @@ class TestRegister:
         assert flow3.run_config.labels == {"b", "c"}
         assert isinstance(flow4.run_config, UniversalRun)
         assert flow4.run_config.labels == {"b", "c"}
+        assert set(flow7["run_config"]["labels"]) == {"a", "b", "c"}
+        assert set(flow8["environment"]["labels"]) == {"a", "b", "c"}
 
         # The output contains a traceback, which will vary between machines
         # We only check that the following fixed sections exist in the output
@@ -389,6 +510,10 @@ class TestRegister:
                 "\n"
                 "  Registering 'flow 5'... Error\n"
                 "  Registering 'flow 6'... Error\n"
+                "  Registering 'flow 7'... Done\n"
+                "  └── ID: new-id-7\n"
+                "  └── Version: 1\n"
+                "  Registering 'flow 8'... Skipped\n"
             ),
         ]
         out, err = capsys.readouterr()
@@ -398,7 +523,7 @@ class TestRegister:
 
     @pytest.mark.parametrize("force", [False, True])
     @pytest.mark.parametrize("names", [[], ["flow 1"]])
-    def test_register_cli(self, tmpdir, monkeypatch, force, names):
+    def test_register_cli(self, tmpdir, monkeypatch, mock_get_project_id, force, names):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -411,13 +536,15 @@ class TestRegister:
         with open(path, "w") as f:
             f.write(source)
 
-        client = MagicMock()
-        client.graphql.side_effect = [
-            GraphQLResult({"data": {"flow": []}}),
-            GraphQLResult({"data": {"flow": [{"id": "old-id-2", "version": 1}]}}),
+        register_serialized_flow = MagicMock()
+        register_serialized_flow.side_effect = [
+            ("new-id-1", 1, True),
+            ("old-id-2", 2, False),
         ]
-        client.register.side_effect = ["new-id-1", "old-id-2"]
-        monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
+        monkeypatch.setattr(
+            "prefect.cli.build_register.register_serialized_flow",
+            register_serialized_flow,
+        )
 
         cmd = ["register", "--project", "testing", "--path", path, "-l", "a", "-l", "b"]
         if force:
@@ -430,16 +557,13 @@ class TestRegister:
         if not names:
             names = ["flow 1", "flow 2"]
 
-        assert client.register.call_count == len(names)
-        for args, kwargs in client.register.call_args_list:
+        assert register_serialized_flow.call_count == len(names)
+        for args, kwargs in register_serialized_flow.call_args_list:
             assert not args
-            assert kwargs["project_name"] == "testing"
-            assert kwargs["flow"].name in names
-            assert kwargs["flow"].run_config.labels == {"a", "b"}
-            if force:
-                assert kwargs["idempotency_key"] is None
-            else:
-                assert kwargs["idempotency_key"]
+            assert kwargs["project_id"] == "my-project-id"
+            assert kwargs["serialized_flow"]["name"] in names
+            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {"a", "b"}
+            assert kwargs["force"] == force
 
         # Bulk of the output is tested elsewhere, only a few smoketests here
         assert "Building `Local` storage..." in result.stdout
@@ -455,7 +579,7 @@ class TestRegister:
                 in result.stdout
             )
 
-    def test_register_cli_name_not_found(self, tmpdir):
+    def test_register_cli_name_not_found(self, tmpdir, mock_get_project_id):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -486,7 +610,7 @@ class TestRegister:
             "Collecting flows...\n" "Failed to find the following flows:\n" "- flow 3\n"
         )
 
-    def test_register_cli_path_not_found(self, tmpdir):
+    def test_register_cli_path_not_found(self, tmpdir, mock_get_project_id):
         path = str(tmpdir.join("test.py"))
         cmd = ["register", "--project", "testing", "-p", path]
         result = CliRunner().invoke(cli, cmd)
@@ -494,7 +618,15 @@ class TestRegister:
         assert result.exit_code == 1
         assert result.stdout == f"Path {path!r} doesn't exist\n"
 
-    def test_register_cli_module_not_found(self):
+    def test_register_cli_json_path_not_found(self, tmpdir, mock_get_project_id):
+        path = str(tmpdir.join("test.json"))
+        cmd = ["register", "--project", "testing", "-j", path]
+        result = CliRunner().invoke(cli, cmd)
+
+        assert result.exit_code == 1
+        assert f"Path {path!r} doesn't exist" in result.stdout
+
+    def test_register_cli_module_not_found(self, mock_get_project_id):
         cmd = [
             "register",
             "--project",
@@ -513,3 +645,146 @@ class TestRegister:
         result = CliRunner().invoke(cli, ["register", "-p", "some_path"])
         assert result.exit_code == 1
         assert result.stdout == "Error: Missing required option '--project'\n"
+
+    def test_register_cli_project_not_found(self, monkeypatch):
+        client = MagicMock()
+        client.graphql.return_value = GraphQLResult({"data": {"project": []}})
+        monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
+        cmd = [
+            "register",
+            "--project",
+            "testing",
+            "-m",
+            "a_highly_unlikely_module_name",
+        ]
+        result = CliRunner().invoke(cli, cmd)
+        assert result.exit_code == 1
+        assert result.stdout == "Project 'testing' does not exist\n"
+
+
+class TestBuild:
+    def test_build_path_not_found(self, tmpdir):
+        path = str(tmpdir.join("test.py"))
+        cmd = ["build", "-p", path]
+        result = CliRunner().invoke(cli, cmd)
+
+        assert result.exit_code == 1
+        assert f"Path {path!r} doesn't exist" in result.stdout
+
+    def test_build_module_not_found(self):
+        cmd = ["build", "-m", "a_highly_unlikely_module_name"]
+        result = CliRunner().invoke(cli, cmd)
+
+        assert result.exit_code == 1
+        assert result.stdout == (
+            "Collecting flows...\n" "No module named 'a_highly_unlikely_module_name'\n"
+        )
+
+    @pytest.mark.parametrize("filter_names", [False, True])
+    @pytest.mark.parametrize("update", [False, True])
+    def test_build(self, tmpdir, filter_names, update):
+        path = str(tmpdir.join("test.py"))
+        source = textwrap.dedent(
+            """
+            from prefect import Flow
+            from prefect.run_configs import LocalRun
+
+            flow1 = Flow("flow 1")
+            flow2 = Flow("flow 2", run_config=LocalRun(labels=["new"]))
+            """
+        )
+        with open(path, "w") as f:
+            f.write(source)
+
+        out_path = str(tmpdir.join("flows.json"))
+
+        if update:
+            orig_flows = [
+                Flow("flow 2", run_config=UniversalRun(labels=["orig"])),
+                Flow("flow 3"),
+            ]
+            orig = {
+                "version": 1,
+                "flows": [f.serialize(build=False) for f in orig_flows],
+            }
+            with open(out_path, "w") as f:
+                json.dump(orig, f)
+
+        cmd = ["build", "--path", path, "-l", "a", "-l", "b", "-o", out_path]
+        if filter_names:
+            cmd.extend(["--name", "flow 2"])
+        if update:
+            cmd.append("--update")
+        result = CliRunner().invoke(cli, cmd)
+
+        assert result.exit_code == 0
+
+        with open(out_path, "rb") as f:
+            out = json.load(f)
+
+        assert out["version"] == 1
+        assert out["flows"]
+
+        if filter_names:
+            build_names = ["flow 2"]
+            flow2 = out["flows"][0]
+        else:
+            build_names = ["flow 1", "flow 2"]
+            flow2 = out["flows"][1]
+        exp_names = build_names + ["flow 3"] if update else build_names
+        written_names = [f["name"] for f in out["flows"]]
+        assert written_names == exp_names
+
+        assert flow2["run_config"]["labels"] == ["a", "b", "new"]
+        assert flow2["run_config"]["type"] == "LocalRun"
+
+        build_logs = "\n".join(
+            f"  Building `Local` storage...\n  Building '{name}'... Done"
+            for name in build_names
+        )
+        out = (
+            f"Collecting flows...\n"
+            f"Processing {path!r}:\n"
+            f"{build_logs}\n"
+            f"Writing output to {out_path!r}\n"
+            f"========================== {len(build_names)} built ==========================\n"
+        )
+        assert result.stdout == out
+
+    def test_build_storage_error(self, tmpdir):
+        path = str(tmpdir.join("test.py"))
+        source = textwrap.dedent(
+            """
+            from prefect import Flow
+            from prefect.storage import Module
+
+            class BadModule(Module):
+                def build(self):
+                    raise ValueError('oh no!')
+
+            flow1 = Flow("flow 1")
+            flow2 = Flow("flow 2", storage=BadModule('testing'))
+            """
+        )
+        with open(path, "w") as f:
+            f.write(source)
+
+        out_path = str(tmpdir.join("flows.json"))
+
+        cmd = ["build", "--path", path, "-o", out_path]
+        result = CliRunner().invoke(cli, cmd)
+
+        assert result.exit_code == 1
+
+        with open(out_path, "rb") as f:
+            out = json.load(f)
+
+        assert out["version"] == 1
+        assert out["flows"]
+
+        assert "Building 'flow 1'... Done\n" in result.stdout
+        assert "oh no!" in result.stdout
+        assert (
+            "===================== 1 built, 1 errored =====================\n"
+            in result.stdout
+        )

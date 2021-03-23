@@ -58,6 +58,10 @@ def read_bytes_from_path(path: str) -> bytes:
     if not parsed.scheme or parsed.scheme in ("file", "agent"):
         with open(parsed.path, "rb") as f:
             return f.read()
+    elif parsed.scheme in {"https", "http"}:
+        import requests
+
+        return requests.get(path).content
     elif parsed.scheme == "gcs":
         from prefect.utilities.gcp import get_storage_client
 
