@@ -224,10 +224,13 @@ class FlowRunner(Runner):
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
 
         # make copies to avoid modifying user inputs
-        task_states = dict(task_states or {})
-        context = dict(context or {})
-        task_contexts = dict(task_contexts or {})
         parameters = dict(parameters or {})
+        task_states = dict(task_states or {})
+        task_contexts = dict(task_contexts or {})
+        # Default to global context, with provided context as override
+        run_context = dict(prefect.context)
+        run_context.update(context or {})
+
         if executor is None:
             # Use the executor on the flow, if configured
             executor = getattr(self.flow, "executor", None)
@@ -237,15 +240,15 @@ class FlowRunner(Runner):
         self.logger.debug("Using executor type %s", type(executor).__name__)
 
         try:
-            state, task_states, context, task_contexts = self.initialize_run(
+            state, task_states, run_context, task_contexts = self.initialize_run(
                 state=state,
                 task_states=task_states,
-                context=context,
+                context=run_context,
                 task_contexts=task_contexts,
                 parameters=parameters,
             )
 
-            with prefect.context(context):
+            with prefect.context(run_context):
                 state = self.check_flow_is_pending_or_running(state)
                 state = self.check_flow_reached_start_time(state)
                 state = self.set_flow_to_running(state)
@@ -266,7 +269,7 @@ class FlowRunner(Runner):
             self.logger.exception(
                 "Unexpected error while running flow: {}".format(repr(exc))
             )
-            if prefect.context.get("raise_on_exception"):
+            if run_context.get("raise_on_exception"):
                 raise exc
             new_state = Failed(
                 message="Unexpected error while running flow: {}".format(repr(exc)),
