@@ -635,7 +635,7 @@ REGISTER_EPILOG = """
     "paths",
     help=(
         "A path to a file or a directory containing the flow(s) to register. "
-        "May be passed multiple times to specify multiple paths to register."
+        "May be passed multiple times to specify multiple paths."
     ),
     multiple=True,
 )
@@ -645,7 +645,7 @@ REGISTER_EPILOG = """
     "modules",
     help=(
         "A python module name containing the flow(s) to register. May be "
-        "passed multiple times to specify multiple modules to register."
+        "passed multiple times to specify multiple modules."
     ),
     multiple=True,
 )
@@ -654,8 +654,8 @@ REGISTER_EPILOG = """
     "-j",
     "json_paths",
     help=(
-        "A path or URL to a json file containing the flow(s) to register. "
-        "May be passed multiple times to specify multiple paths to register. "
+        "A path or URL to a JSON file created by `prefect build` containing the flow(s) "
+        "to register. May be passed multiple times to specify multiple paths. "
         "Note that this path may be a remote url (e.g. https://some-url/flows.json)."
     ),
     multiple=True,
@@ -667,8 +667,8 @@ REGISTER_EPILOG = """
     help=(
         "The name of a flow to register from the specified paths/modules. If "
         "provided, only flows with a matching name will be registered. May be "
-        "passed multiple times to specify multiple flows to register. If not "
-        "provided, all flows found on all paths/modules will be registered."
+        "passed multiple times to specify multiple flows. If not provided, all "
+        "flows found on all paths/modules will be registered."
     ),
     multiple=True,
 )
@@ -779,7 +779,7 @@ BUILD_EPILOG = """
     "paths",
     help=(
         "A path to a file or a directory containing the flow(s) to build. "
-        "May be passed multiple times to specify multiple paths to build."
+        "May be passed multiple times to specify multiple paths."
     ),
     multiple=True,
 )
@@ -789,7 +789,7 @@ BUILD_EPILOG = """
     "modules",
     help=(
         "A python module name containing the flow(s) to build. May be "
-        "passed multiple times to specify multiple modules to build."
+        "passed multiple times to specify multiple modules."
     ),
     multiple=True,
 )
@@ -800,8 +800,8 @@ BUILD_EPILOG = """
     help=(
         "The name of a flow to build from the specified paths/modules. If "
         "provided, only flows with a matching name will be built. May be "
-        "passed multiple times to specify multiple flows to build. If not "
-        "provided, all flows found on all paths/modules will be built."
+        "passed multiple times to specify multiple flows. If not provided, "
+        "all flows found on all paths/modules will be built."
     ),
     multiple=True,
 )
@@ -819,7 +819,7 @@ BUILD_EPILOG = """
     "--output",
     "-o",
     default="flows.json",
-    help="The output path. Defaults to `flows.json`",
+    help="The output path. Defaults to `flows.json`.",
 )
 @click.option(
     "--update",
