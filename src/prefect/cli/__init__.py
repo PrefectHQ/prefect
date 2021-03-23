@@ -16,7 +16,7 @@ from .get import get as _get
 from .run import run as _run
 from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
-from .register import register as _register, build as _build
+from .build_register import register as _register, build as _build
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])

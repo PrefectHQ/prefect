@@ -10,7 +10,7 @@ from click.testing import CliRunner
 
 from prefect import Flow
 from prefect.cli import cli
-from prefect.cli.register import (
+from prefect.cli.build_register import (
     TerminalError,
     watch_for_changes,
     load_flows_from_script,
@@ -208,7 +208,7 @@ class TestWatchForChanges:
 def mock_get_project_id(monkeypatch):
     get_project_id = MagicMock()
     get_project_id.return_value = "my-project-id"
-    monkeypatch.setattr("prefect.cli.register.get_project_id", get_project_id)
+    monkeypatch.setattr("prefect.cli.build_register.get_project_id", get_project_id)
     return get_project_id
 
 
@@ -355,14 +355,15 @@ class TestRegister:
         ]
         data = json.dumps({"version": 1, "flows": flows}).encode("utf-8")
         monkeypatch.setattr(
-            "prefect.cli.register.read_bytes_from_path", MagicMock(return_value=data)
+            "prefect.cli.build_register.read_bytes_from_path",
+            MagicMock(return_value=data),
         )
         res = load_flows_from_json("https://some/url/flows.json")
         assert res == flows
 
     def test_load_flows_from_json_fail_read(self, monkeypatch, capsys):
         monkeypatch.setattr(
-            "prefect.cli.register.read_bytes_from_path",
+            "prefect.cli.build_register.read_bytes_from_path",
             MagicMock(side_effect=ValueError("oh no!")),
         )
         with pytest.raises(TerminalError):
@@ -374,7 +375,7 @@ class TestRegister:
 
     def test_load_flows_from_json_schema_error(self, monkeypatch):
         monkeypatch.setattr(
-            "prefect.cli.register.read_bytes_from_path",
+            "prefect.cli.build_register.read_bytes_from_path",
             MagicMock(return_value=json.dumps({"bad": "file"})),
         )
         with pytest.raises(
@@ -384,7 +385,7 @@ class TestRegister:
 
     def test_load_flows_from_json_unsupported_version(self, monkeypatch, capsys):
         monkeypatch.setattr(
-            "prefect.cli.register.read_bytes_from_path",
+            "prefect.cli.build_register.read_bytes_from_path",
             MagicMock(return_value=json.dumps({"version": 2, "flows": []})),
         )
         with pytest.raises(TerminalError, match="is version 2, only version 1"):
@@ -422,7 +423,8 @@ class TestRegister:
             ("old-id-8", 2, False),
         ]
         monkeypatch.setattr(
-            "prefect.cli.register.register_serialized_flow", register_serialized_flow
+            "prefect.cli.build_register.register_serialized_flow",
+            register_serialized_flow,
         )
 
         storage1 = MyModule("testing")
@@ -540,7 +542,8 @@ class TestRegister:
             ("old-id-2", 2, False),
         ]
         monkeypatch.setattr(
-            "prefect.cli.register.register_serialized_flow", register_serialized_flow
+            "prefect.cli.build_register.register_serialized_flow",
+            register_serialized_flow,
         )
 
         cmd = ["register", "--project", "testing", "--path", path, "-l", "a", "-l", "b"]

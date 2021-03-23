@@ -60,8 +60,13 @@ commands = ["flows", "tasks", "projects", "flow_runs", "logs"]
 
 [pages.cli.register]
 title = "register"
-module = "prefect.cli.register"
+module = "prefect.cli.build_register"
 commands = ["register"]
+
+[pages.cli.build]
+title = "build"
+module = "prefect.cli.build_register"
+commands = ["build"]
 
 [pages.cli.run]
 title = "run"

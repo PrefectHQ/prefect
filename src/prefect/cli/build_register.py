@@ -613,6 +613,10 @@ REGISTER_EPILOG = """
 
 \b    $ prefect register --project my-project -m "myproject.flows"
 
+\b  Register all pre-built flows from a remote JSON file.
+
+\b    $ prefect register --project my-project --json https://some-url/flows.json
+
 \b  Watch a directory of flows for changes, and re-register flows upon change.
 
 \b    $ prefect register --project my-project -p myflows/ --watch
@@ -651,7 +655,8 @@ REGISTER_EPILOG = """
     "json_paths",
     help=(
         "A path or URL to a json file containing the flow(s) to register. "
-        "May be passed multiple times to specify multiple paths to register."
+        "May be passed multiple times to specify multiple paths to register. "
+        "Note that this path may be a remote url (e.g. https://some-url/flows.json)."
     ),
     multiple=True,
 )
@@ -750,7 +755,24 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
         register_internal(project, paths, modules, json_paths, names, labels, force)
 
 
-@click.command()
+BUILD_EPILOG = """
+\bExamples:
+
+\b  Build all flows found in a directory.
+
+\b    $ prefect build -p myflows/
+
+\b  Build a flow named "example" found in `flow.py`.
+
+\b    $ prefect build -p flow.py -n "example"
+
+\b  Build all flows found in a module named `myproject.flows`.
+
+\b    $ prefect build -m "myproject.flows"
+"""
+
+
+@click.command(epilog=BUILD_EPILOG)
 @click.option(
     "--path",
     "-p",
@@ -808,7 +830,12 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
 )
 @handle_terminal_error
 def build(paths, modules, names, labels, output, update):
-    """Build one or more flows."""
+    """Build one or more flows.
+
+    This command builds all specified flows and writes their metadata to a JSON
+    file. These flows can then be registered without building later by passing
+    the `--json` flag to `prefect register`.
+    """
     succeeded = 0
     errored = 0
 
