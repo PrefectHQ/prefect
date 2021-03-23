@@ -291,6 +291,14 @@ def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
 
 
 def get_project_id(client: "prefect.Client", project: str) -> str:
+    """Get a project id given a project name.
+
+    Args:
+        - project (str): the project name
+
+    Returns:
+        - str: the project id
+    """
     resp = client.graphql(
         {"query": {with_args("project", {"where": {"name": {"_eq": project}}}): {"id"}}}
     )
@@ -306,6 +314,22 @@ def register_serialized_flow(
     project_id: str,
     force: bool = False,
 ) -> Tuple[str, int, bool]:
+    """Register a pre-serialized flow.
+
+    Args:
+        - client (prefect.Client): the prefect client
+        - serialized_flow (dict): the serialized flow
+        - project_id (str): the project id
+        - force (bool, optional): If `False` (default), an idempotency key will
+            be generated to avoid unnecessary re-registration. Set to `True` to
+            force re-registration.
+
+    Returns:
+        - flow_id (str): the flow id
+        - flow_version (int): the flow version
+        - is_new (bool): True if this is a new flow version, false if
+            re-registration was skipped.
+    """
     # Get most recent flow id for this flow. This can be removed once
     # the registration graphql routes return more information
     flow_name = serialized_flow["name"]
@@ -797,6 +821,7 @@ def build(paths, modules, names, labels, output, update):
     # Collect flows from specified paths & modules
     paths = expand_paths(list(paths or ()))
     modules = list(modules or ())
+    click.echo("Collecting flows...")
     source_to_flows = collect_flows(paths, modules, [], names=names)
 
     for source, flows in source_to_flows.items():
@@ -842,7 +867,7 @@ def build(paths, modules, names, labels, output, update):
     flows = [serialized_flows[name] for name in sorted(serialized_flows)]
     obj = {"version": 1, "flows": flows}
     with open(output, "w") as fil:
-        json.dump(obj, fil, indent=2)
+        json.dump(obj, fil, sort_keys=True)
 
     # Output summary message
     parts = [click.style(f"{succeeded} built", fg="green")]
