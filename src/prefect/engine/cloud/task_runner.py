@@ -378,18 +378,6 @@ class CloudTaskRunner(TaskRunner):
                 self.client.update_task_run_heartbeat(
                     task_run_id=prefect.context.get("task_run_id")
                 )
-                # mapped children will retrieve their latest info inside
-                # initialize_run(), but we can load up-to-date versions
-                # for all other task runs here
-                if prefect.context.get("map_index") in [-1, None]:
-                    task_run_info = self.client.get_task_run_info(
-                        flow_run_id=prefect.context.get("flow_run_id"),
-                        task_id=prefect.context.get("task_id"),
-                        map_index=prefect.context.get("map_index"),
-                    )
-
-                    # if state was provided, keep it; otherwise use the one from db
-                    context.update(task_run_version=task_run_info.version)  # type: ignore
 
                 end_state = super().run(
                     state=end_state,
