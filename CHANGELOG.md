@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.14.13 <Badge text="beta" type="success" />
+
+Released on March 24, 2021.
+
+### Features
+
+- Add new improved `prefect register` CLI command. This command supports registering multiple flows at once (through multiple file paths or directories), and also includes a new `--watch` flag for watching files and automatically re-registering upon changes. - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)
+- New `prefect build` CLI command for building flows. Artifacts produced by this command can then be used by `prefect register` to register flows without requiring the source. - [#4282](https://github.com/PrefectHQ/prefect/pull/4282)
+
+### Enhancements
+
+- Use explicit exception chaining [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
+- Add `as_bytes` option to `S3Download` task - [#4238](https://github.com/PrefectHQ/prefect/pull/4238)
+- Improve error message when a loaded flow doesn't match the version stored in Prefect Cloud/Server - [#4259](https://github.com/PrefectHQ/prefect/pull/4259)
+- Support setting flow run labels from cli - [#4266](https://github.com/PrefectHQ/prefect/pull/4266)
+- Support setting default `image` in `--job-template`/`--task-definition` in Kubernetes/ECS agents - [#4270](https://github.com/PrefectHQ/prefect/pull/4270)
+
+### Task Library
+
+- Adds logging of cell outputs to Jupyter task - [#4265] (https://github.com/PrefectHQ/prefect/issues/4265)
+- Add `user` and `password` as runtime parameters to Exasol tasks - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)
+
+### Fixes
+
+- Fix bug where sometimes the global `prefect.context` wouldn't be respected during a flow run - [#4287](https://github.com/PrefectHQ/prefect/pull/4287)
+
+### Deprecations
+
+- Deprecate the old `prefect register flow` CLI command in favor of `prefect register` - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)
+- Deprecate `user` and `password` arguments to Exasol task constructors in favor of runtime parameters - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)
+
+### Contributors
+
+- [Abid Ahmad](https://github.com/abid1998)
+- [Alexandr N. Zamaraev](https://github.com/tonal)
+- [Jacob Hayes](https://github.com/JacobHayes)
+- [Kevin Kho](https://github.com/kvnkho)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.14.12 <Badge text="beta" type="success" />
 
 Released on March 10, 2021.

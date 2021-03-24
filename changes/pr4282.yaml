@@ -1,2 +1,0 @@
-feature:
-  - "New `prefect build` CLI command for building flows. Artifacts produced by this command can then be used by `prefect register` to register flows without requiring the source. - [#4282](https://github.com/PrefectHQ/prefect/pull/4282)"
