@@ -1,2 +1,0 @@
-enhancement:
-  - "Support setting default `image` in `--job-template`/`--task-definition` in Kubernetes/ECS agents - [#4270](https://github.com/PrefectHQ/prefect/pull/4270)"

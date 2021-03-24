@@ -1,6 +1,0 @@
-task:
-  - "Adds logging of cell outputs to Jupyter task - [#4265]
-  (https://github.com/PrefectHQ/prefect/issues/4265)"
-
-contributor:
-  - "[Kevin Kho](https://github.com/kvnkho)"
