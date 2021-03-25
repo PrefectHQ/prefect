@@ -162,7 +162,7 @@ class FlowRunner(Runner):
             # Attempt to parse into a `DateTime` object
             try:
                 now = pendulum.parse(now)
-            except:
+            except Exception:
                 pass
         if not isinstance(now, pendulum.DateTime):
             if now is not None:
