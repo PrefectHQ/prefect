@@ -47,6 +47,10 @@ class TestSnowflakeQuery:
             task.run(query="SELECT * FROM foo")
 
     def test_execute_fetchall(self, monkeypatch):
+        """
+        Tests that the SnowflakeQuery Task calls the fetchall method on the 
+        cursor. This is to prevent future code edits from returning the cursor.
+        """
         snowflake_module_connect_method = MagicMock()
         connection = MagicMock(spec=sf.SnowflakeConnection)
         cursor = MagicMock(spec=sf.DictCursor)
