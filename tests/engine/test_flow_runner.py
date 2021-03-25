@@ -1324,21 +1324,24 @@ class TestContext:
         output = res.result[return_ctx_key].result
         assert isinstance(output, datetime.datetime)
 
-    def test_context_derives_dates_from_custom_date(self):
+    @pytest.mark.parametrize("as_string", [True, False])
+    def test_context_derives_dates_from_custom_date(self, as_string):
         @prefect.task
         def return_ctx_key():
             return prefect.context.get("tomorrow")
 
-        now = pendulum.now()
+        custom_date = pendulum.now().add(months=1)
 
         f = Flow(name="test", tasks=[return_ctx_key])
-        with prefect.context({"date": now.add(months=1)}):
+        with prefect.context(
+            {"date": custom_date.to_datetime_string() if as_string else custom_date}
+        ):
             res = f.run()
 
         assert res.is_successful()
 
         output = res.result[return_ctx_key].result
-        assert output == now.add(months=1, days=1).strftime("%Y-%m-%d")
+        assert output == custom_date.add(days=1).strftime("%Y-%m-%d")
 
     def test_context_warns_on_unparsable_custom_date(self, caplog, monkeypatch):
 
