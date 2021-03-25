@@ -152,8 +152,8 @@ class CloudTaskRunner(TaskRunner):
         # load task run info
         try:
             task_run_info = self.client.get_task_run_info(
-                flow_run_id=context.get("flow_run_id"),
-                task_id=context.get("task_id"),
+                flow_run_id=context.get("flow_run_id", ""),
+                task_id=context.get("task_id", ""),
                 map_index=context.get("map_index"),
             )
 
