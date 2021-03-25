@@ -172,7 +172,7 @@ class FlowRunner(Runner):
                     "that rely on the current date i.e `today` and `tomorrow` will be "
                     "based on the current time instead of the `date` context variable."
                 )
-            now = pendulum.now()
+            now = pendulum.now("utc")
 
         # add various formatted dates to context
         dates = {
