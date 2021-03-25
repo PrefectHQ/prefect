@@ -155,8 +155,26 @@ class FlowRunner(Runner):
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
 
+        # Determine the current time, allowing our formatted dates in the context
+        # to rely on a manually set value
+        now = context.get("date")
+        if isinstance(now, str):
+            # Attempt to parse into a `DateTime` object
+            try:
+                now = pendulum.parse(now)
+            except:
+                pass
+        if not isinstance(now, pendulum.DateTime):
+            if now is not None:
+                self.logger.warning(
+                    "`date` was set in the context manually but could not be parsed "
+                    "into a pendulum `DateTime` object. Additional context variables "
+                    "that rely on the current date i.e `today` and `tomorrow` will be "
+                    "based on the current time instead of the `date` context variable."
+                )
+            now = pendulum.now()
+
         # add various formatted dates to context
-        now = pendulum.now("utc")
         dates = {
             "date": now,
             "today": now.strftime("%Y-%m-%d"),
