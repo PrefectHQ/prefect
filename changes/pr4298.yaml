@@ -1,0 +1,3 @@
+task:
+  - "Ensures Snowflake Query Task output is serializable [#3744]
+  (https://github.com/PrefectHQ/prefect/issues/3744)"
