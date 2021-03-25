@@ -1,0 +1,2 @@
+enhancement:
+  - "Use custom `date` in context to determine dependent context vars [#4295](https://github.com/PrefectHQ/prefect/pull/4295)"
