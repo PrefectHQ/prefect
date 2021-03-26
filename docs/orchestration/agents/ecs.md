@@ -145,6 +145,8 @@ ECS provides a builtin policy `AmazonECSTaskExecutionPolicy` that provides
 common settings.  This supports pulling images from ECR and enables using
 CloudWatch logs. The full policy is below:
 
+:::: tabs
+::: tab "Execution Role Policy"
 ```json
 {
     "Version": "2012-10-17",
@@ -164,6 +166,53 @@ CloudWatch logs. The full policy is below:
     ]
 }
 ```
+:::
+::: tab "Agent Role Policy"
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateTags",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcs",
+                "ec2:DeleteSecurityGroup",
+                "ecs:CreateCluster",
+                "ecs:DeleteCluster",
+                "ecs:DeregisterTaskDefinition",
+                "ecs:DescribeClusters",
+                "ecs:DescribeTaskDefinition",
+                "ecs:DescribeTasks",
+                "ecs:ListAccountSettings",
+                "ecs:ListClusters",
+                "ecs:ListTaskDefinitions",
+                "ecs:RegisterTaskDefinition",
+                "ecs:RunTask",
+                "ecs:StopTask",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:GetLogEvents"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+:::
+::: tab "Prefect Tasks Role Policy"
+```
+Depends on AWS API calls your Prefect tasks make. For example, if your Prefect task make calls to DynamoDB, you need to attach a policy with DynamoDB permissions to the task role, and provide this role to `task-role-arn` option in ECSRun config or prefect ecs agent.
+```
+:::
+::::
 
 Usually AWS will automatically create an IAM role with this policy named
 `ecsTaskExecutionRole` (if not, you may need to create one yourself, see [the
@@ -236,7 +285,7 @@ For running agent as ECS service, you need to provide service definition paramet
 
 Let's see an example of creating a Fargate service type for Prefect Agent using AWS CLI. Assuming you have already created an ECS cluster in your VPC (you can use default cluster and VPC created by AWS), and got a runner token for Prefect agent, let's create a task definition for ECS Prefect agent using AWS CLI. Save the following task definition in `prefect-agent-td.json` file. Note, some values should be substituted with your token and AWS account id.
 
-```bash
+```json
 {
     "family": "prefect-agent",
     "requiresCompatibilities": ["FARGATE"],
@@ -303,3 +352,4 @@ aws ecs create-service
 ```
 
 Now, AWS service scheduler will create a task with running Prefect Agent, and you can check your logs in CloudWatch `/ecs/prefect-agent` log group.
+I'm not AWS expert, but let's try to figure it out together. As I understand you are using awsvpc network mode. In this mode you are required to provide networkConfiguration . 
