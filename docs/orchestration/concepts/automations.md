@@ -3,7 +3,7 @@
 
 Automations allow you to take action (such as cancelling a flow run or sending a notification to certain endpoints) when your flow or agent encounters a certain event.  
 
-For example, you can send a Slack message to your team when a run from a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour.  The Prefect backend API currently supports notifications through Slack, Twilio, Pager Duty, and email.
+For example, you can send a Slack message to your team when a run from a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour.  The Prefect backend API currently supports notification actions for Slack, Twilio, Pager Duty, and email.
 
 You can set up and edit your Automations using the [API](/orchestration/concepts/api.html) or the Automations page in the UI.
 
