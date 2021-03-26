@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.14 <Badge text="beta" type="success" />
+
+Released on March 25, 2021.
+
+### Task Library
+
+- Ensures Snowflake Query Task output is serializable [#3744] (https://github.com/PrefectHQ/prefect/issues/3744)
+
+### Fixes
+
+- Always load task run info prior to running a task - [#4296](https://github.com/PrefectHQ/prefect/pull/4296)
+
 ## 0.14.13 <Badge text="beta" type="success" />
 
 Released on March 24, 2021.
