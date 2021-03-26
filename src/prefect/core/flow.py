@@ -971,7 +971,69 @@ class Flow:
 
     # Execution  ---------------------------------------------------------------
 
-    def _run(
+    def _run_with_backend(self, with_agent: bool = False, runner_cls=None):
+        if not self._registration_id:
+            raise ValueError(
+                "Flow has not been registered. "
+                "Did you forget to call `flow.register()` first?"
+            )
+
+        runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
+
+        client = prefect.Client()
+
+        self.logger.info("Creating a flow run on the API...")
+        flow_run_id = client.create_flow_run(flow_id=self._registration_id)
+        self.logger.info(f"Created flow run {flow_run_id}")
+
+        if with_agent:
+            self.logger.info(
+                "Running flow with agent. "
+                "An agent must be running for the flow to execute."
+            )
+            return self._run_with_agent(client, flow_run_id)
+
+        # populate global secrets
+        secrets = prefect.context.get("secrets", {})
+        if self.storage:
+            self.logger.info("Loading secrets...")
+            for secret in self.storage.secrets:
+                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
+
+        with prefect.context(secrets=secrets, flow_run_id=flow_run_id):
+            self.logger.info(f"Running flow in-process with {runner_cls.__name__!r}")
+            runner_cls(flow=self).run()
+
+    def _run_with_agent(self, client, flow_run_id):
+        last_state = None
+        total_time = 0
+        warning_time = 0
+        loop_time = 1
+        while True:
+            flow_run_state = client.get_flow_run_info(flow_run_id).state
+
+            if flow_run_state != last_state:
+                self.logger.info(f"Flow run entered new state: {flow_run_state}")
+
+            last_state = flow_run_state
+
+            if flow_run_state.is_finished():
+                break
+
+            if warning_time >= 10 and flow_run_state.is_scheduled():
+                self.logger.info(
+                    f"Your flow run is still in a scheduled state after "
+                    f"{total_time} seconds. Do you have an agent running?"
+                )
+                warning_time = 0
+
+            total_time += loop_time
+            warning_time += loop_time
+            time.sleep(loop_time)
+
+        self.logger.info("Flow run complete!")
+
+    def _run_local(
         self,
         parameters: Dict[str, Any],
         runner_cls: type,
@@ -1149,6 +1211,8 @@ class Flow:
         parameters: Dict[str, Any] = None,
         run_on_schedule: bool = None,
         runner_cls: type = None,
+        with_backend: bool = False,
+        with_agent: bool = False,
         **kwargs: Any,
     ) -> Union["prefect.engine.state.State", None]:
         """
@@ -1192,6 +1256,14 @@ class Flow:
                 "of task states, use a FlowRunner directly."
             )
 
+        if with_backend:
+            return self._run_with_backend(with_agent=with_agent, runner_cls=runner_cls)
+        else:
+            if with_agent:
+                raise ValueError(
+                    "Cannot run `with_agent` without also setting `with_backend`"
+                )
+
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
 
@@ -1231,7 +1303,7 @@ class Flow:
         if run_on_schedule is None:
             run_on_schedule = cast(bool, prefect.config.flows.run_on_schedule)
 
-        state = self._run(
+        state = self._run_local(
             parameters=parameters,
             runner_cls=runner_cls,
             run_on_schedule=run_on_schedule,
@@ -1256,44 +1328,6 @@ class Flow:
                     message="Task not run."
                 )
         return state
-
-    def run_with_api(self):
-        if not self._registration_id:
-            raise ValueError("Flow has not been registered.")
-
-        client = prefect.Client()
-
-        self.logger.info("Creating a flow run on the API...")
-        flow_run_id = client.create_flow_run(flow_id=self._registration_id)
-        self.logger.info(f"Created flow run {flow_run_id}")
-
-        last_state = None
-        total_time = 0
-        warning_time = 0
-        loop_time = 1
-        while True:
-            flow_run_state = client.get_flow_run_info(flow_run_id).state
-
-            if flow_run_state != last_state:
-                self.logger.info(f"Flow run entered new state: {flow_run_state}")
-
-            last_state = flow_run_state
-
-            if flow_run_state.is_finished():
-                break
-
-            if warning_time >= 10 and flow_run_state.is_scheduled():
-                self.logger.info(
-                    f"Your flow run is still in a scheduled state after "
-                    f"{total_time} seconds. Do you have an agent running?"
-                )
-                warning_time = 0
-
-            total_time += loop_time
-            warning_time += loop_time
-            time.sleep(loop_time)
-
-        self.logger.info("Flow run complete!")
 
     # Visualization ------------------------------------------------------------
 
@@ -1722,7 +1756,6 @@ class Flow:
         )
 
         self._registration_id = registered_flow
-
         return registered_flow
 
     def __mifflin__(self) -> None:  # coverage: ignore
