@@ -1327,12 +1327,12 @@ class TestContext:
     @pytest.mark.parametrize("as_string", [True, False])
     def test_context_derives_dates_from_custom_date(self, as_string):
         @prefect.task
-        def return_ctx_key():
-            return prefect.context.get("tomorrow")
+        def return_ctx():
+            return prefect.context.copy()
 
         custom_date = pendulum.now().add(months=1)
 
-        f = Flow(name="test", tasks=[return_ctx_key])
+        f = Flow(name="test", tasks=[return_ctx])
         with prefect.context(
             {"date": custom_date.to_datetime_string() if as_string else custom_date}
         ):
@@ -1340,8 +1340,19 @@ class TestContext:
 
         assert res.is_successful()
 
-        output = res.result[return_ctx_key].result
-        assert output == custom_date.add(days=1).strftime("%Y-%m-%d")
+        context = res.result[return_ctx].result
+
+        # Ensure the string is converted to a datetime object
+        assert isinstance(context["date"], pendulum.DateTime)
+
+        # Ensure dependent variables use the custom date
+        assert context["yesterday"] == custom_date.add(days=-1).strftime("%Y-%m-%d")
+        assert context["tomorrow"] == custom_date.add(days=1).strftime("%Y-%m-%d")
+        assert context["today_nodash"] == custom_date.strftime("%Y%m%d")
+        assert context["yesterday_nodash"] == custom_date.add(days=-1).strftime(
+            "%Y%m%d"
+        )
+        assert context["tomorrow_nodash"] == custom_date.add(days=1).strftime("%Y%m%d")
 
     def test_context_warns_on_unparsable_custom_date(self, caplog, monkeypatch):
 
