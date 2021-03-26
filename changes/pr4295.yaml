@@ -1,2 +1,3 @@
 enhancement:
-  - "Use custom `date` in context to determine dependent context vars [#4295](https://github.com/PrefectHQ/prefect/pull/4295)"
+  - "When manually set, `prefect.context.date` will be used to determine dependent values - [#4295](https://github.com/PrefectHQ/prefect/pull/4295)"
+  - "`prefect.context.date` will be converted to a `DateTime` object if given a parsable string - [#4295](https://github.com/PrefectHQ/prefect/pull/4295)"
