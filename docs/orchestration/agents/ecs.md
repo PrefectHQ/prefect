@@ -227,3 +227,79 @@ prefect agent ecs start --run-task-kwargs /path/to/options.yaml
 # Stored on S3
 prefect agent ecs start --run-task-kwargs s3://bucket/path/to/options.yaml
 ```
+
+### Running ECS Agent in Production
+
+An [`Amazon ECS service`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html) enables creating long running task in your cluster. If any AWS task fails or stops for any reason, service scheduler launches a new instance of the task definition, which makes it great for running Prefect ECS Agent. 
+
+For running agent as ECS service, you need to provide service definition parameters such as task definition, cluster name, service name, etc. You can create a service and provide those parameters using AWS console, or any Infrastructure as Code tools (Terraform, Pulumi, etc), or AWS CLI.
+
+Let's see an example of creating a Fargate service type for Prefect Agent using AWS CLI. Assuming you have already created an ECS cluster in your VPC (you can use default cluster and VPC created by AWS), and got a runner token for Prefect agent, let's create a task definition for ECS Prefect agent using AWS CLI. Save the following task definition in `prefect-agent-td.json` file. Note, some values should be substituted with your token and AWS account id.
+
+```bash
+{
+    "family": "prefect-agent",
+    "requiresCompatibilities": ["FARGATE"],
+    "networkMode": "awsvpc",
+    "cpu": "512",
+    "memory": "1024",
+    "taskRoleArn": "arn:aws:iam::<>:role/prefectTaskRole",
+    "executionRoleArn": "arn:aws:iam::<>:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "prefect-agent",
+            "image": "prefecthq/prefect:0.14.13-python3.8",
+            "essential": true,
+            "command": ["prefect","agent","ecs","start"],
+            "environment": [
+                {
+                    "name": "PREFECT__CLOUD__AGENT__AUTH_TOKEN",
+                    "value": "<agent_runner_token>"
+                },
+                {
+                    "name": "PREFECT__CLOUD__AGENT__LABELS",
+                    "value": "['label1', 'label2']"},
+                {
+                    "name": "PREFECT__CLOUD__AGENT__LEVEL",
+                    "value": "INFO"
+                },
+                {
+                    "name": "PREFECT__CLOUD__API",
+                    "value": "https://api.prefect.io"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/prefect-agent",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
+                }
+            }
+        }
+    ]
+}
+```
+
+Register this task definition by running following command:
+
+```bash
+aws ecs register-task-definition --cli-input-json file://<full_path_to_task_definition_file>/prefect-agent-td.json
+```
+
+Finally, create a service from your task definition template:
+
+```bash
+aws ecs create-service 
+    --service-name prefect-agent \
+    --task-definition prefect-agent:1 \
+    --desired-count 1 \
+    --launch-type FARGATE \
+    --platform-version LATEST \
+    --cluster default \
+    --network-configuration "awsvpcConfiguration={subnets=[subnet-12344321],securityGroups=[sg-12344321],assignPublicIp=ENABLED}" \
+    --tags key=key1,value=value1 key=key2,value=value2 key=key3,value=value3
+```
+
+Now, AWS service scheduler will create a task with running Prefect Agent, and you can check your logs in CloudWatch `/ecs/prefect-agent` log group.
