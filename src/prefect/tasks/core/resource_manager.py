@@ -32,6 +32,20 @@ class ResourceCleanupTask(Task):
         mgr.cleanup(resource)
 
 
+class ResourceSuccessCleanupTask(Task):
+    """Cleanup a resource with its resource manager"""
+
+    def run(self, mgr: Any, resource: Any = None) -> None:
+        mgr.success_cleanup(resource)
+
+
+class ResourceFailureCleanupTask(Task):
+    """Cleanup a resource with its resource manager"""
+
+    def run(self, mgr: Any, resource: Any = None) -> None:
+        mgr.failure_cleanup(resource)
+
+
 def resource_cleanup_trigger(upstream_states: Dict[Edge, State]) -> bool:
     """Run the cleanup task, provided the following hold:
 
@@ -58,6 +72,68 @@ def resource_cleanup_trigger(upstream_states: Dict[Edge, State]) -> bool:
     return True
 
 
+def resource_success_cleanup_trigger(upstream_states: Dict[Edge, State]) -> bool:
+    """Run the cleanup task, provided the following hold:
+
+    - All upstream tasks have finished
+    - All upstream tasks succeeded
+    - The resource init task succeeded and wasn't skipped
+    - The resource setup task succeeded and wasn't skipped
+    """
+    for edge, state in upstream_states.items():
+        if not state.is_finished():
+            raise signals.TRIGGERFAIL(
+                "Trigger was 'resource_cleanup_trigger' but some of the "
+                "upstream tasks were not finished."
+            )
+        elif not state.is_successful():
+            raise signals.SKIP("Not all resource-dependent tasks succeeded")
+        if edge.key == "mgr":
+            if state.is_skipped():
+                raise signals.SKIP("Resource manager init skipped")
+            elif not state.is_successful():
+                raise signals.SKIP("Resource manager init failed")
+        elif edge.key == "resource":
+            if state.is_skipped():
+                raise signals.SKIP("Resource manager setup skipped")
+            elif not state.is_successful():
+                raise signals.SKIP("Resource manager setup failed")
+    return True
+
+
+def resource_failure_cleanup_trigger(upstream_states: Dict[Edge, State]) -> bool:
+    """Run the cleanup task, provided the following hold:
+
+    - All upstream tasks have finished
+    - At least one upstream task failed
+    - The resource init task succeeded and wasn't skipped
+    - The resource setup task succeeded and wasn't skipped
+    """
+    all_upstream_succeeded = True
+    for edge, state in upstream_states.items():
+        if not state.is_finished():
+            raise signals.TRIGGERFAIL(
+                "Trigger was 'resource_cleanup_trigger' but some of the "
+                "upstream tasks were not finished."
+            )
+        elif not state.is_successful():
+            all_upstream_succeeded = False
+        if edge.key == "mgr":
+            if state.is_skipped():
+                raise signals.SKIP("Resource manager init skipped")
+            elif not state.is_successful():
+                raise signals.SKIP("Resource manager init failed")
+        elif edge.key == "resource":
+            if state.is_skipped():
+                raise signals.SKIP("Resource manager setup skipped")
+            elif not state.is_successful():
+                raise signals.SKIP("Resource manager setup failed")
+    if all_upstream_succeeded:
+        raise signals.SKIP("All resource-dependent tasks succeeded")
+
+    return True
+
+
 class ResourceContext:
     """A context managed by a `ResourceManager`.
 
@@ -72,12 +148,22 @@ class ResourceContext:
         setup_task: Optional[Task],
         cleanup_task: Task,
         flow: Flow,
+        success_cleanup_task: Optional[Task] = None,
+        failure_cleanup_task: Optional[Task] = None,
     ):
         self.init_task = init_task
         self.setup_task = setup_task
         self.cleanup_task = cleanup_task
+        self.success_cleanup_task = success_cleanup_task
+        self.failure_cleanup_task = failure_cleanup_task
         self._flow = flow
         self._tasks = set()  # type: Set[Task]
+
+    @property
+    def has_conditional_cleanup_tasks(self):
+        return (self.success_cleanup_task is not None) and (
+            self.failure_cleanup_task is not None
+        )
 
     def add_task(self, task: Task, flow: Flow) -> None:
         """Add a new task under the resource manager block.
@@ -103,11 +189,24 @@ class ResourceContext:
         else:
             prefect.context.update(resource=self.__prev_resource)
 
+        if self.has_conditional_cleanup_tasks:
+            conditional_cleanup_tasks = (
+                self.success_cleanup_task,
+                self.failure_cleanup_task,
+            )
+        else:
+            conditional_cleanup_tasks = (self.cleanup_task,)
+
+        if self.has_conditional_cleanup_tasks and self.cleanup_task is not None:
+            for cleanup_task in conditional_cleanup_tasks:
+                if cleanup_task is not None:
+                    self.cleanup_task.set_upstream(cleanup_task, flow=self._flow)
+
         for child in self._tasks:
             # If a task has no upstream tasks created in this resource block,
             # the resource setup should be set as an upstream task.
             # Likewise, if a task has no downstream tasks created in this resource block,
-            # the resource cleanup should be set as a downstream task.
+            # the resource cleanup tasks should be set as a downstream tasks.
             upstream = self._flow.upstream_tasks(child)
             if (
                 self.setup_task is not None
@@ -116,12 +215,14 @@ class ResourceContext:
             ):
                 child.set_upstream(self.setup_task, flow=self._flow)
             downstream = self._flow.downstream_tasks(child)
-            if (
-                self.cleanup_task is not None
-                and not self._tasks.intersection(downstream)
-                and self.cleanup_task not in downstream
-            ):
-                child.set_downstream(self.cleanup_task, flow=self._flow)
+
+            for cleanup_task in conditional_cleanup_tasks:
+                if (
+                    cleanup_task is not None
+                    and not self._tasks.intersection(downstream)
+                    and cleanup_task not in downstream
+                ):
+                    child.set_downstream(cleanup_task, flow=self._flow)
 
 
 class ResourceManager:
@@ -191,11 +292,15 @@ class ResourceManager:
         init_task_kwargs: dict = None,
         setup_task_kwargs: dict = None,
         cleanup_task_kwargs: dict = None,
+        success_cleanup_task_kwargs: dict = None,
+        failure_cleanup_task_kwargs: dict = None,
     ):
         self.resource_class = resource_class
         self.init_task_kwargs = (init_task_kwargs or {}).copy()
         self.setup_task_kwargs = (setup_task_kwargs or {}).copy()
         self.cleanup_task_kwargs = (cleanup_task_kwargs or {}).copy()
+        self.success_cleanup_task_kwargs = (success_cleanup_task_kwargs or {}).copy()
+        self.failure_cleanup_task_kwargs = (failure_cleanup_task_kwargs or {}).copy()
 
         if name is None:
             name = getattr(resource_class, "__name__", "resource")
@@ -207,6 +312,18 @@ class ResourceManager:
         self.cleanup_task_kwargs.setdefault("trigger", resource_cleanup_trigger)
         self.cleanup_task_kwargs.setdefault("skip_on_upstream_skip", False)
         self.cleanup_task_kwargs.setdefault("checkpoint", False)
+        self.success_cleanup_task_kwargs.setdefault("name", f"{name}.success_cleanup")
+        self.success_cleanup_task_kwargs.setdefault(
+            "trigger", resource_success_cleanup_trigger
+        )
+        self.success_cleanup_task_kwargs.setdefault("skip_on_upstream_skip", False)
+        self.success_cleanup_task_kwargs.setdefault("checkpoint", False)
+        self.failure_cleanup_task_kwargs.setdefault("name", f"{name}.failure_cleanup")
+        self.failure_cleanup_task_kwargs.setdefault(
+            "trigger", resource_failure_cleanup_trigger
+        )
+        self.failure_cleanup_task_kwargs.setdefault("skip_on_upstream_skip", False)
+        self.failure_cleanup_task_kwargs.setdefault("checkpoint", False)
 
     def __call__(self, *args: Any, flow: Flow = None, **kwargs: Any) -> ResourceContext:
         if flow is None:
@@ -218,6 +335,9 @@ class ResourceManager:
             *args, flow=flow, **kwargs
         )
 
+        success_cleanup_task = None
+        failure_cleanup_task = None
+
         if hasattr(self.resource_class, "setup"):
             setup_task = ResourceSetupTask(**self.setup_task_kwargs)(
                 init_task, flow=flow
@@ -225,13 +345,36 @@ class ResourceManager:
             cleanup_task = ResourceCleanupTask(**self.cleanup_task_kwargs)(
                 init_task, setup_task, flow=flow
             )
+            if hasattr(self.resource_class, "success_cleanup"):
+                success_cleanup_task = ResourceSuccessCleanupTask(
+                    **self.success_cleanup_task_kwargs
+                )(init_task, setup_task, flow=flow)
+            if hasattr(self.resource_class, "failure_cleanup"):
+                failure_cleanup_task = ResourceFailureCleanupTask(
+                    **self.failure_cleanup_task_kwargs
+                )(init_task, setup_task, flow=flow)
         else:
             setup_task = None
             cleanup_task = ResourceCleanupTask(**self.cleanup_task_kwargs)(
                 init_task, flow=flow
             )
+            if hasattr(self.resource_class, "success_cleanup"):
+                success_cleanup_task = ResourceSuccessCleanupTask(
+                    **self.success_cleanup_task_kwargs
+                )(init_task, flow=flow)
+            if hasattr(self.resource_class, "failure_cleanup"):
+                failure_cleanup_task = ResourceFailureCleanupTask(
+                    **self.failure_cleanup_task_kwargs
+                )(init_task, flow=flow)
 
-        return ResourceContext(init_task, setup_task, cleanup_task, flow)
+        return ResourceContext(
+            init_task,
+            setup_task,
+            cleanup_task,
+            flow,
+            success_cleanup_task,
+            failure_cleanup_task,
+        )
 
 
 # To support mypy type checking with optional arguments to `resource_manager`,
@@ -244,6 +387,8 @@ def resource_manager(
     init_task_kwargs: dict = None,
     setup_task_kwargs: dict = None,
     cleanup_task_kwargs: dict = None,
+    success_cleanup_task_kwargs: dict = None,
+    failure_cleanup_task_kwargs: dict = None,
 ) -> ResourceManager:
     pass
 
@@ -255,6 +400,8 @@ def resource_manager(
     init_task_kwargs: dict = None,
     setup_task_kwargs: dict = None,
     cleanup_task_kwargs: dict = None,
+    success_cleanup_task_kwargs: dict = None,
+    failure_cleanup_task_kwargs: dict = None,
 ) -> Callable[[Callable], ResourceManager]:
     pass
 
@@ -266,6 +413,8 @@ def resource_manager(
     init_task_kwargs: dict = None,
     setup_task_kwargs: dict = None,
     cleanup_task_kwargs: dict = None,
+    success_cleanup_task_kwargs: dict = None,
+    failure_cleanup_task_kwargs: dict = None,
 ) -> Union[ResourceManager, Callable[[Callable], ResourceManager]]:
     """A decorator for creating a `ResourceManager` object.
 
@@ -350,6 +499,8 @@ def resource_manager(
             init_task_kwargs=init_task_kwargs,
             setup_task_kwargs=setup_task_kwargs,
             cleanup_task_kwargs=cleanup_task_kwargs,
+            success_cleanup_task_kwargs=success_cleanup_task_kwargs,
+            failure_cleanup_task_kwargs=failure_cleanup_task_kwargs,
         )
 
     return inner if resource_class is None else inner(resource_class)

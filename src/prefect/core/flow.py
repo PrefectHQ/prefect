@@ -407,6 +407,8 @@ class Flow:
         from prefect.tasks.core.resource_manager import (
             ResourceInitTask,
             ResourceCleanupTask,
+            ResourceSuccessCleanupTask,
+            ResourceFailureCleanupTask,
         )
 
         # Select all tasks that aren't a ResourceInitTask/ResourceCleanupTask
@@ -419,11 +421,26 @@ class Flow:
         return {
             t
             for t in self.tasks
-            if not isinstance(t, (ResourceInitTask, ResourceCleanupTask))
+            if not isinstance(
+                t,
+                (
+                    ResourceInitTask,
+                    ResourceCleanupTask,
+                    ResourceSuccessCleanupTask,
+                    ResourceFailureCleanupTask,
+                ),
+            )
             and not any(
                 t
                 for t in self.downstream_tasks(t)
-                if not isinstance(t, ResourceCleanupTask)
+                if not isinstance(
+                    t,
+                    (
+                        ResourceCleanupTask,
+                        ResourceSuccessCleanupTask,
+                        ResourceFailureCleanupTask,
+                    ),
+                )
             )
         }
 
