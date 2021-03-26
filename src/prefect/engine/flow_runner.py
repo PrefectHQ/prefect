@@ -159,9 +159,12 @@ class FlowRunner(Runner):
         # to rely on a manually set value
         now = context.get("date")
         if isinstance(now, str):
-            # Attempt to parse into a `DateTime` object
+            # Attempt to parse into a `DateTime` object since it will often be passed
+            # as a serialized string from the UI we'll override the context on a
+            # successful parse so the type is consistent for users
             try:
                 now = pendulum.parse(now)
+                context["date"] = now
             except Exception:
                 pass
         if not isinstance(now, pendulum.DateTime):
