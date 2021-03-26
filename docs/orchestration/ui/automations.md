@@ -1,6 +1,8 @@
 # Automations
 
-Automations allow you to take actions (such as cancelling a flow run or sending a notification to certain endpoints) when your flow or agent encounters a certain event.  Current events that you can monitor are:
+Automations allow you to take actions (such as cancelling a flow run or sending a notification to certain endpoints) when your flow or agent encounters a certain event.  
+
+Current events that you can monitor are:
 - A flow run enters a given state; 
 - Runs from multiple (or even all) flows enter a given state;
 - A Flow run fails to start after being scheduled for a certain amount of time; 
