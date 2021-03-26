@@ -90,8 +90,8 @@ class BatchSubmit(Task):
                 jobDefinition=job_definition,
                 **batch_kwargs,
             )
-        except Exception:
-            raise FAIL(f"Failed to submit job '{job_name}' to AWS Batch.")
+        except Exception as e:
+            raise FAIL(f"Failed to submit job '{job_name}' to AWS Batch.") from e
 
         if not response.get("jobId"):
             raise FAIL(f"AWS Batch submit response contains no job ID: {response}")

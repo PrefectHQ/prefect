@@ -455,16 +455,24 @@ class TestPrefectServerConfig:
 
 
 def test_create_tenant(monkeypatch, cloud_api):
-    monkeypatch.setattr(
-        "prefect.client.Client.create_tenant", MagicMock(return_value="my_id")
-    )
+    create_tenant = MagicMock(return_value="my_id")
+    monkeypatch.setattr("prefect.client.Client.create_tenant", create_tenant)
 
     result = CliRunner().invoke(
         server,
-        ["create-tenant", "-n", "name", "-s", "slug"],
+        ["create-tenant", "-n", "my-name", "-s", "my-slug"],
     )
     assert result.exit_code == 0
     assert "my_id" in result.output
+    assert create_tenant.call_args[1] == {"name": "my-name", "slug": "my-slug"}
+
+    result = CliRunner().invoke(
+        server,
+        ["create-tenant", "-n", "my-name"],
+    )
+    assert result.exit_code == 0
+    assert "my_id" in result.output
+    assert create_tenant.call_args[1] == {"name": "my-name", "slug": None}
 
 
 def test_stop_server(monkeypatch):

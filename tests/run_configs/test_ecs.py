@@ -106,6 +106,10 @@ def test_task_definition_arn():
     assert config.task_definition is None
     assert config.task_definition_path is None
 
+    # Can't mix `image` and `task_definition_arn`
+    with pytest.raises(ValueError, match="task_definition_arn"):
+        ECSRun(task_definition_arn="my-task-definition", image="my-image")
+
 
 def test_task_definition():
     task_definition = {

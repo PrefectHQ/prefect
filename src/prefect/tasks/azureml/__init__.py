@@ -16,7 +16,7 @@ try:
         DatastoreUpload,
     )
 
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.azureml` requires Prefect to be installed with the "azure" extra.'
-    )
+    ) from err

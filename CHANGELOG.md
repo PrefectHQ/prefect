@@ -1,5 +1,84 @@
 # Changelog
 
+## 0.14.14 <Badge text="beta" type="success" />
+
+Released on March 25, 2021.
+
+### Task Library
+
+- Ensures Snowflake Query Task output is serializable [#3744] (https://github.com/PrefectHQ/prefect/issues/3744)
+
+### Fixes
+
+- Always load task run info prior to running a task - [#4296](https://github.com/PrefectHQ/prefect/pull/4296)
+
+## 0.14.13 <Badge text="beta" type="success" />
+
+Released on March 24, 2021.
+
+### Features
+
+- Add new improved `prefect register` CLI command. This command supports registering multiple flows at once (through multiple file paths or directories), and also includes a new `--watch` flag for watching files and automatically re-registering upon changes. - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)
+- New `prefect build` CLI command for building flows. Artifacts produced by this command can then be used by `prefect register` to register flows without requiring the source. - [#4282](https://github.com/PrefectHQ/prefect/pull/4282)
+
+### Enhancements
+
+- Use explicit exception chaining [#3306](https://github.com/PrefectHQ/prefect/issues/3306)
+- Add `as_bytes` option to `S3Download` task - [#4238](https://github.com/PrefectHQ/prefect/pull/4238)
+- Improve error message when a loaded flow doesn't match the version stored in Prefect Cloud/Server - [#4259](https://github.com/PrefectHQ/prefect/pull/4259)
+- Support setting flow run labels from cli - [#4266](https://github.com/PrefectHQ/prefect/pull/4266)
+- Support setting default `image` in `--job-template`/`--task-definition` in Kubernetes/ECS agents - [#4270](https://github.com/PrefectHQ/prefect/pull/4270)
+
+### Task Library
+
+- Adds logging of cell outputs to Jupyter task - [#4265] (https://github.com/PrefectHQ/prefect/issues/4265)
+- Add `user` and `password` as runtime parameters to Exasol tasks - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)
+
+### Fixes
+
+- Fix bug where sometimes the global `prefect.context` wouldn't be respected during a flow run - [#4287](https://github.com/PrefectHQ/prefect/pull/4287)
+
+### Deprecations
+
+- Deprecate the old `prefect register flow` CLI command in favor of `prefect register` - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)
+- Deprecate `user` and `password` arguments to Exasol task constructors in favor of runtime parameters - [#4268](https://github.com/PrefectHQ/prefect/pull/4268)
+
+### Contributors
+
+- [Abid Ahmad](https://github.com/abid1998)
+- [Alexandr N. Zamaraev](https://github.com/tonal)
+- [Jacob Hayes](https://github.com/JacobHayes)
+- [Kevin Kho](https://github.com/kvnkho)
+- [Timo S.](https://github.com/sti0)
+
+## 0.14.12 <Badge text="beta" type="success" />
+
+Released on March 10, 2021.
+
+### Enhancements
+
+- Upgrade hasura to 1.3.3 in Prefect Server - [#4126](https://github.com/PrefectHQ/prefect/pull/4126)
+- Add `--docker-client-timeout` flag to docker agent, for configuring the timeout for all docker API requests - [#4232](https://github.com/PrefectHQ/prefect/pull/4232)
+- Make `--slug` flag optional in `prefect server create-tenant` - [#4240](https://github.com/PrefectHQ/prefect/pull/4240)
+
+### Task Library
+
+- Adds new filesystem `Copy` and `Remove` tasks - [#4202](https://github.com/PrefectHQ/prefect/pull/4202)
+
+### Fixes
+
+- Don't forward `nout` to mapped tasks - [#4206](https://github.com/PrefectHQ/prefect/pull/4206)
+- Move `command`, `environment`, `cpu`, `memory`, `execution_role_arn`, and `task_role_arn` configuration for ECS tasks from definition time to run time in the ECS agent - [#4211](https://github.com/PrefectHQ/prefect/pull/4211)
+- Register (and deregister) a new task definition for every flow run in ECS agent - [#4211](https://github.com/PrefectHQ/prefect/pull/4211)
+- Fix `Task` signature generation in the presence of with variadic kwargs - [#4235](https://github.com/PrefectHQ/prefect/pull/4235)
+- Ensure `Flow` is serializable using `pickle` - [#4209](https://github.com/PrefectHQ/prefect/pull/4209)
+
+### Contributors
+
+- [Ben Fogelson](https://github.com/benfogelson)
+- [Marwan S.](https://github.com/marwan116)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.14.11 <Badge text="beta" type="success" />
 
 Released on March 3, 2021.

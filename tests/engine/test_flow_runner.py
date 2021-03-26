@@ -1323,18 +1323,28 @@ class TestContext:
         output = res.result[return_ctx_key].result
         assert isinstance(output, datetime.datetime)
 
-    def test_user_provided_context_is_prioritized(self):
+    @pytest.mark.parametrize(
+        "outer_context, inner_context, sol",
+        [
+            ({"date": "outer"}, {"date": "inner"}, "inner"),
+            ({"date": "outer"}, {}, "outer"),
+        ],
+    )
+    def test_user_provided_context_is_prioritized(
+        self, outer_context, inner_context, sol
+    ):
         @prefect.task
         def return_ctx_key():
             return prefect.context.get("date")
 
         f = Flow(name="test", tasks=[return_ctx_key])
-        res = f.run(context={"date": "42"})
+        with prefect.context(**outer_context):
+            res = f.run(context=inner_context)
 
         assert res.is_successful()
 
         output = res.result[return_ctx_key].result
-        assert output == "42"
+        assert output == sol
 
 
 @pytest.mark.parametrize(

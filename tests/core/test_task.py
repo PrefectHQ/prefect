@@ -247,7 +247,7 @@ class TestCreateTask:
 
     def test_task_signature_generation(self):
         class Test(Task):
-            def run(self, x: int, y: bool, z: int = 1):
+            def run(self, x: int, y: bool, z: int = 1, **kwargs):
                 pass
 
         t = Test()
