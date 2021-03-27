@@ -13,9 +13,9 @@ import prefect
 from prefect.core import Flow, Parameter, Task
 from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
-from prefect.engine.executors import Executor, LocalExecutor
+from prefect.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import Result
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -36,6 +36,7 @@ from prefect.engine.state import (
 from prefect.tasks.secrets import PrefectSecret
 from prefect.triggers import manual_only
 from prefect.utilities.debug import raise_on_exception
+from prefect.utilities.exceptions import TaskTimeoutError
 
 
 class SuccessTask(Task):
@@ -279,6 +280,23 @@ def test_secrets_dynamically_pull_from_context():
         flow_state = FlowRunner(flow=flow).run(task_states=flow_state.result)
 
     assert flow_state.is_successful()
+
+
+def test_secrets_are_rerun_on_restart():
+    @prefect.task
+    def identity(x):
+        return x
+
+    with Flow("test") as flow:
+        secret = PrefectSecret("key")
+        val = identity(secret)
+
+    with prefect.context(secrets={"key": "val"}):
+        state = FlowRunner(flow=flow).run(
+            task_states={secret: Success()}, return_tasks=[val]
+        )
+    assert state.is_successful()
+    assert state.result[val].result == "val"
 
 
 def test_flow_runner_doesnt_return_by_default():
@@ -825,7 +843,7 @@ def test_flow_runner_handles_timeouts(executor):
     assert state.is_failed()
     assert isinstance(state.result[res], TimedOut)
     assert "timed out" in state.result[res].message
-    assert isinstance(state.result[res].result, TimeoutError)
+    assert isinstance(state.result[res].result, TaskTimeoutError)
 
 
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
@@ -837,7 +855,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
     assert state.is_failed()
     assert isinstance(state.result[res], TimedOut)
-    assert isinstance(state.result[res].result, TimeoutError)
+    assert isinstance(state.result[res].result, TaskTimeoutError)
 
 
 handler_results = collections.defaultdict(lambda: 0)
@@ -1305,18 +1323,28 @@ class TestContext:
         output = res.result[return_ctx_key].result
         assert isinstance(output, datetime.datetime)
 
-    def test_user_provided_context_is_prioritized(self):
+    @pytest.mark.parametrize(
+        "outer_context, inner_context, sol",
+        [
+            ({"date": "outer"}, {"date": "inner"}, "inner"),
+            ({"date": "outer"}, {}, "outer"),
+        ],
+    )
+    def test_user_provided_context_is_prioritized(
+        self, outer_context, inner_context, sol
+    ):
         @prefect.task
         def return_ctx_key():
             return prefect.context.get("date")
 
         f = Flow(name="test", tasks=[return_ctx_key])
-        res = f.run(context={"date": "42"})
+        with prefect.context(**outer_context):
+            res = f.run(context=inner_context)
 
         assert res.is_successful()
 
         output = res.result[return_ctx_key].result
-        assert output == "42"
+        assert output == sol
 
 
 @pytest.mark.parametrize(
@@ -1333,66 +1361,6 @@ def test_task_logs_survive_if_timeout_is_used(caplog, executor):
 
     assert res.is_successful()
     assert len([r for r in caplog.records if r.levelname == "CRITICAL"]) == 1
-
-
-def test_task_runners_submitted_to_remote_machines_respect_original_config(monkeypatch):
-    """
-    This test is meant to simulate the behavior of running a Cloud Flow against an external
-    cluster which has _not_ been configured for Prefect.  The idea is that the configuration
-    settings which were present on the original machine are respected in the remote job, reflected
-    here by having the CloudHandler called during logging and the special values present in context.
-    """
-
-    from prefect.engine.flow_runner import run_task
-
-    def my_run_task(*args, **kwargs):
-        with prefect.utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False, "cloud.auth_token": ""}
-        ):
-            return run_task(*args, **kwargs)
-
-    calls = []
-
-    class Client:
-        def write_run_logs(self, *args, **kwargs):
-            calls.append(args)
-
-    monkeypatch.setattr("prefect.engine.flow_runner.run_task", my_run_task)
-    monkeypatch.setattr("prefect.client.Client", Client)
-
-    @prefect.task
-    def log_stuff():
-        logger = prefect.context.get("logger")
-        logger.critical("important log right here")
-        return (
-            prefect.context.config.special_key,
-            prefect.context.config.cloud.auth_token,
-        )
-
-    with prefect.utilities.configuration.set_temporary_config(
-        {
-            "logging.log_to_cloud": True,
-            "special_key": 42,
-            "cloud.auth_token": "original",
-        }
-    ):
-        # captures config at init
-        flow = Flow("test", tasks=[log_stuff])
-        flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
-
-    assert flow_state.is_successful()
-    assert flow_state.result[log_stuff].result == (42, "original")
-
-    time.sleep(0.75)
-    assert len(calls) >= 1
-    assert len([log for call in calls for log in call[0]]) == 5  # actual number of logs
-
-    loggers = [log["name"] for call in calls for log in call[0]]
-    assert set(loggers) == {
-        "prefect.TaskRunner",
-        "prefect.FlowRunner",
-        "prefect.log_stuff",
-    }
 
 
 def test_constant_tasks_arent_submitted(caplog):

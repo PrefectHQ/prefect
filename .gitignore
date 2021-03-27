@@ -105,6 +105,9 @@ celerybeat-schedule
 venv/
 ENV/
 
+# For those building a PyEnv using Pipenv
+Pipfile
+
 # Spyder project settings
 .spyderproject
 
@@ -139,3 +142,14 @@ docs/api/latest
 docs/changelog.md
 docs/deploy/dist
 docs/.vuepress/public/prefect-coverage
+
+
+# credentials and key material
+config
+credentials
+credentials.csv
+*.env
+*.pem
+*.pub
+*.rdp
+*_rsa

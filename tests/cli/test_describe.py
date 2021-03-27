@@ -263,7 +263,6 @@ def test_describe_flow_runs(monkeypatch, cloud_api):
             scheduled_start_time
             start_time
             end_time
-            duration
             serialized_state
         }
     }
@@ -320,7 +319,6 @@ def test_describe_flow_runs_populated(monkeypatch, cloud_api):
             scheduled_start_time
             start_time
             end_time
-            duration
             serialized_state
         }
     }

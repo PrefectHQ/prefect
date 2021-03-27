@@ -7,7 +7,7 @@ class RunConfig:
     """
     Base class for RunConfigs.
 
-    An "run config" is an object for configuring a flow run, which maps to a
+    A "run config" is an object for configuring a flow run, which maps to a
     specific agent backend.
 
     Args:
@@ -28,3 +28,34 @@ class RunConfig:
         """
         schema = prefect.serialization.run_config.RunConfigSchema()
         return schema.dump(self)
+
+
+class UniversalRun(RunConfig):
+    """
+    Configure a flow-run to run universally on any Agent.
+
+    Unlike the other agent-specific `RunConfig` classes (e.g. `LocalRun` for
+    the Local Agent), the `UniversalRun` run config is compatible with any
+    agent. This can be useful for flows that don't require any custom
+    configuration other than flow labels, allowing for transitioning a flow
+    between agent types without any config changes.
+
+    Args:
+        - labels (Iterable[str], optional): an iterable of labels to apply to this
+            run config. Labels are string identifiers used by Prefect Agents
+            for selecting valid flow runs when polling for work
+
+    Examples:
+
+    Use the defaults set on the agent:
+
+    ```python
+    flow.run_config = UniversalRun()
+    ```
+
+    Configure additional labels:
+
+    ```python
+    flow.run_config = UniversalRun(labels=["label-1", "label-2"])
+    ```
+    """

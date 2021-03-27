@@ -256,7 +256,7 @@ class TestListContainersTask(DockerLoggingTestingUtilityMixin):
         task = ListContainers(
             all_containers=True, filters={"name": "test"}, docker_server_url="test"
         )
-        assert task.all_containers == True
+        assert task.all_containers is True
         assert task.filters == {"name": "test"}
         assert task.docker_server_url == "test"
 

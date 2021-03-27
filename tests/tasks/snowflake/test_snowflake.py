@@ -45,3 +45,34 @@ class TestSnowflakeQuery:
 
         with pytest.raises(sf.errors.DatabaseError, match="Invalid query"):
             task.run(query="SELECT * FROM foo")
+
+    def test_execute_fetchall(self, monkeypatch):
+        """
+        Tests that the SnowflakeQuery Task calls the fetchall method on the
+        cursor. This is to prevent future code edits from returning the cursor
+        object because that cursors are not pickleable.
+        """
+        snowflake_module_connect_method = MagicMock()
+        connection = MagicMock(spec=sf.SnowflakeConnection)
+        cursor = MagicMock(spec=sf.DictCursor)
+
+        # link all the mocks together appropriately
+        snowflake_module_connect_method.return_value = connection
+        connection.cursor = cursor
+
+        # setting fetchall return
+        cursor.return_value.__enter__.return_value.execute.return_value.fetchall.return_value = [
+            "TESTDB"
+        ]
+        snowflake_connector_module = MagicMock(connect=snowflake_module_connect_method)
+
+        monkeypatch.setattr(
+            "prefect.tasks.snowflake.snowflake.sf", snowflake_connector_module
+        )
+
+        query = "SHOW DATABASES"
+        output = SnowflakeQuery(
+            account="test", user="test", password="test", query=query
+        ).run()
+
+        assert output == ["TESTDB"]

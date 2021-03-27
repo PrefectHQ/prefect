@@ -5,9 +5,11 @@ import re
 import sys
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
+import warnings
 
 from prefect import config, context
 from prefect.agent import Agent
+from prefect.run_configs import DockerRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
@@ -16,17 +18,18 @@ if TYPE_CHECKING:
     import docker
 
 
-def _stream_container_logs(base_url: str, container_id: str) -> None:
+def _stream_container_logs(base_url: str, timeout: int, container_id: str) -> None:
     """
     Stream container logs back to stdout
 
     Args:
         - base_url (str): URL for a Docker daemon server
+        - timeout (int): timeout for docker api requests
         - container_id (str): ID of a container to stream logs
     """
     import docker
 
-    client = docker.APIClient(base_url=base_url, version="auto")
+    client = docker.APIClient(base_url=base_url, timeout=timeout, version="auto")
     for log in client.logs(container=container_id, stream=True, follow=True):
         print(str(log, "utf-8").rstrip())
 
@@ -38,12 +41,12 @@ class DockerAgent(Agent):
 
     Environment variables may be set on the agent to be provided to each flow run's container:
     ```
-    prefect agent start docker --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    prefect agent docker start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     The default Docker daemon may be overridden by providing a different `base_url`:
     ```
-    prefect agent start docker --base-url "tcp://0.0.0.0:2375"
+    prefect agent docker start --base-url "tcp://0.0.0.0:2375"
     ```
 
     Args:
@@ -73,11 +76,15 @@ class DockerAgent(Agent):
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any
             and all created containers.
         - network (str, optional): Add containers to an existing docker network
+            (deprecated in favor of `networks`).
+        - networks (List[str], optional): Add containers to existing Docker networks.
         - docker_interface (bool, optional): Toggle whether or not a `docker0` interface is
             present on this machine.  Defaults to `True`. **Note**: This is mostly relevant for
             some Docker-in-Docker setups that users may be running their agent with.
         - reg_allow_list (List[str], optional): Limits Docker Agent to only pull images
             from the listed registries.
+        - docker_client_timeout (int, optional): The timeout to use for docker
+            API calls, defaults to 60 seconds.
     """
 
     def __init__(
@@ -94,8 +101,10 @@ class DockerAgent(Agent):
         volumes: List[str] = None,
         show_flow_logs: bool = False,
         network: str = None,
+        networks: List[str] = None,
         docker_interface: bool = True,
         reg_allow_list: List[str] = None,
+        docker_client_timeout: int = None,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -129,10 +138,23 @@ class DockerAgent(Agent):
             self.host_spec,
         ) = self._parse_volume_spec(volumes or [])
 
-        # Add containers to a docker network
+        # Add containers to the given Docker networks
+        if networks and network:
+            raise ValueError(
+                "Only provide either `network` or `networks` argument, not both!"
+            )
+        if network:
+            warnings.warn(
+                "DockerAgent `network` argument is deprecated and will be removed from Prefect. "
+                "Use `networks` instead.",
+                UserWarning,
+            )
         self.network = network
-        self.logger.debug("Docker network set to {}".format(self.network))
+        self.logger.debug(f"Docker network set to {self.network}")
+        self.networks = networks
+        self.logger.debug(f"Docker networks set to {self.networks}")
 
+        self.docker_client_timeout = docker_client_timeout or 60
         self.docker_interface = docker_interface
         self.logger.debug(
             "Docker interface toggle set to {}".format(self.docker_interface)
@@ -155,11 +177,10 @@ class DockerAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
-
         self.logger.debug(f"Base URL: {self.base_url}")
         self.logger.debug(f"No pull: {self.no_pull}")
         self.logger.debug(f"Volumes: {volumes}")
-        self.logger.debug(f"Network: {self.network}")
+        self.logger.debug(f"Networks: {self.networks}")
         self.logger.debug(f"Docker interface: {self.docker_interface}")
 
     def _get_docker_client(self) -> "docker.APIClient":
@@ -167,7 +188,11 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
-        return docker.APIClient(base_url=self.base_url, version="auto")
+        return docker.APIClient(
+            base_url=self.base_url,
+            version="auto",
+            timeout=self.docker_client_timeout,
+        )
 
     def heartbeat(self) -> None:
         try:
@@ -349,8 +374,11 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
+        run_config = self._get_run_config(flow_run, DockerRun)
+        assert run_config is None or isinstance(run_config, DockerRun)  # mypy
+
         image = get_flow_image(flow_run=flow_run)
-        env_vars = self.populate_env_vars(flow_run=flow_run)
+        env_vars = self.populate_env_vars(flow_run, image, run_config=run_config)
 
         if not self.no_pull and len(image.split("/")) > 1:
             self.logger.info("Pulling image {}...".format(image))
@@ -395,11 +423,25 @@ class DockerAgent(Agent):
             host_config.update(extra_hosts={"host.docker.internal": docker_internal_ip})
 
         networking_config = None
+        # At the time of creation, you can only connect a container to a single network,
+        # however you can create more connections after creation.
+        # Connect first network in the creation step. If no network is connected here the container
+        # is connected to the default `bridge` network.
+        # The rest of the networks are connected after creation.
+        if self.networks:
+            networking_config = self.docker_client.create_networking_config(
+                {self.networks[0]: self.docker_client.create_endpoint_config()}
+            )
+        # Try fallback on old, deprecated, behaviour.
         if self.network:
             networking_config = self.docker_client.create_networking_config(
                 {self.network: self.docker_client.create_endpoint_config()}
             )
-
+        labels = {
+            "io.prefect.flow-name": flow_run.flow.name,
+            "io.prefect.flow-id": flow_run.flow.id,
+            "io.prefect.flow-run-id": flow_run.id,
+        }
         container = self.docker_client.create_container(
             image,
             command=get_flow_run_command(flow_run),
@@ -407,12 +449,24 @@ class DockerAgent(Agent):
             volumes=container_mount_paths,
             host_config=self.docker_client.create_host_config(**host_config),
             networking_config=networking_config,
+            labels=labels,
         )
-
+        # Connect the rest of the networks
+        if self.networks:
+            for network in self.networks[1:]:
+                self.docker_client.connect_container_to_network(
+                    container=container, net_id=network
+                )
         # Start the container
         self.logger.debug(
             "Starting Docker container with ID {}".format(container.get("Id"))
         )
+        if self.networks:
+            self.logger.debug(
+                "Adding container with ID {} to docker networks: {}.".format(
+                    container.get("Id"), self.networks
+                )
+            )
         if self.network:
             self.logger.debug(
                 "Adding container to docker network: {}".format(self.network)
@@ -438,18 +492,23 @@ class DockerAgent(Agent):
             target=_stream_container_logs,
             kwargs={
                 "base_url": self.base_url,
+                "timeout": self.docker_client_timeout,
                 "container_id": container_id,
             },
         )
         proc.start()
         self.processes.append(proc)
 
-    def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
+    def populate_env_vars(
+        self, flow_run: GraphQLResult, image: str, run_config: DockerRun = None
+    ) -> dict:
         """
         Populate metadata and variables in the environment variables for a flow run
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - image (str): The image for this flow
+            - run_config (DockerRun, optional): The `run_config` for the flow, if any.
 
         Returns:
             - dict: a dictionary representing the populated environment variables
@@ -459,19 +518,41 @@ class DockerAgent(Agent):
         else:
             api = config.cloud.api
 
-        return {
-            "PREFECT__CLOUD__API": api,
-            "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
-            "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
-            "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
-            "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-            "PREFECT__LOGGING__LEVEL": config.logging.level,
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-            **self.env_vars,
-        }
+        env = {}
+        # Populate environment variables, later sources overriding
+
+        # 1. Logging config (optional)
+        # We only set this on non-DockerRun runs for backwards compatibility.
+        # In the future we don't want the agent to set logging config on a flow
+        # run unless explicitly asked.  We do this early on so later config
+        # sources can override
+        if run_config is None:
+            env.update({"PREFECT__LOGGING__LEVEL": config.logging.level})
+
+        # 2. Values set on the agent via `--env`
+        env.update(self.env_vars)
+
+        # 3. Values set on a DockerRun RunConfig (if present)
+        if run_config is not None and run_config.env is not None:
+            env.update(run_config.env)
+
+        # 4. Non-overrideable required env vars
+        env.update(
+            {
+                "PREFECT__BACKEND": config.backend,
+                "PREFECT__CLOUD__API": api,
+                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
+                "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
+                "PREFECT__CONTEXT__IMAGE": image,
+                "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            }
+        )
+        return env
 
 
 if __name__ == "__main__":

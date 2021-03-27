@@ -45,7 +45,7 @@ class TestGCSResult:
 
     def test_gcs_reads_and_updates_location(self, google_client):
         bucket = MagicMock()
-        bucket.blob.return_value.download_as_string.return_value = b""
+        bucket.blob.return_value.download_as_bytes.return_value = b""
         google_client.return_value.bucket = MagicMock(return_value=bucket)
         result = GCSResult(bucket="foo", location="{thing}/here.txt")
         new_result = result.read("path/to/my/stuff.txt")

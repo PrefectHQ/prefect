@@ -8,7 +8,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Set, Optional, cast
+from typing import Any, Generator, Iterable, Set, Optional, cast, Type
 from urllib.parse import urlparse
 
 import pendulum
@@ -19,6 +19,8 @@ from prefect import config
 from prefect.client import Client
 from prefect.engine.state import Failed, Submitted
 from prefect.serialization import state
+from prefect.serialization.run_config import RunConfigSchema
+from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities.context import context
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
@@ -127,6 +129,7 @@ class Agent:
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
+        self.heartbeat_period = 60  # exposed for testing
 
         self.agent_address = agent_address or config.cloud.agent.get(
             "agent_address", ""
@@ -139,7 +142,7 @@ class Agent:
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
-        if not any([isinstance(h, logging.StreamHandler) for h in logger.handlers]):
+        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
             ch = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(context.config.logging.format)
             formatter.converter = time.gmtime  # type: ignore
@@ -217,16 +220,8 @@ class Agent:
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
 
-        try:
-            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
-        except Exception as exc:
-            if config.backend == "cloud":
-                raise exc
-            else:
-                self.logger.warning(
-                    f"Unable to register agent to {self.client.api_server}. "
-                    f"Make sure the server is running on the latest version."
-                )
+        # Register agent with backend API
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         try:
             self.setup()
@@ -279,6 +274,10 @@ class Agent:
             self.cleanup()
 
     def setup(self) -> None:
+        print(ascii_name)
+
+        self.on_startup()
+
         self.agent_connect()
 
         if self.agent_address:
@@ -292,6 +291,14 @@ class Agent:
             )
 
             def run() -> None:
+                # Ensure there's an active event loop in this thread
+                import asyncio
+
+                try:
+                    asyncio.get_event_loop()
+                except RuntimeError:
+                    asyncio.set_event_loop(asyncio.new_event_loop())
+
                 self.logger.debug(
                     f"Agent API server listening on port {self.agent_address}"
                 )
@@ -336,15 +343,32 @@ class Agent:
     def run_heartbeat_thread(self) -> None:
         def run() -> None:
             while True:
-                self.logger.debug("Running agent heartbeat...")
-                self.heartbeat()
-                self.logger.debug("Sleeping heartbeat for 60 seconds")
-                time.sleep(60)
+                try:
+                    self.logger.debug("Running agent heartbeat...")
+                    self.heartbeat()
+                except Exception:
+                    self.logger.error(
+                        "Error in agent heartbeat, will try again in %.1f seconds",
+                        self.heartbeat_period,
+                        exc_info=True,
+                    )
+                else:
+                    self.logger.debug(
+                        "Sleeping heartbeat for %.1f seconds", self.heartbeat_period
+                    )
+                time.sleep(self.heartbeat_period)
 
         self._heartbeat_thread = threading.Thread(
             name="heartbeat", target=run, daemon=True
         )
         self._heartbeat_thread.start()
+
+    def on_startup(self) -> None:
+        """
+        Invoked when the agent is starting up.
+
+        Intended as a hook for child classes to optionally implement.
+        """
 
     def on_shutdown(self) -> None:
         """
@@ -356,7 +380,6 @@ class Agent:
         """
         Verify agent connection to Prefect API by querying
         """
-        print(ascii_name)
         self.logger.info(
             "Starting {} with labels {}".format(type(self).__name__, self.labels)
         )
@@ -503,7 +526,7 @@ class Agent:
                 "input": {
                     "before": now.isoformat(),
                     "labels": list(self.labels),
-                    "tenant_id": self.client._active_tenant_id,
+                    "tenant_id": self.client.active_tenant_id,
                 }
             },
         )
@@ -554,7 +577,7 @@ class Agent:
                                     },
                                 },
                             ],
-                        }
+                        },
                     },
                 ): {
                     "id": True,
@@ -562,11 +585,12 @@ class Agent:
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,
+                    "scheduled_start_time": True,
+                    "run_config": True,
                     "flow": {
                         "id",
                         "name",
                         "environment",
-                        "run_config",
                         "storage",
                         "version",
                         "core_version",
@@ -588,7 +612,11 @@ class Agent:
         if target_flow_run_ids:
             self.logger.debug("Querying flow run metadata")
             result = self.client.graphql(query)
-            return result.data.flow_run  # type: ignore
+
+            # Return flow runs sorted by scheduled start time
+            return sorted(
+                result.data.flow_run, key=lambda flow_run: flow_run.scheduled_start_time
+            )
         else:
             return []
 
@@ -653,7 +681,41 @@ class Agent:
             version=flow_run.version,
             state=Failed(message=str(exc)),
         )
-        self.logger.error("Error while deploying flow: {}".format(repr(exc)))
+        self.logger.error("Error while deploying flow", exc_info=exc)
+
+    def _get_run_config(
+        self, flow_run: GraphQLResult, run_config_cls: Type[RunConfig]
+    ) -> Optional[RunConfig]:
+        """
+        Get a run_config for the flow, if present.
+
+        Args:
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+            - run_config_cls (Callable): The expected run-config class
+
+        Returns:
+            - RunConfig: The flow run's run-config. Returns None if an
+                environment-based flow.
+        """
+        # If the flow is using a run_config, load it
+        if getattr(flow_run, "run_config", None) is not None:
+            run_config = RunConfigSchema().load(flow_run.run_config)
+            if isinstance(run_config, UniversalRun):
+                # Convert to agent-specific run-config
+                return run_config_cls(labels=run_config.labels)
+            elif not isinstance(run_config, run_config_cls):
+                msg = (
+                    "Flow run %s has a `run_config` of type `%s`, only `%s` is supported"
+                    % (flow_run.id, type(run_config).__name__, run_config_cls.__name__)
+                )
+                self.logger.error(msg)
+                raise TypeError(msg)
+            return run_config
+        elif getattr(flow_run.flow, "environment", None) is None:
+            # No environment, use default run_config
+            return run_config_cls()
+
+        return None
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """

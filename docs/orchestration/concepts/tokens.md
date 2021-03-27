@@ -35,7 +35,7 @@ After you click create you will be prompted with the token which you can copy an
 To create a token with the CLI run the `create-token` command with the desired token name and scope. For more information on how to use the CLI go [here](cli.html).
 
 ```
-$ prefect auth create-token -n my-runner-token -r RUNNER
+$ prefect auth create-token -n my-runner-token -s RUNNER
 ```
 
 ### GraphQL
@@ -101,7 +101,7 @@ There are a few ways in which you can give a `RUNNER` token to an agent. Each me
 - Provide the token when the agent is started via the CLI. This method means the token will need to be provided each time the agent is started.
 
 ```
-$ prefect agent start -t TOKEN_VALUE
+$ prefect agent <AGENT TYPE> start -t TOKEN_VALUE
 ```
 
 - Specify the token as an environment variable. This method means the token will only be available to processes which have the variable set.

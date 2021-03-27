@@ -9,13 +9,14 @@ from prefect.utilities import backend as backend_util
 from .agent import agent as _agent
 from .auth import auth as _auth
 from .create import create as _create
+from .delete import delete as _delete
 from .describe import describe as _describe
 from .execute import execute as _execute
 from .get import get as _get
 from .run import run as _run
 from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
-from .register import register as _register
+from .build_register import register as _register, build as _build
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -39,6 +40,7 @@ def cli():
     Action Commands:
         agent       Manage agents
         create      Create objects
+        delete      Delete objects
         execute     Execute a flow's environment
         run         Run a flow
         register    Register flows with an API
@@ -62,6 +64,7 @@ def cli():
 cli.add_command(_agent)
 cli.add_command(_auth)
 cli.add_command(_create)
+cli.add_command(_delete)
 cli.add_command(_describe)
 cli.add_command(_execute)
 cli.add_command(_get)
@@ -69,6 +72,7 @@ cli.add_command(_run)
 cli.add_command(_server)
 cli.add_command(_heartbeat)
 cli.add_command(_register)
+cli.add_command(_build)
 
 
 # Miscellaneous Commands
@@ -87,7 +91,7 @@ def config():
     """
     Output Prefect config
     """
-    click.echo(prefect.config.to_dict())
+    click.echo(prefect.config.to_json())
 
 
 @cli.command(hidden=True)

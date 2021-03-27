@@ -26,7 +26,7 @@ class TestGetKubernetesClient:
             ("job", client.BatchV1Api),
             ("pod", client.CoreV1Api),
             ("service", client.CoreV1Api),
-            ("deployment", client.ExtensionsV1beta1Api),
+            ("deployment", client.AppsV1Api),
         ],
     )
     def test_returns_correct_kubernetes_client(

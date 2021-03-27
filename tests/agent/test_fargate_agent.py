@@ -2,16 +2,24 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.agent.fargate import FargateAgent
-from prefect.environments import LocalEnvironment
-from prefect.environments.storage import Docker, Local
-from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.graphql import GraphQLResult
-
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
+pytestmark = pytest.mark.filterwarnings("ignore:`FargateAgent` is deprecated")
 
 from botocore.exceptions import ClientError
+
+import prefect
+from prefect.agent.fargate import FargateAgent
+from prefect.environments import LocalEnvironment
+from prefect.storage import Docker, Local
+from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.aws import _CLIENT_CACHE
+
+
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CLIENT_CACHE.clear()
 
 
 def test_fargate_agent_init(monkeypatch, cloud_api):
@@ -21,6 +29,16 @@ def test_fargate_agent_init(monkeypatch, cloud_api):
     agent = FargateAgent()
     assert agent
     assert agent.boto3_client
+
+
+def test_fargate_agent_init_with_network_mode(monkeypatch, cloud_api):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent(networkMode="bridge")
+    assert agent
+    assert agent.boto3_client
+    assert agent.task_definition_kwargs["networkMode"] == "bridge"
 
 
 def test_fargate_agent_config_options_default(monkeypatch, cloud_api):
@@ -78,12 +96,12 @@ def test_parse_task_definition_kwargs(monkeypatch, cloud_api):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
-    agent = FargateAgent()
+    agent = FargateAgent(networkMode="bridge")
 
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
+        "networkMode": "bridge",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -112,7 +130,7 @@ def test_parse_task_definition_kwargs_errors(monkeypatch, cloud_api):
     agent = FargateAgent()
 
     kwarg_dict = {
-        "placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev",
+        "placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev"
     }
 
     (
@@ -296,7 +314,6 @@ def test_parse_task_definition_and_run_kwargs(monkeypatch, cloud_api):
     def_kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -325,7 +342,6 @@ def test_parse_task_definition_and_run_kwargs(monkeypatch, cloud_api):
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -392,7 +408,6 @@ def test_fargate_agent_config_options_init(monkeypatch, cloud_api):
     def_kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -428,7 +443,6 @@ def test_fargate_agent_config_options_init(monkeypatch, cloud_api):
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -492,7 +506,6 @@ def test_fargate_agent_config_env_vars(monkeypatch, cloud_api):
     def_kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -534,7 +547,6 @@ def test_fargate_agent_config_env_vars(monkeypatch, cloud_api):
     # Def / run args
     monkeypatch.setenv("taskRoleArn", "test")
     monkeypatch.setenv("executionRoleArn", "test")
-    monkeypatch.setenv("networkMode", "test")
     monkeypatch.setenv("volumes", "test")
     monkeypatch.setenv("placementConstraints", "test")
     monkeypatch.setenv("cpu", "test")
@@ -710,7 +722,6 @@ def test_deploy_flow_all_args(monkeypatch, cloud_api):
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "test",
@@ -927,7 +938,10 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     ],
 )
 def test_deploy_flow_register_task_definition_all_args(
-    core_version, command, monkeypatch, cloud_api
+    core_version,
+    command,
+    monkeypatch,
+    backend,
 ):
     boto3_client = MagicMock()
 
@@ -940,7 +954,6 @@ def test_deploy_flow_register_task_definition_all_args(
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "1",
@@ -999,14 +1012,13 @@ def test_deploy_flow_register_task_definition_all_args(
         ],
     }
 
-    with set_temporary_config({"logging.log_to_cloud": True}):
-        agent = FargateAgent(
-            aws_access_key_id="id",
-            aws_secret_access_key="secret",
-            aws_session_token="token",
-            region_name="region",
-            **kwarg_dict
-        )
+    agent = FargateAgent(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        **kwarg_dict
+    )
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -1039,7 +1051,8 @@ def test_deploy_flow_register_task_definition_all_args(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", command],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__BACKEND", "value": backend},
+                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                 {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
@@ -1087,7 +1100,7 @@ def test_deploy_flow_register_task_definition_all_args(
     assert boto3_client.register_task_definition.call_args[1][
         "requiresCompatibilities"
     ] == ["FARGATE"]
-    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "test"
+    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
     assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
@@ -1107,7 +1120,6 @@ def test_deploy_flows_includes_agent_labels_in_environment(
     kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
-        "networkMode": "test",
         "volumes": "test",
         "placementConstraints": "test",
         "cpu": "1",
@@ -1175,7 +1187,8 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", "prefect execute flow-run"],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__BACKEND", "value": "cloud"},
+                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                 {
                     "name": "PREFECT__CLOUD__AGENT__LABELS",
                     "value": "['aws', 'staging']",
@@ -1201,7 +1214,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
     assert boto3_client.register_task_definition.call_args[1][
         "requiresCompatibilities"
     ] == ["FARGATE"]
-    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "test"
+    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
     assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
@@ -1279,7 +1292,8 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute flow-run"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                    {"name": "PREFECT__BACKEND", "value": "cloud"},
+                    {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
@@ -1297,6 +1311,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
             }
         ],
         family="name",
+        networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "PrefectFlowId", "value": "id"},
@@ -1656,7 +1671,8 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute flow-run"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                    {"name": "PREFECT__BACKEND", "value": "cloud"},
+                    {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                     {
                         "name": "PREFECT__CLOUD__AGENT__LABELS",
                         "value": "['aws', 'staging']",
@@ -1678,6 +1694,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         ],
         cpu="256",
         family="name",
+        networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
         tags=[
             {"key": "test", "value": "test"},

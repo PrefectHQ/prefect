@@ -189,7 +189,7 @@ class FlowRunner(Runner):
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
         task_runner_state_handlers: Iterable[Callable] = None,
-        executor: "prefect.engine.executors.Executor" = None,
+        executor: "prefect.executors.Executor" = None,
         context: Dict[str, Any] = None,
         task_contexts: Dict[Task, Dict[str, Any]] = None,
     ) -> State:
@@ -224,10 +224,13 @@ class FlowRunner(Runner):
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
 
         # make copies to avoid modifying user inputs
-        task_states = dict(task_states or {})
-        context = dict(context or {})
-        task_contexts = dict(task_contexts or {})
         parameters = dict(parameters or {})
+        task_states = dict(task_states or {})
+        task_contexts = dict(task_contexts or {})
+        # Default to global context, with provided context as override
+        run_context = dict(prefect.context)
+        run_context.update(context or {})
+
         if executor is None:
             # Use the executor on the flow, if configured
             executor = getattr(self.flow, "executor", None)
@@ -237,15 +240,15 @@ class FlowRunner(Runner):
         self.logger.debug("Using executor type %s", type(executor).__name__)
 
         try:
-            state, task_states, context, task_contexts = self.initialize_run(
+            state, task_states, run_context, task_contexts = self.initialize_run(
                 state=state,
                 task_states=task_states,
-                context=context,
+                context=run_context,
                 task_contexts=task_contexts,
                 parameters=parameters,
             )
 
-            with prefect.context(context):
+            with prefect.context(run_context):
                 state = self.check_flow_is_pending_or_running(state)
                 state = self.check_flow_reached_start_time(state)
                 state = self.set_flow_to_running(state)
@@ -266,7 +269,7 @@ class FlowRunner(Runner):
             self.logger.exception(
                 "Unexpected error while running flow: {}".format(repr(exc))
             )
-            if prefect.context.get("raise_on_exception"):
+            if run_context.get("raise_on_exception"):
                 raise exc
             new_state = Failed(
                 message="Unexpected error while running flow: {}".format(repr(exc)),
@@ -367,7 +370,7 @@ class FlowRunner(Runner):
         task_contexts: Dict[Task, Dict[str, Any]],
         return_tasks: Set[Task],
         task_runner_state_handlers: Iterable[Callable],
-        executor: "prefect.engine.executors.base.Executor",
+        executor: "prefect.executors.base.Executor",
     ) -> State:
         """
         Runs the flow.
@@ -426,6 +429,25 @@ class FlowRunner(Runner):
                     task, prefect.tasks.core.constants.Constant
                 ):
                     task_states[task] = task_state = Success(result=task.value)
+
+                # Always restart completed resource setup/cleanup tasks and
+                # secret tasks unless they were explicitly cached.
+                # TODO: we only need to rerun these tasks if any pending
+                # downstream tasks depend on them.
+                if (
+                    isinstance(
+                        task,
+                        (
+                            prefect.tasks.core.resource_manager.ResourceSetupTask,
+                            prefect.tasks.core.resource_manager.ResourceCleanupTask,
+                            prefect.tasks.secrets.SecretBase,
+                        ),
+                    )
+                    and task_state is not None
+                    and task_state.is_finished()
+                    and not task_state.is_cached()
+                ):
+                    task_states[task] = task_state = Pending()
 
                 # if the state is finished, don't run the task, just use the provided state if
                 # the state is cached / mapped, we still want to run the task runner pipeline
@@ -492,7 +514,7 @@ class FlowRunner(Runner):
                     )
 
                 # handle mapped tasks
-                if any([edge.mapped for edge in upstream_states.keys()]):
+                if any(edge.mapped for edge in upstream_states.keys()):
 
                     # wait on upstream states to determine the width of the pipeline
                     # this is the key to depth-first execution

@@ -4,11 +4,6 @@ import prefect
 from prefect.tasks.secrets import EnvVarSecret
 
 
-def test_create_envvarsecret_requires_name():
-    with pytest.raises(TypeError, match="required positional argument: 'name'"):
-        EnvVarSecret()
-
-
 def test_init_with_name():
     e = EnvVarSecret(name="FOO")
     assert e.name == "FOO"
@@ -35,6 +30,18 @@ def test_run_secret_with_new_name_at_runtime(monkeypatch):
     monkeypatch.setenv("FOO", "1")
     e = EnvVarSecret(name="FOO")
     assert e.run(name="BAR") is None
+
+
+def test_secret_name_set_at_runtime(monkeypatch):
+    monkeypatch.setenv("FOO", "1")
+    e = EnvVarSecret()
+    assert e.run("FOO") == "1"
+
+
+def test_secret_raises_if_no_name_provided():
+    e = EnvVarSecret()
+    with pytest.raises(ValueError, match="secret name must be provided"):
+        e.run()
 
 
 def test_run_secret_with_new_name_at_runtime_and_raise_missing(monkeypatch):

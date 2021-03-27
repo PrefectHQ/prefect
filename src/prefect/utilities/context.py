@@ -55,6 +55,7 @@ In addition, Prefect Cloud supplies some additional context variables:
 | `task_id` | the id of the current task |
 | `task_run_id` | the id of the current task run |
 | `task_run_version` | the state version of the current task run |
+| `resume` | boolean showing if the current task run was manually restarted |
 
 Users can also provide values to context at runtime. For more information, see
 the [Context concept
@@ -82,10 +83,14 @@ class Context(DotDict, threading.local):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        if "context" in config:
-            self.update(config.context)
-        self["config"] = merge_dicts(config, self.get("config", {}))  # order matters
+        init = {}
+        # Initialize with config context
+        init.update(config.get("context", {}))
+        # Overwrite with explicit args
+        init.update(dict(*args, **kwargs))
+        # Merge in config (with explicit args overwriting)
+        init["config"] = merge_dicts(config, init.get("config", {}))
+        super().__init__(init)
 
     def __getstate__(self) -> None:
         """
@@ -111,7 +116,8 @@ class Context(DotDict, threading.local):
             with prefect.context(dict(a=1, b=2), c=3):
                 print(prefect.context.a) # 1
         """
-        previous_context = self.copy()
+        # Avoid creating new `Context` object, copy as `dict` instead.
+        previous_context = self.__dict__.copy()
         try:
             new_context = dict(*args, **kwargs)
             if "config" in new_context:

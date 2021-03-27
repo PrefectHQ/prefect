@@ -3,11 +3,6 @@ from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 from typing import Any
 
-try:
-    from pushbullet import Pushbullet
-except ImportError:
-    pass
-
 
 class PushbulletTask(Task):
     """
@@ -39,6 +34,13 @@ class PushbulletTask(Task):
             - access_token (str): a Pushbullet access token, provided with a Prefect secret.
                 Defaults to the "PUSHBULLET_TOKEN" secret
         """
+        try:
+            from pushbullet import Pushbullet
+        except ImportError as exc:
+            raise ImportError(
+                "Using pushbullet tasks requires Prefect to be installed with the 'pushbullet' extra."
+            ) from exc
+
         if access_token is None:
             access_token = Secret("PUSHBULLET_TOKEN").get()
 

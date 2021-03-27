@@ -239,7 +239,6 @@ def flow_runs(name, flow_name, output):
                 "scheduled_start_time": True,
                 "start_time": True,
                 "end_time": True,
-                "duration": True,
                 "serialized_state": True,
             }
         }

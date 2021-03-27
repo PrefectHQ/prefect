@@ -1,8 +1,6 @@
 import pytest
 
-import prefect
 from prefect.tasks.gcp import GCSCopy
-from prefect.utilities.configuration import set_temporary_config
 
 
 class TestInitialization:
@@ -13,6 +11,7 @@ class TestInitialization:
         assert task.dest_bucket is None
         assert task.dest_blob is None
         assert task.project is None
+        assert task.request_timeout == 60
 
     def test_additional_kwargs_passed_upstream(self):
         task = GCSCopy(name="test-task", checkpoint=True, tags=["bob"])
@@ -28,6 +27,7 @@ class TestInitialization:
             "dest_bucket",
             "dest_blob",
             "project",
+            "request_timeout",
         ],
     )
     def test_initializes_attr_from_kwargs(self, attr):

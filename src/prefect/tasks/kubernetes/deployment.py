@@ -91,7 +91,7 @@ class CreateNamespacedDeployment(Task):
             )
 
         api_client = cast(
-            client.ExtensionsV1beta1Api,
+            client.AppsV1Api,
             get_kubernetes_client("deployment", kubernetes_api_key_secret),
         )
 
@@ -187,7 +187,7 @@ class DeleteNamespacedDeployment(Task):
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
         api_client = cast(
-            client.ExtensionsV1beta1Api,
+            client.AppsV1Api,
             get_kubernetes_client("deployment", kubernetes_api_key_secret),
         )
 
@@ -273,7 +273,7 @@ class ListNamespacedDeployment(Task):
                 of the deployments which are found
         """
         api_client = cast(
-            client.ExtensionsV1beta1Api,
+            client.AppsV1Api,
             get_kubernetes_client("deployment", kubernetes_api_key_secret),
         )
 
@@ -379,7 +379,7 @@ class PatchNamespacedDeployment(Task):
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
         api_client = cast(
-            client.ExtensionsV1beta1Api,
+            client.AppsV1Api,
             get_kubernetes_client("deployment", kubernetes_api_key_secret),
         )
 
@@ -475,7 +475,7 @@ class ReadNamespacedDeployment(Task):
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
         api_client = cast(
-            client.ExtensionsV1beta1Api,
+            client.AppsV1Api,
             get_kubernetes_client("deployment", kubernetes_api_key_secret),
         )
 
@@ -583,7 +583,7 @@ class ReplaceNamespacedDeployment(Task):
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
         api_client = cast(
-            client.ExtensionsV1beta1Api,
+            client.AppsV1Api,
             get_kubernetes_client("deployment", kubernetes_api_key_secret),
         )
 

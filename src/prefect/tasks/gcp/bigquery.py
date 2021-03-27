@@ -5,7 +5,7 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from prefect.core import Task
-from prefect.engine.signals import SUCCESS
+from prefect.engine.signals import SUCCESS, FAIL
 from prefect.utilities.gcp import get_bigquery_client
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -379,8 +379,20 @@ class BigQueryLoadGoogleCloudStorage(Task):
         job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
         if schema:
             job_config.schema = schema
-        load_job = client.load_table_from_uri(uri, table_ref, job_config=job_config)
-        load_job.result()  # block until job is finished
+        try:
+            load_job = client.load_table_from_uri(
+                uri,
+                table_ref,
+                location=location,
+                job_config=job_config,
+            ).result()  # block until job is finished
+        except Exception as exception:
+            for error in load_job.errors:
+                self.logger(error)
+            raise FAIL(exception) from exception
+        # remove unpickleable attributes
+        load_job._client = None
+        load_job._completion_lock = None
 
         return load_job
 
@@ -503,8 +515,10 @@ class BigQueryLoadFile(Task):
             raise ValueError("Both dataset_id and table must be provided.")
         try:
             path = Path(file)
-        except Exception:
-            raise ValueError("A string or path-like object must be provided.")
+        except Exception as value_error:
+            raise ValueError(
+                "A string or path-like object must be provided."
+            ) from value_error
         if not path.is_file():
             raise ValueError(f"File {path.as_posix()} does not exist.")
 
@@ -529,12 +543,17 @@ class BigQueryLoadFile(Task):
                     rewind,
                     size,
                     num_retries,
+                    location=location,
                     job_config=job_config,
                 )
-        except IOError:
-            raise IOError(f"Can't open and read from {path.as_posix()}.")
+        except IOError as IO_error:
+            raise IOError(f"Can't open and read from {path.as_posix()}.") from IO_error
 
         load_job.result()  # block until job is finished
+
+        # remove unpickleable attributes
+        load_job._client = None
+        load_job._completion_lock = None
 
         return load_job
 

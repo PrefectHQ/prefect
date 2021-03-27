@@ -48,8 +48,10 @@ class SpacyNLP(Task):
                     disable=self.disable,
                     component_cfg=self.component_cfg,
                 )
-            except IOError:
-                raise ValueError("spaCy model %s not found." % spacy_model_name)
+            except IOError as exc:
+                raise ValueError(
+                    "spaCy model %s not found." % spacy_model_name
+                ) from exc
 
         super().__init__(**kwargs)
 

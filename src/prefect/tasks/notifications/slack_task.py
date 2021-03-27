@@ -31,8 +31,13 @@ class SlackTask(Task):
         self.webhook_secret = webhook_secret
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("message")
-    def run(self, message: Union[str, dict] = None) -> None:
+    @defaults_from_attrs("message", "webhook_secret")
+    def run(
+        self,
+        message: Union[str, dict] = None,
+        webhook_secret: str = None,
+        webhook_url: str = None,
+    ) -> None:
         """
         Run method which sends a Slack message.
 
@@ -40,6 +45,11 @@ class SlackTask(Task):
             - message (Union[str,dict], optional): the message to send as either a dictionary
                 or a plain string; if not provided here, will use the value provided at
                 initialization
+            - webhook_secret (str, optional): the name of the Prefect Secret which stores your
+                slack webhook URL; defaults to `"SLACK_WEBHOOK_URL"`; if not provided here,
+                will use the value provided at initialization
+            - webhook_url (str, optional): the value of a Slack webhook URL that is returned from an
+                upstream `PrefectSecret` task. If specified then the `webhook_secret` will not be used.
 
         Returns:
             - None
@@ -48,7 +58,7 @@ class SlackTask(Task):
         # the 'import prefect' time low
         import requests
 
-        webhook_url = cast(str, Secret(self.webhook_secret).get())
+        webhook_url = webhook_url or cast(str, Secret(webhook_secret).get())
         r = requests.post(
             webhook_url,
             json=message if isinstance(message, dict) else {"text": message},

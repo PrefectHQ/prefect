@@ -1,7 +1,7 @@
 from prefect import Flow, Parameter
-from prefect.tasks.great_expectations import RunGreatExpectationsCheckpoint
+from prefect.tasks.great_expectations import RunGreatExpectationsValidation
 
-ge_task = RunGreatExpectationsCheckpoint()
+ge_task = RunGreatExpectationsValidation()
 
 with Flow("great expectations example flow") as flow:
     checkpoint_name = Parameter("checkpoint_name")
