@@ -663,25 +663,26 @@ class DatabricksRunNow(Task):
         ), "`databricks_conn_secret` must be supplied as a valid dictionary."
         self.databricks_conn_secret = databricks_conn_secret
 
-        if json:
-            self.json = json
-
         # Initialize Databricks Connections
         hook = self.get_hook()
 
-        if self.job_id is not None:
-            self.json["job_id"] = self.job_id
-        if self.notebook_params is not None:
-            self.json["notebook_params"] = self.notebook_params
-        if self.python_params is not None:
-            self.json["python_params"] = self.python_params
-        if self.spark_submit_params is not None:
-            self.json["spark_submit_params"] = self.spark_submit_params
-        if self.jar_params is not None:
-            self.json["jar_params"] = self.jar_params
+        run_now_json = json or {}
+
+        if job_id is not None:
+            run_now_json["job_id"] = job_id
+        if notebook_params is not None:
+            merged = run_now_json.setdefault("notebook_params", {})
+            merged.update(notebook_params)
+            run_now_json["notebook_params"] = merged
+        if python_params is not None:
+            run_now_json["python_params"] = python_params
+        if spark_submit_params is not None:
+            run_now_json["spark_submit_params"] = spark_submit_params
+        if jar_params is not None:
+            run_now_json["jar_params"] = jar_params
 
         # Validate the dictionary to a valid JSON object
-        self.json = _deep_string_coerce(self.json)
+        self.json = _deep_string_coerce(run_now_json)
 
         # Submit the job
         self.run_id = hook.run_now(self.json)
