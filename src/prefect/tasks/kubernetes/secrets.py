@@ -81,7 +81,7 @@ class KubernetesSecret(SecretBase):
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         cast_function: Callable[[Any], Any] = None,
         raise_if_missing: bool = False,
-    ) -> Any:
+    ):
         """
         Returns the value of an kubenetes secret after applying an optional `cast` function.
 
