@@ -80,7 +80,7 @@ extras = {
     "twitter": ["tweepy >= 3.5, < 4.0"],
     "dremio": ["pyarrow>=0.15.1"],
     "exasol": ["pyexasol >= 0.16.1"],
-    "sodasql": ["soda-sql >= 2.0.0b25"]
+    "sodasql": ["soda-sql >= 2.0.0b25"],
 }
 
 
