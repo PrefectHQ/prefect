@@ -1,6 +1,5 @@
 """
-This module contains a collection of tasks for interacting with snowflake databases via
-the snowflake-connector-python library.
+This module contains a collection of tasks to run Data Quality tests using soda-sql library
 """
 
 try:

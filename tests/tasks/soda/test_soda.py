@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 from prefect.tasks.soda import SodaSQLScan
@@ -23,18 +25,30 @@ class TestSodaSQLScan:
         with pytest.raises(ValueError):
             soda_sql_scan_task.run()
 
-    def test_run_non_existing_scan_file_and_non_existing_warehouse_file(self):
+    def test_run_non_existing_scan_file_and_non_existing_warehouse_file(
+        self, monkeypatch
+    ):
         non_existing_scan_file = "/foo/scan.yml"
         non_existing_warehouse_file = "/foo/warehouse.yml"
+        sb_mock = MagicMock()
+        sb_mock.side_effect = AttributeError
+        monkeypatch.setattr(
+            "prefect.tasks.soda.soda.ScanBuilder", sb_mock
+        )
         soda_sql_scan_task = SodaSQLScan(
             scan_def=non_existing_scan_file, warehouse_def=non_existing_warehouse_file
         )
         with pytest.raises(AttributeError):
             soda_sql_scan_task.run()
 
-    def test_run_invalid_scan_dict_and_invalid_warehouse_dict(self):
+    def test_run_invalid_scan_dict_and_invalid_warehouse_dict(self, monkeypatch):
         invalid_scan_dict = {"foo": "test"}
         invalid_warehouse_dict = {"foo": "test"}
+        sb_mock = MagicMock()
+        sb_mock.side_effect = AssertionError
+        monkeypatch.setattr(
+            "prefect.tasks.soda.soda.ScanBuilder", sb_mock
+        )
         soda_sql_scan_task = SodaSQLScan(
             scan_def=invalid_scan_dict, warehouse_def=invalid_warehouse_dict
         )
