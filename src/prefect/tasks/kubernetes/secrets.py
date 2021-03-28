@@ -81,7 +81,7 @@ class KubernetesSecret(SecretBase):
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         cast_function: Callable[[Any], Any] = None,
         raise_if_missing: bool = False,
-    ) -> None:
+    ) -> Any:
         """
         Returns the value of an kubenetes secret after applying an optional `cast` function.
 
@@ -97,9 +97,6 @@ class KubernetesSecret(SecretBase):
             - cast_function (Callable[[Any], Any]): A function that will be called on the Parameter
                 value to coerce it to a type.
             - raise_if_missing (bool): if True, an error will be raised if the env var is not found.
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
-
         Returns:
             - Any: the (optionally type-cast) value of the Kubenetes secret
 
