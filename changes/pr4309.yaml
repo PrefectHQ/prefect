@@ -1,0 +1,5 @@
+fix:
+  - "Fix `DatabricksRunNow` task attribute override behavior - [#4309](https://github.com/PrefectHQ/prefect/pull/4309)"
+
+contributor:
+  - "[Greg Lu](https://github.com/greglu)"
