@@ -62,12 +62,14 @@ class SodaSQLScan(Task):
         if scan_def is None:
             raise ValueError(
                 "Scan definition cannot be None. \
-                Please provide either a path to a scan definition file or a scan definition dictionary"
+                Please provide either a path to a scan definition \
+                file or a scan definition dictionary"
             )
         if warehouse_def is None:
             raise ValueError(
                 "Warehouse definition cannot be None. \
-                Please provide either a path to a warehouse definition file or a warehouse definition dictionary"
+                Please provide either a path to a warehouse definition \
+                file or a warehouse definition dictionary"
             )
         scan_builder = self._get_scan_builder(
             scan_def=scan_def, warehouse_def=warehouse_def
