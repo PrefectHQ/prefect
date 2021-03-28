@@ -69,8 +69,6 @@ class KubernetesSecret(SecretBase):
         "namespace",
         "kube_kwargs",
         "kubernetes_api_key_secret",
-        "cast_function",
-        "raise_if_missing",
     )
     def run(
         self,
@@ -79,8 +77,6 @@ class KubernetesSecret(SecretBase):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        cast_function: Callable[[Any], Any] = None,
-        raise_if_missing: bool = False,
     ):
         """
         Returns the value of an kubenetes secret after applying an optional `cast` function.
@@ -94,11 +90,6 @@ class KubernetesSecret(SecretBase):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - cast_function (Callable[[Any], Any]): A function that will be called on the Parameter
-                value to coerce it to a type.
-            - raise_if_missing (bool): if True, an error will be raised if the env var is not found.
-        Returns:
-            - Any: the (optionally type-cast) value of the Kubenetes secret
 
         Raises:
             - ValueError: if `raise_is_missing` is `True` and the kubernetes secret was not found.
@@ -120,7 +111,7 @@ class KubernetesSecret(SecretBase):
         ).data
 
         if secret_key not in secret_data:
-            if raise_if_missing:
+            if self.raise_if_missing:
                 raise ValueError(f"Cannot find the key {secret_key} in {secret_name} ")
             else:
                 return None
@@ -128,5 +119,7 @@ class KubernetesSecret(SecretBase):
         decoded_secret = base64.b64decode(secret_data[secret_key]).decode("utf8")
 
         return (
-            decoded_secret if cast_function is None else cast_function(decoded_secret)
+            decoded_secret
+            if self.cast_function is None
+            else self.cast_function(decoded_secret)
         )
