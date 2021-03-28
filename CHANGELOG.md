@@ -28,6 +28,7 @@ Released on March 24, 2021.
 - Improve error message when a loaded flow doesn't match the version stored in Prefect Cloud/Server - [#4259](https://github.com/PrefectHQ/prefect/pull/4259)
 - Support setting flow run labels from cli - [#4266](https://github.com/PrefectHQ/prefect/pull/4266)
 - Support setting default `image` in `--job-template`/`--task-definition` in Kubernetes/ECS agents - [#4270](https://github.com/PrefectHQ/prefect/pull/4270)
+- Allow the terminal flow state handler to be overridden  - [#4198](https://github.com/PrefectHQ/prefect/issues/4198)
 
 ### Task Library
 
