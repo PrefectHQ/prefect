@@ -3252,3 +3252,16 @@ class TestSlugGeneration:
             flow.add_task(a2)
 
         assert flow.slugs == {a1: "a-1", a2: "a-2"}
+
+
+def test_terminal_state_handler_determines_final_state():
+    def fake_terminal_state_handler(state: State) -> State:
+        state.message = "Custom message here"
+        return state
+
+    with Flow("test", terminal_state_handler=fake_terminal_state_handler) as flow:
+        fake_task = Task("fake")
+        flow.add_task(fake_task)
+
+    assert flow.terminal_state_handler == fake_terminal_state_handler
+    assert flow.run().message == "Custom message here"
