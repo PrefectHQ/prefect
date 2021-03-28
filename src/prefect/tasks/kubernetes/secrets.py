@@ -14,8 +14,8 @@ class KubernetesSecret(SecretBase):
     Task for creating a Prefect secret from the kubernetes secret.
 
     This task will read the secret object from kubernetes and extract the value of the secret_key
-    and decode it. The kubernetes secret can be created by sealedsecret or vault and read here. 
-    
+    and decode it. The kubernetes secret can be created by sealedsecret or vault and read here.
+
     Note that you need to ensure that you have the right RBAC from your cluster admin to read the secret
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
@@ -38,7 +38,7 @@ class KubernetesSecret(SecretBase):
             BearerToken format
         - cast_function (Callable[[Any], Any]): A function that will be called on the Parameter
             value to coerce it to a type.
-        - raise_if_missing (bool): if True, an error will be raised if the env var is not found.            
+        - raise_if_missing (bool): if True, an error will be raised if the env var is not found.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
@@ -96,7 +96,7 @@ class KubernetesSecret(SecretBase):
                 BearerToken format
             - cast_function (Callable[[Any], Any]): A function that will be called on the Parameter
                 value to coerce it to a type.
-            - raise_if_missing (bool): if True, an error will be raised if the env var is not found.            
+            - raise_if_missing (bool): if True, an error will be raised if the env var is not found.
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task
                 constructor
 

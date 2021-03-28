@@ -12,7 +12,7 @@ def kube_secret():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
             yield
-            
+
 
 @pytest.fixture
 def client_read_namespaced_secret(monkeypatch):
