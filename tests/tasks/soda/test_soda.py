@@ -8,8 +8,7 @@ class TestSodaSQLScan:
         expected_scan_def = "/foo/scan.yml"
         expected_warehouse_def = "/foo/warehouse.yml"
         soda_sql_scan_task = SodaSQLScan(
-            scan_def="/foo/scan.yml",
-            warehouse_def="/foo/warehouse.yml"
+            scan_def="/foo/scan.yml", warehouse_def="/foo/warehouse.yml"
         )
         assert soda_sql_scan_task.scan_def == expected_scan_def
         assert soda_sql_scan_task.warehouse_def == expected_warehouse_def
@@ -28,8 +27,7 @@ class TestSodaSQLScan:
         non_existing_scan_file = "/foo/scan.yml"
         non_existing_warehouse_file = "/foo/warehouse.yml"
         soda_sql_scan_task = SodaSQLScan(
-            scan_def=non_existing_scan_file,
-            warehouse_def=non_existing_warehouse_file
+            scan_def=non_existing_scan_file, warehouse_def=non_existing_warehouse_file
         )
         with pytest.raises(AttributeError):
             soda_sql_scan_task.run()
@@ -38,8 +36,7 @@ class TestSodaSQLScan:
         invalid_scan_dict = {"foo": "test"}
         invalid_warehouse_dict = {"foo": "test"}
         soda_sql_scan_task = SodaSQLScan(
-            scan_def=invalid_scan_dict,
-            warehouse_def=invalid_warehouse_dict
+            scan_def=invalid_scan_dict, warehouse_def=invalid_warehouse_dict
         )
         with pytest.raises(AssertionError):
             soda_sql_scan_task.run()

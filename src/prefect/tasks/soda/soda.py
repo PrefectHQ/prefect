@@ -30,10 +30,10 @@ class SodaSQLScan(Task):
         super().__init__(**kwargs)
 
     @classmethod
-    def _get_scan_builder(cls, scan_def: Union[Dict, str], warehouse_def: Union[Dict, str]) -> ScanBuilder:
-        """
-
-        """
+    def _get_scan_builder(
+        cls, scan_def: Union[Dict, str], warehouse_def: Union[Dict, str]
+    ) -> ScanBuilder:
+        """"""
         scan_builder = ScanBuilder()
 
         if isinstance(scan_def, str):
@@ -69,7 +69,9 @@ class SodaSQLScan(Task):
                 "Warehouse definition cannot be None. \
                 Please provide either a path to a warehouse definition file or a warehouse definition dictionary"
             )
-        scan_builder = self._get_scan_builder(scan_def=scan_def, warehouse_def=warehouse_def)
+        scan_builder = self._get_scan_builder(
+            scan_def=scan_def, warehouse_def=warehouse_def
+        )
         scan = scan_builder.build()
         result = scan.execute()
         return result
