@@ -1,0 +1,6 @@
+task:
+  - "Add first basic implementation of Soda SQL Scan task"
+  - "This task can be used to run DQ tests using [soda-sql](https://github.com/sodadata/soda-sql) library"
+
+contributor:
+  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
