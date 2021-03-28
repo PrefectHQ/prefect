@@ -143,7 +143,8 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
-        -  terminal_state_handler (Callable, optional): A state handler that mutates the final state of the flow, with signature `state_handler(state: State) -> State`
+        -  terminal_state_handler (Callable, optional): A state handler that mutates the final state
+            of the flow, with signature `state_handler(state: State) -> State`
     """
 
     def __init__(
