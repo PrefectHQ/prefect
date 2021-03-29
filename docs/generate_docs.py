@@ -14,13 +14,17 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
 
 On a development installation of Prefect, run `python generate_docs.py` from inside the `docs/` folder.
 """
+import ast
 import builtins
+import glob
 import html
 import importlib
 import inspect
 import os
 import re
 import shutil
+import subprocess
+import sys
 import textwrap
 from contextlib import contextmanager
 from functools import partial
@@ -35,6 +39,10 @@ from tokenizer import format_code
 
 OUTLINE_PATH = os.path.join(os.path.dirname(__file__), "outline.toml")
 outline_config = toml.load(OUTLINE_PATH)
+
+EXAMPLES_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "examples")
+)
 
 
 @contextmanager
@@ -233,7 +241,6 @@ def create_commands_table(commands):
 
 
 def format_command_doc(name, ctx, cmd):
-    table = f"### {name}\n"
     help_text = cmd.get_help(ctx).split("\n", 2)[2]
     # CLI commands with handwritten help sections will
     # contain two `Options` sections, drop one.
@@ -351,6 +358,51 @@ def get_class_methods(obj, methods=None):
         return [getattr(obj, m) for m in methods]
 
 
+EXAMPLE_TEMPLATE = """{header}
+
+```python
+{source}
+```
+
+**Output**
+```
+{output}
+```
+
+*This example can be found [here](https://github.com/PrefectHQ/prefect/tree/master/examples/{filename}.py).*
+"""
+
+
+def render_example(path, filename):
+    with open(path, "r", encoding="utf-8") as f:
+        contents = f.read()
+
+    tree = ast.parse(contents)
+    try:
+        header = tree.body[0].value.value.strip()
+        assert isinstance(header, str)
+        offset = tree.body[0].end_lineno
+    except Exception:
+        raise ValueError(f"No docstring header found for example at {path}") from None
+
+    source = "\n".join(contents.splitlines()[offset:]).strip()
+
+    res = subprocess.run([sys.executable, path], capture_output=True, check=True)
+    output = res.stdout.decode("utf-8")
+
+    return EXAMPLE_TEMPLATE.format(
+        header=header, source=source, output=output, filename=filename
+    ).encode("utf-8")
+
+
+def generate_examples():
+    for path in glob.glob(os.path.join(EXAMPLES_DIR, "*.py")):
+        filename = os.path.splitext(os.path.basename(path))[0]
+        output = render_example(path, filename)
+        with open(os.path.join("core", "examples", filename + ".md"), "wb") as f:
+            f.write(output)
+
+
 def create_tutorial_notebooks(tutorial):
     """
     Utility that automagically creates an .ipynb notebook file from a markdown file consisting
@@ -464,6 +516,9 @@ if __name__ == "__main__":
                 changelog = g.read()
                 f.write(changelog)
                 f.write(auto_generated_footer)
+
+        # Generate examples
+        generate_examples()
 
         for page in OUTLINE:
             # collect what to document
