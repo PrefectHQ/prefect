@@ -180,7 +180,7 @@ jobs:
 
       - run:
           name: Install graphviz
-          command: apt-get update && apt-get install -y graphviz
+          command: apt-get update && apt-get install -y graphviz && apt-get install -y unixodbc-dev
 
       - run:
           name: Upgrade pip
