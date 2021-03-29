@@ -1,5 +1,6 @@
 import collections
 import datetime
+import logging
 import queue
 import random
 import time
@@ -1322,6 +1323,67 @@ class TestContext:
 
         output = res.result[return_ctx_key].result
         assert isinstance(output, datetime.datetime)
+
+    @pytest.mark.parametrize("as_string", [True, False])
+    def test_context_derives_dates_from_custom_date(self, as_string):
+        @prefect.task
+        def return_ctx():
+            return prefect.context.copy()
+
+        custom_date = pendulum.now().add(months=1)
+
+        f = Flow(name="test", tasks=[return_ctx])
+        with prefect.context(
+            {"date": custom_date.to_datetime_string() if as_string else custom_date}
+        ):
+            res = f.run()
+
+        assert res.is_successful()
+
+        context = res.result[return_ctx].result
+
+        # Ensure the string is converted to a datetime object
+        assert isinstance(context["date"], pendulum.DateTime)
+
+        # Ensure dependent variables use the custom date
+        assert context["yesterday"] == custom_date.add(days=-1).strftime("%Y-%m-%d")
+        assert context["tomorrow"] == custom_date.add(days=1).strftime("%Y-%m-%d")
+        assert context["today_nodash"] == custom_date.strftime("%Y%m%d")
+        assert context["yesterday_nodash"] == custom_date.add(days=-1).strftime(
+            "%Y%m%d"
+        )
+        assert context["tomorrow_nodash"] == custom_date.add(days=1).strftime("%Y%m%d")
+
+    def test_context_warns_on_unparsable_custom_date(self, caplog, monkeypatch):
+
+        now = pendulum.now()
+        monkeypatch.setattr("pendulum.now", MagicMock(return_value=now))
+
+        caplog.set_level(logging.WARNING)
+
+        @prefect.task
+        def return_ctx_key():
+            return prefect.context.get("tomorrow")
+
+        f = Flow(name="test", tasks=[return_ctx_key])
+        with prefect.context({"date": "foobar"}):
+            res = f.run()
+
+        assert res.is_successful()
+
+        found_log = False
+        for record in caplog.records:
+            if (
+                record.levelno == logging.WARNING
+                and "could not be parsed into a pendulum `DateTime` object"
+                in record.message
+            ):
+                found_log = True
+        assert found_log
+
+        # Uses `now` to determine tomorrow
+        output = res.result[return_ctx_key].result
+        assert output == now.add(days=1).strftime("%Y-%m-%d")
 
     @pytest.mark.parametrize(
         "outer_context, inner_context, sol",
