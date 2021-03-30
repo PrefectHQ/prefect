@@ -20,6 +20,7 @@ import glob
 import html
 import importlib
 import inspect
+import json
 import os
 import re
 import shutil
@@ -40,9 +41,7 @@ from tokenizer import format_code
 OUTLINE_PATH = os.path.join(os.path.dirname(__file__), "outline.toml")
 outline_config = toml.load(OUTLINE_PATH)
 
-EXAMPLES_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "examples")
-)
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 @contextmanager
@@ -358,7 +357,23 @@ def get_class_methods(obj, methods=None):
         return [getattr(obj, m) for m in methods]
 
 
-EXAMPLE_TEMPLATE = """{header}
+EXAMPLE_TEMPLATE = """
+---
+editLink: false
+---
+
+{header}
+
+::: tip Registering with Cloud/Server
+
+This example can be registered in Prefect Cloud or Server by running:
+
+```
+{register_cmd}
+```
+
+(to register in a different project, replace `'Prefect Examples'` with your project name).
+:::
 
 ```python
 {source}
@@ -366,14 +381,31 @@ EXAMPLE_TEMPLATE = """{header}
 
 **Output**
 ```
+$ python {relpath}
 {output}
 ```
 
-*This example can be found [here](https://github.com/PrefectHQ/prefect/tree/master/examples/{filename}.py).*
+*The flow source is available on GitHub [here](https://github.com/PrefectHQ/prefect/blob/{ref}/{relpath}).*
 """
 
 
-def render_example(path, filename):
+def build_example(path):
+    """Build an example located at a specific path.
+
+    Args:
+        - path (str): the path to the example source file.
+
+    Returns:
+        - markdown (str): the rendered example in markdown
+        - flows (Dict[str, Flow]): the flows found in the example
+    """
+    from prefect import Flow
+    from prefect.storage import GitHub
+    from prefect.run_configs import UniversalRun
+
+    # Use the current commit (if specified in the environment)
+    ref = os.getenv("GIT_SHA", "master")
+
     with open(path, "r", encoding="utf-8") as f:
         contents = f.read()
 
@@ -385,22 +417,63 @@ def render_example(path, filename):
     except Exception:
         raise ValueError(f"No docstring header found for example at {path}") from None
 
+    namespace = {}
+    exec(contents, namespace)
+    flows = {}
+    relpath = os.path.relpath(path, start=ROOT)
+    for f in namespace.values():
+        if isinstance(f, Flow):
+            f.storage = GitHub("PrefectHQ/prefect", path=relpath, ref=ref)
+            if not f.run_config:
+                f.run_config = UniversalRun()
+            f.run_config.labels.add("prefect-examples")
+            flows[f.name] = f.serialize()
+
     source = "\n".join(contents.splitlines()[offset:]).strip()
 
     res = subprocess.run([sys.executable, path], capture_output=True, check=True)
-    output = res.stdout.decode("utf-8")
+    output = res.stdout.decode("utf-8").strip()
 
-    return EXAMPLE_TEMPLATE.format(
-        header=header, source=source, output=output, filename=filename
-    ).encode("utf-8")
+    names_flags = " ".join(f"-n {n!r}" for n in sorted(flows))
+    register_cmd = (
+        f"prefect register --json https://docs.prefect.io/examples.json \\\n"
+        f"      {names_flags} \\\n"
+        f"      --project 'Prefect Examples'"
+    )
+
+    rendered = EXAMPLE_TEMPLATE.format(
+        header=header,
+        source=source,
+        output=output,
+        ref=ref,
+        relpath=relpath,
+        register_cmd=register_cmd,
+    ).strip()
+
+    return rendered, flows
 
 
-def generate_examples():
-    for path in glob.glob(os.path.join(EXAMPLES_DIR, "*.py")):
+def process_examples(footer=""):
+    """Build and render all examples found in the `examples/` directory"""
+    flows = {}
+    for path in glob.glob(os.path.join(ROOT, "examples", "*.py")):
         filename = os.path.splitext(os.path.basename(path))[0]
-        output = render_example(path, filename)
-        with open(os.path.join("core", "examples", filename + ".md"), "wb") as f:
+        output, new_flows = build_example(path)
+        conflicts = set(flows).intersection(new_flows)
+        if conflicts:
+            raise ValueError(
+                "Example flows must have unique names, found duplicate flows: {conflicts}"
+            )
+        flows.update(new_flows)
+        with open(
+            os.path.join("core", "examples", filename + ".md"), "w", encoding="utf-8"
+        ) as f:
             f.write(output)
+            f.write(footer)
+
+    flows = [flows[k] for k in sorted(flows)]
+    with open(os.path.join(".vuepress", "public", "examples.json"), "wb") as f:
+        f.write(json.dumps({"version": 1, "flows": flows}).encode("utf-8"))
 
 
 def create_tutorial_notebooks(tutorial):
@@ -518,7 +591,7 @@ if __name__ == "__main__":
                 f.write(auto_generated_footer)
 
         # Generate examples
-        generate_examples()
+        process_examples(auto_generated_footer)
 
         for page in OUTLINE:
             # collect what to document

@@ -2,6 +2,20 @@
 # Parameters
 
 This example demonstrates the use of parameters in flows.
+
+A `Parameter` is a special type of `Task` representing an input that can vary
+per flow run. For example:
+
+```python
+x = Parameter("x", default=1)
+```
+
+Parameters have a name (`"x"` in this case), and may optionally include a
+default value. Parameters lacking a default value require an explicit value be
+configured for each flow run. Parameters with a default value may use the
+default, or optionally provide a different value at runtime.
+
+For more information, see the [Parameter docs](/core/concepts/parameters.md).
 """
 
 from prefect import Flow, Parameter, task
@@ -26,5 +40,5 @@ if __name__ == "__main__":
 
     # One or more parameters can be specified at runtime through the use of the
     # `parameters` argument. Here we set `x` to 8 and `y` to 9.
-    print("Running with `x = 8` and `y = 9`")
+    print("\nRunning with `x = 8` and `y = 9`")
     flow.run(parameters={"x": 8, "y": 9})
