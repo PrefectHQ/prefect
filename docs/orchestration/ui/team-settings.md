@@ -26,7 +26,7 @@ Manage your team's projects. Projects are used to organize flows.
 
 Generate and manage service accounts and their API keys for interacting programmatically with the Prefect Cloud API.
 
-![](/orchestration/ui/team-api-tokens.png)
+![](/orchestration/ui/service-accounts.png)
 
 ## Secrets
 
