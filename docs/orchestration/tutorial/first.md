@@ -113,7 +113,7 @@ tutorial.
 
 ::: tip Service Account API Key <Badge text="Cloud"/>
 If you're using Prefect Cloud, the Local Agent will need access to the Service Account's API Key [you created
-earlier](/orchestration/tutorial/overview.html#create-a-runner-token).
+earlier](/orchestration/tutorial/overview.html#create-a-service-account-key).
 :::
 
 ## Execute a Flow Run

@@ -74,7 +74,7 @@ client = prefect.Client()
 assert client._api_token == "YOUR_USER_KEY"  # True
 ```
 
-Note that a token can be provided by environment variable (`PREFECT__CLOUD__AUTH_TOKEN`) or in your Prefect config (under `cloud.auth_token`).
+Note that a key can be provided by environment variable (`PREFECT__CLOUD__AUTH_TOKEN`) or in your Prefect config (under `cloud.auth_token`).
 
 Once provisioned with a user-based API key, the Cloud Client can query for available tenants and login to those tenants. In order to query for tenants, call:
 
@@ -142,7 +142,7 @@ client.graphql(
 )
 ```
 
-To use `TENANT`-scoped tokens in programmatic requests, include the token as the authorization header of your GraphQL requests:
+To use `TENANT`-scoped keys in programmatic requests, include the key as the authorization header of your GraphQL requests:
 
 ```json
 { "authorization": "Bearer YOUR_KEY" }

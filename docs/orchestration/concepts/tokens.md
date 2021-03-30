@@ -1,6 +1,6 @@
-# Tokens <Badge text="Cloud"/>
+# Keys <Badge text="Cloud"/>
 
-## Token Types
+## Key Types
 
 ### User
 
@@ -28,7 +28,7 @@ After you click create you will be prompted with the key which you can copy and 
 
 ### CLI
 
-To create a token with the CLI run the `create-token` command with the desired token name and scope. For more information on how to use the CLI go [here](cli.html).
+To create a key with the CLI run the `create-token` command with the desired key name and scope. For more information on how to use the CLI go [here](cli.html).
 
 ```
 $ prefect auth create-token -n my-runner-token -s RUNNER
@@ -50,21 +50,21 @@ mutation {
 
 ### UI
 
-To revoke a token in the UI navigate to Team Settings -> Service Accounts. On your list of API keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
+To revoke a key in the UI navigate to Team Settings -> Service Accounts. On your list of API keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
 
 ![token delete](/token_delete.png)
 
 ### CLI
 
-To revoke a key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find a key's ID look under [Querying for Key Information](tokens.html#querying-for-token-information).
+To revoke a key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find a key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
 
 ```
-$ prefect auth revoke-token -i $MY_TOKEN_ID
+$ prefect auth revoke-token -i $MY_KEY_ID
 ```
 
 ### GraphQL
 
-To revoke a key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find a key's ID look under [Querying for Key Information](tokens.html#querying-for-token-information).
+To revoke a key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find a key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
 
 ```graphql
 mutation {
