@@ -342,6 +342,7 @@ module.exports = {
             'examples/overview',
             'examples/parameters',
             'examples/mapping',
+            'examples/conditional'
           ]
         },
         {

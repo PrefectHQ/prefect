@@ -364,7 +364,7 @@ editLink: false
 
 {header}
 
-::: tip Registering with Cloud/Server
+::: tip Registering with Prefect Cloud/Server
 
 This example can be registered in Prefect Cloud or Server by running:
 
@@ -379,11 +379,12 @@ This example can be registered in Prefect Cloud or Server by running:
 {source}
 ```
 
-**Output**
+::: details Output
 ```
 $ python {relpath}
 {output}
 ```
+:::
 
 *The flow source is available on GitHub [here](https://github.com/PrefectHQ/prefect/blob/{ref}/{relpath}).*
 """
@@ -448,7 +449,7 @@ def build_example(path):
         ref=ref,
         relpath=relpath,
         register_cmd=register_cmd,
-    ).strip()
+    ).lstrip()
 
     return rendered, flows
 
