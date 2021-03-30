@@ -23,7 +23,6 @@ commands:
             docker tag prefecthq/${IMAGE_NAME}:latest prefecthq/${IMAGE_NAME}:${VERSION}
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/${IMAGE_NAME}:${VERSION}
-
 jobs:
   # ----------------------------------
   # Check formatting
@@ -66,10 +65,8 @@ jobs:
           name: Ensure 'import prefect' is under 1 second
           command: |
             apt update && apt install jq bc -y
-
             # generate pycache
             python -c 'import prefect'
-
             if [[ $(echo "$(profimp 'import prefect'  | jq '.duration' | tee .import-time.txt ) < 1000" | bc -l) -ne 1 ]]; then
               echo "Prefect import time is too slow"
               cat .import-time.txt
@@ -78,7 +75,6 @@ jobs:
               echo "Prefect import time (ms):"
               cat .import-time.txt
             fi
-
   check_documentation:
     docker:
       - image: python:3.7
@@ -180,7 +176,7 @@ jobs:
 
       - run:
           name: Install graphviz
-          command: apt-get update && apt-get install -y graphviz && apt-get install -y unixodbc-dev
+          command: apt-get update && apt-get install -y graphviz
 
       - run:
           name: Upgrade pip
@@ -390,7 +386,6 @@ jobs:
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:latest
                   docker push prefecthq/prefect:${CIRCLE_TAG}
-
   build_master_docker_image:
     docker:
       - image: docker
@@ -438,7 +433,6 @@ jobs:
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
-
   build_core_docker_image:
     docker:
       - image: docker
@@ -494,8 +488,6 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:core
-
-
   promote_server_artifacts:
     docker:
       - image: docker
@@ -535,7 +527,6 @@ jobs:
               echo "commit $CIRCLE_SHA1 is not a member of the master branch"
               exit 1
             fi
-
       - run:
           name: Verify Package Version
           command: python setup.py verify_version
@@ -549,7 +540,6 @@ jobs:
           command: |
             python setup.py sdist
             python setup.py bdist_wheel
-
       - run:
           name: Upload Package to PyPI
           command: twine upload dist/*
