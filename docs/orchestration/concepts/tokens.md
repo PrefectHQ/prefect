@@ -59,7 +59,7 @@ To revoke a key in the UI navigate to Team Settings -> Service Accounts. On your
 To revoke a key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find a key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
 
 ```
-$ prefect auth revoke-token -i $MY_KEY_ID
+$ prefect auth revoke-token -i $API_KEY_ID
 ```
 
 ### GraphQL
@@ -68,7 +68,7 @@ To revoke a key using GraphQL execute the `delete_api_key` mutation against `htt
 
 ```graphql
 mutation {
-  delete_api_key(input: { key_id: "MY_KEY_ID" }) {
+  delete_api_key(input: { key_id: "API_KEY_ID" }) {
     success
   }
 }
@@ -97,20 +97,20 @@ There are a few ways in which you can give a service account key to an agent. Ea
 - Provide the key when the agent is started via the CLI. This method means the key will need to be provided each time the agent is started.
 
 ```
-$ prefect agent <AGENT TYPE> start -t KEY_VALUE
+$ prefect agent <AGENT TYPE> start -t SERVICE_ACCOUNT_API_KEY
 ```
 
 - Specify the key as an environment variable. This method means the key will only be available to processes which have the variable set.
 
 ```bash
-$ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=KEY_VALUE
+$ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY
 ```
 
 - Manually save your key in `$HOME/.prefect/config.toml`. This method ensures that the key will be available at all times if it is not overridden.
 
 ```toml
 [cloud.agent]
-auth_token = KEY_VALUE
+auth_token = SERVICE_ACCOUNT_API_KEY
 ```
 
 For information on the use of your user-scoped API keys visit the [Prefect Cloud API](api.html) page.

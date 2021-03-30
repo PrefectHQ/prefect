@@ -36,7 +36,7 @@ Service Account-based API keys are used for processes like the Prefect Agent, wh
 
 ### About the Client
 
-Prefect Core includes a Python client for interacting with the API. The Python client was designed for both interactive and programmatic use, and includes convenience methods for transparently managing authentication when used with `user-based API keys.
+Prefect Core includes a Python client for interacting with the API. The Python client was designed for both interactive and programmatic use, and includes convenience methods for transparently managing authentication when used with API keys.
 
 ### Getting Started
 
@@ -59,11 +59,11 @@ client.graphql(
 
 ### Authenticating the Client with Cloud <Badge text="Cloud"/>
 
-If using Prefect Cloud, authentication is required. For interactive use, the most common way to use the Cloud Client is to generate a user-based API key and provide it to the client. After doing so, users can save the key so it persists across all Python sessions:
+If using Prefect Cloud, authentication is required. For interactive use, the most common way to use the Cloud Client is to generate an API key and provide it to the client. After doing so, users can save the key so it persists across all Python sessions:
 
 ```python
 import prefect
-client = prefect.Client(api_token="YOUR_USER_KEY")
+client = prefect.Client(api_token="API_KEY")
 client.save_api_token()
 ```
 
@@ -71,12 +71,12 @@ Now, starting a client in another session will automatically reload the token:
 
 ```python
 client = prefect.Client()
-assert client._api_token == "YOUR_USER_KEY"  # True
+assert client._api_token == "API_KEY"  # True
 ```
 
 Note that a key can be provided by environment variable (`PREFECT__CLOUD__AUTH_TOKEN`) or in your Prefect config (under `cloud.auth_token`).
 
-Once provisioned with a user-based API key, the Cloud Client can query for available tenants and login to those tenants. In order to query for tenants, call:
+Once provisioned with an API key, the Cloud Client can query for available tenants and login to those tenants. In order to query for tenants, call:
 
 ```python
 client.get_available_tenants()
@@ -128,7 +128,7 @@ For ease of interacting with the GraphQL API, the UI contains a full GraphQL cli
 
 ### Authentication <Badge text="Cloud"/>
 
-The Cloud API also supports direct GraphQL access. While you can still use user-based API keys to access and log in to tenants, you will need to manage the short-lived auth and refresh tokens yourself. Therefore, we recommend using the Python client for user-scoped access. You can make GraphQL queries directly from the client:
+The Cloud API also supports direct GraphQL access. While you can still use API keys to access and log in to tenants, you will need to manage the short-lived auth and refresh tokens yourself. Therefore, we recommend using the Python client for user-scoped access. You can make GraphQL queries directly from the client:
 
 ```python
 client.graphql(
@@ -142,10 +142,10 @@ client.graphql(
 )
 ```
 
-To use `TENANT`-scoped keys in programmatic requests, include the key as the authorization header of your GraphQL requests:
+To use keys in programmatic requests, include the key as the authorization header of your GraphQL requests:
 
 ```json
-{ "authorization": "Bearer YOUR_KEY" }
+{ "authorization": "Bearer API_KEY" }
 ```
 
 ### Queries

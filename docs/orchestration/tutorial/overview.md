@@ -74,7 +74,7 @@ To authenticate, you'll need to create an [API Key](/orchestration/concepts/toke
 - Configure the CLI to use the key by running
 
 ```bash
-prefect auth login -t <COPIED_TOKEN>
+prefect auth login -t <API_KEY>
 ```
 
 ### Create a Service Account Key
@@ -96,14 +96,14 @@ your `~/.prefect/config.toml` config file, or as an environment variable:
 ```toml
 # ~/.prefect/config.toml
 [cloud.agent]
-auth_token = <COPIED_SERVICE_ACCOUNT_API_KEY>
+auth_token = <SERVICE_ACCOUNT_API_KEY>
 ```
 
 :::
 ::: tab "Environment Variable"
 
 ```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<COPIED_SERVICE_ACCOUNT_API_KEY>
+export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
 ```
 
 :::

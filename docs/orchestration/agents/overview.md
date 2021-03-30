@@ -56,7 +56,7 @@ The following configuration options are shared for all agents.
 
 ### API Keys <Badge text="Cloud"/>
 
-Prefect agents rely on the use of a service account-based API key from Prefect Cloud. For
+Prefect agents rely on the use of a service account API key from Prefect Cloud. For
 information on API keys and how they are used visit the
 [API keys](../concepts/tokens.html) page.
 
@@ -66,7 +66,7 @@ When starting an Agent with Prefect Cloud, you'll need to provide the API key. T
 ::: tab CLI
 
 ```bash
-prefect agent <AGENT TYPE> start --token <API_KEY>
+prefect agent <AGENT TYPE> start --token <SERVICE_ACCOUNT_API_KEY>
 ```
 
 :::
@@ -76,7 +76,7 @@ prefect agent <AGENT TYPE> start --token <API_KEY>
 ```toml
 # ~/.prefect/config.toml
 [cloud.agent]
-auth_token = "<API_KEY>"
+auth_token = "<SERVICE_ACCOUNT_API_KEY>"
 ```
 
 :::
@@ -84,7 +84,7 @@ auth_token = "<API_KEY>"
 ::: tab "Environment Variable"
 
 ```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<API_KEY>
+export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
 ```
 
 :::
