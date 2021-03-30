@@ -11,13 +11,14 @@ from prefect.utilities.kubernetes import get_kubernetes_client
 
 class KubernetesSecret(SecretBase):
     """
-    Task for creating a Prefect secret from the kubernetes secret.
-
-    This task will read the secret object from kubernetes and extract the value of the secret_key
-    and decode it. The kubernetes secret can be created by sealedsecret or vault and read here.
-
-    Note that you need to ensure that you have the right RBAC from your cluster admin to read the secret
-    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+    Task for loading a Prefect secret from a kubernetes secret.
+    
+    This task will read a secret from kubernetes, returning the decoded value
+    associated with `secret_key`. All initialization arguments can optionally
+    be provided or overwritten at runtime.
+    
+    Note that depending on cluster configuration, you may need to ensure you
+    have the proper RBAC permissions to read the secret.
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
@@ -30,15 +31,17 @@ class KubernetesSecret(SecretBase):
     Args:
         - secret_name (string, optional): The name of the kubernetes secret object
         - secret_key (string, optional): The key to look for in the kubernetes data
-        - namespace (str, optional): The Kubernetes namespace to read the secret from
+        - namespace (str, optional): The Kubernetes namespace to read the secret from,
+            defaults to the `default` namespace.
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
             Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
-        - cast_function (Callable[[Any], Any]): A function that will be called on the Parameter
-            value to coerce it to a type.
-        - raise_if_missing (bool): if True, an error will be raised if the env var is not found.
+        - cast_function (Callable[[Any], Any], optional): If provided, this will
+            be called on the secret to transform it before returning. An example
+            use might be passing in `json.loads` to load values from stored JSON.
+        - raise_if_missing (bool): if True, an error will be raised if the secret is not found.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
@@ -84,7 +87,8 @@ class KubernetesSecret(SecretBase):
         Args:
             - secret_name (string, optional): The name of the kubernetes secret object
             - secret_key (string, optional): The key to look for in the kubernetes data
-            - namespace (str, optional): The Kubernetes namespace to read the secret from
+            - namespace (str, optional): The Kubernetes namespace to read the secret from,
+                defaults to the `default` namespace.
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
                 Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
