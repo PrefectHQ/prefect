@@ -1,8 +1,6 @@
 """
 # Parameters
 
-This example demonstrates the use of parameters in flows.
-
 A `Parameter` is a special type of `Task` representing an input that can vary
 per flow run. For example:
 

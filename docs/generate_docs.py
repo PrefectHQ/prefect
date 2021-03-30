@@ -410,16 +410,16 @@ def build_example(path):
     with open(path, "r", encoding="utf-8") as f:
         contents = f.read()
 
-    tree = ast.parse(contents)
-    try:
-        header = tree.body[0].value.value.strip()
-        assert isinstance(header, str)
-        offset = tree.body[0].end_lineno
-    except Exception:
-        raise ValueError(f"No docstring header found for example at {path}") from None
-
     namespace = {}
     exec(contents, namespace)
+
+    try:
+        header = namespace["__doc__"]
+        tree = ast.parse(contents)
+        offset = tree.body[1].lineno - 1
+    except Exception as exc:
+        raise ValueError(f"No docstring header found for example at {path}") from exc
+
     flows = {}
     relpath = os.path.relpath(path, start=ROOT)
     for f in namespace.values():
