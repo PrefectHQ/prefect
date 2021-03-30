@@ -432,15 +432,18 @@ def build_example(path):
 
     source = "\n".join(contents.splitlines()[offset:]).strip()
 
-    res = subprocess.run([sys.executable, path], capture_output=True, check=True)
+    res = subprocess.run(
+        [sys.executable, path],
+        capture_output=True,
+        check=True,
+        env={"PREFECT__LOGGING__FORMAT": "%(levelname)s | %(message)s"},
+    )
     output = res.stdout.decode("utf-8").strip()
 
-    names_flags = " ".join(f"-n {n!r}" for n in sorted(flows))
-    register_cmd = (
-        f"prefect register --json https://docs.prefect.io/examples.json \\\n"
-        f"      {names_flags} \\\n"
-        f"      --project 'Prefect Examples'"
-    )
+    register_lines = [f"prefect register --json https://docs.prefect.io/examples.json"]
+    for name in sorted(flows):
+        register_lines.append(f"    --name {name}")
+    register_lines.append(f"    --project 'Prefect Examples'")
 
     rendered = EXAMPLE_TEMPLATE.format(
         header=header,
@@ -448,7 +451,7 @@ def build_example(path):
         output=output,
         ref=ref,
         relpath=relpath,
-        register_cmd=register_cmd,
+        register_cmd=" \\\n".join(register_lines),
     ).lstrip()
 
     return rendered, flows

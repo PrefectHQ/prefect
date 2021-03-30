@@ -56,7 +56,7 @@ def action_if_false():
     return "I am false!"
 
 
-@task
+@task(log_stdout=True)
 def another_action(val):
     print(val)
 
