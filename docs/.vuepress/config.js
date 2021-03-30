@@ -341,6 +341,7 @@ module.exports = {
           children: [
             'examples/overview',
             'examples/parameters',
+            'examples/mapping',
           ]
         },
         {
