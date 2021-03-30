@@ -12,11 +12,11 @@ from prefect.utilities.kubernetes import get_kubernetes_client
 class KubernetesSecret(SecretBase):
     """
     Task for loading a Prefect secret from a kubernetes secret.
-    
+
     This task will read a secret from kubernetes, returning the decoded value
     associated with `secret_key`. All initialization arguments can optionally
     be provided or overwritten at runtime.
-    
+
     Note that depending on cluster configuration, you may need to ensure you
     have the proper RBAC permissions to read the secret.
 
