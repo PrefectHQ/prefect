@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.tasks.soda import SodaSQLScan
+from prefect.tasks.sodasql import SodaSQLScan
 
 
 class TestSodaSQLScan:
