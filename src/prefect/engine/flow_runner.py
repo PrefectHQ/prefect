@@ -719,9 +719,7 @@ class FlowRunner(Runner):
 
         if self.flow.terminal_state_handler:
             new_state = self.flow.terminal_state_handler(
-                flow=self.flow,
-                state=state,
-                task_states=return_states
+                flow=self.flow, state=state, task_states=return_states
             )
             if new_state is not None:
                 return new_state
