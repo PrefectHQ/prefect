@@ -27,7 +27,7 @@ def print_total(x, y, total):
     print(f"{x} + {y} = {total}")
 
 
-with Flow("Examples: Parameters") as flow:
+with Flow("Example: Parameters") as flow:
     x = Parameter("x", default=1)
     y = Parameter("y", default=2)
 

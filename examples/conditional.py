@@ -65,12 +65,12 @@ with Flow("Example: Conditional Tasks") as flow:
     cond = check_condition()
 
     with case(cond, True):
-        val1 = action_if_true()
+        val_if_true = action_if_true()
 
     with case(cond, False):
-        val2 = action_if_false()
+        val_if_false = action_if_false()
 
-    val = merge(val1, val2)
+    val = merge(val_if_true, val_if_false)
 
     another_action(val)
 
