@@ -3277,7 +3277,9 @@ class TestTerminalStateHandler:
             fake_task_2.set_upstream(fake_task)
 
         assert flow.terminal_state_handler == fake_terminal_state_handler
-        assert flow.run().message == "Custom message here"
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+        assert flow_state.message == "Custom message here"
 
     def test_flow_state_used_if_terminal_state_handler_does_not_return_a_new_state(
         self,
@@ -3293,7 +3295,9 @@ class TestTerminalStateHandler:
             fake_task = Task("fake")
             flow.add_task(fake_task)
 
-        assert flow.run().message == "All reference tasks succeeded."
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+        assert flow_state.message == "All reference tasks succeeded."
 
     def test_terminal_state_handler_example_from_docs(self):
         def custom_terminal_state_handler(
@@ -3314,10 +3318,12 @@ class TestTerminalStateHandler:
             def run(self):
                 raise Exception
 
-        f = Flow(
+        flow = Flow(
             "my flow with custom terminal state handler",
             terminal_state_handler=custom_terminal_state_handler,
         )
-        f.add_task(FailingTask(name="FailingTask"))
+        flow.add_task(FailingTask(name="FailingTask"))
 
-        assert f.run().message == "The following tasks failed: ['FailingTask']"
+        flow_state = flow.run()
+        assert flow_state.is_failed()
+        assert flow_state.message == "The following tasks failed: ['FailingTask']"
