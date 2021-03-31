@@ -197,6 +197,8 @@ If multiple handlers are provided, they are called in sequence. Each one will re
 
 Flows allow users to provide custom logic for determining the final State of a Flow.
 
+Unlike normal state handlers, the terminal handler has access to the final states of all tasks in the flow.
+
 Terminal state handlers must have the following signature:
 
 ```python
@@ -207,7 +209,9 @@ terminal_state_handler(flow: Flow, state: State, task_states: Dict[Task, State])
 `state` is the current state of the Flow
 `task_states` contains states for Flow Tasks
 
-An example use case would be iterating through return states and indicating which reference tasks that have failed.
+For example, you may want to determine which reference tasks that have failed and add them to your final state message.
+
+This is particularly useful for Cloud Hooks that report the state message.
 
 ```python
 def custom_terminal_state_handler(
