@@ -126,7 +126,8 @@ class ECSAgent(Agent):
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
-
+        - network_configuration (str, optional): The network configuration
+            to use, if not provided the default will be used.
 
     [1]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
 
@@ -153,6 +154,7 @@ class ECSAgent(Agent):
         task_role_arn: str = None,
         execution_role_arn: str = None,
         botocore_config: dict = None,
+        network_configuration: str = None,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -171,6 +173,7 @@ class ECSAgent(Agent):
         self.launch_type = launch_type.upper() if launch_type else "FARGATE"
         self.task_role_arn = task_role_arn
         self.execution_role_arn = execution_role_arn
+        self.network_configuration = network_configuration
 
         # Load boto configuration. We want to use the standard retry mode by
         # default (which isn't boto's default due to backwards compatibility).
@@ -229,9 +232,12 @@ class ECSAgent(Agent):
         if self.launch_type == "FARGATE" and not self.run_task_kwargs.get(
             "networkConfiguration"
         ):
-            self.run_task_kwargs[
-                "networkConfiguration"
-            ] = self.infer_network_configuration()
+            if isinstance(self.network_configuration, str):
+                network_config = yaml.safe_load(self.network_configuration)
+            else:
+                network_config = self.infer_network_configuration()
+
+            self.run_task_kwargs["networkConfiguration"] = network_config
 
     def infer_network_configuration(self) -> dict:
         """Infer default values for `networkConfiguration`.

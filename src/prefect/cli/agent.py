@@ -398,6 +398,11 @@ def ecs():
     "run_task_kwargs_path",
     help="Path to a yaml file containing extra kwargs to pass to `run_task`",
 )
+@click.option(
+    "--network-configuration",
+    "network_configuration",
+    help="The network configuration to use. If not provided, your default configuration will be used",
+)
 def start(**kwargs):
     """Start an ECS agent"""
     from prefect.agent.ecs import ECSAgent
