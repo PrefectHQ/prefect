@@ -31,12 +31,11 @@ class ShellTask(prefect.Task):
             the output in the case of a non-zero exit code; defaults to `False`. This
              actually logs both stderr and stdout and will only log the last line of
              output unless `return_all` is `True`
-        - stream_output (bool, optional): specifies whether this task should log
-            the output as it occurs. If enabled, `log_stderr` will be ignored as the
-            output will have already been logged. defaults to `False`
-        - log_stream_as_info (bool, optional): boolean specifying whether the
-            streamed output should be logged using `INFO` as its log level. Will be
-            ignored if `stream_output` has not been set to `True`; defaults to `False`.
+        - stream_output (Union[bool, int], optional): specifies whether this task should log
+            the output as it occurs, and at what logging level. If `True` is passed,
+            the default logging level used is `INFO`; otherwise, any integer that's
+            passed will be treated as the log level. If enabled, `log_stderr` will
+            be ignored as the output will have already been logged. defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -62,8 +61,7 @@ class ShellTask(prefect.Task):
         shell: str = "bash",
         return_all: bool = False,
         log_stderr: bool = False,
-        stream_output: bool = False,
-        log_stream_as_info: bool = False,
+        stream_output: Union[bool, int] = False,
         **kwargs: Any
     ):
         self.command = command
@@ -73,7 +71,6 @@ class ShellTask(prefect.Task):
         self.return_all = return_all
         self.log_stderr = log_stderr
         self.stream_output = stream_output
-        self.log_stream_as_info = log_stream_as_info
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env", "helper_script")
@@ -128,11 +125,11 @@ class ShellTask(prefect.Task):
                     if self.return_all:
                         lines.append(line)
 
-                    if self.stream_output:
-                        if self.log_stream_as_info:
+                    if isinstance(self.stream_output, bool):
+                        if self.stream_output:
                             self.logger.info(line)
-                        else:
-                            self.logger.debug(line)
+                    elif isinstance(self.stream_output, int):
+                        self.logger.log(level=self.stream_output, msg=line)
 
                 sub_process.wait()
                 if sub_process.returncode:

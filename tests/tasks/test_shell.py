@@ -136,11 +136,18 @@ def test_shell_respects_stream_output(caplog, stream_output):
     assert stdout_in_log == stream_output
 
 
+def test_shell_log_stream_default(caplog):
+    with Flow(name="test") as f:
+        ShellTask(stream_output=True)(command="echo foo && echo bar")
+    f.run()
+
+    log_messages = [(r.levelname, r.message) for r in caplog.records]
+    assert ("INFO", "foo") in log_messages and ("INFO", "bar") in log_messages
+
+
 def test_shell_log_stream_as_info(caplog):
     with Flow(name="test") as f:
-        ShellTask(stream_output=True, log_stream_as_info=True)(
-            command="echo foo && echo bar",
-        )
+        ShellTask(stream_output=logging.INFO)(command="echo foo && echo bar")
     f.run()
 
     log_messages = [(r.levelname, r.message) for r in caplog.records]
@@ -149,9 +156,7 @@ def test_shell_log_stream_as_info(caplog):
 
 def test_shell_logs_stream_as_debug(caplog):
     with Flow(name="test") as f:
-        ShellTask(stream_output=True)(
-            command="echo foo && echo bar",
-        )
+        ShellTask(stream_output=logging.DEBUG)(command="echo foo && echo bar")
     f.run()
 
     log_messages = [(r.levelname, r.message) for r in caplog.records]
