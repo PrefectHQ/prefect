@@ -202,6 +202,9 @@ class DaskExecutor(Executor):
 
         try:
             if self.address is not None:
+                self.logger.info(
+                    "Connecting to an existing Dask cluster at %s", self.address
+                )
                 with Client(self.address, **self.client_kwargs) as client:
                     self.client = client
                     try:
@@ -210,7 +213,19 @@ class DaskExecutor(Executor):
                     finally:
                         self._post_start_yield()
             else:
-                with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
+                assert callable(self.cluster_class)  # mypy
+                assert isinstance(self.cluster_kwargs, dict)  # mypy
+                self.logger.info(
+                    "Creating a new Dask cluster with `%s.%s`...",
+                    self.cluster_class.__module__,
+                    self.cluster_class.__qualname__,
+                )
+                with self.cluster_class(**self.cluster_kwargs) as cluster:
+                    if getattr(cluster, "dashboard_link", None):
+                        self.logger.info(
+                            "The Dask dashboard is available at %s",
+                            cluster.dashboard_link,
+                        )
                     if self.adapt_kwargs:
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
