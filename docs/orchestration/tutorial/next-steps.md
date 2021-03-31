@@ -12,6 +12,25 @@ In this tutorial we covered:
 
 This is just the beginning; the Prefect API has many more features to explore!
 
+## Examples
+
+Prefect provides a number of [examples](/core/examples/overview.md) that illustrate
+different aspects of developing and running flows. These examples can all be run
+locally or through Prefect Cloud/Server. To create a new project and register all
+examples, run the following:
+
+You can register all the examples in a new project by running the following:
+
+```
+# Create a new "Prefect Examples" project
+$ prefect create project "Prefect Examples"
+
+# Register all the examples into the "Prefect Examples" project
+$ prefect register --json https://docs.prefect.io/examples.json --project "Prefect Examples"
+```
+
+See the [examples](/core/examples/overview.md) page for more information.
+
 ## Concepts
 
 Visit the [Concept](/orchestration/concepts/api.html) docs for actions such as
