@@ -1,7 +1,7 @@
 import base64
 
-from typing import Any, cast, Callable, Optional
-
+from typing import Any,  Callable, Optional
+from typing import cast as typing_cast
 from kubernetes import client
 
 from prefect.tasks.secrets.base import SecretBase
@@ -38,7 +38,7 @@ class KubernetesSecret(SecretBase):
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
-        - cast_function (Callable[[Any], Any], optional): If provided, this will
+        - cast (Callable[[Any], Any], optional): If provided, this will
             be called on the secret to transform it before returning. An example
             use might be passing in `json.loads` to load values from stored JSON.
         - raise_if_missing (bool): if True, an error will be raised if the secret is not found.
@@ -53,7 +53,7 @@ class KubernetesSecret(SecretBase):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        cast_function: Callable[[Any], Any] = None,
+        cast: Callable[[Any], Any] = None,
         raise_if_missing: bool = False,
         **kwargs: Any,
     ):
@@ -62,7 +62,7 @@ class KubernetesSecret(SecretBase):
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
-        self.cast_function = cast_function
+        self.cast = cast
         self.raise_if_missing = raise_if_missing
         super().__init__(**kwargs)
 
@@ -105,7 +105,7 @@ class KubernetesSecret(SecretBase):
         if not secret_key:
             raise ValueError("The key of the secret must be provided.")
 
-        api_client = cast(
+        api_client = typing_cast(
             client.CoreV1Api,
             get_kubernetes_client("secret", kubernetes_api_key_secret),
         )
@@ -124,6 +124,6 @@ class KubernetesSecret(SecretBase):
 
         return (
             decoded_secret
-            if self.cast_function is None
-            else self.cast_function(decoded_secret)
+            if self.cast is None
+            else self.cast(decoded_secret)
         )

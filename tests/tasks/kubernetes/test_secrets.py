@@ -85,7 +85,7 @@ class TestKubernetesSecretTask:
         self, kube_secret, client_read_namespaced_secret
     ):
         task = KubernetesSecret(
-            secret_name="secret-name", secret_key="some_mumber", cast_function=int
+            secret_name="secret-name", secret_key="some_mumber", cast=int
         )
 
         secret_value = task.run()
