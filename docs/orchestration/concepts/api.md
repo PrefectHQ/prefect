@@ -26,7 +26,7 @@ Prefect Cloud can generate two different types of API keys.
 
 #### User
 
-User-based API keys function as personal access keys. These keys have very few permissions on their own, but can be used to authenticate with the Cloud API. Once authenticated, user-based keys can be used to generate short-lived JWT auth tokens for any tenant the user belongs to. These keys inherit any permissions the user has in that tenant, allowing full API access. The Client manages the process of provisioning and refreshing these tokens.
+User-based API keys function as personal access keys. These API keys have very few permissions on their own, but can be used to authenticate with the Cloud API. Once authenticated, user-based API keys can be used to generate short-lived JWT auth tokens for any tenant the user belongs to. These API keys inherit any permissions the user has in that tenant, allowing full API access. The Client manages the process of provisioning and refreshing these tokens.
 
 #### Service Account
 
@@ -59,7 +59,7 @@ client.graphql(
 
 ### Authenticating the Client with Cloud <Badge text="Cloud"/>
 
-If using Prefect Cloud, authentication is required. For interactive use, the most common way to use the Cloud Client is to generate an API key and provide it to the client. After doing so, users can save the key so it persists across all Python sessions:
+If using Prefect Cloud, authentication is required. For interactive use, the most common way to use the Cloud Client is to generate an API key and provide it to the client. After doing so, users can save the API key so it persists across all Python sessions:
 
 ```python
 import prefect
@@ -74,7 +74,7 @@ client = prefect.Client()
 assert client._api_token == "API_KEY"  # True
 ```
 
-Note that a key can be provided by environment variable (`PREFECT__CLOUD__AUTH_TOKEN`) or in your Prefect config (under `cloud.auth_token`).
+Note that an API key can be provided by environment variable (`PREFECT__CLOUD__AUTH_TOKEN`) or in your Prefect config (under `cloud.auth_token`).
 
 Once provisioned with an API key, the Cloud Client can query for available tenants and login to those tenants. In order to query for tenants, call:
 
@@ -142,7 +142,7 @@ client.graphql(
 )
 ```
 
-To use keys in programmatic requests, include the key as the authorization header of your GraphQL requests:
+To use API keys in programmatic requests, include the API key as the authorization header of your GraphQL requests:
 
 ```json
 { "authorization": "Bearer API_KEY" }

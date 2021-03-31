@@ -1,10 +1,10 @@
 # Keys <Badge text="Cloud"/>
 
-## Key Types
+## API Key Types
 
 ### User
 
-User-based API keys function as personal access keys. These keys have very few permissions on their own, but can be used to authenticate with the Cloud API. Once authenticated, user-based keys can be used to generate short-lived JWT auth tokens for any tenant the user belongs to. These keys inherit any permissions the user has in that tenant, allowing full API access. The Client manages the process of provisioning and refreshing these tokens.
+User-based API keys function as personal access keys. These API keys have very few permissions on their own, but can be used to authenticate with the Cloud API. Once authenticated, user-based API keys can be used to generate short-lived JWT auth tokens for any tenant the user belongs to. These API keys inherit any permissions the user has in that tenant, allowing full API access. The Client manages the process of provisioning and refreshing these tokens.
 
 ### Service Account
 
@@ -22,13 +22,13 @@ Click on _Create API Key_. Give the key a name and optionally an expiration.
 
 ![api key naming](/api_key_name.png)
 
-After you click create you will be prompted with the key which you can copy and store in a safe place. Then you should see the key added to your list of keys for that account.
+After you click create you will be prompted with the service account key which you can copy and store in a safe place. Then you should see the service account key added to your list of keys for that account.
 
 ![api key list](/api_key_list.png)
 
 ### CLI
 
-To create a key with the CLI run the `create-token` command with the desired key name and scope. For more information on how to use the CLI go [here](cli.html).
+To create a service account key with the CLI run the `create-token` command with the desired service account key name and scope. For more information on how to use the CLI go [here](cli.html).
 
 ```
 $ prefect auth create-token -n my-runner-token -s RUNNER
@@ -50,13 +50,13 @@ mutation {
 
 ### UI
 
-To revoke a key in the UI navigate to Team Settings -> Service Accounts. On your list of API keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
+To revoke a service account key in the UI navigate to Team Settings -> Service Accounts. On your list of service account keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
 
 ![token delete](/token_delete.png)
 
 ### CLI
 
-To revoke a key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find a key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
+To revoke an API key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find an API key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
 
 ```
 $ prefect auth revoke-token -i $API_KEY_ID
@@ -64,7 +64,7 @@ $ prefect auth revoke-token -i $API_KEY_ID
 
 ### GraphQL
 
-To revoke a key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find a key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
+To revoke an API key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find an API key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
 
 ```graphql
 mutation {
@@ -76,7 +76,7 @@ mutation {
 
 ## Querying for Key Information
 
-To query for information about a specific key with GraphQL, execute the following query against `https://api.prefect.io`. This will allow you to query for key information, however it never returns the value of the key itself.
+To query for information about a specific API key with GraphQL, execute the following query against `https://api.prefect.io`. This will allow you to query for API key information, however it never returns the value of the key itself.
 
 ```graphql
 query {
@@ -94,19 +94,19 @@ Service account keys are generally used by Prefect Agents and flows to communica
 
 There are a few ways in which you can give a service account key to an agent. Each method has an extra level of persistence.
 
-- Provide the key when the agent is started via the CLI. This method means the key will need to be provided each time the agent is started.
+- Provide the service account key when the agent is started via the CLI. This method means the key will need to be provided each time the agent is started.
 
 ```
 $ prefect agent <AGENT TYPE> start -t SERVICE_ACCOUNT_API_KEY
 ```
 
-- Specify the key as an environment variable. This method means the key will only be available to processes which have the variable set.
+- Specify the service account key as an environment variable. This method means the key will only be available to processes which have the variable set.
 
 ```bash
 $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY
 ```
 
-- Manually save your key in `$HOME/.prefect/config.toml`. This method ensures that the key will be available at all times if it is not overridden.
+- Manually save your service account key in `$HOME/.prefect/config.toml`. This method ensures that the key will be available at all times if it is not overridden.
 
 ```toml
 [cloud.agent]

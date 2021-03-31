@@ -45,7 +45,7 @@ There are a few ways in which you can specify a service account API key:
 
 - command argument `prefect agent fargate start -t SERVICE_ACCOUNT_API_KEY`
 - environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY`
-- key will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
+- API key will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
 
 :::
 
