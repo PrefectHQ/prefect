@@ -34,6 +34,9 @@ class ShellTask(prefect.Task):
         - stream_output (bool, optional): specifies whether this task should log
             the output as it occurs. If enabled, `log_stderr` will be ignored as the
             output will have already been logged. defaults to `False`
+        - log_stream_as_info (bool, optional): boolean specifying whether the
+            streamed output should be logged using `INFO` as its log level. Will be
+            ignored if `stream_output` has not been set to `True`; defaults to `False`.
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -60,6 +63,7 @@ class ShellTask(prefect.Task):
         return_all: bool = False,
         log_stderr: bool = False,
         stream_output: bool = False,
+        log_stream_as_info: bool = False,
         **kwargs: Any
     ):
         self.command = command
@@ -69,6 +73,7 @@ class ShellTask(prefect.Task):
         self.return_all = return_all
         self.log_stderr = log_stderr
         self.stream_output = stream_output
+        self.log_stream_as_info = log_stream_as_info
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env", "helper_script")
@@ -124,7 +129,10 @@ class ShellTask(prefect.Task):
                         lines.append(line)
 
                     if self.stream_output:
-                        self.logger.debug(line)
+                        if self.log_stream_as_info:
+                            self.logger.info(line)
+                        else:
+                            self.logger.debug(line)
 
                 sub_process.wait()
                 if sub_process.returncode:

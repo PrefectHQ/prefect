@@ -135,6 +135,25 @@ def test_shell_respects_stream_output(caplog, stream_output):
     stdout_in_log = "foo" in caplog.messages and "bar" in caplog.messages
     assert stdout_in_log == stream_output
 
+def test_shell_log_stream_as_info(caplog):
+    with Flow(name="test") as f:
+        ShellTask(stream_output=True, log_stream_as_info=True)(
+            command="echo foo && echo bar",
+        )
+    f.run()
+
+    log_messages = [(r.levelname, r.message) for r in caplog.records]
+    assert ('INFO', 'foo') in log_messages and ('INFO', 'bar') in log_messages
+
+def test_shell_logs_stream_as_debug(caplog):
+    with Flow(name="test") as f:
+        ShellTask(stream_output=True)(
+            command="echo foo && echo bar",
+        )
+    f.run()
+
+    log_messages = [(r.levelname, r.message) for r in caplog.records]
+    assert ('DEBUG', 'foo') in log_messages and ('DEBUG', 'bar') in log_messages
 
 def test_shell_logs_stderr_on_non_zero_exit(caplog):
     caplog.set_level(level=logging.ERROR, logger="prefect.ShellTask")
