@@ -1,6 +1,6 @@
 import base64
 
-from typing import Any,  Callable, Optional
+from typing import Any, Callable, Optional
 from typing import cast as typing_cast
 from kubernetes import client
 
@@ -122,8 +122,4 @@ class KubernetesSecret(SecretBase):
 
         decoded_secret = base64.b64decode(secret_data[secret_key]).decode("utf8")
 
-        return (
-            decoded_secret
-            if self.cast is None
-            else self.cast(decoded_secret)
-        )
+        return decoded_secret if self.cast is None else self.cast(decoded_secret)
