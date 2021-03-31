@@ -39,6 +39,7 @@ from prefect.core.parameter import Parameter
 from prefect.core.task import Task
 from prefect.executors import Executor
 from prefect.engine.result import Result
+from prefect.engine.state import State
 from prefect.environments import Environment
 from prefect.storage import Storage, get_default_storage_class
 from prefect.run_configs import RunConfig, UniversalRun
@@ -165,7 +166,9 @@ class Flow:
         on_failure: Callable = None,
         validate: bool = None,
         result: Optional[Result] = None,
-        terminal_state_handler: Optional[Callable] = None,
+        terminal_state_handler: Optional[
+            Callable[["Flow", State, Dict[Task, State]], Optional[State]]
+        ] = None,
     ):
         self._cache = {}  # type: dict
 
