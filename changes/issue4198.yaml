@@ -1,0 +1,20 @@
+# An example changelog entry
+#
+# 1. Choose one (or more if a PR encompasses multiple changes) of the following headers:
+#   - feature
+#   - enhancement
+#   - task
+#   - fix
+#   - deprecation
+#   - breaking (for breaking changes)
+#
+# 2. Fill in one (or more) bullet points under the heading, describing the change.
+#    Markdown syntax may be used.
+#
+# 3. If you would like to be credited as helping with this release, add a
+#    contributor section with your name and github username.
+#
+# Here's an example of a PR that adds an enhancement
+
+enhancement:
+  - "Add terminal flow state handler override  - [#4198](https://github.com/PrefectHQ/prefect/issues/4198)"
