@@ -44,7 +44,7 @@ Prefect Cloud is a fully hosted, production-ready backend for Prefect Core. If y
 
 As you read through these docs, when you see the <Badge text="Cloud"/> badge, you'll know if a feature is supported only in Prefect Cloud or not.
 
-##### Prefect Cloud Architecture Overview
+##### Architecture Overview
 
 Prefect's unique [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296) keeps your code and data completely private while taking full advantage of our managed orchestration service.
 
