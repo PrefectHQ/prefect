@@ -145,9 +145,7 @@ class Bitbucket(Storage):
             contents_url = (
                 f"repositories/{self.workspace}/{self.repo}/src/{ref}/{flow_location}"
             )
-            self.logger.info(
-                f"Downloading flow from Bitbucket cloud - {contents_url}"
-            )
+            self.logger.info(f"Downloading flow from Bitbucket cloud - {contents_url}")
             contents = client.get(contents_url)
 
         except RequestsHTTPError as err:
