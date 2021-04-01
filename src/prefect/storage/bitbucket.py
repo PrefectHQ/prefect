@@ -95,11 +95,7 @@ class Bitbucket(Storage):
             - Flow: the requested flow
         """
 
-        return (
-            self._get_flow_cloud(flow_name)
-            if self.workspace
-            else self._get_flow_server(flow_name)
-        )
+        return self._get_flow_cloud(flow_name) if self.workspace else self._get_flow_server(flow_name)
 
     def _get_flow_cloud(self, flow_name: str) -> "Flow":
         if flow_name not in self.flows:
@@ -116,12 +112,9 @@ class Bitbucket(Storage):
             # Fetch SHA-1 of all branches if ref is not alread a SHA-1 hash
             SHA1_REGEX = r"^[0-9a-f]{40}$"
             if not re.match(SHA1_REGEX, ref):
-                branches = client.get(
-                    f"repositories/{self.workspace}/{self.repo}/refs/branches"
-                )
+                branches = client.get(f"repositories/{self.workspace}/{self.repo}/refs/branches")
                 branch_hashes = {
-                    branch["name"]: branch["target"]["hash"]
-                    for branch in branches["values"]
+                    branch["name"]: branch["target"]["hash"] for branch in branches["values"]
                 }
 
                 if ref in branch_hashes:
@@ -129,12 +122,8 @@ class Bitbucket(Storage):
 
             # Fetch SHA-1 of all tags if ref is not alread a SHA-1 hash
             if not re.match(SHA1_REGEX, ref):
-                tags = client.get(
-                    f"repositories/{self.workspace}/{self.repo}/refs/tags"
-                )
-                tag_hashes = {
-                    tag["name"]: tag["target"]["hash"] for tag in tags["values"]
-                }
+                tags = client.get(f"repositories/{self.workspace}/{self.repo}/refs/tags")
+                tag_hashes = {tag["name"]: tag["target"]["hash"] for tag in tags["values"]}
 
                 if ref in tag_hashes:
                     ref = tag_hashes[ref]
@@ -142,17 +131,13 @@ class Bitbucket(Storage):
             if not re.match(SHA1_REGEX, ref):
                 raise ValueError("ref not found in this Storage")
 
-            contents_url = (
-                f"repositories/{self.workspace}/{self.repo}/src/{ref}/{flow_location}"
-            )
+            contents_url = f"repositories/{self.workspace}/{self.repo}/src/{ref}/{flow_location}"
             self.logger.info(f"Downloading flow from Bitbucket cloud - {contents_url}")
             contents = client.get(contents_url)
 
         except RequestsHTTPError as err:
             if err.response.status_code == 403:
-                self.logger.error(
-                    "Access denied to repository. Please check credentials."
-                )
+                self.logger.error("Access denied to repository. Please check credentials.")
                 raise
             else:
                 self.logger.error(
@@ -182,9 +167,7 @@ class Bitbucket(Storage):
             )
         except HTTPError as err:
             if err.code == 401:
-                self.logger.error(
-                    "Access denied to repository. Please check credentials."
-                )
+                self.logger.error("Access denied to repository. Please check credentials.")
                 raise
             elif err.code == 404:
                 self.logger.error(
@@ -237,9 +220,7 @@ class Bitbucket(Storage):
             access_token = Secret(self.access_token_secret).get()
         else:
             # Otherwise, fallback to loading from local secret or environment variable
-            access_token = prefect.context.get("secrets", {}).get(
-                "BITBUCKET_ACCESS_TOKEN"
-            )
+            access_token = prefect.context.get("secrets", {}).get("BITBUCKET_ACCESS_TOKEN")
             if access_token is None:
                 access_token = os.getenv("BITBUCKET_ACCESS_TOKEN")
 
@@ -265,9 +246,7 @@ class Bitbucket(Storage):
             cloud_username = Secret(self.cloud_username_secret).get()
         else:
             # Otherwise, fallback to loading from local secret or environment variable
-            cloud_username = prefect.context.get("secrets", {}).get(
-                "BITBUCKET_CLOUD_USERNAME"
-            )
+            cloud_username = prefect.context.get("secrets", {}).get("BITBUCKET_CLOUD_USERNAME")
             if cloud_username is None:
                 cloud_username = os.getenv("BITBUCKET_CLOUD_USERNAME")
 
@@ -276,15 +255,12 @@ class Bitbucket(Storage):
             cloud_app_password = Secret(self.cloud_app_password_secret).get()
         else:
             # Otherwise, fallback to loading from local secret or environment variable
-            cloud_app_password = prefect.context.get("secrets", {}).get(
-                "BITBUCKET_CLOUD_APP_PASSWORD"
-            )
+            cloud_app_password = prefect.context.get("secrets", {}).get("BITBUCKET_CLOUD_APP_PASSWORD")
             if cloud_app_password is None:
                 cloud_app_password = os.getenv("BITBUCKET_CLOUD_APP_PASSWORD")
 
         # Bitbucket clould api is rate limited, retry at this frequency
         # 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128
-        import http
         from requests.adapters import HTTPAdapter
         from requests.packages.urllib3.util.retry import Retry
 
