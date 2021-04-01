@@ -144,11 +144,13 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
-        -  terminal_state_handler (Callable, optional): A state handler that mutates the final state
-            of the flow, with signature `state_handler(flow: Flow, state: State,
-            task_states: Dict[Task, State]) -> Optional[State]`. `flow` is the current Flow.
-            `state` is the current state of the Flow. `task_states` contains states for Flow Tasks.
-            If no state is returned, the original state will be used.
+        -  terminal_state_handler (Callable, optional): A state handler that can be used to
+            inspect or modify the final state of the flow run. Expects a callable with signature
+            `handler(flow: Flow, state: State, task_states: Dict[Task, State]) -> Optional[State]`,
+            where `flow` is the current Flow, `state` is the current state of the Flow run, and
+            `task_states` is a mapping from task -> state for all tasks in the flow. It should
+            return either a new state for the flow run, or `None` (in which case the existing
+            state will be used).
     """
 
     def __init__(

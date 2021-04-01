@@ -195,23 +195,24 @@ If multiple handlers are provided, they are called in sequence. Each one will re
 
 ## Terminal State Handlers
 
-Flows allow users to provide custom logic for determining the final State of a Flow.
-
-Unlike normal state handlers, the terminal handler has access to the final states of all tasks in the flow.
+A flow's `terminal_state_handler` allow users to provide custom logic for determining the
+final State of a Flow. Unlike normal state handlers, the `terminal_state_handler` has access
+to the final states of all tasks in the flow.
 
 Terminal state handlers must have the following signature:
 
 ```python
 terminal_state_handler(flow: Flow, state: State, task_states: Dict[Task, State]) -> Optional[State]
 ```
+where:
 
-`flow` is the current Flow
-`state` is the current state of the Flow
-`task_states` contains states for Flow Tasks
+- `flow` is the current Flow
+- `state` is the current state of the Flow
+- `task_states` contains states for Flow Tasks
 
-For example, you may want to determine which reference tasks that have failed and add them to your final state message.
-
-This is particularly useful for Cloud Hooks that report the state message.
+For example, you may want to determine which reference tasks have failed and add them
+to your final state message. This could be used to improve the message sent out by Cloud
+Hooks that report the flow run's final state.
 
 ```python
 def custom_terminal_state_handler(
@@ -229,5 +230,8 @@ def custom_terminal_state_handler(
     return state
 
 # create a new flow using the terminal state handler
-f = Flow("my flow with custom terminal state handler", terminal_state_handler=custom_terminal_state_handler)
+flow = Flow(
+    "my flow with custom terminal state handler",
+    terminal_state_handler=custom_terminal_state_handler
+)
 ```
