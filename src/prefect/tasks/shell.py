@@ -34,9 +34,11 @@ class ShellTask(prefect.Task):
              output unless `return_all` is `True`
         - stream_output (Union[bool, int, str], optional): specifies whether this task should log
             the output as it occurs, and at what logging level. If `True` is passed,
-            the default logging level used is `INFO`; otherwise, any integer that's
-            passed will be treated as the log level. If enabled, `log_stderr` will
-            be ignored as the output will have already been logged. defaults to `False`
+            the logging level defaults to `INFO`; otherwise, any integer or string
+            value that's passed will be treated as the log level, provided
+            the `logging` library can successfully interpret it. If enabled,
+            `log_stderr` will be ignored as the output will have already been
+            logged. defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -53,7 +55,8 @@ class ShellTask(prefect.Task):
         out = f.run()
         ```
     Raises:
-        - TypeError: if `stream_output`
+        - TypeError: if `stream_output` is passed in as a string, but cannot
+          successfully be converted to a numeric value by logging.getLevelName()
     """
 
     def __init__(
