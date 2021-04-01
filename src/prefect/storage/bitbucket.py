@@ -51,11 +51,11 @@ class Bitbucket(Storage):
         - access_token_secret (str, optional): the name of a Prefect secret
             that contains a Bitbucket access token to use when loading flows from
             this storage. Bitbucket Server only
-        - cloud_username_secret (str, optional): the name of a Prefect secret that contains a Bitbucket
-            username to use when loading flows from this storage. Bitbucket Cloud only.
-        - cloud_app_password_secret (str, optional): the name of a Prefect secret that contains a Bitbucket
-            app password, from the account associated with the `cloud_username_secret`, to use when loading
-            flows from this storage. Bitbucket Cloud only.
+        - cloud_username_secret (str, optional): the name of a Prefect secret that contains a
+            Bitbucket username to use when loading flows from this storage. Bitbucket Cloud only.
+        - cloud_app_password_secret (str, optional): the name of a Prefect secret that contains a
+            Bitbucket app password, from the account associated with the `cloud_username_secret`,
+            to use when loading flows from this storage. Bitbucket Cloud only.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -156,7 +156,8 @@ class Bitbucket(Storage):
                 raise
             else:
                 self.logger.error(
-                    f"Error retrieving contents at {flow_location} in {self.workspace}/{self.project}/{self.repo}@{ref}. "
+                    "Error retrieving contents at "
+                    f"{flow_location} in {self.workspace}/{self.project}/{self.repo}@{ref}. "
                     "Please check arguments passed to Bitbucket storage and verify project exists."
                 )
                 raise
