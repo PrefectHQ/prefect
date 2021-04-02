@@ -224,6 +224,49 @@ class Agent:
         self.logger.debug(f"Loaded agent config {self.agent_config_id}: {agent_config}")
         return agent_config
 
+    def run_work_polling_loop(self, _loop_intervals: dict = None):
+        # Loop intervals for query sleep backoff
+        loop_intervals = _loop_intervals or {
+            0: 0.25,
+            1: 0.5,
+            2: 1.0,
+            3: 2.0,
+            4: 4.0,
+            5: 8.0,
+            6: 10.0,
+        }
+
+        index = 0
+        remaining_polls = math.inf if self.max_polls is None else self.max_polls
+
+        # the max workers default has changed in 3.8. For stable results the
+        # default 3.8 behavior is elected here.
+        max_workers = min(32, (os.cpu_count() or 1) + 4)
+
+        with exit_handler(self) as exit_event:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                self.logger.debug("Max Workers: {}".format(max_workers))
+                while not exit_event.is_set() and remaining_polls:
+                    # Reset the event in case it was set by poke handler.
+                    AGENT_WAKE_EVENT.clear()
+
+                    if self.agent_process(executor):
+                        index = 0
+                    elif index < max(loop_intervals.keys()):
+                        index += 1
+
+                    remaining_polls -= 1
+
+                    self.logger.debug(
+                        "Next query for flow runs in {} seconds".format(
+                            loop_intervals[index]
+                        )
+                    )
+
+                    # Wait for loop interval timeout or agent to be poked by
+                    # external process before querying for flow runs again.
+                    AGENT_WAKE_EVENT.wait(timeout=loop_intervals[index])
+
     def start(self, _loop_intervals: dict = None) -> None:
         """
         The main entrypoint to the agent. This function loops and constantly polls for
@@ -241,49 +284,7 @@ class Agent:
         try:
             self.setup()
             self.run_heartbeat_thread()
-
-            with exit_handler(self) as exit_event:
-
-                # Loop intervals for query sleep backoff
-                loop_intervals = _loop_intervals or {
-                    0: 0.25,
-                    1: 0.5,
-                    2: 1.0,
-                    3: 2.0,
-                    4: 4.0,
-                    5: 8.0,
-                    6: 10.0,
-                }
-
-                index = 0
-                remaining_polls = math.inf if self.max_polls is None else self.max_polls
-
-                # the max workers default has changed in 3.8. For stable results the
-                # default 3.8 behavior is elected here.
-                max_workers = min(32, (os.cpu_count() or 1) + 4)
-
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    self.logger.debug("Max Workers: {}".format(max_workers))
-                    while not exit_event.is_set() and remaining_polls:
-                        # Reset the event in case it was set by poke handler.
-                        AGENT_WAKE_EVENT.clear()
-
-                        if self.agent_process(executor):
-                            index = 0
-                        elif index < max(loop_intervals.keys()):
-                            index += 1
-
-                        remaining_polls -= 1
-
-                        self.logger.debug(
-                            "Next query for flow runs in {} seconds".format(
-                                loop_intervals[index]
-                            )
-                        )
-
-                        # Wait for loop interval timeout or agent to be poked by
-                        # external process before querying for flow runs again.
-                        AGENT_WAKE_EVENT.wait(timeout=loop_intervals[index])
+            self.run_work_polling_loop(_loop_intervals)
 
         finally:
             self.cleanup()
