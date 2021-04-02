@@ -140,25 +140,37 @@ class Agent:
         self._api_server_thread: threading.Thread = None
         self._heartbeat_thread: threading.Thread = None
 
+        # Create the default logger
+        self.logger = self._get_logger()
+
+        self.submitting_flow_runs = set()  # type: Set[str]
+
+        # Log configuration options
+        self.logger.debug(f"Environment variables: {[*self.env_vars]}")
+        self.logger.debug(f"Max polls: {self.max_polls}")
+        self.logger.debug(f"Agent address: {self.agent_address}")
+        self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
+        self.logger.debug(f"Prefect backend: {config.backend}")
+
+    def _get_logger(self) -> logging.Logger:
+        """
+        Create an agent logger based on config options
+        """
+
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
-        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+
+        # Ensure it has a stream handler
+        if not any(
+            isinstance(handler, logging.StreamHandler) for handler in logger.handlers
+        ):
             ch = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(context.config.logging.format)
             formatter.converter = time.gmtime  # type: ignore
             ch.setFormatter(formatter)
             logger.addHandler(ch)
 
-        self.logger = logger
-        self.submitting_flow_runs = set()  # type: Set[str]
-
-        self.logger.debug("Verbose logs enabled")
-        self.logger.debug(f"Environment variables: {[*self.env_vars]}")
-        self.logger.debug(f"Max polls: {self.max_polls}")
-        self.logger.debug(f"Agent address: {self.agent_address}")
-        self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
-
-        self.logger.debug(f"Prefect backend: {config.backend}")
+        return logger
 
     def _verify_token(self, token: str) -> None:
         """
