@@ -220,7 +220,9 @@ class Agent:
         Returns:
             - dict: a dictionary of agent configuration
         """
-        return self.client.get_agent_config(self.agent_config_id)  # type: ignore
+        agent_config = self.client.get_agent_config(self.agent_config_id)
+        self.logger.debug(f"Loaded agent config {self.agent_config_id}: {agent_config}")
+        return agent_config
 
     def start(self, _loop_intervals: dict = None) -> None:
         """
