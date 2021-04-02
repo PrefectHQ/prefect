@@ -246,6 +246,13 @@ class Agent:
     # not need to worry about how this works.
 
     def _enter_work_polling_loop(self, exit_event: threading.Event) -> None:
+        """
+        This method will loop until `exit_event` is set or `max_polls` is reached. The
+        primary call is to `_submit_deploy_flow_run_jobs` which handles querying for
+        and submitting ready flow runs. If there were flow runs to process, the loop
+        will repeat immediately to attempt to pull all ready work quickly. If not, the
+        loop will backoff with an increasing sleep.
+        """
         backoff_index = 0
         remaining_polls = math.inf if self.max_polls is None else self.max_polls
 
@@ -286,7 +293,9 @@ class Agent:
 
     def _submit_deploy_flow_run_jobs(self, executor: "ThreadPoolExecutor") -> list:
         """
-        Full process for finding flow runs, updating states, and deploying.
+        - Queries for ready flow runs
+        - Submits calls of `_deploy_flow_run(flow_run)` to the executor
+        - Tracks submitted runs to prevent double deployments
 
         Args:
             - executor (ThreadPoolExecutor): the interface to submit flow deployments in
