@@ -182,7 +182,8 @@ class Agent:
 
             # Start background tasks
             self._run_heartbeat_thread()
-            self._run_agent_api_server()
+            if self.agent_address:
+                self._run_agent_api_server()
 
             # Enter the main loop checking for new flows
             with exit_handler(self) as exit_event:
@@ -621,7 +622,7 @@ class Agent:
         if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
 
             self.logger.debug(
-                f"Flow run {flow_run.id} is in a Scheduled state, updating to Submitted"
+                f"Updating flow run {flow_run.id} from Scheduled state to Submitted"
             )
             self.client.set_flow_run_state(
                 flow_run_id=flow_run.id,
@@ -811,6 +812,7 @@ class Agent:
             "Agent documentation can be found at "
             "https://docs.prefect.io/orchestration/"
         )
+        self.logger.info("Waiting for flow runs...")
 
     def _get_logger(self) -> logging.Logger:
         """
