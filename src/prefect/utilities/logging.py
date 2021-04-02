@@ -45,7 +45,7 @@ class LogManager:
         self.thread = None  # type: Optional[threading.Thread]
         self.client = None  # type: Optional[prefect.Client]
         self.pending_length = 0
-        self._stopped = False
+        self._stopped = threading.Event()
 
     def ensure_started(self) -> None:
         """Ensure the log manager is started"""
@@ -77,7 +77,7 @@ class LogManager:
     def stop(self) -> None:
         """Flush all logs and stop the background thread"""
         if self.thread is not None:
-            self._stopped = True
+            self._stopped.set()
             self.thread.join()
             self._write_logs()
             self.thread = None
@@ -85,18 +85,11 @@ class LogManager:
 
     def _write_logs_loop(self) -> None:
         """Runs in a background thread, uploads logs periodically in a loop"""
-        while not self._stopped:
-            cont = True
-            while cont:
-                cont = self._write_logs()
-            time.sleep(self.logging_period)
+        while not self._stopped.wait(self.logging_period):
+            self._write_logs()
 
-    def _write_logs(self) -> bool:
-        """Upload a single batch of logs.
-
-        Returns:
-            - bool: Whether `_write_logs` should be called again this round.
-        """
+    def _write_logs(self) -> None:
+        """Upload logs in batches until the queue is empty"""
         assert self.client is not None  # mypy
 
         # Read all logs from the queue into the `pending_logs` list. This
@@ -110,25 +103,25 @@ class LogManager:
         # the queue is empty or an error occurs on upload (usually only one
         # iteration is sufficient)
         cont = True
-        try:
-            while self.pending_length < MAX_BATCH_LOG_LENGTH:
-                log = self.queue.get_nowait()
-                self.pending_length += len(log.get("message", ""))
-                self.pending_logs.append(log)
-        except Empty:
-            cont = False
-
-        if self.pending_logs:
+        while cont:
             try:
-                self.client.write_run_logs(self.pending_logs)
-                self.pending_logs = []
-                self.pending_length = 0
-            except Exception as exc:
-                # An error occurred on upload, warn and exit the loop (will
-                # retry later)
-                warnings.warn(f"Failed to write logs with error: {exc!r}")
+                while self.pending_length < MAX_BATCH_LOG_LENGTH:
+                    log = self.queue.get_nowait()
+                    self.pending_length += len(log.get("message", ""))
+                    self.pending_logs.append(log)
+            except Empty:
                 cont = False
-        return cont
+
+            if self.pending_logs:
+                try:
+                    self.client.write_run_logs(self.pending_logs)
+                    self.pending_logs = []
+                    self.pending_length = 0
+                except Exception as exc:
+                    # An error occurred on upload, warn and exit the loop (will
+                    # retry later)
+                    warnings.warn(f"Failed to write logs with error: {exc!r}")
+                    cont = False
 
     def enqueue(self, message: dict) -> None:
         """Enqueue a new log message to be uploaded.

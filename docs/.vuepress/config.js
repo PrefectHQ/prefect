@@ -338,7 +338,12 @@ module.exports = {
         {
           title: 'Examples',
           collapsable: true,
-          children: getChildren('docs/core', 'examples')
+          children: [
+            'examples/overview',
+            'examples/parameters',
+            'examples/mapping',
+            'examples/conditional'
+          ]
         },
         {
           title: 'PINs',
