@@ -1,0 +1,5 @@
+fix:
+  - "Use default flow labels when triggering flow runs from CLI - [#4316](https://github.com/PrefectHQ/prefect/pull/4316)"
+
+contributor:
+  - "[James Lamb](https://github.com/jameslamb)"
