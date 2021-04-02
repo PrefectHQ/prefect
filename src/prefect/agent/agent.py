@@ -332,20 +332,16 @@ class Agent:
         # Deploy flow run and mark failed if any deployment error
         try:
             self._mark_flow_as_submitted(flow_run)
+
+            # Call the main deployment hook
             deployment_info = self.deploy_flow(flow_run)
-            if getattr(flow_run, "id", None):
-                self.client.write_run_logs(
-                    [
-                        dict(
-                            flow_run_id=getattr(flow_run, "id"),  # type: ignore
-                            name=self.name,
-                            message="Submitted for execution: {}".format(
-                                deployment_info
-                            ),
-                            level="INFO",
-                        )
-                    ]
-                )
+
+            self._safe_write_run_log(
+                flow_run,
+                message="Submitted for execution: {}".format(deployment_info),
+                level="INFO",
+            )
+
         except Exception as exc:
             # On exception, we'll mark this flow as failed
 
@@ -360,17 +356,11 @@ class Agent:
                     getattr(flow_run, "id", "UNKNOWN")  # type: ignore
                 )
             )
-            if getattr(flow_run, "id", None):
-                self.client.write_run_logs(
-                    [
-                        dict(
-                            flow_run_id=getattr(flow_run, "id"),  # type: ignore
-                            name=self.name,
-                            message=str(exc),
-                            level="ERROR",
-                        )
-                    ]
-                )
+            self._safe_write_run_log(
+                flow_run,
+                message=str(exc),
+                level="ERROR",
+            )
             self._mark_flow_as_failed(flow_run=flow_run, exc=exc)
 
     def _deploy_flow_run_completed_callback(
@@ -710,6 +700,28 @@ class Agent:
             return run_config_cls()
 
         return None
+
+    def _safe_write_run_log(self, flow_run, message: str, level: str) -> None:
+        """
+        Write a log to the backend API for the given flow run. If the flow run object
+        does not have an id, this is a no-op.
+
+        Args:
+            flow_run: The flow run object returned by a GQL query
+            message: The log message
+            level: The log level
+        """
+        if getattr(flow_run, "id", None):
+            self.client.write_run_logs(
+                [
+                    dict(
+                        flow_run_id=flow_run.id,
+                        name=self.name,
+                        message=message,
+                        level=level,
+                    )
+                ]
+            )
 
     # Backend API connection -----------------------------------------------------------
 
