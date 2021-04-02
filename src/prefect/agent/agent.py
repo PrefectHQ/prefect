@@ -109,6 +109,17 @@ class Agent:
             and all deployed flow runs
     """
 
+    # Loop intervals for query sleep backoff
+    _loop_intervals = {
+        0: 0.25,
+        1: 0.5,
+        2: 1.0,
+        3: 2.0,
+        4: 4.0,
+        5: 8.0,
+        6: 10.0,
+    }
+
     def __init__(
         self,
         agent_config_id: str = None,
@@ -224,18 +235,7 @@ class Agent:
         self.logger.debug(f"Loaded agent config {self.agent_config_id}: {agent_config}")
         return agent_config
 
-    def run_work_polling_loop(self, _loop_intervals: dict = None):
-        # Loop intervals for query sleep backoff
-        loop_intervals = _loop_intervals or {
-            0: 0.25,
-            1: 0.5,
-            2: 1.0,
-            3: 2.0,
-            4: 4.0,
-            5: 8.0,
-            6: 10.0,
-        }
-
+    def enter_work_polling_loop(self):
         index = 0
         remaining_polls = math.inf if self.max_polls is None else self.max_polls
 
@@ -252,28 +252,25 @@ class Agent:
 
                     if self.agent_process(executor):
                         index = 0
-                    elif index < max(loop_intervals.keys()):
+                    elif index < max(self._loop_intervals.keys()):
                         index += 1
 
                     remaining_polls -= 1
 
                     self.logger.debug(
                         "Next query for flow runs in {} seconds".format(
-                            loop_intervals[index]
+                            self._loop_intervals[index]
                         )
                     )
 
                     # Wait for loop interval timeout or agent to be poked by
                     # external process before querying for flow runs again.
-                    AGENT_WAKE_EVENT.wait(timeout=loop_intervals[index])
+                    AGENT_WAKE_EVENT.wait(timeout=self._loop_intervals[index])
 
-    def start(self, _loop_intervals: dict = None) -> None:
+    def start(self) -> None:
         """
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
-
-        Args:
-            - _loop_intervals (dict, optional): Exposed for testing only.
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
@@ -284,7 +281,7 @@ class Agent:
         try:
             self.setup()
             self.run_heartbeat_thread()
-            self.run_work_polling_loop(_loop_intervals)
+            self.enter_work_polling_loop()
 
         finally:
             self.cleanup()
