@@ -136,9 +136,9 @@ class Agent:
         )
 
         self._api_server = None  # type: ignore
-        self._api_server_loop = None  # type: Optional[IOLoop]
-        self._api_server_thread = None  # type: Optional[threading.Thread]
-        self._heartbeat_thread = None  # type: Optional[threading.Thread]
+        self._api_server_loop: IOLoop = None
+        self._api_server_thread: threading.Thread = None
+        self._heartbeat_thread: threading.Thread = None
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
