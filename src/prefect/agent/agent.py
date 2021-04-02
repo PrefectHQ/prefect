@@ -182,9 +182,9 @@ class Agent:
             self._show_startup_display()
 
             # Start background tasks
-            self._run_heartbeat_thread()
+            self._start_heartbeat_thread()
             if self.agent_address:
-                self._run_agent_api_server()
+                self._start_agent_api_server()
 
             # Enter the main loop checking for new flows
             with exit_handler(self) as exit_event:
@@ -380,7 +380,7 @@ class Agent:
     # - Agent API server
     # - Heartbeat thread
 
-    def _run_agent_api_server(self) -> None:
+    def _start_agent_api_server(self) -> None:
         if not self.agent_address:
             raise ValueError("Cannot run agent API without setting `agent_address`")
 
@@ -437,7 +437,7 @@ class Agent:
             # will terminate on exit anyway since it's a daemon thread.
             self._api_server_thread.join(timeout=1)
 
-    def _run_heartbeat_thread(self) -> None:
+    def _start_heartbeat_thread(self) -> None:
         """
         Run a thread to send heartbeats to the backend API, should be called at `start`
         """

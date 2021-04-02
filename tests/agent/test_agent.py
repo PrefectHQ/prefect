@@ -532,8 +532,14 @@ def test_agent_retrieve_config(monkeypatch, cloud_api):
         MagicMock(return_value={"settings": "yes"}),
     )
 
-    agent = Agent(max_polls=1)
+    agent = Agent(max_polls=1, agent_config_id="foo")
     assert agent._retrieve_agent_config() == {"settings": "yes"}
+
+
+def test_agent_retrieve_config_requires_config_id_set(cloud_api):
+    agent = Agent(max_polls=1)
+    with pytest.raises(ValueError, match="agent_config_id"):
+        assert agent._retrieve_agent_config() == {"settings": "yes"}
 
 
 def test_agent_health_check(cloud_api):
@@ -549,7 +555,7 @@ def test_agent_health_check(cloud_api):
 
     agent = TestAgent(agent_address=f"http://127.0.0.1:{port}", max_polls=1)
 
-    agent._run_agent_api_server()
+    agent._start_agent_api_server()
 
     # May take a sec for the api server to startup
     for attempt in range(5):
