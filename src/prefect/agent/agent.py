@@ -142,9 +142,7 @@ class Agent:
         self.log_to_cloud = False if no_cloud_logs else True
         self.heartbeat_period = 60  # exposed for testing
 
-        self.agent_address = agent_address or config.cloud.agent.get(
-            "agent_address", ""
-        )
+        self.agent_address = agent_address or config.cloud.agent.get("agent_address")
 
         self._api_server = None  # type: ignore
         self._api_server_loop: IOLoop = None
@@ -155,7 +153,8 @@ class Agent:
         # Create the default logger
         self.logger = self._get_logger()
 
-        self.submitting_flow_runs = set()  # type: Set[str]
+        # Store a set of flows that are being submitted to prevent duplicate submissions
+        self.submitting_flow_runs: Set[str] = set()
 
         # Log configuration options
         self.logger.debug(f"Environment variables: {[*self.env_vars]}")
@@ -164,102 +163,86 @@ class Agent:
         self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
         self.logger.debug(f"Prefect backend: {config.backend}")
 
-    def _get_logger(self) -> logging.Logger:
+    def start(self) -> None:
         """
-        Create an agent logger based on config options
+        The main entrypoint to the agent process. Sets up the agent then continuously
+        polls for work to submit.
+
+        This is the only method that should need to be called externally.
         """
-
-        logger = logging.getLogger(self.name)
-        logger.setLevel(config.cloud.agent.get("level"))
-
-        # Ensure it has a stream handler
-        if not any(
-            isinstance(handler, logging.StreamHandler) for handler in logger.handlers
-        ):
-            ch = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter(context.config.logging.format)
-            formatter.converter = time.gmtime  # type: ignore
-            ch.setFormatter(formatter)
-            logger.addHandler(ch)
-
-        return logger
-
-    def _verify_token(self, token: str) -> None:
-        """
-        Checks whether a token with a `RUNNER` scope was provided
-        Args:
-            - token (str): The provided agent token to verify
-        Raises:
-            - AuthorizationError: if token is empty or does not have a RUNNER role
-        """
-        if not token:
-            raise AuthorizationError("No agent API token provided.")
-
-        # Check if RUNNER role
-        result = self.client.graphql(query="query { auth_info { api_token_scope } }")
-        if (
-            not result.data  # type: ignore
-            or result.data.auth_info.api_token_scope != "RUNNER"  # type: ignore
-        ):
-            raise AuthorizationError("Provided token does not have a RUNNER scope.")
-
-    def _register_agent(self) -> str:
-        """
-        Register this agent with a backend API and retrieve the ID
-
-        Returns:
-            - The agent ID as a string
-        """
-        agent_id = self.client.register_agent(
-            agent_type=type(self).__name__,
-            name=self.name,
-            labels=self.labels,  # type: ignore
-            agent_config_id=self.agent_config_id,
-        )
-
-        self.logger.debug(f"Agent ID: {agent_id}")
-
-        if self.agent_config_id:
-            self.agent_config = self._retrieve_agent_config()
-
-        return agent_id
-
-    def _retrieve_agent_config(self) -> dict:
-        """
-        Retrieve the configuration of an agent if an agent ID is provided
-
-        Returns:
-            - dict: a dictionary of agent configuration
-        """
-        agent_config = self.client.get_agent_config(self.agent_config_id)
-        self.logger.debug(f"Loaded agent config {self.agent_config_id}: {agent_config}")
-        return agent_config
-
-    def _setup_api_connection(self) -> None:
-        """
-        Sets up the agent's connection to Cloud
-
-        - Verifies token with Cloud
-        - Gets an agent_id and attaches it to the headers
-        - Runs a test query to check for a good setup
-        """
-        if config.backend == "cloud":
-            self._verify_token(self.client.get_auth_token())
-
-        # Register agent with backend API
-        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
-
-        self.logger.info(
-            "Agent connecting to the Prefect API at {}".format(config.cloud.api)
-        )
 
         try:
-            self.client.graphql(query="query { hello }")
-        except Exception as exc:
-            self.logger.error(
-                "There was an error connecting to {}".format(config.cloud.api)
-            )
-            self.logger.error(exc)
+            self._setup_api_connection()
+
+            # Call subclass hook
+            self.on_startup()
+
+            # Print some nice startup logs
+            self._show_startup_display()
+
+            # Start background tasks
+            self._run_heartbeat_thread()
+            self._run_agent_api_server()
+
+            # Enter the main loop checking for new flows
+            self._enter_work_polling_loop()
+
+        finally:
+            self._cleanup()
+
+    def _cleanup(self) -> None:
+        self.on_shutdown()
+        self._stop_agent_api_server()
+        self._stop_heartbeat_thread()
+
+    # Subclass hooks -------------------------------------------------------------------
+    # -- These are intended to be defined by specific agent types
+
+    def deploy_flow(self, flow_run: GraphQLResult) -> str:
+        """
+        Invoked when a flow should be deployed for execution by this agent
+
+        Must be implemented by a child class.
+
+        Args:
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+        Returns:
+            - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
+        """
+        raise NotImplementedError()
+
+    def heartbeat(self) -> None:
+        """
+        Invoked by the heartbeat thread on a loop.
+
+        A hook for child classes to implement.
+        """
+        pass
+
+    def on_startup(self) -> None:
+        """
+        Invoked when the agent is starting up after verifying the connection to the API
+        but before background tasks are created and work begins
+
+        A hook for child classes to optionally implement.
+        """
+        pass
+
+    def on_shutdown(self) -> None:
+        """
+        Invoked when the event loop is exiting and the agent is shutting down.
+
+        A hook for child classes to optionally implement.
+        """
+        pass
+
+    # Main work loop -------------------------------------------------------------------
+    # We've now entered implementation details of the agent base. Subclasses should
+    # not need to worry about how this works.
 
     def _enter_work_polling_loop(self) -> None:
         index = 0
@@ -268,10 +251,13 @@ class Agent:
         # the max workers default has changed in 3.8. For stable results the
         # default 3.8 behavior is elected here.
         max_workers = min(32, (os.cpu_count() or 1) + 4)
+        self.logger.debug(
+            f"Running thread pool with {max_workers} workers to handle flow deployment"
+        )
 
         with exit_handler(self) as exit_event:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                self.logger.debug("Max Workers: {}".format(max_workers))
+
                 while not exit_event.is_set() and remaining_polls:
                     # Reset the event in case it was set by poke handler.
                     AGENT_WAKE_EVENT.clear()
@@ -295,37 +281,45 @@ class Agent:
                     # external process before querying for flow runs again.
                     AGENT_WAKE_EVENT.wait(timeout=self._loop_intervals[index])
 
-    def _show_startup_display(self):
-        print(ascii_name)
-        self.logger.info(f"Starting {type(self).__name__} with labels {self.labels}")
-        self.logger.info(
-            "Agent documentation can be found at "
-            "https://docs.prefect.io/orchestration/"
-        )
-
-    def start(self) -> None:
+    def agent_process(self, executor: "ThreadPoolExecutor") -> bool:
         """
-        The main entrypoint to the agent process
-        """
+        Full process for finding flow runs, updating states, and deploying.
 
+        Args:
+            - executor (ThreadPoolExecutor): the interface to submit flow deployments in
+                background threads
+
+        Returns:
+            - bool: whether or not flow runs were found
+        """
+        flow_runs = None
         try:
-            self._setup_api_connection()
+            flow_runs = self._get_ready_flow_runs()
 
-            # Call subclass hook
-            self.on_startup()
+            if flow_runs:
+                self.logger.info(
+                    "Found {} flow run(s) to submit for execution.".format(
+                        len(flow_runs)
+                    )
+                )
 
-            # Print some nice startup logs
-            self._show_startup_display()
+            for flow_run in flow_runs:
+                fut = executor.submit(self.deploy_and_update_flow_run, flow_run)
+                self.submitting_flow_runs.add(flow_run.id)
+                fut.add_done_callback(
+                    functools.partial(
+                        self.on_flow_run_deploy_attempt, flow_run_id=flow_run.id
+                    )
+                )
 
-            # Start background tasks
-            self._run_heartbeat_thread()
-            self._run_agent_api_server()
+        except Exception as exc:
+            self.logger.error(exc)
 
-            # Enter the main loop checking for new flows
-            self._enter_work_polling_loop()
+        return bool(flow_runs)
 
-        finally:
-            self.cleanup()
+    # Background jobs ------------------------------------------------------------------
+    # - Agent API server
+    # - Heartbeat thread
 
     def _run_agent_api_server(self):
         if not self.agent_address:
@@ -383,11 +377,6 @@ class Agent:
             # Give the server a small period to shutdown nicely, otherwise it
             # will terminate on exit anyway since it's a daemon thread.
             self._api_server_thread.join(timeout=1)
-
-    def cleanup(self) -> None:
-        self.on_shutdown()
-        self._stop_agent_api_server()
-        self._stop_heartbeat_thread()
 
     def _run_heartbeat_thread(self) -> None:
         """
@@ -488,50 +477,16 @@ class Agent:
         self.submitting_flow_runs.remove(flow_run_id)
         self.logger.debug("Completed flow run submission (id: {})".format(flow_run_id))
 
-    def agent_process(self, executor: "ThreadPoolExecutor") -> bool:
-        """
-        Full process for finding flow runs, updating states, and deploying.
+    # Backend API queries --------------------------------------------------------------
 
-        Args:
-            - executor (ThreadPoolExecutor): the interface to submit flow deployments in
-                background threads
-
-        Returns:
-            - bool: whether or not flow runs were found
-        """
-        flow_runs = None
-        try:
-            flow_runs = self.query_flow_runs()
-
-            if flow_runs:
-                self.logger.info(
-                    "Found {} flow run(s) to submit for execution.".format(
-                        len(flow_runs)
-                    )
-                )
-
-            for flow_run in flow_runs:
-                fut = executor.submit(self.deploy_and_update_flow_run, flow_run)
-                self.submitting_flow_runs.add(flow_run.id)
-                fut.add_done_callback(
-                    functools.partial(
-                        self.on_flow_run_deploy_attempt, flow_run_id=flow_run.id
-                    )
-                )
-
-        except Exception as exc:
-            self.logger.error(exc)
-
-        return bool(flow_runs)
-
-    def query_flow_runs(self) -> list:
+    def _get_ready_flow_runs(self) -> list:
         """
         Query Prefect Cloud for flow runs which need to be deployed and executed
 
         Returns:
             - list: A list of GraphQLResult flow run objects
         """
-        self.logger.debug("Querying for flow runs")
+        self.logger.debug("Querying for flow runs...")
         # keep a copy of what was curringly running before the query
         # (future callbacks may be updating this set)
         currently_submitting_flow_runs = self.submitting_flow_runs.copy()
@@ -562,17 +517,15 @@ class Agent:
         flow_run_ids = set(result.data.get_runs_in_queue.flow_run_ids)  # type: ignore
 
         if flow_run_ids:
-            msg = "Found flow runs {}".format(
-                result.data.get_runs_in_queue.flow_run_ids
-            )
+            msg = f"Found {len(flow_run_ids)} ready flow runs: {flow_run_ids}"
         else:
-            msg = "No flow runs found"
+            msg = "No ready flow runs found"
 
         already_submitting = flow_run_ids & currently_submitting_flow_runs
         target_flow_run_ids = flow_run_ids - already_submitting
 
         if already_submitting:
-            msg += " ({} already submitting: {})".format(
+            msg += " ({} are already being : {})".format(
                 len(already_submitting), list(already_submitting)
             )
 
@@ -580,7 +533,7 @@ class Agent:
 
         if target_flow_run_ids:
 
-            self.logger.debug("Querying flow run metadata")
+            self.logger.debug("Querying for flow run metadata...")
             return self._get_flow_run_metadata(
                 target_flow_run_ids, start_time=now.subtract(seconds=3)
             )
@@ -752,50 +705,110 @@ class Agent:
 
         return None
 
-    # Subclass hooks -------------------------------------------------------------------
-    # -- These are intended to be defined by specific agent types
+    # Backend API connection -----------------------------------------------------------
 
-    def deploy_flow(self, flow_run: GraphQLResult) -> str:
+    def _verify_token(self, token: str) -> None:
         """
-        Invoked when a flow should be deployed for execution by this agent
-
-        Must be implemented by a child class.
-
+        Checks whether a token with a `RUNNER` scope was provided
         Args:
-            - flow_run (GraphQLResult): A GraphQLResult flow run object
+            - token (str): The provided agent token to verify
+        Raises:
+            - AuthorizationError: if token is empty or does not have a RUNNER role
+        """
+        if not token:
+            raise AuthorizationError("No agent API token provided.")
+
+        # Check if RUNNER role
+        result = self.client.graphql(query="query { auth_info { api_token_scope } }")
+        if (
+            not result.data  # type: ignore
+            or result.data.auth_info.api_token_scope != "RUNNER"  # type: ignore
+        ):
+            raise AuthorizationError("Provided token does not have a RUNNER scope.")
+
+    def _register_agent(self) -> str:
+        """
+        Register this agent with a backend API and retrieve the ID
 
         Returns:
-            - str: Information about the deployment
-
-        Raises:
-            - ValueError: if deployment attempted on unsupported Storage type
+            - The agent ID as a string
         """
-        raise NotImplementedError()
+        agent_id = self.client.register_agent(
+            agent_type=type(self).__name__,
+            name=self.name,
+            labels=self.labels,  # type: ignore
+            agent_config_id=self.agent_config_id,
+        )
 
-    def heartbeat(self) -> None:
-        """
-        Invoked by the heartbeat thread on a loop.
+        self.logger.debug(f"Agent ID: {agent_id}")
 
-        A hook for child classes to implement.
-        """
-        pass
+        if self.agent_config_id:
+            self.agent_config = self._retrieve_agent_config()
 
-    def on_startup(self) -> None:
-        """
-        Invoked when the agent is starting up after verifying the connection to the API
-        but before background tasks are created and work begins
+        return agent_id
 
-        A hook for child classes to optionally implement.
+    def _retrieve_agent_config(self) -> dict:
         """
-        pass
+        Retrieve the configuration of an agent if an agent ID is provided
 
-    def on_shutdown(self) -> None:
+        Returns:
+            - dict: a dictionary of agent configuration
         """
-        Invoked when the event loop is exiting and the agent is shutting down.
+        agent_config = self.client.get_agent_config(self.agent_config_id)
+        self.logger.debug(f"Loaded agent config {self.agent_config_id}: {agent_config}")
+        return agent_config
 
-        A hook for child classes to optionally implement.
+    def _setup_api_connection(self) -> None:
         """
-        pass
+        Sets up the agent's connection to Cloud
+
+        - Verifies token with Cloud
+        - Gets an agent_id and attaches it to the headers
+        - Runs a test query to check for a good setup
+        """
+        if config.backend == "cloud":
+            self._verify_token(self.client.get_auth_token())
+
+        # Register agent with backend API
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+
+        self.logger.info(f"Agent connecting to the Prefect API at {config.cloud.api}")
+
+        try:
+            self.client.graphql(query="query { hello }")
+        except Exception as exc:
+            self.logger.error(f"There was an error connecting to {config.cloud.api}")
+            self.logger.error(exc)
+
+    # Utilities ------------------------------------------------------------------------
+
+    def _show_startup_display(self):
+        print(ascii_name)
+        self.logger.info(f"Starting {type(self).__name__} with labels {self.labels}")
+        self.logger.info(
+            "Agent documentation can be found at "
+            "https://docs.prefect.io/orchestration/"
+        )
+
+    def _get_logger(self) -> logging.Logger:
+        """
+        Create an agent logger based on config options
+        """
+
+        logger = logging.getLogger(self.name)
+        logger.setLevel(config.cloud.agent.get("level"))
+
+        # Ensure it has a stream handler
+        if not any(
+            isinstance(handler, logging.StreamHandler) for handler in logger.handlers
+        ):
+            ch = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter(context.config.logging.format)
+            formatter.converter = time.gmtime  # type: ignore
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
+
+        return logger
 
 
 if __name__ == "__main__":
