@@ -139,6 +139,7 @@ class Agent:
         self._api_server_loop: IOLoop = None
         self._api_server_thread: threading.Thread = None
         self._heartbeat_thread: threading.Thread = None
+        self._agent_config: dict = None
 
         # Create the default logger
         self.logger = self._get_logger()
@@ -208,7 +209,7 @@ class Agent:
         self.logger.debug(f"Agent ID: {agent_id}")
 
         if self.agent_config_id:
-            self._retrieve_agent_config()
+            self.agent_config = self._retrieve_agent_config()
 
         return agent_id
 
