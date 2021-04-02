@@ -259,23 +259,13 @@ class Agent:
             while not exit_event.is_set() and remaining_polls:
                 # Reset the event in case it was set by poke handler.
                 AGENT_WAKE_EVENT.clear()
-                flow_runs: Optional[list] = None
 
-                # Query for ready runs -- allowing for intermittent failures
-                try:
-                    flow_runs = self._get_ready_flow_runs()
-                except Exception:
-                    self.logger.error(
-                        "Failed to query for ready flow runs", exc_info=True
-                    )
-
-                # Submit any found flow runs to the executor
-                self._submit_deploy_flow_run_jobs(
-                    executor=executor, flow_runs=flow_runs
+                submitted_flow_runs = self._submit_deploy_flow_run_jobs(
+                    executor=executor,
                 )
 
                 # Flow runs were found, so start the next iteration immediately
-                if flow_runs:
+                if submitted_flow_runs:
                     backoff_index = 0
                 # Otherwise, add to the index (unless we are at the max already)
                 elif backoff_index < max(self._loop_intervals.keys()):
@@ -293,9 +283,7 @@ class Agent:
                 # external process before querying for flow runs again.
                 AGENT_WAKE_EVENT.wait(timeout=self._loop_intervals[backoff_index])
 
-    def _submit_deploy_flow_run_jobs(
-        self, executor: "ThreadPoolExecutor", flow_runs: Optional[list]
-    ) -> None:
+    def _submit_deploy_flow_run_jobs(self, executor: "ThreadPoolExecutor") -> list:
         """
         Full process for finding flow runs, updating states, and deploying.
 
@@ -304,10 +292,15 @@ class Agent:
                 background threads
 
         Returns:
-            - bool: whether or not flow runs were found
+            - A list of submitted flow runs
         """
-        if not flow_runs:
-            return
+        # Query for ready runs -- allowing for intermittent failures by handling
+        # exceptions
+        try:
+            flow_runs = self._get_ready_flow_runs()
+        except Exception:
+            self.logger.error("Failed to query for ready flow runs", exc_info=True)
+            return []
 
         self.logger.info(
             "Found {} flow run(s) to submit for execution.".format(len(flow_runs))
@@ -321,6 +314,8 @@ class Agent:
                     self._deploy_flow_run_completed_callback, flow_run_id=flow_run.id
                 )
             )
+
+        return flow_runs
 
     def _deploy_flow_run(self, flow_run: "GraphQLResult") -> None:
         """
@@ -485,9 +480,10 @@ class Agent:
         Returns:
             - list: A list of GraphQLResult flow run objects
         """
-        self.logger.debug("Querying for flow runs...")
-        # keep a copy of what was curringly running before the query
-        # (future callbacks may be updating this set)
+        self.logger.debug("Querying for ready flow runs...")
+
+        # keep a copy of what was submitted running before the query as the thread
+        # pool might modify the set in the meantime
         currently_submitting_flow_runs = self.submitting_flow_runs.copy()
 
         # Get scheduled flow runs from queue
@@ -524,7 +520,7 @@ class Agent:
         target_flow_run_ids = flow_run_ids - already_submitting
 
         if already_submitting:
-            msg += " ({} are already being : {})".format(
+            msg += " ({} already being submitted: {})".format(
                 len(already_submitting), list(already_submitting)
             )
 
