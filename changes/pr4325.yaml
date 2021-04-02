@@ -1,0 +1,2 @@
+fix:
+  - "Improve ECS agent error messages, and fix bug that prevented using ECS agent on Fargate with ECR - [#4325](https://github.com/PrefectHQ/prefect/pull/4325)"
