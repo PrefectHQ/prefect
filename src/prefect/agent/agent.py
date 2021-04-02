@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import pendulum
 from tornado import web
 from tornado.ioloop import IOLoop
+from tornado.httpserver import HTTPServer
 
 from prefect import config
 from prefect.client import Client
@@ -144,11 +145,11 @@ class Agent:
 
         self.agent_address = agent_address or config.cloud.agent.get("agent_address")
 
-        self._api_server = None  # type: ignore
-        self._api_server_loop: IOLoop = None
-        self._api_server_thread: threading.Thread = None
-        self._heartbeat_thread: threading.Thread = None
-        self._agent_config: dict = None
+        self._api_server: Optional[HTTPServer] = None
+        self._api_server_loop: Optional[IOLoop] = None
+        self._api_server_thread: Optional[threading.Thread] = None
+        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._agent_config: Optional[dict] = None
 
         # Create the default logger
         self.logger = self._get_logger()
@@ -379,7 +380,7 @@ class Agent:
     # - Agent API server
     # - Heartbeat thread
 
-    def _run_agent_api_server(self):
+    def _run_agent_api_server(self) -> None:
         if not self.agent_address:
             raise ValueError("Cannot run agent API without setting `agent_address`")
 
@@ -404,7 +405,7 @@ class Agent:
             self.logger.debug(
                 f"Agent API server listening on port {self.agent_address}"
             )
-            self._api_server = app.listen(port, address=hostname)  # type: ignore
+            self._api_server = app.listen(port, address=hostname)
             self._api_server_loop = IOLoop.current()
             self._api_server_loop.start()  # type: ignore
 
@@ -413,7 +414,7 @@ class Agent:
         )
         self._api_server_thread.start()
 
-    def _stop_agent_api_server(self):
+    def _stop_agent_api_server(self) -> None:
         if self._api_server is not None:
             self.logger.debug("Stopping agent API server")
             self._api_server.stop()
@@ -698,7 +699,9 @@ class Agent:
 
         return None
 
-    def _safe_write_run_log(self, flow_run, message: str, level: str) -> None:
+    def _safe_write_run_log(
+        self, flow_run: GraphQLResult, message: str, level: str
+    ) -> None:
         """
         Write a log to the backend API for the given flow run. If the flow run object
         does not have an id, this is a no-op.
@@ -769,6 +772,11 @@ class Agent:
         Returns:
             - dict: a dictionary of agent configuration
         """
+        if not self.agent_config_id:
+            raise ValueError(
+                "Cannot retrieve agent config without setting `agent_config_id`"
+            )
+
         agent_config = self.client.get_agent_config(self.agent_config_id)
         self.logger.debug(f"Loaded agent config {self.agent_config_id}: {agent_config}")
         return agent_config
@@ -801,7 +809,7 @@ class Agent:
 
     # Utilities ------------------------------------------------------------------------
 
-    def _show_startup_display(self):
+    def _show_startup_display(self) -> None:
         print(ascii_name)
         self.logger.info(f"Starting {type(self).__name__} with labels {self.labels}")
         self.logger.info(
