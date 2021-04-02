@@ -23,7 +23,7 @@ from prefect.serialization.run_config import RunConfigSchema
 from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities.context import context
 from prefect.utilities.exceptions import AuthorizationError
-from prefect.utilities.graphql import GraphQLResult, with_args
+from prefect.utilities.graphql import GraphQLResult, with_args, EnumValue
 
 ascii_name = r"""
  ____            __           _        _                    _
@@ -508,8 +508,8 @@ class Agent:
             - list: A list of GraphQLResult flow run objects
         """
         self.logger.debug("Querying for flow runs")
-        # keep a copy of what was curringly running before the query (future callbacks may be
-        # updating this set)
+        # keep a copy of what was curringly running before the query
+        # (future callbacks may be updating this set)
         currently_submitting_flow_runs = self.submitting_flow_runs.copy()
 
         # Get scheduled flow runs from queue
@@ -554,7 +554,29 @@ class Agent:
 
         self.logger.debug(msg)
 
-        # Query metadata for flow runs found in queue
+        if target_flow_run_ids:
+
+            self.logger.debug("Querying flow run metadata")
+            return self._get_flow_run_metadata(
+                target_flow_run_ids, start_time=now.subtract(seconds=3)
+            )
+
+        else:
+            return []
+
+    def _get_flow_run_metadata(
+        self, flow_run_ids: Iterable[str], start_time: pendulum.DateTime
+    ) -> list:
+        """
+        Get metadata about a collection of flow run ids
+
+        Args:
+            flow_run_ids: Flow run ids to query (order will not be respected)
+            start_time: Only
+
+        Returns:
+           List: Metadata per flow run sorted by scheduled start time (ascending)
+        """
         query = {
             "query": {
                 with_args(
@@ -562,7 +584,7 @@ class Agent:
                     {
                         # match flow runs in the flow_run_ids list
                         "where": {
-                            "id": {"_in": list(target_flow_run_ids)},
+                            "id": {"_in": list(flow_run_ids)},
                             "_or": [
                                 # who are EITHER scheduled...
                                 {"state": {"_eq": "Scheduled"}},
@@ -572,12 +594,13 @@ class Agent:
                                     "state": {"_eq": "Running"},
                                     "task_runs": {
                                         "state_start_time": {
-                                            "_lte": str(now.subtract(seconds=3))  # type: ignore
+                                            "_lte": str(start_time)  # type: ignore
                                         }
                                     },
                                 },
                             ],
                         },
+                        "order_by": {"scheduled_start_time": EnumValue("asc")},
                     },
                 ): {
                     "id": True,
@@ -600,7 +623,7 @@ class Agent:
                         {
                             "where": {
                                 "state_start_time": {
-                                    "_lte": str(now.subtract(seconds=3))  # type: ignore
+                                    "_lte": str(start_time)  # type: ignore
                                 }
                             }
                         },
@@ -608,17 +631,8 @@ class Agent:
                 }
             }
         }
-
-        if target_flow_run_ids:
-            self.logger.debug("Querying flow run metadata")
-            result = self.client.graphql(query)
-
-            # Return flow runs sorted by scheduled start time
-            return sorted(
-                result.data.flow_run, key=lambda flow_run: flow_run.scheduled_start_time
-            )
-        else:
-            return []
+        result = self.client.graphql(query)
+        return result.data.flow_run
 
     def update_state(self, flow_run: GraphQLResult) -> None:
         """
