@@ -235,7 +235,33 @@ class Agent:
         self.logger.debug(f"Loaded agent config {self.agent_config_id}: {agent_config}")
         return agent_config
 
-    def enter_work_polling_loop(self):
+    def _setup_api_connection(self) -> None:
+        """
+        Sets up the agent's connection to Cloud
+
+        - Verifies token with Cloud
+        - Gets an agent_id and attaches it to the headers
+        - Runs a test query to check for a good setup
+        """
+        if config.backend == "cloud":
+            self._verify_token(self.client.get_auth_token())
+
+        # Register agent with backend API
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+
+        self.logger.info(
+            "Agent connecting to the Prefect API at {}".format(config.cloud.api)
+        )
+
+        try:
+            self.client.graphql(query="query { hello }")
+        except Exception as exc:
+            self.logger.error(
+                "There was an error connecting to {}".format(config.cloud.api)
+            )
+            self.logger.error(exc)
+
+    def _enter_work_polling_loop(self) -> None:
         index = 0
         remaining_polls = math.inf if self.max_polls is None else self.max_polls
 
@@ -249,6 +275,8 @@ class Agent:
                 while not exit_event.is_set() and remaining_polls:
                     # Reset the event in case it was set by poke handler.
                     AGENT_WAKE_EVENT.clear()
+
+                    self.logger.info("Waiting for flow runs...")
 
                     if self.agent_process(executor):
                         index = 0
@@ -267,66 +295,73 @@ class Agent:
                     # external process before querying for flow runs again.
                     AGENT_WAKE_EVENT.wait(timeout=self._loop_intervals[index])
 
+    def _show_startup_display(self):
+        print(ascii_name)
+        self.logger.info(f"Starting {type(self).__name__} with labels {self.labels}")
+        self.logger.info(
+            "Agent documentation can be found at "
+            "https://docs.prefect.io/orchestration/"
+        )
+
     def start(self) -> None:
         """
-        The main entrypoint to the agent. This function loops and constantly polls for
-        new flow runs to deploy
+        The main entrypoint to the agent process
         """
-        if config.backend == "cloud":
-            self._verify_token(self.client.get_auth_token())
-
-        # Register agent with backend API
-        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         try:
-            self.setup()
-            self.run_heartbeat_thread()
-            self.enter_work_polling_loop()
+            self._setup_api_connection()
+
+            # Call subclass hook
+            self.on_startup()
+
+            # Print some nice startup logs
+            self._show_startup_display()
+
+            # Start background tasks
+            self._run_heartbeat_thread()
+            self._run_agent_api_server()
+
+            # Enter the main loop checking for new flows
+            self._enter_work_polling_loop()
 
         finally:
             self.cleanup()
 
-    def setup(self) -> None:
-        print(ascii_name)
+    def _run_agent_api_server(self):
+        if not self.agent_address:
+            raise ValueError("Cannot run agent API without setting `agent_address`")
 
-        self.on_startup()
+        parsed = urlparse(self.agent_address)
+        if not parsed.port:
+            raise ValueError("Must specify port in agent address")
+        port = cast(int, parsed.port)
+        hostname = parsed.hostname or ""
+        app = web.Application(
+            [("/api/health", HealthHandler), ("/api/poke", PokeHandler)]
+        )
 
-        self.agent_connect()
+        def run() -> None:
+            # Ensure there's an active event loop in this thread
+            import asyncio
 
-        if self.agent_address:
-            parsed = urlparse(self.agent_address)
-            if not parsed.port:
-                raise ValueError("Must specify port in agent address")
-            port = cast(int, parsed.port)
-            hostname = parsed.hostname or ""
-            app = web.Application(
-                [("/api/health", HealthHandler), ("/api/poke", PokeHandler)]
+            try:
+                asyncio.get_event_loop()
+            except RuntimeError:
+                asyncio.set_event_loop(asyncio.new_event_loop())
+
+            self.logger.debug(
+                f"Agent API server listening on port {self.agent_address}"
             )
+            self._api_server = app.listen(port, address=hostname)  # type: ignore
+            self._api_server_loop = IOLoop.current()
+            self._api_server_loop.start()  # type: ignore
 
-            def run() -> None:
-                # Ensure there's an active event loop in this thread
-                import asyncio
+        self._api_server_thread = threading.Thread(
+            name="api-server", target=run, daemon=True
+        )
+        self._api_server_thread.start()
 
-                try:
-                    asyncio.get_event_loop()
-                except RuntimeError:
-                    asyncio.set_event_loop(asyncio.new_event_loop())
-
-                self.logger.debug(
-                    f"Agent API server listening on port {self.agent_address}"
-                )
-                self._api_server = app.listen(port, address=hostname)  # type: ignore
-                self._api_server_loop = IOLoop.current()
-                self._api_server_loop.start()  # type: ignore
-
-            self._api_server_thread = threading.Thread(
-                name="api-server", target=run, daemon=True
-            )
-            self._api_server_thread.start()
-
-    def cleanup(self) -> None:
-        self.on_shutdown()
-
+    def _stop_agent_api_server(self):
         if self._api_server is not None:
             self.logger.debug("Stopping agent API server")
             self._api_server.stop()
@@ -349,11 +384,16 @@ class Agent:
             # will terminate on exit anyway since it's a daemon thread.
             self._api_server_thread.join(timeout=1)
 
-        if self._heartbeat_thread is not None:
-            self.logger.debug("Stopping heartbeat thread")
-            self._heartbeat_thread.join(timeout=1)
+    def cleanup(self) -> None:
+        self.on_shutdown()
+        self._stop_agent_api_server()
+        self._stop_heartbeat_thread()
 
-    def run_heartbeat_thread(self) -> None:
+    def _run_heartbeat_thread(self) -> None:
+        """
+        Run a thread to send heartbeats to the backend API, should be called at `start`
+        """
+
         def run() -> None:
             while True:
                 try:
@@ -376,42 +416,29 @@ class Agent:
         )
         self._heartbeat_thread.start()
 
+    def _stop_heartbeat_thread(self) -> None:
+        """
+        Stop the heartbeat thread, should be called at `cleanup`
+        """
+        if self._heartbeat_thread is not None:
+            self.logger.debug("Stopping heartbeat thread")
+            self._heartbeat_thread.join(timeout=1)
+
     def on_startup(self) -> None:
         """
-        Invoked when the agent is starting up.
+        Invoked when the agent is starting up after verifying the connection to the API
+        but before background tasks are created and work begins
 
         Intended as a hook for child classes to optionally implement.
         """
+        pass
 
     def on_shutdown(self) -> None:
         """
         Invoked when the event loop is exiting and the agent is shutting down. Intended
         as a hook for child classes to optionally implement.
         """
-
-    def agent_connect(self) -> None:
-        """
-        Verify agent connection to Prefect API by querying
-        """
-        self.logger.info(
-            "Starting {} with labels {}".format(type(self).__name__, self.labels)
-        )
-        self.logger.info(
-            "Agent documentation can be found at https://docs.prefect.io/orchestration/"
-        )
-
-        self.logger.info(
-            "Agent connecting to the Prefect API at {}".format(config.cloud.api)
-        )
-        try:
-            self.client.graphql(query="query { hello }")
-        except Exception as exc:
-            self.logger.error(
-                "There was an error connecting to {}".format(config.cloud.api)
-            )
-            self.logger.error(exc)
-
-        self.logger.info("Waiting for flow runs...")
+        pass
 
     def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:
         """
