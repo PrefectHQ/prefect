@@ -765,6 +765,9 @@ class Agent:
         - Verifies token with Cloud
         - Gets an agent_id and attaches it to the headers
         - Runs a test query to check for a good setup
+
+        Raises:
+            RuntimeError: On failed test query
         """
         if config.backend == "cloud":
             self._verify_token(self.client.get_auth_token())
@@ -777,8 +780,9 @@ class Agent:
         try:
             self.client.graphql(query="query { hello }")
         except Exception as exc:
-            self.logger.error(f"There was an error connecting to {config.cloud.api}")
-            self.logger.error(exc)
+            raise RuntimeError(
+                f"Error while contacting API at {config.cloud.api}"
+            ) from exc
 
     # Utilities ------------------------------------------------------------------------
 
