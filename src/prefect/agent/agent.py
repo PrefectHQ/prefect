@@ -424,22 +424,6 @@ class Agent:
             self.logger.debug("Stopping heartbeat thread")
             self._heartbeat_thread.join(timeout=1)
 
-    def on_startup(self) -> None:
-        """
-        Invoked when the agent is starting up after verifying the connection to the API
-        but before background tasks are created and work begins
-
-        Intended as a hook for child classes to optionally implement.
-        """
-        pass
-
-    def on_shutdown(self) -> None:
-        """
-        Invoked when the event loop is exiting and the agent is shutting down. Intended
-        as a hook for child classes to optionally implement.
-        """
-        pass
-
     def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:
         """
         Deploy a flow run and update Cloud with the resulting deployment info.
@@ -450,7 +434,7 @@ class Agent:
         """
         # Deploy flow run and mark failed if any deployment error
         try:
-            self.update_state(flow_run)
+            self._mark_flow_as_submitted(flow_run)
             deployment_info = self.deploy_flow(flow_run)
             if getattr(flow_run, "id", None):
                 self.client.write_run_logs(
@@ -486,7 +470,7 @@ class Agent:
                         )
                     ]
                 )
-            self.mark_failed(flow_run=flow_run, exc=exc)
+            self._mark_flow_as_failed(flow_run=flow_run, exc=exc)
 
     def on_flow_run_deploy_attempt(self, fut: "Future", flow_run_id: str) -> None:
         """
@@ -674,7 +658,7 @@ class Agent:
         result = self.client.graphql(query)
         return result.data.flow_run
 
-    def update_state(self, flow_run: GraphQLResult) -> None:
+    def _mark_flow_as_submitted(self, flow_run: GraphQLResult) -> None:
         """
         After a flow run is grabbed this function sets the state to Submitted so it
         won't be picked up by any other processes
@@ -682,17 +666,13 @@ class Agent:
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
         """
-        self.logger.debug(
-            "Updating states for flow run {}".format(flow_run.id)  # type: ignore
-        )
+        self.logger.debug(f"Updating states for flow run {flow_run.id}")
 
         # Set flow run state to `Submitted` if it is currently `Scheduled`
         if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
 
             self.logger.debug(
-                "Flow run {} is in a Scheduled state, updating to Submitted".format(
-                    flow_run.id  # type: ignore
-                )
+                f"Flow run {flow_run.id} is in a Scheduled state, updating to Submitted"
             )
             self.client.set_flow_run_state(
                 flow_run_id=flow_run.id,
@@ -704,14 +684,10 @@ class Agent:
             )
 
         # Set task run states to `Submitted` if they are currently `Scheduled`
+        task_runs_updated = 0
         for task_run in flow_run.task_runs:
             if state.StateSchema().load(task_run.serialized_state).is_scheduled():
-
-                self.logger.debug(
-                    "Task run {} is in a Scheduled state, updating to Submitted".format(
-                        task_run.id  # type: ignore
-                    )
-                )
+                task_runs_updated += 1
                 self.client.set_task_run_state(
                     task_run_id=task_run.id,
                     version=task_run.version,
@@ -720,8 +696,13 @@ class Agent:
                         state=state.StateSchema().load(task_run.serialized_state),
                     ),
                 )
+        if task_runs_updated:
+            self.logger.debug(
+                f"Updated {task_runs_updated} task runs from Scheduled state to "
+                f"Submitted"
+            )
 
-    def mark_failed(self, flow_run: GraphQLResult, exc: Exception) -> None:
+    def _mark_flow_as_failed(self, flow_run: GraphQLResult, exc: Exception) -> None:
         """
         Mark a flow run as `Failed`
 
@@ -771,9 +752,14 @@ class Agent:
 
         return None
 
+    # Subclass hooks -------------------------------------------------------------------
+    # -- These are intended to be defined by specific agent types
+
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
-        Meant to be overridden by a platform specific deployment option
+        Invoked when a flow should be deployed for execution by this agent
+
+        Must be implemented by a child class.
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
@@ -788,8 +774,28 @@ class Agent:
 
     def heartbeat(self) -> None:
         """
-        Meant to be overridden by a platform specific heartbeat option
+        Invoked by the heartbeat thread on a loop.
+
+        A hook for child classes to implement.
         """
+        pass
+
+    def on_startup(self) -> None:
+        """
+        Invoked when the agent is starting up after verifying the connection to the API
+        but before background tasks are created and work begins
+
+        A hook for child classes to optionally implement.
+        """
+        pass
+
+    def on_shutdown(self) -> None:
+        """
+        Invoked when the event loop is exiting and the agent is shutting down.
+
+        A hook for child classes to optionally implement.
+        """
+        pass
 
 
 if __name__ == "__main__":
