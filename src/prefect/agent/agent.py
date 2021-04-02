@@ -378,12 +378,9 @@ class Agent:
     ) -> None:
         """
         Called on completion of `_deploy_flow_run` regardless of success.
-        Clears the `flow_run_id` from the
-        Indicates that a flow run deployment has been deployed (successfully or otherwise).
-        This is intended to be a future callback hook, called in the agent's main thread
-        when the background thread has completed the deploy_and_update_flow_run() call, either
-        successfully, in error, or cancelled. In all cases the agent should be open to
-        attempting to deploy the flow run if the flow run id is still in the Cloud run queue.
+        Clears the `flow_run_id` from the submitted flow runs cached. No matter what
+        the result of the deployment job was, if the flow is in the ready queue from
+        the backend API this agent should be open to trying to deploy it again.
 
         Args:
             - _ (Future): required for future callbacks but unused
