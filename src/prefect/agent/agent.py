@@ -136,20 +136,21 @@ class Agent:
         self.client = Client(api_server=config.cloud.api, api_token=token)
 
         self.agent_config_id = agent_config_id
+        self._agent_config: Optional[dict] = None
+
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = labels or list(config.cloud.agent.get("labels", []))
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
         self.heartbeat_period = 60  # exposed for testing
-
         self.agent_address = agent_address or config.cloud.agent.get("agent_address")
 
+        # These track background task objects so we can tear them down on exit
         self._api_server: Optional[HTTPServer] = None
         self._api_server_loop: Optional[IOLoop] = None
         self._api_server_thread: Optional[threading.Thread] = None
         self._heartbeat_thread: Optional[threading.Thread] = None
-        self._agent_config: Optional[dict] = None
 
         # Create the default logger
         self.logger = self._get_logger()
