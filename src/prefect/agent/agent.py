@@ -317,13 +317,12 @@ class Agent:
         )
 
         for flow_run in flow_runs:
-            fut = executor.submit(self._deploy_flow_run, flow_run)
-            self.submitting_flow_runs.add(flow_run.id)
-            fut.add_done_callback(
+            executor.submit(self._deploy_flow_run, flow_run).add_done_callback(
                 functools.partial(
                     self._deploy_flow_run_completed_callback, flow_run_id=flow_run.id
                 )
             )
+            self.submitting_flow_runs.add(flow_run.id)
 
         return flow_runs
 
