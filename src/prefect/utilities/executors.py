@@ -50,7 +50,7 @@ def run_with_heartbeat(
                     #   which does not release the GIL would prevent the heartbeat thread from
                     #   firing
                     # - using multiprocessing.Process would release the GIL but a subprocess
-                    #   cannot be spawned from a deamonic subprocess, and Dask sometimes will
+                    #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
                     #   submit tasks to run within daemonic subprocesses
                     current_env = dict(os.environ).copy()
                     auth_token = prefect.context.config.cloud.get("auth_token")
