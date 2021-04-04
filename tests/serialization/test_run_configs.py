@@ -33,6 +33,7 @@ def test_serialize_universal_run(config):
             memory_request="2G",
             service_account_name="my-account",
             image_pull_secrets=["secret-1", "secret-2"],
+            safe_to_evict=False,
             labels=["a", "b"],
         ),
         KubernetesRun(
@@ -59,6 +60,7 @@ def test_serialize_kubernetes_run(config):
         "memory_request",
         "service_account_name",
         "image_pull_secrets",
+        "safe_to_evict",
     ]
     for field in fields:
         assert getattr(config, field) == getattr(config2, field)

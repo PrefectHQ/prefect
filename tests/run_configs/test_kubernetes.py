@@ -19,6 +19,7 @@ def test_no_args():
     assert config.service_account_name is None
     assert config.image_pull_secrets is None
     assert config.labels == set()
+    assert config.safe_to_evict is None
 
 
 def test_labels():
@@ -100,3 +101,8 @@ def test_service_account_name_and_image_pull_secrets():
     # Ensure falsey-lists aren't converted to `None`.
     config = KubernetesRun(image_pull_secrets=[])
     assert config.image_pull_secrets == []
+
+
+def test_safe_to_evict():
+    config = KubernetesRun(safe_to_evict=False)
+    assert config.safe_to_evict == "false"

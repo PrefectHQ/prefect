@@ -35,6 +35,8 @@ class KubernetesRun(RunConfig):
         - image_pull_secrets (list, optional): A list of image pull secrets to
             use for this job. If present, overrides any image pull secrets
             configured on the agent or in the job template.
+        - safe_to_evict (bool, optional): Allow Cluster Autoscaler to remove the
+            nodes where jobs are running on.
         - labels (Iterable[str], optional): an iterable of labels to apply to this
             run config. Labels are string identifiers used by Prefect Agents
             for selecting valid flow runs when polling for work
@@ -80,6 +82,7 @@ class KubernetesRun(RunConfig):
         memory_request: str = None,
         service_account_name: str = None,
         image_pull_secrets: Iterable[str] = None,
+        safe_to_evict: bool = None,
         labels: Iterable[str] = None,
     ) -> None:
         super().__init__(labels=labels)
@@ -108,6 +111,9 @@ class KubernetesRun(RunConfig):
         if image_pull_secrets is not None:
             image_pull_secrets = list(image_pull_secrets)
 
+        if safe_to_evict is not None:
+            safe_to_evict = str(safe_to_evict).lower()
+
         self.job_template_path = job_template_path
         self.job_template = job_template
         self.image = image
@@ -118,3 +124,4 @@ class KubernetesRun(RunConfig):
         self.memory_request = memory_request
         self.service_account_name = service_account_name
         self.image_pull_secrets = image_pull_secrets
+        self.safe_to_evict = safe_to_evict

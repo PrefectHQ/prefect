@@ -45,6 +45,8 @@ spec:
               value: ""
             - name: SERVICE_ACCOUNT_NAME
               value: ""
+            - name: SAFE_TO_EVICT
+              value: True
             - name: PREFECT__BACKEND
               value: "cloud"
             - name: PREFECT__CLOUD__AGENT__AGENT_ADDRESS

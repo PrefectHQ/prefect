@@ -74,6 +74,8 @@ class KubernetesAgent(Agent):
         - volumes (list, optional): A list of volumes to make available to be mounted when a
             job is run. The volumes in the list should be specified as nested dicts.
             i.e `[{"name": "my-vol", "csi": {"driver": "secrets-store.csi.k8s.io"}}]`
+        - safe_to_evict (bool, optional): Allow Cluster Autoscaler to remove the nodes where jobs
+            are running on.
     """
 
     def __init__(
@@ -91,6 +93,7 @@ class KubernetesAgent(Agent):
         no_cloud_logs: bool = False,
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
+        safe_to_evict: bool = None,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -106,6 +109,7 @@ class KubernetesAgent(Agent):
         self.service_account_name = service_account_name or os.getenv(
             "SERVICE_ACCOUNT_NAME"
         )
+        self.safe_to_evict = safe_to_evict or os.getenv("SAFE_TO_EVICT")
         if image_pull_secrets is None:
             image_pull_secrets_env = os.getenv("IMAGE_PULL_SECRETS")
             image_pull_secrets = (
@@ -465,6 +469,8 @@ class KubernetesAgent(Agent):
                 `"some-secret,other-secret"`.
         - `SERVICE_ACCOUNT_NAME`: name of a service account to run the job as.
                 By default, none is specified.
+        - `SAFE_TO_EVICT`: Allow Cluster Autoscaler to remove the nodes where jobs are
+                running on.
         - `YAML_TEMPLATE`: a path to where the YAML template should be loaded from. defaults
                 to the embedded `job_spec.yaml`.
 
@@ -493,6 +499,12 @@ class KubernetesAgent(Agent):
         job["metadata"]["name"] = job_name
         job["metadata"]["labels"].update(**k8s_labels)
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
+        if os.getenv("SAFE_TO_EVICT"):
+            job["spec"]["template"]["metadata"]["annotations"] = {
+                "cluster-autoscaler.kubernetes.io/safe-to-evict": str(
+                    os.getenv("SAFE_TO_EVICT")
+                ).lower()
+            }
 
         # Use provided image for job
         if image is None:
@@ -605,6 +617,30 @@ class KubernetesAgent(Agent):
         job["metadata"]["name"] = job_name
         job["metadata"]["labels"].update(**k8s_labels)
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
+        # Configure `safe_to_evict` if specified
+        if run_config.safe_to_evict is not None:
+            self.logger.debug(
+                f"run_config.safe_to_evict is not None: {run_config.safe_to_evict}"
+            )
+            # On run-config, always override
+            safe_to_evict = run_config.safe_to_evict  # type: Optional[str]
+        elif job["spec"]["template"]["metadata"].get("annotations", {}).get(
+            "cluster-autoscaler.kubernetes.io/safe-to-evict"
+        ) and (run_config.job_template or run_config.job_template_path):
+            # On run-config job-template, no override
+            self.logger.debug(f"On run-config job-template, no override: {job}")
+            safe_to_evict = None
+        else:
+            # Use agent value, if provided
+            self.logger.debug(f"Use agent value, if provided: {self.safe_to_evict}")
+            safe_to_evict = self.safe_to_evict
+        if safe_to_evict is not None:
+            job["spec"]["template"]["metadata"]["annotations"] = {
+                "cluster-autoscaler.kubernetes.io/safe-to-evict": str(
+                    safe_to_evict
+                ).lower()
+            }
+
         pod_spec = job["spec"]["template"]["spec"]
 
         # Configure `service_account_name` if specified
@@ -717,6 +753,7 @@ class KubernetesAgent(Agent):
         cpu_limit: str = None,
         image_pull_policy: str = None,
         service_account_name: str = None,
+        safe_to_evict: bool = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
         backend: str = None,
@@ -744,6 +781,8 @@ class KubernetesAgent(Agent):
                 Job defaults to `IfNotPresent`.
             - service_account_name (str, optional): Name of a service account to use for
                 Prefect init job. Job defaults to using `default` service account.
+            - safe_to_evict (bool, optional): Allow Cluster Autoscaler to remove the nodes
+                where jobs are running on.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): additional environment variables to attach to all
@@ -766,6 +805,9 @@ class KubernetesAgent(Agent):
         cpu_limit = cpu_limit or ""
         image_pull_policy = image_pull_policy or ""
         service_account_name = service_account_name or ""
+        safe_to_evict = (
+            str(safe_to_evict).lower() if safe_to_evict is not None else "true"
+        )
         backend = backend or config.backend
 
         version = prefect.__version__.split("+")
@@ -786,7 +828,7 @@ class KubernetesAgent(Agent):
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
-        agent_env[11]["value"] = backend
+        agent_env[12]["value"] = backend
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request
@@ -795,6 +837,7 @@ class KubernetesAgent(Agent):
         agent_env[8]["value"] = cpu_limit
         agent_env[9]["value"] = image_pull_policy
         agent_env[10]["value"] = service_account_name
+        agent_env[11]["value"] = safe_to_evict
 
         if env_vars:
             agent_env.append(

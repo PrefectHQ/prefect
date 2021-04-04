@@ -218,6 +218,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
     monkeypatch.setenv("JOB_CPU_LIMIT", "cl")
     monkeypatch.setenv("IMAGE_PULL_POLICY", "custom_policy")
     monkeypatch.setenv("SERVICE_ACCOUNT_NAME", "svc_name")
+    monkeypatch.setenv("SAFE_TO_EVICT", False)
 
     flow_run = GraphQLResult(
         {
@@ -277,6 +278,13 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "my-secret"}
         ]
+
+        assert (
+            job["spec"]["template"]["metadata"]["annotations"][
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == "false"
+        )
 
 
 def test_k8s_agent_replace_yaml_respects_multiple_image_secrets(monkeypatch, cloud_api):
@@ -537,7 +545,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
     assert agent_env[0]["value"] == "test_token"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
-    assert agent_env[11]["value"] == "backend-test"
+    assert agent_env[12]["value"] == "backend-test"
 
 
 def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
@@ -555,8 +563,8 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[13]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS"
-    assert agent_env[13]["value"] == json.dumps(env_vars)
+    assert agent_env[14]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS"
+    assert agent_env[14]["value"] == json.dumps(env_vars)
 
 
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
@@ -576,7 +584,7 @@ def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[11]["value"] == "server"
+    assert agent_env[12]["value"] == "server"
 
 
 @pytest.mark.parametrize(
@@ -1455,6 +1463,8 @@ class TestK8sAgentRunConfig:
 
     def test_generate_job_spec_image_pull_secrets(self, tmpdir):
         template_path = str(tmpdir.join("job.yaml"))
+        print(template_path)
+        print("*" * 20)
         template = self.read_default_template()
         template["spec"]["template"]["spec"]["imagePullSecrets"] = [
             {"name": "on-agent-template"}
@@ -1511,3 +1521,80 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-agent-template"}
         ]
+
+    def test_generate_job_spec_safe_to_evict(self, tmpdir):
+        template_path = str(tmpdir.join("job.yaml"))
+        template = self.read_default_template()
+        template["spec"]["template"]["metadata"] = {
+            "annotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
+        }
+        with open(template_path, "w") as f:
+            yaml.safe_dump(template, f)
+
+        self.agent.safe_to_evict = False
+        self.agent.job_template_path = template_path
+
+        run_config = KubernetesRun(job_template=template, safe_to_evict=False)
+
+        # Check precedence order:
+        # 1. Explicit on run-config"
+        job = self.agent.generate_job_spec(self.build_flow_run(run_config))
+        assert (
+            job["spec"]["template"]["metadata"]["annotations"][
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == "false"
+        )
+
+        # 2. In job template on run-config
+        run_config.safe_to_evict = None
+        job = self.agent.generate_job_spec(self.build_flow_run(run_config))
+        assert (
+            job["spec"]["template"]["metadata"]["annotations"][
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == "true"
+        )
+        # None in run-config job template, agent value is used
+        run_config.job_template["spec"]["template"]["metadata"]["annotations"][
+            "cluster-autoscaler.kubernetes.io/safe-to-evict"
+        ] = None
+        job = self.agent.generate_job_spec(self.build_flow_run(run_config))
+        assert (
+            job["spec"]["template"]["metadata"]["annotations"][
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == "false"
+        )
+
+        # 3. Explicit on agent
+        # Not present in job template
+        run_config.job_template["spec"]["template"]["metadata"]["annotations"].pop(
+            "cluster-autoscaler.kubernetes.io/safe-to-evict"
+        )
+        job = self.agent.generate_job_spec(self.build_flow_run(run_config))
+        assert (
+            job["spec"]["template"]["metadata"]["annotations"][
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == "false"
+        )
+        # No job template present
+        run_config.job_template = None
+        job = self.agent.generate_job_spec(self.build_flow_run(run_config))
+        assert (
+            job["spec"]["template"]["metadata"]["annotations"][
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == "false"
+        )
+
+        # 4. In job template on agent
+        self.agent.safe_to_evict = None
+        job = self.agent.generate_job_spec(self.build_flow_run(run_config))
+        assert (
+            job["spec"]["template"]["metadata"]["annotations"][
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == "true"
+        )

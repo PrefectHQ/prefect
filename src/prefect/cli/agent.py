@@ -274,6 +274,11 @@ def kubernetes():
     "values can be provided as a comma-separated list "
     "(e.g. `--image-pull-secrets VAL1,VAL2`)",
 )
+@click.option(
+    "--safe-to-evict",
+    "safe_to_evict",
+    help="Allow Cluster Autoscaler to remove the nodes where jobs are running on.",
+)
 def start(image_pull_secrets=None, **kwargs):
     """Start a Kubernetes agent"""
     from prefect.agent.kubernetes import KubernetesAgent
@@ -304,6 +309,11 @@ def start(image_pull_secrets=None, **kwargs):
     "--service-account-name", help="Name of Service Account for Prefect init job"
 )
 @click.option("--backend", "-b", help="Prefect backend to use for this agent.")
+@click.option(
+    "--safe-to-evict",
+    "safe_to_evict",
+    help="Allow Cluster Autoscaler to remove the nodes where jobs are running on.",
+)
 def install(label, env, **kwargs):
     """Generate a supervisord.conf file for a Local agent"""
     from prefect.agent.kubernetes import KubernetesAgent
