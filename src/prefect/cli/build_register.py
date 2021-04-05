@@ -1,11 +1,12 @@
 import functools
+import hashlib
 import importlib
 import json
 import multiprocessing
 import os
+import runpy
 import sys
 import time
-import hashlib
 import traceback
 from collections import Counter, defaultdict
 from typing import Union, NamedTuple, List, Dict, Iterator, Tuple
@@ -113,17 +114,20 @@ def expand_paths(paths: List[str]) -> List[str]:
 
 def load_flows_from_script(path: str) -> "List[prefect.Flow]":
     """Given a file path, load all flows found in the file"""
-    with open(path, "rb") as fil:
-        contents = fil.read()
-
-    namespace = {}
+    # Temporarily add the flow's local directory to `sys.path` so that local
+    # imports work. This ensures that `sys.path` is the same as it would be if
+    # the flow script was run directly (i.e. `python path/to/flow.py`).
+    orig_sys_path = sys.path.copy()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(path)))
     try:
         with prefect.context({"loading_flow": True, "local_script_path": path}):
-            exec(contents, namespace)
+            namespace = runpy.run_path(path, run_name="<flow>")
     except Exception as exc:
         click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, 2)
         raise TerminalError
+    finally:
+        sys.path[:] = orig_sys_path
 
     flows = [f for f in namespace.values() if isinstance(f, prefect.Flow)]
     if flows:

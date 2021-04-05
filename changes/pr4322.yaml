@@ -1,0 +1,5 @@
+enhancement:
+  - "Add ability to stream ShellTask logs with level INFO - [#4322](https://github.com/PrefectHQ/prefect/pull/4322)"
+
+contributor:
+  - "[Sean Talia](https://github.com/TaliaSRTR)"

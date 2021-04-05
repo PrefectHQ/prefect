@@ -1,5 +1,6 @@
 import os
 import tempfile
+import logging
 from subprocess import PIPE, STDOUT, Popen
 from typing import Any, List, Union, Optional
 
@@ -31,9 +32,13 @@ class ShellTask(prefect.Task):
             the output in the case of a non-zero exit code; defaults to `False`. This
              actually logs both stderr and stdout and will only log the last line of
              output unless `return_all` is `True`
-        - stream_output (bool, optional): specifies whether this task should log
-            the output as it occurs. If enabled, `log_stderr` will be ignored as the
-            output will have already been logged. defaults to `False`
+        - stream_output (Union[bool, int, str], optional): specifies whether this task should log
+            the output as it occurs, and at what logging level. If `True` is passed,
+            the logging level defaults to `INFO`; otherwise, any integer or string
+            value that's passed will be treated as the log level, provided
+            the `logging` library can successfully interpret it. If enabled,
+            `log_stderr` will be ignored as the output will have already been
+            logged. defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -49,6 +54,9 @@ class ShellTask(prefect.Task):
 
         out = f.run()
         ```
+    Raises:
+        - TypeError: if `stream_output` is passed in as a string, but cannot
+          successfully be converted to a numeric value by logging.getLevelName()
     """
 
     def __init__(
@@ -59,8 +67,8 @@ class ShellTask(prefect.Task):
         shell: str = "bash",
         return_all: bool = False,
         log_stderr: bool = False,
-        stream_output: bool = False,
-        **kwargs: Any
+        stream_output: Union[bool, int, str] = False,
+        **kwargs: Any,
     ):
         self.command = command
         self.env = env
@@ -68,7 +76,15 @@ class ShellTask(prefect.Task):
         self.shell = shell
         self.return_all = return_all
         self.log_stderr = log_stderr
-        self.stream_output = stream_output
+
+        if isinstance(stream_output, str):
+            stream_output = logging.getLevelName(stream_output)
+            if not isinstance(stream_output, int):
+                raise TypeError(
+                    f"'stream_output': {stream_output} is not a valid log level"
+                )
+
+        self.stream_output = logging.INFO if stream_output is True else stream_output
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env", "helper_script")
@@ -124,7 +140,7 @@ class ShellTask(prefect.Task):
                         lines.append(line)
 
                     if self.stream_output:
-                        self.logger.debug(line)
+                        self.logger.log(level=self.stream_output, msg=line)
 
                 sub_process.wait()
                 if sub_process.returncode:

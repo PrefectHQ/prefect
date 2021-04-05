@@ -276,13 +276,19 @@ class TestRegister:
             """
             from prefect import Flow
             from prefect.storage import S3
+            from my_prefect_helper_file import helper
             f1 = Flow("f1")
             f1.storage = S3("my-bucket", key="my-key", stored_as_script=True)
             f2 = Flow("f2")
+
+            assert __file__.endswith("test.py")
+            assert __name__ != "__main__"
             """
         )
         with open(path, "w") as f:
             f.write(source)
+
+        tmpdir.join("my_prefect_helper_file.py").write("def helper():\n    pass")
 
         flows = {f.name: f for f in load_flows_from_script(path)}
         assert len(flows) == 2
