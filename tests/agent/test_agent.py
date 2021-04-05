@@ -477,18 +477,14 @@ def test_agent_retrieve_config_requires_config_id_set(cloud_api):
         assert agent._retrieve_agent_config() == {"settings": "yes"}
 
 
-def test_agent_health_check(cloud_api):
+def test_agent_api_health_check(cloud_api):
     requests = pytest.importorskip("requests")
-
-    class TestAgent(Agent):
-        def setup_api_connection(self):
-            pass
 
     with socket.socket() as sock:
         sock.bind(("", 0))
         port = sock.getsockname()[1]
 
-    agent = TestAgent(agent_address=f"http://127.0.0.1:{port}", max_polls=1)
+    agent = Agent(agent_address=f"http://127.0.0.1:{port}", max_polls=1)
 
     agent._start_agent_api_server()
 
