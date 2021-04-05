@@ -352,4 +352,3 @@ aws ecs create-service
 ```
 
 Now, AWS service scheduler will create a task with running Prefect Agent, and you can check your logs in CloudWatch `/ecs/prefect-agent` log group.
-I'm not AWS expert, but let's try to figure it out together. As I understand you are using awsvpc network mode. In this mode you are required to provide networkConfiguration . 
