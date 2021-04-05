@@ -881,8 +881,8 @@ class Flow:
             tasks = set(root_tasks)
             seen = set()  # type: Set[Task]
 
-            # compute the downstream edges dict once, cache validation is expensive
-            # for large flows
+            # compute the downstream edges dict once, this method uses
+            # @cached but validation is expensive for large flows
             downstream_edges = self.all_downstream_edges()
 
             # while the set of tasks is different from the seen tasks...
@@ -900,8 +900,8 @@ class Flow:
         remaining_tasks = list(tasks)
         sorted_tasks = []
 
-        # compute the upstream edges dict once, cache validation is expensive
-        # for large flows
+        # compute the upstream edges dict once, this method uses
+        # @cached but validation is expensive for large flows
         upstream_edges = self.all_upstream_edges()
 
         while remaining_tasks:
