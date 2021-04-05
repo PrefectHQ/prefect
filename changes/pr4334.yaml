@@ -1,2 +1,0 @@
-fix:
-  - "Speedup flushing of logs to cloud/server on flow run shutdown, avoiding lost logs on platforms that SIGKILL the process after a short period - [#4334](https://github.com/PrefectHQ/prefect/pull/4334)"
