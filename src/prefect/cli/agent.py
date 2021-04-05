@@ -546,6 +546,11 @@ _agents = {
     type=int,
     hidden=True,
 )
+@click.option(
+    "--safe-to-evict",
+    "safe_to_evict",
+    help="Allow Cluster Autoscaler to remove the nodes where jobs are running on.",
+)
 @click.pass_context
 def start(
     ctx,
@@ -572,6 +577,7 @@ def start(
     hostname_label,
     storage_labels,
     docker_client_timeout,
+    safe_to_evict,
 ):
     """
     Start an agent.
@@ -641,6 +647,8 @@ def start(
         --namespace     TEXT    A Kubernetes namespace to create Prefect jobs in
                                 Defaults to env var `NAMESPACE` or `default`
         --job-template  TEXT    Path to a job template to use instead of the default.
+        --safe-to-evict  TEXT   Allow Cluster AutoScaler to remove nodes where Prefect
+                                jobs are running on.
 
     \b
     Fargate Agent Options:
@@ -741,6 +749,7 @@ def start(
                 max_polls=max_polls,
                 no_cloud_logs=no_cloud_logs,
                 agent_address=agent_address,
+                safe_to_evict=safe_to_evict,
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
@@ -846,6 +855,11 @@ def start(
     help="Prefect backend to use for this agent.",
     hidden=True,
 )
+@click.option(
+    "--safe-to-evict",
+    "safe_to_evict",
+    help="Allow Cluster Autoscaler to remove the nodes where jobs are running on.",
+)
 def install(
     name,
     token,
@@ -865,6 +879,7 @@ def install(
     import_path,
     show_flow_logs,
     backend,
+    safe_to_evict,
 ):
     """
     Install an agent. Outputs configuration text which can be used to install on various
@@ -902,8 +917,10 @@ def install(
         --cpu-limit                 TEXT    Limit CPU for Prefect init job
         --image-pull-policy         TEXT    imagePullPolicy for Prefect init job
         --service-account-name      TEXT    Name of Service Account for Prefect init job
-        --backend                   TEST    Prefect backend to use for this agent
+        --backend                   TEXT    Prefect backend to use for this agent
                                             Defaults to the backend currently set in config.
+        --safe-to-evict             TEXT    Allow Cluster AutoScaler to remove nodes where
+                                            Prefect jobs are running on.
 
     \b
     Local Agent:
@@ -957,6 +974,7 @@ def install(
             labels=labels,
             env_vars=env_vars,
             backend=backend,
+            safe_to_evict=safe_to_evict,
         )
         click.echo(deployment)
     elif name == "local":

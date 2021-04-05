@@ -254,7 +254,8 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
             "--latest --image-pull-secrets secret-test --mem-request mem_req "
             "--mem-limit mem_lim --cpu-request cpu_req --cpu-limit cpu_lim "
             "--image-pull-policy custom_policy --service-account-name svc_name "
-            "-b backend-test"
+            "-b backend-test "
+            "--safe-to-evict false"
         ).split()
     )
 
@@ -274,6 +275,7 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
         "image_pull_policy": "custom_policy",
         "service_account_name": "svc_name",
         "backend": "backend-test",
+        "safe_to_evict": "false",
     }
 
     generate = MagicMock(wraps=KubernetesAgent.generate_deployment_yaml)

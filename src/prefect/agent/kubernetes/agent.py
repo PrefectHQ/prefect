@@ -74,7 +74,7 @@ class KubernetesAgent(Agent):
         - volumes (list, optional): A list of volumes to make available to be mounted when a
             job is run. The volumes in the list should be specified as nested dicts.
             i.e `[{"name": "my-vol", "csi": {"driver": "secrets-store.csi.k8s.io"}}]`
-        - safe_to_evict (bool, optional): Allow Cluster Autoscaler to remove the nodes where jobs
+        - safe_to_evict (str, optional): Allow Cluster Autoscaler to remove the nodes where jobs
             are running on.
     """
 
@@ -93,7 +93,7 @@ class KubernetesAgent(Agent):
         no_cloud_logs: bool = False,
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
-        safe_to_evict: bool = None,
+        safe_to_evict: str = None,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -753,7 +753,7 @@ class KubernetesAgent(Agent):
         cpu_limit: str = None,
         image_pull_policy: str = None,
         service_account_name: str = None,
-        safe_to_evict: bool = None,
+        safe_to_evict: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
         backend: str = None,
@@ -781,7 +781,7 @@ class KubernetesAgent(Agent):
                 Job defaults to `IfNotPresent`.
             - service_account_name (str, optional): Name of a service account to use for
                 Prefect init job. Job defaults to using `default` service account.
-            - safe_to_evict (bool, optional): Allow Cluster Autoscaler to remove the nodes
+            - safe_to_evict (str, optional): Allow Cluster Autoscaler to remove the nodes
                 where jobs are running on.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
