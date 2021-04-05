@@ -77,6 +77,7 @@ def test_help(cmd):
             (
                 "--namespace TESTNAMESPACE --job-template testtemplate.yaml",
                 "--service-account-name TESTACCT --image-pull-secrets VAL1,VAL2",
+                "--disable-job-deletion",
             ),
             (
                 {
@@ -87,6 +88,7 @@ def test_help(cmd):
                     "service_account_name": "TESTACCT",
                     "image_pull_secrets": ["VAL1", "VAL2"],
                 },
+                {"delete_finished_job": False},
             ),
         ),
         (
