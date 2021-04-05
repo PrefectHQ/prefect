@@ -1,0 +1,5 @@
+fix:
+  - "Add safe-to-evict annotation to k8s job - [#4643](https://github.com/PrefectHQ/prefect/pull/4346)"
+
+contributor:
+  - "[Xinyi2016](https://github.com/xinyi2016)"
