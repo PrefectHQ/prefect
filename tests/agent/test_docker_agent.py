@@ -807,31 +807,6 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
         agent._parse_volume_spec([candidate])
 
 
-@pytest.mark.parametrize("max_polls", [0, 1, 2])
-def test_docker_agent_start_max_polls(max_polls, api, monkeypatch, runner_token):
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.docker.agent.DockerAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.DockerAgent.heartbeat", heartbeat)
-
-    agent = DockerAgent(max_polls=max_polls)
-    agent.start()
-
-    assert agent_connect.call_count == 1
-    assert agent_process.call_count == max_polls
-    assert heartbeat.call_count == 1
-    assert on_shutdown.call_count == 1
-
-
 def test_docker_agent_network(api):
     api.create_networking_config.return_value = {"test-network": "config"}
 
