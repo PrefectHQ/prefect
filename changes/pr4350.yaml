@@ -17,7 +17,5 @@
 # Here's an example of a PR that adds an enhancement
 
 enhancement:
-  - 'Update docs for API keys - [#4313](https://github.com/PrefectHQ/prefect/pull/4313)'
+  - "Pin dask upper package versions - [#4350](https://github.com/PrefectHQ/prefect/pull/4350)"
 
-contributor:
-  - '[Contributor Name](https://github.com/contributor_github_username)'
