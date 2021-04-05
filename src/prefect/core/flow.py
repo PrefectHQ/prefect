@@ -871,15 +871,26 @@ class Flow:
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
         if root_tasks:
+            # double check all root tasks exist in the flow
+            for task in root_tasks:
+                if task not in self.tasks:
+                    raise ValueError(
+                        "Task {t} was not found in Flow {f}".format(t=task, f=self)
+                    )
+
             tasks = set(root_tasks)
             seen = set()  # type: Set[Task]
+
+            # compute the downstream edges dict once, cache validation is expensive
+            # for large flows
+            downstream_edges = self.all_downstream_edges()
 
             # while the set of tasks is different from the seen tasks...
             while tasks.difference(seen):
                 # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
                     # add its downstream tasks to the task list
-                    tasks.update(self.downstream_tasks(t))
+                    tasks.update({e.downstream_task for e in downstream_edges[t]})
                     # mark it as seen
                     seen.add(t)
         else:
@@ -888,6 +899,11 @@ class Flow:
         # build the list of sorted tasks
         remaining_tasks = list(tasks)
         sorted_tasks = []
+
+        # compute the upstream edges dict once, cache validation is expensive
+        # for large flows
+        upstream_edges = self.all_upstream_edges()
+
         while remaining_tasks:
             # mark the flow as cyclic unless we prove otherwise
             cyclic = True
@@ -895,7 +911,8 @@ class Flow:
             # iterate over each remaining task
             for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
-                for upstream_task in self.upstream_tasks(task):
+                upstream_tasks = {e.upstream_task for e in upstream_edges[task]}
+                for upstream_task in upstream_tasks:
                     # if the upstream task is also remaining, it means it
                     # hasn't been sorted, so we can't sort this task either
                     if upstream_task in remaining_tasks:
