@@ -1,0 +1,3 @@
+task:
+  - "Added SnowflakeQueryFromFile Task [#3744]
+  (https://github.com/PrefectHQ/prefect/pull/4363)"
