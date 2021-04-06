@@ -9,7 +9,7 @@ try:
         SqlServerExecuteMany,
         SqlServerFetch,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.sql_server` requires Prefect to be installed with the "sql_server" extra.'
-    )
+    ) from err

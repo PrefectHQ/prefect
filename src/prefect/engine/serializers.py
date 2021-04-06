@@ -88,10 +88,10 @@ class PickleSerializer(Serializer):
             try:
                 # old versions of Core encoded pickles with base64
                 return cloudpickle.loads(base64.b64decode(value))
-            except Exception:
+            except Exception as e:
                 # if there's an error with the backwards-compatible step,
                 # reraise the original exception
-                raise exc
+                raise exc from e
 
 
 class JSONSerializer(Serializer):

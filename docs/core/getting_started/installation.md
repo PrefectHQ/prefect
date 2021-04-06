@@ -58,7 +58,7 @@ Prefect support for Python 3.9 is experimental and extras are not expected to wo
 
 ## Running the local server and UI
 
-Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API. The local server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be installed. If you have [Docker Desktop](https://www.docker.com/products/docker-desktop) on your machine, you've got both of these.
+Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API. The local server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be installed. If you have [Docker Desktop](https://www.docker.com/products/docker-desktop) on your machine, you've got both of these.  Prefect Server also has [an experimental helm chart for larger deployments to Kubernetes](https://github.com/PrefectHQ/server/tree/master/helm/prefect-server).
 
 ::: tip Prefect Cloud
 Once you are ready to deploy into production, you can use [Prefect Cloud](https://www.prefect.io/cloud) to orchestrate your workflows. 
@@ -83,35 +83,3 @@ Once all components are running, you can view the UI by opening a browser and vi
 Please note that executing flows from the server requires at least one Prefect Agent to be running: `prefect agent local start`.
 
 Finally, to register any flow with the server, call `flow.register()`. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
-
-## Docker
-
-If you want Prefect provides Docker images for master builds and versioned releases [here](https://hub.docker.com/r/prefecthq/prefect).
-
-To run the latest Prefect Docker image:
-
-```bash
-docker run -it prefecthq/prefect:latest
-```
-
-Image tag breakdown:
-
-| Tag              |     Prefect Version      | Python Version |
-| ---------------- | :----------------------: | -------------: |
-| latest           | most recent PyPi version |            3.7 |
-| master           |       master build       |            3.7 |
-| latest-python3.8 | most recent PyPi version |            3.8 |
-| latest-python3.7 | most recent PyPi version |            3.7 |
-| latest-python3.6 | most recent PyPi version |            3.6 |
-| X.Y.Z-python3.8  |          X.Y.Z           |            3.8 |
-| X.Y.Z-python3.7  |          X.Y.Z           |            3.7 |
-| X.Y.Z-python3.6  |          X.Y.Z           |            3.6 |
-| core             | most recent PyPi version |            3.8 |
-| core-X.Y.Z       |          X.Y.Z           |            3.8 |
-
-All Prefect images besides those tagged with `core` contain all extra dependencies necessary for flow
-orchestration when running with a backend API. This includes libraries required to work with
-[storage](https://docs.prefect.io/orchestration/flow_config/storage.html) objects and
-[agents](https://docs.prefect.io/orchestration/agents/overview.html#agent-types) (e.g. `boto3` and
-`kubernetes`). The `core` tagged images only include the base dependencies of the Prefect library that
-can be found [here](https://github.com/PrefectHQ/prefect/blob/master/requirements.txt).

@@ -271,9 +271,11 @@ For a detailed look on how to use GitHub storage visit the [Using script based
 storage](/core/idioms/script-based.md) idiom.
 
 :::tip GitHub Credentials
-GitHub storage uses a [personal access
-token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line)
-for authenticating with repositories.
+When used with private repositories, GitHub storage requires configuring a
+[personal access
+token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
+This token should have `repo` scope, and will be used to read the flow's source
+from its respective repository.
 :::
 
 ### GitLab

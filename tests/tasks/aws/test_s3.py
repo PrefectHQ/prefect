@@ -21,7 +21,7 @@ def mocked_boto_client(monkeypatch):
 
 class TestS3Download:
     def test_initialization(self):
-        task = S3Download()
+        S3Download()
 
     def test_initialization_passes_to_task_constructor(self):
         task = S3Download(name="test", tags=["AWS"])
@@ -45,6 +45,21 @@ class TestS3Download:
         returned_data = task.run("key", compression="gzip")
         assert returned_data == str(byte_string, "utf-8")
 
+    @pytest.mark.parametrize("as_bytes", [False, True])
+    def test_as_bytes(self, mocked_boto_client, as_bytes):
+        task = S3Download("bucket")
+        data = b"some bytes"
+
+        def modify_stream(Bucket=None, Key=None, Fileobj=None):
+            Fileobj.write(data)
+
+        mocked_boto_client.download_fileobj.side_effect = modify_stream
+        res = task.run("key", as_bytes=as_bytes)
+        if as_bytes:
+            assert res == data
+        else:
+            assert res == data.decode("utf-8")
+
     def test_raises_on_invalid_compression_method(self, mocked_boto_client):
         task = S3Download("test")
         with pytest.raises(ValueError, match="gz_fake"):
@@ -53,7 +68,7 @@ class TestS3Download:
     def test_boto3_client_is_created_with_session(self, mocked_boto_client):
         """ Tests the fix for #3925 """
         task = S3Download("test")
-        result = task.run("key")
+        task.run("key")
         assert (
             "session.Session()" in mocked_boto_client.return_value._extract_mock_name()
         )
@@ -61,7 +76,7 @@ class TestS3Download:
 
 class TestS3Upload:
     def test_initialization(self):
-        task = S3Upload()
+        S3Upload()
 
     def test_initialization_passes_to_task_constructor(self):
         task = S3Upload(name="test", tags=["AWS"])
@@ -101,7 +116,7 @@ class TestS3Upload:
     def test_boto3_client_is_created_with_session(self, mocked_boto_client):
         """ Tests the fix for #3925 """
         task = S3Upload("test")
-        result = task.run("key")
+        task.run("key")
         assert (
             "session.Session()" in mocked_boto_client.return_value._extract_mock_name()
         )
@@ -109,7 +124,7 @@ class TestS3Upload:
 
 class TestS3List:
     def test_initialization(self):
-        task = S3List()
+        S3List()
 
     def test_initialization_passes_to_task_constructor(self):
         task = S3List(name="test", tags=["AWS"])

@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.11)', link: '/api/latest/' },
+          { text: 'Latest (0.14.15)', link: '/api/latest/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
@@ -338,7 +338,12 @@ module.exports = {
         {
           title: 'Examples',
           collapsable: true,
-          children: getChildren('docs/core', 'examples')
+          children: [
+            'examples/overview',
+            'examples/parameters',
+            'examples/mapping',
+            'examples/conditional'
+          ]
         },
         {
           title: 'PINs',

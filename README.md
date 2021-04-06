@@ -7,10 +7,6 @@
     <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=shield&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
 </a>
 
-<a href="https://codecov.io/gh/PrefectHQ/prefect">
-  <img src="https://codecov.io/gh/PrefectHQ/prefect/branch/master/graph/badge.svg" />
-</a>
-
 <a href=https://github.com/ambv/black>
     <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
 </a>
