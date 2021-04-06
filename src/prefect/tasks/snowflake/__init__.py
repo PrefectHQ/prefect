@@ -4,7 +4,7 @@ the snowflake-connector-python library.
 """
 
 try:
-    from prefect.tasks.snowflake.snowflake import SnowflakeQuery
+    from prefect.tasks.snowflake.snowflake import SnowflakeQuery, SnowflakeQueryFromFile
 except ImportError:
     raise ImportError(
         'Using `prefect.tasks.snowflake` requires Prefect to be installed with the "snowflake" extra.'
