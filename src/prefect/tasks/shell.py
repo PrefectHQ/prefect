@@ -41,6 +41,10 @@ class ShellTask(prefect.Task):
             logged. defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
+    Raises:
+        - TypeError: if `stream_output` is passed in as a string, but cannot
+          successfully be converted to a numeric value by logging.getLevelName()
+
     Example:
         ```python
         from prefect import Flow
@@ -54,9 +58,6 @@ class ShellTask(prefect.Task):
 
         out = f.run()
         ```
-    Raises:
-        - TypeError: if `stream_output` is passed in as a string, but cannot
-          successfully be converted to a numeric value by logging.getLevelName()
     """
 
     def __init__(
