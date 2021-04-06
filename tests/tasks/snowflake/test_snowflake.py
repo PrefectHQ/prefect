@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import snowflake.connector as sf
-from prefect.tasks.snowflake import SnowflakeQueryFromFile, SnowflakeQuery,
+from prefect.tasks.snowflake import SnowflakeQueryFromFile, SnowflakeQuery
 
 
 class TestSnowflakeQuery:
@@ -75,6 +75,7 @@ class TestSnowflakeQuery:
         ).run()
 
         assert output == ["TESTDB"]
+
 
 class TestSnowflakeQuery:
     def test_construction(self):
