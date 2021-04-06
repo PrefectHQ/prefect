@@ -1,6 +1,7 @@
 import os
 from copy import deepcopy
-from typing import Iterable, Dict, Any
+from typing import Iterable, Dict, Any, Tuple
+from prefect.utilities.aws import get_boto_client
 
 import slugify
 import yaml
@@ -153,6 +154,7 @@ class ECSAgent(Agent):
         task_role_arn: str = None,
         execution_role_arn: str = None,
         botocore_config: dict = None,
+        enable_task_revisions: bool = False
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -232,6 +234,7 @@ class ECSAgent(Agent):
             self.run_task_kwargs[
                 "networkConfiguration"
             ] = self.infer_network_configuration()
+        self.enable_task_revisions = enable_task_revisions
 
     def infer_network_configuration(self) -> dict:
         """Infer default values for `networkConfiguration`.
@@ -273,6 +276,47 @@ class ECSAgent(Agent):
         self.logger.error(msg)
         raise ValueError(msg)
 
+    def _check_task_definition_exists(
+        self, flow_run: GraphQLResult
+    ) -> Tuple[bool, str]:
+        """
+        Check if a task definition already exists for the flow
+
+        Args:
+            - flow_run (GraphQLResult): A GraphQLResult representing a flow run object
+            - task_definition_dict(dict): Dictionary containing task definition name to update
+                if needed.
+
+        Returns:
+            - bool: whether or not a preexisting task definition is found for this flow
+        """
+        # if current active task definition has current flow id, then exists
+        if self.enable_task_revisions:
+            definition_exists = False
+            taskdef_arn = ""
+            boto3_client_tags = get_boto_client('resourcegroupstaggingapi', **self.boto_kwargs)
+            tag_search = boto3_client_tags.get_resources(
+                TagFilters=[
+                    {"Key": "prefect:flow-id", "Values": [flow_run.flow.id]},
+                    {"Key": "prefect:flow-version", "Values": [str(flow_run.flow.version)]}
+                ],
+                ResourceTypeFilters=["ecs:task-definition"],
+            )
+            if tag_search["ResourceTagMappingList"]:
+                taskdef_arn = [
+                    x.get("ResourceARN")
+                    for x in tag_search["ResourceTagMappingList"]
+                ][-1]
+                self.logger.debug(
+                    "Active task definition for {} already exists".format(
+                        flow_run.flow.id
+                    )  # type: ignore
+                )
+                definition_exists = True
+            return definition_exists, taskdef_arn
+        else:
+            return False, None
+
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy a flow run as an ECS task.
@@ -293,10 +337,12 @@ class ECSAgent(Agent):
             self.logger.debug(
                 "Registering new task definition for flow %s", flow_run.flow.id
             )
-            taskdef = self.generate_task_definition(flow_run, run_config)
-            resp = self.ecs_client.register_task_definition(**taskdef)
-            taskdef_arn = resp["taskDefinition"]["taskDefinitionArn"]
-            new_taskdef_arn = True
+            def_exists, taskdef_arn = self._check_task_definition_exists(flow_run)
+            if not def_exists:
+                taskdef = self.generate_task_definition(flow_run, run_config)
+                resp = self.ecs_client.register_task_definition(**taskdef)
+                taskdef_arn = resp["taskDefinition"]["taskDefinitionArn"]
+            new_taskdef_arn = not def_exists
             self.logger.debug(
                 "Registered task definition %s for flow %s",
                 taskdef_arn,
@@ -367,7 +413,10 @@ class ECSAgent(Agent):
             word_boundary=True,
             save_order=True,
         )
-        taskdef["family"] = f"prefect-{slug}"
+        if self.enable_task_revisions:
+            taskdef["family"] = f"{slug}"
+        else:
+            taskdef["family"] = f"prefect-{slug}"
 
         # Add some metadata tags for easier tracking by users
         taskdef.setdefault("tags", []).extend(
@@ -385,12 +434,10 @@ class ECSAgent(Agent):
         else:
             container = {"name": "flow"}
             containers.append(container)
-
         # Set flow image
         container["image"] = image = get_flow_image(
             flow_run, default=container.get("image")
         )
-
         # Add `PREFECT__CONTEXT__IMAGE` environment variable
         env = {"PREFECT__CONTEXT__IMAGE": image}
         container_env = [{"name": k, "value": v} for k, v in env.items()]
@@ -404,21 +451,7 @@ class ECSAgent(Agent):
             taskdef["cpu"] = str(taskdef["cpu"])
         if "memory" in taskdef:
             taskdef["memory"] = str(taskdef["memory"])
-
-        # Set executionRoleArn if configured
-        # Note that we set this in both the task definition and the
-        # run_task_kwargs since ECS requires this in the definition for FARGATE
-        # tasks, but we also want to still configure it for users that provide
-        # their own `task_definition_arn`.
-        if run_config.execution_role_arn:
-            taskdef["executionRoleArn"] = run_config.execution_role_arn
-        elif self.execution_role_arn:
-            taskdef["executionRoleArn"] = self.execution_role_arn
-
-        # Set requiresCompatibilities if not already set
-        if "requiresCompatibilities" not in taskdef:
-            taskdef["requiresCompatibilities"] = [self.launch_type]
-
+        taskdef["containerDefinitions"] = [container]
         return taskdef
 
     def get_run_task_kwargs(
@@ -435,7 +468,8 @@ class ECSAgent(Agent):
         """
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
-        out["launchType"] = self.launch_type
+        if self.launch_type:
+            out["launchType"] = self.launch_type
         if self.cluster:
             out["cluster"] = self.cluster
 
@@ -506,5 +540,7 @@ class ECSAgent(Agent):
             if entry["name"] not in env:
                 container_env.append(entry)
         container["environment"] = container_env
-
+        if "capacityProviderStrategy" in out:
+            del out['networkConfiguration'], out['platformVersion'], out['launchType']
+        print(out)
         return out
