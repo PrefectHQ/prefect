@@ -116,6 +116,7 @@ class SnowflakeQuery(Task):
             conn.close()
             raise error
 
+
 class SnowflakeQueryFromFile(Task):
     """
     Task for executing a query loaded from a file against a snowflake database.
@@ -210,7 +211,7 @@ class SnowflakeQueryFromFile(Task):
 
         # load query from file
         query = Path(file_path).read_text()
-        
+
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
