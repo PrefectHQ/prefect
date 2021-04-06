@@ -7,7 +7,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class SnowflakeQuery(Task):
     """
-    Task for executing a query against a snowflake database.
+    Task for executing a query against a Snowflake database.
 
     Args:
         - account (str): snowflake account name, see snowflake connector
@@ -119,7 +119,7 @@ class SnowflakeQuery(Task):
 
 class SnowflakeQueryFromFile(Task):
     """
-    Task for executing a query loaded from a file against a snowflake database.
+    Task for executing a query loaded from a file against a Snowflake database.
 
     Args:
         - account (str): snowflake account name, see snowflake connector
