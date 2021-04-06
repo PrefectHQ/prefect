@@ -87,7 +87,7 @@ class SqlServerExecute(Task):
         # context manager automatically rolls back failed transactions
         try:
             with cnxn.cursor() as cursor:
-                executed = cursor.execute(query=query, vars=data)
+                executed = cursor.execute(query, data)
                 if commit:
                     cnxn.commit()
                 else:

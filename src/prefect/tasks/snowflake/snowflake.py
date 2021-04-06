@@ -1,3 +1,4 @@
+from pathlib import Path
 import snowflake.connector as sf
 
 from prefect import Task
@@ -22,7 +23,7 @@ class SnowflakeQuery(Task):
         - warehouse (str, optional): name of the default warehouse to use
         - query (str, optional): query to execute against database
         - data (tuple, optional): values to use in query, must be specified using placeholder
-            is query string
+            in query string
         - autocommit (bool, optional): set to True to autocommit, defaults to None, which
             takes snowflake AUTOCOMMIT parameter
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -65,7 +66,7 @@ class SnowflakeQuery(Task):
         Args:
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using
-                placeholder is query string
+                placeholder in query string
             - autocommit (bool, optional): set to True to autocommit, defaults to None
                 which takes the snowflake AUTOCOMMIT parameter
 
@@ -107,6 +108,115 @@ class SnowflakeQuery(Task):
             with conn:
                 with conn.cursor() as cursor:
                     executed = cursor.execute(query, params=data).fetchall()
+            conn.close()
+            return executed
+
+        # pass through error, and ensure connection is closed
+        except Exception as error:
+            conn.close()
+            raise error
+
+class SnowflakeQueryFromFile(Task):
+    """
+    Task for executing a query loaded from a file against a snowflake database.
+
+    Args:
+        - account (str): snowflake account name, see snowflake connector
+             package documentation for details
+        - user (str): user name used to authenticate
+        - password (str, optional): password used to authenticate.
+            password or private_lkey must be present
+        - private_key (bytes, optional): pem to authenticate.
+            password or private_key must be present
+        - database (str, optional): name of the default database to use
+        - schema (int, optional): name of the default schema to use
+        - role (str, optional): name of the default role to use
+        - warehouse (str, optional): name of the default warehouse to use
+        - file_path (str, optional): file path to load query from
+        - autocommit (bool, optional): set to True to autocommit, defaults to None, which
+            takes snowflake AUTOCOMMIT parameter
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        account: str,
+        user: str,
+        password: str = None,
+        private_key: bytes = None,
+        database: str = None,
+        schema: str = None,
+        role: str = None,
+        warehouse: str = None,
+        file_path: str = None,
+        autocommit: bool = None,
+        **kwargs
+    ):
+        self.account = account
+        self.user = user
+        self.password = password
+        self.database = database
+        self.schema = schema
+        self.role = role
+        self.warehouse = warehouse
+        self.file_path = file_path
+        self.autocommit = autocommit
+        self.private_key = private_key
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("file_path", "autocommit")
+    def run(self, file_path: str = None, autocommit: bool = None):
+        """
+        Task run method. Executes a query against snowflake database.
+
+        Args:
+            - file_path (str, optional): file path to load query from
+            - autocommit (bool, optional): set to True to autocommit, defaults to None
+                which takes the snowflake AUTOCOMMIT parameter
+
+        Returns:
+            - None
+
+        Raises:
+            - ValueError: if query parameter is None or a blank string
+            - DatabaseError: if exception occurs when executing the query
+        """
+        if not file_path:
+            raise ValueError("A file path must be provided")
+
+        # build the connection parameter dictionary
+        # we will remove `None` values next
+        connect_params = {
+            "account": self.account,
+            "user": self.user,
+            "password": self.password,
+            "private_key": self.private_key,
+            "database": self.database,
+            "schema": self.schema,
+            "role": self.role,
+            "warehouse": self.warehouse,
+            "autocommit": self.autocommit,
+        }
+        # filter out unset values
+        connect_params = {
+            param: value
+            for (param, value) in connect_params.items()
+            if value is not None
+        }
+
+        # connect to database, open cursor
+        conn = sf.connect(**connect_params)
+
+        # load query from file
+        query = Path(file_path).read_text()
+        
+        # try to execute query
+        # context manager automatically rolls back failed transactions
+        try:
+            with conn:
+                with conn.cursor() as cursor:
+                    executed = cursor.execute(query).fetchall()
             conn.close()
             return executed
 
