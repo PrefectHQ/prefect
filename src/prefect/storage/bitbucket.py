@@ -101,12 +101,12 @@ class Bitbucket(Storage):
         """
 
         return (
-            self._get_flow_cloud(flow_name)
+            self._get_flow_from_bitbucket_cloud(flow_name)
             if self.workspace
-            else self._get_flow_server(flow_name)
+            else self._get_flow_from_bitbucket_server(flow_name)
         )
 
-    def _get_flow_cloud(self, flow_name: str) -> "Flow":
+    def _get_flow_from_bitbucket_cloud(self, flow_name: str) -> "Flow":
         if flow_name not in self.flows:
             raise ValueError("Flow is not contained in this Storage")
         flow_location = self.flows[flow_name]
@@ -169,7 +169,7 @@ class Bitbucket(Storage):
 
         return extract_flow_from_file(file_contents=contents, flow_name=flow_name)
 
-    def _get_flow_server(self, flow_name: str) -> "Flow":
+    def _get_flow_from_bitbucket_server(self, flow_name: str) -> "Flow":
         if flow_name not in self.flows:
             raise ValueError("Flow is not contained in this Storage")
         flow_location = self.flows[flow_name]
