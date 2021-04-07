@@ -173,7 +173,11 @@ class TaskMetaclass(type):
         computed to avoid circular import issues.
         """
         if not hasattr(Task, "_cached_reserved_attributes"):
-            Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
+            # Create a base task instance to determine which attributes are reserved
+            # we need to disable the unused_task_tracker for this duration or it will
+            # track this task
+            with prefect.context(_unused_task_tracker=set()):
+                Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
         return Task._cached_reserved_attributes  # type: ignore
 
 
