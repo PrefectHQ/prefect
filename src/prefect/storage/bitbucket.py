@@ -156,18 +156,18 @@ class Bitbucket(Storage):
             contents = client.get(contents_url)
 
         except RequestsHTTPError as err:
+
             if err.response.status_code == 403:
-                self.logger.error(
-                    "Access denied to repository. Please check credentials."
-                )
-                raise
+                err_msg = "Access denied to repository. Please check credentials."
             else:
-                self.logger.error(
+                err_msg = (
                     "Error retrieving contents at "
                     f"{flow_location} in {self.workspace}/{self.project}/{self.repo}@{ref}. "
-                    "Please check arguments passed to Bitbucket storage and verify project exists."
+                    "Please check arguments passed to Bitbucket storage."
                 )
-                raise
+
+            self.logger.error(err_msg)
+            raise RuntimeError(err_msg) from err
 
         return extract_flow_from_file(file_contents=contents, flow_name=flow_name)
 
