@@ -278,19 +278,16 @@ class Bitbucket(Storage):
                 "Unable to import atlassian, please ensure you have installed the bitbucket extra"
             ) from exc
 
-        if self.cloud_username_secret is not None:
-            # If cloud username secret specified, load it
-            cloud_username = Secret(self.cloud_username_secret).get()
-        else:
-            if cloud_username is None:
-                cloud_username = os.getenv("BITBUCKET_CLOUD_USERNAME")
-
-        if self.cloud_app_password_secret is not None:
-            # If cloud app password secret specified, load it
-            cloud_app_password = Secret(self.cloud_app_password_secret).get()
-        else:
-            if cloud_app_password is None:
-                cloud_app_password = os.getenv("BITBUCKET_CLOUD_APP_PASSWORD")
+        cloud_username = (
+            Secret(self.cloud_username_secret).get()
+            if self.cloud_username_secret is not None
+            else os.getenv("BITBUCKET_CLOUD_USERNAME")
+        )
+        cloud_app_password = (
+            Secret(self.cloud_app_password_secret).get()
+            if self.cloud_app_password_secret is not None
+            else os.getenv("BITBUCKET_CLOUD_APP_PASSWORD")
+        )
 
         # Bitbucket clould api is rate limited, retry at this frequency
         # 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128
