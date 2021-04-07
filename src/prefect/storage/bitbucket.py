@@ -282,10 +282,6 @@ class Bitbucket(Storage):
             # If cloud username secret specified, load it
             cloud_username = Secret(self.cloud_username_secret).get()
         else:
-            # Otherwise, fallback to loading from local secret or environment variable
-            cloud_username = prefect.context.get("secrets", {}).get(
-                "BITBUCKET_CLOUD_USERNAME"
-            )
             if cloud_username is None:
                 cloud_username = os.getenv("BITBUCKET_CLOUD_USERNAME")
 
@@ -293,10 +289,6 @@ class Bitbucket(Storage):
             # If cloud app password secret specified, load it
             cloud_app_password = Secret(self.cloud_app_password_secret).get()
         else:
-            # Otherwise, fallback to loading from local secret or environment variable
-            cloud_app_password = prefect.context.get("secrets", {}).get(
-                "BITBUCKET_CLOUD_APP_PASSWORD"
-            )
             if cloud_app_password is None:
                 cloud_app_password = os.getenv("BITBUCKET_CLOUD_APP_PASSWORD")
 
