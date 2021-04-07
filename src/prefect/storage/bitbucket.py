@@ -5,11 +5,21 @@ from urllib.error import HTTPError
 
 import requests
 from requests.exceptions import HTTPError as RequestsHTTPError
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 import prefect
 from prefect.client import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
+
+
+BITBUCKET_CLOUD_RETRY = Retry(
+    total=10,
+    backoff_factor=0.5,
+    status_forcelist=[429],
+    method_whitelist=["HEAD", "GET", "OPTIONS"],
+)
 
 if TYPE_CHECKING:
     import atlassian
@@ -292,16 +302,7 @@ class Bitbucket(Storage):
 
         # Bitbucket clould api is rate limited, retry at this frequency
         # 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128
-        from requests.adapters import HTTPAdapter
-        from requests.packages.urllib3.util.retry import Retry
-
-        retry_strategy = Retry(
-            total=10,
-            backoff_factor=0.5,
-            status_forcelist=[429],
-            method_whitelist=["HEAD", "GET", "OPTIONS"],
-        )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
+        adapter = HTTPAdapter(max_retries=BITBUCKET_CLOUD_RETRY)
         session = requests.Session()
         session.mount("https://", adapter)
 
