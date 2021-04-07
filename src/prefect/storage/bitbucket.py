@@ -145,7 +145,9 @@ class Bitbucket(Storage):
                     ref = tag_hashes[ref]
 
             if not re.match(SHA1_REGEX, ref):
-                raise ValueError("ref not found in this Storage")
+                raise ValueError(
+                    "ref {ref!r} not found in '{self.workspace}/{self.repo}'"
+                )
 
             contents_url = (
                 f"repositories/{self.workspace}/{self.repo}/src/{ref}/{flow_location}"
