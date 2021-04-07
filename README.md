@@ -19,6 +19,10 @@
     <img src="https://img.shields.io/docker/pulls/prefecthq/prefect.svg?color=%2327B1FF&logoColor=%234D606E">
 </a>
 
+<a href="https://www.prefect.io/slack/">
+    <img src="https://prefect-slackin.herokuapp.com/badge.svg">
+</a>
+
 </p>
 
 ## Hello, world! 👋
