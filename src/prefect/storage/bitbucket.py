@@ -94,8 +94,8 @@ class Bitbucket(Storage):
 
         if self.workspace and self.access_token_secret:
             raise ValueError(
-                "Wrong secret variable set. "
-                "Workspace variable implies Bitbucket Cloud but an access token for Bitbucket Server was provided."
+                "Wrong secret variable set. Workspace variable implies Bitbucket Cloud "
+                "but an access token for Bitbucket Server was provided."
             )
 
         super().__init__(**kwargs)
