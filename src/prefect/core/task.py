@@ -552,8 +552,7 @@ class Task(metaclass=TaskMetaclass):
         # as it has been "interacted" with and don't want spurious
         # warnings
         if "_unused_task_tracker" in prefect.context:
-            if self in prefect.context._unused_task_tracker:
-                prefect.context._unused_task_tracker.remove(self)
+            prefect.context._unused_task_tracker.discard(self)
             if not isinstance(new, prefect.tasks.core.constants.Constant):
                 prefect.context._unused_task_tracker.add(new)
 
