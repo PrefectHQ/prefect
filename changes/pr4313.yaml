@@ -18,6 +18,3 @@
 
 enhancement:
   - 'Update docs for API keys - [#4313](https://github.com/PrefectHQ/prefect/pull/4313)'
-
-contributor:
-  - '[Contributor Name](https://github.com/contributor_github_username)'
