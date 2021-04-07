@@ -17,8 +17,7 @@ Released on April 5, 2021.
 
 ### Task Library
 
-- Add first basic implementation of Soda SQL Scan task
-- This task can be used to run DQ tests using [soda-sql](https://github.com/sodadata/soda-sql) library
+- Add first basic implementation of [soda-sql](https://github.com/sodadata/soda-sql) scan task
 - Add new task KubernetesSecret - [#4307](https://github.com/PrefectHQ/prefect/pull/4307)
 
 ### Fixes
