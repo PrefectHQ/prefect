@@ -36,7 +36,8 @@ def test_register_flow_help():
 
 @pytest.mark.parametrize("labels", [[], ["b", "c"]])
 @pytest.mark.parametrize("kind", ["run_config", "environment", "neither"])
-def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
+@pytest.mark.parametrize("with_project", [True, False])
+def test_register_flow_call(monkeypatch, tmpdir, kind, labels, with_project):
     client = MagicMock()
     monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
 
@@ -74,17 +75,23 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
         full_path,
         "--name",
         "test-flow",
-        "--project",
-        "project",
         "--skip-if-flow-metadata-unchanged",
     ]
+    if with_project:
+        args += [
+            "--project",
+            "project",
+        ]
+
     for l in labels:
         args.extend(["-l", l])
 
     runner = CliRunner()
     result = runner.invoke(cli, args)
     assert client.register.called
-    assert client.register.call_args[1]["project_name"] == "project"
+    assert client.register.call_args[1]["project_name"] == (
+        "project" if with_project else None
+    )
     assert client.register.call_args[1]["idempotency_key"] is not None
 
     # Check additional labels are set if specified
@@ -241,8 +248,9 @@ class TestRegister:
             (True, True, True, 2),
         ],
     )
+    @pytest.mark.parametrize("with_project", [True, False])
     def test_register_serialized_flow(
-        self, already_exists, is_new_version, force, exp_version
+        self, already_exists, is_new_version, force, exp_version, with_project
     ):
         client = MagicMock()
         client.graphql.side_effect = responses = []
@@ -263,7 +271,10 @@ class TestRegister:
         serialized_flow = Flow("testing").serialize(build=False)
 
         flow_id, flow_version, is_new = register_serialized_flow(
-            client, serialized_flow, "my-project-id", force
+            client,
+            serialized_flow,
+            project_id="my-project-id" if with_project else None,
+            force=force,
         )
 
         assert flow_id == exp_id
