@@ -462,7 +462,7 @@ def build_and_register(
                     click.echo(f"  └── Version: {flow_version}")
                     stats["registered"] += 1
                 else:
-                    click.secho(" Skipped", fg="yellow")
+                    click.secho(" Skipped (metadata unchanged)", fg="yellow")
                     stats["skipped"] += 1
     return stats
 
@@ -705,7 +705,11 @@ REGISTER_EPILOG = """
 @click.pass_context
 @handle_terminal_error
 def register(ctx, project, paths, modules, json_paths, names, labels, force, watch):
-    """Register one or more flows into a project."""
+    """Register one or more flows into a project.
+
+    Flows with unchanged metadata will be skipped as registering again will only
+    change the version number.
+    """
     # Since the old command was a subcommand of this, we have to do some
     # mucking to smoothly deprecate it. Can be removed with `prefect register
     # flow` is removed.

@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Improve messaging when a flow is skipped during registration - [#4373](https://github.com/PrefectHQ/prefect/pull/4373)"
