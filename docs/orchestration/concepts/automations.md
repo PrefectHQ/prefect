@@ -1,20 +1,21 @@
+# Automations <Badge text="Cloud"/>
 
-# Automations
+Automations allow you to configure actions (such as cancelling a flow run or sending a notification to certain endpoints) when your flows or agents encounter certain events.
 
-Automations allow you to take action (such as cancelling a flow run or sending a notification to certain endpoints) when your flow or agent encounters a certain event.  
-
-For example, you can send a Slack message to your team when a run from a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour.  The Prefect backend API currently supports notification actions for Slack, Twilio, Pager Duty, and email.
+For example, you can send a Slack message to your team when a run from a production critical flow has failed, along with the reason for the failure so that you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour to enforce SLAs.  The Prefect Cloud API currently supports notification actions for Slack, Twilio, Pager Duty, email and arbitrary webhooks.
 
 You can set up and edit your Automations using the [API](/orchestration/concepts/api.html) or the Automations page in the UI.
 
 ## Events
 
-Current events that you can monitor are:
-- A flow run enters a given state; 
-- Runs from multiple (or even all) flows enter a given state;
-- A Flow run fails to start after being scheduled for a certain amount of time; 
-- A Flow run fails to finish after running for a certain amount of time; 
-- All agents with the same agent-config-id become unhealthy. 
+Currently you can configure automations for the following events:
+- A flow run enters a given state or states
+- Runs from multiple (or all!) flows enter a given state or states
+
+Additionally, if you are a Standard Tier user, you can configure automations for the following scenarios:
+- A flow run fails to start after being scheduled for a certain amount of time
+- A flow run fails to finish after running for a certain amount of time
+- All agents with the same agent-config-id become unhealthy
 
 ## Actions
 
@@ -26,9 +27,11 @@ Once you have an incoming webhook URL, you should store it as a secret in Team S
 
 ### Twilio Action
 
-A Twilio Action needs a few more inputs: an Auth Token (which should be stored as a secret in the UI Team Settings), an Account SID, a Messaging Service SID and at least one phone number.
-
-The phone number is the number that you want alerts to be sent to.
+A Twilio Action needs a few more inputs: 
+- an Auth Token (which should be stored as a secret in the UI Team Settings)
+- an Account SID
+- a Messaging Service SID 
+- at least one phone number that you want alerts sent to
 
 The Auth Token and Account SID are on your Twilio project dashboard.
 
@@ -68,7 +71,7 @@ The API Token comes from the API Access section of the Configuration menu of the
 
 <p>&nbsp;</p>
 
-To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud Hook to and then click on the Integrations tab.
+To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud notification for and then click on the Integrations tab.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-integrations.png">
