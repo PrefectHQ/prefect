@@ -10,7 +10,7 @@ Please consider [Chris White](https://github.com/cicdw) the main point of contac
 
 # Slack
 
-We have a public [Slack](https://prefect-slackin.herokuapp.com/) for chatting about Prefect, asking questions, and sharing tips.
+We have a public [Slack](https://prefect.io/slack) for chatting about Prefect, asking questions, and sharing tips.
 
 ## Slack Guidelines
 
