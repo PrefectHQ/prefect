@@ -186,7 +186,7 @@ def flow(
         }
 
         if project:
-            where_clause["_and"]["project"] = {"name": {"_eq": project}
+            where_clause["_and"]["project"] = {"name": {"_eq": project}}
         else:
             where_clause["_and"]["project_id"] = {"_is_null": True}
 
