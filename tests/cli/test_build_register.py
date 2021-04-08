@@ -398,7 +398,8 @@ class TestRegister:
             load_flows_from_json("https://some/url/flows.json")
 
     @pytest.mark.parametrize("force", [False, True])
-    def test_build_and_register(self, capsys, monkeypatch, force):
+    @pytest.mark.parametrize("with_project", [False, True])
+    def test_build_and_register(self, capsys, monkeypatch, force, with_project):
         """Build and register a few flows:
         - 1 new flow
         - 1 updated flow
@@ -458,7 +459,11 @@ class TestRegister:
         flows = [flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8]
 
         stats = build_and_register(
-            client, flows, "my-project-id", labels=["b", "c"], force=force
+            client,
+            flows,
+            "my-project-id" if with_project else None,
+            labels=["b", "c"],
+            force=force,
         )
 
         # 3 calls (one for each unique `MyModule` storage object)
@@ -470,7 +475,7 @@ class TestRegister:
             assert not args
             assert kwargs["client"] is client
             assert kwargs["serialized_flow"]
-            assert kwargs["project_id"] == "my-project-id"
+            assert kwargs["project_id"] == ("my-project-id" if with_project else None)
             assert kwargs["force"] == force
 
         # Stats are recorded properly
@@ -646,11 +651,6 @@ class TestRegister:
         assert result.stdout == (
             "Collecting flows...\n" "No module named 'a_highly_unlikely_module_name'\n"
         )
-
-    def test_register_cli_no_project_specified(self):
-        result = CliRunner().invoke(cli, ["register", "-p", "some_path"])
-        assert result.exit_code == 1
-        assert result.stdout == "Error: Missing required option '--project'\n"
 
     def test_register_cli_project_not_found(self, monkeypatch):
         client = MagicMock()
