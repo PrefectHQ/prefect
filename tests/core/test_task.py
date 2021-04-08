@@ -773,3 +773,33 @@ def test_task_init_uses_reserved_attribute_raises_helpful_warning():
     with Flow("test"):
         with pytest.warns(UserWarning, match="`MyTask` sets a `target` attribute"):
             MyTask()
+
+
+@pytest.mark.parametrize("use_function_task", [True, False])
+def test_task_called_outside_flow_context_raises_helpful_error(use_function_task):
+
+    if use_function_task:
+
+        @prefect.task
+        def fn(x):
+            return x
+
+    else:
+
+        class Fn(Task):
+            def run(self, x):
+                return x
+
+        fn = Fn()
+
+    with pytest.raises(
+        ValueError,
+        match=f"Could not infer an active Flow context while creating edge to {fn}",
+    ) as exc_info:
+        fn(1)
+
+    run_call = "`fn.run(...)`" if use_function_task else "`Fn(...).run(...)`"
+    assert (
+        "If you're trying to run this task outside of a Flow context, "
+        f"you need to call {run_call}" in str(exc_info)
+    )
