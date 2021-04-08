@@ -326,6 +326,28 @@ class TestGenerateTaskDefinition:
             {"key": "prefect:flow-version", "value": "1"},
         ]
 
+    @pytest.mark.parametrize("launch_type", [None, "FARGATE", "EC2"])
+    def test_generate_task_definition_requires_compatibilities(self, launch_type):
+        taskdef = self.generate_task_definition(ECSRun(), launch_type=launch_type)
+        assert taskdef["requiresCompatibilities"] == [launch_type or "FARGATE"]
+
+    @pytest.mark.parametrize(
+        "on_run_config, on_agent, expected",
+        [
+            (None, None, None),
+            ("execution-role-1", None, "execution-role-1"),
+            (None, "execution-role-2", "execution-role-2"),
+            ("execution-role-1", "execution-role-2", "execution-role-1"),
+        ],
+    )
+    def test_get_task_run_kwargs_execution_role_arn(
+        self, on_run_config, on_agent, expected
+    ):
+        taskdef = self.generate_task_definition(
+            ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
+        )
+        assert taskdef.get("executionRoleArn") == expected
+
     @pytest.mark.parametrize(
         "run_config, storage, expected",
         [

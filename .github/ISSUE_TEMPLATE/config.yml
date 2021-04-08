@@ -13,5 +13,5 @@ contact_links:
     about: The Heart of Gold
     
   - name: Chat in Slack 💬
-    url: https://prefect-slackin.herokuapp.com/
+    url: https://www.prefect.io/slack
     about: Don't panic

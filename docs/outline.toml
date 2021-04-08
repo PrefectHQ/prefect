@@ -322,6 +322,7 @@ classes = [
         "PatchNamespacedService",
         "ReadNamespacedService",
         "ReplaceNamespacedService",
+        "KubernetesSecret",
         ]
 
 [pages.tasks.dbt]

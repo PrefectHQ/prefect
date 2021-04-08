@@ -508,7 +508,7 @@ class Agent:
             - list: A list of GraphQLResult flow run objects
         """
         self.logger.debug("Querying for flow runs")
-        # keep a copy of what was curringly running before the query (future callbacks may be
+        # keep a copy of what was currently running before the query (future callbacks may be
         # updating this set)
         currently_submitting_flow_runs = self.submitting_flow_runs.copy()
 

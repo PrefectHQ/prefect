@@ -170,6 +170,9 @@ def flow(
         )
         return
 
+    if labels == ():
+        labels = None
+
     client = Client()
     flow_id = id
     if not flow_id and not version_group_id:

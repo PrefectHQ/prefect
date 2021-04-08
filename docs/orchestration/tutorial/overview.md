@@ -40,45 +40,47 @@ the CLI:
 
 :::: tabs
 ::: tab Cloud
+
 ```bash
 $ prefect backend cloud
 ```
+
 :::
 
 ::: tab Server
+
 ```bash
 $ prefect backend server
 ```
+
 :::
 ::::
 
-Note that you can change backends at any time by rerunning the `prefect backend
-...` command.
+Note that you can change backends at any time by rerunning the `prefect backend ...` command.
 
 ## Authenticating with Prefect Cloud <Badge text="Cloud"/>
 
 If you're using Prefect Cloud, you'll also need to authenticate with the
 backend before you can proceed further.
 
-### Create a Personal Access Token
+### Create an API Key
 
-To authenticate, you'll need to create a [Personal Access
-Token](/orchestration/concepts/tokens.html#user) and configure it with the
+To authenticate, you'll need to create an [API Key](/orchestration/concepts/tokens.html#user) and configure it with the
 [Prefect Command Line Interface](/orchestration/concepts/cli.html#cli).
 
 - Login to [https://cloud.prefect.io](https://cloud.prefect.io)
-- Navigate to the [Personal Access Tokens page](https://cloud.prefect.io/user/tokens). In the User menu in the top right corner go to **Account Settings** -> **Personal Access Tokens** -> **Create A Token**.
-- Copy the created token
-- Configure the CLI to use the access token by running
+- Navigate to the [API Keys page](https://cloud.prefect.io/user/keys). In the User menu in the top right corner go to **Account Settings** -> **API Keys** -> **Create An API Key**.
+- Copy the created key
+- Configure the CLI to use the key by running
 
 ```bash
-prefect auth login -t <COPIED_TOKEN>
+prefect auth login -t <API_KEY>
 ```
 
-### Create a Runner Token
+### Create a Service Account Key
 
 Running deployed Flows with an [Agent](/orchestration/agents/overview.html)
-also requires a `RUNNER`-scoped API token for the Agent. You can create one
+also requires an API key for the Agent. You can create one
 using the CLI:
 
 ```bash
@@ -94,14 +96,16 @@ your `~/.prefect/config.toml` config file, or as an environment variable:
 ```toml
 # ~/.prefect/config.toml
 [cloud.agent]
-auth_token = <COPIED_RUNNER_TOKEN>
+auth_token = <SERVICE_ACCOUNT_API_KEY>
 ```
+
 :::
 ::: tab "Environment Variable"
 
 ```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<COPIED_RUNNER_TOKEN>
+export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
 ```
+
 :::
 
 ::::
