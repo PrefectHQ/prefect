@@ -8,16 +8,18 @@ You can set up and edit your Automations using the [API](/orchestration/concepts
 
 ## Events
 
-Currently you can configure automations for the following events:
+An _event_ is a configurable condition that, when met, will cause an automation to run. Currently you can configure automations for the following events:
 - A flow run enters a given state or states
 - Runs from multiple (or all!) flows enter a given state or states
 
-Additionally, if you are a Standard Tier user, you can configure automations for the following scenarios:
+Additionally, if you are a Standard Tier user, you can also configure automations for the following scenarios:
 - A flow run fails to start after being scheduled for a certain amount of time
 - A flow run fails to finish after running for a certain amount of time
-- All agents with the same agent-config-id become unhealthy
+- Some number of agents with the same `agent_config_id` become unhealthy
 
-## Actions
+## Automations
+
+Automations are actions that you can configure to run when certain event conditions are met.
 
 ### Slack Action
 
