@@ -49,6 +49,8 @@ Requests for help will be seen by the Prefect team, and will be directed to the 
 
 **Rule 6: Avoid using DMs to ask for help**
 
+Prefect employees should not be sent questions in DMs unless we specifically ask you to send us private information.
+
 There are times when it makes sense to directly message another community member experiencing a similar issue, or working with similar technologies. Just be aware that some people may not want to be messaged.
 
 It also helps other people if you post your question publicly. Similar to above, informative Slack threads are archived. Having conversations in public channels drives better quality discussions that can be referenced in the future.
