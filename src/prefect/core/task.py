@@ -673,6 +673,8 @@ class Task(metaclass=TaskMetaclass):
         if not flow:
             raise ValueError(
                 f"Could not infer an active Flow context while creating edge to {self}."
+                " This often means you called a task outside a `with Flow(...)` block. "
+                "Did you mean to call `this_task.run(...)`?"
             )
 
         self.set_dependencies(
