@@ -604,6 +604,7 @@ def stop():
     "--slug",
     "-s",
     help="The slug of a tenant to create",
+    default=None,
     hidden=True,
 )
 def create_tenant(name, slug):
@@ -613,7 +614,7 @@ def create_tenant(name, slug):
     \b
     Options:
         --name, -n       TEXT    The name of a tenant to create
-        --slug, -n       TEXT    The slug of a tenant to create
+        --slug, -n       TEXT    The slug of a tenant to create (optional)
     """
     client = prefect.Client()
     tenant_id = client.create_tenant(name=name, slug=slug)

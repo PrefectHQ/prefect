@@ -1,5 +1,0 @@
-task:
-  - "Adds tasks `Copy` and `Remove` - [#4202](https://github.com/PrefectHQ/prefect/pull/4202)"
-
-contributor:
-  - "[Timo S.](https://github.com/sti0)"

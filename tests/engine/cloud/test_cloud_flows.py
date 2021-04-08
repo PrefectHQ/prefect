@@ -9,12 +9,11 @@ import pytest
 import prefect
 from prefect.client.client import (
     Client,
-    ProjectInfo,
     FlowRunInfoResult,
+    ProjectInfo,
     TaskRunInfoResult,
 )
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.executors import LocalExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.state import (
@@ -29,6 +28,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
+from prefect.executors import LocalExecutor
 from prefect.utilities.configuration import set_temporary_config
 
 pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
@@ -172,6 +172,9 @@ class MockedCloudClient(MagicMock):
         """
         self.call_count["get_task_run_info"] += 1
 
+        if map_index is None:
+            map_index = -1
+
         task_run = next(
             (
                 t
@@ -262,7 +265,7 @@ class QueueingMockCloudClient(MockedCloudClient):
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
-def test_simple_two_task_flow2(monkeypatch, executor):
+def test_simple_two_task_flow_2(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
     task_run_id_2 = str(uuid.uuid4())
@@ -276,10 +279,14 @@ def test_simple_two_task_flow2(monkeypatch, executor):
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
             TaskRun(
-                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+                id=task_run_id_1,
+                task_slug=flow.slugs[t1],
+                flow_run_id=flow_run_id,
             ),
             TaskRun(
-                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+                id=task_run_id_2,
+                task_slug=flow.slugs[t2],
+                flow_run_id=flow_run_id,
             ),
         ],
         monkeypatch=monkeypatch,
@@ -1012,7 +1019,7 @@ def test_slug_mismatch_raises_informative_error(monkeypatch):
     ## assert informative message; can't use `match` because the real exception is one layer depeer than the ENDRUN
     assert "KeyError" in repr(state.result)
     assert "not found" in repr(state.result)
-    assert "changing the Flow" in repr(state.result)
+    assert "mismatch between the flow version" in repr(state.result)
 
 
 def test_can_queue_successfully_and_run(monkeypatch):

@@ -1,4 +1,6 @@
+import glob
 import inspect
+import os
 import re
 import sys
 import textwrap
@@ -23,6 +25,7 @@ try:
         get_call_signature,
         get_class_methods,
         patch_imports,
+        build_example,
         VALID_DOCSTRING_SECTIONS,
     )
 
@@ -35,6 +38,8 @@ except ImportError:
 
 
 pytest.mark.skipif(sys.version_info < (3, 6))
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 def consistency_check(obj, obj_name):
@@ -481,3 +486,8 @@ def test_section_headers_are_properly_formatted(obj):
             assert (
                 False
             ), f"{obj.__module__}.{obj.__qualname__} has a poorly formatted '{section}' header"
+
+
+@pytest.mark.parametrize("path", glob.glob(os.path.join(ROOT, "examples", "*.py")))
+def test_example(path):
+    build_example(path)

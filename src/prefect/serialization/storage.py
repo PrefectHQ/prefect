@@ -118,10 +118,13 @@ class BitbucketSchema(BaseStorageSchema):
 
     project = fields.String(allow_none=False)
     repo = fields.String(allow_none=False)
+    workspace = fields.String(allow_none=True)
     host = fields.String(allow_none=True)
     path = fields.String(allow_none=True)
     ref = fields.String(allow_none=True)
     access_token_secret = fields.String(allow_none=True)
+    cloud_username_secret = fields.String(allow_none=True)
+    cloud_app_password_secret = fields.String(allow_none=True)
 
 
 class CodeCommitSchema(BaseStorageSchema):

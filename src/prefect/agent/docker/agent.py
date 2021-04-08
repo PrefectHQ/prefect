@@ -18,17 +18,18 @@ if TYPE_CHECKING:
     import docker
 
 
-def _stream_container_logs(base_url: str, container_id: str) -> None:
+def _stream_container_logs(base_url: str, timeout: int, container_id: str) -> None:
     """
     Stream container logs back to stdout
 
     Args:
         - base_url (str): URL for a Docker daemon server
+        - timeout (int): timeout for docker api requests
         - container_id (str): ID of a container to stream logs
     """
     import docker
 
-    client = docker.APIClient(base_url=base_url, version="auto")
+    client = docker.APIClient(base_url=base_url, timeout=timeout, version="auto")
     for log in client.logs(container=container_id, stream=True, follow=True):
         print(str(log, "utf-8").rstrip())
 
@@ -82,6 +83,8 @@ class DockerAgent(Agent):
             some Docker-in-Docker setups that users may be running their agent with.
         - reg_allow_list (List[str], optional): Limits Docker Agent to only pull images
             from the listed registries.
+        - docker_client_timeout (int, optional): The timeout to use for docker
+            API calls, defaults to 60 seconds.
     """
 
     def __init__(
@@ -101,6 +104,7 @@ class DockerAgent(Agent):
         networks: List[str] = None,
         docker_interface: bool = True,
         reg_allow_list: List[str] = None,
+        docker_client_timeout: int = None,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -150,6 +154,7 @@ class DockerAgent(Agent):
         self.networks = networks
         self.logger.debug(f"Docker networks set to {self.networks}")
 
+        self.docker_client_timeout = docker_client_timeout or 60
         self.docker_interface = docker_interface
         self.logger.debug(
             "Docker interface toggle set to {}".format(self.docker_interface)
@@ -183,7 +188,11 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
-        return docker.APIClient(base_url=self.base_url, version="auto")
+        return docker.APIClient(
+            base_url=self.base_url,
+            version="auto",
+            timeout=self.docker_client_timeout,
+        )
 
     def heartbeat(self) -> None:
         try:
@@ -483,6 +492,7 @@ class DockerAgent(Agent):
             target=_stream_container_logs,
             kwargs={
                 "base_url": self.base_url,
+                "timeout": self.docker_client_timeout,
                 "container_id": container_id,
             },
         )

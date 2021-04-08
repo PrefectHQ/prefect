@@ -284,10 +284,11 @@ class TestDaskExecutor:
         assert a_start < b_end
         assert b_start < a_end
 
-    def test_connect_to_running_cluster(self):
+    def test_connect_to_running_cluster(self, caplog):
         with distributed.Client(processes=False, set_as_default=False) as client:
-            executor = DaskExecutor(address=client.scheduler.address)
-            assert executor.address == client.scheduler.address
+            address = client.scheduler.address
+            executor = DaskExecutor(address=address)
+            assert executor.address == address
             assert executor.cluster_class is None
             assert executor.cluster_kwargs is None
             assert executor.client_kwargs == {"set_as_default": False}
@@ -296,7 +297,10 @@ class TestDaskExecutor:
                 res = executor.wait(executor.submit(lambda x: x + 1, 1))
                 assert res == 2
 
-    def test_start_local_cluster(self):
+        exp = f"Connecting to an existing Dask cluster at {address}"
+        assert any(exp in rec.message for rec in caplog.records)
+
+    def test_start_local_cluster(self, caplog):
         executor = DaskExecutor(cluster_kwargs={"processes": False})
         assert executor.cluster_class == distributed.LocalCluster
         assert executor.cluster_kwargs == {
@@ -307,6 +311,20 @@ class TestDaskExecutor:
         with executor.start():
             res = executor.wait(executor.submit(lambda x: x + 1, 1))
             assert res == 2
+
+        assert any(
+            "Creating a new Dask cluster" in rec.message for rec in caplog.records
+        )
+        try:
+            import bokeh  # noqa
+        except Exception:
+            # If bokeh isn't installed, no dashboard will be started
+            pass
+        else:
+            assert any(
+                "The Dask dashboard is available at" in rec.message
+                for rec in caplog.records
+            )
 
     def test_local_cluster_adapt(self):
         adapt_kwargs = {"minimum": 1, "maximum": 1}
