@@ -671,7 +671,9 @@ class Task(metaclass=TaskMetaclass):
 
         flow = flow or prefect.context.get("flow", None)
         if not flow:
-            raise ValueError("Could not infer an active Flow context.")
+            raise ValueError(
+                f"Could not infer an active Flow context while creating edge to {self}."
+            )
 
         self.set_dependencies(
             flow=flow,
