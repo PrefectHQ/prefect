@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Allow flows to be registered with no project - [#4378](https://github.com/PrefectHQ/prefect/pull/4378)"
