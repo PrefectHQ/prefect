@@ -770,29 +770,27 @@ class Client:
                 }
             }
 
-        project = None
-
-        if project_name is None:
-            raise TypeError(
-                "'project_name' is a required field when registering a flow."
-            )
-
-        query_project = {
-            "query": {
-                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
-                    "id": True
+        project_id = None
+        if project_name:
+            query_project = {
+                "query": {
+                    with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                        "id": True
+                    }
                 }
             }
-        }
 
-        project = self.graphql(query_project).data.project  # type: ignore
+            project = self.graphql(query_project).data.project  # type: ignore
 
-        if not project:
-            raise ValueError(
-                "Project {} not found. Run `prefect create project '{}'` to create it.".format(
-                    project_name, project_name
+            if not project:
+                raise ValueError(
+                    "Project {} not found. Run `prefect create project '{}'` to create it.".format(
+                        project_name, project_name
+                    )
                 )
-            )
+
+            project_id = project[0].id
+
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
@@ -823,7 +821,7 @@ class Client:
             serialized_flow = compress(serialized_flow)
 
         inputs = dict(
-            project_id=(project[0].id if project else None),
+            project_id=project_id,
             serialized_flow=serialized_flow,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
