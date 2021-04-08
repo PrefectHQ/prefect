@@ -173,7 +173,11 @@ class TaskMetaclass(type):
         computed to avoid circular import issues.
         """
         if not hasattr(Task, "_cached_reserved_attributes"):
-            Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
+            # Create a base task instance to determine which attributes are reserved
+            # we need to disable the unused_task_tracker for this duration or it will
+            # track this task
+            with prefect.context(_unused_task_tracker=set()):
+                Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
         return Task._cached_reserved_attributes  # type: ignore
 
 
@@ -548,8 +552,7 @@ class Task(metaclass=TaskMetaclass):
         # as it has been "interacted" with and don't want spurious
         # warnings
         if "_unused_task_tracker" in prefect.context:
-            if self in prefect.context._unused_task_tracker:
-                prefect.context._unused_task_tracker.remove(self)
+            prefect.context._unused_task_tracker.discard(self)
             if not isinstance(new, prefect.tasks.core.constants.Constant):
                 prefect.context._unused_task_tracker.add(new)
 

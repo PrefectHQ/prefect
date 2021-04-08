@@ -790,6 +790,29 @@ def test_warning_not_raised_for_constant_tasks_as_inputs():
     assert len(record) == 0
 
 
+def test_warning_not_raised_with_called_task_subclass_in_context():
+    # Covers fix in commit e5c75adb38915485997965fcb3a4110e7a7728b2
+
+    class AddOne(Task):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def run(self, x):
+            return x + 1
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            add_one = AddOne()
+            tt = add_one(10)
+
+    # confirm tasks were added
+    assert len(f.tasks) == 1
+    assert f.constants[tt]["x"] == 10
+
+    # no warnings
+    assert len(record) == 0
+
+
 def test_warning_raised_if_tasks_are_copied_but_not_added_to_flow():
     x = Parameter("x")
     with pytest.warns(UserWarning, match="Tasks were created but not added"):
