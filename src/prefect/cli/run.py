@@ -152,14 +152,16 @@ def flow(
     """
     if not id and not (name and project) and not version_group_id:
         click.secho(
-            "A flow ID, version group ID, or a combination of flow name and project must be provided.",
+            "A flow id, version group id, name, or a combination of name and "
+            "project must be provided.",
             fg="red",
         )
         return
 
     if sum(map(bool, (id, version_group_id, name))) != 1:
         click.secho(
-            "Only one of flow ID, version group ID, or a name/project combination can be provided.",
+            "Received a mix of flow id, version group id, and flow name. Only one "
+            "should be provided.",
             fg="red",
         )
         return
@@ -180,9 +182,13 @@ def flow(
             "_and": {
                 "name": {"_eq": name},
                 "version": {"_eq": version},
-                "project": {"name": {"_eq": project}},
             }
         }
+
+        if project:
+            where_clause["_and"]["project"] = {"name": {"_eq": project}
+        else:
+            where_clause["_and"]["project_id"] = {"_is_null": True}
 
         query = {
             "query": {
