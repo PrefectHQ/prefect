@@ -315,7 +315,7 @@ def get_project_id(client: "prefect.Client", project: str) -> str:
 def register_serialized_flow(
     client: "prefect.Client",
     serialized_flow: dict,
-    project_id: str,
+    project_id: str = None,
     force: bool = False,
 ) -> Tuple[str, int, bool]:
     """Register a pre-serialized flow.
@@ -323,7 +323,7 @@ def register_serialized_flow(
     Args:
         - client (prefect.Client): the prefect client
         - serialized_flow (dict): the serialized flow
-        - project_id (str): the project id
+        - project_id (str, optional): the project id
         - force (bool, optional): If `False` (default), an idempotency key will
             be generated to avoid unnecessary re-registration. Set to `True` to
             force re-registration.
@@ -346,7 +346,13 @@ def register_serialized_flow(
                         "where": {
                             "_and": {
                                 "name": {"_eq": flow_name},
-                                "project": {"id": {"_eq": project_id}},
+                                "project": {
+                                    "id": (
+                                        {"_eq": project_id}
+                                        if project_id
+                                        else {"_is_null": True}
+                                    )
+                                },
                             }
                         },
                         "order_by": {"version": EnumValue("desc")},
@@ -393,7 +399,7 @@ def register_serialized_flow(
 def build_and_register(
     client: "prefect.Client",
     flows: "List[FlowLike]",
-    project_id: str,
+    project_id: str = None,
     labels: List[str] = None,
     force: bool = False,
 ) -> Counter:
@@ -402,7 +408,7 @@ def build_and_register(
     Args:
         - client (prefect.Client): the prefect client to use
         - flows (List[FlowLike]): the flows to register
-        - project_id (str): the project id in which to register the flows
+        - project_id (str, optional): the project id in which to register the flows
         - labels (List[str], optional): Any extra labels to set on all flows
         - force (bool, optional): If false (default), an idempotency key will
             be used to avoid unnecessary register calls.
@@ -468,9 +474,9 @@ def build_and_register(
 
 
 def register_internal(
-    project: str,
     paths: List[str],
     modules: List[str],
+    project: str = None,
     json_paths: List[str] = None,
     names: List[str] = None,
     labels: List[str] = None,
@@ -481,11 +487,11 @@ def register_internal(
     requested flows.
 
     Args:
-        - project (str): the project in which to register the flows.
         - paths (List[str]): a list of file paths containing flows.
         - modules (List[str]): a list of python modules containing flows.
         - json_paths (List[str]): a list of file paths containing serialied
             flows produced by `prefect build`.
+        - project (str, optional): the project in which to register the flows.
         - names (List[str], optional): a list of flow names that should be
             registered. If not provided, all flows found will be registered.
         - labels (List[str], optional): a list of extra labels to set on all
@@ -497,8 +503,8 @@ def register_internal(
     """
     client = prefect.Client()
 
-    # Determine the project id
-    project_id = get_project_id(client, project)
+    # Determine the project id if given a name
+    project_id = get_project_id(client, project) if project else None
 
     # Load flows from all files/modules requested
     click.echo("Collecting flows...")
@@ -512,7 +518,7 @@ def register_internal(
     for source, flows in source_to_flows.items():
         click.echo(f"Processing {source.location!r}:")
         stats += build_and_register(
-            client, flows, project_id, labels=labels, force=force
+            client, flows, project_id=project_id, labels=labels, force=force
         )
 
     # Output summary message
@@ -607,30 +613,37 @@ REGISTER_EPILOG = """
 
 \b  Register all flows found in a directory.
 
+\b    $ prefect register -p myflows/
+
+\b  Register all flows found in a directory to a project
+
 \b    $ prefect register --project my-project -p myflows/
 
 \b  Register a flow named "example" found in `flow.py`.
 
-\b    $ prefect register --project my-project -p flow.py -n "example"
+\b    $ prefect register -p flow.py -n "example"
 
 \b  Register all flows found in a module named `myproject.flows`.
 
-\b    $ prefect register --project my-project -m "myproject.flows"
+\b    $ prefect register -m "myproject.flows"
 
 \b  Register all pre-built flows from a remote JSON file.
 
-\b    $ prefect register --project my-project --json https://some-url/flows.json
+\b    $ prefect register --json https://some-url/flows.json
 
 \b  Watch a directory of flows for changes, and re-register flows upon change.
 
-\b    $ prefect register --project my-project -p myflows/ --watch
+\b    $ prefect register -p myflows/ --watch
 """
 
 
 @click.group(invoke_without_command=True, epilog=REGISTER_EPILOG)
 @click.option(
     "--project",
-    help="The name of the Prefect project to register this flow in. Required.",
+    help=(
+        "The name of the Prefect project to register the flow(s) in. If not passed, "
+        "flows will not be placed in a project."
+    ),
     default=None,
 )
 @click.option(
@@ -705,7 +718,7 @@ REGISTER_EPILOG = """
 @click.pass_context
 @handle_terminal_error
 def register(ctx, project, paths, modules, json_paths, names, labels, force, watch):
-    """Register one or more flows into a project.
+    """Register one or more flows with the Prefect API.
 
     Flows with unchanged metadata will be skipped as registering again will only
     change the version number.
@@ -719,9 +732,6 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
                 "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
             )
         return
-
-    if project is None:
-        raise ClickException("Missing required option '--project'")
 
     if watch:
         if any(parse_path(j).scheme != "file" for j in json_paths):
@@ -743,10 +753,10 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
             proc = ctx.Process(
                 target=register_internal,
                 name="prefect-register",
-                args=(project,),
                 kwargs=dict(
                     paths=change_paths,
                     modules=change_mods,
+                    project=project,
                     json_paths=change_json_paths,
                     names=names,
                     labels=labels,
@@ -760,7 +770,7 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
     else:
         paths = expand_paths(list(paths or ()))
         modules = list(modules or ())
-        register_internal(project, paths, modules, json_paths, names, labels, force)
+        register_internal(paths, modules, project, json_paths, names, labels, force)
 
 
 BUILD_EPILOG = """
