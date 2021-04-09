@@ -82,7 +82,7 @@ class KubernetesRun(RunConfig):
         image_pull_secrets: Iterable[str] = None,
         labels: Iterable[str] = None,
     ) -> None:
-        super().__init__(labels=labels)
+        super().__init__(env=env, labels=labels)
         if job_template_path is not None and job_template is not None:
             raise ValueError(
                 "Cannot provide both `job_template_path` and `job_template`"
@@ -111,7 +111,6 @@ class KubernetesRun(RunConfig):
         self.job_template_path = job_template_path
         self.job_template = job_template
         self.image = image
-        self.env = env
         self.cpu_limit = cpu_limit
         self.cpu_request = cpu_request
         self.memory_limit = memory_limit

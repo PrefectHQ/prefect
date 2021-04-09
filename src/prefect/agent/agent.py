@@ -702,7 +702,7 @@ class Agent:
             run_config = RunConfigSchema().load(flow_run.run_config)
             if isinstance(run_config, UniversalRun):
                 # Convert to agent-specific run-config
-                return run_config_cls(labels=run_config.labels)
+                return run_config_cls(env=run_config.env, labels=run_config.labels)
             elif not isinstance(run_config, run_config_cls):
                 msg = (
                     "Flow run %s has a `run_config` of type `%s`, only `%s` is supported"
