@@ -41,7 +41,7 @@ Oftentimes your question may have been answered somewhere else; some good resour
 * [Previous Slack messages](https://github.com/PrefectHQ/prefect/issues?q=is%3Aopen+is%3Aissue+label%3A%22Prefect+Slack+Community%22) (we do our best to archive relevant threads to GitHub!)
 * [Prefect documentation](https://docs.prefect.io/core/development/documentation.html)
 * [Github issues](https://github.com/PrefectHQ/prefect/issues)
-* StackOverflow
+* [StackOverflow](https://stackoverflow.com/questions/tagged/prefect)
 
 **Rule 5: Don't abuse tagging users**
 
