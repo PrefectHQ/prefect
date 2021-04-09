@@ -174,11 +174,35 @@ def multiprocessing_safe_run_and_retrieve(
         with prefect.context(context):
             logger.debug(f"{name}: Executing...")
             return_val = fn(*args, **kwargs)
+            logger.debug(f"{name}: Execution successful.")
     except Exception as exc:
         return_val = exc
+        logger.error(
+            f"{name}: Encountered a {type(exc).__name__}, "
+            f"returning details as a result..."
+        )
+
+    try:
+        pickled_val = cloudpickle.dumps(return_val)
+    except Exception as exc:
+        err_msg = (
+            f"Failed to pickle result of type {type(return_val).__name__!r} with "
+            f'exception: "{type(exc).__name__}: {str(exc)}". This timeout handler "'
+            "requires your function return value to be serializable with `cloudpickle`."
+        )
+        logger.error(f"{name}: {err_msg}")
+        pickled_val = cloudpickle.dumps(RuntimeError(err_msg))
 
     logger.debug(f"{name}: Passing result back to main process...")
-    queue.put(cloudpickle.dumps(return_val))
+
+    try:
+        queue.put(pickled_val)
+    except Exception:
+        logger.error(
+            f"{name}: Failed to put result in queue to main process!",
+            exc_info=True,
+        )
+        raise
 
 
 def run_with_multiprocess_timeout(
