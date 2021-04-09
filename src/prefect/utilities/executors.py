@@ -177,7 +177,7 @@ def multiprocessing_safe_run_and_retrieve(
             logger.debug(f"{name}: Execution successful.")
     except Exception as exc:
         return_val = exc
-        logger.debug(
+        logger.error(
             f"{name}: Encountered a {type(exc).__name__}, "
             f"returning details as a result..."
         )
