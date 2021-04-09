@@ -185,20 +185,13 @@ def multiprocessing_safe_run_and_retrieve(
     try:
         pickled_val = cloudpickle.dumps(return_val)
     except Exception as exc:
-        base_msg = (
+        err_msg = (
             f"Failed to pickle result of type {type(return_val).__name__!r} with "
-            f'exception: "{type(exc).__name__}: {str(exc)}".'
+            f'exception: "{type(exc).__name__}: {str(exc)}". This timeout handler "'
+            "requires your function return value to be serializable with `cloudpickle`."
         )
-        logger.error(f"{name}: {base_msg}")
-        pickled_val = cloudpickle.dumps(
-            RuntimeError(
-                f"{base_msg} This timeout handler requires your function return "
-                f"value to be serializable with `cloudpickle`. "
-                "If you must return a unserializable value, consider switching your "
-                "executor to use processes instead of threads to use a different "
-                "timeout handler."
-            )
-        )
+        logger.error(f"{name}: {err_msg}")
+        pickled_val = cloudpickle.dumps(RuntimeError(err_msg))
 
     logger.debug(f"{name}: Passing result back to main process...")
 
