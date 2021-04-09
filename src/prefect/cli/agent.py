@@ -399,7 +399,7 @@ def ecs():
     help="Path to a yaml file containing extra kwargs to pass to `run_task`",
 )
 @click.option(
-    "--task_definition_add_uuid",
+    "--task-definition-add-uuid",
     help=(
         "Set true to allow for a unique id to be appended to task definition "
         "name (aka family).  This helps prevent rate limiting."
