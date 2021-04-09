@@ -188,6 +188,17 @@ prefect agent ecs start --execution-role-arn my-execution-role-arn
 Flows can override this agent default by passing the `execution_role_arn` option to
 their respective [ECSRun](/orchestration/flow_config/run_configs.md#ecsrun) `run_config`.
 
+### Task Definition Add UUID
+
+The ECS agent when generating a task definition name (aka family) will default to using
+the pattern of `prefect-<flow_name>` which can lead to rate limiting if submit several
+flow runs in a short period.  This rate limit is per family, to bypass this set the 
+`--task-definition-add-uuid` option to true.
+
+```bash
+prefect agent ecs start --task-definition-add-uuid true
+```
+
 ### Custom Task Definition Template
 
 For deeper customization of the Tasks created by the agent, you may want to

@@ -1,0 +1,5 @@
+enhancement:
+  - "Adds ability to append UUID to task definition name (aka family) for the ECS agent preventing per family rate limiting on RegisterTaskDefinition api. [#4380](https://github.com/PrefectHQ/prefect/pull/4380)"
+
+contributor:
+  - "[Joe McDonald](https://github.com/joe1981al)"
