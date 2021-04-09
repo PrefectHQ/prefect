@@ -226,7 +226,10 @@ def test_run_with_multiprocess_timeout_handles_unpicklable_return_values():
         run_with_multiprocess_timeout(fn, timeout=12)
 
     # We include the original exception
-    assert "TypeError: cannot pickle '_thread.lock' object" in str(exc_info.value)
+    assert "TypeError: cannot pickle '_thread.lock' object" in str(
+        exc_info.value
+        # Python 3.6/7 have a different error message
+    ) or "TypeError: can't pickle _thread.lock objects" in str(exc_info.value)
 
 
 @pytest.mark.skipif(
