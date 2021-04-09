@@ -398,6 +398,13 @@ def ecs():
     "run_task_kwargs_path",
     help="Path to a yaml file containing extra kwargs to pass to `run_task`",
 )
+@click.option(
+    "--task_definition_add_uuid",
+    help=(
+        "Set true to allow for a unique id to be appended to task definition "
+        "name (aka family).  This helps prevent rate limiting."
+    ),
+)
 def start(**kwargs):
     """Start an ECS agent"""
     from prefect.agent.ecs import ECSAgent

@@ -1,4 +1,5 @@
 import os
+import uuid
 from copy import deepcopy
 from typing import Iterable, Dict, Any
 
@@ -126,6 +127,11 @@ class ECSAgent(Agent):
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
+        - task_definition_add_uuid (bool, optional): A flag that enables
+            appending a unique id to the end of each task definitions name
+            (family) to prevent hitting rate limits on task definition
+            registration and deregistration.
+
 
 
     [1]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
@@ -153,6 +159,7 @@ class ECSAgent(Agent):
         task_role_arn: str = None,
         execution_role_arn: str = None,
         botocore_config: dict = None,
+        task_definition_add_uuid: bool = False,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -171,6 +178,7 @@ class ECSAgent(Agent):
         self.launch_type = launch_type.upper() if launch_type else "FARGATE"
         self.task_role_arn = task_role_arn
         self.execution_role_arn = execution_role_arn
+        self.task_definition_add_uuid = task_definition_add_uuid
 
         # Load boto configuration. We want to use the standard retry mode by
         # default (which isn't boto's default due to backwards compatibility).
@@ -367,7 +375,10 @@ class ECSAgent(Agent):
             word_boundary=True,
             save_order=True,
         )
-        taskdef["family"] = f"prefect-{slug}"
+        if self.task_definition_add_uuid:
+            taskdef["family"] = f"prefect-{slug}-{str(uuid.uuid4())[:8]}"
+        else:
+            taskdef["family"] = f"prefect-{slug}"
 
         # Add some metadata tags for easier tracking by users
         taskdef.setdefault("tags", []).extend(
