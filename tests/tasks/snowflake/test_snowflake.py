@@ -92,7 +92,7 @@ class TestSnowflakeQueriesFromFile:
         with pytest.raises(ValueError, match="A file path must be provided"):
             task.run()
 
-    def test_execute_error_must_pass_through(self, monkeypatch):
+    def test_execute_error_must_pass_through(self, monkeypatch, tmpdir):
         snowflake_module_connect_method = MagicMock()
         connection = MagicMock(spec=sf.SnowflakeConnection)
 
@@ -110,6 +110,12 @@ class TestSnowflakeQueriesFromFile:
             account="test", user="test", password="test", warehouse="test"
         )
 
-        sql_file = "test_sql.sql"
+        query = """
+            SHOW DATABASES;
+            USE DEMO_DB;
+        """
+        p = Path(tmpdir / "test_sql.sql")
+        p.write_text(query)
+        sql_file = tmpdir / "test_sql.sql"
         with pytest.raises(sf.errors.DatabaseError, match="Invalid query"):
             task.run(file_path=sql_file)

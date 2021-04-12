@@ -1,4 +1,0 @@
-
-            SHOW DATABASES;
-            SHOW DATABASES;
-        
