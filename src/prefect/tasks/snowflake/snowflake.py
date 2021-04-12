@@ -117,9 +117,10 @@ class SnowflakeQuery(Task):
             raise error
 
 
-class SnowflakeQueryFromFile(Task):
+class SnowflakeQueriesFromFile(Task):
     """
-    Task for executing a query loaded from a file against a Snowflake database.
+    Task for executing queries loaded from a file against a Snowflake database.
+    Return a list containings the results of the queries.
 
     Args:
         - account (str): snowflake account name, see snowflake connector
@@ -216,10 +217,13 @@ class SnowflakeQueryFromFile(Task):
         # context manager automatically rolls back failed transactions
         try:
             with conn:
-                with conn.cursor() as cursor:
-                    executed = cursor.execute(query).fetchall()
+                result = []
+                cursor_list = conn.execute_string(query)
+                for cursor in cursor_list:
+                    result.append(cursor.fetchall())
+                    # return fetch for each cursor
             conn.close()
-            return executed
+            return result
 
         # pass through error, and ensure connection is closed
         except Exception as error:
