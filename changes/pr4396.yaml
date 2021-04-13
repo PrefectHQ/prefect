@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Lower required docker-compose version and add note to docs - [#4396](https://github.com/PrefectHQ/prefect/pull/4396)"
