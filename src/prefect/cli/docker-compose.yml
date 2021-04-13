@@ -73,7 +73,7 @@ services:
       - prefect-server
     healthcheck:
       test: curl --fail --silent "http://graphql:4201/health" &> /dev/null || exit 1
-      interval: 10s
+      interval: 20s
       timeout: 2s
       retries: 60
       start_period: 1s
