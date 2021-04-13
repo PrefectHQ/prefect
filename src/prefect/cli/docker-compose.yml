@@ -51,8 +51,7 @@ services:
       start_period: 1s
     restart: always
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
 
   # GraphQL: the server's business logic that exposes GraphQL mutations
   graphql:
@@ -76,8 +75,7 @@ services:
       start_period: 1s
     restart: always
     depends_on:
-      hasura:
-        condition: service_healthy
+      - hasura
 
   # Towel: runs utilities that are responsible for server maintenance
   towel:
@@ -90,8 +88,7 @@ services:
       - prefect-server
     restart: "always"
     depends_on:
-      graphql:
-        condition: service_healthy
+      - graphql
 
   # Apollo: the main endpoint for interacting with the server
   apollo:
@@ -117,10 +114,8 @@ services:
       start_period: 1s
     restart: always
     depends_on:
-      graphql:
-        condition: service_healthy
-      hasura:
-        condition: service_healthy
+      - graphql
+      - hasura
 
   # UI: the user interface that provides a visual dashboard for mutating and querying metadata
   # The UI is a standalone web interface and only communicates with the Apollo GraphQL API via
@@ -141,8 +136,7 @@ services:
       retries: 3
     restart: always
     depends_on:
-      apollo:
-        condition: service_started
+      - apollo
 
 networks:
   prefect-server:
