@@ -17,15 +17,15 @@ Additionally, if you are a Standard Tier user, you can also configure automation
 - A flow run fails to finish after running for a certain amount of time
 - Some number of agents with the same `agent_config_id` become unhealthy
 
-## Automations
+## Actions
 
-Automations are actions that you can configure to run when certain event conditions are met.
+Within your automation you can configure an action to happen when certain event conditions are met. For example, if your flow run fails (the event) you can cancel the run (the action).  
 
 ### Slack Action
 
 To set up a Slack Action, you will need to create an incoming webhook for your slack channel.  [Slack's docs](https://api.slack.com/messaging/webhooks) talk you through how to create a Slack app and create an incoming webhook (and it's even easier than that sounds!)
 
-Once you have an incoming webhook URL, you should store it as a secret in Team Settings and then select it when setting up the action. 
+Once you have an incoming webhook URL, you should store it as a secret in Team Settings and then select the name of your secret when you create your action. 
 
 ### Twilio Action
 
@@ -58,7 +58,7 @@ The Messaging Service SID requires you to have a messaging service set up. These
 <p>&nbsp;</p>
 
 5. Give your project a name and check the settings.
-6. Click on 'Numbers' and add a number to your account. (This is not the number your messages will get sent to so you don't need to enter this in the Prefect Cloud Hooks form.)
+6. Click on 'Numbers' and add a number to your account. (This is not the number your messages will get sent to so you don't need to enter this in the autmoations form.)
 7. Your Mesaging Service SID is the Service SID in the Settings page.
 
 ### Pager Duty Action
@@ -73,7 +73,7 @@ The API Token comes from the API Access section of the Configuration menu of the
 
 <p>&nbsp;</p>
 
-To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud notification for and then click on the Integrations tab.
+To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a notification for and then click on the Integrations tab.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-integrations.png">
