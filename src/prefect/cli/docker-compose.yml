@@ -26,7 +26,7 @@ services:
     # Use `pg_isready` to check the connection status of the PostgreSQL server
     healthcheck:
       test: pg_isready -q -d $${POSTGRES_DB} -U $${POSTGRES_USER} || exit 1
-      interval: 1s
+      interval: 10s
       timeout: 2s
       retries: 60
       start_period: 2s
@@ -49,7 +49,7 @@ services:
     # /healthz endpoints returns OK when not unhealthy
     healthcheck:
       test: wget -O - http://hasura:$${HASURA_GRAPHQL_SERVER_PORT}/healthz &>/dev/null || exit 1
-      interval: 1s
+      interval: 10s
       timeout: 2s
       retries: 60
       start_period: 1s
@@ -73,7 +73,7 @@ services:
       - prefect-server
     healthcheck:
       test: curl --fail --silent "http://graphql:4201/health" &> /dev/null || exit 1
-      interval: 1s
+      interval: 10s
       timeout: 2s
       retries: 60
       start_period: 1s
@@ -112,7 +112,7 @@ services:
     # Test GraphQL Apollo endpoint as health-check
     healthcheck:
       test: curl --fail --silent "http://apollo:4200/.well-known/apollo/server-health" &> /dev/null || exit 1
-      interval: 1s
+      interval: 10s
       timeout: 2s
       retries: 60
       start_period: 1s
