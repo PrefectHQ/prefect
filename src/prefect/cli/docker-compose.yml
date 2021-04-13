@@ -1,4 +1,8 @@
-version: "2.1"
+version: "3.5"
+# Features driving version requirement
+# - networks.name                 3.5
+# - healthcheck.start_period      2.3
+# - healthcheck                   2.1
 
 services:
   # PostgreSQL: the database persistence layer where metadata is stored
