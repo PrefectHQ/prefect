@@ -1,6 +1,6 @@
 # Changelog
 
-## April 14, 2021 <Badge text="beta" type="success" />
+## 0.14.16 <Badge text="beta" type="success" />
 
 Released on April 14, 2021.
 
@@ -25,7 +25,7 @@ Released on April 14, 2021.
 
 - [Jonathan Wright](https://github.com/wrightjonathan)
 
-## April 05, 2021 <Badge text="beta" type="success" />
+## 0.14.15 <Badge text="beta" type="success" />
 
 Released on April 5, 2021.
 
