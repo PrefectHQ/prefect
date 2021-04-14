@@ -509,6 +509,5 @@ class ECSAgent(Agent):
             if entry["name"] not in env:
                 container_env.append(entry)
         container["environment"] = container_env
-        print("container env", container_env)
 
         return out
