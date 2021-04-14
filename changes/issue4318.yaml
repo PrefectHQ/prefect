@@ -1,5 +1,0 @@
-enhancement:
-  - "Added support for Bitbucket cloud into Bitbucket storage class [#4318](https://github.com/PrefectHQ/prefect/issues/4318)"
-
-contributor:
-  - "[Jonathan Wright](https://github.com/wrightjonathan)"

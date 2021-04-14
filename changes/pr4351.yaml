@@ -1,2 +1,0 @@
-enhancement:
-  - "Add option to disable the deletion of finished Prefect jobs in the Kubernetes agent - [#4351](https://github.com/PrefectHQ/prefect/pull/4351)"

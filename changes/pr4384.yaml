@@ -1,3 +1,0 @@
-
-fix:
-  - "Add error handling to timeouts that fail during result pickling or passing - [#4384](https://github.com/PrefectHQ/prefect/pull/4384)"

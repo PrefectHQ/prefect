@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Display a more helpful error when calling a task outside a flow context - [#4374](https://github.com/PrefectHQ/prefect/pull/4374)"
