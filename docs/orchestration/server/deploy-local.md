@@ -18,9 +18,9 @@ We recommend installing [Docker Desktop](https://www.docker.com/products/docker-
 :::
 
 
-:: tip Just show me the config
+::: tip Just show me the config
 `prefect server start` templates a basic docker-compose file to conform to the options you pass. Sometimes, you just want to generate this file then manage running it yourself (or make further customizations). We provide a `prefect server config` command that takes all the same settings as `prefect server start` and prints the file to stdout. Try piping it to a file `prefect server config > docker-compose.yaml`.
-::
+:::
 
 ## UI configuration
 
