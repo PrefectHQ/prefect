@@ -673,7 +673,8 @@ class KubernetesAgent(Agent):
         # - Values set on the KubernetesRun object
         # - Values set using the `--env` CLI flag on the agent
         # - Values in the job template
-        env = self.env_vars.copy()
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(
