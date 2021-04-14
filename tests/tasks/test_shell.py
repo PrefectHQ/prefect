@@ -231,7 +231,7 @@ def test_shell_task_handles_multiline_commands():
             cat $file
         done
         """.format(
-            tempdir
+            tempdir.replace("\\", "\\\\")
         )
         with open(tempdir + "/testfile.txt", "w") as f:
             f.write("this is a test")
