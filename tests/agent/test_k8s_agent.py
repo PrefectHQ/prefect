@@ -1419,6 +1419,7 @@ class TestK8sAgentRunConfig:
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # Agent env-vars override those in template
             "CUSTOM3": "OVERRIDE3",  # RunConfig env-vars override those on agent and template

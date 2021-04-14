@@ -555,7 +555,7 @@ class TestGetRunTaskKwargs:
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": "flow-id",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
-            "PREFECT__LOGGING__LEVEL": "INFO",
+            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # agent envs override agent run-task-kwargs
             "CUSTOM3": "OVERRIDE3",  # run-config envs override agent
