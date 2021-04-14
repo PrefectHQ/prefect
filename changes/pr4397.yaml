@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Allow the `ShellTask` to be used on win32 - [#4397](https://github.com/PrefectHQ/prefect/pull/4397)"
