@@ -213,6 +213,39 @@ def test_populate_env_vars_from_run_config(tmpdir):
 
 
 @pytest.mark.parametrize(
+    "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+    [
+        ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+        ({"logging.level": "DEBUG"}, {"PREFECT__LOGGING__LEVEL": "TEST2"}, {}, "TEST2"),
+        (
+            {"logging.level": "DEBUG"},
+            {"PREFECT__LOGGING__LEVEL": "TEST2"},
+            {"PREFECT__LOGGING__LEVEL": "TEST"},
+            "TEST",
+        ),
+    ],
+)
+def test_prefect_logging_level_override_logic(
+    config, agent_env_vars, run_config_env_vars, expected_logging_level, tmpdir
+):
+    with set_temporary_config(config):
+        agent = LocalAgent(env_vars=agent_env_vars)
+        run = LocalRun(working_dir=str(tmpdir), env=run_config_env_vars)
+        env_vars = agent.populate_env_vars(
+            GraphQLResult(
+                {
+                    "id": "id",
+                    "name": "name",
+                    "flow": {"id": "foo"},
+                    "run_config": run.serialize(),
+                }
+            ),
+            run,
+        )
+        assert env_vars["PREFECT__LOGGING__LEVEL"] == expected_logging_level
+
+
+@pytest.mark.parametrize(
     "storage",
     [
         Local(directory="test"),

@@ -526,8 +526,7 @@ class DockerAgent(Agent):
         # In the future we don't want the agent to set logging config on a flow
         # run unless explicitly asked.  We do this early on so later config
         # sources can override
-        if run_config is None:
-            env.update({"PREFECT__LOGGING__LEVEL": config.logging.level})
+        env.update({"PREFECT__LOGGING__LEVEL": config.logging.level})
 
         # 2. Values set on the agent via `--env`
         env.update(self.env_vars)
