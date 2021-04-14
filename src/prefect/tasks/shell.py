@@ -1,6 +1,7 @@
 import os
 import tempfile
 import logging
+import sys
 from subprocess import PIPE, STDOUT, Popen
 from typing import Any, List, Union, Optional
 
@@ -126,11 +127,17 @@ class ShellTask(prefect.Task):
         with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
             if helper_script:
                 tmp.write(helper_script.encode())
-                tmp.write("\n".encode())
+                tmp.write(os.linesep.encode())
             tmp.write(command.encode())
             tmp.flush()
             with Popen(
-                [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
+                [self.shell, tmp.name],
+                stdout=PIPE,
+                stderr=STDOUT,
+                env=current_env,
+                # Windows does not use the PATH during subprocess creation
+                # by default so we will use `shell` mode to do so
+                shell=sys.platform == "win32",
             ) as sub_process:
                 line = None
                 lines = []
