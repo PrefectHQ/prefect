@@ -1,6 +1,7 @@
 import os
 import tempfile
 import logging
+import sys
 from subprocess import PIPE, STDOUT, Popen
 from typing import Any, List, Union, Optional
 
