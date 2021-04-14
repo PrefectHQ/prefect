@@ -1,5 +1,30 @@
 # Changelog
 
+## April 14, 2021 <Badge text="beta" type="success" />
+
+Released on April 14, 2021.
+
+### Enhancements
+
+- Added support for Bitbucket cloud into Bitbucket storage class [#4318](https://github.com/PrefectHQ/prefect/issues/4318)
+- Update docs for API keys - [#4313](https://github.com/PrefectHQ/prefect/pull/4313)
+- Add option to disable the deletion of finished Prefect jobs in the Kubernetes agent - [#4351](https://github.com/PrefectHQ/prefect/pull/4351)
+- Improve messaging when a flow is skipped during registration - [#4373](https://github.com/PrefectHQ/prefect/pull/4373)
+- Display a more helpful error when calling a task outside a flow context - [#4374](https://github.com/PrefectHQ/prefect/pull/4374)
+- Lower required docker-compose version and add note to docs - [#4396](https://github.com/PrefectHQ/prefect/pull/4396)
+- Increase healthcheck intervals for Prefect Server - [#4396](https://github.com/PrefectHQ/prefect/pull/4396)
+- Allow the `ShellTask` to be used on win32 - [#4397](https://github.com/PrefectHQ/prefect/pull/4397)
+
+### Fixes
+
+- Fix ShellTask docstring - [#4360](https://github.com/PrefectHQ/prefect/pull/4360)
+- Fix incorrect unused task tracking - [#4368](https://github.com/PrefectHQ/prefect/pull/4368)
+- Add error handling to timeouts that fail during result pickling or passing - [#4384](https://github.com/PrefectHQ/prefect/pull/4384)
+
+### Contributors
+
+- [Jonathan Wright](https://github.com/wrightjonathan)
+
 ## April 05, 2021 <Badge text="beta" type="success" />
 
 Released on April 5, 2021.
@@ -42,7 +67,7 @@ Released on March 25, 2021.
 
 ### Task Library
 
-- Ensures Snowflake Query Task output is serializable [#3744] (https://github.com/PrefectHQ/prefect/issues/3744)
+- Ensures Snowflake Query Task output is serializable [#3744](https://github.com/PrefectHQ/prefect/issues/3744)
 
 ### Fixes
 
