@@ -139,17 +139,17 @@ module.exports = {
         {
           title: 'prefect.executors',
           collapsable: true,
-          children: ['executors.md'],
+          children: ['executors.md']
         },
         {
           title: 'prefect.run_configs',
           collapsable: true,
-          children: ['run_configs.md'],
+          children: ['run_configs.md']
         },
         {
           title: 'prefect.storage',
           collapsable: true,
-          children: ['storage.md'],
+          children: ['storage.md']
         },
         {
           title: 'prefect.tasks',
@@ -202,7 +202,7 @@ module.exports = {
             'concepts/cloud_hooks',
             'concepts/secrets',
             'concepts/services',
-            'concepts/tokens',
+            'concepts/api_keys',
             'concepts/roles',
             'concepts/task-concurrency-limiting'
           ]
