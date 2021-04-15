@@ -1027,6 +1027,8 @@ class Flow:
 
         with prefect.context(flow_run_id=flow_run_id):
             flow_state = runner_cls(flow=self).run(**run_kwargs)
+
+        self.logger.info(f"Run finished with final state {flow_state}")
         return flow_state
 
     def _run_local(

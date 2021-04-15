@@ -366,6 +366,11 @@ class CloudFlowRunner(FlowRunner):
         # load id from context
         flow_run_id = prefect.context.get("flow_run_id")
 
+        if not flow_run_id:
+            raise ValueError(
+                "No 'flow_run_id' was found in the context, cannot run flow."
+            )
+
         try:
             flow_run_info = self.client.get_flow_run_info(flow_run_id)
         except Exception as exc:
