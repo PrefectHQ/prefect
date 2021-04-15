@@ -274,6 +274,13 @@ def kubernetes():
     "values can be provided as a comma-separated list "
     "(e.g. `--image-pull-secrets VAL1,VAL2`)",
 )
+@click.option(
+    "--disable-job-deletion",
+    "delete_finished_jobs",
+    help="Turn off automatic deletion of finished jobs in the namespace.",
+    is_flag=True,
+    default=True,  # Defaults to `True` because setting this flag sets `delete_finished_jobs` to `False`
+)
 def start(image_pull_secrets=None, **kwargs):
     """Start a Kubernetes agent"""
     from prefect.agent.kubernetes import KubernetesAgent

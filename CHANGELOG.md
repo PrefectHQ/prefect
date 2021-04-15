@@ -1,12 +1,73 @@
 # Changelog
 
+## 0.14.16 <Badge text="beta" type="success" />
+
+Released on April 14, 2021.
+
+### Enhancements
+
+- Added support for Bitbucket cloud into Bitbucket storage class [#4318](https://github.com/PrefectHQ/prefect/issues/4318)
+- Update docs for API keys - [#4313](https://github.com/PrefectHQ/prefect/pull/4313)
+- Add option to disable the deletion of finished Prefect jobs in the Kubernetes agent - [#4351](https://github.com/PrefectHQ/prefect/pull/4351)
+- Improve messaging when a flow is skipped during registration - [#4373](https://github.com/PrefectHQ/prefect/pull/4373)
+- Display a more helpful error when calling a task outside a flow context - [#4374](https://github.com/PrefectHQ/prefect/pull/4374)
+- Lower required docker-compose version and add note to docs - [#4396](https://github.com/PrefectHQ/prefect/pull/4396)
+- Increase healthcheck intervals for Prefect Server - [#4396](https://github.com/PrefectHQ/prefect/pull/4396)
+- Allow the `ShellTask` to be used on win32 - [#4397](https://github.com/PrefectHQ/prefect/pull/4397)
+
+### Fixes
+
+- Fix ShellTask docstring - [#4360](https://github.com/PrefectHQ/prefect/pull/4360)
+- Fix incorrect unused task tracking - [#4368](https://github.com/PrefectHQ/prefect/pull/4368)
+- Add error handling to timeouts that fail during result pickling or passing - [#4384](https://github.com/PrefectHQ/prefect/pull/4384)
+
+### Contributors
+
+- [Jonathan Wright](https://github.com/wrightjonathan)
+
+## 0.14.15 <Badge text="beta" type="success" />
+
+Released on April 5, 2021.
+
+### Enhancements
+
+- Add terminal flow state handler override  - [#4198](https://github.com/PrefectHQ/prefect/issues/4198)
+- When manually set, `prefect.context.date` will be used to determine dependent values - [#4295](https://github.com/PrefectHQ/prefect/pull/4295)
+- `prefect.context.date` will be cast to a `DateTime` object if given a parsable string - [#4295](https://github.com/PrefectHQ/prefect/pull/4295)
+- Expand logging for `DaskExecutor`, including the cluster dashboard address (if available) - [#4321](https://github.com/PrefectHQ/prefect/pull/4321)
+- Add ability to stream ShellTask logs with level INFO - [#4322](https://github.com/PrefectHQ/prefect/pull/4322)
+- Add architecture diagram to docs - [#4187](https://github.com/PrefectHQ/prefect/issues/4187)
+- Speed up flow validation logic - [#4347](https://github.com/PrefectHQ/prefect/pull/4347)
+- Pin dask upper package versions - [#4350](https://github.com/PrefectHQ/prefect/pull/4350)
+
+### Task Library
+
+- Add first basic implementation of [soda-sql](https://github.com/sodadata/soda-sql) scan task
+- Add new task KubernetesSecret - [#4307](https://github.com/PrefectHQ/prefect/pull/4307)
+
+### Fixes
+
+- Fix `DatabricksRunNow` task attribute override behavior - [#4309](https://github.com/PrefectHQ/prefect/pull/4309)
+- Use default flow labels when triggering flow runs from CLI - [#4316](https://github.com/PrefectHQ/prefect/pull/4316)
+- Improve ECS agent error messages, and fix bug that prevented using ECS agent on Fargate with ECR - [#4325](https://github.com/PrefectHQ/prefect/pull/4325)
+- Support imports from local directory when registering/building flows via CLI - [#4332](https://github.com/PrefectHQ/prefect/pull/4332)
+- Speedup flushing of logs to cloud/server on flow run shutdown, avoiding lost logs on platforms that SIGKILL the process after a short period - [#4334](https://github.com/PrefectHQ/prefect/pull/4334)
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [David Zucker](https://github.com/davzucky)
+- [Greg Lu](https://github.com/greglu)
+- [James Lamb](https://github.com/jameslamb)
+- [Sean Talia](https://github.com/TaliaSRTR)
+
 ## 0.14.14 <Badge text="beta" type="success" />
 
 Released on March 25, 2021.
 
 ### Task Library
 
-- Ensures Snowflake Query Task output is serializable [#3744] (https://github.com/PrefectHQ/prefect/issues/3744)
+- Ensures Snowflake Query Task output is serializable [#3744](https://github.com/PrefectHQ/prefect/issues/3744)
 
 ### Fixes
 

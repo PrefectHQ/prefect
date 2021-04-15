@@ -173,7 +173,11 @@ class TaskMetaclass(type):
         computed to avoid circular import issues.
         """
         if not hasattr(Task, "_cached_reserved_attributes"):
-            Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
+            # Create a base task instance to determine which attributes are reserved
+            # we need to disable the unused_task_tracker for this duration or it will
+            # track this task
+            with prefect.context(_unused_task_tracker=set()):
+                Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
         return Task._cached_reserved_attributes  # type: ignore
 
 
@@ -548,8 +552,7 @@ class Task(metaclass=TaskMetaclass):
         # as it has been "interacted" with and don't want spurious
         # warnings
         if "_unused_task_tracker" in prefect.context:
-            if self in prefect.context._unused_task_tracker:
-                prefect.context._unused_task_tracker.remove(self)
+            prefect.context._unused_task_tracker.discard(self)
             if not isinstance(new, prefect.tasks.core.constants.Constant):
                 prefect.context._unused_task_tracker.add(new)
 
@@ -671,7 +674,19 @@ class Task(metaclass=TaskMetaclass):
 
         flow = flow or prefect.context.get("flow", None)
         if not flow:
-            raise ValueError("Could not infer an active Flow context.")
+            # Determine the task name to display which is either the function task name
+            # or the initialized class where we can't know the name of the variable
+            task_name = (
+                self.name
+                if isinstance(self, prefect.tasks.core.function.FunctionTask)
+                else f"{type(self).__name__}(...)"
+            )
+            raise ValueError(
+                f"Could not infer an active Flow context while creating edge to {self}."
+                " This often means you called a task outside a `with Flow(...)` block. "
+                "If you're trying to run this task outside of a Flow context, you "
+                f"need to call `{task_name}.run(...)`"
+            )
 
         self.set_dependencies(
             flow=flow,

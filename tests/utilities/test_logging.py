@@ -173,27 +173,34 @@ def test_cloud_handler_emit_json_spec_exception(
 
 
 def test_log_manager_startup_and_shutdown(logger, log_manager):
-    # On creation, neither thread or client are initialized
-    assert log_manager.client is None
-    assert log_manager.thread is None
+    heartbeat = 5
+    with utilities.configuration.set_temporary_config(
+        {"cloud.logging_heartbeat": heartbeat}
+    ):
+        # On creation, neither thread or client are initialized
+        assert log_manager.client is None
+        assert log_manager.thread is None
 
-    # After enqueue, thread and client are started
-    logger.info("testing")
-    assert log_manager.client is not None
-    assert log_manager.thread is not None
+        # After enqueue, thread and client are started
+        logger.info("testing")
+        assert log_manager.client is not None
+        assert log_manager.thread is not None
 
-    client = log_manager.client
+        client = log_manager.client
 
-    # Calling `_on_shutdown` (which calls stop) will flush the queue and
-    # cleanup resources
-    log_manager._on_shutdown()
-    assert log_manager.queue.empty()
-    assert client.write_run_logs.called
-    assert log_manager.client is None
-    assert log_manager.thread is None
+        # Calling `_on_shutdown` (which calls stop) will flush the queue and
+        # cleanup resources
+        start = time.time()
+        log_manager._on_shutdown()
+        assert log_manager.queue.empty()
+        assert client.write_run_logs.called
+        assert log_manager.client is None
+        assert log_manager.thread is None
+        end = time.time()
+        assert end - start < heartbeat
 
-    # Calling `stop` is idempotent
-    log_manager.stop()
+        # Calling `stop` is idempotent
+        log_manager.stop()
 
 
 def test_log_manager_batches_logs(logger, log_manager, monkeypatch):
