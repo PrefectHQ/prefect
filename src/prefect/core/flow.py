@@ -146,9 +146,9 @@ class Flow:
             your prefect configuration file.
         -  terminal_state_handler (Callable, optional): A state handler that can be used to
             inspect or modify the final state of the flow run. Expects a callable with signature
-            `handler(flow: Flow, state: State, task_states: Dict[Task, State]) -> Optional[State]`,
+            `handler(flow: Flow, state: State, reference_task_states: Set[State]) -> Optional[State]`,
             where `flow` is the current Flow, `state` is the current state of the Flow run, and
-            `task_states` is a mapping from task -> state for all tasks in the flow. It should
+            `reference_task_states` is set of states for all reference tasks in the flow. It should
             return either a new state for the flow run, or `None` (in which case the existing
             state will be used).
     """
@@ -169,7 +169,7 @@ class Flow:
         validate: bool = None,
         result: Optional[Result] = None,
         terminal_state_handler: Optional[
-            Callable[["Flow", State, Dict[Task, State]], Optional[State]]
+            Callable[["Flow", State, Set[State]], Optional[State]]
         ] = None,
     ):
         self._cache = {}  # type: dict

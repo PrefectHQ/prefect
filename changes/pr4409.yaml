@@ -1,0 +1,2 @@
+fix:
+  - "Pass reference tasks states instead of task states to terminal_state_handler - [#4409](https://github.com/PrefectHQ/prefect/pull/4409)"

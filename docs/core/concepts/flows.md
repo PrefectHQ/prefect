@@ -196,42 +196,44 @@ If multiple handlers are provided, they are called in sequence. Each one will re
 ## Terminal State Handlers
 
 A flow's `terminal_state_handler` allow users to provide custom logic for determining the
-final State of a Flow. Unlike normal state handlers, the `terminal_state_handler` has access
-to the final states of all tasks in the flow.
+final State of a Flow.
 
 Terminal state handlers must have the following signature:
 
 ```python
-terminal_state_handler(flow: Flow, state: State, task_states: Dict[Task, State]) -> Optional[State]
+terminal_state_handler(flow: Flow, state: State, reference_task_states: Set[State]) -> Optional[State]
 ```
 where:
 
 - `flow` is the current Flow
 - `state` is the current state of the Flow
-- `task_states` contains states for Flow Tasks
+- `reference_task_states` contains states for Flow reference tasks
 
-For example, you may want to determine which reference tasks have failed and add them
-to your final state message. This could be used to improve the message sent out by Cloud
-Hooks that report the flow run's final state.
+For example, you may want to determine if reference tasks have failed and update the state
+with a custom message.
 
 ```python
 def custom_terminal_state_handler(
     flow: Flow,
     state: State,
-    task_states: Dict[Task, State],
+    reference_task_states: Set[State],
 ) -> Optional[State]:
-    # iterate through task states, making a list of failing refernce tasks
-    failed_tasks = []
-    for task, task_state in task_states.items():
-        if task_state.is_failed() and task in flow.reference_tasks():
-            failed_tasks.append(task.name)
+    failed = False
+    # iterate through reference task states looking for failures
+    for task_state in reference_task_states:
+        if task_state.is_failed():
+            failed = True
     # update the terminal state of the Flow and return
-    state.message = "The following tasks failed: {}".format(failed_tasks)
+    if failed:
+        state.message = "Some important tasks have failed"
     return state
 
-# create a new flow using the terminal state handler
+class FailingTask(Task):
+    def run(self):
+        raise Exception
+
 flow = Flow(
     "my flow with custom terminal state handler",
-    terminal_state_handler=custom_terminal_state_handler
+    terminal_state_handler=custom_terminal_state_handler,
 )
 ```
