@@ -211,7 +211,7 @@ class Flow:
             )
 
         # Will hold the id of the flow from the backend when registered
-        self.flow_id: str = None
+        self.flow_id: Optional[str] = None
 
         super().__init__()
 
@@ -974,7 +974,22 @@ class Flow:
 
     # Execution  ---------------------------------------------------------------
 
-    def cloud_run(self, project_name: str = None, runner_cls: Any = None, **kwargs):
+    def cloud_run(
+        self, project_name: str = None, runner_cls: Any = None, **kwargs: Any
+    ) -> "prefect.engine.state.State":
+        """
+
+        Args:
+            project_name: If given, the flow will be registered to the project without
+                building storage.
+            runner_cls: An optional runner class to use to run the flow, defaults
+                to the `CloudFlowRunner`
+            **kwargs: Additional arguments are passed to the `runner_cls.run(...)`
+                method
+
+        Returns:
+            The final state of the flow
+        """
         if not self.flow_id and not project_name:
             raise ValueError(
                 "Flow has not been registered. "
@@ -1209,7 +1224,6 @@ class Flow:
         parameters: Dict[str, Any] = None,
         run_on_schedule: bool = None,
         runner_cls: type = None,
-        with_cloud: bool = False,
         **kwargs: Any,
     ) -> Union["prefect.engine.state.State", None]:
         """
@@ -1252,9 +1266,6 @@ class Flow:
                 "all task states are always returned. If you want to receive a subset "
                 "of task states, use a FlowRunner directly."
             )
-
-        if with_cloud:
-            return self.cloud_run(runner_cls=runner_cls, **kwargs)
 
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
