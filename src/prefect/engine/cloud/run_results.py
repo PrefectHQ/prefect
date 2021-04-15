@@ -3,6 +3,10 @@ from prefect.engine.state import State
 from prefect.core.task import Task
 from prefect.utilities.graphql import with_args
 from prefect.client.client import Client
+from prefect.utilities.logging import get_logger
+
+
+logger = get_logger("run_results")
 
 
 class FlowRunResult:
@@ -40,35 +44,55 @@ class FlowRunResult:
         """
         client = Client()
 
-        query = {
+        flow_run_query = {
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
                     "id": True,
                     "name": True,
                     "flow_id": True,
-                    # "parameters": True,
-                    # "context": True,
                     "serialized_state": True,
                 }
             }
         }
 
-        if load_static_tasks:
-            # Load unmapped task runs
-            query[with_args("task_runs", {"where": {"map_index": {"_eq": -1}}})] = {
-                "id": True,
-                "name": True,
-                "task": {"id": True, "slug": True},
-                "serialized_state": True,
-            }
-
-        result = client.graphql(query)
+        result = client.graphql(flow_run_query)
         flow_run = result.get("data", {}).get("flow_run_by_pk", None)
 
         if not flow_run:
             raise ValueError(
-                f"Received bad result from API while querying for flow run {flow_run_id}: {result}"
+                f"Received bad result while querying for flow run {flow_run_id}: "
+                f"{result}"
             )
+
+        if load_static_tasks:
+            task_query = {
+                "query": {
+                    with_args(
+                        "task_run",
+                        {
+                            "where": {
+                                "map_index": {"_eq": -1},
+                                "flow_run_id": {"_eq": flow_run_id},
+                            }
+                        },
+                    ): {
+                        "id": True,
+                        "name": True,
+                        "task": {"id": True, "slug": True},
+                        "serialized_state": True,
+                    }
+                }
+            }
+            result = client.graphql(task_query)
+            task_runs = result.get("data", {}).get("task_run", None)
+
+            if task_runs is None:
+                logger.warning(
+                    f"Failed to load static task runs for flow run {flow_run_id}: "
+                    f"{result}"
+                )
+        else:
+            task_runs = []
 
         task_results = [
             TaskRunResult(
@@ -78,7 +102,7 @@ class FlowRunResult:
                 slug=task_run["task"]["slug"],
                 state=State.deserialize(task_run["serialized_state"]),
             )
-            for task_run in flow_run.get("task_runs", [])
+            for task_run in task_runs
         ]
 
         return cls(
