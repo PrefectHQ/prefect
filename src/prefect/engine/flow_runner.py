@@ -718,9 +718,7 @@ class FlowRunner(Runner):
             state = Success(message="No reference tasks failed.", result=return_states)
 
         if self.flow.terminal_state_handler:
-            new_state = self.flow.terminal_state_handler(
-                self.flow, state, return_states
-            )
+            new_state = self.flow.terminal_state_handler(self.flow, state, key_states)
             if new_state is not None:
                 return new_state
 
