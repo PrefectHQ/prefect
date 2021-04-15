@@ -5,7 +5,7 @@ from prefect.utilities.graphql import with_args
 from prefect.client.client import Client
 from prefect.utilities.logging import get_logger
 
-from typing import List
+from typing import List, Union
 
 
 logger = get_logger("run_results")
@@ -70,45 +70,19 @@ class FlowRunResult:
             )
 
         if load_static_tasks:
-            task_query = {
-                "query": {
-                    with_args(
-                        "task_run",
-                        {
-                            "where": {
-                                "map_index": {"_eq": -1},
-                                "flow_run_id": {"_eq": flow_run_id},
-                            }
-                        },
-                    ): {
-                        "id": True,
-                        "name": True,
-                        "task": {"id": True, "slug": True},
-                        "serialized_state": True,
-                    }
-                }
-            }
-            result = client.graphql(task_query)
-            task_runs = result.get("data", {}).get("task_run", None)
-
-            if task_runs is None:
-                logger.warning(
-                    f"Failed to load static task runs for flow run {flow_run_id}: "
-                    f"{result}"
-                )
-        else:
-            task_runs = []
-
-        task_results = [
-            TaskRunResult(
-                task_run_id=task_run["id"],
-                name=task_run["name"],
-                task_id=task_run["task"]["id"],
-                task_slug=task_run["task"]["slug"],
-                state=State.deserialize(task_run["serialized_state"]),
+            task_runs = TaskRunResult.query_for_task_runs(
+                where={
+                    "map_index": {"_eq": -1},
+                    "flow_run_id": {"_eq": flow_run_id},
+                },
+                many=True,
             )
-            for task_run in task_runs
-        ]
+            task_results = [
+                TaskRunResult.from_task_run_data(task_run) for task_run in task_runs
+            ]
+
+        else:
+            task_results = None
 
         return cls(
             flow_run_id=flow_run["id"],
@@ -155,19 +129,46 @@ class FlowRunResult:
                     f"`result.task_slug == {result.task_slug!r}`"
                 )
 
-            self.task_results[result] = result
+            self.task_results[result.task_run_id] = result
             return result
 
         if task_slug is not None:
             result = TaskRunResult.from_task_slug(
                 task_slug=task_slug, flow_run_id=self.flow_run_id
             )
-            self.task_results[result] = result
+            self.task_results[result.task_run_id] = result
             return result
 
         raise ValueError(
             "One of `task_run_id`, `task`, or `task_slug` must be provided!"
         )
+
+    def get_mapped(
+        self,
+        task: Task = None,
+        task_slug: str = None,
+    ) -> List["TaskRunResult"]:
+        if task is not None:
+            if task_slug is not None and task_slug != task.slug:
+                raise ValueError(
+                    "Both `task` and `task_slug` were provided but "
+                    f"`task.slug == {task.slug!r}` and `task_slug == {task_slug!r}`"
+                )
+            task_slug = task.slug
+
+        if task_slug is not None:
+            task_runs = TaskRunResult.query_for_task_runs(
+                where={
+                    "task_slug": {"_eq": task_slug},
+                    "flow_run_id": {"_eq": self.flow_run_id},
+                },
+                many=True,
+            )
+            return [
+                TaskRunResult.from_task_run_data(task_run) for task_run in task_runs
+            ]
+
+        raise ValueError("Either `task` or `task_slug` must be provided!")
 
     def get_all(self):
         task_run_ids = self.task_run_ids
@@ -243,6 +244,7 @@ class TaskRunResult:
         task_slug: str,
         name: str,
         state: State,
+        map_index: int,
         result: Any = None,
     ):
         self.task_run_id = task_run_id
@@ -250,6 +252,7 @@ class TaskRunResult:
         self.task_id = task_id
         self.task_slug = task_slug
         self.state = state
+        self.map_index = map_index
 
         if result is None and state is not None:
             result = state.result
@@ -257,34 +260,35 @@ class TaskRunResult:
         self.result = result
 
     @classmethod
-    def from_task_run_id(cls, task_run_id: str = None) -> "TaskRunResult":
-        task_run = cls._query_for_task(where={"id": {"_eq": task_run_id}})
+    def from_task_run_data(cls, task_run: dict) -> "TaskRunResult":
         return cls(
             task_run_id=task_run["id"],
             name=task_run["name"],
             task_id=task_run["task"]["id"],
             task_slug=task_run["task"]["slug"],
+            map_index=task_run["map_index"],
             state=State.deserialize(task_run["serialized_state"]),
         )
 
     @classmethod
-    def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunResult":
-        task_run = cls._query_for_task(
-            where={
-                "task": {"slug": {"_eq": task_slug}},
-                "flow_run_id": {"_eq": flow_run_id},
-            }
+    def from_task_run_id(cls, task_run_id: str = None) -> "TaskRunResult":
+        return cls.from_task_run_data(
+            cls.query_for_task_runs(where={"id": {"_eq": task_run_id}})
         )
-        return cls(
-            task_run_id=task_run["id"],
-            name=task_run["name"],
-            task_id=task_run["task"]["id"],
-            task_slug=task_run["task"]["slug"],
-            state=State.deserialize(task_run["serialized_state"]),
+
+    @classmethod
+    def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunResult":
+        return cls.from_task_run_data(
+            cls.query_for_task_runs(
+                where={
+                    "task": {"slug": {"_eq": task_slug}},
+                    "flow_run_id": {"_eq": flow_run_id},
+                }
+            )
         )
 
     @staticmethod
-    def _query_for_task(where: dict) -> dict:
+    def query_for_task_runs(where: dict, many: bool = False) -> Union[dict, List[dict]]:
         client = Client()
 
         query = {
@@ -293,6 +297,7 @@ class TaskRunResult:
                     "id": True,
                     "name": True,
                     "task": {"id": True, "slug": True},
+                    "map_index": True,
                     "serialized_state": True,
                 }
             }
@@ -307,14 +312,19 @@ class TaskRunResult:
                 f"{result}"
             )
 
-        if len(task_runs) > 1:
+        if len(task_runs) > 1 and not many:
             raise ValueError(
                 f"Found multiple ({len(task_runs)}) task runs while querying for task "
                 f"where {where}: {task_runs}"
             )
 
-        task_run = task_runs[0]
-        return task_run
+        # Return a dict
+        if not many:
+            task_run = task_runs[0]
+            return task_run
+
+        # Return a list
+        return task_runs
 
     def __repr__(self) -> str:
         return (
