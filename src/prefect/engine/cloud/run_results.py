@@ -5,6 +5,8 @@ from prefect.utilities.graphql import with_args
 from prefect.client.client import Client
 from prefect.utilities.logging import get_logger
 
+from typing import List
+
 
 logger = get_logger("run_results")
 
@@ -20,6 +22,9 @@ class FlowRunResult:
         self.flow_run_id = flow_run_id
         self.flow_id = flow_id
         self.state = state
+
+        # Cached value of all task run ids for this flow run
+        self._task_run_ids: Optional[List[str]] = None
 
         if task_run_results is not None:
             self.task_results = {
@@ -99,7 +104,7 @@ class FlowRunResult:
                 task_run_id=task_run["id"],
                 name=task_run["name"],
                 task_id=task_run["task"]["id"],
-                slug=task_run["task"]["slug"],
+                task_slug=task_run["task"]["slug"],
                 state=State.deserialize(task_run["serialized_state"]),
             )
             for task_run in task_runs
@@ -113,7 +118,7 @@ class FlowRunResult:
         )
 
     def get(
-        self, task: Task = None, task_name: str = None, task_run_id: str = None
+        self, task: Task = None, task_slug: str = None, task_run_id: str = None
     ) -> "TaskRunResult":
         """
         Get information about a task run from this flow run. Lookup is available by one
@@ -122,7 +127,7 @@ class FlowRunResult:
 
         Args:
             task:
-            task_name:
+            task_slug:
             task_run_id:
 
         Returns:
@@ -131,12 +136,103 @@ class FlowRunResult:
         if task_run_id in self.task_results:
             return self.task_results[task_run_id]
 
+        if task is not None:
+            if task_slug is not None and task_slug != task.slug:
+                raise ValueError(
+                    "Both `task` and `task_slug` were provided but "
+                    f"`task.slug == {task.slug!r}` and `task_slug == {task_slug!r}`"
+                )
+            task_slug = task.slug
+
         if task_run_id is not None:
             result = TaskRunResult.from_task_run_id(task_run_id)
+
+            if task_slug is not None and result.task_slug != task_slug:
+                raise ValueError(
+                    "Both `task_slug` and `task_run_id` were provided but the task "
+                    "found using `task_run_id` has a different slug! "
+                    f"`task_slug == {task_slug!r}` and "
+                    f"`result.task_slug == {result.task_slug!r}`"
+                )
+
             self.task_results[result] = result
             return result
 
-        # Other methods not supported yet...
+        if task_slug is not None:
+            result = TaskRunResult.from_task_slug(
+                task_slug=task_slug, flow_run_id=self.flow_run_id
+            )
+            self.task_results[result] = result
+            return result
+
+        raise ValueError(
+            "One of `task_run_id`, `task`, or `task_slug` must be provided!"
+        )
+
+    def get_all(self):
+        task_run_ids = self.task_run_ids
+        if len(task_run_ids) > 1000:
+            raise ValueError(
+                "Refusing to `get_all` for a flow with more than 1000 tasks. "
+                "Please load the tasks you are interested in individually."
+            )
+
+        results = [self.get(task_run_id=id_) for id_ in task_run_ids]
+        return results
+
+    @property
+    def task_run_ids(self) -> List[str]:
+        # Return the cached value immediately if it exists
+        if self._task_run_ids:
+            return self._task_run_ids
+
+        client = Client()
+
+        task_query = {
+            "query": {
+                with_args(
+                    "task_run",
+                    {
+                        "where": {
+                            "flow_run_id": {"_eq": self.flow_run_id},
+                        }
+                    },
+                ): {
+                    "id": True,
+                }
+            }
+        }
+        result = client.graphql(task_query)
+        task_runs = result.get("data", {}).get("task_run", None)
+
+        if task_runs is None:
+            logger.warning(
+                f"Failed to load task run ids for flow run {self.flow_run_id}: "
+                f"{result}"
+            )
+
+        task_run_ids = [task_run["id"] for task_run in task_runs]
+
+        # If the flow run is done, we can safely cache this value
+        if self.state.is_finished():
+            self._task_run_ids = task_run_ids
+
+        return task_run_ids
+
+    def __repr__(self) -> str:
+        return (
+            f"FlowRunResult"
+            f"("
+            + ", ".join(
+                [
+                    f"flow_run_id={self.flow_run_id}",
+                    f"flow_id={self.flow_id}",
+                    f"state={self.state}",
+                    f"cached_task_results={len(self.task_results)}",
+                ]
+            )
+            + f")"
+        )
 
 
 class TaskRunResult:
@@ -144,7 +240,7 @@ class TaskRunResult:
         self,
         task_run_id: str,
         task_id: str,
-        slug: str,
+        task_slug: str,
         name: str,
         state: State,
         result: Any = None,
@@ -152,7 +248,7 @@ class TaskRunResult:
         self.task_run_id = task_run_id
         self.name = name
         self.task_id = task_id
-        self.slug = slug
+        self.task_slug = task_slug
         self.state = state
 
         if result is None and state is not None:
@@ -162,5 +258,76 @@ class TaskRunResult:
 
     @classmethod
     def from_task_run_id(cls, task_run_id: str = None) -> "TaskRunResult":
-        # Query GQL for information about this task
-        return TaskRunResult(task_run_id=task_run_id)
+        task_run = cls._query_for_task(where={"id": {"_eq": task_run_id}})
+        return cls(
+            task_run_id=task_run["id"],
+            name=task_run["name"],
+            task_id=task_run["task"]["id"],
+            task_slug=task_run["task"]["slug"],
+            state=State.deserialize(task_run["serialized_state"]),
+        )
+
+    @classmethod
+    def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunResult":
+        task_run = cls._query_for_task(
+            where={
+                "task": {"slug": {"_eq": task_slug}},
+                "flow_run_id": {"_eq": flow_run_id},
+            }
+        )
+        return cls(
+            task_run_id=task_run["id"],
+            name=task_run["name"],
+            task_id=task_run["task"]["id"],
+            task_slug=task_run["task"]["slug"],
+            state=State.deserialize(task_run["serialized_state"]),
+        )
+
+    @staticmethod
+    def _query_for_task(where: dict) -> dict:
+        client = Client()
+
+        query = {
+            "query": {
+                with_args("task_run", {"where": where}): {
+                    "id": True,
+                    "name": True,
+                    "task": {"id": True, "slug": True},
+                    "serialized_state": True,
+                }
+            }
+        }
+
+        result = client.graphql(query)
+        task_runs = result.get("data", {}).get("task_run", None)
+
+        if task_runs is None:
+            raise ValueError(
+                f"Received bad result while querying for task where {where}: "
+                f"{result}"
+            )
+
+        if len(task_runs) > 1:
+            raise ValueError(
+                f"Found multiple ({len(task_runs)}) task runs while querying for task "
+                f"where {where}: {task_runs}"
+            )
+
+        task_run = task_runs[0]
+        return task_run
+
+    def __repr__(self) -> str:
+        return (
+            f"TaskRunResult"
+            f"("
+            + ", ".join(
+                [
+                    f"task_run_id={self.task_run_id}",
+                    f"task_id={self.task_id}",
+                    f"task_slug={self.task_slug}",
+                    f"state={self.state}",
+                    f"result={self.result}",
+                ]
+            )
+            + f")"
+        )
