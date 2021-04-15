@@ -210,6 +210,9 @@ class Flow:
                 callback_factory(on_failure, check=lambda s: s.is_failed())
             )
 
+        # Will hold the id of the flow from the backend when registered
+        self.flow_id: str = None
+
         super().__init__()
 
     def __eq__(self, other: Any) -> bool:
@@ -971,67 +974,60 @@ class Flow:
 
     # Execution  ---------------------------------------------------------------
 
-    def _run_with_backend(self, with_agent: bool = False, runner_cls=None):
-        if not self._registration_id:
+    def cloud_run(self, project_name: str = None, runner_cls: Any = None, **kwargs):
+        if not self.flow_id and not project_name:
             raise ValueError(
                 "Flow has not been registered. "
-                "Did you forget to call `flow.register()` first?"
+                "Did you forget to call `flow.register()` first? "
+                "You may also pass `project_name` to `cloud_run` to register the flow "
+                "now but then the flow will not be runnable outside this function "
+                "without re-registering."
+            )
+
+        if project_name:
+            # Don't build the storage here since we won't use it. This will make this
+            # registered flow fail in the future but run now
+            self.register(
+                project_name=project_name,
+                build=False,
+                idempotency_key=self.serialized_hash(),
             )
 
         runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
+        # Type enforcement doesn't work in the signature because it's a circular dep
+        assert issubclass(runner_cls, prefect.engine.flow_runner.FlowRunner)
 
         client = prefect.Client()
 
         self.logger.info("Creating a flow run on the API...")
-        flow_run_id = client.create_flow_run(flow_id=self._registration_id)
+        flow_run_id = client.create_flow_run(flow_id=self.flow_id)
         self.logger.info(f"Created flow run {flow_run_id}")
 
-        if with_agent:
-            self.logger.info(
-                "Running flow with agent. "
-                "An agent must be running for the flow to execute."
-            )
-            return self._run_with_agent(client, flow_run_id)
-
-        # populate global secrets
+        # Populate global secrets
         secrets = prefect.context.get("secrets", {})
         if self.storage:
             self.logger.info("Loading secrets...")
             for secret in self.storage.secrets:
                 secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
 
-        with prefect.context(secrets=secrets, flow_run_id=flow_run_id):
-            self.logger.info(f"Running flow in-process with {runner_cls.__name__!r}")
-            runner_cls(flow=self).run()
+        self.logger.info(f"Running flow in-process with {runner_cls.__name__!r}")
 
-    def _run_with_agent(self, client, flow_run_id):
-        last_state = None
-        total_time = 0
-        warning_time = 0
-        loop_time = 1
-        while True:
-            flow_run_state = client.get_flow_run_info(flow_run_id).state
+        run_kwargs = copy.deepcopy(kwargs)
 
-            if flow_run_state != last_state:
-                self.logger.info(f"Flow run entered new state: {flow_run_state}")
+        # Update the run context to include secrets with merging
+        run_kwargs["context"] = run_kwargs.get("context", {})
+        run_kwargs["context"]["secrets"] = {
+            # User provided secrets will override secrets we pulled from storage and the
+            # current context
+            **secrets,
+            **run_kwargs["context"].get("secrets", {}),
+        }
+        # Update some default run kwargs with flow settings
+        run_kwargs.setdefault("executor", self.executor)
 
-            last_state = flow_run_state
-
-            if flow_run_state.is_finished():
-                break
-
-            if warning_time >= 10 and flow_run_state.is_scheduled():
-                self.logger.info(
-                    f"Your flow run is still in a scheduled state after "
-                    f"{total_time} seconds. Do you have an agent running?"
-                )
-                warning_time = 0
-
-            total_time += loop_time
-            warning_time += loop_time
-            time.sleep(loop_time)
-
-        self.logger.info("Flow run complete!")
+        with prefect.context(flow_run_id=flow_run_id):
+            flow_state = runner_cls(flow=self).run(**run_kwargs)
+        return flow_state
 
     def _run_local(
         self,
@@ -1211,8 +1207,7 @@ class Flow:
         parameters: Dict[str, Any] = None,
         run_on_schedule: bool = None,
         runner_cls: type = None,
-        with_backend: bool = False,
-        with_agent: bool = False,
+        with_cloud: bool = False,
         **kwargs: Any,
     ) -> Union["prefect.engine.state.State", None]:
         """
@@ -1256,13 +1251,8 @@ class Flow:
                 "of task states, use a FlowRunner directly."
             )
 
-        if with_backend:
-            return self._run_with_backend(with_agent=with_agent, runner_cls=runner_cls)
-        else:
-            if with_agent:
-                raise ValueError(
-                    "Cannot run `with_agent` without also setting `with_backend`"
-                )
+        if with_cloud:
+            return self.cloud_run(runner_cls=runner_cls, **kwargs)
 
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
@@ -1745,7 +1735,7 @@ class Flow:
         client = prefect.Client()
 
         self.logger.info("Registering flow with API...")
-        registered_flow = client.register(
+        flow_id = client.register(
             flow=self,
             build=build,
             project_name=project_name,
@@ -1755,8 +1745,8 @@ class Flow:
             idempotency_key=idempotency_key,
         )
 
-        self._registration_id = registered_flow
-        return registered_flow
+        self.flow_id = flow_id
+        return flow_id
 
     def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"
