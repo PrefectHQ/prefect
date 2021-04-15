@@ -2,7 +2,7 @@
 
 Automations allow you to configure actions (such as cancelling a flow run or sending a notification to certain endpoints) when your flows or agents encounter certain events.
 
-For example, you can send a Slack message to your team when a run from a production critical flow has failed, along with the reason for the failure so that you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour to enforce SLAs.  The Prefect Cloud API currently supports notification actions for Slack, Twilio, Pager Duty, email and arbitrary webhooks.
+For example, you can send a Slack message to your team when a run from a production critical flow has failed, along with the reason for the failure so that you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour to enforce SLAs.  
 
 You can set up and edit your Automations using the [API](/orchestration/concepts/api.html) or the Automations page in the UI.
 
@@ -19,15 +19,15 @@ Additionally, if you are a Standard Tier user in Prefect Cloud, you can also con
 
 ## Actions
 
-An action is a response on the event. Within your automation you can configure an action to happen when certain event conditions are met. For example, if your flow run fails (the event) you can cancel the run (the action).  
+An _action_ is a response on the event. Within your automation you can configure an action to happen when certain event conditions are met. For example, if your flow run fails (the event) you can cancel the run (the action).  
 
 You can configure actions which send notifications using the following services:
 
-Slack
-Twilio
-PagerDuty
-MS Teams
-Email
+- Slack
+- Twilio
+- PagerDuty
+- MS Teams
+- Email
 
 Moreover, if you are on a Standard or Enterprise plan you can also configure an action to cancel a flow run. 
 
