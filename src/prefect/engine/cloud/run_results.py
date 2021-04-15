@@ -1,11 +1,14 @@
+from collections import defaultdict
+from types import MappingProxyType
 from typing import Iterable, Any
+
+import prefect
 from prefect.engine.state import State
 from prefect.core.task import Task
 from prefect.utilities.graphql import with_args
-from prefect.client.client import Client
 from prefect.utilities.logging import get_logger
 
-from typing import List, Union
+from typing import List, Union, Optional, Dict, Set
 
 
 logger = get_logger("run_results")
@@ -23,13 +26,27 @@ class FlowRunResult:
         self.flow_id = flow_id
         self.state = state
 
-        # Cached value of all task run ids for this flow run
+        # Cached value of all task run ids for this flow run, only cached if the flow
+        # is done running
         self._task_run_ids: Optional[List[str]] = None
 
+        # Store a mapping of task run ids to task run results
+        self._task_run_results: Dict[str, "TaskRunResult"] = {}
+
+        # Store a mapping of slugs to task run ids (mapped tasks share a slug)
+        self._task_slug_to_task_run_ids: Dict[str, Set[str]] = defaultdict(set)
+
         if task_run_results is not None:
-            self.task_results = {
-                result.task_run_id: result for result in task_run_results
-            }
+            for result in task_run_results:
+                self._add_task_run_result(result)
+
+    def _add_task_run_result(self, result: "TaskRunResult"):
+        self._task_run_results[result.task_run_id] = result
+        self._task_slug_to_task_run_ids[result.task_slug].add(result.task_run_id)
+
+    @property
+    def task_run_results(self) -> MappingProxyType:
+        return MappingProxyType(self._task_run_results)
 
     @classmethod
     def from_flow_run_id(
@@ -47,7 +64,7 @@ class FlowRunResult:
         Returns:
 
         """
-        client = Client()
+        client = prefect.Client()
 
         flow_run_query = {
             "query": {
@@ -107,19 +124,23 @@ class FlowRunResult:
         Returns:
             TaskRunResult
         """
-        if task_run_id in self.task_results:
-            return self.task_results[task_run_id]
 
         if task is not None:
             if task_slug is not None and task_slug != task.slug:
                 raise ValueError(
-                    "Both `task` and `task_slug` were provided but "
+                    "Both `task` and `task_slug` were provided but they contain "
+                    "different slug values! "
                     f"`task.slug == {task.slug!r}` and `task_slug == {task_slug!r}`"
                 )
             task_slug = task.slug
 
         if task_run_id is not None:
-            result = TaskRunResult.from_task_run_id(task_run_id)
+            # Load from the cache if available or query for results
+            result = (
+                self.task_run_results[task_run_id]
+                if task_run_id in self._task_run_results
+                else TaskRunResult.from_task_run_id(task_run_id)
+            )
 
             if task_slug is not None and result.task_slug != task_slug:
                 raise ValueError(
@@ -129,14 +150,27 @@ class FlowRunResult:
                     f"`result.task_slug == {result.task_slug!r}`"
                 )
 
-            self.task_results[result.task_run_id] = result
+            self._add_task_run_result(result)
             return result
 
         if task_slug is not None:
-            result = TaskRunResult.from_task_slug(
-                task_slug=task_slug, flow_run_id=self.flow_run_id
-            )
-            self.task_results[result.task_run_id] = result
+
+            if task_slug in self._task_slug_to_task_run_ids:
+                task_run_ids = self._task_slug_to_task_run_ids[task_slug]
+                if len(task_run_ids) > 1:
+                    raise ValueError(
+                        f"Found multiple tasks with slug {task_slug}. "
+                        "Cannot use `get` with mapped task runs. Use `get_mapped` "
+                        "instead."
+                    )
+                task_run_id = list(task_run_ids)[0]
+                result = self.task_run_results[task_run_id]
+
+            else:
+                result = TaskRunResult.from_task_slug(
+                    task_slug=task_slug, flow_run_id=self.flow_run_id
+                )
+            self._add_task_run_result(result)
             return result
 
         raise ValueError(
@@ -159,14 +193,18 @@ class FlowRunResult:
         if task_slug is not None:
             task_runs = TaskRunResult.query_for_task_runs(
                 where={
-                    "task_slug": {"_eq": task_slug},
+                    "task": {"slug": {"_eq": task_slug}},
                     "flow_run_id": {"_eq": self.flow_run_id},
                 },
                 many=True,
             )
-            return [
+            results = [
                 TaskRunResult.from_task_run_data(task_run) for task_run in task_runs
             ]
+            # Add to cache
+            for result in results:
+                self._add_task_run_result(result)
+            return results
 
         raise ValueError("Either `task` or `task_slug` must be provided!")
 
@@ -187,7 +225,7 @@ class FlowRunResult:
         if self._task_run_ids:
             return self._task_run_ids
 
-        client = Client()
+        client = prefect.Client()
 
         task_query = {
             "query": {
@@ -229,7 +267,7 @@ class FlowRunResult:
                     f"flow_run_id={self.flow_run_id}",
                     f"flow_id={self.flow_id}",
                     f"state={self.state}",
-                    f"cached_task_results={len(self.task_results)}",
+                    f"cached_task_results={len(self.task_run_results)}",
                 ]
             )
             + f")"
@@ -245,7 +283,6 @@ class TaskRunResult:
         name: str,
         state: State,
         map_index: int,
-        result: Any = None,
     ):
         self.task_run_id = task_run_id
         self.name = name
@@ -254,10 +291,16 @@ class TaskRunResult:
         self.state = state
         self.map_index = map_index
 
-        if result is None and state is not None:
-            result = state.result
+        self._result: Any = None
 
-        self.result = result
+    @property
+    def result(self):
+        if not self._result:
+            # Hydrate the result from the Result class in the state
+            self.state.load_result(self.state._result)
+            self._result = self.state.result
+
+        return self._result
 
     @classmethod
     def from_task_run_data(cls, task_run: dict) -> "TaskRunResult":
@@ -289,7 +332,7 @@ class TaskRunResult:
 
     @staticmethod
     def query_for_task_runs(where: dict, many: bool = False) -> Union[dict, List[dict]]:
-        client = Client()
+        client = prefect.Client()
 
         query = {
             "query": {
