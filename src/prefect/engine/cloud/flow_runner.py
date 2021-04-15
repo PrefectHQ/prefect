@@ -369,7 +369,7 @@ class CloudFlowRunner(FlowRunner):
         try:
             flow_run_info = self.client.get_flow_run_info(flow_run_id)
         except Exception as exc:
-            self.logger.debug(
+            self.logger.error(
                 "Failed to retrieve flow state with error: {}".format(repr(exc))
             )
             if state is None:
