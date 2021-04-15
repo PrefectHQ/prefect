@@ -169,7 +169,7 @@ class Flow:
         validate: bool = None,
         result: Optional[Result] = None,
         terminal_state_handler: Optional[
-            Callable[["Flow", State, Dict[Task, State]], Optional[State]]
+            Callable[["Flow", State, Set[State]], Optional[State]]
         ] = None,
     ):
         self._cache = {}  # type: dict
