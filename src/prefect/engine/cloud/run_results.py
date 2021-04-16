@@ -1,17 +1,24 @@
 from collections import defaultdict
 from types import MappingProxyType
-from typing import Iterable, Any
+from typing import Iterator, Any, Iterable
 
 import prefect
 from prefect.engine.state import State
 from prefect.core.task import Task
-from prefect.utilities.graphql import with_args
+from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
 from typing import List, Union, Optional, Dict, Set
 
 
 logger = get_logger("run_results")
+
+
+class NotSet(object):
+    pass
+
+
+NOTSET = NotSet()
 
 
 class FlowRunResult:
@@ -158,18 +165,18 @@ class FlowRunResult:
             if task_slug in self._task_slug_to_task_run_ids:
                 task_run_ids = self._task_slug_to_task_run_ids[task_slug]
                 if len(task_run_ids) > 1:
-                    raise ValueError(
-                        f"Found multiple tasks with slug {task_slug}. "
-                        "Cannot use `get` with mapped task runs. Use `get_mapped` "
-                        "instead."
-                    )
-                task_run_id = list(task_run_ids)[0]
-                result = self.task_run_results[task_run_id]
+                    # We have a mapped task, return the base task
+                    for task_run_id in task_run_ids:
+                        result = self.task_run_results[task_run_id]
+                        if result.map_index == -1:
+                            return result
 
-            else:
-                result = TaskRunResult.from_task_slug(
-                    task_slug=task_slug, flow_run_id=self.flow_run_id
-                )
+                    # We did not find the base mapped task in the cache so we'll
+                    # drop through to query for it
+
+            result = TaskRunResult.from_task_slug(
+                task_slug=task_slug, flow_run_id=self.flow_run_id
+            )
             self._add_task_run_result(result)
             return result
 
@@ -177,11 +184,12 @@ class FlowRunResult:
             "One of `task_run_id`, `task`, or `task_slug` must be provided!"
         )
 
-    def get_mapped(
+    def iter_mapped(
         self,
         task: Task = None,
         task_slug: str = None,
-    ) -> List["TaskRunResult"]:
+        cache_results: bool = True,
+    ) -> Iterator["TaskRunResult"]:
         if task is not None:
             if task_slug is not None and task_slug != task.slug:
                 raise ValueError(
@@ -190,33 +198,59 @@ class FlowRunResult:
                 )
             task_slug = task.slug
 
-        if task_slug is not None:
-            task_runs = TaskRunResult.query_for_task_runs(
-                where={
-                    "task": {"slug": {"_eq": task_slug}},
-                    "flow_run_id": {"_eq": self.flow_run_id},
-                },
-                many=True,
-            )
-            results = [
-                TaskRunResult.from_task_run_data(task_run) for task_run in task_runs
-            ]
-            # Add to cache
-            for result in results:
-                self._add_task_run_result(result)
-            return results
+        if task_slug is None:
+            raise ValueError("Either `task` or `task_slug` must be provided!")
 
-        raise ValueError("Either `task` or `task_slug` must be provided!")
+        where = lambda index: {
+            "task": {"slug": {"_eq": task_slug}},
+            "flow_run_id": {"_eq": self.flow_run_id},
+            "map_index": {"_eq": index},
+        }
+        task_run = TaskRunResult.from_task_run_data(
+            TaskRunResult.query_for_task_runs(where=where(-1))
+        )
+        if not task_run.state.is_mapped():
+            raise TypeError(
+                f"Task run {task_run.task_run_id!r} ({task_run.slug}) is not a mapped task."
+            )
+
+        map_index = 0
+        while task_run:
+            task_run_data = TaskRunResult.query_for_task_runs(
+                where=where(map_index), error_on_empty=False
+            )
+            if not task_run_data:
+                break
+
+            task_run = TaskRunResult.from_task_run_data(task_run_data)
+
+            # Allow the user to skip the cache if they have a lot of task runs
+            if cache_results:
+                self._add_task_run_result(task_run)
+
+            yield task_run
+
+            map_index += 1
 
     def get_all(self):
-        task_run_ids = self.task_run_ids
-        if len(task_run_ids) > 1000:
+        if len(self.task_run_ids) > 1000:
             raise ValueError(
                 "Refusing to `get_all` for a flow with more than 1000 tasks. "
                 "Please load the tasks you are interested in individually."
             )
 
-        results = [self.get(task_run_id=id_) for id_ in task_run_ids]
+        # Run a single query instead of querying for each task run separately
+        task_runs = TaskRunResult.query_for_task_runs(
+            where={
+                "flow_run_id": {"_eq": self.flow_run_id},
+            },
+            many=True,
+        )
+        results = [TaskRunResult.from_task_run_data(task_run) for task_run in task_runs]
+        # Add to cache
+        for result in results:
+            self._add_task_run_result(result)
+
         return results
 
     @property
@@ -283,6 +317,7 @@ class TaskRunResult:
         name: str,
         state: State,
         map_index: int,
+        flow_run_id: str,
     ):
         self.task_run_id = task_run_id
         self.name = name
@@ -290,17 +325,43 @@ class TaskRunResult:
         self.task_slug = task_slug
         self.state = state
         self.map_index = map_index
+        self.flow_run_id = flow_run_id
 
-        self._result: Any = None
+        # Uses NOTSET so to separate from return values of `None`
+        self._result: Any = NOTSET
 
     @property
     def result(self):
-        if not self._result:
-            # Hydrate the result from the Result class in the state
-            self.state.load_result(self.state._result)
-            self._result = self.state.result
+        if self._result is NOTSET:
+            # Load the result from the result location
+            self._result = self._load_result()
 
         return self._result
+
+    def _load_result(self) -> Any:
+        if self.state.is_mapped():
+            # Mapped tasks require the state.map_states field to be manually filled
+            # to load results of all mapped subtasks
+            child_task_runs = [
+                self.from_task_run_data(task_run)
+                for task_run in self.query_for_task_runs(
+                    where={
+                        "task": {"slug": {"_eq": self.task_slug}},
+                        "flow_run_id": {"_eq": self.flow_run_id},
+                        # Ignore the root task since we are the root task
+                        "map_index": {"_neq": -1},
+                    },
+                    # Ensure the returned tasks are ordered matching map indices
+                    order_by={"map_index": EnumValue("asc")},
+                    many=True,
+                )
+            ]
+
+            self.state.map_states = [task_run.state for task_run in child_task_runs]
+
+        # Fire the state result hydration
+        self.state.load_result()
+        return self.state.result
 
     @classmethod
     def from_task_run_data(cls, task_run: dict) -> "TaskRunResult":
@@ -310,11 +371,18 @@ class TaskRunResult:
             task_id=task_run["task"]["id"],
             task_slug=task_run["task"]["slug"],
             map_index=task_run["map_index"],
+            flow_run_id=task_run["flow_run_id"],
             state=State.deserialize(task_run["serialized_state"]),
         )
 
     @classmethod
     def from_task_run_id(cls, task_run_id: str = None) -> "TaskRunResult":
+        if not isinstance(task_run_id, str):
+            raise TypeError(
+                f"Unexpected type {type(task_run_id)!r} for `task_run_id`, "
+                f"expected 'str'."
+            )
+
         return cls.from_task_run_data(
             cls.query_for_task_runs(where={"id": {"_eq": task_run_id}})
         )
@@ -326,22 +394,53 @@ class TaskRunResult:
                 where={
                     "task": {"slug": {"_eq": task_slug}},
                     "flow_run_id": {"_eq": flow_run_id},
+                    # Since task slugs can be duplicated for mapped tasks, only allow
+                    # the root task to be pulled by this
+                    "map_index": {"_eq": -1},
                 }
             )
         )
 
     @staticmethod
-    def query_for_task_runs(where: dict, many: bool = False) -> Union[dict, List[dict]]:
+    def query_for_task_runs(
+        where: dict,
+        many: bool = False,
+        order_by: dict = None,
+        error_on_empty: bool = True,
+    ) -> Union[dict, List[dict]]:
+        """
+        Query for task run data necessary to initialize `TaskRunResult` instances
+        with `TaskRunResult.from_task_run_data`.
+
+        Args:
+            where (required): The Hasura `where` clause to filter by
+            many (optional): Are many results expected? If `False`, a single record will
+                be returned and if many are found by the `where` clause an exception
+                will be thrown. If `True` a list of records will be returned.
+            order_by (optional): An optional Hasura `order_by` clause to order results
+                by. Only applicable when `many` is `True`
+            error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
+                will be raised. If `False`, an empty list or dict will be returned
+                based on the value of `many`.
+
+        Returns:
+            A dict of task run information (or a list of dicts if `many` is `True`)
+        """
         client = prefect.Client()
+
+        query_args = {"where": where}
+        if order_by is not None:
+            query_args["order_by"] = order_by
 
         query = {
             "query": {
-                with_args("task_run", {"where": where}): {
+                with_args("task_run", query_args): {
                     "id": True,
                     "name": True,
                     "task": {"id": True, "slug": True},
                     "map_index": True,
                     "serialized_state": True,
+                    "flow_run_id": True,
                 }
             }
         }
@@ -351,15 +450,22 @@ class TaskRunResult:
 
         if task_runs is None:
             raise ValueError(
-                f"Received bad result while querying for task where {where}: "
+                f"Received bad result while querying for task runs where {where}: "
                 f"{result}"
             )
 
         if len(task_runs) > 1 and not many:
             raise ValueError(
                 f"Found multiple ({len(task_runs)}) task runs while querying for task "
-                f"where {where}: {task_runs}"
+                f"runs where {where}: {task_runs}"
             )
+
+        if not task_runs:  # Empty list
+            if error_on_empty:
+                raise ValueError(
+                    f"No task runs found while querying for task runs where {where}"
+                )
+            return [] if many else {}
 
         # Return a dict
         if not many:
@@ -370,6 +476,7 @@ class TaskRunResult:
         return task_runs
 
     def __repr__(self) -> str:
+        result = "<not loaded>" if self._result is NOTSET else self.result
         return (
             f"TaskRunResult"
             f"("
@@ -379,7 +486,7 @@ class TaskRunResult:
                     f"task_id={self.task_id}",
                     f"task_slug={self.task_slug}",
                     f"state={self.state}",
-                    f"result={self.result}",
+                    f"result={result}",
                 ]
             )
             + f")"
