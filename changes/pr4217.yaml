@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Add test coverage for threaded `LocalDaskExecutor` timeouts - [#4217](https://github.com/PrefectHQ/prefect/pull/4217)"
