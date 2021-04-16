@@ -158,6 +158,57 @@ class TestSetupComposeEnv:
         for key, expected_value in expected.items():
             assert env[key] == expected_value
 
+    def test_setup_env_for_external_postgres(self, monkeypatch):
+        with set_temporary_config(
+            {
+                "server.database.connection_url": "localhost/foo",
+                "server.graphql.path": "/G",
+                "server.telemetry.enabled": False,
+            }
+        ):
+            env = setup_compose_env(
+                version="A",
+                ui_version="B",
+                no_upgrade=False,
+                external_postgres=True,
+                hasura_port=2,
+                graphql_port=3,
+                ui_port=4,
+                server_port=5,
+                volume_path="C",
+            )
+
+        expected = {
+            "APOLLO_HOST_PORT": "5",
+            "APOLLO_URL": "http://localhost:4200/graphql",
+            "DB_CONNECTION_URL": "localhost/foo",
+            "GRAPHQL_HOST_PORT": "3",
+            "HASURA_API_URL": "http://hasura:2/v1alpha1/graphql",
+            "HASURA_HOST_PORT": "2",
+            "HASURA_WS_URL": "ws://hasura:2/v1alpha1/graphql",
+            "PREFECT_API_HEALTH_URL": "http://graphql:3/health",
+            "PREFECT_API_URL": f"http://graphql:3/G",
+            "PREFECT_CORE_VERSION": prefect.__version__,
+            "PREFECT_SERVER_DB_CMD": "prefect-server database upgrade -y",
+            "PREFECT_SERVER_TAG": "A",
+            "PREFECT_UI_TAG": "B",
+            "UI_HOST_PORT": "4",
+            "PREFECT_SERVER__TELEMETRY__ENABLED": "false",
+        }
+
+        for key, expected_value in expected.items():
+            assert env[key] == expected_value
+
+        # when using external postgres, we should not set these env vars
+        not_expected = (
+            "POSTGRES_DATA_PATH",
+            "POSTGRES_DB",
+            "POSTGRES_HOST_PORT",
+            "POSTGRES_PASSWORD",
+            "POSTGRES_USER",
+        )
+        assert all([key not in env for key in not_expected])
+
 
 class TestSetupComposeFile:
     @pytest.mark.parametrize(
@@ -200,6 +251,26 @@ class TestSetupComposeFile:
 
         # Ensure nothing else has changed
         default_compose_yml["services"].pop("ui")
+        assert compose_yml == default_compose_yml
+
+    def test_external_postgres(self):
+        compose_file = setup_compose_file(external_postgres=True)
+
+        with open(compose_file) as file:
+            compose_yml = yaml.safe_load(file)
+
+        default_compose_file = setup_compose_file()
+        with open(default_compose_file) as file:
+            default_compose_yml = yaml.safe_load(file)
+
+        # Ensure postgres is not set
+        assert "postgres" not in compose_yml["services"]
+        # Ensure hasura does not depend on postgres
+        assert "postgres" not in compose_yml["services"]["hasura"].get("depends_on", [])
+
+        # Ensure nothing else has changed
+        default_compose_yml["services"].pop("postgres")
+        default_compose_yml["services"]["hasura"]["depends_on"].remove("postgres")
         assert compose_yml == default_compose_yml
 
     def test_disable_postgres_volumes(

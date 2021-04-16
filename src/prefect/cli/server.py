@@ -69,8 +69,15 @@ COMMON_SERVER_OPTIONS = [
         hidden=True,
     ),
     click.option(
+        "--external-postgres",
+        "-ep",
+        help="Pass this flag to use an external postgres instance",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
         "--postgres-port",
-        help="The port used to serve Postgres",
+        help="The port used to serve Postgres. Not valid for external Postgres.",
         default=config.server.database.host_port,
         type=str,
         hidden=True,
@@ -105,7 +112,7 @@ COMMON_SERVER_OPTIONS = [
     ),
     click.option(
         "--no-postgres-port",
-        help="Disable port map of Postgres to host",
+        help="Disable port map of Postgres to host. Not valid for external Postgres.",
         is_flag=True,
         hidden=True,
     ),
@@ -135,13 +142,13 @@ COMMON_SERVER_OPTIONS = [
     ),
     click.option(
         "--use-volume",
-        help="Enable the use of a volume for the postgres service",
+        help="Enable the use of a volume for the postgres service. Not valid for external Postgres.",
         is_flag=True,
         hidden=True,
     ),
     click.option(
         "--volume-path",
-        help="A path to use for the postgres volume",
+        help="A path to use for the postgres volume. Not valid for external Postgres.",
         default=config.server.database.volume_path,
         type=str,
         hidden=True,
@@ -151,6 +158,7 @@ COMMON_SERVER_OPTIONS = [
 
 def setup_compose_file(
     no_ui=False,
+    external_postgres=False,
     no_postgres_port=False,
     no_hasura_port=False,
     no_graphql_port=False,
@@ -172,6 +180,7 @@ def setup_compose_file(
     # Exit early if no changes have been made to the compose file
     if not (
         no_postgres_port
+        or external_postgres
         or no_hasura_port
         or no_graphql_port
         or no_ui_port
@@ -206,6 +215,10 @@ def setup_compose_file(
         if no_ui:
             del compose_yml["services"]["ui"]
 
+        if external_postgres:
+            del compose_yml["services"]["postgres"]
+            compose_yml["services"]["hasura"]["depends_on"].remove("postgres")
+
     with open(temp_path, "w") as f:
         yaml.safe_dump(compose_yml, f)
 
@@ -216,6 +229,7 @@ def setup_compose_env(
     version=None,
     ui_version=None,
     no_upgrade=None,
+    external_postgres=False,
     postgres_port=None,
     hasura_port=None,
     graphql_port=None,
@@ -233,11 +247,13 @@ def setup_compose_env(
     else:
         default_tag = f"core-{base_version[0]}"
 
-    PREFECT_ENV = dict(
+    db_connection_url = config.server.database.connection_url
+    if not external_postgres:
         # replace localhost with postgres to use docker-compose dns
-        DB_CONNECTION_URL=config.server.database.connection_url.replace(
-            "localhost", "postgres"
-        ),
+        db_connection_url.replace("localhost", "postgres")
+
+    PREFECT_ENV = dict(
+        DB_CONNECTION_URL=db_connection_url,
         GRAPHQL_HOST_PORT=str(graphql_port),
         UI_HOST_PORT=str(ui_port),
         # Pass the Core version so the Server API can return it
@@ -257,12 +273,16 @@ def setup_compose_env(
         ),
     )
 
-    POSTGRES_ENV = dict(
-        POSTGRES_HOST_PORT=str(postgres_port),
-        POSTGRES_USER=config.server.database.username,
-        POSTGRES_PASSWORD=config.server.database.password,
-        POSTGRES_DB=config.server.database.name,
-        POSTGRES_DATA_PATH=volume_path,
+    POSTGRES_ENV = (
+        dict(
+            POSTGRES_HOST_PORT=str(postgres_port),
+            POSTGRES_USER=config.server.database.username,
+            POSTGRES_PASSWORD=config.server.database.password,
+            POSTGRES_DB=config.server.database.name,
+            POSTGRES_DATA_PATH=volume_path,
+        )
+        if not external_postgres
+        else dict()
     )
 
     UI_ENV = dict(
@@ -320,6 +340,7 @@ def config_cmd(
     ui_version,
     no_upgrade,
     no_ui,
+    external_postgres,
     postgres_port,
     hasura_port,
     graphql_port,
@@ -347,28 +368,33 @@ def config_cmd(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
+        --external-postgres, -ep    Flag to use external postgres instance
 
     \b
-        --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
+        --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'.
+                                    Not valid for external Postgres.
         --hasura-port       TEXT    Port used to serve Hasura, defaults to '3000'
         --graphql-port      TEXT    Port used to serve the GraphQL API, defaults to '4201'
         --ui-port           TEXT    Port used to serve the UI, defaults to '8080'
         --server-port       TEXT    Port used to serve the Core server, defaults to '4200'
 
     \b
-        --no-postgres-port          Disable port map of Postgres to host
+        --no-postgres-port          Disable port map of Postgres to host.
+                                    Not valid for external Postgres.
         --no-hasura-port            Disable port map of Hasura to host
         --no-graphql-port           Disable port map of the GraphQL API to host
         --no-ui-port                Disable port map of the UI to host
         --no-server-port            Disable port map of the Core server to host
 
     \b
-        --use-volume                Enable the use of a volume for the Postgres service
+        --use-volume                Enable the use of a volume for the Postgres service.
+                                    Not valid for external Postgres.
         --volume-path       TEXT    A path to use for the Postgres volume, defaults to
-                                    '~/.prefect/pg_data'
+                                    '~/.prefect/pg_data'. Not valid for external Postgres.
     """
     compose_path = setup_compose_file(
         no_ui=no_ui,
+        external_postgres=external_postgres,
         no_postgres_port=no_postgres_port,
         no_hasura_port=no_hasura_port,
         no_graphql_port=no_graphql_port,
@@ -383,6 +409,7 @@ def config_cmd(
         version=version,
         ui_version=ui_version,
         no_upgrade=no_upgrade,
+        external_postgres=external_postgres,
         postgres_port=postgres_port,
         hasura_port=hasura_port,
         graphql_port=graphql_port,
@@ -415,6 +442,7 @@ def start(
     skip_pull,
     no_upgrade,
     no_ui,
+    external_postgres,
     detach,
     postgres_port,
     hasura_port,
@@ -443,25 +471,29 @@ def start(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
+        --external-postgres, -ep    Flag to use external postgres instance
 
     \b
-        --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
+        --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'.
+                                    Not valid for external Postgres.
         --hasura-port       TEXT    Port used to serve Hasura, defaults to '3000'
         --graphql-port      TEXT    Port used to serve the GraphQL API, defaults to '4201'
         --ui-port           TEXT    Port used to serve the UI, defaults to '8080'
         --server-port       TEXT    Port used to serve the Core server, defaults to '4200'
 
     \b
-        --no-postgres-port          Disable port map of Postgres to host
+        --no-postgres-port          Disable port map of Postgres to host.
+                                    Not valid for external Postgres.
         --no-hasura-port            Disable port map of Hasura to host
         --no-graphql-port           Disable port map of the GraphQL API to host
         --no-ui-port                Disable port map of the UI to host
         --no-server-port            Disable port map of the Core server to host
 
     \b
-        --use-volume                Enable the use of a volume for the Postgres service
+        --use-volume                Enable the use of a volume for the Postgres service.
+                                    Not valid for external Postgres.
         --volume-path       TEXT    A path to use for the Postgres volume, defaults to
-                                    '~/.prefect/pg_data'
+                                    '~/.prefect/pg_data' Not valid for external Postgres.
 
     \b
         --detach, -d                Detached mode. Runs Server containers in the background
@@ -470,6 +502,7 @@ def start(
 
     compose_path = setup_compose_file(
         no_ui=no_ui,
+        external_postgres=external_postgres,
         no_postgres_port=no_postgres_port,
         no_hasura_port=no_hasura_port,
         no_graphql_port=no_graphql_port,
@@ -484,6 +517,7 @@ def start(
         version=version,
         ui_version=ui_version,
         no_upgrade=no_upgrade,
+        external_postgres=external_postgres,
         postgres_port=postgres_port,
         hasura_port=hasura_port,
         graphql_port=graphql_port,
