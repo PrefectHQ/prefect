@@ -20,6 +20,7 @@ from prefect.storage.local import Local
 from prefect.storage.module import Module
 from prefect.storage.s3 import S3
 from prefect.storage.webhook import Webhook
+from prefect.storage.git import Git
 
 
 def get_default_storage_class() -> type:
