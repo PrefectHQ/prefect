@@ -26,6 +26,9 @@ with Flow("example") as flow:
 flow.run_config = KubernetesRun()
 ```
 
+`RunConfig` objects and their properties can also be overridden for
+individual flow runs in the Prefect UI.
+
 ## Labels
 
 [Like Agents](../agents/overview.md#labels), `RunConfig` objects can be
@@ -69,7 +72,7 @@ documentation](/api/latest/run_configs.md) for more information.
 [UniversalRun](/api/latest/run_configs.md#universalrun) configures
 flow runs that can be deployed on any agent. This is the default `RunConfig`
 used if flow-labels are specified. It can be useful if agent-side configuration
-is sufficient. Only configuring the flow's labels is exposed - to configure
+is sufficient. Only configuring environment variables and the flow's labels is exposed - to configure
 backend specific fields use one of the other `RunConfig` types.
 
 #### Examples
@@ -82,10 +85,10 @@ from prefect.run_configs import UniversalRun
 flow.run_config = UniversalRun()
 ```
 
-Configure labels for this flow:
+Configure environment variables and labels for this flow:
 
 ```python
-flow.run_config = UniversalRun(labels=["label-1", "label-2"])
+flow.run_config = UniversalRun(env={"SOME_VAR": "value"}, ["label-1", "label-2"])
 ```
 
 ### LocalRun
