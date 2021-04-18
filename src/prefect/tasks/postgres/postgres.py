@@ -264,7 +264,7 @@ class PostgresFetch(Task):
                 placeholder is query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
-            - col_names (bool, optional): set to True to add column names to fetched records, defaults to False
+            - col_names (bool, optional): set to True to add column names to records, defaults to False
 
         Returns:
             - records (tuple or list of tuples): records from provided query
