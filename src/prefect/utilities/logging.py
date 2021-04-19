@@ -82,6 +82,7 @@ class LogManager:
             self._write_logs()
             self.thread = None
             self.client = None
+            self._stopped.clear()
 
     def _write_logs_loop(self) -> None:
         """Runs in a background thread, uploads logs periodically in a loop"""
