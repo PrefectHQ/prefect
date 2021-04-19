@@ -1005,7 +1005,7 @@ class Flow:
 
     def cloud_run(
         self, project_name: str = None, runner_cls: Any = None, **kwargs: Any
-    ) -> "prefect.engine.cloud.FlowRunResult":
+    ) -> "prefect.backend.FlowRun":
         """
 
         Args:
@@ -1073,7 +1073,7 @@ class Flow:
             flow_state = runner_cls(flow=self).run(**run_kwargs)
 
         self.logger.info(f"Run finished with final state {flow_state}")
-        return prefect.api.FlowRun.from_flow_run_id(flow_run_id)
+        return prefect.backend.FlowRun.from_flow_run_id(flow_run_id)
 
     def _run_local(
         self,

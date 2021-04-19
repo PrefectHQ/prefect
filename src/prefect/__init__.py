@@ -25,7 +25,7 @@ from prefect.utilities.edges import mapped, unmapped, flatten
 
 import prefect.serialization
 import prefect.agent
-import prefect.api
+import prefect.backend
 
 from ._version import get_versions
 

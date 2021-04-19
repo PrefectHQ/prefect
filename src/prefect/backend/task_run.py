@@ -9,7 +9,7 @@ from prefect.utilities.logging import get_logger
 # Utility to indicate a task result is not loaded to distinguish from `None` values
 NotLoaded = object()
 
-logger = get_logger("flow_run")
+logger = get_logger("api.flow_run")
 
 
 class TaskRun:

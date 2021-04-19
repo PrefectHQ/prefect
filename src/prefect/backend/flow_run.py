@@ -4,14 +4,57 @@ from typing import Iterator, Iterable
 from typing import List, Optional, Dict, Set
 
 import prefect
-from prefect.api.task_run import TaskRun
+from prefect.backend.task_run import TaskRun
 from prefect.core.task import Task
 from prefect.engine.state import State
 from prefect.utilities.graphql import with_args
 from prefect.utilities.logging import get_logger
 
 
-logger = get_logger("flow_run")
+logger = get_logger("api.flow_run")
+
+
+def run_flow(
+    flow_id: str, runner_cls: "prefect.engine.cloud.flow_runner.CloudFlowRunner" = None
+) -> "FlowRun":
+
+    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
+    # Type enforcement doesn't work in the signature because it's a circular dep
+    assert issubclass(runner_cls, prefect.engine.flow_runner.FlowRunner)
+
+    client = prefect.Client()
+
+    flow.logger.info("Creating a flow run on the API...")
+    flow_run_id = client.create_flow_run(flow_id=flow.flow_id)
+    flow.logger.info(f"Created flow run {flow_run_id}")
+
+    # Populate global secrets
+    secrets = prefect.context.get("secrets", {})
+    if flow.storage:
+        flow.logger.info("Loading secrets...")
+        for secret in flow.storage.secrets:
+            secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
+
+    flow.logger.info(f"Running flow in-process with {runner_cls.__name__!r}")
+
+    run_kwargs = copy.deepcopy(kwargs)
+
+    # Update the run context to include secrets with merging
+    run_kwargs["context"] = run_kwargs.get("context", {})
+    run_kwargs["context"]["secrets"] = {
+        # User provided secrets will override secrets we pulled from storage and the
+        # current context
+        **secrets,
+        **run_kwargs["context"].get("secrets", {}),
+    }
+    # Update some default run kwargs with flow settings
+    run_kwargs.setdefault("executor", flow.executor)
+
+    with prefect.context(flow_run_id=flow_run_id):
+        flow_state = runner_cls(flow=flow).run(**run_kwargs)
+
+    flow.logger.info(f"Run finished with final state {flow_state}")
+    return prefect.api.FlowRun.from_flow_run_id(flow_run_id)
 
 
 class FlowRun:
