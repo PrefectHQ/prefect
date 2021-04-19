@@ -7,6 +7,7 @@ from contextlib import contextmanager
 
 import prefect
 from prefect import Flow, Task, Client
+from prefect.backend.flow import FlowMetadata
 from prefect.backend.task_run import TaskRun
 from prefect.engine.state import State
 from prefect.utilities.graphql import with_args
@@ -34,9 +35,9 @@ def execute_flow_run(
 
     # Populate global secrets
     secrets = prefect.context.get("secrets", {})
-    if flow_run.flow_storage:
+    if flow_run.flow.storage:
         logger.info(f"Loading secrets...")
-        for secret in flow_run.flow_storage.secrets:
+        for secret in flow_run.flow.storage.secrets:
             with fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message=f"Failed to load flow secret {secret!r}: {{exc}}",
@@ -45,13 +46,13 @@ def execute_flow_run(
 
     # Load the flow from storage if not explicitly provided
     if not flow:
-        logger.info(f"Loading flow from {flow_run.flow_storage}...")
+        logger.info(f"Loading flow from {flow_run.flow.storage}...")
         with prefect.context(secrets=secrets, loading_flow=True):
             with fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message="Failed to load flow from storage: {exc}",
             ):
-                flow = flow_run.flow_storage.get_flow(flow_run.flow_name)
+                flow = flow_run.flow.storage.get_flow(flow_run.flow.name)
 
     # Update the run context to include secrets with merging
     run_kwargs = copy.deepcopy(kwargs)
@@ -72,7 +73,7 @@ def execute_flow_run(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
         ):
-            if flow_run.flow_run_config is not None:
+            if flow_run.flow.run_config is not None:
                 flow_state = runner_cls(flow=flow).run(**run_kwargs)
 
             # Support for deprecated `flow.environment` use
@@ -124,23 +125,20 @@ class FlowRun:
         flow_run_id: str,
         name: str,
         flow_id: str,
-        flow_name: str,
-        flow_storage: prefect.storage.Storage,
-        flow_run_config: dict,
         state: State,
         task_runs: Iterable["TaskRun"] = None,
     ):
         self.flow_run_id = flow_run_id
         self.name = name
         self.flow_id = flow_id
-        self.flow_name = flow_name
-        self.flow_storage = flow_storage
-        self.flow_run_config = flow_run_config
         self.state = state
 
         # Cached value of all task run ids for this flow run, only cached if the flow
         # is done running
         self._task_run_ids: Optional[List[str]] = None
+
+        # Cached value of flow metadata
+        self._flow: Optional[FlowMetadata] = None
 
         # Store a mapping of task run ids to task runs
         self._task_runs: Dict[str, "TaskRun"] = {}
@@ -165,6 +163,13 @@ class FlowRun:
             load_static_tasks=False,
             _task_runs=self._task_runs.values(),
         )
+
+    @property
+    def flow(self) -> "FlowMetadata":
+        if self._flow is None:
+            self._flow = FlowMetadata.from_flow_id(flow_id=self.flow_id)
+
+        return self._flow
 
     @property
     def task_runs(self) -> MappingProxyType:
@@ -236,9 +241,6 @@ class FlowRun:
             flow_run_id=flow_run_id,
             task_runs=task_runs,
             state=State.deserialize(flow_run.serialized_state),
-            flow_storage=prefect.serialization.storage.StorageSchema().load(
-                flow_run.flow.storage
-            ),
             flow_name=flow_run.flow.name,
             flow_run_config=flow_run.flow.run_config,
             name=flow_run.name,
