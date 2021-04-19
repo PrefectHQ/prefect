@@ -1,11 +1,13 @@
 from collections import defaultdict
 from types import MappingProxyType
 from typing import Iterator, Iterable
-from typing import List, Optional, Dict, Set
+from typing import List, Optional, Dict, Set, Any
+import copy
+from contextlib import contextmanager
 
 import prefect
+from prefect import Flow, Task, Client
 from prefect.backend.task_run import TaskRun
-from prefect.core.task import Task
 from prefect.engine.state import State
 from prefect.utilities.graphql import with_args
 from prefect.utilities.logging import get_logger
@@ -14,32 +16,45 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("api.flow_run")
 
 
-def run_flow(
-    flow_id: str, runner_cls: "prefect.engine.cloud.flow_runner.CloudFlowRunner" = None
+def execute_flow_run(
+    flow_run_id: str,
+    flow: "Flow" = None,
+    runner_cls: "prefect.engine.flow_runner.FlowRunner" = None,
+    **kwargs: Any,
 ) -> "FlowRun":
-
+    # Get the `FlowRunner` class type
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
-    # Type enforcement doesn't work in the signature because it's a circular dep
-    assert issubclass(runner_cls, prefect.engine.flow_runner.FlowRunner)
 
-    client = prefect.Client()
+    # Get a `FlowRun` object
+    flow_run = FlowRun.from_flow_run_id(flow_run_id=flow_run_id)
 
-    flow.logger.info("Creating a flow run on the API...")
-    flow_run_id = client.create_flow_run(flow_id=flow.flow_id)
-    flow.logger.info(f"Created flow run {flow_run_id}")
+    # Ensure this flow isn't already executing
+    if flow_run.state.is_running():
+        raise RuntimeError(f"{flow_run!r} is already in a running state!")
 
     # Populate global secrets
     secrets = prefect.context.get("secrets", {})
-    if flow.storage:
-        flow.logger.info("Loading secrets...")
-        for secret in flow.storage.secrets:
-            secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
+    if flow_run.flow_storage:
+        logger.info(f"Loading secrets...")
+        for secret in flow_run.flow_storage.secrets:
+            with fail_flow_run_on_exception(
+                flow_run_id=flow_run_id,
+                message=f"Failed to load flow secret {secret!r}: {{exc}}",
+            ):
+                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
 
-    flow.logger.info(f"Running flow in-process with {runner_cls.__name__!r}")
-
-    run_kwargs = copy.deepcopy(kwargs)
+    # Load the flow from storage if not explicitly provided
+    if not flow:
+        logger.info(f"Loading flow from {flow_run.flow_storage}...")
+        with prefect.context(secrets=secrets, loading_flow=True):
+            with fail_flow_run_on_exception(
+                flow_run_id=flow_run_id,
+                message="Failed to load flow from storage: {exc}",
+            ):
+                flow = flow_run.flow_storage.get_flow(flow_run.flow_name)
 
     # Update the run context to include secrets with merging
+    run_kwargs = copy.deepcopy(kwargs)
     run_kwargs["context"] = run_kwargs.get("context", {})
     run_kwargs["context"]["secrets"] = {
         # User provided secrets will override secrets we pulled from storage and the
@@ -50,23 +65,77 @@ def run_flow(
     # Update some default run kwargs with flow settings
     run_kwargs.setdefault("executor", flow.executor)
 
+    # Execute the flow, this call will block until exit
+    logger.info(f"Executing flow with {runner_cls.__name__!r}")
     with prefect.context(flow_run_id=flow_run_id):
-        flow_state = runner_cls(flow=flow).run(**run_kwargs)
+        with fail_flow_run_on_exception(
+            flow_run_id=flow_run_id,
+            message="Failed to execute flow: {exc}",
+        ):
+            if flow_run.flow_run_config is not None:
+                flow_state = runner_cls(flow=flow).run(**run_kwargs)
 
-    flow.logger.info(f"Run finished with final state {flow_state}")
-    return prefect.api.FlowRun.from_flow_run_id(flow_run_id)
+            # Support for deprecated `flow.environment` use
+            else:
+                environment = flow.environment
+                environment.setup(flow)
+                environment.execute(flow)
+
+    logger.info(f"Run finished with final state {flow_state}")
+    return flow_run.update()
+
+
+@contextmanager
+def fail_flow_run_on_exception(flow_run_id: str, message: str = None):
+    message = message or "Flow run failed with {exc}"
+    client = Client()
+
+    try:
+        yield
+    except KeyboardInterrupt:
+        if FlowRun.from_flow_run_id(flow_run_id).state.is_running():
+            client.set_flow_run_state(
+                flow_run_id=flow_run_id,
+                state=prefect.engine.state.Cancelled("Keyboard interrupt."),
+            )
+        raise
+    except Exception as exc:
+        if FlowRun.from_flow_run_id(flow_run_id).state.is_running():
+            message = message.format(exc=exc.__repr__())
+            client.set_flow_run_state(
+                flow_run_id=flow_run_id, state=prefect.engine.state.Failed(message)
+            )
+            client.write_run_logs(
+                [
+                    dict(
+                        flow_run_id=flow_run_id,  # type: ignore
+                        name="prefect.backend.api.flow_run.execute_flow_run",
+                        message=message,
+                        level="ERROR",
+                    )
+                ]
+            )
+        raise
 
 
 class FlowRun:
     def __init__(
         self,
-        flow_run_id: str = None,
-        flow_id: str = None,
+        flow_run_id: str,
+        name: str,
+        flow_id: str,
+        flow_name: str,
+        flow_storage: prefect.storage.Storage,
+        flow_run_config: dict,
+        state: State,
         task_runs: Iterable["TaskRun"] = None,
-        state: State = None,
     ):
         self.flow_run_id = flow_run_id
+        self.name = name
         self.flow_id = flow_id
+        self.flow_name = flow_name
+        self.flow_storage = flow_storage
+        self.flow_run_config = flow_run_config
         self.state = state
 
         # Cached value of all task run ids for this flow run, only cached if the flow
@@ -122,7 +191,7 @@ class FlowRun:
         Returns:
             A populated `FlowRun` instance
         """
-        client = prefect.Client()
+        client = Client()
 
         flow_run_query = {
             "query": {
@@ -131,6 +200,7 @@ class FlowRun:
                     "name": True,
                     "flow_id": True,
                     "serialized_state": True,
+                    "flow": {"storage", "run_config", "name"},
                 }
             }
         }
@@ -160,11 +230,18 @@ class FlowRun:
         # Combine with the provided `_task_runs` iterable
         task_runs = task_runs + list(_task_runs or [])
 
+        flow_run_id = flow_run.pop("id")
+
         return cls(
-            flow_run_id=flow_run["id"],
-            flow_id=flow_run["flow_id"],
-            state=State.deserialize(flow_run["serialized_state"]),
+            flow_run_id=flow_run_id,
             task_runs=task_runs,
+            state=State.deserialize(flow_run.serialized_state),
+            flow_storage=prefect.serialization.storage.StorageSchema().load(
+                flow_run.flow.storage
+            ),
+            flow_name=flow_run.flow.name,
+            flow_run_config=flow_run.flow.run_config,
+            name=flow_run.name,
         )
 
     def get(
@@ -323,7 +400,7 @@ class FlowRun:
         if self._task_run_ids:
             return self._task_run_ids
 
-        client = prefect.Client()
+        client = Client()
 
         task_query = {
             "query": {

@@ -1,7 +1,7 @@
 from typing import Any
 from typing import List, Union
 
-import prefect
+from prefect import Client
 from prefect.engine.state import State
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
@@ -130,7 +130,7 @@ class TaskRun:
         Returns:
             A dict of task run information (or a list of dicts if `many` is `True`)
         """
-        client = prefect.Client()
+        client = Client()
 
         query_args = {"where": where}
         if order_by is not None:
