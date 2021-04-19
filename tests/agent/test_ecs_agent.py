@@ -163,7 +163,7 @@ def test_boto_kwargs(monkeypatch):
     # Does not set 'standard' if env variable is set
     monkeypatch.setenv("AWS_RETRY_MODE", "adaptive")
     agent = ECSAgent()
-    assert agent.boto_kwargs["config"].get("retries", {}).get("mode") is None
+    assert (agent.boto_kwargs["config"].retries or {}).get("mode") is None
 
 
 def test_agent_defaults(default_task_definition):
