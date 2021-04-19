@@ -135,7 +135,7 @@ class TestMergeRunTaskKwargs:
         }
 
 
-def test_boto_kwargs():
+def test_boto_kwargs(monkeypatch):
     # Defaults to loaded from environment
     agent = ECSAgent()
     keys = [
@@ -159,6 +159,11 @@ def test_boto_kwargs():
         "mode": "adaptive",
         "max_attempts": 2,
     }
+
+    # Does not set 'standard' if env variable is set
+    monkeypatch.setenv("AWS_RETRY_MODE", "adaptive")
+    agent = ECSAgent()
+    assert agent.boto_kwargs["config"].get("retries", {}).get("mode") is None
 
 
 def test_agent_defaults(default_task_definition):
