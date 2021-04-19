@@ -1037,43 +1037,9 @@ class Flow:
                 idempotency_key=self.serialized_hash(),
             )
 
-        runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
-        # Type enforcement doesn't work in the signature because it's a circular dep
-        assert issubclass(runner_cls, prefect.engine.flow_runner.FlowRunner)
-
         client = prefect.Client()
-
-        self.logger.info("Creating a flow run on the API...")
-        flow_run_id = client.create_flow_run(flow_id=self.flow_id)
-        self.logger.info(f"Created flow run {flow_run_id}")
-
-        # Populate global secrets
-        secrets = prefect.context.get("secrets", {})
-        if self.storage:
-            self.logger.info("Loading secrets...")
-            for secret in self.storage.secrets:
-                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
-
-        self.logger.info(f"Running flow in-process with {runner_cls.__name__!r}")
-
-        run_kwargs = copy.deepcopy(kwargs)
-
-        # Update the run context to include secrets with merging
-        run_kwargs["context"] = run_kwargs.get("context", {})
-        run_kwargs["context"]["secrets"] = {
-            # User provided secrets will override secrets we pulled from storage and the
-            # current context
-            **secrets,
-            **run_kwargs["context"].get("secrets", {}),
-        }
-        # Update some default run kwargs with flow settings
-        run_kwargs.setdefault("executor", self.executor)
-
-        with prefect.context(flow_run_id=flow_run_id):
-            flow_state = runner_cls(flow=self).run(**run_kwargs)
-
-        self.logger.info(f"Run finished with final state {flow_state}")
-        return prefect.backend.FlowRun.from_flow_run_id(flow_run_id)
+        flow_run_id = client.create_flow_run(self.flow_id)
+        return prefect.backend.execute_flow_run(flow_run_id=flow_run_id, flow=self)
 
     def _run_local(
         self,

@@ -67,7 +67,10 @@ def execute_flow_run(
     run_kwargs.setdefault("executor", flow.executor)
 
     # Execute the flow, this call will block until exit
-    logger.info(f"Executing flow with {runner_cls.__name__!r}")
+    logger.info(
+        f"Executing flow run {flow_run.name!r} from {flow_run.flow.name!r} "
+        f"with {runner_cls.__name__!r}"
+    )
     with prefect.context(flow_run_id=flow_run_id):
         with fail_flow_run_on_exception(
             flow_run_id=flow_run_id,
@@ -239,10 +242,9 @@ class FlowRun:
 
         return cls(
             flow_run_id=flow_run_id,
+            flow_id=flow_run.flow_id,
             task_runs=task_runs,
             state=State.deserialize(flow_run.serialized_state),
-            flow_name=flow_run.flow.name,
-            flow_run_config=flow_run.flow.run_config,
             name=flow_run.name,
         )
 
