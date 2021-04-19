@@ -179,8 +179,16 @@ class TaskRun:
         # Return a list
         return task_runs
 
+    def update(self) -> "TaskRun":
+        """
+        Get the a new copy of this object with the newest data from the API
+        """
+        return self.from_task_run_id(
+            task_run_id=self.task_run_id,
+        )
+
     def __repr__(self) -> str:
-        result = "<not loaded>" if self._result is NOTSET else self.result
+        result = "<not loaded>" if self._result is NotLoaded else self.result
         return (
             f"TaskRun"
             f"("

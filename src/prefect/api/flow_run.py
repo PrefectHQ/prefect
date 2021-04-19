@@ -19,7 +19,7 @@ class FlowRun:
         self,
         flow_run_id: str = None,
         flow_id: str = None,
-        task_run_results: Iterable["TaskRun"] = None,
+        task_runs: Iterable["TaskRun"] = None,
         state: State = None,
     ):
         self.flow_run_id = flow_run_id
@@ -30,39 +30,54 @@ class FlowRun:
         # is done running
         self._task_run_ids: Optional[List[str]] = None
 
-        # Store a mapping of task run ids to task run results
-        self._task_run_results: Dict[str, "TaskRun"] = {}
+        # Store a mapping of task run ids to task runs
+        self._task_runs: Dict[str, "TaskRun"] = {}
 
         # Store a mapping of slugs to task run ids (mapped tasks share a slug)
         self._task_slug_to_task_run_ids: Dict[str, Set[str]] = defaultdict(set)
 
-        if task_run_results is not None:
-            for result in task_run_results:
-                self._add_task_run_result(result)
+        if task_runs is not None:
+            for task_run in task_runs:
+                self._add_task_run(task_run)
 
-    def _add_task_run_result(self, result: "TaskRun"):
-        self._task_run_results[result.task_run_id] = result
-        self._task_slug_to_task_run_ids[result.task_slug].add(result.task_run_id)
+    def _add_task_run(self, task_run: "TaskRun"):
+        self._task_runs[task_run.task_run_id] = task_run
+        self._task_slug_to_task_run_ids[task_run.task_slug].add(task_run.task_run_id)
+
+    def update(self) -> "FlowRun":
+        """
+        Get the a new copy of this object with the newest data from the API
+        """
+        return self.from_flow_run_id(
+            flow_run_id=self.flow_run_id,
+            load_static_tasks=False,
+            _task_runs=self._task_runs.values(),
+        )
 
     @property
-    def task_run_results(self) -> MappingProxyType:
-        return MappingProxyType(self._task_run_results)
+    def task_runs(self) -> MappingProxyType:
+        return MappingProxyType(self._task_runs)
 
     @classmethod
     def from_flow_run_id(
-        cls, flow_run_id: str, load_static_tasks: bool = True
+        cls,
+        flow_run_id: str,
+        load_static_tasks: bool = True,
+        _task_runs: Iterable["TaskRun"] = None,
     ) -> "FlowRun":
         """
         Get an instance of this class filled with information by querying for the given
         flow run id
 
         Args:
-            flow_run_id:
-            load_static_tasks: Pre-populate the task run results with results from tasks
+            flow_run_id: the flow run id to lookup
+            load_static_tasks: Pre-populate the task runs with results from flow tasks
                 that are unmapped.
+            _task_runs: Pre-populate the task runs with an existing iterable of task
+                runs
 
         Returns:
-
+            A populated `FlowRun` instance
         """
         client = prefect.Client()
 
@@ -87,25 +102,26 @@ class FlowRun:
             )
 
         if load_static_tasks:
-            task_runs = TaskRun.query_for_task_runs(
+            task_run_data = TaskRun.query_for_task_runs(
                 where={
                     "map_index": {"_eq": -1},
                     "flow_run_id": {"_eq": flow_run_id},
                 },
                 many=True,
             )
-            task_results = [
-                TaskRun.from_task_run_data(task_run) for task_run in task_runs
-            ]
+            task_runs = [TaskRun.from_task_run_data(data) for data in task_run_data]
 
         else:
-            task_results = None
+            task_runs = []
+
+        # Combine with the provided `_task_runs` iterable
+        task_runs = task_runs + list(_task_runs or [])
 
         return cls(
             flow_run_id=flow_run["id"],
             flow_id=flow_run["flow_id"],
             state=State.deserialize(flow_run["serialized_state"]),
-            task_run_results=task_results,
+            task_runs=task_runs,
         )
 
     def get(
@@ -148,8 +164,8 @@ class FlowRun:
         if task_run_id is not None:
             # Load from the cache if available or query for results
             result = (
-                self.task_run_results[task_run_id]
-                if task_run_id in self._task_run_results
+                self.task_runs[task_run_id]
+                if task_run_id in self._task_runs
                 else TaskRun.from_task_run_id(task_run_id)
             )
 
@@ -161,7 +177,7 @@ class FlowRun:
                     f"`result.task_slug == {result.task_slug!r}`"
                 )
 
-            self._add_task_run_result(result)
+            self._add_task_run(result)
             return result
 
         if task_slug is not None:
@@ -171,7 +187,7 @@ class FlowRun:
                 if len(task_run_ids) > 1:
                     # We have a mapped task, return the base task
                     for task_run_id in task_run_ids:
-                        result = self.task_run_results[task_run_id]
+                        result = self.task_runs[task_run_id]
                         if result.map_index == -1:
                             return result
 
@@ -181,7 +197,7 @@ class FlowRun:
             result = TaskRun.from_task_slug(
                 task_slug=task_slug, flow_run_id=self.flow_run_id
             )
-            self._add_task_run_result(result)
+            self._add_task_run(result)
             return result
 
         raise ValueError(
@@ -215,7 +231,8 @@ class FlowRun:
         )
         if not task_run.state.is_mapped():
             raise TypeError(
-                f"Task run {task_run.task_run_id!r} ({task_run.slug}) is not a mapped task."
+                f"Task run {task_run.task_run_id!r} ({task_run.slug}) is not a mapped "
+                f"task."
             )
 
         map_index = 0
@@ -230,7 +247,7 @@ class FlowRun:
 
             # Allow the user to skip the cache if they have a lot of task runs
             if cache_results:
-                self._add_task_run_result(task_run)
+                self._add_task_run(task_run)
 
             yield task_run
 
@@ -244,18 +261,18 @@ class FlowRun:
             )
 
         # Run a single query instead of querying for each task run separately
-        task_runs = TaskRun.query_for_task_runs(
+        task_run_data = TaskRun.query_for_task_runs(
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
             },
             many=True,
         )
-        results = [TaskRun.from_task_run_data(task_run) for task_run in task_runs]
+        task_runs = [TaskRun.from_task_run_data(data) for data in task_run_data]
         # Add to cache
-        for result in results:
-            self._add_task_run_result(result)
+        for task_run in task_runs:
+            self._add_task_run(task_run)
 
-        return results
+        return task_runs
 
     @property
     def task_run_ids(self) -> List[str]:
@@ -305,7 +322,7 @@ class FlowRun:
                     f"flow_run_id={self.flow_run_id}",
                     f"flow_id={self.flow_id}",
                     f"state={self.state}",
-                    f"cached_task_results={len(self.task_run_results)}",
+                    f"cached_task_runs={len(self.task_runs)}",
                 ]
             )
             + f")"
