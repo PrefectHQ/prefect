@@ -180,7 +180,7 @@ class ECSAgent(Agent):
         # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
         # for more info.
         boto_config = Config(**botocore_config or {})
-        if not boto_config.retries:
+        if not boto_config.retries and not os.environ.get("AWS_RETRY_MODE"):
             boto_config.retries = {"mode": "standard"}
 
         self.boto_kwargs = dict(
