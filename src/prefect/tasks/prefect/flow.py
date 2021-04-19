@@ -3,7 +3,7 @@ from typing import Union
 
 from prefect import Task, Flow, task, Client
 from prefect.utilities.graphql import with_args, EnumValue
-from prefect.engine.cloud.run_results import FlowRunResult
+from prefect.api import FlowRunResult
 from prefect.engine.signals import FAIL
 
 FlowLike = Union["Flow", str]
