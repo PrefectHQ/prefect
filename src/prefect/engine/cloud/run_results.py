@@ -133,13 +133,24 @@ class FlowRunResult:
         """
 
         if task is not None:
+            if not task.slug and not task_slug:
+                raise ValueError(
+                    f"Given task {task} does not have a `slug` set and cannot be "
+                    "used for lookups; this generally occurs when the flow has not "
+                    "been registered or serialized."
+                )
+
             if task_slug is not None and task_slug != task.slug:
                 raise ValueError(
                     "Both `task` and `task_slug` were provided but they contain "
                     "different slug values! "
                     f"`task.slug == {task.slug!r}` and `task_slug == {task_slug!r}`"
                 )
-            task_slug = task.slug
+
+            # If they've passed a task_slug that matches this task's slug we can
+            # basically ignore the passed `task` object
+            if not task_slug:
+                task_slug = task.slug
 
         if task_run_id is not None:
             # Load from the cache if available or query for results
