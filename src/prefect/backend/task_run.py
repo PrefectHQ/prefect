@@ -69,14 +69,16 @@ class TaskRun:
 
     @classmethod
     def from_task_run_data(cls, task_run: dict) -> "TaskRun":
+        task_run_id = task_run.pop("id")
+        task_data = task_run.pop("task")
+        serialized_state = task_run.pop("serialized_state")
+
         return cls(
-            task_run_id=task_run["id"],
-            name=task_run["name"],
-            task_id=task_run["task"]["id"],
-            task_slug=task_run["task"]["slug"],
-            map_index=task_run["map_index"],
-            flow_run_id=task_run["flow_run_id"],
-            state=State.deserialize(task_run["serialized_state"]),
+            task_run_id=task_run_id,
+            state=State.deserialize(serialized_state),
+            task_id=task_data["id"],
+            task_slug=task_data["slug"],
+            **task_run,
         )
 
     @classmethod
