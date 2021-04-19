@@ -1,9 +1,9 @@
 import time
-from typing import Union
+from typing import Union, Optional
 
 from prefect import Task, Flow, task, Client
 from prefect.utilities.graphql import with_args, EnumValue
-from prefect.api import FlowRunResult
+from prefect.api import FlowRun
 from prefect.engine.signals import FAIL
 
 FlowLike = Union["Flow", str]
@@ -30,8 +30,8 @@ class RunFlow(Task):
         self.run_inline_default = run_inline
         self.wait_default = wait
 
-        # Will store a `FlowRunResult` tracking the flow run
-        self._flow_run = None
+        # Will store a `FlowRun` tracking the flow run
+        self._flow_run: Optional[FlowRun] = None
 
         super().__init__(**kwargs)
 
@@ -43,7 +43,7 @@ class RunFlow(Task):
         project_name: str = None,
         run_inline: bool = None,
         wait: bool = True,
-    ) -> "FlowRunResult":
+    ) -> "FlowRun":
         flow = flow_obj or self.flow_obj_default
         flow_id = flow_id or self.flow_id_default
         flow_name = flow_name or self.flow_name_default
@@ -98,7 +98,7 @@ class RunFlow(Task):
             flow_id=flow_id,
         )
 
-        self._flow_run = FlowRunResult.from_flow_run_id(flow_run_id=flow_run_id)
+        self._flow_run = FlowRun.from_flow_run_id(flow_run_id=flow_run_id)
 
         if not wait:
             self.logger.debug(
@@ -119,7 +119,7 @@ class RunFlow(Task):
             warning_wait_time += self.POLL_TIME
             total_wait_time += warning_wait_time
 
-            self._flow_run = FlowRunResult.from_flow_run_id(flow_run_id=flow_run_id)
+            self._flow_run = FlowRun.from_flow_run_id(flow_run_id=flow_run_id)
 
             if (
                 total_wait_time > 20
@@ -217,7 +217,7 @@ class RunFlow(Task):
                     f"Waiting for task {from_task} to enter finished state..."
                 )
                 time.sleep(self.POLL_TIME)
-                task_run = self._flow_run.get(from_task)
+                task_run = self._flow_run.get(**from_task)
 
             return task_run.result
 

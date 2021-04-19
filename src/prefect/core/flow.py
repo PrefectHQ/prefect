@@ -1073,7 +1073,7 @@ class Flow:
             flow_state = runner_cls(flow=self).run(**run_kwargs)
 
         self.logger.info(f"Run finished with final state {flow_state}")
-        return prefect.api.FlowRunResult.from_flow_run_id(flow_run_id)
+        return prefect.api.FlowRun.from_flow_run_id(flow_run_id)
 
     def _run_local(
         self,
