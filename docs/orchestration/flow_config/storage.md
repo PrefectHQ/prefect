@@ -248,6 +248,29 @@ which means both upload (build) and download (local agent) times need to have
 the proper Google Application Credentials configuration.
 :::
 
+### Git
+[Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
+stored in a git repository as `.py` files.
+
+```python
+from prefect import Flow
+from prefect.storage import Git
+
+# using https by default
+storage = Git(
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    git_token_secret_name="MY_GIT_ACCESS_TOKEN" # name of personal access token secret
+)
+
+# using ssh (environment must be configured for ssh access to repo)
+storage = Git(
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    use_ssh=True                                # use ssh for cloning repo
+)
+```
+
 ### GitHub
 
 [GitHub Storage](/api/latest/storage.md#github) is a storage
