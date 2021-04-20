@@ -15,16 +15,23 @@ class Git(Storage):
     """
     Git storage class. This class represents the Storage interface for Flows stored
     in `.py` files in a git repository.
+
     This class represents a mapping of flow name to file paths contained in the git repo,
-    meaning that all flow files should be pushed independently. A typical workflow using
-    this storage type might look like the following:
+    meaning that all flow files should be pushed independently.
+
+    A typical workflow using this storage type might look like the following:
+
     - Compose flow `.py` file where flow has Git storage:
+
     ```python
     flow = Flow("my-flow")
     flow.storage = Git(repo="my/repo", flow_path="/flows/flow.py", repo_host="github.com")
     ```
+
     - Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+
     - Call `prefect register -f flow.py` to register this flow with Git storage.
+
     Args:
         - flow_path (str): A file path pointing to a .py file containing a flow
         - repo (str): the name of a git repository to store this Flow
@@ -36,13 +43,13 @@ class Git(Storage):
         - git_token_username (str, optional): the username associated with git access token,
             if not provided it will default to repo owner
         - branch_name (str, optional): branch name, if not specified and `tag` not specified,
-            repo default branch will be used
+            repo default branch latest commit will be used
         - tag (str, optional): tag name, if not specified and `branch_name` not specified,
-            repo default branch will be used
+            repo default branch latest commit will be used
         - clone_depth (int): the number of history revisions in cloning, defaults to 1
         - use_ssh (bool): if True, cloning will use ssh. Ssh keys must be correctly
             configured in the environment for this to work
-        - format_access_token (bool): if True, the class will attempt to format acess tokens
+        - format_access_token (bool): if True, the class will attempt to format access tokens
             for common git hosting sites
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
@@ -72,9 +79,13 @@ class Git(Storage):
         self.repo_host = repo_host
         self.flow_name = flow_name
         self.git_token_secret_name = git_token_secret_name
+
+        # if not provided, assume the username associated with the token
+        # is the organization that owns the repo
         self.git_token_username = (
             git_token_username if git_token_username else repo.split("/")[0]
         )
+
         self.branch_name = branch_name
         self.tag = tag
         self.clone_depth = clone_depth

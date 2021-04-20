@@ -9,12 +9,12 @@ class TemporaryGitRepo:
     """
     Temporary cloning and interacting with a git repository
 
-    Args;
+    Args:
         - git_clone_url (str): Url to git clone
         - branch_name (str, optional): branch name, if not specified and `tag` not specified,
-            repo default branch will be used
+            repo default branch latest commit will be used
         - tag (str, optional): tag name, if not specified and `branch_name` not specified,
-            repo default branch will be used
+            repo default branch latest commit will be used
         - clone_depth (int): the number of history revisions in cloning, defaults to 1
     """
 

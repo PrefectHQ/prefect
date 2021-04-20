@@ -260,6 +260,7 @@ from prefect.storage import Git
 storage = Git(
     repo="org/repo",                            # name of repo
     path="flows/my_flow.py",                    # location of flow file in repo
+    repo_host="github.com",                     # repo host name
     git_token_secret_name="MY_GIT_ACCESS_TOKEN" # name of personal access token secret
 )
 
@@ -267,6 +268,7 @@ storage = Git(
 storage = Git(
     repo="org/repo",                            # name of repo
     path="flows/my_flow.py",                    # location of flow file in repo
+    repo_host="github.com",                     # repo host name
     use_ssh=True                                # use ssh for cloning repo
 )
 ```
