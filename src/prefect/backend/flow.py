@@ -2,7 +2,7 @@ from typing import Union, List
 
 import prefect
 from prefect.serialization.flow import FlowSchema
-from prefect.utilities.graphql import with_args
+from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
 
@@ -62,15 +62,29 @@ class FlowMetadata:
         return cls.from_flow_data(cls.query_for_flows(where={"id": {"_eq": flow_id}}))
 
     @classmethod
-    def from_flow_name(cls, flow_name: str, project_name: str = None) -> "FlowMetadata":
-        return cls.from_flow_data(
-            cls.query_for_flows(
-                where={
-                    "name": {"_eq": flow_name},
-                    "project": {"name": {"_eq": project_name}},
-                }
-            )
+    def from_flow_name(
+        cls, flow_name: str, project_name: str = None, use_last_updated: bool = False
+    ) -> "FlowMetadata":
+        where = {"name": {"_eq": flow_name}, "archived": {"_eq": False}}
+        if project_name is not None:
+            where["project"] = {
+                "name": ({"_eq": project_name} if project_name else {"_is_null": True})
+            }
+
+        flows = cls.query_for_flows(
+            where=where,
+            many=True,
+            order_by={"updated_at": EnumValue("desc")},
         )
+        if len(flows) > 1 and not use_last_updated:
+            raise ValueError(
+                f"Found multiple flows matching {where}. "
+                f"Provide a `project_name` as well or toggle `use_last_updated` "
+                f"to use the flow that was most recently updated"
+            )
+
+        flow = flows[0]
+        return cls.from_flow_data(flow)
 
     @staticmethod
     def query_for_flows(

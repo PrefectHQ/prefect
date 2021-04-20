@@ -23,17 +23,33 @@ def execute_flow_run(
     runner_cls: "prefect.engine.flow_runner.FlowRunner" = None,
     **kwargs: Any,
 ) -> "FlowRun":
+    """ "
+    The primary entry point for executing a flow run. The flow run will be run
+    in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
+
+    Args:
+        flow_run_id: The flow run id to execute; this run id must exist in the database
+        flow: A Flow object can be passed to execute a flow without loading t from
+            Storage. If `None`, the flow's Storage metadata will be pulled from the
+            API and used to get a functional instance of the Flow and its tasks.
+        runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
+        **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
+
+    Returns:
+        A `FlowRun` instance with information about the state of the flow run and its
+        task runs
+    """
     logger.debug(f"Querying for flow run {flow_run_id!r}")
 
     # Get the `FlowRunner` class type
+    # TODO: Respect a config option for this class so it can be overridden by envvar,
+    #       create a separate config argument for flow runs executed with the backend
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
     # Get a `FlowRun` object
-    flow_run = FlowRun.from_flow_run_id(flow_run_id=flow_run_id)
-
-    # Ensure this flow isn't already executing
-    if flow_run.state.is_running():
-        raise RuntimeError(f"{flow_run!r} is already in a running state!")
+    flow_run = FlowRun.from_flow_run_id(
+        flow_run_id=flow_run_id, load_static_tasks=False
+    )
 
     logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
