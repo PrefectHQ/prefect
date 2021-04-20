@@ -57,16 +57,21 @@ class TemporaryGitRepo:
             self.get_tree_id_for_branch_or_tag(),
         )
 
+    @property
+    def branch_or_tag_ref(self) -> bytes:
+        """
+        Get the branch or tag ref for the current repo
+        """
+        if self.branch_name is not None:
+            return f"refs/remotes/origin/{self.branch_name}".encode("utf-8")
+        elif self.tag is not None:
+            return f"refs/tags/{self.tag}".encode("utf-8")
+        raise ValueError(
+            "Either `tag` or `branch_name` must be specified to get a tree id"
+        )
+
     def get_tree_id_for_branch_or_tag(self) -> str:
         """
         Gets the tree id for relevant branch or tag
         """
-        if self.branch_name is not None:
-            ref = f"refs/remotes/origin/{self.branch_name}".encode("utf-8")
-        elif self.tag is not None:
-            ref = f"refs/tags/{self.tag}".encode("utf-8")
-        else:
-            raise ValueError(
-                "Either `tag` or `branch_name` must be specified to get a tree id"
-            )
-        return self.repo[self.repo.get_refs()[ref]].tree
+        return self.repo[self.repo.get_refs()[self.branch_or_tag_ref]].tree
