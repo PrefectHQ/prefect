@@ -27,7 +27,7 @@ class Git(Storage):
     - Call `prefect register -f flow.py` to register this flow with Git storage.
     Args:
         - flow_path (str): A file path pointing to a .py file containing a flow
-        - repo (str): the name of a GitHub repository to store this Flow
+        - repo (str): the name of a git repository to store this Flow
         - repo_host (str, optional): The site hosting the repo. Defaults to 'github.com'
         - flow_name (str, optional): A specific name of a flow to extract from a file.
             If not set then the first flow object retrieved from file will be returned.
@@ -137,7 +137,7 @@ class Git(Storage):
         access_token = Secret(self.git_token_secret_name).get()
         if self.format_access_token:
             return f"{self.git_token_username}:{access_token}"
-        return access_token
+        return str(access_token)
 
     @property
     def git_clone_url(self) -> str:
