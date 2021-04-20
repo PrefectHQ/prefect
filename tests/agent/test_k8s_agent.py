@@ -1419,11 +1419,61 @@ class TestK8sAgentRunConfig:
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # Agent env-vars override those in template
             "CUSTOM3": "OVERRIDE3",  # RunConfig env-vars override those on agent and template
             "CUSTOM4": "VALUE4",
         }
+
+    @pytest.mark.parametrize(
+        "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+        [
+            ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {},
+                "TEST2",
+            ),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {"PREFECT__LOGGING__LEVEL": "TEST"},
+                "TEST",
+            ),
+        ],
+    )
+    def test_generate_job_spec_prefect_logging_level_environment_variable(
+        self,
+        config,
+        agent_env_vars,
+        run_config_env_vars,
+        expected_logging_level,
+        tmpdir,
+        backend,
+    ):
+        """
+        Check that PREFECT__LOGGING__LEVEL is set in precedence order
+        """
+        with set_temporary_config(config):
+            template_path = str(tmpdir.join("job.yaml"))
+            template = self.read_default_template()
+            template_env = template["spec"]["template"]["spec"]["containers"][
+                0
+            ].setdefault("env", [])
+            with open(template_path, "w") as f:
+                yaml.safe_dump(template, f)
+            self.agent.job_template_path = template_path
+
+            self.agent.env_vars = agent_env_vars
+            run_config = KubernetesRun(image="test-image", env=run_config_env_vars)
+
+            flow_run = self.build_flow_run(run_config)
+            job = self.agent.generate_job_spec(flow_run)
+            env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+            env = {item["name"]: item["value"] for item in env_list}
+            assert env["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
     def test_generate_job_spec_resources(self):
         flow_run = self.build_flow_run(

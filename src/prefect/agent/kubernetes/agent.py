@@ -523,7 +523,9 @@ class KubernetesAgent(Agent):
         env[4]["value"] = self.namespace
         env[5]["value"] = str(self.labels)
         env[6]["value"] = str(self.log_to_cloud).lower()
-        env[7]["value"] = config.logging.level
+        env[7]["value"] = self.env_vars.get(
+            "PREFECT__LOGGING__LEVEL", config.logging.level
+        )
 
         # append all user provided values
         for key, value in self.env_vars.items():
@@ -671,7 +673,8 @@ class KubernetesAgent(Agent):
         # - Values set on the KubernetesRun object
         # - Values set using the `--env` CLI flag on the agent
         # - Values in the job template
-        env = self.env_vars.copy()
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(

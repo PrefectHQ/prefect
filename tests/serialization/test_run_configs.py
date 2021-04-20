@@ -12,10 +12,13 @@ def test_serialized_run_config_sorts_labels():
     ]
 
 
-@pytest.mark.parametrize("config", [UniversalRun(), UniversalRun(labels=["a", "b"])])
+@pytest.mark.parametrize(
+    "config", [UniversalRun(), UniversalRun(env={"FOO": "BAR"}, labels=["a", "b"])]
+)
 def test_serialize_universal_run(config):
     msg = RunConfigSchema().dump(config)
     config2 = RunConfigSchema().load(msg)
+    assert (config.env) == config2.env
     assert sorted(config.labels) == sorted(config2.labels)
 
 
