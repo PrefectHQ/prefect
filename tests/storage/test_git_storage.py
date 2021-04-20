@@ -58,6 +58,20 @@ def test_create_git_storage_init_args():
     assert storage.format_access_token == True
 
 
+def test_create_git_storage_with_use_ssh_and_git_token_secret_name_logs_warning(caplog):
+    storage = Git(
+        flow_path="flow.py",
+        repo="test/repo",
+        git_token_secret_name="MY_SECRET",
+        use_ssh=True,
+    )
+
+    assert (
+        "Git Storage initialized with `use_ssh = True` and `git_token_secret_name` provided. SSH will be used to clone the repository. `git_token_secret_name` will be ignored"
+        in caplog.text
+    )
+
+
 def test_create_git_storage_with_tag_and_branch_name_errors():
     with pytest.raises(ValueError):
         storage = Git(

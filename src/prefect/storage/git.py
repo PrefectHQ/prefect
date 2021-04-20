@@ -74,6 +74,12 @@ class Git(Storage):
                 "Either `tag` or `branch_name` can be specified, but not both"
             )
 
+        if use_ssh and git_token_secret_name is not None:
+            self.logger.warning(
+                "Git Storage initialized with `use_ssh = True` and `git_token_secret_name` provided. "
+                "SSH will be used to clone the repository. `git_token_secret_name` will be ignored"
+            )
+
         self.flow_path = flow_path
         self.repo = repo
         self.repo_host = repo_host
