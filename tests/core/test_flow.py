@@ -3081,7 +3081,9 @@ class TestSaveLoad:
     reason="Windows doesn't support any timeout logic",
 )
 @pytest.mark.parametrize(
-    "executor", ["local", "sync", "mthread", "mproc_local", "mproc"], indirect=True
+    "executor",
+    ["local", "sync", "mthread", "mproc_local", "mproc", "threaded_local"],
+    indirect=True,
 )
 def test_timeout_actually_stops_execution(
     executor,
@@ -3284,11 +3286,10 @@ class TestTerminalStateHandler:
         def fake_terminal_state_handler(
             flow: Flow,
             state: State,
-            task_states: Dict[Task, State],
+            reference_task_states: Set[State],
         ) -> Optional[State]:
-            task_i_really_care_about = "fake_2"
-            for task, task_state in task_states.items():
-                if task.name == task_i_really_care_about and task_state.is_successful():
+            for task_state in reference_task_states:
+                if task_state.is_successful():
                     state.message = "Custom message here"
             return state
 
@@ -3310,7 +3311,7 @@ class TestTerminalStateHandler:
         def fake_terminal_state_handler(
             flow: Flow,
             state: State,
-            task_states: Dict[Task, State],
+            reference_task_states: Set[State],
         ) -> Optional[State]:
             return None
 
@@ -3326,15 +3327,16 @@ class TestTerminalStateHandler:
         def custom_terminal_state_handler(
             flow: Flow,
             state: State,
-            task_states: Dict[Task, State],
+            reference_task_states: Set[State],
         ) -> Optional[State]:
-            # iterate through task states, making a list of failing refernce tasks
-            failed_tasks = []
-            for task, task_state in task_states.items():
-                if task_state.is_failed() and task in flow.reference_tasks():
-                    failed_tasks.append(task.name)
+            failed = False
+            # iterate through reference task states looking for failures
+            for task_state in reference_task_states:
+                if task_state.is_failed():
+                    failed = True
             # update the terminal state of the Flow and return
-            state.message = "The following tasks failed: {}".format(failed_tasks)
+            if failed:
+                state.message = "Some important tasks have failed"
             return state
 
         class FailingTask(Task):
@@ -3349,4 +3351,4 @@ class TestTerminalStateHandler:
 
         flow_state = flow.run()
         assert flow_state.is_failed()
-        assert flow_state.message == "The following tasks failed: ['FailingTask']"
+        assert flow_state.message == "Some important tasks have failed"
