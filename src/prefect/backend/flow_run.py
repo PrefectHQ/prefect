@@ -1,9 +1,9 @@
-from collections import defaultdict
-from types import MappingProxyType
-from typing import Iterator, Iterable
-from typing import List, Optional, Dict, Set, Any
 import copy
+from collections import defaultdict
+
 from contextlib import contextmanager
+from types import MappingProxyType
+from typing import List, Optional, Dict, Set, Any, Iterator, Iterable
 
 import prefect
 from prefect import Flow, Task, Client
@@ -23,6 +23,8 @@ def execute_flow_run(
     runner_cls: "prefect.engine.flow_runner.FlowRunner" = None,
     **kwargs: Any,
 ) -> "FlowRun":
+    logger.debug(f"Querying for flow run {flow_run_id!r}")
+
     # Get the `FlowRunner` class type
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
@@ -32,6 +34,8 @@ def execute_flow_run(
     # Ensure this flow isn't already executing
     if flow_run.state.is_running():
         raise RuntimeError(f"{flow_run!r} is already in a running state!")
+
+    logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
     # Populate global secrets
     secrets = prefect.context.get("secrets", {})
@@ -68,7 +72,7 @@ def execute_flow_run(
 
     # Execute the flow, this call will block until exit
     logger.info(
-        f"Executing flow run {flow_run.name!r} from {flow_run.flow.name!r} "
+        f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
         f"with {runner_cls.__name__!r}"
     )
     with prefect.context(flow_run_id=flow_run_id):
@@ -90,21 +94,29 @@ def execute_flow_run(
 
 
 @contextmanager
-def fail_flow_run_on_exception(flow_run_id: str, message: str = None):
+def fail_flow_run_on_exception(
+    flow_run_id: str,
+    message: str = None,
+):
     message = message or "Flow run failed with {exc}"
     client = Client()
 
     try:
         yield
     except KeyboardInterrupt:
-        if FlowRun.from_flow_run_id(flow_run_id).state.is_running():
+        if not FlowRun.from_flow_run_id(flow_run_id).state.is_finished():
             client.set_flow_run_state(
                 flow_run_id=flow_run_id,
                 state=prefect.engine.state.Cancelled("Keyboard interrupt."),
             )
+            logger.warning("Keyboard interrupt. Flow run cancelled, exiting...")
+        else:
+            logger.warning(
+                "Keyboard interrupt. Flow run is already finished, exiting..."
+            )
         raise
     except Exception as exc:
-        if FlowRun.from_flow_run_id(flow_run_id).state.is_running():
+        if not FlowRun.from_flow_run_id(flow_run_id).state.is_finished():
             message = message.format(exc=exc.__repr__())
             client.set_flow_run_state(
                 flow_run_id=flow_run_id, state=prefect.engine.state.Failed(message)
@@ -119,6 +131,7 @@ def fail_flow_run_on_exception(flow_run_id: str, message: str = None):
                     )
                 ]
             )
+        logger.error(message, exc_info=True)
         raise
 
 

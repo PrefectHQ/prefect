@@ -1,9 +1,9 @@
+from typing import Union, List
+
 import prefect
 from prefect.serialization.flow import FlowSchema
 from prefect.utilities.graphql import with_args
 from prefect.utilities.logging import get_logger
-
-from typing import Union, List, Dict
 
 
 logger = get_logger("api.flow")

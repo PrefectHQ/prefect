@@ -1038,6 +1038,7 @@ class Flow:
             )
 
         client = prefect.Client()
+        self.logger.debug(f"Creating flow run on API for {self.name!r}...")
         flow_run_id = client.create_flow_run(self.flow_id)
         return prefect.backend.execute_flow_run(flow_run_id=flow_run_id, flow=self)
 
