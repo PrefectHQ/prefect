@@ -93,7 +93,7 @@ class FlowMetadata:
                 f"Unexpected type {type(flow_id)!r} for `flow_id`, " f"expected 'str'."
             )
 
-        return cls.from_flow_data(cls.query_for_flows(where={"id": {"_eq": flow_id}}))
+        return cls.from_flow_data(cls.query_for_flow(where={"id": {"_eq": flow_id}}))
 
     @classmethod
     def from_flow_obj(
@@ -112,14 +112,14 @@ class FlowMetadata:
         Returns:
             A new instance of FlowMetadata
         """
-        where = {
+        where: Dict[str, Any] = {
             "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
         }
         if not allow_archived:
             where["archived"] = {"_eq": False}
 
         return cls.from_flow_data(
-            cls.query_for_flows(
+            cls.query_for_flow(
                 where=where,
                 jsonb_variables={"serialized_flow": flow.serialize()},
             )
@@ -145,15 +145,14 @@ class FlowMetadata:
         Returns:
             A new instance of FlowMetadata
         """
-        where = {"name": {"_eq": flow_name}, "archived": {"_eq": False}}
+        where: Dict[str, Any] = {"name": {"_eq": flow_name}, "archived": {"_eq": False}}
         if project_name != "":
             where["project"] = {
                 "name": ({"_eq": project_name} if project_name else {"_is_null": True})
             }
 
-        flows = cls.query_for_flows(
+        flows = cls.query_for_flow(
             where=where,
-            many=True,
             order_by={"updated_at": EnumValue("desc")},
         )
         if len(flows) > 1 and not last_updated:
@@ -167,27 +166,49 @@ class FlowMetadata:
         return cls.from_flow_data(flow)
 
     @staticmethod
+    def query_for_flow(where: dict, **kwargs: Any) -> dict:
+        """
+        Query for flow data using `query_for_flows` but throw an exception if
+        more than one matching flow is found
+
+        Args:
+            where: The `where` clause to use
+            **kwargs: Additional kwargs are passed to `query_for_flows`
+
+        Returns:
+            A dict of flow data
+        """
+        flows = FlowMetadata.query_for_flows(where=where, **kwargs)
+
+        if len(flows) > 1:
+            raise ValueError(
+                f"Found multiple ({len(flows)}) flows while querying for flows "
+                f"where {where}: {flows}"
+            )
+
+        if not flows:
+            return {}
+
+        flow = flows[0]
+        return flow
+
+    @staticmethod
     def query_for_flows(
         where: dict,
-        many: bool = False,
         order_by: dict = None,
         error_on_empty: bool = True,
         jsonb_variables: Dict[str, dict] = None,
-    ) -> Union[dict, List[dict]]:
+    ) -> List[dict]:
         """
         Query for task run data necessary to initialize `Flow` instances
         with `Flow.from_flow_data`.
 
         Args:
             where (required): The Hasura `where` clause to filter by
-            many (optional): Are many results expected? If `False`, a single record will
-                be returned and if many are found by the `where` clause an exception
-                will be thrown. If `True` a list of records will be returned.
             order_by (optional): An optional Hasura `order_by` clause to order results
-                by. Only applicable when `many` is `True`
+                by
             error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
-                will be raised. If `False`, an empty list or dict will be returned
-                based on the value of `many`.
+                will be raised
             jsonb_variables (optional): Dict-typed variables to inject into the query
                 as jsonb GraphQL types. Keys must be consumed in the query i.e.
                 in the passed `where` clause as `EnumValue("$key")`
@@ -247,23 +268,12 @@ class FlowMetadata:
                 f"{result}"
             )
 
-        if len(flows) > 1 and not many:
-            raise ValueError(
-                f"Found multiple ({len(flows)}) flows while querying for flows "
-                f"where {where}: {flows}"
-            )
-
         if not flows:  # Empty list
             if error_on_empty:
                 raise ValueError(
                     f"No results found while querying for flows where {where!r}"
                 )
-            return [] if many else {}
-
-        # Return a dict
-        if not many:
-            flow = flows[0]
-            return flow
+            return []
 
         # Return a list
         return flows

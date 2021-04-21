@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from contextlib import contextmanager
 from types import MappingProxyType
-from typing import List, Optional, Dict, Set, Any, Iterator, Iterable
+from typing import List, Optional, Dict, Set, Any, Iterator, Iterable, Type, Mapping
 
 import prefect
 from prefect import Flow, Task, Client
@@ -57,7 +57,7 @@ def create_flow_run(
 def execute_flow_run(
     flow_run_id: str,
     flow: "Flow" = None,
-    runner_cls: "prefect.engine.flow_runner.FlowRunner" = None,
+    runner_cls: Type["prefect.engine.flow_runner.FlowRunner"] = None,
     **kwargs: Any,
 ) -> "FlowRun":
     """ "
@@ -150,7 +150,7 @@ def execute_flow_run(
 def fail_flow_run_on_exception(
     flow_run_id: str,
     message: str = None,
-):
+) -> Any:
     """
     A utility context manager to set the state of the given flow run to 'Failed' if
     an exception occurs. A custom message can be provided for more details and will
@@ -238,7 +238,7 @@ class FlowRun:
         self._cached_task_runs: Dict[str, "TaskRun"] = {}
 
         # Store a mapping of slugs to task run ids (mapped tasks share a slug)
-        self._task_slug_to_task_run_ids: Dict[str, Set[str]] = defaultdict(set)
+        self._task_slug_to_task_run_ids: Mapping[str, Set[str]] = defaultdict(set)
 
         if task_runs is not None:
             for task_run in task_runs:
@@ -352,7 +352,6 @@ class FlowRun:
                     "map_index": {"_eq": -1},
                     "flow_run_id": {"_eq": flow_run_id},
                 },
-                many=True,
             )
             task_runs = [TaskRun.from_task_run_data(data) for data in task_run_data]
 
@@ -417,7 +416,7 @@ class FlowRun:
         if task_run_id is not None:
             # Load from the cache if available or query for results
             result = (
-                self.task_runs[task_run_id]
+                self.cached_task_runs[task_run_id]
                 if task_run_id in self._cached_task_runs
                 else TaskRun.from_task_run_id(task_run_id)
             )
@@ -441,7 +440,7 @@ class FlowRun:
                 # Check for the 'base' task, for unmapped tasks there should always
                 # just be one run id but for mapped tasks there will be multiple
                 for task_run_id in task_run_ids:
-                    result = self.task_runs[task_run_id]
+                    result = self.cached_task_runs[task_run_id]
                     if result.map_index == -1:
                         return result
 
@@ -498,17 +497,17 @@ class FlowRun:
             "map_index": {"_eq": index},
         }
         task_run = TaskRun.from_task_run_data(
-            TaskRun.query_for_task_runs(where=where(-1))
+            TaskRun.query_for_task_run(where=where(-1))
         )
         if not task_run.state.is_mapped():
             raise TypeError(
-                f"Task run {task_run.task_run_id!r} ({task_run.slug}) is not a mapped "
-                f"task."
+                f"Task run {task_run.task_run_id!r} ({task_run.task_slug}) is not a "
+                "mapped task."
             )
 
         map_index = 0
         while task_run:
-            task_run_data = TaskRun.query_for_task_runs(
+            task_run_data = TaskRun.query_for_task_run(
                 where=where(map_index), error_on_empty=False
             )
             if not task_run_data:
@@ -543,8 +542,7 @@ class FlowRun:
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
                 "task_run_id": {"_not", {"_in": list(self._cached_task_runs.keys())}},
-            },
-            many=True,
+            }
         )
         task_runs = [TaskRun.from_task_run_data(data) for data in task_run_data]
         # Add to cache
@@ -608,7 +606,7 @@ class FlowRun:
                     f"flow_run_id={self.flow_run_id!r}",
                     f"name={self.name!r}",
                     f"state={self.state!r}",
-                    f"cached_task_runs={len(self.task_runs)}",
+                    f"cached_task_runs={len(self.cached_task_runs)}",
                 ]
             )
             + f")"

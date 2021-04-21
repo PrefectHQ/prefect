@@ -6,7 +6,7 @@ import time
 import uuid
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, Mapping
 from urllib.parse import urljoin
 
 # if simplejson is installed, `requests` defaults to using it instead of json
@@ -271,7 +271,7 @@ class Client:
         query: Any,
         raise_on_error: bool = True,
         headers: Dict[str, str] = None,
-        variables: Dict[str, JSONLike] = None,
+        variables: Mapping[str, JSONLike] = None,
         token: str = None,
         retry_on_api_error: bool = True,
     ) -> GraphQLResult:

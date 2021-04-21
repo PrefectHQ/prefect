@@ -83,7 +83,6 @@ class TaskRun:
                     },
                     # Ensure the returned tasks are ordered matching map indices
                     order_by={"map_index": EnumValue("asc")},
-                    many=True,
                 )
             ]
 
@@ -116,13 +115,13 @@ class TaskRun:
             )
 
         return cls.from_task_run_data(
-            cls.query_for_task_runs(where={"id": {"_eq": task_run_id}})
+            cls.query_for_task_run(where={"id": {"_eq": task_run_id}})
         )
 
     @classmethod
     def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRun":
         return cls.from_task_run_data(
-            cls.query_for_task_runs(
+            cls.query_for_task_run(
                 where={
                     "task": {"slug": {"_eq": task_slug}},
                     "flow_run_id": {"_eq": flow_run_id},
@@ -134,29 +133,52 @@ class TaskRun:
         )
 
     @staticmethod
+    def query_for_task_run(where: dict, **kwargs: Any) -> dict:
+        """
+        Query for task run data using `query_for_task_runs` but throw an exception if
+        more than one matching task run is found
+
+        Args:
+            where: The `where` clause to use
+            **kwargs: Additional kwargs are passed to `query_for_task_runs`
+
+        Returns:
+            A dict of task run data
+        """
+        task_runs = TaskRun.query_for_task_runs(where=where, **kwargs)
+
+        if len(task_runs) > 1:
+            raise ValueError(
+                f"Found multiple ({len(task_runs)}) task runs while querying for task "
+                f"runs where {where}: {task_runs}"
+            )
+
+        if not task_runs:
+            # Erroring on an empty result is handled by `query_for_task_runs`
+            return {}
+
+        task_run = task_runs[0]
+        return task_run
+
+    @staticmethod
     def query_for_task_runs(
         where: dict,
-        many: bool = False,
         order_by: dict = None,
         error_on_empty: bool = True,
-    ) -> Union[dict, List[dict]]:
+    ) -> List[dict]:
         """
         Query for task run data necessary to initialize `TaskRun` instances
         with `TaskRun.from_task_run_data`.
 
         Args:
             where (required): The Hasura `where` clause to filter by
-            many (optional): Are many results expected? If `False`, a single record will
-                be returned and if many are found by the `where` clause an exception
-                will be thrown. If `True` a list of records will be returned.
             order_by (optional): An optional Hasura `order_by` clause to order results
-                by. Only applicable when `many` is `True`
+                by.
             error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
-                will be raised. If `False`, an empty list or dict will be returned
-                based on the value of `many`.
+                will be raised.
 
         Returns:
-            A dict of task run information (or a list of dicts if `many` is `True`)
+           A list of dicts containing task run data
         """
         client = Client()
 
@@ -186,23 +208,12 @@ class TaskRun:
                 f"{result}"
             )
 
-        if len(task_runs) > 1 and not many:
-            raise ValueError(
-                f"Found multiple ({len(task_runs)}) task runs while querying for task "
-                f"runs where {where}: {task_runs}"
-            )
-
         if not task_runs:  # Empty list
             if error_on_empty:
                 raise ValueError(
                     f"No task runs found while querying for task runs where {where}"
                 )
-            return [] if many else {}
-
-        # Return a dict
-        if not many:
-            task_run = task_runs[0]
-            return task_run
+            return []
 
         # Return a list
         return task_runs
