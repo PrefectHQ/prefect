@@ -1007,6 +1007,14 @@ class Flow:
         self, project_name: str = None, runner_cls: Any = None, **kwargs: Any
     ) -> "prefect.backend.FlowRun":
         """
+        Run this flow in-process using the Prefect Cloud (or Server) API. This will not
+        respect your flow's run_config or storage.
+
+        # TODO: Consider setting run_config environment variables during this execution
+        # TODO: Explore overriding the storage temporarily to `Ephemeral` to indicate
+        #       that future flow runs will not succeed
+        # TODO: Explore a better `create_flow_run` pattern or skipping registration
+        #       if this flow has already been registered
 
         Args:
             project_name: If given, the flow will be registered to the project without

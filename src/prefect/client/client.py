@@ -46,6 +46,7 @@ JSONLike = Union[bool, dict, list, str, int, float, None]
 
 
 class TaskRunInfoResult(NamedTuple):
+    # TODO: Deprecate this result in favor of `prefect.backend.TaskRun`
     id: str
     task_id: str
     task_slug: str
@@ -59,6 +60,7 @@ class ProjectInfo(NamedTuple):
 
 
 class FlowRunInfoResult(NamedTuple):
+    # TODO: Deprecate this result in favor of `prefect.backend.FlowRun`
     id: str
     name: str
     flow_id: str
