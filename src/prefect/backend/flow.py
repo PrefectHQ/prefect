@@ -62,6 +62,18 @@ class FlowMetadata:
         return cls.from_flow_data(cls.query_for_flows(where={"id": {"_eq": flow_id}}))
 
     @classmethod
+    def from_flow_obj(cls, flow: "prefect.Flow") -> "FlowMetadata":
+        return cls.from_flow_data(
+            cls.query_for_flows(
+                where={
+                    "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
+                    "archived": {"_eq": False},
+                },
+                variables={"serialized_flow": ("jsonb", flow.serialize())},
+            )
+        )
+
+    @classmethod
     def from_flow_name(
         cls, flow_name: str, project_name: str = None, use_last_updated: bool = False
     ) -> "FlowMetadata":
@@ -92,6 +104,7 @@ class FlowMetadata:
         many: bool = False,
         order_by: dict = None,
         error_on_empty: bool = True,
+        variables: Dict[str, Tuple[str, Any]] = None,
     ) -> Union[dict, List[dict]]:
         """
         Query for task run data necessary to initialize `Flow` instances
@@ -107,6 +120,8 @@ class FlowMetadata:
             error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
                 will be raised. If `False`, an empty list or dict will be returned
                 based on the value of `many`.
+            variables (optional): Variables to inject into the query formatted as
+                {key: (type, value)}
 
         Returns:
             A dict of task run information (or a list of dicts if `many` is `True`)
@@ -117,8 +132,20 @@ class FlowMetadata:
         if order_by is not None:
             query_args["order_by"] = order_by
 
+        # Parse types from variables for "query(var_name: type)"
+        variables = variables or {}
+        var_types = ""
+        if variables:
+            var_types = (
+                "("
+                + ", ".join(
+                    [f"${key}: {type_}" for key, (type_, _) in variables.items()]
+                )
+                + ")"
+            )
+
         flow_query = {
-            "query": {
+            f"query{var_types}": {
                 with_args("flow", query_args): {
                     "id": True,
                     "settings": True,
@@ -133,7 +160,9 @@ class FlowMetadata:
             }
         }
 
-        result = client.graphql(flow_query)
+        result = client.graphql(
+            flow_query, variables={key: val for key, (_, val) in variables.items()}
+        )
         flows = result.get("data", {}).get("flow", None)
 
         if flows is None:
@@ -151,7 +180,7 @@ class FlowMetadata:
         if not flows:  # Empty list
             if error_on_empty:
                 raise ValueError(
-                    f"No results found while querying for flows where {where}"
+                    f"No results found while querying for flows where {where!r}"
                 )
             return [] if many else {}
 
