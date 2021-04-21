@@ -392,6 +392,25 @@ def config_cmd(
         --volume-path       TEXT    A path to use for the Postgres volume, defaults to
                                     '~/.prefect/pg_data'. Not valid for external Postgres.
     """
+
+    if external_postgres:
+        if no_postgres_port:
+            warnings.warn(
+                "Using external Postgres instance, `--no-postgres-port` flag will be ignored."
+            )
+        if postgres_port != config.server.database.host_port:
+            warnings.warn(
+                "Using external Postgres instance, `--postgres-port` flag will be ignored."
+            )
+        if use_volume:
+            warnings.warn(
+                "Using external Postgres instance, `--use-volume` flag will be ignored."
+            )
+        if volume_path != config.server.database.volume_path:
+            warnings.warn(
+                "Using external Postgres instance, `--volume-path` flag will be ignored."
+            )
+
     compose_path = setup_compose_file(
         no_ui=no_ui,
         external_postgres=external_postgres,
@@ -499,6 +518,24 @@ def start(
         --detach, -d                Detached mode. Runs Server containers in the background
         --skip-pull                 Flag to skip pulling new images (if available)
     """
+
+    if external_postgres:
+        if no_postgres_port:
+            warnings.warn(
+                "Using external Postgres instance, `--no-postgres-port` flag will be ignored."
+            )
+        if postgres_port != config.server.database.host_port:
+            warnings.warn(
+                "Using external Postgres instance, `--postgres-port` flag will be ignored."
+            )
+        if use_volume:
+            warnings.warn(
+                "Using external Postgres instance, `--use-volume` flag will be ignored."
+            )
+        if volume_path != config.server.database.volume_path:
+            warnings.warn(
+                "Using external Postgres instance, `--volume-path` flag will be ignored."
+            )
 
     compose_path = setup_compose_file(
         no_ui=no_ui,
