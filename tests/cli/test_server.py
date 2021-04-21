@@ -160,7 +160,17 @@ class TestSetupComposeEnv:
         for key, expected_value in expected.items():
             assert env[key] == expected_value
 
-    def test_setup_env_for_external_postgres(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "external_postgres, postgres_url, expected_postgres_url",
+        [
+            (True, None, "localhost/foo"),
+            (False, "localhost/bar", "localhost/bar"),
+            (True, "localhost/bar", "localhost/bar"),
+        ],
+    )
+    def test_setup_env_for_external_postgres(
+        self, monkeypatch, external_postgres, postgres_url, expected_postgres_url
+    ):
         monkeypatch.delenv(
             "PREFECT_SERVER_DB_CMD", raising=False
         )  # Ensure this is not set
@@ -175,7 +185,8 @@ class TestSetupComposeEnv:
                 version="A",
                 ui_version="B",
                 no_upgrade=False,
-                external_postgres=True,
+                external_postgres=external_postgres,
+                postgres_url=postgres_url,
                 hasura_port=2,
                 graphql_port=3,
                 ui_port=4,
@@ -186,7 +197,7 @@ class TestSetupComposeEnv:
         expected = {
             "APOLLO_HOST_PORT": "5",
             "APOLLO_URL": "http://localhost:4200/graphql",
-            "DB_CONNECTION_URL": "localhost/foo",
+            "DB_CONNECTION_URL": expected_postgres_url,
             "GRAPHQL_HOST_PORT": "3",
             "HASURA_API_URL": "http://hasura:2/v1alpha1/graphql",
             "HASURA_HOST_PORT": "2",

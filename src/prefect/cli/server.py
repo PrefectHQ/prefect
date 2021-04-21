@@ -76,6 +76,13 @@ COMMON_SERVER_OPTIONS = [
         hidden=True,
     ),
     click.option(
+        "--postgres-url",
+        help="Postgres url to use",
+        default=None,
+        type=str,
+        hidden=True,
+    ),
+    click.option(
         "--postgres-port",
         help="The port used to serve Postgres. Not valid for external Postgres.",
         default=config.server.database.host_port,
@@ -230,6 +237,7 @@ def setup_compose_env(
     ui_version=None,
     no_upgrade=None,
     external_postgres=False,
+    postgres_url=None,
     postgres_port=None,
     hasura_port=None,
     graphql_port=None,
@@ -240,6 +248,10 @@ def setup_compose_env(
     # Defaults should be set in the `click` command option, these should _not_ be `None`
     # at runtime.
 
+    # if postgres url is provided explicitly, we're using external postgres
+    if postgres_url:
+        external_postgres = True
+
     # Pull current version information
     base_version = prefect.__version__.split("+")
     if len(base_version) > 1:
@@ -247,7 +259,9 @@ def setup_compose_env(
     else:
         default_tag = f"core-{base_version[0]}"
 
-    db_connection_url = config.server.database.connection_url
+    db_connection_url = (
+        config.server.database.connection_url if postgres_url is None else postgres_url
+    )
     if not external_postgres:
         # replace localhost with postgres to use docker-compose dns
         db_connection_url = db_connection_url.replace("localhost", "postgres")
@@ -341,6 +355,7 @@ def config_cmd(
     no_upgrade,
     no_ui,
     external_postgres,
+    postgres_url,
     postgres_port,
     hasura_port,
     graphql_port,
@@ -368,7 +383,10 @@ def config_cmd(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
+
+    \b
         --external-postgres, -ep    Flag to use external postgres instance
+        --postgres-url      TEXT    Postgres url to use
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'.
@@ -392,6 +410,9 @@ def config_cmd(
         --volume-path       TEXT    A path to use for the Postgres volume, defaults to
                                     '~/.prefect/pg_data'. Not valid for external Postgres.
     """
+    # set external postgres flag if the user has provided `--postgres-url`
+    if postgres_url is not None:
+        external_postgres = True
 
     if external_postgres:
         if no_postgres_port:
@@ -429,6 +450,7 @@ def config_cmd(
         ui_version=ui_version,
         no_upgrade=no_upgrade,
         external_postgres=external_postgres,
+        postgres_url=postgres_url,
         postgres_port=postgres_port,
         hasura_port=hasura_port,
         graphql_port=graphql_port,
@@ -462,6 +484,7 @@ def start(
     no_upgrade,
     no_ui,
     external_postgres,
+    postgres_url,
     detach,
     postgres_port,
     hasura_port,
@@ -518,6 +541,9 @@ def start(
         --detach, -d                Detached mode. Runs Server containers in the background
         --skip-pull                 Flag to skip pulling new images (if available)
     """
+    # set external postgres flag if the user has provided `--postgres-url`
+    if postgres_url is not None:
+        external_postgres = True
 
     if external_postgres:
         if no_postgres_port:
@@ -555,6 +581,7 @@ def start(
         ui_version=ui_version,
         no_upgrade=no_upgrade,
         external_postgres=external_postgres,
+        postgres_url=postgres_url,
         postgres_port=postgres_port,
         hasura_port=hasura_port,
         graphql_port=graphql_port,
