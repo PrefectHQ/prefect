@@ -17,6 +17,43 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
+def create_flow_run(
+    flow: "Flow" = None,
+    flow_id: str = None,
+    **kwargs: Any,
+) -> "FlowRun":
+    """
+    Schedule a flow run in the backend given a flow or flow_id. If given a flow, it
+    must be registered.
+
+    Args:
+        flow: A flow object to lookup a flow id with
+        flow_id: A flow id to use for lookup
+        **kwargs: Additional kwargs are passed to `client.create_flow_run` and can
+            be used to configure the flow run
+
+    Returns:
+        An instance of "FlowRun"
+    """
+    # TODO: The merit of this (and if it belongs in `client.create_flow_run` is still
+    #       being assessed
+
+    if flow_id and flow:
+        raise ValueError("Either `flow_id` or `flow` may be provided, not both.")
+
+    if flow:
+        flow_md = FlowMetadata.from_flow_obj(flow)
+        flow_id = flow_md.flow_id
+
+    if not flow_id:
+        raise ValueError("`flow_id` or `flow` must be provided.")
+
+    client = Client()
+    flow_run_id = client.create_flow_run(flow_id=flow_id, **kwargs)
+
+    return FlowRun.from_flow_run_id(flow_run_id=flow_run_id, load_static_tasks=False)
+
+
 def execute_flow_run(
     flow_run_id: str,
     flow: "Flow" = None,
