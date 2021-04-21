@@ -250,7 +250,7 @@ def setup_compose_env(
     db_connection_url = config.server.database.connection_url
     if not external_postgres:
         # replace localhost with postgres to use docker-compose dns
-        db_connection_url.replace("localhost", "postgres")
+        db_connection_url = db_connection_url.replace("localhost", "postgres")
 
     PREFECT_ENV = dict(
         DB_CONNECTION_URL=db_connection_url,

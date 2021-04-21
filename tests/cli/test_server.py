@@ -109,7 +109,9 @@ class TestSetupComposeEnv:
         assert env["PREFECT_SERVER_DB_CMD"] == "FOO"
 
     def test_fills_env_with_values_from_config_and_args(self, monkeypatch):
-        monkeypatch.delenv("PREFECT_SERVER_DB_CMD")  # Ensure this is not set
+        monkeypatch.delenv(
+            "PREFECT_SERVER_DB_CMD", raising=False
+        )  # Ensure this is not set
         with set_temporary_config(
             {
                 "server.database.connection_url": "localhost/foo",
@@ -159,6 +161,9 @@ class TestSetupComposeEnv:
             assert env[key] == expected_value
 
     def test_setup_env_for_external_postgres(self, monkeypatch):
+        monkeypatch.delenv(
+            "PREFECT_SERVER_DB_CMD", raising=False
+        )  # Ensure this is not set
         with set_temporary_config(
             {
                 "server.database.connection_url": "localhost/foo",
@@ -504,6 +509,7 @@ class TestPrefectServerConfig:
         cmd = ["config"]
         if with_flags:
             cmd += [
+                "--external-postgres",
                 "--no-postgres-port",
                 "--no-hasura-port",
                 "--no-graphql-port",
@@ -516,6 +522,7 @@ class TestPrefectServerConfig:
 
         mock.assert_called_once_with(
             no_ui=with_flags,
+            external_postgres=with_flags,
             no_postgres_port=with_flags,
             no_hasura_port=with_flags,
             no_graphql_port=with_flags,
