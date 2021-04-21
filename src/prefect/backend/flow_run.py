@@ -544,13 +544,13 @@ class FlowRun:
 
     def __repr__(self) -> str:
         return (
-            f"FlowRun"
+            f"{type(self).__name__}"
             f"("
             + ", ".join(
                 [
-                    f"flow_run_id={self.flow_run_id}",
-                    f"name={self.name}",
-                    f"state={self.state}",
+                    f"flow_run_id={self.flow_run_id!r}",
+                    f"name={self.name!r}",
+                    f"state={self.state!r}",
                     f"cached_task_runs={len(self.task_runs)}",
                 ]
             )

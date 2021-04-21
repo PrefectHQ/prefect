@@ -192,13 +192,13 @@ class TaskRun:
     def __repr__(self) -> str:
         result = "<not loaded>" if self._result is NotLoaded else self.result
         return (
-            f"TaskRun"
+            f"{type(self).__name__}"
             f"("
             + ", ".join(
                 [
-                    f"task_run_id={self.task_run_id}",
-                    f"task_id={self.task_id}",
-                    f"task_slug={self.task_slug}",
+                    f"task_run_id={self.task_run_id!r}",
+                    f"task_id={self.task_id!r}",
+                    f"task_slug={self.task_slug!r}",
                     f"state={self.state}",
                     f"result={result}",
                 ]

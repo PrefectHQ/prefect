@@ -266,3 +266,18 @@ class FlowMetadata:
 
         # Return a list
         return flows
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}"
+            f"("
+            + ", ".join(
+                [
+                    f"flow_id={self.flow_id!r}",
+                    f"name={self.name!r}",
+                    f"project_name={self.project_name!r}"
+                    f"storage_type={type(self.storage).__name__}",
+                ]
+            )
+            + f")"
+        )
