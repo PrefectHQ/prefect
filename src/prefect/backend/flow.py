@@ -56,7 +56,7 @@ class FlowMetadata:
 
     @classmethod
     def from_flow_data(cls, flow_data: dict) -> "FlowMetadata":
-        """ "
+        """
         Get an instance of this class given a dict of required flow data
 
         Handles deserializing any objects that we want real representations of
@@ -188,8 +188,9 @@ class FlowMetadata:
             error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
                 will be raised. If `False`, an empty list or dict will be returned
                 based on the value of `many`.
-            jsonb_variables (optional): Dictionary variables to inject into the query
-                as jsonb GraphQL types.
+            jsonb_variables (optional): Dict-typed variables to inject into the query
+                as jsonb GraphQL types. Keys must be consumed in the query i.e.
+                in the passed `where` clause as `EnumValue("$key")`
 
 
         Only `jsonb` variables are exposed because GraphQL queries will fail with where
