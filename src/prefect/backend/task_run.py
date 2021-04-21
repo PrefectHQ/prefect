@@ -9,10 +9,25 @@ from prefect.utilities.logging import get_logger
 # Utility to indicate a task result is not loaded to distinguish from `None` values
 NotLoaded = object()
 
-logger = get_logger("api.flow_run")
+logger = get_logger("backend.flow_run")
 
 
 class TaskRun:
+    """
+    Object for getting information about a Task Run from the backend API
+
+    Attributes:
+        task_run_id: The task run uuid
+        task_id: The uuid of the task associated with this task run
+        task_slug: The slug of the task associated with this task run
+        name: The task run name
+        state: The state of the task run
+        map_index: The map index of the task run. Is -1 if it is not a mapped subtask,
+            otherwise it is in the index of the task run in the mapping
+        flow_run_id: The uuid of the flow run associated with this task run
+        result: The result of this task run loaded from the `Result` location
+    """
+
     def __init__(
         self,
         task_run_id: str,
@@ -22,7 +37,7 @@ class TaskRun:
         state: State,
         map_index: int,
         flow_run_id: str,
-    ):
+    ) -> None:
         self.task_run_id = task_run_id
         self.name = name
         self.task_id = task_id
@@ -35,7 +50,18 @@ class TaskRun:
         self._result: Any = NotLoaded
 
     @property
-    def result(self):
+    def result(self) -> Any:
+        """
+        The result of this task run loaded from the `Result` location. Lazily loaded
+        on the first call then cached for repeated access. For the parent of mapped
+        task runs, this will include the results of all children. May require
+        credentials to be present if the result location is remote (ie S3). If your
+        flow was run on another machine and `LocalResult` was used, we will fail
+        to load the result.
+
+        Returns:
+            Any: The value your task returned
+        """
         if self._result is NotLoaded:
             # Load the result from the result location
             self._result = self._load_result()
