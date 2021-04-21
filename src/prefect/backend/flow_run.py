@@ -354,7 +354,7 @@ class FlowRun:
             name=flow_run.name,
         )
 
-    def get(
+    def get_task_run(
         self, task: Task = None, task_slug: str = None, task_run_id: str = None
     ) -> "TaskRun":
         """
@@ -440,7 +440,7 @@ class FlowRun:
             "One of `task_run_id`, `task`, or `task_slug` must be provided!"
         )
 
-    def iter_mapped(
+    def iter_mapped_task_runs(
         self,
         task: Task = None,
         task_slug: str = None,
@@ -449,8 +449,8 @@ class FlowRun:
         """
         Iterate over the results of a mapped task, yielding a `TaskRun` for each map
         index. This query is not performed in bulk so the results can be lazily
-        consumed. If you want all of the task results at once, use `get` on the mapped
-        task instead.
+        consumed. If you want all of the task results at once, use
+        `get_task_run` on the mapped task instead.
 
         Args:
             task: A `prefect.Task` object to use for the lookup. The slug will be
@@ -506,7 +506,7 @@ class FlowRun:
 
             map_index += 1
 
-    def get_all(self) -> List["TaskRun"]:
+    def get_all_task_runs(self) -> List["TaskRun"]:
         """
         Get all task runs for this flow run in a single query. The results are cached
         so future lookups do not query the backend.
@@ -516,7 +516,7 @@ class FlowRun:
         """
         if len(self.task_run_ids) > 1000:
             raise ValueError(
-                "Refusing to `get_all` for a flow with more than 1000 tasks. "
+                "Refusing to `get_all_task_runs` for a flow with more than 1000 tasks. "
                 "Please load the tasks you are interested in individually."
             )
 
