@@ -14,7 +14,7 @@ from prefect.utilities.graphql import with_args
 from prefect.utilities.logging import get_logger
 
 
-logger = get_logger("api.flow_run")
+logger = get_logger("backend.flow_run")
 
 
 def execute_flow_run(
@@ -42,7 +42,7 @@ def execute_flow_run(
     logger.debug(f"Querying for flow run {flow_run_id!r}")
 
     # Get the `FlowRunner` class type
-    # TODO: Respect a config option for this class so it can be overridden by envvar,
+    # TODO: Respect a config option for this class so it can be overridden by env var,
     #       create a separate config argument for flow runs executed with the backend
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
@@ -114,6 +114,18 @@ def fail_flow_run_on_exception(
     flow_run_id: str,
     message: str = None,
 ):
+    """
+    A utility context manager to set the state of the given flow run to 'Failed' if
+    an exception occurs. A custom message can be provided for more details and will
+    be attached to the state and added to the run logs. KeyboardInterrupts will set
+    the flow run state to 'Cancelled' instead and will not use the message. All errors
+    will be re-raised.
+
+    Args:
+        flow_run_id: The flow run id to update the state of
+        message: The message to include in the state and logs. `{exc}` will be formatted
+            with the exception details.
+    """
     message = message or "Flow run failed with {exc}"
     client = Client()
 
@@ -152,6 +164,19 @@ def fail_flow_run_on_exception(
 
 
 class FlowRun:
+    """
+    Object for getting information about a Flow Run from the backend API
+
+    Attributes:
+        flow_run_id: The uuid of the flow run
+        name: The name of the flow run
+        flow_id: The uuid of the flow this run is associated with
+        state: The state of the flow run
+        flow: Metadata for the flow this run is associated with
+        task_runs: A view of cached task run metadata associated with this flow run
+
+    """
+
     def __init__(
         self,
         flow_run_id: str,
@@ -198,6 +223,13 @@ class FlowRun:
 
     @property
     def flow(self) -> "FlowMetadata":
+        """
+        Flow metadata for the flow associated with this flow run. Lazily loaded at call
+        time then cached for future calls.
+
+        Returns:
+            An instance of FlowMetadata
+        """
         if self._flow is None:
             self._flow = FlowMetadata.from_flow_id(flow_id=self.flow_id)
 
@@ -205,6 +237,14 @@ class FlowRun:
 
     @property
     def task_runs(self) -> MappingProxyType:
+        """
+        A view of all cached task runs from this flow run. To pull new task runs, see
+        `get`.
+
+        Returns:
+            A proxy view of the cached task run dict mapping
+                task_run_id -> task run data
+        """
         return MappingProxyType(self._task_runs)
 
     @classmethod
@@ -283,15 +323,20 @@ class FlowRun:
         """
         Get information about a task run from this flow run. Lookup is available by one
         of the following arguments. If the task information is not available locally
-        already, we will query the database for it.
+        already, we will query the database for it. If multiple arguments are provided,
+        we will validate that they are consistent with each other.
+
+        All retrieved tasks will be cached to avoid re-querying in repeated calls
+        # TODO: Consider only caching 'Finished' tasks
 
         Args:
-            task:
-            task_slug:
-            task_run_id:
+            task: A `prefect.Task` object to use for the lookup. The slug will be
+                pulled from the task to actually perform the query
+            task_slug: A task slug string to use for the lookup
+            task_run_id: A task run uuid to use for the lookup
 
         Returns:
-            TaskRun
+            A cached or newly constructed TaskRun instance
         """
 
         if task is not None:
@@ -363,6 +408,23 @@ class FlowRun:
         task_slug: str = None,
         cache_results: bool = True,
     ) -> Iterator["TaskRun"]:
+        """
+        Iterate over the results of a mapped task, yielding a `TaskRun` for each map
+        index. This query is not performed in bulk so the results can be lazily
+        consumed. If you want all of the task results at once, use `get` on the mapped
+        task instead.
+
+        Args:
+            task: A `prefect.Task` object to use for the lookup. The slug will be
+                pulled from the task to actually perform the query
+            task_slug: A task slug string to use for the lookup
+            cache_results: By default, task run data is cached for future lookups.
+                However, since we lazily generate the mapped results, caching can be
+                disabled to reduce memory consumption for large mapped tasks.
+
+        Yields:
+            A TaskRun object for each mapped item
+        """
         if task is not None:
             if task_slug is not None and task_slug != task.slug:
                 raise ValueError(
@@ -406,7 +468,14 @@ class FlowRun:
 
             map_index += 1
 
-    def get_all(self):
+    def get_all(self) -> List["TaskRun"]:
+        """
+        Get all task runs for this flow run in a single query. The results are cached
+        so future lookups do not query the backend.
+
+        Returns:
+            A list of TaskRun objects
+        """
         if len(self.task_run_ids) > 1000:
             raise ValueError(
                 "Refusing to `get_all` for a flow with more than 1000 tasks. "
@@ -429,6 +498,13 @@ class FlowRun:
 
     @property
     def task_run_ids(self) -> List[str]:
+        """
+        Get all task run ids associated with this flow run. Lazily loaded at call time
+        then cached for future calls.
+
+        Returns:
+            A list of string task run ids
+        """
         # Return the cached value immediately if it exists
         if self._task_run_ids:
             return self._task_run_ids
@@ -473,7 +549,7 @@ class FlowRun:
             + ", ".join(
                 [
                     f"flow_run_id={self.flow_run_id}",
-                    f"flow_id={self.flow_id}",
+                    f"name={self.name}",
                     f"state={self.state}",
                     f"cached_task_runs={len(self.task_runs)}",
                 ]
