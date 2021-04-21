@@ -53,7 +53,7 @@ class FlowMetadata:
         )
 
     @classmethod
-    def from_flow_id(cls, flow_id: str = None) -> "FlowMetadata":
+    def from_flow_id(cls, flow_id: str) -> "FlowMetadata":
         if not isinstance(flow_id, str):
             raise TypeError(
                 f"Unexpected type {type(flow_id)!r} for `flow_id`, " f"expected 'str'."
