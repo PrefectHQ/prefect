@@ -1004,7 +1004,7 @@ class Flow:
     # Execution  ---------------------------------------------------------------
 
     def cloud_run(
-        self, project_name: str = None, runner_cls: Any = None, **kwargs: Any
+        self, project_name: str = None, **kwargs: Any
     ) -> "prefect.backend.FlowRun":
         """
         Run this flow in-process using the Prefect Cloud (or Server) API. This will not
@@ -1019,10 +1019,7 @@ class Flow:
         Args:
             project_name: If given, the flow will be registered to the project without
                 building storage.
-            runner_cls: An optional runner class to use to run the flow, defaults
-                to the `CloudFlowRunner`
-            **kwargs: Additional arguments are passed to the `runner_cls.run(...)`
-                method
+            **kwargs: Additional arguments are passed to the `execute_flow_run` method
 
         Returns:
             The final state of the flow
@@ -1048,7 +1045,9 @@ class Flow:
         client = prefect.Client()
         self.logger.debug(f"Creating flow run on API for {self.name!r}...")
         flow_run_id = client.create_flow_run(self.flow_id)
-        return prefect.backend.execute_flow_run(flow_run_id=flow_run_id, flow=self)
+        return prefect.backend.execute_flow_run(
+            flow_run_id=flow_run_id, flow=self, **kwargs
+        )
 
     def _run_local(
         self,
