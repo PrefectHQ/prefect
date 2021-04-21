@@ -6,10 +6,30 @@ from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
 
-logger = get_logger("api.flow")
+logger = get_logger("backend.flow")
 
 
 class FlowMetadata:
+    """
+
+    Attributes:
+        flow_id: The uuid of the flow
+        flow: A deserialized copy of the flow. This is not loaded from storage, so tasks
+            will not be runnable but the DAG can be explored.
+        settings: A dict of flow settings
+        run_config: A dict representation of the flow's run configuration
+        serialized_flow: A serialized copy of the flow
+        archived: A bool indicating if this flow is archived or not
+        project_name: The name of the project the flow is registered to
+        core_version: The core version that was used to register the flow
+        storage: The deserialized Storage object used to store this flow
+        name: The name of the flow
+
+
+    TODO: Consider changing this class name. We don't want to to overlap with
+          prefect.Flow but it'd be nice to have a better modifier than 'Metadata'
+    """
+
     def __init__(
         self,
         flow_id: str,
@@ -36,6 +56,11 @@ class FlowMetadata:
 
     @classmethod
     def from_flow_data(cls, flow_data: dict) -> "FlowMetadata":
+        """ "
+        Get an instance of this class given a dict of required flow data
+
+        Handles deserializing any objects that we want real representations of
+        """
 
         flow_id = flow_data.pop("id")
         project_name = flow_data.pop("project")["name"]
@@ -54,6 +79,15 @@ class FlowMetadata:
 
     @classmethod
     def from_flow_id(cls, flow_id: str) -> "FlowMetadata":
+        """
+        Get an instance of this class given a `flow_id` to lookup
+
+        Args:
+            flow_id: The uuid of the flow
+
+        Returns:
+            A new instance of FlowMetadata
+        """
         if not isinstance(flow_id, str):
             raise TypeError(
                 f"Unexpected type {type(flow_id)!r} for `flow_id`, " f"expected 'str'."
@@ -62,23 +96,57 @@ class FlowMetadata:
         return cls.from_flow_data(cls.query_for_flows(where={"id": {"_eq": flow_id}}))
 
     @classmethod
-    def from_flow_obj(cls, flow: "prefect.Flow") -> "FlowMetadata":
+    def from_flow_obj(
+        cls, flow: "prefect.Flow", allow_archived: bool = False
+    ) -> "FlowMetadata":
+        """
+        Get an instance of this class given a `flow` object. Lookups are done by
+        searching for matches using the serialized flow
+
+        Args:
+            flow: The flow object to use
+            allow_archived: By default, archived flows are not included in the query
+                because it is possible that more than one flow will be found. If `True`
+                an archived flow can be returned.
+
+        Returns:
+            A new instance of FlowMetadata`
+        """
+        where = {
+            "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
+        }
+        if not allow_archived:
+            where["archived"] = {"_eq": False}
+
         return cls.from_flow_data(
             cls.query_for_flows(
-                where={
-                    "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
-                    "archived": {"_eq": False},
-                },
-                variables={"serialized_flow": ("jsonb", flow.serialize())},
+                where=where,
+                jsonb_variables={"serialized_flow": flow.serialize()},
             )
         )
 
     @classmethod
     def from_flow_name(
-        cls, flow_name: str, project_name: str = None, use_last_updated: bool = False
+        cls, flow_name: str, project_name: str = "", last_updated: bool = False
     ) -> "FlowMetadata":
+        """
+        Get an instance of this class given a flow name. Optionally, a project name can
+        be included since flow names are not guaranteed to be unique across projects.
+
+        Args:
+            flow_name: The name of the flow to lookup
+            project_name: The name of the project to lookup. If `None`, flows with an
+                explicitly null project will be searched. If `""` (default), the
+                lookup will be across all projects.
+            last_updated: By default, if multiple flows are found an error will be
+                thrown. If `True`, the most recently updated flow will be returned
+                instead.
+
+        Returns:
+            A new instance of FlowMetadata
+        """
         where = {"name": {"_eq": flow_name}, "archived": {"_eq": False}}
-        if project_name is not None:
+        if project_name != "":
             where["project"] = {
                 "name": ({"_eq": project_name} if project_name else {"_is_null": True})
             }
@@ -88,11 +156,11 @@ class FlowMetadata:
             many=True,
             order_by={"updated_at": EnumValue("desc")},
         )
-        if len(flows) > 1 and not use_last_updated:
+        if len(flows) > 1 and not last_updated:
             raise ValueError(
                 f"Found multiple flows matching {where}. "
-                f"Provide a `project_name` as well or toggle `use_last_updated` "
-                f"to use the flow that was most recently updated"
+                "Provide a `project_name` as well or toggle `last_updated` "
+                "to use the flow that was most recently updated"
             )
 
         flow = flows[0]
@@ -104,7 +172,7 @@ class FlowMetadata:
         many: bool = False,
         order_by: dict = None,
         error_on_empty: bool = True,
-        variables: Dict[str, Tuple[str, Any]] = None,
+        jsonb_variables: Dict[str, dict] = None,
     ) -> Union[dict, List[dict]]:
         """
         Query for task run data necessary to initialize `Flow` instances
@@ -120,8 +188,13 @@ class FlowMetadata:
             error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
                 will be raised. If `False`, an empty list or dict will be returned
                 based on the value of `many`.
-            variables (optional): Variables to inject into the query formatted as
-                {key: (type, value)}
+            jsonb_variables (optional): Dictionary variables to inject into the query
+                as jsonb GraphQL types.
+
+
+        Only `jsonb` variables are exposed because GraphQL queries will fail with where
+        clauses containing jsonb directly but succeed when they are a sent as query
+        variables because they are unescaped.
 
         Returns:
             A dict of task run information (or a list of dicts if `many` is `True`)
@@ -132,20 +205,24 @@ class FlowMetadata:
         if order_by is not None:
             query_args["order_by"] = order_by
 
-        # Parse types from variables for "query(var_name: type)"
-        variables = variables or {}
-        var_types = ""
-        if variables:
-            var_types = (
-                "("
-                + ", ".join(
-                    [f"${key}: {type_}" for key, (type_, _) in variables.items()]
-                )
-                + ")"
+        jsonb_variables = jsonb_variables or {}
+        variable_declarations = ""
+        if jsonb_variables:
+            # Validate the variable types
+            for key, val in jsonb_variables.items():
+                if not isinstance(val, dict):
+                    raise ValueError(
+                        f"Passed variable {key!r} is of type {type(val).__name__}, "
+                        "expected 'dict'. Other types are not supported."
+                    )
+            # Generate a list of variable declarations
+            variable_types = ", ".join(
+                [f"${key}: jsonb" for key in jsonb_variables.keys()]
             )
+            variable_declarations = f"({variable_types})"
 
         flow_query = {
-            f"query{var_types}": {
+            f"query{variable_declarations}": {
                 with_args("flow", query_args): {
                     "id": True,
                     "settings": True,
@@ -160,9 +237,7 @@ class FlowMetadata:
             }
         }
 
-        result = client.graphql(
-            flow_query, variables={key: val for key, (_, val) in variables.items()}
-        )
+        result = client.graphql(flow_query, variables=jsonb_variables)
         flows = result.get("data", {}).get("flow", None)
 
         if flows is None:
