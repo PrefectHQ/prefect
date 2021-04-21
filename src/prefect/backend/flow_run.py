@@ -419,15 +419,16 @@ class FlowRun:
 
             if task_slug in self._task_slug_to_task_run_ids:
                 task_run_ids = self._task_slug_to_task_run_ids[task_slug]
-                if len(task_run_ids) > 1:
-                    # We have a mapped task, return the base task
-                    for task_run_id in task_run_ids:
-                        result = self.task_runs[task_run_id]
-                        if result.map_index == -1:
-                            return result
 
-                    # We did not find the base mapped task in the cache so we'll
-                    # drop through to query for it
+                # Check for the 'base' task, for unmapped tasks there should always
+                # just be one run id but for mapped tasks there will be multiple
+                for task_run_id in task_run_ids:
+                    result = self.task_runs[task_run_id]
+                    if result.map_index == -1:
+                        return result
+
+                # We did not find the base mapped task in the cache so we'll
+                # drop through to query for it
 
             result = TaskRun.from_task_slug(
                 task_slug=task_slug, flow_run_id=self.flow_run_id
