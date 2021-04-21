@@ -381,8 +381,8 @@ class FlowRun:
         already, we will query the database for it. If multiple arguments are provided,
         we will validate that they are consistent with each other.
 
-        All retrieved tasks will be cached to avoid re-querying in repeated calls
-        # TODO: Consider only caching 'Finished' tasks
+        All retrieved task runs that are finished will be cached to avoid re-querying in
+        repeated calls
 
         Args:
             task: A `prefect.Task` object to use for the lookup. The slug will be
@@ -467,8 +467,8 @@ class FlowRun:
         """
         Iterate over the results of a mapped task, yielding a `TaskRun` for each map
         index. This query is not performed in bulk so the results can be lazily
-        consumed. If you want all of the task results at once, use
-        `get_task_run` on the mapped task instead.
+        consumed. If you want all of the task results at once, use `get_task_run` on
+        the mapped task instead.
 
         Args:
             task: A `prefect.Task` object to use for the lookup. The slug will be
@@ -526,8 +526,8 @@ class FlowRun:
 
     def get_all_task_runs(self) -> List["TaskRun"]:
         """
-        Get all task runs for this flow run in a single query. The results are cached
-        so future lookups do not query the backend.
+        Get all task runs for this flow run in a single query. Finished task run data
+        is cached so future lookups do not query the backend.
 
         Returns:
             A list of TaskRun objects
@@ -542,6 +542,7 @@ class FlowRun:
         task_run_data = TaskRun.query_for_task_runs(
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
+                "task_run_id": {"_not", {"_in": list(self._cached_task_runs.keys())}},
             },
             many=True,
         )
@@ -550,7 +551,7 @@ class FlowRun:
         for task_run in task_runs:
             self._cache_task_run_if_finished(task_run)
 
-        return task_runs
+        return task_runs + list(self._cached_task_runs.values())
 
     @property
     def task_run_ids(self) -> List[str]:
