@@ -110,7 +110,7 @@ class FlowMetadata:
                 an archived flow can be returned.
 
         Returns:
-            A new instance of FlowMetadata`
+            A new instance of FlowMetadata
         """
         where = {
             "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
