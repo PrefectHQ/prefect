@@ -163,6 +163,7 @@ class GitSchema(BaseStorageSchema):
     git_token_username = fields.String(allow_none=True)
     branch_name = fields.String(allow_none=True)
     tag = fields.String(allow_none=True)
+    commit = fields.String(allow_none=True)
     clone_depth = fields.Integer(allow_none=True)
     use_ssh = fields.Boolean(allow_none=False)
     format_access_token = fields.Boolean(allow_none=False)

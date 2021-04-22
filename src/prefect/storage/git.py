@@ -42,10 +42,12 @@ class Git(Storage):
             an access token for the repo. Defaults to None
         - git_token_username (str, optional): the username associated with git access token,
             if not provided it will default to repo owner
-        - branch_name (str, optional): branch name, if not specified and `tag` not specified,
-            repo default branch latest commit will be used
-        - tag (str, optional): tag name, if not specified and `branch_name` not specified,
-            repo default branch latest commit will be used
+        - branch_name (str, optional): branch name, if not specified and `tag` and `commit_sha`
+            not specified, repo default branch latest commit will be used
+        - tag (str, optional): tag name, if not specified and `branch_name` and `commit_sha`
+            not specified, repo default branch latest commit will be used
+        - commit (str, optional): a commit SHA-1 value, if not specified and `branch_name`
+            and `tag` not specified, repo default branch latest commit will be used
         - clone_depth (int): the number of history revisions in cloning, defaults to 1
         - use_ssh (bool): if True, cloning will use ssh. Ssh keys must be correctly
             configured in the environment for this to work
@@ -64,14 +66,15 @@ class Git(Storage):
         git_token_username: str = None,
         branch_name: str = None,
         tag: str = None,
+        commit: str = None,
         clone_depth: int = 1,
         use_ssh: bool = False,
         format_access_token: bool = True,
         **kwargs: Any,
     ) -> None:
-        if tag and branch_name:
+        if sum([bool(x) for x in (branch_name, tag, commit)]) > 1:
             raise ValueError(
-                "Either `tag` or `branch_name` can be specified, but not both"
+                "Please provide only one of the following parameters: `branch_name`, `tag`, `commit`"
             )
 
         if use_ssh and git_token_secret_name is not None:
@@ -94,6 +97,7 @@ class Git(Storage):
 
         self.branch_name = branch_name
         self.tag = tag
+        self.commit = commit
         self.clone_depth = clone_depth
         self.use_ssh = use_ssh
         self.format_access_token = format_access_token
@@ -114,6 +118,7 @@ class Git(Storage):
             git_clone_url=self.git_clone_url,
             branch_name=self.branch_name,
             tag=self.tag,
+            commit=self.commit,
             clone_depth=self.clone_depth,
         ) as temp_repo:
             flow = extract_flow_from_file(

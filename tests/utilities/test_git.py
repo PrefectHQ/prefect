@@ -26,6 +26,7 @@ def test_temp_git_repo_init():
         git_clone_url="https://github.com/my/repo",
         branch_name="my-branch",
         tag=None,
+        commit=None,
         clone_depth=2,
     )
 
@@ -33,6 +34,7 @@ def test_temp_git_repo_init():
     assert repo.branch_name == "my-branch"
     assert repo.tag == None
     assert repo.clone_depth == 2
+    assert repo.commit == None
 
 
 def test_temp_git_repo_raises_if_both_tag_and_branch_provided():

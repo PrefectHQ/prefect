@@ -39,6 +39,7 @@ def test_create_git_storage_init_args():
         git_token_username="my_user",
         branch_name="my_branch",
         tag=None,
+        commit=None,
         clone_depth=1,
         use_ssh=False,
         format_access_token=True,
@@ -53,6 +54,7 @@ def test_create_git_storage_init_args():
     assert storage.git_token_username == "my_user"
     assert storage.branch_name == "my_branch"
     assert storage.tag is None
+    assert storage.commit is None
     assert storage.clone_depth == 1
     assert storage.use_ssh == False
     assert storage.format_access_token == True
@@ -89,6 +91,7 @@ def test_serialize_git_storage():
         git_token_username="my_user",
         branch_name="my_branch",
         tag=None,
+        commit=None,
         clone_depth=1,
         use_ssh=False,
         format_access_token=True,
@@ -104,6 +107,7 @@ def test_serialize_git_storage():
     assert serialized_storage["git_token_username"] == "my_user"
     assert serialized_storage["branch_name"] == "my_branch"
     assert serialized_storage["tag"] == None
+    assert serialized_storage["commit"] == None
     assert serialized_storage["clone_depth"] == 1
     assert serialized_storage["use_ssh"] == False
     assert serialized_storage["format_access_token"] == True
@@ -264,6 +268,7 @@ def test_get_flow(fake_temp_repo, fake_extract_flow_from_file):
         clone_depth=storage.clone_depth,
         git_clone_url=storage.git_clone_url,
         tag=storage.tag,
+        commit=storage.commit,
     )
     fake_extract_flow_from_file.assert_called_with(
         file_path=f"/tmp/test/{storage.flow_path}", flow_name=storage.flow_name
@@ -281,4 +286,5 @@ def test_get_flow_file_not_found(fake_temp_repo, caplog):
         clone_depth=storage.clone_depth,
         git_clone_url=storage.git_clone_url,
         tag=storage.tag,
+        commit=storage.commit,
     )

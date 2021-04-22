@@ -15,6 +15,8 @@ class TemporaryGitRepo:
             repo default branch latest commit will be used
         - tag (str, optional): tag name, if not specified and `branch_name` not specified,
             repo default branch latest commit will be used
+        - commit (str, optional): a commit SHA-1 value, if not specified and `branch_name`
+            and `tag` not specified, repo default branch latest commit will be used
         - clone_depth (int): the number of history revisions in cloning, defaults to 1
     """
 
@@ -23,6 +25,7 @@ class TemporaryGitRepo:
         git_clone_url: str,
         branch_name: str = None,
         tag: str = None,
+        commit: str = None,
         clone_depth: int = 1,
     ) -> None:
         if tag and branch_name:
@@ -32,6 +35,7 @@ class TemporaryGitRepo:
         self.git_clone_url = git_clone_url
         self.branch_name = branch_name
         self.tag = tag
+        self.commit = commit
         self.clone_depth = clone_depth
 
     def __enter__(self) -> "TemporaryGitRepo":
@@ -74,4 +78,6 @@ class TemporaryGitRepo:
         """
         Gets the tree id for relevant branch or tag
         """
+        if self.commit is not None:
+            return self.repo[self.commit.encode("utf-8")]
         return self.repo[self.repo.get_refs()[self.branch_or_tag_ref]].tree
