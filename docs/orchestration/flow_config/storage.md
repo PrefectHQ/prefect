@@ -252,6 +252,8 @@ the proper Google Application Credentials configuration.
 [Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
 stored in a git repository as `.py` files.
 
+This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages
+
 ```python
 from prefect import Flow
 from prefect.storage import Git
@@ -264,7 +266,8 @@ storage = Git(
     git_token_secret_name="MY_GIT_ACCESS_TOKEN" # name of personal access token secret
 )
 
-# using ssh (environment must be configured for ssh access to repo)
+# using ssh, including Deploy Keys
+# (environment must be configured for ssh access to repo)
 storage = Git(
     repo="org/repo",                            # name of repo
     path="flows/my_flow.py",                    # location of flow file in repo
@@ -272,6 +275,15 @@ storage = Git(
     use_ssh=True                                # use ssh for cloning repo
 )
 ```
+
+:::tip Git Deploy Keys
+To use `Git` storage with Deploy Keys, ensure your environment is configured to use Deploy Keys. Then, create a `Git` storage class with `use_ssh=True`.
+
+You can find more information about configuring Deploy Keys for common providers here:
+- [GitHub](https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys)
+- [GitLab](https://docs.gitlab.com/ee/user/project/deploy_keys/)
+- [BitBucket](https://bitbucket.org/blog/deployment-keys)
+:::
 
 ### GitHub
 
