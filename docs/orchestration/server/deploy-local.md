@@ -68,16 +68,24 @@ see the documentation on [prefect server migrations](https://github.com/PrefectH
 
 ### External Postgres instance
 
-If you want Prefect Server to use an external Postgres instance, configure the database url in `~/.prefect/config.toml` on whatever machine you're running Prefect Server:
+You can also configure Prefect Server to use an external Postgres instance.
+
+The simplest way to specify an external Postgres instance is passing in a command line argument:
+
+```bash
+prefect server start --postgres-url postgres://<username>:<password>@hostname:<port>/<dbname>
+```
+
+You can also configure the database url in `~/.prefect/config.toml` on whatever machine you're running Prefect Server:
 
 ```
 [server.database]
 connection_url = "postgres://<username>:<password>@hostname:<port>/<dbname>"
 ```
 
-This connection url will be passed directly to Hasura. For more information and troubleshooting, see the [docs](https://hasura.io/docs/latest/graphql/core/deployment/deployment-guides/docker.html#database-url).
+And then run `prefect server start --external-postgres`. 
 
-After setting the connection url, run `prefect server start --external-postgres`.
+Using either method, the connection url will be passed directly to Hasura. For more information and troubleshooting, see the [docs](https://hasura.io/docs/latest/graphql/core/deployment/deployment-guides/docker.html#database-url).
 
 Please note [a set of alembic migrations](https://github.com/PrefectHQ/server/tree/master/services/postgres/alembic/versions) are automatically applied against
 the external database on start.
