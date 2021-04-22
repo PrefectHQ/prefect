@@ -71,13 +71,14 @@ COMMON_SERVER_OPTIONS = [
     click.option(
         "--external-postgres",
         "-ep",
-        help="Pass this flag to use an external postgres instance",
+        help="This will remove the Postgres service from the docker-compose setup",
         is_flag=True,
         hidden=True,
     ),
     click.option(
         "--postgres-url",
-        help="Postgres url to use",
+        help="Postgres connection url to use. Expected format is "
+        "postgres://<username>:<password>@hostname:<port>/<dbname>",
         default=None,
         type=str,
         hidden=True,
@@ -347,6 +348,30 @@ def setup_compose_env(
     return env
 
 
+def warn_for_postgres_settings_when_using_external_postgres(
+    no_postgres_port, postgres_port, use_volume, volume_path
+) -> None:
+    """
+    Issue user warnings if Postgres related settings have changed
+    """
+    if no_postgres_port:
+        warnings.warn(
+            "Using external Postgres instance, `--no-postgres-port` flag will be ignored."
+        )
+    if postgres_port != config.server.database.host_port:
+        warnings.warn(
+            "Using external Postgres instance, `--postgres-port` flag will be ignored."
+        )
+    if use_volume:
+        warnings.warn(
+            "Using external Postgres instance, `--use-volume` flag will be ignored."
+        )
+    if volume_path != config.server.database.volume_path:
+        warnings.warn(
+            "Using external Postgres instance, `--volume-path` flag will be ignored."
+        )
+
+
 @server.command(hidden=True, name="config")
 @add_options(COMMON_SERVER_OPTIONS)
 def config_cmd(
@@ -385,8 +410,9 @@ def config_cmd(
         --no-ui, -u                 Flag to avoid starting the UI
 
     \b
-        --external-postgres, -ep    Flag to use external postgres instance
-        --postgres-url      TEXT    Postgres url to use
+        --external-postgres, -ep    Disable the Postgres service, connect to an external one instead
+        --postgres-url      TEXT    Postgres connection url to use. Expected format is
+                                    postgres://<username>:<password>@hostname:<port>/<dbname>
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'.
@@ -415,22 +441,12 @@ def config_cmd(
         external_postgres = True
 
     if external_postgres:
-        if no_postgres_port:
-            warnings.warn(
-                "Using external Postgres instance, `--no-postgres-port` flag will be ignored."
-            )
-        if postgres_port != config.server.database.host_port:
-            warnings.warn(
-                "Using external Postgres instance, `--postgres-port` flag will be ignored."
-            )
-        if use_volume:
-            warnings.warn(
-                "Using external Postgres instance, `--use-volume` flag will be ignored."
-            )
-        if volume_path != config.server.database.volume_path:
-            warnings.warn(
-                "Using external Postgres instance, `--volume-path` flag will be ignored."
-            )
+        warn_for_postgres_settings_when_using_external_postgres(
+            no_postgres_port=no_postgres_port,
+            postgres_port=postgres_port,
+            use_volume=use_volume,
+            volume_path=volume_path,
+        )
 
     compose_path = setup_compose_file(
         no_ui=no_ui,
@@ -513,7 +529,11 @@ def start(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
-        --external-postgres, -ep    Flag to use external postgres instance
+
+    \b
+        --external-postgres, -ep    Disable the Postgres service, connect to an external one instead
+        --postgres-url      TEXT    Postgres connection url to use. Expected format
+                                    is postgres://<username>:<password>@hostname:<port>/<dbname>
 
     \b
         --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'.
@@ -546,22 +566,12 @@ def start(
         external_postgres = True
 
     if external_postgres:
-        if no_postgres_port:
-            warnings.warn(
-                "Using external Postgres instance, `--no-postgres-port` flag will be ignored."
-            )
-        if postgres_port != config.server.database.host_port:
-            warnings.warn(
-                "Using external Postgres instance, `--postgres-port` flag will be ignored."
-            )
-        if use_volume:
-            warnings.warn(
-                "Using external Postgres instance, `--use-volume` flag will be ignored."
-            )
-        if volume_path != config.server.database.volume_path:
-            warnings.warn(
-                "Using external Postgres instance, `--volume-path` flag will be ignored."
-            )
+        warn_for_postgres_settings_when_using_external_postgres(
+            no_postgres_port=no_postgres_port,
+            postgres_port=postgres_port,
+            use_volume=use_volume,
+            volume_path=volume_path,
+        )
 
     compose_path = setup_compose_file(
         no_ui=no_ui,
