@@ -1,4 +1,4 @@
-from typing import Union, List, Dict, Tuple, Any
+from typing import List, Dict, Any
 
 import prefect
 from prefect.serialization.flow import FlowSchema
@@ -281,7 +281,7 @@ class FlowMetadata:
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}"
-            f"("
+            "("
             + ", ".join(
                 [
                     f"flow_id={self.flow_id!r}",
@@ -290,5 +290,5 @@ class FlowMetadata:
                     f"storage_type={type(self.storage).__name__}",
                 ]
             )
-            + f")"
+            + ")"
         )

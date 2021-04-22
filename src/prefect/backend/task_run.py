@@ -1,5 +1,4 @@
-from typing import Any
-from typing import List, Union
+from typing import Any, List
 
 from prefect import Client
 from prefect.engine.state import State
@@ -230,7 +229,7 @@ class TaskRun:
         result = "<not loaded>" if self._result is NotLoaded else self.result
         return (
             f"{type(self).__name__}"
-            f"("
+            "("
             + ", ".join(
                 [
                     f"task_run_id={self.task_run_id!r}",
@@ -240,5 +239,5 @@ class TaskRun:
                     f"result={result}",
                 ]
             )
-            + f")"
+            + ")"
         )

@@ -93,7 +93,7 @@ def execute_flow_run(
     # Populate global secrets
     secrets = prefect.context.get("secrets", {})
     if flow_run.flow.storage:
-        logger.info(f"Loading secrets...")
+        logger.info("Loading secrets...")
         for secret in flow_run.flow.storage.secrets:
             with fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
@@ -600,7 +600,7 @@ class FlowRun:
     def __repr__(self) -> str:
         return (
             f"{type(self).__name__}"
-            f"("
+            "("
             + ", ".join(
                 [
                     f"flow_run_id={self.flow_run_id!r}",
@@ -609,5 +609,5 @@ class FlowRun:
                     f"cached_task_runs={len(self.cached_task_runs)}",
                 ]
             )
-            + f")"
+            + ")"
         )
