@@ -55,6 +55,12 @@ class EnumValue:
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.value!r})"
 
+    def __eq__(self, other):
+        if not isinstance(other, EnumValue):
+            return NotImplemented
+
+        return self.value == other.value
+
 
 def LiteralSetValue(value: list) -> str:
     """
