@@ -1,6 +1,7 @@
 """
 Tests for `TaskRunView`
 """
+import time
 import pytest
 from unittest.mock import MagicMock
 
@@ -233,6 +234,8 @@ def test_task_run_view_result_loads_mapped_result_data(tmpdir):
     map_1["serialized_state"] = Success(
         result=LocalResult(dir=tmpdir).write(1)
     ).serialize()
+    # Prevent the results from being written to the same location (timestamp based)
+    time.sleep(0.1)
     map_2["serialized_state"] = Success(
         result=LocalResult(dir=tmpdir).write(2)
     ).serialize()
