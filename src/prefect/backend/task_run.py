@@ -98,6 +98,7 @@ class TaskRunView:
 
     @classmethod
     def from_task_run_data(cls, task_run: dict) -> "TaskRunView":
+        task_run = task_run.copy()  # Create a copy to avoid mutation
         task_run_id = task_run.pop("id")
         task_data = task_run.pop("task")
         serialized_state = task_run.pop("serialized_state")
@@ -212,14 +213,11 @@ class TaskRunView:
                 f"{result}"
             )
 
-        if not task_runs:  # Empty list
-            if error_on_empty:
-                raise ValueError(
-                    f"No task runs found while querying for task runs where {where}"
-                )
-            return []
+        if not task_runs and error_on_empty:
+            raise ValueError(
+                f"No task runs found while querying for task runs where {where}"
+            )
 
-        # Return a list
         return task_runs
 
     def get_latest(self) -> "TaskRunView":
@@ -236,7 +234,7 @@ class TaskRunView:
         )
 
     def __repr__(self) -> str:
-        result = "<not loaded>" if self._result is NotLoaded else self.result
+        result = "<not loaded>" if self._result is NotLoaded else repr(self.result)
         return (
             f"{type(self).__name__}"
             "("
