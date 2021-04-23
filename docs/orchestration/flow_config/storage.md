@@ -285,6 +285,20 @@ You can find more information about configuring Deploy Keys for common providers
 - [BitBucket](https://bitbucket.org/blog/deployment-keys)
 :::
 
+:::tip GitLab Deploy Tokens
+To use `Git` storage with GitLab Deploy Tokens, first create a Secret storing your Deploy Token. Then, you can configure `Git` storage
+```
+storage = Git(
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    repo_host="gitlab.com",                     # repo host name, which may be custom
+    git_token_secret_name="MY_GIT_ACCESS_TOKEN",# name of Secret containing Deploy Token
+    git_token_username="myuser"                 # username associated with the Deploy Token
+)
+```
+
+:::
+
 ### GitHub
 
 [GitHub Storage](/api/latest/storage.md#github) is a storage
