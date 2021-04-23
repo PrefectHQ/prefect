@@ -10,7 +10,7 @@ import prefect
 
 if TYPE_CHECKING:
     import prefect.engine.state
-    import prefect.client
+    import prefect.backend
     from prefect import Flow, Task
 
 
@@ -110,7 +110,7 @@ def jira_notifier(
         ) from exc
 
     options = options or dict()
-    jira_credentials = cast(dict, prefect.client.Secret("JIRASECRETS").get())
+    jira_credentials = cast(dict, prefect.backend.Secret("JIRASECRETS").get())
     username = jira_credentials["JIRAUSER"]
     password = jira_credentials["JIRATOKEN"]
 

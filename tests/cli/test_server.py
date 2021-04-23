@@ -456,7 +456,7 @@ class TestPrefectServerConfig:
 
 def test_create_tenant(monkeypatch, cloud_api):
     create_tenant = MagicMock(return_value="my_id")
-    monkeypatch.setattr("prefect.client.Client.create_tenant", create_tenant)
+    monkeypatch.setattr("prefect.backend.Client.create_tenant", create_tenant)
 
     result = CliRunner().invoke(
         server,

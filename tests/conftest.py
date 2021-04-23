@@ -131,7 +131,7 @@ def executor(request, _switch):
 @pytest.fixture()
 def patch_post(monkeypatch):
     """
-    Patches `prefect.client.Client.post()` (and `graphql()`) to return the specified response.
+    Patches `prefect.backend.Client.post()` (and `graphql()`) to return the specified response.
 
     The return value of the fixture is a function that is called on the response to patch it.
 
@@ -151,7 +151,7 @@ def patch_post(monkeypatch):
 @pytest.fixture()
 def patch_posts(monkeypatch):
     """
-    Patches `prefect.client.Client.post()` (and `graphql()`) to return the specified sequence of responses.
+    Patches `prefect.backend.Client.post()` (and `graphql()`) to return the specified sequence of responses.
 
     The return value of the fixture is a function that is called on the response to patch it.
 

@@ -38,10 +38,11 @@ def test_run_flow(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     monkeypatch.setattr(
-        "prefect.client.Client.create_flow_run", MagicMock(return_value="id")
+        "prefect.backend.Client.create_flow_run", MagicMock(return_value="id")
     )
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -86,10 +87,11 @@ def test_run_flow_watch(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     monkeypatch.setattr(
-        "prefect.client.Client.create_flow_run", MagicMock(return_value="id")
+        "prefect.backend.Client.create_flow_run", MagicMock(return_value="id")
     )
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -141,10 +143,11 @@ def test_run_flow_logs(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     monkeypatch.setattr(
-        "prefect.client.Client.create_flow_run", MagicMock(return_value="id")
+        "prefect.backend.Client.create_flow_run", MagicMock(return_value="id")
     )
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -213,9 +216,10 @@ def test_run_flow_param_file(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with tempfile.TemporaryDirectory() as directory:
@@ -255,9 +259,10 @@ def test_run_flow_no_labels_provided(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -288,9 +293,10 @@ def test_run_flow_param_string(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -325,9 +331,10 @@ def test_run_flow_context_string(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -362,9 +369,10 @@ def test_run_flow_run_name(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -399,9 +407,10 @@ def test_run_flow_param_string_overwrites(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with tempfile.TemporaryDirectory() as directory:
@@ -454,9 +463,10 @@ def test_run_flow_flow_run_id_link(monkeypatch, api, expected, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config({"cloud.api": api, "cloud.auth_token": "secret_token"}):
@@ -480,9 +490,10 @@ def test_run_flow_flow_run_id_no_link(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -514,9 +525,10 @@ def test_run_flow_using_id(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -540,9 +552,10 @@ def test_run_flow_labels(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()
@@ -576,9 +589,10 @@ def test_run_flow_using_version_group_id(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     create_flow_run_mock = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr("prefect.backend.Client.create_flow_run", create_flow_run_mock)
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     runner = CliRunner()

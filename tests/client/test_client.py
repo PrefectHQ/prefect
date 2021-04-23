@@ -148,7 +148,7 @@ class TestClientGraphQLErrorHandling:
     ):
         formatter = MagicMock(return_value="Formatted graphql message")
         monkeypatch.setattr(
-            "prefect.client.client.format_graphql_request_error", formatter
+            "prefect.backend.client.format_graphql_request_error", formatter
         )
 
         with pytest.raises(ClientError, match="Formatted graphql message"):
@@ -163,7 +163,7 @@ class TestClientGraphQLErrorHandling:
             raise Exception("Bad formatter")
 
         monkeypatch.setattr(
-            "prefect.client.client.format_graphql_request_error", erroring_formatter
+            "prefect.backend.client.format_graphql_request_error", erroring_formatter
         )
 
         with pytest.raises(
@@ -185,7 +185,8 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
     patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -243,7 +244,8 @@ def test_client_register_doesnt_raise_for_scheduled_params(
     patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -297,7 +299,8 @@ def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
     patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -340,7 +343,8 @@ def test_client_register_raises_for_keyed_flows_with_no_result(
     patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     @prefect.task
@@ -388,7 +392,8 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
     patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -428,7 +433,8 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     post = patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -476,7 +482,8 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     post = patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
     monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
@@ -536,7 +543,8 @@ def test_client_register_default_prefect_image(
     post = patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
     monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
 
@@ -596,7 +604,8 @@ def test_client_register_optionally_avoids_building_flow(
     post = patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -636,7 +645,8 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     patch_post({"data": {"project": []}})
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
@@ -664,7 +674,8 @@ def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
     )
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
@@ -679,7 +690,8 @@ def test_client_delete_project(patch_post, monkeypatch):
     )
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
@@ -700,7 +712,8 @@ def test_client_delete_project_error(patch_post, monkeypatch):
     project_name = "my-default-project"
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
@@ -714,7 +727,8 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
     patch_post({"data": {"project": [{"id": "proj-id"}]}})
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -769,7 +783,8 @@ def test_client_register_flow_id_output(
     patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -825,7 +840,8 @@ def test_client_register_flow_id_no_output(
     patch_post(response)
 
     monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+        "prefect.backend.Client.get_default_tenant_slug",
+        MagicMock(return_value="tslug"),
     )
 
     with set_temporary_config(
@@ -1123,7 +1139,7 @@ def test_set_flow_run_state_uses_config_queue_interval(
         # Mocking the concept of "now" so we can have consistent assertions
         now = pendulum.now("UTC")
         mock_now = MagicMock(return_value=now)
-        monkeypatch.setattr("prefect.client.client.pendulum.now", mock_now)
+        monkeypatch.setattr("prefect.backend.client.pendulum.now", mock_now)
 
         result = client.set_flow_run_state(
             flow_run_id="74-salt", version=0, state=Running()

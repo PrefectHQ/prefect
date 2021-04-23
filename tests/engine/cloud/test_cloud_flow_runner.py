@@ -470,7 +470,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
             return MagicMock(id="TESTME")
 
     monkeypatch.setattr("prefect.engine.flow_runner.run_task", my_run_task)
-    monkeypatch.setattr("prefect.client.Client", Client)
+    monkeypatch.setattr("prefect.backend.Client", Client)
     monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", Client)
     monkeypatch.setattr("prefect.engine.cloud.flow_runner.Client", Client)
     prefect.utilities.logging.prefect_logger.handlers[-1].client = Client()

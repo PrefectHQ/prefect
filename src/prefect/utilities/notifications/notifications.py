@@ -154,11 +154,11 @@ def slack_message_formatter(
         url = None
 
         if isinstance(tracked_obj, prefect.Flow):
-            url = prefect.client.Client().get_cloud_url(
+            url = prefect.backend.Client().get_cloud_url(
                 "flow-run", prefect.context["flow_run_id"], as_user=False
             )
         elif isinstance(tracked_obj, prefect.Task):
-            url = prefect.client.Client().get_cloud_url(
+            url = prefect.backend.Client().get_cloud_url(
                 "task-run", prefect.context.get("task_run_id", ""), as_user=False
             )
 
@@ -214,8 +214,8 @@ def gmail_notifier(
             return x + y
         ```
     """
-    username = cast(str, prefect.client.Secret("EMAIL_USERNAME").get())
-    password = cast(str, prefect.client.Secret("EMAIL_PASSWORD").get())
+    username = cast(str, prefect.backend.Secret("EMAIL_USERNAME").get())
+    password = cast(str, prefect.backend.Secret("EMAIL_PASSWORD").get())
     ignore_states = ignore_states or []
     only_states = only_states or []
 
@@ -292,7 +292,7 @@ def slack_notifier(
         ```
     """
     webhook_url = cast(
-        str, prefect.client.Secret(webhook_secret or "SLACK_WEBHOOK_URL").get()
+        str, prefect.backend.Secret(webhook_secret or "SLACK_WEBHOOK_URL").get()
     )
     ignore_states = ignore_states or []
     only_states = only_states or []

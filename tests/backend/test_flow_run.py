@@ -68,7 +68,7 @@ def test_flow_run_view_query_for_flow_run_unpacks_result_singleton(patch_post):
 
 def test_flow_run_view_query_for_flow_run_uses_where_in_query(monkeypatch):
     post = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.post", post)
+    monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
     FlowRunView.query_for_flow_run(where={"foo": {"_eq": "bar"}})
 
@@ -80,7 +80,7 @@ def test_flow_run_view_query_for_flow_run_uses_where_in_query(monkeypatch):
 
 def test_flow_run_view_query_for_flow_run_includes_all_required_data(monkeypatch):
     graphql = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.graphql", graphql)
+    monkeypatch.setattr("prefect.backend.client.Client.graphql", graphql)
 
     FlowRunView.query_for_flow_run(where={})
 
@@ -176,7 +176,7 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
 
 def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
     post = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.post", post)
+    monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
     FlowRunView.from_flow_run_id(flow_run_id="id-1", load_static_tasks=False)
 

@@ -56,7 +56,7 @@ def test_task_run_view_query_for_task_runs_allows_returns_all_task_run_data(patc
 
 def test_task_run_view_query_for_task_runs_uses_where_in_query(monkeypatch):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.post", post)
+    monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
     TaskRunView.query_for_task_runs(where={"foo": {"_eq": "bar"}})
 
@@ -68,7 +68,7 @@ def test_task_run_view_query_for_task_runs_uses_where_in_query(monkeypatch):
 
 def test_task_run_view_query_for_task_runs_uses_order_by_in_query(monkeypatch):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.post", post)
+    monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
     TaskRunView.query_for_task_runs(where={}, order_by={"foo": EnumValue("asc")})
 
@@ -80,7 +80,7 @@ def test_task_run_view_query_for_task_runs_uses_order_by_in_query(monkeypatch):
 
 def test_task_run_view_query_for_task_runs_includes_all_required_data(monkeypatch):
     graphql = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.graphql", graphql)
+    monkeypatch.setattr("prefect.backend.client.Client.graphql", graphql)
 
     TaskRunView.query_for_task_runs(where={})
 
@@ -159,7 +159,7 @@ def test_task_run_view_get_latest_returns_new_instance(patch_post):
 
 def test_task_run_view_from_task_run_id_where_clause(monkeypatch):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.post", post)
+    monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
     TaskRunView.from_task_run_id(task_run_id="id-1")
 
@@ -171,7 +171,7 @@ def test_task_run_view_from_task_run_id_where_clause(monkeypatch):
 
 def test_task_run_view_from_task_slug_where_clause(monkeypatch):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
-    monkeypatch.setattr("prefect.client.client.Client.post", post)
+    monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
     TaskRunView.from_task_slug(task_slug="task-slug-1", flow_run_id="flow-run-id-1")
 
