@@ -250,7 +250,7 @@ class TaskRunView:
             + ")"
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> Any:
         if not isinstance(other, TaskRunView):
             return NotImplemented
 
