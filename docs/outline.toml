@@ -18,14 +18,14 @@ functions = [
     "some_successful",
 ]
 
-[pages.client.client]
+[pages.backend.client]
 title = "Client"
-module = "prefect.client"
+module = "prefect.backend.client"
 classes = ["Client"]
 
-[pages.client.secrets]
+[pages.backend.secrets]
 title = "Secrets"
-module = "prefect.client.secrets"
+module = "prefect.backend.secrets"
 classes = ["Secret"]
 
 [pages.cli.agent]
