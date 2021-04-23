@@ -2,7 +2,7 @@ import json
 
 import click
 
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
 

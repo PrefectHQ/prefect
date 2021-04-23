@@ -12,7 +12,7 @@ import warnings
 from typing import Callable, Iterable, TYPE_CHECKING
 
 import prefect
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.utilities import logging
 from prefect.utilities.graphql import with_args
 

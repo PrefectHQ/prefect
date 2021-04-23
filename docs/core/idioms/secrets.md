@@ -30,14 +30,17 @@ Local Prefect Secrets can be retrieved directly through the Client Secrets API. 
 
 :::: tabs
 ::: tab "Functional API"
+
 ```python
 from prefect import task, Flow
-from prefect.client.secrets import Secret
+from prefect.backend.secrets import Secret
+
 
 @task
 def access_secret():
     # Access your secret and now you can use it however you would like
     print(Secret("MY_SECRET").get())
+
 
 with Flow("secret-retrieval") as flow:
     access_secret()
@@ -45,14 +48,17 @@ with Flow("secret-retrieval") as flow:
 :::
 
 ::: tab "Imperative API"
+
 ```python
 from prefect import Task, Flow
-from prefect.client.secrets import Secret
+from prefect.backend.secrets import Secret
+
 
 class AccessSecret(Task):
     def run(self):
         # Access your secret and now you can use it however you would like
         print(Secret("MY_SECRET").get())
+
 
 flow = Flow("secret-retrieval")
 flow.add_task(AccessSecret())

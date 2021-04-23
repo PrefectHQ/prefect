@@ -4,7 +4,7 @@ import cloudpickle
 import pytest
 
 import prefect
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.utilities.configuration import set_temporary_config
 from prefect.engine.results import GCSResult
 

@@ -3,15 +3,28 @@ from collections import defaultdict
 
 from contextlib import contextmanager
 from types import MappingProxyType
-from typing import List, Optional, Dict, Set, Any, Iterator, Iterable, Type, Mapping
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Set,
+    Any,
+    Iterator,
+    Iterable,
+    Type,
+    Mapping,
+    TYPE_CHECKING,
+)
 
 import prefect
-from prefect import Flow, Task, Client
+from prefect.backend.client import Client
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
-from prefect.engine.state import State
 from prefect.utilities.graphql import with_args
 from prefect.utilities.logging import get_logger
+
+if TYPE_CHECKING:
+    from prefect import Flow, Task
 
 
 logger = get_logger("backend.flow_run")
@@ -229,7 +242,7 @@ class FlowRunView:
         flow_run_id: str,
         name: str,
         flow_id: str,
-        state: State,
+        state: "prefect.engine.state.State",
         task_runs: Iterable["TaskRunView"] = None,
     ):
         self.flow_run_id = flow_run_id
@@ -360,7 +373,9 @@ class FlowRunView:
             flow_run_id=flow_run_id,
             flow_id=flow_run_data["flow_id"],
             task_runs=task_runs,
-            state=State.deserialize(flow_run_data["serialized_state"]),
+            state=prefect.engine.state.State.deserialize(
+                flow_run_data["serialized_state"]
+            ),
             name=flow_run_data["name"],
         )
 
@@ -402,7 +417,7 @@ class FlowRunView:
         return flow_runs[0]
 
     def get_task_run(
-        self, task: Task = None, task_slug: str = None, task_run_id: str = None
+        self, task: "Task" = None, task_slug: str = None, task_run_id: str = None
     ) -> "TaskRunView":
         """
         Get information about a task run from this flow run. Lookup is available by one
@@ -489,7 +504,7 @@ class FlowRunView:
 
     def iter_mapped_task_runs(
         self,
-        task: Task = None,
+        task: "Task" = None,
         task_slug: str = None,
         cache_results: bool = True,
     ) -> Iterator["TaskRunView"]:

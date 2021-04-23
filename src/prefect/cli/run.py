@@ -4,7 +4,7 @@ import time
 import click
 from tabulate import tabulate
 
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
 

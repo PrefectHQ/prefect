@@ -16,7 +16,7 @@ from tornado import web
 from tornado.ioloop import IOLoop
 
 from prefect import config
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.engine.state import Failed, Submitted
 from prefect.serialization import state
 from prefect.serialization.run_config import RunConfigSchema

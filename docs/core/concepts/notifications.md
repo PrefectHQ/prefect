@@ -91,7 +91,8 @@ As our above example demonstrated, it is very easy to intercept task states and 
 ```python
 import requests
 from prefect import Task, Flow
-from prefect.client.secrets import Secret
+from prefect.backend.secrets import Secret
+
 
 def post_to_slack(task, old_state, new_state):
     if new_state.is_finished():

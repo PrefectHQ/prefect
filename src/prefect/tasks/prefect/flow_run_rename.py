@@ -3,7 +3,7 @@ from typing import Any
 
 import prefect
 from prefect import Task
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.utilities.tasks import defaults_from_attrs
 
 

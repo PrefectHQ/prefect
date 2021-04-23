@@ -23,7 +23,7 @@ $ prefect create project "Hello, World!"
 To create a new project with the Core client:
 
 ```python
-from prefect import Client
+from prefect.backend.client import Client
 
 client = Client()
 client.create_project(project_name="Hello, World!")

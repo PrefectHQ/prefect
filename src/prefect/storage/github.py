@@ -2,7 +2,7 @@ import os
 from typing import TYPE_CHECKING, Any
 
 import prefect
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
 

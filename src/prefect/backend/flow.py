@@ -1,7 +1,6 @@
 from typing import List, Dict, Any
 
 import prefect
-from prefect.serialization.flow import FlowSchema
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -40,7 +39,7 @@ class FlowView:
         archived: bool,
         project_name: str,
         core_version: str,
-        storage: prefect.storage.Storage,
+        storage: "prefect.storage.Storage",
         name: str,
     ):
         self.flow_id = flow_id
@@ -64,7 +63,9 @@ class FlowView:
 
         flow_id = flow_data.pop("id")
         project_name = flow_data.pop("project")["name"]
-        deserialized_flow = FlowSchema().load(data=flow_data["serialized_flow"])
+        deserialized_flow = prefect.serialization.flow.FlowSchema().load(
+            data=flow_data["serialized_flow"]
+        )
         storage = prefect.serialization.storage.StorageSchema().load(
             flow_data.pop("storage")
         )

@@ -2,7 +2,6 @@ from typing import Any, Callable, Dict, List, Type, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import prefect
-from prefect import Client
 from prefect.environments.execution import Environment
 
 if TYPE_CHECKING:
@@ -181,7 +180,7 @@ class DaskCloudProviderEnvironment(Environment):
             # and then allow the Callable a chance to update _provider_kwargs. This allows
             # better sizing of the cluster resources based on parameters for this Flow run.
             try:
-                client = Client()
+                client = prefect.Client()
                 flow_run_info = client.get_flow_run_info(flow_run_id)
                 parameters = flow_run_info.parameters or {}  # type: ignore
                 self._on_execute(parameters, self._provider_kwargs)
@@ -196,7 +195,7 @@ class DaskCloudProviderEnvironment(Environment):
             # identical on all containers: Flow runner, Dask scheduler, and Dask workers
             flow_id = prefect.context.get("flow_id")
             try:
-                client = Client()
+                client = prefect.Client()
                 if not flow_id:  # We've observed cases where flow_id is None
                     if not flow_run_info:
                         flow_run_info = client.get_flow_run_info(flow_run_id)

@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from prefect import context, Task
 from prefect.artifacts import create_link
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.engine.signals import signal_from_state
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args

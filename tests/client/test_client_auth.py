@@ -7,16 +7,11 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
-import requests
 import toml
 
 import prefect
-from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
-from prefect.engine.result import Result
-from prefect.engine.state import Pending
+from prefect.backend.client import Client
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError, ClientError
-from prefect.utilities.graphql import GraphQLResult, decompress
 
 
 class TestClientConfig:

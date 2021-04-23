@@ -9,7 +9,7 @@ from contextlib import contextmanager
 import pendulum
 
 import prefect
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult

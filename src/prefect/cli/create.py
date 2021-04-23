@@ -1,6 +1,6 @@
 import click
 
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.utilities.exceptions import ClientError
 from prefect.utilities.graphql import with_args
 

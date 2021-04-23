@@ -4,7 +4,7 @@ import box
 import pytest
 
 import prefect
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 

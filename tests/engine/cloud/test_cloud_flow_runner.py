@@ -1,19 +1,15 @@
-import datetime
 import itertools
 import sys
 import time
 import threading
-from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pendulum
 import pytest
 
 import prefect
-from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.engine.result import Result
-from prefect.engine.results import PrefectResult, SecretResult
+from prefect.engine.results import PrefectResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
@@ -25,7 +21,6 @@ from prefect.engine.state import (
     Queued,
     Retrying,
     Running,
-    Scheduled,
     Skipped,
     Success,
     TimedOut,
@@ -247,7 +242,7 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(
 
 
 def test_flow_runner_initializes_context_from_cloud(monkeypatch):
-    from prefect.client.client import FlowRunInfoResult, ProjectInfo
+    from prefect.backend.client import FlowRunInfoResult, ProjectInfo
 
     flow = prefect.Flow(name="test")
     scheduled_start_time = pendulum.parse("19860920")

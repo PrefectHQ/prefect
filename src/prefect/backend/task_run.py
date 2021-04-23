@@ -1,7 +1,7 @@
 from typing import Any, List
 
-from prefect import Client
-from prefect.engine.state import State
+import prefect
+from prefect.backend.client import Client
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -38,7 +38,7 @@ class TaskRunView:
         task_id: str,
         task_slug: str,
         name: str,
-        state: State,
+        state: "prefect.engine.state.State",
         map_index: int,
         flow_run_id: str,
     ) -> None:
@@ -105,7 +105,7 @@ class TaskRunView:
 
         return cls(
             task_run_id=task_run_id,
-            state=State.deserialize(serialized_state),
+            state=prefect.engine.state.State.deserialize(serialized_state),
             task_id=task_data["id"],
             task_slug=task_data["slug"],
             **task_run,
@@ -185,7 +185,7 @@ class TaskRunView:
         Returns:
            A list of dicts containing task run data
         """
-        client = Client()
+        client = prefect.Client()
 
         query_args = {"where": where}
         if order_by is not None:

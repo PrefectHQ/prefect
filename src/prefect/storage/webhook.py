@@ -10,7 +10,7 @@ from requests.adapters import HTTPAdapter
 from requests.models import Response
 from requests.packages.urllib3.util.retry import Retry
 
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import (
     extract_flow_from_file,

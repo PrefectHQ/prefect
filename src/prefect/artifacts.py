@@ -1,7 +1,8 @@
 import time
 from typing import Optional
 
-from prefect import context, Client
+from prefect import context
+from prefect.backend.client import Client
 from prefect.utilities.exceptions import ClientError
 
 

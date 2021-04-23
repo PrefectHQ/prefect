@@ -10,7 +10,7 @@ from azureml.data.azure_storage_datastore import (
 from azureml.data.data_reference import DataReference
 
 from prefect import Task
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 
-from prefect import Client
+from prefect.backend.client import Client
 from prefect import config as prefect_config
 from prefect.utilities.context import context
 

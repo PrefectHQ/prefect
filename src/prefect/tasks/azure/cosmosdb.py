@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 import azure.cosmos.cosmos_client
 
 from prefect import Task
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 

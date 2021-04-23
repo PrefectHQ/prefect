@@ -1,32 +1,26 @@
 import datetime
 import uuid
 from collections import Counter
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pendulum
 import pytest
 
 import prefect
-from prefect.client.client import (
-    Client,
+from prefect.backend.client import (
     FlowRunInfoResult,
     ProjectInfo,
     TaskRunInfoResult,
 )
-from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
+from prefect.engine.cloud import CloudFlowRunner
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.state import (
     Failed,
-    Finished,
     Pending,
     Queued,
     Retrying,
     Running,
-    Skipped,
-    Success,
-    TimedOut,
-    TriggerFailed,
 )
 from prefect.executors import LocalExecutor
 from prefect.utilities.configuration import set_temporary_config

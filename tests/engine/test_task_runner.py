@@ -10,7 +10,7 @@ from time import sleep, time
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.core.edge import Edge
 from prefect.core.task import Task
 from prefect.engine import cache_validators, signals

@@ -3,7 +3,7 @@ import uuid
 import azure.storage.blob
 
 from prefect import Task
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 

@@ -7,7 +7,7 @@ import pytest
 from dask.base import tokenize
 
 import prefect
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs, duration_only
 from prefect.engine.cloud import CloudTaskRunner

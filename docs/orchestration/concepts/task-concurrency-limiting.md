@@ -58,7 +58,7 @@ You can edit and remove the concurrency limit of tags at any time. Select the bl
 Assuming you are set up with the proper [authentication](api.html) with Prefect Cloud, setting Task tag concurrency limits in the Prefect Client is simple:
 
 ```python
-from prefect import Client
+from prefect.backend.client import Client
 
 client = Client()
 
@@ -105,7 +105,7 @@ You can view your Task tag concurrency limits by navigating to Team Settings -> 
 ### Core Client
 
 ```python
-from prefect import Client
+from prefect.backend.client import Client
 
 client = Client()
 

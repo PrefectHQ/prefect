@@ -1,7 +1,7 @@
 import click
 
 import prefect
-from prefect.client import Client
+from prefect.backend import Client
 from prefect.engine import get_default_flow_runner_class
 from prefect.tasks.secrets import PrefectSecret
 from prefect.utilities.graphql import with_args

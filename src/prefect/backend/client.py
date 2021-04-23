@@ -897,7 +897,7 @@ class Client:
         Example:
 
         ```python
-        from prefect import Client
+        from prefect.backend.client import Client
 
         client = Client()
         client.get_cloud_url("flow-run", "424242-ca-94611-111-55")

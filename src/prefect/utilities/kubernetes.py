@@ -6,7 +6,7 @@ from typing import Union
 from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
 
-from prefect.client import Secret
+from prefect.backend import Secret
 
 
 K8S_CLIENTS = {

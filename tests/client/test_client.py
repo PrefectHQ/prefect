@@ -3,13 +3,12 @@ import json
 import uuid
 from unittest.mock import MagicMock
 
-import marshmallow
 import pendulum
 import pytest
 import requests
 
 import prefect
-from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
+from prefect.backend.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result import Result
 from prefect.engine.state import Pending, Running, State
 from prefect.environments.execution import LocalEnvironment

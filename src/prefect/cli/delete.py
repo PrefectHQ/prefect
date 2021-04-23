@@ -1,6 +1,6 @@
 import click
 
-from prefect.client import Client
+from prefect.backend import Client
 
 
 @click.group(hidden=True)

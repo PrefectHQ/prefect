@@ -8,7 +8,7 @@ import warnings
 import yaml
 
 import prefect
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.environments.execution import Environment
 from prefect.utilities.storage import get_flow_image
 

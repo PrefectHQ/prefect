@@ -64,7 +64,7 @@ import json
 from typing import Any, Optional
 
 import prefect
-from prefect.client.client import Client
+from prefect.backend.client import Client
 from prefect.utilities.exceptions import ClientError
 
 

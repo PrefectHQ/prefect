@@ -4,7 +4,7 @@ from email.message import EmailMessage
 from typing import Any, cast
 
 from prefect import Task
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 

@@ -1,7 +1,7 @@
 from typing import Any, cast, Union
 
 from prefect import Task
-from prefect.client import Secret
+from prefect.backend import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
