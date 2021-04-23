@@ -136,7 +136,7 @@ def execute_flow_run(
             message="Failed to execute flow: {exc}",
         ):
             if flow_run.flow.run_config is not None:
-                flow_state = runner_cls(flow=flow).run(**run_kwargs)
+                runner_cls(flow=flow).run(**run_kwargs)
 
             # Support for deprecated `flow.environment` use
             else:
@@ -144,8 +144,10 @@ def execute_flow_run(
                 environment.setup(flow)
                 environment.execute(flow)
 
-    logger.info(f"Run finished with final state {flow_state}")
-    return flow_run.update()
+    # Get the final state
+    flow_run = flow_run.get_latest()
+    logger.info(f"Run finished with final state {flow_run.state}")
+    return flow_run
 
 
 @contextmanager
