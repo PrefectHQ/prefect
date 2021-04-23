@@ -622,6 +622,14 @@ def test_copy():
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
     assert f.reference_tasks() == f2.reference_tasks() == set([t1])
+    assert id(f.slugs) != id(f2.slugs)
+
+
+def test_copy_copies_slugs():
+    f = Flow("test")
+    f2 = f.copy()
+    f.add_task(Parameter("p"))
+    f2.add_task(Parameter("p"))
 
 
 def test_infer_root_tasks():
