@@ -252,6 +252,6 @@ class TaskRunView:
 
     def __eq__(self, other):
         if not isinstance(other, TaskRunView):
-            raise NotImplemented
+            return NotImplemented
 
         return other.task_run_id == self.task_run_id and other.state == self.state
