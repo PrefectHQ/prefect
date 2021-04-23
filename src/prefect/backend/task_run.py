@@ -11,9 +11,14 @@ NotLoaded = object()
 logger = get_logger("backend.flow_run")
 
 
-class TaskRun:
+class TaskRunView:
     """
-    Object for getting information about a Task Run from the backend API
+    A view of Task Run data stored in the Prefect API.
+
+    Provides lazy loading of task run return values from Prefect `Result` locations.
+
+    This object is designed to be an immutable view of the data stored in the Prefect
+    backend API at the time it is created.
 
     Attributes:
         task_run_id: The task run uuid
@@ -92,7 +97,7 @@ class TaskRun:
         return self.state.result
 
     @classmethod
-    def from_task_run_data(cls, task_run: dict) -> "TaskRun":
+    def from_task_run_data(cls, task_run: dict) -> "TaskRunView":
         task_run_id = task_run.pop("id")
         task_data = task_run.pop("task")
         serialized_state = task_run.pop("serialized_state")
@@ -106,7 +111,7 @@ class TaskRun:
         )
 
     @classmethod
-    def from_task_run_id(cls, task_run_id: str = None) -> "TaskRun":
+    def from_task_run_id(cls, task_run_id: str = None) -> "TaskRunView":
         if not isinstance(task_run_id, str):
             raise TypeError(
                 f"Unexpected type {type(task_run_id)!r} for `task_run_id`, "
@@ -118,7 +123,7 @@ class TaskRun:
         )
 
     @classmethod
-    def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRun":
+    def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunView":
         return cls.from_task_run_data(
             cls.query_for_task_run(
                 where={
@@ -144,7 +149,7 @@ class TaskRun:
         Returns:
             A dict of task run data
         """
-        task_runs = TaskRun.query_for_task_runs(where=where, **kwargs)
+        task_runs = TaskRunView.query_for_task_runs(where=where, **kwargs)
 
         if len(task_runs) > 1:
             raise ValueError(
@@ -166,8 +171,8 @@ class TaskRun:
         error_on_empty: bool = True,
     ) -> List[dict]:
         """
-        Query for task run data necessary to initialize `TaskRun` instances
-        with `TaskRun.from_task_run_data`.
+        Query for task run data necessary to initialize `TaskRunView` instances
+        with `TaskRunView.from_task_run_data`.
 
         Args:
             where (required): The Hasura `where` clause to filter by
@@ -217,7 +222,7 @@ class TaskRun:
         # Return a list
         return task_runs
 
-    def update(self) -> "TaskRun":
+    def update(self) -> "TaskRunView":
         """
         Get the a new copy of this object with the newest data from the API
         """

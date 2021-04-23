@@ -9,8 +9,12 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow")
 
 
-class FlowMetadata:
+class FlowView:
     """
+    A view of Flow data stored in the Prefect API.
+
+    This object is designed to be an immutable view of the data stored in the Prefect
+    backend API at the time it is created
 
     Attributes:
         flow_id: The uuid of the flow
@@ -55,7 +59,7 @@ class FlowMetadata:
         self.name = name
 
     @classmethod
-    def from_flow_data(cls, flow_data: dict) -> "FlowMetadata":
+    def from_flow_data(cls, flow_data: dict) -> "FlowView":
         """
         Get an instance of this class given a dict of required flow data
 
@@ -78,7 +82,7 @@ class FlowMetadata:
         )
 
     @classmethod
-    def from_flow_id(cls, flow_id: str) -> "FlowMetadata":
+    def from_flow_id(cls, flow_id: str) -> "FlowView":
         """
         Get an instance of this class given a `flow_id` to lookup
 
@@ -86,7 +90,7 @@ class FlowMetadata:
             flow_id: The uuid of the flow
 
         Returns:
-            A new instance of FlowMetadata
+            A new instance of FlowView
         """
         if not isinstance(flow_id, str):
             raise TypeError(
@@ -98,7 +102,7 @@ class FlowMetadata:
     @classmethod
     def from_flow_obj(
         cls, flow: "prefect.Flow", allow_archived: bool = False
-    ) -> "FlowMetadata":
+    ) -> "FlowView":
         """
         Get an instance of this class given a `flow` object. Lookups are done by
         searching for matches using the serialized flow
@@ -110,7 +114,7 @@ class FlowMetadata:
                 an archived flow can be returned.
 
         Returns:
-            A new instance of FlowMetadata
+            A new instance of FlowView
         """
         where: Dict[str, Any] = {
             "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
@@ -128,7 +132,7 @@ class FlowMetadata:
     @classmethod
     def from_flow_name(
         cls, flow_name: str, project_name: str = "", last_updated: bool = False
-    ) -> "FlowMetadata":
+    ) -> "FlowView":
         """
         Get an instance of this class given a flow name. Optionally, a project name can
         be included since flow names are not guaranteed to be unique across projects.
@@ -143,7 +147,7 @@ class FlowMetadata:
                 instead.
 
         Returns:
-            A new instance of FlowMetadata
+            A new instance of FlowView
         """
         where: Dict[str, Any] = {"name": {"_eq": flow_name}, "archived": {"_eq": False}}
         if project_name != "":
@@ -178,7 +182,7 @@ class FlowMetadata:
         Returns:
             A dict of flow data
         """
-        flows = FlowMetadata.query_for_flows(where=where, **kwargs)
+        flows = FlowView.query_for_flows(where=where, **kwargs)
 
         if len(flows) > 1:
             raise ValueError(

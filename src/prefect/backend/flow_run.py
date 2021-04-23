@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Set, Any, Iterator, Iterable, Type, Map
 
 import prefect
 from prefect import Flow, Task, Client
-from prefect.backend.flow import FlowMetadata
+from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRun
 from prefect.engine.state import State
 from prefect.utilities.graphql import with_args
@@ -21,7 +21,7 @@ def create_flow_run(
     flow: "Flow" = None,
     flow_id: str = None,
     **kwargs: Any,
-) -> "FlowRun":
+) -> "FlowRunView":
     """
     Schedule a flow run in the backend given a flow or flow_id. If given a flow, it
     must be registered.
@@ -33,7 +33,7 @@ def create_flow_run(
             be used to configure the flow run
 
     Returns:
-        An instance of "FlowRun"
+        An instance of "FlowRunView"
     """
     # TODO: The merit of this (and if it belongs in `client.create_flow_run` is still
     #       being assessed
@@ -42,7 +42,7 @@ def create_flow_run(
         raise ValueError("Either `flow_id` or `flow` may be provided, not both.")
 
     if flow:
-        flow_md = FlowMetadata.from_flow_obj(flow)
+        flow_md = FlowView.from_flow_obj(flow)
         flow_id = flow_md.flow_id
 
     if not flow_id:
@@ -51,40 +51,42 @@ def create_flow_run(
     client = Client()
     flow_run_id = client.create_flow_run(flow_id=flow_id, **kwargs)
 
-    return FlowRun.from_flow_run_id(flow_run_id=flow_run_id, load_static_tasks=False)
+    return FlowRunView.from_flow_run_id(
+        flow_run_id=flow_run_id, load_static_tasks=False
+    )
 
 
 def execute_flow_run(
     flow_run_id: str,
     flow: "Flow" = None,
-    runner_cls: Type["prefect.engine.flow_runner.FlowRunner"] = None,
+    runner_cls: Type["prefect.engine.flow_runner.FlowRunViewner"] = None,
     **kwargs: Any,
-) -> "FlowRun":
+) -> "FlowRunView":
     """ "
     The primary entry point for executing a flow run. The flow run will be run
-    in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
+    in-process using the given `runner_cls` which defaults to the `CloudFlowRunViewner`.
 
     Args:
         flow_run_id: The flow run id to execute; this run id must exist in the database
         flow: A Flow object can be passed to execute a flow without loading t from
             Storage. If `None`, the flow's Storage metadata will be pulled from the
             API and used to get a functional instance of the Flow and its tasks.
-        runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
-        **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
+        runner_cls: An optional `FlowRunViewner` to override the default `CloudFlowRunViewner`
+        **kwargs: Additional kwargs will be passed to the `FlowRunViewner.run` method
 
     Returns:
-        A `FlowRun` instance with information about the state of the flow run and its
+        A `FlowRunView` instance with information about the state of the flow run and its
         task runs
     """
     logger.debug(f"Querying for flow run {flow_run_id!r}")
 
-    # Get the `FlowRunner` class type
+    # Get the `FlowRunViewner` class type
     # TODO: Respect a config option for this class so it can be overridden by env var,
     #       create a separate config argument for flow runs executed with the backend
-    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
+    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunViewner
 
-    # Get a `FlowRun` object
-    flow_run = FlowRun.from_flow_run_id(
+    # Get a `FlowRunView` object
+    flow_run = FlowRunView.from_flow_run_id(
         flow_run_id=flow_run_id, load_static_tasks=False
     )
 
@@ -169,7 +171,7 @@ def fail_flow_run_on_exception(
     try:
         yield
     except KeyboardInterrupt:
-        if not FlowRun.from_flow_run_id(flow_run_id).state.is_finished():
+        if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
             client.set_flow_run_state(
                 flow_run_id=flow_run_id,
                 state=prefect.engine.state.Cancelled("Keyboard interrupt."),
@@ -181,7 +183,7 @@ def fail_flow_run_on_exception(
             )
         raise
     except Exception as exc:
-        if not FlowRun.from_flow_run_id(flow_run_id).state.is_finished():
+        if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
             message = message.format(exc=exc.__repr__())
             client.set_flow_run_state(
                 flow_run_id=flow_run_id, state=prefect.engine.state.Failed(message)
@@ -200,9 +202,15 @@ def fail_flow_run_on_exception(
         raise
 
 
-class FlowRun:
+class FlowRunView:
     """
-    Object for getting information about a Flow Run from the backend API
+    A view of Flow Run data stored in the Prefect API.
+
+    Provides lazy loading of Task Runs from the flow run.
+
+    This object is designed to be an immutable view of the data stored in the Prefect
+    backend API at the time it is created. However, each time a task run is retrieved
+    the latest data for that task will be pulled since they are loaded lazily.
 
     Attributes:
         flow_run_id: The uuid of the flow run
@@ -232,7 +240,7 @@ class FlowRun:
         self._task_run_ids: Optional[List[str]] = None
 
         # Cached value of flow metadata
-        self._flow: Optional[FlowMetadata] = None
+        self._flow: Optional[FlowView] = None
 
         # Store a mapping of task run ids to task runs
         self._cached_task_runs: Dict[str, "TaskRun"] = {}
@@ -257,7 +265,7 @@ class FlowRun:
                 task_run.task_run_id
             )
 
-    def update(self, load_static_tasks: bool = False) -> "FlowRun":
+    def update(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
         Get the a new copy of this object with the newest data from the API
 
@@ -268,7 +276,7 @@ class FlowRun:
                 from the old object.
 
         Returns:
-            A new instance of FlowRun
+            A new instance of FlowRunView
         """
         return self.from_flow_run_id(
             flow_run_id=self.flow_run_id,
@@ -277,16 +285,16 @@ class FlowRun:
         )
 
     @property
-    def flow(self) -> "FlowMetadata":
+    def flow(self) -> "FlowView":
         """
         Flow metadata for the flow associated with this flow run. Lazily loaded at call
         time then cached for future calls.
 
         Returns:
-            An instance of FlowMetadata
+            An instance of FlowView
         """
         if self._flow is None:
-            self._flow = FlowMetadata.from_flow_id(flow_id=self.flow_id)
+            self._flow = FlowView.from_flow_id(flow_id=self.flow_id)
 
         return self._flow
 
@@ -308,7 +316,7 @@ class FlowRun:
         flow_run_id: str,
         load_static_tasks: bool = True,
         _cached_task_runs: Iterable["TaskRun"] = None,
-    ) -> "FlowRun":
+    ) -> "FlowRunView":
         """
         Get an instance of this class filled with information by querying for the given
         flow run id
@@ -321,7 +329,7 @@ class FlowRun:
                task runs
 
         Returns:
-            A populated `FlowRun` instance
+            A populated `FlowRunView` instance
         """
         client = Client()
 
