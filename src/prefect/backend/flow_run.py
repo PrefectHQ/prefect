@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Set, Any, Iterator, Iterable, Type, Map
 import prefect
 from prefect import Flow, Task, Client
 from prefect.backend.flow import FlowView
-from prefect.backend.task_run import TaskRun
+from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
 from prefect.utilities.graphql import with_args
 from prefect.utilities.logging import get_logger
@@ -228,7 +228,7 @@ class FlowRunView:
         name: str,
         flow_id: str,
         state: State,
-        task_runs: Iterable["TaskRun"] = None,
+        task_runs: Iterable["TaskRunView"] = None,
     ):
         self.flow_run_id = flow_run_id
         self.name = name
@@ -243,7 +243,7 @@ class FlowRunView:
         self._flow: Optional[FlowView] = None
 
         # Store a mapping of task run ids to task runs
-        self._cached_task_runs: Dict[str, "TaskRun"] = {}
+        self._cached_task_runs: Dict[str, "TaskRunView"] = {}
 
         # Store a mapping of slugs to task run ids (mapped tasks share a slug)
         self._task_slug_to_task_run_ids: Mapping[str, Set[str]] = defaultdict(set)
@@ -252,7 +252,7 @@ class FlowRunView:
             for task_run in task_runs:
                 self._cache_task_run_if_finished(task_run)
 
-    def _cache_task_run_if_finished(self, task_run: "TaskRun") -> None:
+    def _cache_task_run_if_finished(self, task_run: "TaskRunView") -> None:
         """
         Add a task run to the cache if it is in a finished state
 
@@ -317,7 +317,7 @@ class FlowRunView:
         cls,
         flow_run_id: str,
         load_static_tasks: bool = True,
-        _cached_task_runs: Iterable["TaskRun"] = None,
+        _cached_task_runs: Iterable["TaskRunView"] = None,
     ) -> "FlowRunView":
         """
         Get an instance of this class filled with information by querying for the given
@@ -357,13 +357,13 @@ class FlowRunView:
             )
 
         if load_static_tasks:
-            task_run_data = TaskRun.query_for_task_runs(
+            task_run_data = TaskRunView.query_for_task_runs(
                 where={
                     "map_index": {"_eq": -1},
                     "flow_run_id": {"_eq": flow_run_id},
                 },
             )
-            task_runs = [TaskRun.from_task_run_data(data) for data in task_run_data]
+            task_runs = [TaskRunView.from_task_run_data(data) for data in task_run_data]
 
         else:
             task_runs = []
@@ -383,7 +383,7 @@ class FlowRunView:
 
     def get_task_run(
         self, task: Task = None, task_slug: str = None, task_run_id: str = None
-    ) -> "TaskRun":
+    ) -> "TaskRunView":
         """
         Get information about a task run from this flow run. Lookup is available by one
         of the following arguments. If the task information is not available locally
@@ -400,7 +400,7 @@ class FlowRunView:
             task_run_id: A task run uuid to use for the lookup
 
         Returns:
-            A cached or newly constructed TaskRun instance
+            A cached or newly constructed TaskRunView instance
         """
 
         if task is not None:
@@ -428,7 +428,7 @@ class FlowRunView:
             result = (
                 self.cached_task_runs[task_run_id]
                 if task_run_id in self._cached_task_runs
-                else TaskRun.from_task_run_id(task_run_id)
+                else TaskRunView.from_task_run_id(task_run_id)
             )
 
             if task_slug is not None and result.task_slug != task_slug:
@@ -457,7 +457,7 @@ class FlowRunView:
                 # We did not find the base mapped task in the cache so we'll
                 # drop through to query for it
 
-            result = TaskRun.from_task_slug(
+            result = TaskRunView.from_task_slug(
                 task_slug=task_slug, flow_run_id=self.flow_run_id
             )
             self._cache_task_run_if_finished(result)
@@ -472,9 +472,9 @@ class FlowRunView:
         task: Task = None,
         task_slug: str = None,
         cache_results: bool = True,
-    ) -> Iterator["TaskRun"]:
+    ) -> Iterator["TaskRunView"]:
         """
-        Iterate over the results of a mapped task, yielding a `TaskRun` for each map
+        Iterate over the results of a mapped task, yielding a `TaskRunView` for each map
         index. This query is not performed in bulk so the results can be lazily
         consumed. If you want all of the task results at once, use `get_task_run` on
         the mapped task instead.
@@ -488,7 +488,7 @@ class FlowRunView:
                 disabled to reduce memory consumption for large mapped tasks.
 
         Yields:
-            A TaskRun object for each mapped item
+            A TaskRunView object for each mapped item
         """
         if task is not None:
             if task_slug is not None and task_slug != task.slug:
@@ -506,8 +506,8 @@ class FlowRunView:
             "flow_run_id": {"_eq": self.flow_run_id},
             "map_index": {"_eq": index},
         }
-        task_run = TaskRun.from_task_run_data(
-            TaskRun.query_for_task_run(where=where(-1))
+        task_run = TaskRunView.from_task_run_data(
+            TaskRunView.query_for_task_run(where=where(-1))
         )
         if not task_run.state.is_mapped():
             raise TypeError(
@@ -517,13 +517,13 @@ class FlowRunView:
 
         map_index = 0
         while task_run:
-            task_run_data = TaskRun.query_for_task_run(
+            task_run_data = TaskRunView.query_for_task_run(
                 where=where(map_index), error_on_empty=False
             )
             if not task_run_data:
                 break
 
-            task_run = TaskRun.from_task_run_data(task_run_data)
+            task_run = TaskRunView.from_task_run_data(task_run_data)
 
             # Allow the user to skip the cache if they have a lot of task runs
             if cache_results:
@@ -533,13 +533,13 @@ class FlowRunView:
 
             map_index += 1
 
-    def get_all_task_runs(self) -> List["TaskRun"]:
+    def get_all_task_runs(self) -> List["TaskRunView"]:
         """
         Get all task runs for this flow run in a single query. Finished task run data
         is cached so future lookups do not query the backend.
 
         Returns:
-            A list of TaskRun objects
+            A list of TaskRunView objects
         """
         if len(self.task_run_ids) > 1000:
             raise ValueError(
@@ -548,13 +548,13 @@ class FlowRunView:
             )
 
         # Run a single query instead of querying for each task run separately
-        task_run_data = TaskRun.query_for_task_runs(
+        task_run_data = TaskRunView.query_for_task_runs(
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
                 "task_run_id": {"_not", {"_in": list(self._cached_task_runs.keys())}},
             }
         )
-        task_runs = [TaskRun.from_task_run_data(data) for data in task_run_data]
+        task_runs = [TaskRunView.from_task_run_data(data) for data in task_run_data]
         # Add to cache
         for task_run in task_runs:
             self._cache_task_run_if_finished(task_run)
