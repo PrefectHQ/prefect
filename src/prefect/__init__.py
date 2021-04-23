@@ -27,6 +27,8 @@ import prefect.agent
 import prefect.backend
 from prefect.backend.client import Client
 
+import prefect.client  # deprecated
+
 from ._version import get_versions
 
 __version__ = get_versions()["version"]  # type: ignore
