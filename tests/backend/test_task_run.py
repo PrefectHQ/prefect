@@ -2,14 +2,13 @@
 Tests for `TaskRunView`
 """
 import pytest
-
-from prefect.backend.task_run import NotLoaded
-from prefect.backend import TaskRunView
 from unittest.mock import MagicMock
-from prefect.utilities.graphql import EnumValue
-from prefect.engine.state import Success
-from prefect.engine.results import LocalResult
 
+from prefect.backend import TaskRunView
+from prefect.backend.task_run import NotLoaded
+from prefect.engine.results import LocalResult
+from prefect.engine.state import Success, Mapped
+from prefect.utilities.graphql import EnumValue
 
 TASK_RUN_DATA_1 = {
     "id": "id-1",
@@ -213,3 +212,55 @@ def test_task_run_view_result_loads_result_data(tmpdir, result_value):
 
     # Displays in the repr now
     assert f"result={result_value!r}" in repr(task_run)
+
+
+def test_task_run_view_result_loads_mapped_result_data(tmpdir):
+    # Instantiate a very minimal task run view
+    task_run = TaskRunView(
+        task_run_id="fake-id",
+        task_id=None,
+        task_slug="fake-slug",
+        name=None,
+        state=Mapped(map_states=[]),
+        map_index=-1,
+        flow_run_id="fake-flow-run-id",
+    )
+
+    # The parent task will query for children, here we build some basic child tasks
+    map_1 = TASK_RUN_DATA_1.copy()
+    map_2 = TASK_RUN_DATA_2.copy()
+
+    map_1["serialized_state"] = Success(
+        result=LocalResult(dir=tmpdir).write(1)
+    ).serialize()
+    map_2["serialized_state"] = Success(
+        result=LocalResult(dir=tmpdir).write(2)
+    ).serialize()
+
+    # We'll mock the query so we can assert its called correctly and returns the
+    # mock data
+    query_mock = MagicMock(return_value=[map_1, map_2])
+    task_run.query_for_task_runs = query_mock
+
+    # The result is loaded
+    assert task_run.result == [1, 2]
+
+    # Future calls are cached
+    assert task_run._result == [1, 2]
+    assert task_run.result is task_run.result
+
+    # Displays in the repr now
+    assert f"result={[1, 2]!r}" in repr(task_run)
+
+    # The query searches for the correct stuff and is called _once_ as another assertion
+    # of caching working as intended
+    query_mock.assert_called_once_with(
+        where={
+            "task": {"slug": {"_eq": task_run.task_slug}},
+            "flow_run_id": {"_eq": task_run.flow_run_id},
+            # Ignore the root task since we are the root task
+            "map_index": {"_neq": -1},
+        },
+        # Ensure the returned tasks are ordered matching map indices
+        order_by={"map_index": EnumValue("asc")},
+    )

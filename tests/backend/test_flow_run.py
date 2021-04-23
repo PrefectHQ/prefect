@@ -2,13 +2,11 @@
 Tests for `FlowRunView`
 """
 import pytest
+from unittest.mock import MagicMock
 
 from prefect.backend import FlowRunView, TaskRunView
-from unittest.mock import MagicMock
-from prefect.utilities.graphql import EnumValue
 from prefect.engine.state import Success, Running
-from prefect.engine.results import LocalResult
-from prefect.storage import Local
+
 
 FLOW_RUN_DATA_1 = {
     "id": "id-1",
