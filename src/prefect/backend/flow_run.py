@@ -333,28 +333,7 @@ class FlowRunView:
         Returns:
             A populated `FlowRunView` instance
         """
-        client = Client()
-
-        flow_run_query = {
-            "query": {
-                with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                    "id": True,
-                    "name": True,
-                    "flow_id": True,
-                    "serialized_state": True,
-                    "flow": {"storage", "run_config", "name"},
-                }
-            }
-        }
-
-        result = client.graphql(flow_run_query)
-        flow_run = result.get("data", {}).get("flow_run_by_pk", None)
-
-        if not flow_run:
-            raise ValueError(
-                f"Received bad result while querying for flow run {flow_run_id}: "
-                f"{result}"
-            )
+        flow_run_data = cls.query_for_flow_run(where={"id": {"_eq": flow_run_id}})
 
         if load_static_tasks:
             task_run_data = TaskRunView.query_for_task_runs(
@@ -371,15 +350,54 @@ class FlowRunView:
         # Combine with the provided `_cached_task_runs` iterable
         task_runs = task_runs + list(_cached_task_runs or [])
 
-        flow_run_id = flow_run.pop("id")
+        # This is redundant because it is the id we already have but this makes tests
+        # easier
+        flow_run_id = flow_run_data.pop("id")
 
         return cls(
             flow_run_id=flow_run_id,
-            flow_id=flow_run.flow_id,
+            flow_id=flow_run_data["flow_id"],
             task_runs=task_runs,
-            state=State.deserialize(flow_run.serialized_state),
-            name=flow_run.name,
+            state=State.deserialize(flow_run_data["serialized_state"]),
+            name=flow_run_data["name"],
         )
+
+    @staticmethod
+    def query_for_flow_run(where: dict) -> dict:
+        client = Client()
+
+        flow_run_query = {
+            "query": {
+                with_args("flow_run", {"where": where}): {
+                    "id": True,
+                    "name": True,
+                    "flow_id": True,
+                    "serialized_state": True,
+                }
+            }
+        }
+
+        result = client.graphql(flow_run_query)
+        flow_runs = result.get("data", {}).get("flow_run", None)
+
+        if flow_runs is None:
+            raise ValueError(
+                f"Received bad result while querying for flow runs where {where}: "
+                f"{result}"
+            )
+
+        if not flow_runs:
+            raise ValueError(
+                f"No flow runs found while querying for flow runs where {where}"
+            )
+
+        if len(flow_runs) > 1:
+            raise ValueError(
+                f"Found multiple ({len(flow_runs)}) flow runs while querying for flow "
+                f"runs where {where}: {flow_runs}"
+            )
+
+        return flow_runs[0]
 
     def get_task_run(
         self, task: Task = None, task_slug: str = None, task_run_id: str = None
