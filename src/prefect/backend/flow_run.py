@@ -265,9 +265,11 @@ class FlowRunView:
                 task_run.task_run_id
             )
 
-    def update(self, load_static_tasks: bool = False) -> "FlowRunView":
+    def get_latest(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
-        Get the a new copy of this object with the newest data from the API
+        Get the a new copy of this object with the latest data from the API
+
+        This will not mutate the current object.
 
         Args:
             load_static_tasks: Pre-populate the task runs with results from flow tasks

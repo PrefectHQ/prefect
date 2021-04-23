@@ -28,10 +28,6 @@ class FlowView:
         core_version: The core version that was used to register the flow
         storage: The deserialized Storage object used to store this flow
         name: The name of the flow
-
-
-    TODO: Consider changing this class name. We don't want to to overlap with
-          prefect.Flow but it'd be nice to have a better modifier than 'Metadata'
     """
 
     def __init__(

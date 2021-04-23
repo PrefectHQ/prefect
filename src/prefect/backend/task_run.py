@@ -222,9 +222,14 @@ class TaskRunView:
         # Return a list
         return task_runs
 
-    def update(self) -> "TaskRunView":
+    def get_latest(self) -> "TaskRunView":
         """
-        Get the a new copy of this object with the newest data from the API
+        Get the a new copy of this object with the latest data from the API
+
+        This will not mutate the current object.
+
+        Returns:
+            A new instance of TaskRunView
         """
         return self.from_task_run_id(
             task_run_id=self.task_run_id,
