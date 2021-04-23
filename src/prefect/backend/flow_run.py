@@ -59,20 +59,20 @@ def create_flow_run(
 def execute_flow_run(
     flow_run_id: str,
     flow: "Flow" = None,
-    runner_cls: Type["prefect.engine.flow_runner.FlowRunViewner"] = None,
+    runner_cls: Type["prefect.engine.flow_runner.FlowRunner"] = None,
     **kwargs: Any,
 ) -> "FlowRunView":
     """ "
     The primary entry point for executing a flow run. The flow run will be run
-    in-process using the given `runner_cls` which defaults to the `CloudFlowRunViewner`.
+    in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
 
     Args:
         flow_run_id: The flow run id to execute; this run id must exist in the database
         flow: A Flow object can be passed to execute a flow without loading t from
             Storage. If `None`, the flow's Storage metadata will be pulled from the
             API and used to get a functional instance of the Flow and its tasks.
-        runner_cls: An optional `FlowRunViewner` to override the default `CloudFlowRunViewner`
-        **kwargs: Additional kwargs will be passed to the `FlowRunViewner.run` method
+        runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
+        **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
 
     Returns:
         A `FlowRunView` instance with information about the state of the flow run and its
@@ -80,10 +80,10 @@ def execute_flow_run(
     """
     logger.debug(f"Querying for flow run {flow_run_id!r}")
 
-    # Get the `FlowRunViewner` class type
+    # Get the `FlowRunner` class type
     # TODO: Respect a config option for this class so it can be overridden by env var,
     #       create a separate config argument for flow runs executed with the backend
-    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunViewner
+    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
     # Get a `FlowRunView` object
     flow_run = FlowRunView.from_flow_run_id(
