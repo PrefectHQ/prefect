@@ -3,7 +3,9 @@ import multiprocessing
 import sys
 import threading
 import time
+from unittest.mock import MagicMock
 
+import cloudpickle
 import pytest
 
 import prefect
@@ -11,6 +13,7 @@ from prefect.utilities.exceptions import TaskTimeoutError
 from prefect.utilities.executors import (
     run_with_thread_timeout,
     run_with_multiprocess_timeout,
+    multiprocessing_safe_run_and_retrieve,
     tail_recursive,
     RecursiveCall,
 )
@@ -192,6 +195,63 @@ def test_run_with_multiprocess_timeout_preserves_logging(capfd):
     stdout = capfd.readouterr().out
     assert "Beginning Flow run" in stdout
     assert "Flow run SUCCESS" in stdout
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_multiprocess_timeout_handles_none_return_values():
+    def fn():
+        return None
+
+    result = run_with_multiprocess_timeout(fn, timeout=10)
+
+    assert result is None
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_multiprocess_timeout_handles_unpicklable_return_values():
+    def fn():
+        import threading
+
+        # An unpickleable type
+        return threading.Lock()
+
+    with pytest.raises(
+        RuntimeError,
+        match="Failed to pickle result of type 'lock'",
+    ) as exc_info:
+        run_with_multiprocess_timeout(fn, timeout=12)
+
+    # We include the original exception
+    assert "TypeError: cannot pickle '_thread.lock' object" in str(
+        exc_info.value
+        # Python 3.6/7 have a different error message
+    ) or "TypeError: can't pickle _thread.lock objects" in str(exc_info.value)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_multiprocessing_safe_run_and_retrieve_logs_queue_errors(caplog):
+    # We cannot mock queue.put
+    def fn():
+        pass
+
+    mock_queue = MagicMock(put=MagicMock(side_effect=Exception("Test")))
+
+    request = cloudpickle.dumps({"fn": fn})
+
+    with pytest.raises(
+        Exception,
+        match="Test",
+    ):
+        multiprocessing_safe_run_and_retrieve(mock_queue, request)
+
+    assert "Failed to put result in queue to main process!" in caplog.text
+    assert "Exception: Test" in caplog.text
 
 
 def test_recursion_go_case():

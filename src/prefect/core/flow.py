@@ -39,6 +39,7 @@ from prefect.core.parameter import Parameter
 from prefect.core.task import Task
 from prefect.executors import Executor
 from prefect.engine.result import Result
+from prefect.engine.state import State
 from prefect.environments import Environment
 from prefect.storage import Storage, get_default_storage_class
 from prefect.run_configs import RunConfig, UniversalRun
@@ -143,6 +144,13 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
+        -  terminal_state_handler (Callable, optional): A state handler that can be used to
+            inspect or modify the final state of the flow run. Expects a callable with signature
+            `handler(flow: Flow, state: State, reference_task_states: Set[State]) -> Optional[State]`,
+            where `flow` is the current Flow, `state` is the current state of the Flow run, and
+            `reference_task_states` is set of states for all reference tasks in the flow. It should
+            return either a new state for the flow run, or `None` (in which case the existing
+            state will be used).
     """
 
     def __init__(
@@ -160,6 +168,9 @@ class Flow:
         on_failure: Callable = None,
         validate: bool = None,
         result: Optional[Result] = None,
+        terminal_state_handler: Optional[
+            Callable[["Flow", State, Set[State]], Optional[State]]
+        ] = None,
     ):
         self._cache = {}  # type: dict
 
@@ -174,6 +185,7 @@ class Flow:
         self.run_config = run_config
         self.storage = storage
         self.result = result
+        self.terminal_state_handler = terminal_state_handler
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -859,15 +871,26 @@ class Flow:
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
         if root_tasks:
+            # double check all root tasks exist in the flow
+            for task in root_tasks:
+                if task not in self.tasks:
+                    raise ValueError(
+                        "Task {t} was not found in Flow {f}".format(t=task, f=self)
+                    )
+
             tasks = set(root_tasks)
             seen = set()  # type: Set[Task]
+
+            # compute the downstream edges dict once, this method uses
+            # @cached but validation is expensive for large flows
+            downstream_edges = self.all_downstream_edges()
 
             # while the set of tasks is different from the seen tasks...
             while tasks.difference(seen):
                 # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
                     # add its downstream tasks to the task list
-                    tasks.update(self.downstream_tasks(t))
+                    tasks.update({e.downstream_task for e in downstream_edges[t]})
                     # mark it as seen
                     seen.add(t)
         else:
@@ -876,6 +899,11 @@ class Flow:
         # build the list of sorted tasks
         remaining_tasks = list(tasks)
         sorted_tasks = []
+
+        # compute the upstream edges dict once, this method uses
+        # @cached but validation is expensive for large flows
+        upstream_edges = self.all_upstream_edges()
+
         while remaining_tasks:
             # mark the flow as cyclic unless we prove otherwise
             cyclic = True
@@ -883,7 +911,8 @@ class Flow:
             # iterate over each remaining task
             for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
-                for upstream_task in self.upstream_tasks(task):
+                upstream_tasks = {e.upstream_task for e in upstream_edges[task]}
+                for upstream_task in upstream_tasks:
                     # if the upstream task is also remaining, it means it
                     # hasn't been sorted, so we can't sort this task either
                     if upstream_task in remaining_tasks:

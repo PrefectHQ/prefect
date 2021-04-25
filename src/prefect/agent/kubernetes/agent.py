@@ -74,6 +74,9 @@ class KubernetesAgent(Agent):
         - volumes (list, optional): A list of volumes to make available to be mounted when a
             job is run. The volumes in the list should be specified as nested dicts.
             i.e `[{"name": "my-vol", "csi": {"driver": "secrets-store.csi.k8s.io"}}]`
+        - delete_finished_jobs (bool, optional): A boolean to toggle if finished Prefect jobs
+            in the agent's namespace should be deleted. Defaults to the environment variable
+            `DELETE_FINISHED_JOBS` or `True`.
     """
 
     def __init__(
@@ -91,6 +94,7 @@ class KubernetesAgent(Agent):
         no_cloud_logs: bool = False,
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
+        delete_finished_jobs: bool = True,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -117,6 +121,9 @@ class KubernetesAgent(Agent):
         self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
         self.volumes = volumes
+        self.delete_finished_jobs = delete_finished_jobs and (
+            os.getenv("DELETE_FINISHED_JOBS", "True") == "True"
+        )
 
         from kubernetes import client, config
 
@@ -344,7 +351,7 @@ class KubernetesAgent(Agent):
                                 )
 
                     # Delete job if it is successful or failed
-                    if delete_job:
+                    if delete_job and self.delete_finished_jobs:
                         self.logger.debug(f"Deleting job {job_name}")
                         try:
                             self.job_pod_event_timestamps.pop(job_name, None)
@@ -516,7 +523,9 @@ class KubernetesAgent(Agent):
         env[4]["value"] = self.namespace
         env[5]["value"] = str(self.labels)
         env[6]["value"] = str(self.log_to_cloud).lower()
-        env[7]["value"] = config.logging.level
+        env[7]["value"] = self.env_vars.get(
+            "PREFECT__LOGGING__LEVEL", config.logging.level
+        )
 
         # append all user provided values
         for key, value in self.env_vars.items():
@@ -651,7 +660,9 @@ class KubernetesAgent(Agent):
         container = containers[0]
 
         # Set container image
-        container["image"] = image = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(
+            flow_run, default=container.get("image")
+        )
 
         # Set flow run command
         container["args"] = get_flow_run_command(flow_run).split()
@@ -662,7 +673,8 @@ class KubernetesAgent(Agent):
         # - Values set on the KubernetesRun object
         # - Values set using the `--env` CLI flag on the agent
         # - Values in the job template
-        env = self.env_vars.copy()
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(

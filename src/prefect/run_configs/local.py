@@ -44,8 +44,7 @@ class LocalRun(RunConfig):
         working_dir: str = None,
         labels: Iterable[str] = None,
     ) -> None:
-        super().__init__(labels=labels)
+        super().__init__(env=env, labels=labels)
         if working_dir is not None:
             working_dir = os.path.abspath(working_dir)
         self.working_dir = working_dir
-        self.env = env

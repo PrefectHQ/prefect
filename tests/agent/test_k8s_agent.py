@@ -921,6 +921,43 @@ def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
     assert batch_client.delete_namespaced_job.called
 
 
+def test_k8s_agent_manage_jobs_does_not_delete_if_disabled(monkeypatch, cloud_api):
+    job_mock = MagicMock()
+    job_mock.metadata.labels = {
+        "prefect.io/identifier": "id",
+        "prefect.io/flow_run_id": "fr",
+    }
+    job_mock.metadata.name = "my_job"
+    job_mock.status.failed = True
+    job_mock.status.succeeded = True
+    batch_client = MagicMock()
+    list_job = MagicMock()
+    list_job.metadata._continue = 0
+    list_job.items = [job_mock]
+    batch_client.list_namespaced_job.return_value = list_job
+    batch_client.delete_namespaced_job.return_value = None
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
+    )
+
+    pod = MagicMock()
+    pod.metadata.name = "pod_name"
+    pod.status.phase = "Success"
+
+    core_client = MagicMock()
+    list_pods = MagicMock()
+    list_pods.items = [pod]
+    core_client.list_namespaced_pod.return_value = list_pods
+    monkeypatch.setattr(
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    agent = KubernetesAgent(delete_finished_jobs=False)
+    agent.manage_jobs()
+
+    assert not batch_client.delete_namespaced_job.called
+
+
 def test_k8s_agent_manage_jobs_reports_failed_pods(monkeypatch, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -1283,19 +1320,44 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["restartPolicy"] == "Never"
 
     @pytest.mark.parametrize(
-        "run_config, storage, expected",
+        "run_config, storage, on_template, expected",
         [
             (
                 KubernetesRun(),
                 Docker(registry_url="test", image_name="name", image_tag="tag"),
+                None,
                 "test/name:tag",
             ),
-            (KubernetesRun(image="myimage"), Local(), "myimage"),
-            (KubernetesRun(), Local(), "prefecthq/prefect:0.13.0"),
+            (
+                KubernetesRun(),
+                Docker(registry_url="test", image_name="name", image_tag="tag"),
+                "default-image",
+                "test/name:tag",
+            ),
+            (KubernetesRun(image="myimage"), Local(), None, "myimage"),
+            (KubernetesRun(image="myimage"), Local(), "default-image", "myimage"),
+            (KubernetesRun(), Local(), None, "prefecthq/prefect:0.13.0"),
+            (KubernetesRun(), Local(), "default-image", "default-image"),
         ],
-        ids=["on-storage", "on-run_config", "default"],
+        ids=[
+            "on-storage",
+            "on-storage-2",
+            "on-run_config",
+            "on-run_config-2",
+            "on-template",
+            "default",
+        ],
     )
-    def test_generate_job_spec_image(self, run_config, storage, expected):
+    def test_generate_job_spec_image(
+        self, tmpdir, run_config, storage, on_template, expected
+    ):
+        if on_template:
+            template_path = str(tmpdir.join("job.yaml"))
+            template = self.read_default_template()
+            template["spec"]["template"]["spec"]["containers"][0]["image"] = on_template
+            with open(template_path, "w") as f:
+                yaml.safe_dump(template, f)
+            self.agent.job_template_path = template_path
         flow_run = self.build_flow_run(run_config, storage)
         job = self.agent.generate_job_spec(flow_run)
         image = job["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -1357,11 +1419,61 @@ class TestK8sAgentRunConfig:
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # Agent env-vars override those in template
             "CUSTOM3": "OVERRIDE3",  # RunConfig env-vars override those on agent and template
             "CUSTOM4": "VALUE4",
         }
+
+    @pytest.mark.parametrize(
+        "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+        [
+            ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {},
+                "TEST2",
+            ),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {"PREFECT__LOGGING__LEVEL": "TEST"},
+                "TEST",
+            ),
+        ],
+    )
+    def test_generate_job_spec_prefect_logging_level_environment_variable(
+        self,
+        config,
+        agent_env_vars,
+        run_config_env_vars,
+        expected_logging_level,
+        tmpdir,
+        backend,
+    ):
+        """
+        Check that PREFECT__LOGGING__LEVEL is set in precedence order
+        """
+        with set_temporary_config(config):
+            template_path = str(tmpdir.join("job.yaml"))
+            template = self.read_default_template()
+            template_env = template["spec"]["template"]["spec"]["containers"][
+                0
+            ].setdefault("env", [])
+            with open(template_path, "w") as f:
+                yaml.safe_dump(template, f)
+            self.agent.job_template_path = template_path
+
+            self.agent.env_vars = agent_env_vars
+            run_config = KubernetesRun(image="test-image", env=run_config_env_vars)
+
+            flow_run = self.build_flow_run(run_config)
+            job = self.agent.generate_job_spec(flow_run)
+            env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+            env = {item["name"]: item["value"] for item in env_list}
+            assert env["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
     def test_generate_job_spec_resources(self):
         flow_run = self.build_flow_run(

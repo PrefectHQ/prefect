@@ -508,7 +508,7 @@ class Agent:
             - list: A list of GraphQLResult flow run objects
         """
         self.logger.debug("Querying for flow runs")
-        # keep a copy of what was curringly running before the query (future callbacks may be
+        # keep a copy of what was currently running before the query (future callbacks may be
         # updating this set)
         currently_submitting_flow_runs = self.submitting_flow_runs.copy()
 
@@ -702,7 +702,7 @@ class Agent:
             run_config = RunConfigSchema().load(flow_run.run_config)
             if isinstance(run_config, UniversalRun):
                 # Convert to agent-specific run-config
-                return run_config_cls(labels=run_config.labels)
+                return run_config_cls(env=run_config.env, labels=run_config.labels)
             elif not isinstance(run_config, run_config_cls):
                 msg = (
                     "Flow run %s has a `run_config` of type `%s`, only `%s` is supported"

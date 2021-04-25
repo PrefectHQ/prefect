@@ -31,7 +31,13 @@ You can use markdown to add a Read Me description for your flow group in the flo
 
 ## Run
 
-From this page, you can schedule a new run of your flow for now or some point in the future. You may provide parameter values, if appropriate; update your run configuration; and give your run a name for easy queries or retrieval in the future.
+From this page, you can schedule a new run of your flow for now or some point in the future.
+
+You can also customize the new run of your flow, including:
+- Providing parameter values
+- Updating your run configuration
+- Specifying logging level
+- Customizing your run name for easy queries or retrieval in the future
 
 <div class="add-shadow">
   <img src="/orchestration/ui/flow-run.png">

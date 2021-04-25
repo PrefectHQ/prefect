@@ -74,6 +74,13 @@ def run():
     hidden=True,
 )
 @click.option(
+    "--label",
+    "labels",
+    help="A list of labels to apply to the flow run",
+    hidden=True,
+    multiple=True,
+)
+@click.option(
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
 @click.option(
@@ -93,6 +100,7 @@ def flow(
     run_name,
     context,
     watch,
+    labels,
     logs,
     no_url,
 ):
@@ -117,6 +125,8 @@ def flow(
                                                 to include the full payload within single quotes)
         --watch, -w                             Watch current state of the flow run, stream
                                                 output to stdout
+        --label                     TEXT        Set labels on the flow run; use multiple times to set
+                                                multiple labels.
         --logs, -l                              Get logs of the flow run, stream output to
                                                 stdout
         --no-url                                Only output the flow run id instead of a
@@ -159,6 +169,9 @@ def flow(
             "Streaming state and logs not currently supported together.", fg="red"
         )
         return
+
+    if labels == ():
+        labels = None
 
     client = Client()
     flow_id = id
@@ -214,6 +227,7 @@ def flow(
         flow_id=flow_id,
         version_group_id=version_group_id,
         context=context,
+        labels=labels,
         parameters={**file_params, **string_params},
         run_name=run_name,
     )

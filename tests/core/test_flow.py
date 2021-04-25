@@ -17,6 +17,8 @@ import pendulum
 import pytest
 import toml
 
+from typing import Dict, Optional, Set
+
 import prefect
 from prefect import task
 from prefect.core.edge import Edge
@@ -778,6 +780,29 @@ def test_warning_not_raised_for_constant_tasks_as_inputs():
 
     with pytest.warns(None) as record:
         with Flow(name="test") as f:
+            tt = add_one(10)
+
+    # confirm tasks were added
+    assert len(f.tasks) == 1
+    assert f.constants[tt]["x"] == 10
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_not_raised_with_called_task_subclass_in_context():
+    # Covers fix in commit e5c75adb38915485997965fcb3a4110e7a7728b2
+
+    class AddOne(Task):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def run(self, x):
+            return x + 1
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            add_one = AddOne()
             tt = add_one(10)
 
     # confirm tasks were added
@@ -3056,7 +3081,9 @@ class TestSaveLoad:
     reason="Windows doesn't support any timeout logic",
 )
 @pytest.mark.parametrize(
-    "executor", ["local", "sync", "mthread", "mproc_local", "mproc"], indirect=True
+    "executor",
+    ["local", "sync", "mthread", "mproc_local", "mproc", "threaded_local"],
+    indirect=True,
 )
 def test_timeout_actually_stops_execution(
     executor,
@@ -3252,3 +3279,76 @@ class TestSlugGeneration:
             flow.add_task(a2)
 
         assert flow.slugs == {a1: "a-1", a2: "a-2"}
+
+
+class TestTerminalStateHandler:
+    def test_terminal_state_handler_determines_final_state(self):
+        def fake_terminal_state_handler(
+            flow: Flow,
+            state: State,
+            reference_task_states: Set[State],
+        ) -> Optional[State]:
+            for task_state in reference_task_states:
+                if task_state.is_successful():
+                    state.message = "Custom message here"
+            return state
+
+        with Flow("test", terminal_state_handler=fake_terminal_state_handler) as flow:
+            fake_task = Task("fake")
+            flow.add_task(fake_task)
+            fake_task_2 = Task("fake_2")
+            flow.add_task(fake_task_2)
+            fake_task_2.set_upstream(fake_task)
+
+        assert flow.terminal_state_handler == fake_terminal_state_handler
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+        assert flow_state.message == "Custom message here"
+
+    def test_flow_state_used_if_terminal_state_handler_does_not_return_a_new_state(
+        self,
+    ):
+        def fake_terminal_state_handler(
+            flow: Flow,
+            state: State,
+            reference_task_states: Set[State],
+        ) -> Optional[State]:
+            return None
+
+        with Flow("test", terminal_state_handler=fake_terminal_state_handler) as flow:
+            fake_task = Task("fake")
+            flow.add_task(fake_task)
+
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+        assert flow_state.message == "All reference tasks succeeded."
+
+    def test_terminal_state_handler_example_from_docs(self):
+        def custom_terminal_state_handler(
+            flow: Flow,
+            state: State,
+            reference_task_states: Set[State],
+        ) -> Optional[State]:
+            failed = False
+            # iterate through reference task states looking for failures
+            for task_state in reference_task_states:
+                if task_state.is_failed():
+                    failed = True
+            # update the terminal state of the Flow and return
+            if failed:
+                state.message = "Some important tasks have failed"
+            return state
+
+        class FailingTask(Task):
+            def run(self):
+                raise Exception
+
+        flow = Flow(
+            "my flow with custom terminal state handler",
+            terminal_state_handler=custom_terminal_state_handler,
+        )
+        flow.add_task(FailingTask(name="FailingTask"))
+
+        flow_state = flow.run()
+        assert flow_state.is_failed()
+        assert flow_state.message == "Some important tasks have failed"

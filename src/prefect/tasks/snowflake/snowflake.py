@@ -106,8 +106,7 @@ class SnowflakeQuery(Task):
         try:
             with conn:
                 with conn.cursor() as cursor:
-                    executed = cursor.execute(query, params=data)
-
+                    executed = cursor.execute(query, params=data).fetchall()
             conn.close()
             return executed
 

@@ -180,7 +180,7 @@ class ECSAgent(Agent):
         # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
         # for more info.
         boto_config = Config(**botocore_config or {})
-        if not boto_config.retries:
+        if not boto_config.retries and not os.environ.get("AWS_RETRY_MODE"):
             boto_config.retries = {"mode": "standard"}
 
         self.boto_kwargs = dict(
@@ -387,7 +387,9 @@ class ECSAgent(Agent):
             containers.append(container)
 
         # Set flow image
-        container["image"] = image = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(
+            flow_run, default=container.get("image")
+        )
 
         # Add `PREFECT__CONTEXT__IMAGE` environment variable
         env = {"PREFECT__CONTEXT__IMAGE": image}
@@ -402,6 +404,20 @@ class ECSAgent(Agent):
             taskdef["cpu"] = str(taskdef["cpu"])
         if "memory" in taskdef:
             taskdef["memory"] = str(taskdef["memory"])
+
+        # Set executionRoleArn if configured
+        # Note that we set this in both the task definition and the
+        # run_task_kwargs since ECS requires this in the definition for FARGATE
+        # tasks, but we also want to still configure it for users that provide
+        # their own `task_definition_arn`.
+        if run_config.execution_role_arn:
+            taskdef["executionRoleArn"] = run_config.execution_role_arn
+        elif self.execution_role_arn:
+            taskdef["executionRoleArn"] = self.execution_role_arn
+
+        # Set requiresCompatibilities if not already set
+        if "requiresCompatibilities" not in taskdef:
+            taskdef["requiresCompatibilities"] = [self.launch_type]
 
         return taskdef
 
@@ -419,8 +435,7 @@ class ECSAgent(Agent):
         """
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
-        if self.launch_type:
-            out["launchType"] = self.launch_type
+        out["launchType"] = self.launch_type
         if self.cluster:
             out["cluster"] = self.cluster
 
@@ -464,12 +479,15 @@ class ECSAgent(Agent):
         # Set flow run command
         container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
 
+        # Add `PREFECT__LOGGING__LEVEL` environment variable
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+
         # Populate environment variables from the following sources,
         # with precedence:
         # - Values required for flow execution, hardcoded below
         # - Values set on the ECSRun object
         # - Values set using the `--env` CLI flag on the agent
-        env = self.env_vars.copy()
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(

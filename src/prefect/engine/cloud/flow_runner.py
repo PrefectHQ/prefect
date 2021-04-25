@@ -393,15 +393,20 @@ class CloudFlowRunner(FlowRunner):
         tasks = {slug: t for t, slug in self.flow.slugs.items()}
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
+
             try:
                 task = tasks[task_run.task_slug]
             except KeyError as exc:
-                msg = (
-                    f"Task slug {task_run.task_slug} not found in the current Flow; "
-                    f"this is usually caused by changing the Flow without reregistering "
-                    f"it with the Prefect API."
-                )
-                raise KeyError(msg) from exc
+                raise KeyError(
+                    f"Task slug {task_run.task_slug} is not found in the current Flow. "
+                    "This is usually caused by a mismatch between the flow version "
+                    "stored in the Prefect backend and the flow that was loaded from "
+                    "storage.\n"
+                    "- Did you change the flow without re-registering it?\n"
+                    "- Did you register the flow without updating it in your storage "
+                    "location (if applicable)?"
+                ) from exc
+
             task_states.setdefault(task, task_run.state)
             task_contexts.setdefault(task, {}).update(
                 task_id=task_run.task_id,

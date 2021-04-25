@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.12)', link: '/api/latest/' },
+          { text: 'Latest (0.14.16)', link: '/api/latest/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
@@ -139,17 +139,17 @@ module.exports = {
         {
           title: 'prefect.executors',
           collapsable: true,
-          children: ['executors.md'],
+          children: ['executors.md']
         },
         {
           title: 'prefect.run_configs',
           collapsable: true,
-          children: ['run_configs.md'],
+          children: ['run_configs.md']
         },
         {
           title: 'prefect.storage',
           collapsable: true,
-          children: ['storage.md'],
+          children: ['storage.md']
         },
         {
           title: 'prefect.tasks',
@@ -202,7 +202,7 @@ module.exports = {
             'concepts/cloud_hooks',
             'concepts/secrets',
             'concepts/services',
-            'concepts/tokens',
+            'concepts/api_keys',
             'concepts/roles',
             'concepts/task-concurrency-limiting'
           ]
@@ -338,7 +338,12 @@ module.exports = {
         {
           title: 'Examples',
           collapsable: true,
-          children: getChildren('docs/core', 'examples')
+          children: [
+            'examples/overview',
+            'examples/parameters',
+            'examples/mapping',
+            'examples/conditional'
+          ]
         },
         {
           title: 'PINs',

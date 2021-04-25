@@ -50,7 +50,7 @@ def auth():
         Tenant switched
 
     \b
-        $ prefect auth create-token -n MyToken -r RUNNER
+        $ prefect auth create-token -n MyToken -s RUNNER
         ...token output...
     """
     if config.backend == "server":

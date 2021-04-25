@@ -10,10 +10,6 @@ from prefect import Flow
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32", reason="ShellTask currently not supported on Windows"
-)
-
 
 def test_shell_initializes_and_runs_basic_cmd():
     with Flow(name="test") as f:
@@ -136,6 +132,53 @@ def test_shell_respects_stream_output(caplog, stream_output):
     assert stdout_in_log == stream_output
 
 
+def test_shell_log_stream_default(caplog):
+    with Flow(name="test") as f:
+        ShellTask(stream_output=True)(command="echo foo && echo bar")
+    f.run()
+
+    log_messages = [(r.levelname, r.message) for r in caplog.records]
+    assert ("INFO", "foo") in log_messages and ("INFO", "bar") in log_messages
+
+
+def test_shell_log_stream_as_info(caplog):
+    with Flow(name="test") as f:
+        ShellTask(stream_output=logging.INFO)(command="echo foo && echo bar")
+    f.run()
+
+    log_messages = [(r.levelname, r.message) for r in caplog.records]
+    assert ("INFO", "foo") in log_messages and ("INFO", "bar") in log_messages
+
+
+def test_shell_logs_stream_as_debug(caplog):
+    with Flow(name="test") as f:
+        ShellTask(stream_output=logging.DEBUG)(command="echo foo && echo bar")
+    f.run()
+
+    log_messages = [(r.levelname, r.message) for r in caplog.records]
+    assert ("DEBUG", "foo") in log_messages and ("DEBUG", "bar") in log_messages
+
+
+def test_shell_log_stream_type_error_on_invalid_log_level_string(caplog):
+    with pytest.raises(TypeError):
+        with raise_on_exception():
+            with Flow(name="test") as f:
+                ShellTask(stream_output="FOO")
+
+
+@pytest.mark.parametrize("stream_output", ["INFO", "DEBUG"])
+def test_shell_log_stream_as_info_string_input(caplog, stream_output):
+    with Flow(name="test") as f:
+        ShellTask(stream_output=stream_output)(command="echo foo && echo bar")
+    f.run()
+
+    log_messages = [(r.levelname, r.message) for r in caplog.records]
+    assert (stream_output, "foo") in log_messages and (
+        stream_output,
+        "bar",
+    ) in log_messages
+
+
 def test_shell_logs_stderr_on_non_zero_exit(caplog):
     caplog.set_level(level=logging.ERROR, logger="prefect.ShellTask")
     with Flow(name="test") as f:
@@ -188,7 +231,7 @@ def test_shell_task_handles_multiline_commands():
             cat $file
         done
         """.format(
-            tempdir
+            tempdir.replace("\\", "\\\\")
         )
         with open(tempdir + "/testfile.txt", "w") as f:
             f.write("this is a test")

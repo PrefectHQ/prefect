@@ -135,7 +135,7 @@ class TestMergeRunTaskKwargs:
         }
 
 
-def test_boto_kwargs():
+def test_boto_kwargs(monkeypatch):
     # Defaults to loaded from environment
     agent = ECSAgent()
     keys = [
@@ -159,6 +159,11 @@ def test_boto_kwargs():
         "mode": "adaptive",
         "max_attempts": 2,
     }
+
+    # Does not set 'standard' if env variable is set
+    monkeypatch.setenv("AWS_RETRY_MODE", "adaptive")
+    agent = ECSAgent()
+    assert (agent.boto_kwargs["config"].retries or {}).get("mode") is None
 
 
 def test_agent_defaults(default_task_definition):
@@ -326,6 +331,28 @@ class TestGenerateTaskDefinition:
             {"key": "prefect:flow-version", "value": "1"},
         ]
 
+    @pytest.mark.parametrize("launch_type", [None, "FARGATE", "EC2"])
+    def test_generate_task_definition_requires_compatibilities(self, launch_type):
+        taskdef = self.generate_task_definition(ECSRun(), launch_type=launch_type)
+        assert taskdef["requiresCompatibilities"] == [launch_type or "FARGATE"]
+
+    @pytest.mark.parametrize(
+        "on_run_config, on_agent, expected",
+        [
+            (None, None, None),
+            ("execution-role-1", None, "execution-role-1"),
+            (None, "execution-role-2", "execution-role-2"),
+            ("execution-role-1", "execution-role-2", "execution-role-1"),
+        ],
+    )
+    def test_get_task_run_kwargs_execution_role_arn(
+        self, on_run_config, on_agent, expected
+    ):
+        taskdef = self.generate_task_definition(
+            ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
+        )
+        assert taskdef.get("executionRoleArn") == expected
+
     @pytest.mark.parametrize(
         "run_config, storage, expected",
         [
@@ -335,9 +362,20 @@ class TestGenerateTaskDefinition:
                 "test/name:tag",
             ),
             (ECSRun(image="myimage"), Local(), "myimage"),
+            (
+                ECSRun(
+                    task_definition={
+                        "containerDefinitions": [
+                            {"name": "flow", "image": "on-template"}
+                        ]
+                    }
+                ),
+                Local(),
+                "on-template",
+            ),
             (ECSRun(), Local(), "prefecthq/prefect:0.13.0"),
         ],
-        ids=["on-storage", "on-run_config", "default"],
+        ids=["on-storage", "on-run_config", "on-template", "default"],
     )
     def test_generate_task_definition_image(self, run_config, storage, expected):
         taskdef = self.generate_task_definition(run_config, storage)
@@ -522,11 +560,41 @@ class TestGetRunTaskKwargs:
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": "flow-id",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
+            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # agent envs override agent run-task-kwargs
             "CUSTOM3": "OVERRIDE3",  # run-config envs override agent
             "CUSTOM4": "VALUE4",
         }
+
+    @pytest.mark.parametrize(
+        "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+        [
+            ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {},
+                "TEST2",
+            ),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {"PREFECT__LOGGING__LEVEL": "TEST"},
+                "TEST",
+            ),
+        ],
+    )
+    def test_prefect_logging_level_override_logic(
+        self, config, agent_env_vars, run_config_env_vars, expected_logging_level
+    ):
+        with set_temporary_config(config):
+            kwargs = self.get_run_task_kwargs(
+                ECSRun(env=run_config_env_vars), env_vars=agent_env_vars
+            )
+            env_list = kwargs["overrides"]["containerOverrides"][0]["environment"]
+            env = {item["name"]: item["value"] for item in env_list}
+            assert env["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
 
 class TestDeployFlow:
