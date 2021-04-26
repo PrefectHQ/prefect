@@ -1,11 +1,159 @@
-from typing import List, Dict, Any
+import warnings
+from typing import Any, Dict, List
 
 import prefect
-from prefect.utilities.graphql import with_args, EnumValue
+from prefect.utilities.exceptions import ClientError
+from prefect.utilities.graphql import (
+    EnumValue,
+    compress,
+    with_args,
+)
 from prefect.utilities.logging import get_logger
 
-
 logger = get_logger("backend.flow")
+
+
+def register(
+    flow: "prefect.core.Flow",
+    project_name: str = None,
+    build: bool = True,
+    set_schedule_active: bool = True,
+    version_group_id: str = None,
+    compressed: bool = True,
+    idempotency_key: str = None,
+) -> "FlowView":
+    """
+    Push a new flow to Prefect Cloud
+
+    Args:
+        - flow (Flow): a flow to register
+        - project_name (str, optional): the project that should contain this flow.
+        - build (bool, optional): if `True`, the flow's environment is built
+            prior to serialization; defaults to `True`
+        - set_schedule_active (bool, optional): if `False`, will set the schedule to
+            inactive in the database to prevent auto-scheduling runs (if the Flow has a
+            schedule).  Defaults to `True`. This can be changed later.
+        - version_group_id (str, optional): the UUID version group ID to use for versioning
+            this Flow in Cloud; if not provided, the version group ID associated with this
+            Flow's project and name will be used.
+        - compressed (bool, optional): if `True`, the serialized flow will be; defaults to
+            `True` compressed
+        - idempotency_key (optional, str): a key that, if matching the most recent
+            registration call for this flow group, will prevent the creation of
+            another flow version and return the existing flow id instead.
+
+    Returns:
+        - str: the ID of the newly-registered flow
+
+    Raises:
+        - ClientError: if the register failed
+    """
+    client = prefect.backend.client.Client()
+
+    required_parameters = {p for p in flow.parameters() if p.required}
+    if flow.schedule is not None and required_parameters:
+        required_names = {p.name for p in required_parameters}
+        if not all(
+            [
+                required_names <= set(c.parameter_defaults.keys())
+                for c in flow.schedule.clocks
+            ]
+        ):
+            raise ClientError(
+                "Flows with required parameters can not be scheduled automatically."
+            )
+    if any(e.key for e in flow.edges) and flow.result is None:
+        warnings.warn(
+            "No result handler was specified on your Flow. Cloud features such as "
+            "input caching and resuming task runs from failure may not work properly.",
+            stacklevel=2,
+        )
+    if compressed:
+        create_mutation = {
+            "mutation($input: create_flow_from_compressed_string_input!)": {
+                "create_flow_from_compressed_string(input: $input)": {"id"}
+            }
+        }
+    else:
+        create_mutation = {
+            "mutation($input: create_flow_input!)": {
+                "create_flow(input: $input)": {"id"}
+            }
+        }
+
+    project = None
+
+    if project_name is None:
+        raise TypeError("'project_name' is a required field when registering a flow.")
+
+    query_project = {
+        "query": {
+            with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                "id": True
+            }
+        }
+    }
+
+    project = self.graphql(query_project).data.project  # type: ignore
+
+    if not project:
+        raise ValueError(
+            "Project {} not found. Run `prefect create project '{}'` to create it.".format(
+                project_name, project_name
+            )
+        )
+
+    serialized_flow = flow.serialize(build=build)  # type: Any
+
+    # Configure environment.metadata (if using environment-based flows)
+    if flow.environment is not None:
+        # Set Docker storage image in environment metadata if provided
+        if isinstance(flow.storage, prefect.storage.Docker):
+            flow.environment.metadata["image"] = flow.storage.name
+            serialized_flow = flow.serialize(build=False)
+
+        # If no image ever set, default metadata to image on current version
+        if not flow.environment.metadata.get("image"):
+            version = prefect.__version__.split("+")[0]
+            flow.environment.metadata["image"] = f"prefecthq/prefect:{version}"
+            serialized_flow = flow.serialize(build=False)
+
+    # verify that the serialized flow can be deserialized
+    try:
+        prefect.serialization.flow.FlowSchema().load(serialized_flow)
+    except Exception as exc:
+        raise ValueError(
+            "Flow could not be deserialized successfully. Error was: {}".format(
+                repr(exc)
+            )
+        ) from exc
+
+    if compressed:
+        serialized_flow = compress(serialized_flow)
+
+    inputs = dict(
+        project_id=(project[0].id if project else None),
+        serialized_flow=serialized_flow,
+        set_schedule_active=set_schedule_active,
+        version_group_id=version_group_id,
+    )
+    # Add newly added inputs only when set for backwards compatibility
+    if idempotency_key is not None:
+        inputs.update(idempotency_key=idempotency_key)
+
+    res = client.graphql(
+        create_mutation,
+        variables=dict(input=inputs),
+        retry_on_api_error=False,
+    )  # type: Any
+
+    flow_id = (
+        res.data.create_flow_from_compressed_string.id
+        if compressed
+        else res.data.create_flow.id
+    )
+
+    return FlowView.from_flow_id(flow_id)
 
 
 class FlowView:

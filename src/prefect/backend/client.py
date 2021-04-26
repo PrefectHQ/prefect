@@ -741,127 +741,29 @@ class Client:
         Raises:
             - ClientError: if the register failed
         """
-        required_parameters = {p for p in flow.parameters() if p.required}
-        if flow.schedule is not None and required_parameters:
-            required_names = {p.name for p in required_parameters}
-            if not all(
-                [
-                    required_names <= set(c.parameter_defaults.keys())
-                    for c in flow.schedule.clocks
-                ]
-            ):
-                raise ClientError(
-                    "Flows with required parameters can not be scheduled automatically."
-                )
-        if any(e.key for e in flow.edges) and flow.result is None:
-            warnings.warn(
-                "No result handler was specified on your Flow. Cloud features such as "
-                "input caching and resuming task runs from failure may not work properly.",
-                stacklevel=2,
-            )
-        if compressed:
-            create_mutation = {
-                "mutation($input: create_flow_from_compressed_string_input!)": {
-                    "create_flow_from_compressed_string(input: $input)": {"id"}
-                }
-            }
-        else:
-            create_mutation = {
-                "mutation($input: create_flow_input!)": {
-                    "create_flow(input: $input)": {"id"}
-                }
-            }
+        warnings.warn(
+            "`Client.register(...)` has been moved to "
+            "`prefect.backend.flow.register(...)`, please update your usage",
+        )
 
-        project = None
-
-        if project_name is None:
-            raise TypeError(
-                "'project_name' is a required field when registering a flow."
-            )
-
-        query_project = {
-            "query": {
-                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
-                    "id": True
-                }
-            }
-        }
-
-        project = self.graphql(query_project).data.project  # type: ignore
-
-        if not project:
-            raise ValueError(
-                "Project {} not found. Run `prefect create project '{}'` to create it.".format(
-                    project_name, project_name
-                )
-            )
-
-        serialized_flow = flow.serialize(build=build)  # type: Any
-
-        # Configure environment.metadata (if using environment-based flows)
-        if flow.environment is not None:
-            # Set Docker storage image in environment metadata if provided
-            if isinstance(flow.storage, prefect.storage.Docker):
-                flow.environment.metadata["image"] = flow.storage.name
-                serialized_flow = flow.serialize(build=False)
-
-            # If no image ever set, default metadata to image on current version
-            if not flow.environment.metadata.get("image"):
-                version = prefect.__version__.split("+")[0]
-                flow.environment.metadata["image"] = f"prefecthq/prefect:{version}"
-                serialized_flow = flow.serialize(build=False)
-
-        # verify that the serialized flow can be deserialized
-        try:
-            prefect.serialization.flow.FlowSchema().load(serialized_flow)
-        except Exception as exc:
-            raise ValueError(
-                "Flow could not be deserialized successfully. Error was: {}".format(
-                    repr(exc)
-                )
-            ) from exc
-
-        if compressed:
-            serialized_flow = compress(serialized_flow)
-
-        inputs = dict(
-            project_id=(project[0].id if project else None),
-            serialized_flow=serialized_flow,
+        flow_view = prefect.backend.flow.register(
+            flow=flow,
+            project_name=project_name,
+            build=build,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
-        )
-        # Add newly added inputs only when set for backwards compatibility
-        if idempotency_key is not None:
-            inputs.update(idempotency_key=idempotency_key)
-
-        res = self.graphql(
-            create_mutation,
-            variables=dict(input=inputs),
-            retry_on_api_error=False,
-        )  # type: Any
-
-        flow_id = (
-            res.data.create_flow_from_compressed_string.id
-            if compressed
-            else res.data.create_flow.id
+            compressed=compressed,
+            idempotency_key=idempotency_key,
         )
 
+        # `no_url` support has been dropped in the new version of this function
         if not no_url:
-            # Query for flow group id
-            res = self.graphql(
-                {
-                    "query": {
-                        with_args("flow_by_pk", {"id": flow_id}): {"flow_group_id": ...}
-                    }
-                }
-            )
-            flow_group_id = res.get("data").flow_by_pk.flow_group_id
+
+            # TODO: Move this print into `prefect.core.Flow` or the CLI
 
             # Generate direct link to Cloud flow
-            flow_url = self.get_cloud_url("flow", flow_group_id)
-
+            flow_url = self.get_cloud_url("flow", flow_view.flow_group_id)
             prefix = "└── "
-
             print("Flow URL: {}".format(flow_url))
 
             # Extra information to improve visibility
@@ -871,14 +773,15 @@ class Client:
                 labels = sorted(flow.environment.labels)
             else:
                 labels = []
+
             msg = (
-                f" {prefix}ID: {flow_id}\n"
+                f" {prefix}ID: {flow_view.flow_id}\n"
                 f" {prefix}Project: {project_name}\n"
                 f" {prefix}Labels: {labels}"
             )
             print(msg)
 
-        return flow_id
+        return flow_view.flow_id
 
     def get_cloud_url(self, subdirectory: str, id: str, as_user: bool = True) -> str:
         """
