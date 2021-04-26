@@ -40,7 +40,7 @@ class TemporaryGitRepo:
             from dulwich.porcelain import clone
         except ImportError as exc:
             raise ImportError(
-                "Unable to import dulwich, please ensure you have installed with the git extra"
+                "Unable to import dulwich, please ensure you have installed the git extra"
             ) from exc
 
         self.temp_dir = TemporaryDirectory()
