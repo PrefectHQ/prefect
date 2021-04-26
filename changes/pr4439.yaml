@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Move `Client` methods to `prefect.backend` modules - [#4439](https://github.com/PrefectHQ/prefect/pull/4439)"
