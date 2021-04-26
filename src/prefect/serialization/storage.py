@@ -15,6 +15,7 @@ from prefect.storage import (
     S3,
     Storage,
     Webhook,
+    Git,
 )
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
@@ -150,6 +151,24 @@ class WebhookSchema(BaseStorageSchema):
     stored_as_script = fields.Bool(allow_none=True)
 
 
+class GitSchema(BaseStorageSchema):
+    class Meta:
+        object_class = Git
+
+    flow_path = fields.String(allow_none=False)
+    repo = fields.String(allow_none=False)
+    repo_host = fields.String(allow_none=False)
+    flow_name = fields.String(allow_none=True)
+    git_token_secret_name = fields.String(allow_none=True)
+    git_token_username = fields.String(allow_none=True)
+    branch_name = fields.String(allow_none=True)
+    tag = fields.String(allow_none=True)
+    commit = fields.String(allow_none=True)
+    clone_depth = fields.Integer(allow_none=True)
+    use_ssh = fields.Boolean(allow_none=False)
+    format_access_token = fields.Boolean(allow_none=False)
+
+
 class ModuleSchema(BaseStorageSchema):
     class Meta:
         object_class = Module
@@ -176,4 +195,5 @@ class StorageSchema(OneOfSchema):
         "S3": S3Schema,
         "Storage": BaseStorageSchema,
         "Webhook": WebhookSchema,
+        "Git": GitSchema,
     }

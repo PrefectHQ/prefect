@@ -248,6 +248,57 @@ which means both upload (build) and download (local agent) times need to have
 the proper Google Application Credentials configuration.
 :::
 
+### Git
+[Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
+stored in a git repository as `.py` files.
+
+This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages
+
+```python
+from prefect import Flow
+from prefect.storage import Git
+
+# using https by default
+storage = Git(
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    repo_host="github.com",                     # repo host name
+    git_token_secret_name="MY_GIT_ACCESS_TOKEN" # name of personal access token secret
+)
+
+# using ssh, including Deploy Keys
+# (environment must be configured for ssh access to repo)
+storage = Git(
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    repo_host="github.com",                     # repo host name
+    use_ssh=True                                # use ssh for cloning repo
+)
+```
+
+:::tip Git Deploy Keys
+To use `Git` storage with Deploy Keys, ensure your environment is configured to use Deploy Keys. Then, create a `Git` storage class with `use_ssh=True`.
+
+You can find more information about configuring Deploy Keys for common providers here:
+- [GitHub](https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys)
+- [GitLab](https://docs.gitlab.com/ee/user/project/deploy_keys/)
+- [BitBucket](https://bitbucket.org/blog/deployment-keys)
+:::
+
+:::tip GitLab Deploy Tokens
+To use `Git` storage with GitLab Deploy Tokens, first create a Secret storing your Deploy Token. Then, you can configure `Git` storage
+```
+storage = Git(
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    repo_host="gitlab.com",                     # repo host name, which may be custom
+    git_token_secret_name="MY_GIT_ACCESS_TOKEN",# name of Secret containing Deploy Token
+    git_token_username="myuser"                 # username associated with the Deploy Token
+)
+```
+
+:::
+
 ### GitHub
 
 [GitHub Storage](/api/latest/storage.md#github) is a storage

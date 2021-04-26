@@ -177,7 +177,7 @@ The generated manifest can be piped to `kubectl apply`, or manually edited to
 further customize the deployment.
 
 ```bash
-prefect agent kubernetes install -t MY_TOKEN | kubectl apply -f --namespace=my-namespace -
+prefect agent kubernetes install -t MY_TOKEN | kubectl apply --namespace=my-namespace -f -
 ```
 
 Once created, you should be able to see the agent deployment running in your
