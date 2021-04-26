@@ -94,7 +94,7 @@ def register(
         }
     }
 
-    project = self.graphql(query_project).data.project  # type: ignore
+    project = client.graphql(query_project).data.project  # type: ignore
 
     if not project:
         raise ValueError(
