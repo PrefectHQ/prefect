@@ -4,6 +4,8 @@ import pytest
 
 from prefect.utilities.git import TemporaryGitRepo
 
+dulwich = pytest.importorskip("dulwich")
+
 
 @pytest.fixture
 def fake_dulwich_porcelain_clone(monkeypatch):

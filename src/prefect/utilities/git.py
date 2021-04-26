@@ -1,8 +1,9 @@
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from dulwich.index import build_index_from_tree
-from dulwich.porcelain import clone
+if TYPE_CHECKING:
+    from dulwich.index import build_index_from_tree
+    from dulwich.porcelain import clone
 
 
 class TemporaryGitRepo:

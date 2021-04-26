@@ -8,6 +8,9 @@ from prefect import context, Flow
 from prefect.storage import Git
 
 
+dulwich = pytest.importorskip("dulwich")
+
+
 @pytest.fixture
 def fake_temp_repo(monkeypatch):
     temp_repo = MagicMock()
