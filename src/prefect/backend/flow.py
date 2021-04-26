@@ -33,6 +33,7 @@ class FlowView:
         self,
         flow_id: str,
         flow: "prefect.Flow",
+        flow_group_id: str,
         settings: dict,
         run_config: dict,
         serialized_flow: dict,
@@ -44,6 +45,7 @@ class FlowView:
     ):
         self.flow_id = flow_id
         self.flow = flow
+        self.flow_group_id = flow_group_id
         self.settings = settings
         self.run_config = run_config
         self.serialized_flow = serialized_flow
@@ -256,6 +258,7 @@ class FlowView:
                     "project": {"name"},
                     "core_version": True,
                     "storage": True,
+                    "flow_group_id": True,
                 }
             }
         }
