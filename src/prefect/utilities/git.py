@@ -1,9 +1,5 @@
 from tempfile import TemporaryDirectory
-from typing import Any, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from dulwich.index import build_index_from_tree
-    from dulwich.porcelain import clone
+from typing import Any
 
 
 class TemporaryGitRepo:
@@ -40,6 +36,8 @@ class TemporaryGitRepo:
         self.clone_depth = clone_depth
 
     def __enter__(self) -> "TemporaryGitRepo":
+        from dulwich.porcelain import clone
+
         self.temp_dir = TemporaryDirectory()
         self.repo = clone(
             source=self.git_clone_url, target=self.temp_dir.name, depth=self.clone_depth
@@ -55,6 +53,8 @@ class TemporaryGitRepo:
         """
         Checkout a specific ref from the repo
         """
+        from dulwich.index import build_index_from_tree
+
         build_index_from_tree(
             self.repo.path,
             self.repo.index_path(),

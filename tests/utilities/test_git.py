@@ -2,15 +2,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.utilities.git import TemporaryGitRepo
-
 dulwich = pytest.importorskip("dulwich")
+
+from prefect.utilities.git import TemporaryGitRepo
 
 
 @pytest.fixture
 def fake_dulwich_porcelain_clone(monkeypatch):
     fake_clone = MagicMock()
-    monkeypatch.setattr("prefect.utilities.git.clone", fake_clone)
+    monkeypatch.setattr("dulwich.porcelain.clone", fake_clone)
     return fake_clone
 
 
@@ -18,7 +18,7 @@ def fake_dulwich_porcelain_clone(monkeypatch):
 def fake_dulwich_build_index_from_tree(monkeypatch):
     fake_build_index_from_tree = MagicMock()
     monkeypatch.setattr(
-        "prefect.utilities.git.build_index_from_tree", fake_build_index_from_tree
+        "dulwich.index.build_index_from_tree", fake_build_index_from_tree
     )
     return fake_build_index_from_tree
 
