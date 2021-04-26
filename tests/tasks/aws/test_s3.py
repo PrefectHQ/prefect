@@ -66,7 +66,7 @@ class TestS3Download:
             task.run("key", compression="gz_fake")
 
     def test_boto3_client_is_created_with_session(self, mocked_boto_client):
-        """ Tests the fix for #3925 """
+        """Tests the fix for #3925"""
         task = S3Download("test")
         task.run("key")
         assert (
@@ -114,7 +114,7 @@ class TestS3Upload:
             task.run(b"data", compression="gz_fake")
 
     def test_boto3_client_is_created_with_session(self, mocked_boto_client):
-        """ Tests the fix for #3925 """
+        """Tests the fix for #3925"""
         task = S3Upload("test")
         task.run("key")
         assert (
