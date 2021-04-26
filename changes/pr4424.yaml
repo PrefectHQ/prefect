@@ -1,0 +1,2 @@
+enhancement:
+  - "Allow external Postgres with `prefect server start` command - [#4424](https://github.com/PrefectHQ/prefect/pull/4424)"
