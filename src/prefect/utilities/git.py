@@ -62,7 +62,7 @@ class TemporaryGitRepo:
             from dulwich.index import build_index_from_tree
         except ImportError as exc:
             raise ImportError(
-                "Unable to import dulwich, please ensure you have installed with the git extra"
+                "Unable to import dulwich, please ensure you have installed the git extra"
             ) from exc
 
         build_index_from_tree(
