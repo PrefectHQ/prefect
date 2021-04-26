@@ -185,7 +185,7 @@ class TaskRunView:
         Returns:
            A list of dicts containing task run data
         """
-        client = prefect.Client()
+        client = Client()
 
         query_args = {"where": where}
         if order_by is not None:
