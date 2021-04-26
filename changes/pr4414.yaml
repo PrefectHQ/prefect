@@ -1,0 +1,5 @@
+enhancement:
+  - "Adds column name fetching to PostgresFetch task - [#4414](https://github.com/PrefectHQ/prefect/pull/4414)"
+
+contributor:
+  - "[Gabriel Montañola](https://github.com/gmontanola)"
