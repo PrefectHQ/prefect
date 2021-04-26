@@ -247,6 +247,7 @@ class Flow:
         new.constants = self.constants.copy()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
+        new.slugs = self.slugs.copy()
         new.set_reference_tasks(self._reference_tasks)
         return new
 
