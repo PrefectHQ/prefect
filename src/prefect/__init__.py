@@ -13,6 +13,7 @@ import prefect.environments.storage  # deprecated
 import prefect.executors
 import prefect.engine.executors  # deprecated
 import prefect.artifacts
+import prefect.utilities.key_value as kv
 
 from prefect.core import Task, Flow, Parameter
 import prefect.engine
