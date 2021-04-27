@@ -1,4 +1,6 @@
+import click
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import tempfile
@@ -6,7 +8,6 @@ import time
 import warnings
 from pathlib import Path
 
-import click
 import yaml
 
 import prefect

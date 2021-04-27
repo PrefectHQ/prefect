@@ -1852,7 +1852,6 @@ Released on Apr 14, 2020.
 - Fix interpolation of config for dev services CLI for Apollo - [#2299](https://github.com/PrefectHQ/prefect/pull/2299)
 - Fix pytest Cloud and Core server backend fixtures - [#2319](https://github.com/PrefectHQ/prefect/issues/2319)
 - Fix `AzureResultHandler` choosing an empty Secret over provided connection string - [#2316](https://github.com/PrefectHQ/prefect/issues/2316)
-- Fix containers created by Docker agent not being able to reach out to host API - [#2324](https://github.com/PrefectHQ/prefect/issues/2324)
 
 ### Deprecations
 
@@ -1864,7 +1863,7 @@ Released on Apr 14, 2020.
 
 ### Contributors
 
-- [Brad McElroy](https://github.com/limx0)
+- None
 
 ## 0.10.1 <Badge text="beta" type="success"/>
 

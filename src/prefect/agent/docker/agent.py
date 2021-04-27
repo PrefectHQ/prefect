@@ -1,8 +1,7 @@
+import re
 import multiprocessing
 import ntpath
 import posixpath
-import re
-import sys
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 import warnings
@@ -11,7 +10,6 @@ from prefect import config, context
 from prefect.agent import Agent
 from prefect.run_configs import DockerRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
-from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
 
 if TYPE_CHECKING:
@@ -78,9 +76,6 @@ class DockerAgent(Agent):
         - network (str, optional): Add containers to an existing docker network
             (deprecated in favor of `networks`).
         - networks (List[str], optional): Add containers to existing Docker networks.
-        - docker_interface (bool, optional): Toggle whether or not a `docker0` interface is
-            present on this machine.  Defaults to `True`. **Note**: This is mostly relevant for
-            some Docker-in-Docker setups that users may be running their agent with.
         - reg_allow_list (List[str], optional): Limits Docker Agent to only pull images
             from the listed registries.
         - docker_client_timeout (int, optional): The timeout to use for docker
@@ -102,7 +97,6 @@ class DockerAgent(Agent):
         show_flow_logs: bool = False,
         network: str = None,
         networks: List[str] = None,
-        docker_interface: bool = True,
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
     ) -> None:
@@ -155,10 +149,6 @@ class DockerAgent(Agent):
         self.logger.debug(f"Docker networks set to {self.networks}")
 
         self.docker_client_timeout = docker_client_timeout or 60
-        self.docker_interface = docker_interface
-        self.logger.debug(
-            "Docker interface toggle set to {}".format(self.docker_interface)
-        )
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
@@ -181,7 +171,6 @@ class DockerAgent(Agent):
         self.logger.debug(f"No pull: {self.no_pull}")
         self.logger.debug(f"Volumes: {volumes}")
         self.logger.debug(f"Networks: {self.networks}")
-        self.logger.debug(f"Docker interface: {self.docker_interface}")
 
     def _get_docker_client(self) -> "docker.APIClient":
         # 'import docker' is expensive time-wise, we should do this just-in-time to keep
@@ -417,10 +406,6 @@ class DockerAgent(Agent):
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
-
-        if sys.platform.startswith("linux") and self.docker_interface:
-            docker_internal_ip = get_docker_ip()
-            host_config.update(extra_hosts={"host.docker.internal": docker_internal_ip})
 
         networking_config = None
         # At the time of creation, you can only connect a container to a single network,
