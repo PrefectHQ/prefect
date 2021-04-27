@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.14.17 <Badge text="beta" type="success" />
+
+Released on April 27, 2021.
+
+### Features
+
+- Add git storage - [#4418](https://github.com/PrefectHQ/prefect/pull/4418)
+
+### Enhancements
+
+- Add test coverage for threaded `LocalDaskExecutor` timeouts - [#4217](https://github.com/PrefectHQ/prefect/pull/4217)
+- Add environment variable support to UniversalRunConfig - [#4383](https://github.com/PrefectHQ/prefect/pull/4383)
+- Adds column name fetching to PostgresFetch task - [#4414](https://github.com/PrefectHQ/prefect/pull/4414)
+- Allow external Postgres with `prefect server start` command - [#4424](https://github.com/PrefectHQ/prefect/pull/4424)
+
+### Fixes
+
+- Pass reference tasks states instead of task states to terminal_state_handler - [#4409](https://github.com/PrefectHQ/prefect/pull/4409)
+- Check for AWS_RETRY_MODE variable before setting default in `ECSAgent` - [#4417](https://github.com/PrefectHQ/prefect/pull/4417)
+- Fixed bug from Flow.copy() not copying the slugs dictionary - [#4435](https://github.com/PrefectHQ/prefect/pull/4435)
+- Fix compatibility with PyGithub >= 1.55 - [#4440](https://github.com/PrefectHQ/prefect/pull/4440)
+
+### Contributors
+
+- [Ben Fogelson](https://github.com/benfogelson)
+- [Gabriel Montañola](https://github.com/gmontanola)
+
 ## 0.14.16 <Badge text="beta" type="success" />
 
 Released on April 14, 2021.

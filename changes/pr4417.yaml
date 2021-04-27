@@ -1,3 +1,0 @@
-
-fix:
-  - "Check for AWS_RETRY_MODE variable before setting default in `ECSAgent` - [#4417](https://github.com/PrefectHQ/prefect/pull/4417)"
