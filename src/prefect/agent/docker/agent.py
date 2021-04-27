@@ -99,6 +99,7 @@ class DockerAgent(Agent):
         networks: List[str] = None,
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
+        docker_interface: bool = None,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -131,6 +132,13 @@ class DockerAgent(Agent):
             self.container_mount_paths,
             self.host_spec,
         ) = self._parse_volume_spec(volumes or [])
+
+        if docker_interface is not None:
+            warnings.warn(
+                "DockerAgent `docker_interface` argument is deprecated and will be "
+                "removed from Prefect. Setting it has no effect.",
+                UserWarning,
+            )
 
         # Add containers to the given Docker networks
         if networks and network:
