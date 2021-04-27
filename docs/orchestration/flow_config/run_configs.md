@@ -189,6 +189,39 @@ Use a custom Kubernetes Job spec for this flow, stored in S3:
 flow.run_config = KubernetesRun(job_template_path="s3://bucket/path/to/spec.yaml")
 ```
 
+It is important to note, that by default, kubernetes sets `imagePullPolicy` to `IfNotPresent`.  
+This means that if you pass in a custom image such as `image="example/image-name:dev"`, kubernetes will only pull
+the tag once, and never refresh it on subsequent updates.  
+  
+The behavior you want is likely having your kubernetes job always pull the latest image for the tag.  There are two ways
+to configure this:
+* use an image with a `latest` tag, such as `image="example/image-name:latest"`
+* use a custom template that sets `imagePullPolicy` to `Always`:
+```python
+import yaml
+
+from prefect.run_configs.kubernetes import KubernetesRun
+
+_JOB_TEMPLATE = """ 
+apiVersion: batch/v1
+kind: Job
+spec:
+  template:
+    spec:
+      containers:
+        - name: flow
+          imagePullPolicy: Always
+"""
+
+
+def get_job_template() -> dict:
+    return yaml.safe_load(_JOB_TEMPLATE)
+
+# this will always pull in the latest image for the tag "dev"
+flow.run_config = KubernetesRun(image="example/image-name:dev", job_template=get_job_template())
+
+```
+
 ### ECSRun
 
 [ECSRun](/api/latest/run_configs.md#ecsrun) configures flow runs
