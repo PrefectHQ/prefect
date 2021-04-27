@@ -1,42 +1,294 @@
 import json
+import textwrap
 import time
+import os
 
 import click
+from click import ClickException
 from tabulate import tabulate
 
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
+from prefect.cli.build_register import load_flows_from_script, load_flows_from_module
+from prefect.backend.flow import FlowView
 
 
-@click.group(hidden=True)
-def run():
+def get_flow_id_by_flow_group(flow_group_id: str) -> str:
     """
-    Run Prefect flows.
+    Get the UUID of the newest flow in a flow group
 
-    \b
-    Usage:
-        $ prefect run [STORAGE/PLATFORM]
+    Args:
+        flow_group_id:
 
-    \b
-    Arguments:
-        flow    Run a flow with a backend API
-
-    \b
-    Examples:
-        $ prefect run flow --name Test-Flow --project My-Project -ps '{"my_param": 42}'
-        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
-
-    \b
-        $ prefect run flow --name Test-Flow --project My-Project --watch
-        Flow Run: https://localhost:8080/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
-        Scheduled -> Submitted -> Running -> Success
+    Returns:
+        A flow id
     """
+    return ""
+
+
+def get_flow_id_by_name(flow_name: str, project_name: str = None) -> str:
+    """
+    Get the UUID of a flow by name (and project). An error will be thrown if a project
+    is not provided and the flow name exists across projects.
+
+    Args:
+        flow_name:
+        project_name:
+
+    Returns:
+
+    """
+    return ""
+
+
+def get_flow_id_by_flow_object(flow: "prefect.Flow") -> str:
+    return ""
+
+
+def get_flow(
+    flow_id: str, flow_group_id: str, project: str, path: str, module: str, name: str
+) -> "FlowView":
+    # Ensure that the user has not passed conflicting options
+    given_lookup_options = {
+        key
+        for key, option in {
+            "--flow-id": flow_id,
+            "--flow-group-id": flow_group_id,
+            "--project": project,
+            "--path": path,
+            "--module": module,
+        }.items()
+        if option is not None
+    }
+    if not given_lookup_options:
+        raise ClickException(
+            "Received no options to look up the flow." + FLOW_LOOKUP_MSG
+        )
+    if len(given_lookup_options) > 1:
+        raise ClickException(
+            "Received too many options to look up the flow: "
+            f"{', '.join(given_lookup_options)}" + FLOW_LOOKUP_MSG
+        )
+
+    if flow_id:
+        return FlowView.from_flow_id(flow_id)
+
+    if flow_group_id:
+        return FlowView.from_flow_group_id(flow_group_id)
+
+    if project:
+        if not name:
+            raise ClickException(
+                "Missing required option `--name`. Cannot look up a flow by project "
+                "without also passing a name."
+            )
+        return FlowView.from_flow_name(flow_name=name, project_name=project)
+
+    if path or module:
+        location = path if path is not None else module
+        flows = load_flows_from_script(path) if path else load_flows_from_module(module)
+        flows_by_name = {flow.name: flow for flow in flows}
+        flow_names = ", ".join(map(repr, flows_by_name.keys()))
+
+        if not flows:
+            raise ClickException(f"Found no flows at {location}.")
+
+        if len(flows) > 1 and not name:
+            raise ClickException(
+                f"Found multiple flows at {location}: {flow_names}\n\n"
+                f"Specify a flow name to run."
+            )
+        if name:
+            if name not in flows_by_name:
+                raise ClickException(
+                    f"Did not find {name!r} in flows at {location}. Found {flow_names}"
+                )
+            flow = flows_by_name[name]
+        else:
+            flow = list(flows_by_name.values())[0]
+            click.echo(f"Found flow {flow.name} at {location}")
+
+        return FlowView.from_flow_obj(flow)
+
+    if name and not flow_id:
+        # If name wasn't provided for use with another lookup, try a global name search
+        return FlowView.from_flow_name(flow_name=name)
+
+    # This line should not be reached
+    raise RuntimeError("Failed to find matching case for flow lookup.")
+
+
+RUN_EPILOG = """
+\bExamples:
+
+\b  Register all flows found in a directory.
+
+\b    $ prefect register --project my-project -p myflows/
+"""
+
+
+FLOW_LOOKUP_MSG = """
+
+Look up a flow to run with one of the following option combinations:
+    --flow-id
+    --flow-group-id
+    --project and --name
+    --path (--name if there are multiple flows)
+    --module (and --name if there are multiple flows)
+    
+See `prefect run --help` for more details on the options.
+"""
+
+
+@click.group(invoke_without_command=True, epilog=RUN_EPILOG)
+@click.pass_context
+# Flow lookup settings -----------------------------------------------------------------
+@click.option("--flow-id", help="The UUID of a flow to run.", default=None)
+@click.option(
+    "--flow-group-id",
+    help="The UUID of a flow group to run the latest flow from.",
+    default=None,
+)
+@click.option(
+    "--project",
+    help="The name of the Prefect project containing the flow to run.",
+    default=None,
+)
+@click.option(
+    "--path",
+    "-p",
+    help="The path to a file or a directory containing the flow to run.",
+)
+@click.option(
+    "--module",
+    "-m",
+    help="The python module name containing the flow to run.",
+)
+@click.option(
+    "--name",
+    "-n",
+    help=(
+        "The name of a flow to run from the specified path/module/project. If the "
+        "source contains multiple flows, this must be provided. "
+    ),
+)
+# Flow run settings --------------------------------------------------------------------
+@click.option(
+    "--label",
+    "-l",
+    "labels",
+    help=(
+        "A label to add to the flow run. May be passed multiple times to specify "
+        "multiple labels."
+    ),
+    multiple=True,
+)
+@click.option("--run-name", help="A name to assign to the flow run.", default=None)
+@click.option(
+    "--context",
+    help="A JSON string specifying a Prefect context to set for the flow run.",
+    default=None,
+)
+@click.option(
+    "--param",
+    "-p",
+    "params",
+    help=(
+        "A key, value pair specifying a value for a parameter. The value will be "
+        "interpreted as JSON. May be passed multiple times to specify multiple "
+        "parameter values."
+    ),
+    multiple=True,
+    type=(str, str),
+)
+@click.option(
+    "--param-file",
+    help=(
+        "The path to a JSON file containing parameter keys and values. Any parameters "
+        "passed with `--param` will take precedence over these values."
+    ),
+    default=None,
+)
+@click.option(
+    "--no-backend",
+    help=(
+        "Run the flow locally using `flow.run()` instead of creating a flow run using "
+        "the Prefect backend API. Implies `--wait`."
+    ),
+    default=False,
+)
+@click.option(
+    "--no-agent",
+    help=(
+        "Run the flow inline instead of using an agent. This allows the flow run to "
+        "be inspected with breakpoints during execution. Implies `--wait`."
+    ),
+    default=False,
+)
+# Display settings ---------------------------------------------------------------------
+@click.option(
+    "--quiet",
+    "-q",
+    help="Disable verbose messaging about the flow run and just print the flow run id",
+    default=False,
+)
+@click.option(
+    "--stream-logs",
+    "-l",
+    help="Stream logs from the flow run to this terminal. Implies `--wait`.",
+    default=False,
+)
+@click.option(
+    "--wait",
+    "-w",
+    help="Wait for the flow run to finish executing, displaying status information.",
+    default=False,
+)
+def run(
+    ctx,
+    flow_id,
+    flow_group_id,
+    project,
+    path,
+    module,
+    name,
+    labels,
+    context,
+    params,
+    param_file,
+    no_backend,
+    no_agent,
+    run_name,
+    quiet,
+    stream_logs,
+    wait,
+):
+    """Run a flow"""
+    # Since the old command was a subcommand of this, we have to do some
+    # mucking to smoothly deprecate it. Can be removed with `prefect run flow`
+    # is removed.
+    if ctx.invoked_subcommand is not None:
+        if any([params, stream_logs, quiet, wait, no_agent, no_backend, flow_id]):
+            # These options are not supported by `prefect run flow`
+            raise ClickException(
+                "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
+            )
+        return
+
+    # Validate the flow look up options we've been given and get a flow id
+    if not no_backend:
+        flow_id = get_flow_id(
+            flow_id=flow_id,
+            flow_group_id=flow_group_id,
+            project=project,
+            path=path,
+            module=module,
+            name=name,
+        )
 
 
 @run.command(hidden=True)
-@click.option(
-    "--id", "-i", required=False, help="The id of a flow to run.", hidden=True
-)
+@click.option("--flow-id", help="The UUID of a flow to run.", default=None)
 @click.option(
     "--version-group-id",
     required=False,
