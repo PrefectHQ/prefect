@@ -160,9 +160,9 @@ class FlowView:
                 "name": ({"_eq": project_name} if project_name else {"_is_null": True})
             }
 
-        flows = cls.query_for_flow(
+        flows = cls.query_for_flows(
             where=where,
-            order_by={"updated_at": EnumValue("desc")},
+            order_by={"created": EnumValue("desc")},
         )
         if len(flows) > 1 and not last_updated:
             raise ValueError(
