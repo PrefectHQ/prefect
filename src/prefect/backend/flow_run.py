@@ -1,4 +1,5 @@
 import copy
+import time
 from collections import defaultdict
 
 from contextlib import contextmanager
@@ -17,8 +18,60 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
-def watch_flow_run(flow_run_id: str):
-    pass
+def watch_flow_run(
+    flow_run_id: str, stream_logs: bool = False, poll_seconds: int = 5
+) -> "FlowRunView":
+    """
+    Watch execution of a flow run displaying state changes. This function will hang
+    until the flow run enters a 'Finished' state.
+
+    Args:
+        flow_run_id: The flow run to watch
+        stream_logs: If set, logs will be streamed from the flow run to here
+        poll_seconds: The number of seconds to wait between queries for the status
+            of the flow run
+
+    Returns:
+        FlowRunView: A view of the final state of the flow run
+
+    TODO: Consider returning `None` instead of a view
+    TODO: Consider a slight backoff instead of a fixed poll interval
+    """
+
+    flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+
+    last_state = None
+    total_wait_time = 0
+    warning_wait_time = 0
+
+    while not flow_run.state.is_finished():
+
+        if (
+            total_wait_time > 20
+            and warning_wait_time > 20
+            and not flow_run.state.is_running()
+        ):
+            logger.warning(
+                f"It has been {total_wait_time} seconds and your flow run is not "
+                "started; do you have an agent running?"
+            )
+            warning_wait_time = 0
+
+        if flow_run.state != last_state:
+            logger.info(f"Flow run entered state {flow_run.state}")
+            last_state = flow_run.state
+
+        if flow_run.state.is_finished():
+            break
+
+        time.sleep(poll_seconds)
+        warning_wait_time += poll_seconds
+        total_wait_time += warning_wait_time
+
+        # Get the latest state for the next iteration
+        flow_run = flow_run.get_latest()
+
+    logger.info(f"Flow run finished in state {flow_run.state}")
 
 
 def execute_flow_run(
