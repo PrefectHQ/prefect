@@ -142,7 +142,7 @@ See `prefect run --help` for more details on the options.
     "labels",
     help=(
         "A label to add to the flow run. May be passed multiple times to specify "
-        "multiple labels."
+        "multiple labels. If not passed, the labels from the flow group will be used."
     ),
     multiple=True,
 )
@@ -305,6 +305,10 @@ def run(
             module=module,
             name=name,
         )
+
+        if not labels:
+            # Add the default labels
+            labels = flow.flow_group_labels or []
 
         if no_agent:
             # Add a random label to prevent an agent from picking up this run
