@@ -100,7 +100,7 @@ There are a few ways in which you can give a service account key to an agent. Ea
 $ prefect agent <AGENT TYPE> start -t SERVICE_ACCOUNT_API_KEY
 ```
 
-- Specify the service account key as an environment variable. This method means the key will only be available in the active shell and its subshells.
+- Specify the Service Account API Key as an environment variable. This method means the key will only be available in the active shell and its subshells.
 
 ```bash
 $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY
