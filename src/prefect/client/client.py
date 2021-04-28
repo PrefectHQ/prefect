@@ -107,9 +107,13 @@ class Client:
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
         if api_token:
-            warnings.warn("api_token DEPRECATED -- use api_key")
-            if api_key:
-                warnings.warn("found both api_token and api_key--using api_key")
+            warnings.warn(
+                "`token` argument is deprecated and will be removed from Prefect. "
+                "Use `api_key` instead.",
+                UserWarning,
+            )
+            # if api_key:
+            # //TODO: error out
         self._api_key = (
             api_key or api_token or prefect.context.config.cloud.get("auth_token", None)
         )
@@ -226,7 +230,11 @@ class Client:
             - dict: Dictionary representation of the request made
         """
         if token and not api_key:
-            warnings.warn("token is DEPRECATED--use api_key")
+            warnings.warn(
+                "`token` argument is deprecated and will be removed from Prefect. "
+                "Use `api_key` instead.",
+                UserWarning,
+            )
             api_key = token
         response = self._request(
             method="POST",
@@ -315,9 +323,11 @@ class Client:
         Raises:
             - ClientError if there are errors raised by the GraphQL mutation
         """
-        if token and not api_key:
-            warnings.warn("token is DEPRECATED--use api_key")
-            api_key = token
+        warnings.warn(
+            "`token` argument is deprecated and will be removed from Prefect. "
+            "Use `api_key` instead.",
+            UserWarning,
+        )
         result = self.post(
             path="",
             server=self.api_server,
@@ -636,8 +646,8 @@ class Client:
                 }
             },
             variables=dict(slug=tenant_slug, id=tenant_id),
-            # use the API token to query the tenant
-            token=self._api_key,
+            # use the API Key to query the tenant
+            api_key=self._api_key,
         )  # type: ignore
         if not tenant.data.tenant:  # type: ignore
             raise ValueError("No matching tenants found.")
@@ -852,9 +862,7 @@ class Client:
             inputs.update(idempotency_key=idempotency_key)
 
         res = self.graphql(
-            create_mutation,
-            variables=dict(input=inputs),
-            retry_on_api_error=False,
+            create_mutation, variables=dict(input=inputs), retry_on_api_error=False,
         )  # type: Any
 
         flow_id = (
@@ -1246,9 +1254,7 @@ class Client:
         """
         mutation = {
             "mutation($input: set_flow_run_name_input!)": {
-                "set_flow_run_name(input: $input)": {
-                    "success": True,
-                }
+                "set_flow_run_name(input: $input)": {"success": True,}
             }
         }
 
@@ -1444,9 +1450,7 @@ class Client:
         """
         mutation = {
             "mutation($input: set_task_run_name_input!)": {
-                "set_task_run_name(input: $input)": {
-                    "success": True,
-                }
+                "set_task_run_name(input: $input)": {"success": True,}
             }
         }
 
@@ -1468,9 +1472,7 @@ class Client:
         """
         mutation = {
             "mutation($input: cancel_flow_run_input!)": {
-                "cancel_flow_run(input: $input)": {
-                    "state": True,
-                }
+                "cancel_flow_run(input: $input)": {"state": True,}
             }
         }
         result = self.graphql(

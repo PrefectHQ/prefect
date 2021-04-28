@@ -770,7 +770,11 @@ class KubernetesAgent(Agent):
 
         # Use defaults if not provided
         if token:
-            warnings.warn("token DEPRECATED -- use api_key")
+            warnings.warn(
+                "`token` argument is deprecated and will be removed from Prefect. "
+                "Use `api_key` instead.",
+                UserWarning,
+            )
         api_key = api_key or token or ""
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"

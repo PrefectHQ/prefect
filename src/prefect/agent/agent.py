@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 import time
+import warnings
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any, Generator, Iterable, Optional, Set, Type, cast
@@ -121,8 +122,8 @@ class Agent:
         no_cloud_logs: bool = False,
     ) -> None:
         # Load token and initialize client
-        token = config.cloud.agent.get("auth_token")
-        self.client = Client(api_server=config.cloud.api, api_key=token)
+        api_key = config.cloud.agent.get("auth_token")
+        self.client = Client(api_server=config.cloud.api, api_key=api_key)
 
         self.agent_config_id = agent_config_id
         self.name = name or config.cloud.agent.get("name", "agent")
@@ -161,6 +162,25 @@ class Agent:
 
         self.logger.debug(f"Prefect backend: {config.backend}")
 
+    def _verify_api_key(self, api_key: str) -> None:
+        """
+        Checks whether a valid api key was provided
+        
+        Args:
+            - api_key (str): The provided agent token to verify
+        Raises:
+            - AuthorizationError: if API Key is not valid
+        """
+        if not api_key:
+            raise AuthorizationError("No agent API Key provided.")
+
+        # Check for auth_api_key
+        result = self.client.graphql(query="query { auth_api_key { id } }")
+        if (
+            not result.data  # type: ignore
+        ):
+            raise AuthorizationError("Provided key is invalid.")
+
     def _verify_token(self, token: str) -> None:
         """
         Checks whether a token with a `RUNNER` scope was provided (DEPRECATED)
@@ -172,6 +192,11 @@ class Agent:
         Raises:
             - AuthorizationError: if token is empty or does not have a RUNNER role
         """
+        warnings.warn(
+                "_verify_token method is deprecated and will be removed from Prefect. "
+                "Use `_verify_key` instead.",
+                UserWarning,
+            )
         if not token:
             raise AuthorizationError("No agent API token provided.")
 
@@ -222,7 +247,7 @@ class Agent:
             - _loop_intervals (dict, optional): Exposed for testing only.
         """
         if config.backend == "cloud":
-            self._verify_token(self.client.get_auth_token())
+            self._verify_key(self.client.get_auth_token())
 
         # Register agent with backend API
         self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
