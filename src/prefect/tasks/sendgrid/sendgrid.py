@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, List, Union
 
 from prefect.client import Secret
 from prefect.core import Task
@@ -19,6 +19,8 @@ class SendEmail(Task):
             Refer to [SendGrid-Python](https://github.com/sendgrid/sendgrid-python) for specifics.
         - subject (str, optional): The subject of the email; can also be provided at runtime
         - html_content (str): The html body of the email; can also be provided at runtime
+        - category (Union[str, List[str]], optional): The category/categories to use for the email;
+            can also be provided at runtime
         - attachment_file_path (Union[str, Path], optional): The file path of the email attachment;
             can also be provided at runtime
         - sendgrid_secret (str, optional): the name of the Prefect Secret which stores your
@@ -32,6 +34,7 @@ class SendEmail(Task):
         to_emails: str = None,
         subject: str = None,
         html_content: str = None,
+        category: Union[str, List[str]] = None,
         attachment_file_path: Union[str, Path] = None,
         sendgrid_secret: str = "SENDGRID_API_KEY",
         **kwargs: Any
@@ -40,6 +43,7 @@ class SendEmail(Task):
         self.to_emails = to_emails
         self.subject = subject
         self.html_content = html_content
+        self.category = category
         self.attachment_file_path = attachment_file_path
         self.sendgrid_secret = sendgrid_secret
         super().__init__(**kwargs)
@@ -49,6 +53,7 @@ class SendEmail(Task):
         "to_emails",
         "subject",
         "html_content",
+        "category",
         "attachment_file_path",
         "sendgrid_secret",
     )
@@ -58,6 +63,7 @@ class SendEmail(Task):
         to_emails: str = None,
         subject: str = None,
         html_content: str = None,
+        category: Union[str, List[str]] = None,
         attachment_file_path: Union[str, Path] = None,
         sendgrid_secret: str = None,
     ) -> None:
@@ -71,6 +77,8 @@ class SendEmail(Task):
                 Refer to [SendGrid-Python](https://github.com/sendgrid/sendgrid-python) for specifics.
             - subject (str, optional): The subject of the email; defaults to the one provided at initialization
             - html_content (str): The html body of the email; defaults to the one provided at initialization
+            - category (Union[str, List[str]], optional): The category/categories to use for the email;
+                defaults to those provided at initialization
             - attachment_file_path (Union[str, Path], optional): The file path of the email attachment;
                 defaults to the one provided at initialization
             - sendgrid_secret (str, optional): the name of the Prefect Secret which stores your
@@ -86,12 +94,13 @@ class SendEmail(Task):
         import base64
         import mimetypes
         from sendgrid.helpers.mail import (
-            Mail,
             Attachment,
+            Category,
+            Disposition,
             FileContent,
             FileName,
             FileType,
-            Disposition,
+            Mail,
         )
         from sendgrid import SendGridAPIClient
 
@@ -101,6 +110,11 @@ class SendEmail(Task):
             subject=subject,
             html_content=html_content,
         )
+
+        if category:
+            if not isinstance(category, list):
+                category = [category]
+            message.category = [Category(str(c)) for c in category]
 
         if attachment_file_path:
             with open(attachment_file_path, "rb") as f:
