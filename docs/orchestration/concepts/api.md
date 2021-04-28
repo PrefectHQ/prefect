@@ -22,7 +22,7 @@ mutation {
 
 ### API Keys
 
-Prefect Cloud users can generate API Keys for their user, or create Service Accounts and API Keys associated with them.  For more information on hwo to manage these keys, go [here](api_keys.html)
+To authenticate with Prefect Cloud, an API Key is required. Users can generate a key associated with their user, or they can generate keys associated with a Service Account User. See [the API keys page](api_keys.html) for more details.
 
 ## Python Client
 
