@@ -114,6 +114,7 @@ $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY
 auth_token = SERVICE_ACCOUNT_API_KEY
 ```
 
-## Deprecation of User Access Tokens and API Tokens
+::: warning Deprecation of User Access Tokens and API Tokens
 
 API Keys replace the deprecated User Access Tokens and API Tokens, which used a different authentication paradigm. In effect, User API Keys can be used in place of Personal Access Tokens, and Service Account API Keys should replace API Tokens.
+:::
