@@ -19,7 +19,7 @@ Best Practice: When tempted to create a long-lived token for CI, a Prefect Agent
 
 ### Service Account API Keys
 
-Create API Keys restricted to a tenant by creating API Keys associated with Service Accounts in that tenant.  These API Tokens have the same permissions as their Service Account.  To create and manage your tenant's Service Accounts and their associated API keys, navigate to Team > Service Accounts.  
+Users can generate API Keys for Service Accounts, which have permissions restricted to the tenant the Service Account belongs to. These keys will not inherit the full permissions of the user creating them. To create and manage your tenant's Service Accounts and their associated API keys, navigate to Team > Service Accounts.  
 
 When creating an API key, you can configure the following attributes:
 
