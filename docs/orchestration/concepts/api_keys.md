@@ -115,4 +115,4 @@ auth_token = SERVICE_ACCOUNT_API_KEY
 
 ## Deprecation of User Access Tokens and API Tokens
 
-API Keys replace the deprecated User Access Tokens and API Tokens, which previously followed a different paradigm.  In effect, User API Keys can be used in place of Personal Access Tokens, and Service Account API Keys should replace API Tokens (which can no longer be created in the UI), though they function slightly differently.
+API Keys replace the deprecated User Access Tokens and API Tokens, which used a different authentication paradigm. In effect, User API Keys can be used in place of Personal Access Tokens, and Service Account API Keys should replace API Tokens.
