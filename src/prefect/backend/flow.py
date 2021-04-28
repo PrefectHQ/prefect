@@ -42,6 +42,7 @@ class FlowView:
         core_version: str,
         storage: prefect.storage.Storage,
         name: str,
+        flow_group_labels: List[str],
     ):
         self.flow_id = flow_id
         self.flow = flow
@@ -53,6 +54,7 @@ class FlowView:
         self.core_version = core_version
         self.storage = storage
         self.name = name
+        self.flow_group_labels = flow_group_labels
 
     @classmethod
     def from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
@@ -64,6 +66,8 @@ class FlowView:
 
         flow_id = flow_data.pop("id")
         project_name = flow_data.pop("project")["name"]
+        flow_group_data = flow_data.pop("flow_group")
+        flow_group_labels = flow_group_data["labels"]
 
         # Allow the deserialized flow to be passed through for `from_flow_obj`
         deserialized_flow = FlowSchema().load(data=flow_data["serialized_flow"])
@@ -78,6 +82,7 @@ class FlowView:
                 project_name=project_name,
                 flow=deserialized_flow,
                 storage=storage,
+                flow_group_labels=flow_group_labels,
                 **flow_data,
             ),
             **kwargs,
@@ -290,6 +295,7 @@ class FlowView:
                     "project": {"name"},
                     "core_version": True,
                     "storage": True,
+                    "flow_group": {"labels"},
                 }
             }
         }
