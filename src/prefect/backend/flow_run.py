@@ -17,6 +17,10 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
+def watch_flow_run(flow_run_id: str):
+    pass
+
+
 def execute_flow_run(
     flow_run_id: str,
     flow: "Flow" = None,
