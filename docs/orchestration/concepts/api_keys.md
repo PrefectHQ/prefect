@@ -10,7 +10,13 @@ Users can generate API Keys to interact with the API with their personal permiss
 
 - **API Key Name**: The name of this key
 - **API Key Expiration**: An optional expiration date for the key - if no expiration is provided, the key will never expire
-- **Tenant**: The tenant to associate with the key, by default - this key will inherit its associated user's permissions in all tenants to which the User has an existing membership, but the default tenant will be used when no tenant is specified.  Revoking permissions or memberships of that user will be reflected in the token.
+- **Tenant**: The tenant to associate with the API Key - clients using this key will interact with this tenant.  This key's 
+permissions are the user's in that tenant.
+
+::: warning Mutable Tenancy
+
+Clients using this token can still list the User's available tenants and can modify the token's tenant association.
+:::
 
 To generate an API key for your User, navigate to User > API Keys within the UI and click "Create an API Key".
 
@@ -54,14 +60,6 @@ To revoke an API key in the UI navigate to Team Settings > Service Accounts or U
 
 ![token delete](/token_delete.png)
 
-### CLI
-
-To revoke an API key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find an API key's ID look under [Querying for Key Information](api_keys.html#querying-for-key-information).
-
-```
-$ prefect auth revoke-token -i $API_KEY_ID
-```
-
 ### GraphQL
 
 To revoke an API key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find an API key's ID look under [Querying for Key Information](api_keys.html#querying-for-key-information).
@@ -76,7 +74,14 @@ mutation {
 
 ## Querying for Key Information
 
-To query for information about API Keys with GraphQL, execute the following query against `https://api.prefect.io`. This will return API Key information, but never the value of the key.  All User API Keys for the active User will be returned, along with any Service Account API Keys which the API Key is privileged to see in the the API Key's default tenant.  Only and all Administrators are privileged to see all Service Accounts--because all Service Accounts have the Administrator role, they can also see all API Keys for any Service Account in the tenant.
+To query for information about API Keys with GraphQL, execute the following query against `https://api.prefect.io`. This will never return the value of the key.
+The response will include metadata about the authenticated User's API Keys.  If the User has an Administrator role, it will also include the metadata for all
+Service Account API Keys in the tenant. 
+
+::: tip Using Service Accounts to Query for API Keys
+Because all Service Accounts have the Administrator role by default, when using a Service Account API Key, metadata is returned for all the tenant's Service Account API Keys.
+
+:::
 
 ```graphql
 query {
