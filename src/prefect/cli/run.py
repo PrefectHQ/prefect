@@ -312,7 +312,7 @@ def run(
 
         if no_agent:
             # Add a random label to prevent an agent from picking up this run
-            labels.append(f"no-agent-run-{uuid.uuid4()[:8]}")
+            labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
 
         if not quiet:
             quiet_echo(
@@ -350,18 +350,21 @@ def run(
 
         # Execute it here if they've specified `--no-agent`
         if no_agent:
+            # TODO: Check for compatibility with run types? Something like a
+            #       DockerRun may not behave well and we should probably warn
+            quiet_echo("Running flow in-process...\n")
             execute_flow_run(flow_run_id=flow_run_id)
 
         # Otherwise, we'll watch for state changes
         else:
             try:
-                click.echo("Watching flow run execution...\n")
+                quiet_echo("Watching flow run execution...\n")
                 watch_flow_run(flow_run_id=flow_run_id, stream_logs=stream_logs)
             except KeyboardInterrupt:
-                click.echo("Keyboard interrupt! Cancelling flow run...")
+                quiet_echo("Keyboard interrupt! Cancelling flow run...")
                 # TODO: Consider a way to exit watching without cancellation?
                 client.cancel_flow_run(flow_run_id=flow_run_id)
-                click.echo("Cancelled flow run successfully.")
+                quiet_echo("Cancelled flow run successfully.")
 
     # Run the flow (local) -------------------------------------------------------------
 
