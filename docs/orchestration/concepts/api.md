@@ -118,7 +118,7 @@ Throughout these docs, sections directly related to the GraphQL API are denoted 
 
 For ease of interacting with the GraphQL API, the UI contains a full GraphQL client that automatically handles authentication. See the [Interactive API](/orchestration/ui/interactive-api) docs for more.
 
-### Client <Badge text="Cloud"/>
+### Client
 
 Make GraphQL queries directly from the client:
 
@@ -134,7 +134,7 @@ client.graphql(
 )
 ```
 
-### Other clients
+### Other clients <Badge text="Cloud"/>
 To use API keys in other clients such as cURL, include the API key as the `authorization` header:
 
 ```json
