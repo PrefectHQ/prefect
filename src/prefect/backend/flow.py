@@ -55,9 +55,7 @@ class FlowView:
         self.name = name
 
     @classmethod
-    def from_flow_data(
-        cls, flow_data: dict, **kwargs: Any
-    ) -> "FlowView":
+    def from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
         """
         Get an instance of this class given a dict of required flow data
 
@@ -68,22 +66,24 @@ class FlowView:
         project_name = flow_data.pop("project")["name"]
 
         # Allow the deserialized flow to be passed through for `from_flow_obj`
-        deserialized_flow = FlowSchema().load(
-            data=flow_data["serialized_flow"]
-        )
+        deserialized_flow = FlowSchema().load(data=flow_data["serialized_flow"])
         storage = prefect.serialization.storage.StorageSchema().load(
             flow_data.pop("storage")
         )
 
-        flow_args = {**dict(
-            flow_id=flow_id,
-            project_name=project_name,
-            flow=deserialized_flow,
-            storage=storage,
-            **flow_data,), **kwargs}
+        # Combine the data from `flow_data` with `kwargs`
+        flow_args = {
+            **dict(
+                flow_id=flow_id,
+                project_name=project_name,
+                flow=deserialized_flow,
+                storage=storage,
+                **flow_data,
+            ),
+            **kwargs,
+        }
 
-        return cls(
-        )
+        return cls(**flow_args)
 
     @classmethod
     def from_flow_id(cls, flow_id: str) -> "FlowView":
@@ -130,8 +130,8 @@ class FlowView:
             cls.query_for_flow(
                 where=where,
                 jsonb_variables={"serialized_flow": flow.serialize()},
-            )
-            deserialized_flow=flow,
+            ),
+            flow=flow,
         )
 
     @classmethod
