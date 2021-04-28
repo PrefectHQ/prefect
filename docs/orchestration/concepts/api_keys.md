@@ -5,7 +5,7 @@ API Keys are how clients authenticate with the Prefect Cloud API.  They encapsul
 For more information on how to use these keys to interact with the GraphQL API, go [here](api.html).
 ### User API Keys
 
-Users can generate API Keys to serve as personal access keys.  When creating an API key, you can configure the following attributes:
+Users can generate API Keys to interact with the API with their personal permissions.  When creating an API key, you can configure the following attributes:
 
 - **API Key Name**: The name of this key
 - **API Key Expiration**: An optional expiration date for the key - if no expiration is provided, the key will never expire
