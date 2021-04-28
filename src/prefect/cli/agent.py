@@ -15,9 +15,14 @@ COMMON_START_OPTIONS = [
     ),
     click.option("--api", "-a", required=False, help="A Prefect API URL."),
     click.option(
-        "--agent-config-id", help="An agent ID to link this agent instance with",
+        "--agent-config-id",
+        help="An agent ID to link this agent instance with",
     ),
-    click.option("--name", "-n", help="A name to use for the agent",),
+    click.option(
+        "--name",
+        "-n",
+        help="A name to use for the agent",
+    ),
     click.option(
         "--label",
         "-l",
@@ -61,8 +66,16 @@ COMMON_START_OPTIONS = [
 
 
 COMMON_INSTALL_OPTIONS = [
-    click.option("--token", "-t", help="A Prefect Cloud API token (DEPRECATED)",),
-    click.option("--key", "-k", help="A Prefect Cloud API Key",),
+    click.option(
+        "--token",
+        "-t",
+        help="A Prefect Cloud API token (DEPRECATED)",
+    ),
+    click.option(
+        "--key",
+        "-k",
+        help="A Prefect Cloud API Key",
+    ),
     click.option(
         "--label",
         "-l",
@@ -247,7 +260,8 @@ def kubernetes():
 @kubernetes.command()
 @add_options(COMMON_START_OPTIONS)
 @click.option(
-    "--namespace", help="Kubernetes namespace to deploy in. Defaults to `default`.",
+    "--namespace",
+    help="Kubernetes namespace to deploy in. Defaults to `default`.",
 )
 @click.option(
     "--job-template",
@@ -530,7 +544,10 @@ _agents = {
     hidden=True,
 )
 @click.option(
-    "--docker-client-timeout", default=None, type=int, hidden=True,
+    "--docker-client-timeout",
+    default=None,
+    type=int,
+    hidden=True,
 )
 @click.pass_context
 def start(
