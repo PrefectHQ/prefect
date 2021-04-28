@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List, Tuple, Union
 
 from prefect.client import Secret
 from prefect.core import Task
@@ -14,8 +14,8 @@ class SendEmail(Task):
 
     Args:
         - from_email (str): The email address of the sender; defaults to notifications@prefect.io
-        - to_emails (str, tuple, list(str), list(tuple)): The email address of the recipient(s);
-            can also be provided at runtime.
+        - to_emails (Union[str, Tuple[str, str], List[str], List[Tuple[str, str]]]):
+            The email address of the recipient(s); can also be provided at runtime.
             Refer to [SendGrid-Python](https://github.com/sendgrid/sendgrid-python) for specifics.
         - subject (str, optional): The subject of the email; can also be provided at runtime
         - html_content (str): The html body of the email; can also be provided at runtime
@@ -31,7 +31,7 @@ class SendEmail(Task):
     def __init__(
         self,
         from_email: str = "notifications@prefect.io",
-        to_emails: str = None,
+        to_emails: Union[str, Tuple[str, str], List[str], List[Tuple[str, str]]] = None,
         subject: str = None,
         html_content: str = None,
         category: Union[str, List[str]] = None,
@@ -60,7 +60,7 @@ class SendEmail(Task):
     def run(
         self,
         from_email: str = "notifications@prefect.io",
-        to_emails: str = None,
+        to_emails: Union[str, Tuple[str, str], List[str], List[Tuple[str, str]]] = None,
         subject: str = None,
         html_content: str = None,
         category: Union[str, List[str]] = None,
@@ -73,8 +73,8 @@ class SendEmail(Task):
         Args:
             - from_email (str): The email address of the sender;
                 defaults to the one provided at initialization
-            - to_emails (str, tuple, list(str), list(tuple)): The email address of the recipient(s);
-                defaults to the one provided at initialization.
+            - to_emails (Union[str, Tuple[str, str], List[str], List[Tuple[str, str]]]):
+                The email address of the recipient(s); defaults to the one provided at initialization.
                 Refer to [SendGrid-Python](https://github.com/sendgrid/sendgrid-python) for specifics.
             - subject (str, optional): The subject of the email;
                 defaults to the one provided at initialization
