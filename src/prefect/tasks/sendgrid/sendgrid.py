@@ -71,12 +71,15 @@ class SendEmail(Task):
         Run message which sends an email via SendGrid.
 
         Args:
-            - from_email (str): The email address of the sender; defaults to the one provided at initialization
+            - from_email (str): The email address of the sender;
+                defaults to the one provided at initialization
             - to_emails (str, tuple, list(str), list(tuple)): The email address of the recipient(s);
                 defaults to the one provided at initialization.
                 Refer to [SendGrid-Python](https://github.com/sendgrid/sendgrid-python) for specifics.
-            - subject (str, optional): The subject of the email; defaults to the one provided at initialization
-            - html_content (str): The html body of the email; defaults to the one provided at initialization
+            - subject (str, optional): The subject of the email;
+                defaults to the one provided at initialization
+            - html_content (str): The html body of the email;
+                defaults to the one provided at initialization
             - category (Union[str, List[str]], optional): The category/categories to use for the email;
                 defaults to those provided at initialization
             - attachment_file_path (Union[str, Path], optional): The file path of the email attachment;
@@ -134,4 +137,4 @@ class SendEmail(Task):
             message.attachment = attachment
 
         sendgrid_client = SendGridAPIClient(sendgrid_api_key)
-        response = sendgrid_client.send(message)
+        _ = sendgrid_client.send(message)  # response
