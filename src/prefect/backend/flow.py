@@ -96,6 +96,31 @@ class FlowView:
         return cls.from_flow_data(cls.query_for_flow(where={"id": {"_eq": flow_id}}))
 
     @classmethod
+    def from_flow_group_id(cls, flow_group_id: str) -> "FlowView":
+        """
+        Get an instance of this class given a `flow_group_id` to lookup; the newest
+        flow in the flow group will be retrieved
+
+        Args:
+            flow_group_id: The uuid of the flow group
+
+        Returns:
+            A new instance of FlowView
+        """
+        if not isinstance(flow_group_id, str):
+            raise TypeError(
+                f"Unexpected type {type(flow_group_id)!r} for `flow_group_id`, "
+                f"expected 'str'."
+            )
+
+        return cls.from_flow_data(
+            cls.query_for_flow(
+                where={"flow_group_id": {"_eq": flow_group_id}},
+                order_by={"created": EnumValue("desc")},
+            )
+        )
+
+    @classmethod
     def from_flow_obj(
         cls, flow: "prefect.Flow", allow_archived: bool = False
     ) -> "FlowView":
