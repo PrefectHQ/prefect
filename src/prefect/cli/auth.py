@@ -16,7 +16,7 @@ def check_override_auth_token():
 def warn_deprecated_api_tokens():
     warnings.warn(
         """
-        API Tokens are DEPRECATED.
+        API Tokens have been deprecated in favor of API Keys.
         Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
         for information on how to use API Keys.
         """
