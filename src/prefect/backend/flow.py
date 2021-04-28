@@ -71,7 +71,7 @@ class FlowView:
         self.name = name
 
     @classmethod
-    def from_flow_data(cls, flow_data: dict) -> "FlowView":
+    def from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
         """
         Get an instance of this class given a dict of required flow data
 
@@ -85,13 +85,19 @@ class FlowView:
             flow_data.pop("storage")
         )
 
-        return cls(
-            flow_id=flow_id,
-            project_name=project_name,
-            flow=deserialized_flow,
-            storage=storage,
-            **flow_data,
-        )
+        # Combine the data from `flow_data` with `kwargs`
+        flow_args = {
+            **dict(
+                flow_id=flow_id,
+                project_name=project_name,
+                flow=deserialized_flow,
+                storage=storage,
+                **flow_data,
+            ),
+            **kwargs,
+        }
+
+        return cls(**flow_args)
 
     @classmethod
     def from_flow_id(cls, flow_id: str) -> "FlowView":
