@@ -332,7 +332,8 @@ def run(
             flow_id=flow.flow_id,
             parameters=params_dict,
             context=context_dict,
-            labels=labels,
+            # If labels is an empty list pass `None` to get defaults
+            labels=labels or None,
             run_name=run_name,
         )
 
