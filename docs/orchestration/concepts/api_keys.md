@@ -1,20 +1,25 @@
 # API Keys <Badge text="Cloud"/>
 
-API keys are a central component for interacting with the Prefect Cloud API.  They encapsulate who you are as a user of the system along with your memberships to your various tenants.  API keys can also be generated for Service Accounts, allowing for keys with customizable permission sets.  Ultimately, all clients that interact with the Prefect Cloud API must provide an API key as a Bearer Token included in the request header.
+API Keys are how clients authenticate with the Prefect Cloud API.  They encapsulate the identity of a User or a Service Account.  Ultimately, all clients that interact with the Prefect Cloud API must provide an API Key as a Bearer Token included in the request header.
 
+For more information on how to use these keys to interact with the GraphQL API, go [here](api.html).
 ### User API Keys
 
-User-based API keys function as personal access keys.  When creating an API key, you can configure the following attributes:
+Users can generate API Keys to serve as personal access keys.  When creating an API key, you can configure the following attributes:
 
-- **API Key Name**: The name of this key; this is useful for organizational and bookkeeping purposes
+- **API Key Name**: The name of this key
 - **API Key Expiration**: An optional expiration date for the key - if no expiration is provided, the key will never expire
-- **Tenant**: Which tenant to associate the key with - this key will then have all of the permissions that you have as a member of that tenant.  For example, suppose you are a member of Tenant A as a Tenant Administrator, and Tenant B as a Read-Only User.  When you create an API key associated with Tenant A, it will have the ability to perform actions at the Tenant Admin level.  On the other hand, when you create an API key associated with Tenant B, it will only be able to perform queries and no mutations.
+- **Tenant**: The tenant to associate with the key, by default - this key will inherit its associated user's permissions in all tenants to which the User has an existing membership, but the default tenant will be used when no tenant is specified.  Revoking permissions or memberships of that user will be reflected in the token.
 
-To generate an API key for yourself, navigate to User > API Keys within the UI and click "Create an API Key".
+To generate an API key for your User, navigate to User > API Keys within the UI and click "Create an API Key".
+
+::: tip Key Management
+Best Practice: When tempted to create a long-lived token for CI, a Prefect Agent, or any use beyond local development, use a Service Account API Key.  Your User API Key is effectively your identity and should be treated as such.
+:::
 
 ### Service Account API Keys
 
-Service Account-based API keys are used for processes like the Prefect Agent or CI, which require the ability to execute or register flows on behalf of a tenant.  To create and manage both your tenant's Service Accounts and Service Account API keys, navigate to Team > Service Accounts.
+Create API Keys restricted to a tenant by creating API Keys associated with Service Accounts in that tenant.  These API Tokens have the same permissions as their Service Account.  To create and manage your tenant's Service Accounts and their associated API keys, navigate to Team > Service Accounts.  
 
 When creating an API key, you can configure the following attributes:
 
@@ -29,6 +34,7 @@ Note that Service Accounts can only be created by Tenant Admins.
 Every action you see in the UI can always be replicated via Prefect's GraphQL API.
 
 To create an API key using GraphQL execute the `create_api_key` mutation against `https://api.prefect.io`. For more information on how to use the GraphQL API go [here](api.html).
+For user_id, supply either a user or a service account
 
 ```graphql
 mutation {
@@ -49,7 +55,7 @@ To revoke an API key in the UI navigate to Team Settings > Service Accounts or U
 
 ### CLI
 
-To revoke an API key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find an API key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
+To revoke an API key with the CLI run the `revoke-token` command with the ID of the key you want to revoke. For information on how to find an API key's ID look under [Querying for Key Information](api_keys.html#querying-for-key-information).
 
 ```
 $ prefect auth revoke-token -i $API_KEY_ID
@@ -57,7 +63,7 @@ $ prefect auth revoke-token -i $API_KEY_ID
 
 ### GraphQL
 
-To revoke an API key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find an API key's ID look under [Querying for Key Information](tokens.html#querying-for-key-information).
+To revoke an API key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find an API key's ID look under [Querying for Key Information](api_keys.html#querying-for-key-information).
 
 ```graphql
 mutation {
@@ -69,7 +75,7 @@ mutation {
 
 ## Querying for Key Information
 
-To query for information about a specific API key with GraphQL, execute the following query against `https://api.prefect.io`. This will allow you to query for API key information, however it never returns the value of the key itself.
+To query for information about API Keys with GraphQL, execute the following query against `https://api.prefect.io`. This will return API Key information, but never the value of the key.  All User API Keys for the active User will be returned, along with any Service Account API Keys which the API Key is privileged to see in the the API Key's default tenant.  Only and all Administrators are privileged to see all Service Accounts--because all Service Accounts have the Administrator role, they can also see all API Keys for any Service Account in the tenant.
 
 ```graphql
 query {
@@ -77,13 +83,14 @@ query {
     id
     name
     expires_at
+    user_id
   }
 }
 ```
 
-## Use and Persistence of Service Account Keys
+## Use and Persistence of Service Account Keys in Agents
 
-Service account keys are generally used by Prefect Agents and flows to communicate with Prefect Cloud. A service account key is provided to an agent at start and every time it deploys a flow to run it is given that key that it then uses to communicate state back to Prefect Cloud. This means that whenever a service account key is revoked, all agents and flows which are currently using it are unable to communicate with Prefect Cloud and will need to be started with a new key in order to resume their work.
+Prefect Agents and Flows use Service Account API Keys to authenticate with Prefect Cloud.  A Service Account API Key is provided to an agent at start, and each agent provides its API Key to flows that it starts.  Therefore, when a Service Account API Key is revoked (or the associated Service Account is removed), all agents and flows relying upon it will fail to authenticate with Prefect Cloud, and will need to be started with a new key.  
 
 There are a few ways in which you can give a service account key to an agent. Each method has an extra level of persistence.
 
@@ -93,7 +100,7 @@ There are a few ways in which you can give a service account key to an agent. Ea
 $ prefect agent <AGENT TYPE> start -t SERVICE_ACCOUNT_API_KEY
 ```
 
-- Specify the service account key as an environment variable. This method means the key will only be available to processes which have the variable set.
+- Specify the service account key as an environment variable. This method means the key will only be available in the active shell and its subshells.
 
 ```bash
 $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY
@@ -106,4 +113,6 @@ $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY
 auth_token = SERVICE_ACCOUNT_API_KEY
 ```
 
-For information on the use of your user-scoped API keys visit the [Prefect Cloud API](api.html) page.
+## Deprecation of User Access Tokens and API Tokens
+
+API Keys replace the deprecated User Access Tokens and API Tokens, which previously followed a different paradigm.  In effect, User API Keys can be used in place of Personal Access Tokens, and Service Account API Keys should replace API Tokens (which can no longer be created in the UI), though they function slightly differently.

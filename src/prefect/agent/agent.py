@@ -122,7 +122,7 @@ class Agent:
     ) -> None:
         # Load token and initialize client
         token = config.cloud.agent.get("auth_token")
-        self.client = Client(api_server=config.cloud.api, api_token=token)
+        self.client = Client(api_server=config.cloud.api, api_key=token)
 
         self.agent_config_id = agent_config_id
         self.name = name or config.cloud.agent.get("name", "agent")
@@ -163,7 +163,9 @@ class Agent:
 
     def _verify_token(self, token: str) -> None:
         """
-        Checks whether a token with a `RUNNER` scope was provided
+        Checks whether a token with a `RUNNER` scope was provided (DEPRECATED)
+        Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+        
         Args:
             - token (str): The provided agent token to verify
         Raises:

@@ -82,14 +82,21 @@ class Client:
     Args:
         - api_server (str, optional): the URL to send all GraphQL requests
             to; if not provided, will be pulled from `cloud.graphql` config var
-        - api_token (str, optional): a Prefect Cloud API token, taken from
+        - api_key (str, optional): a Prefect Cloud API Key, taken from
+            `config.cloud.auth_token` if not provided. Used for authentication. 
+            User API Keys will default to the key's default tenant but can be used to login
+            to any tenant in which the User has a membership, while Service
+            Account API Keys will be constrained to their own tenant.
+        - api_token (DEPRECATED) (str, optional): a Prefect Cloud API token, taken from
             `config.cloud.auth_token` if not provided. If this token is USER-scoped, it may
             be used to log in to any tenant that the user is a member of. In that case,
             ephemeral JWTs will be loaded as necessary. Otherwise, the API token itself
             will be used as authorization.
     """
 
-    def __init__(self, api_server: str = None, api_token: str = None):
+    def __init__(
+        self, api_server: str = None, api_key: str = None, api_token: str = None
+    ):
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
@@ -99,14 +106,20 @@ class Client:
 
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
-
-        self._api_token = api_token or prefect.context.config.cloud.get(
-            "auth_token", None
+        if api_token:
+            warnings.warn("api_token DEPRECATED -- use api_key")
+            if api_key:
+                warnings.warn("found both api_token and api_key--using api_key")
+        self._api_key = (
+            api_key or api_token or prefect.context.config.cloud.get("auth_token", None)
         )
 
         # Initialize the tenant and api token if not yet set
-        if not self._api_token and prefect.config.backend == "cloud":
+        if not self._api_key and prefect.config.backend == "cloud":
             self._init_tenant()
+
+        # backwards compatability
+        self._api_token = self._api_key
 
     def create_tenant(self, name: str, slug: str = None) -> str:
         """
@@ -191,6 +204,7 @@ class Client:
         headers: dict = None,
         params: Dict[str, JSONLike] = None,
         token: str = None,
+        api_key: str = None,
         retry_on_api_error: bool = True,
     ) -> dict:
         """
@@ -203,20 +217,24 @@ class Client:
                 defaults to `self.api_server`
             - headers(dict): headers to pass with the request
             - params (dict): POST parameters
-            - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - api_key (str): an API Key
+            - token (str): an auth token (DEPRECATED)
             - retry_on_api_error (bool): whether the operation should be retried if the API returns
                 an API_ERROR code
 
         Returns:
             - dict: Dictionary representation of the request made
         """
+        if token and not api_key:
+            warnings.warn("token is DEPRECATED--use api_key")
+            api_key = token
         response = self._request(
             method="POST",
             path=path,
             params=params,
             server=server,
             headers=headers,
-            token=token,
+            token=api_key,
             retry_on_api_error=retry_on_api_error,
         )
         if response.text:
@@ -247,9 +265,9 @@ class Client:
             # if no api token was passed, attempt to load state from local storage
             settings = self._load_local_settings()
 
-            if not self._api_token:
-                self._api_token = settings.get("api_token")
-            if self._api_token:
+            if not self._api_key:
+                self._api_key = settings.get("api_key") or settings.get("api_token")
+            if self._api_key:
                 self._active_tenant_id = settings.get("active_tenant_id")
 
             if self._active_tenant_id:
@@ -271,6 +289,7 @@ class Client:
         headers: Dict[str, str] = None,
         variables: Dict[str, JSONLike] = None,
         token: str = None,
+        api_key: str = None,
         retry_on_api_error: bool = True,
     ) -> GraphQLResult:
         """
@@ -285,9 +304,10 @@ class Client:
                 request
             - variables (dict): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
-            - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - api_key (str): an API Key
             - retry_on_api_error (bool): whether the operation should be retried if the API returns
                 an API_ERROR code
+            - token (str): an auth token. (DEPRECATED--use api_key)
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -295,12 +315,15 @@ class Client:
         Raises:
             - ClientError if there are errors raised by the GraphQL mutation
         """
+        if token and not api_key:
+            warnings.warn("token is DEPRECATED--use api_key")
+            api_key = token
         result = self.post(
             path="",
             server=self.api_server,
             headers=headers,
             params=dict(query=parse_graphql(query), variables=json.dumps(variables)),
-            token=token,
+            api_key=api_key,
             retry_on_api_error=retry_on_api_error,
         )
 
@@ -555,7 +578,7 @@ class Client:
             - str: the access token
         """
         if not self._access_token:
-            return self._api_token  # type: ignore
+            return self._api_key  # type: ignore
 
         expiration = self._access_token_expires_at or pendulum.now()
         if self._refresh_token and pendulum.now().add(seconds=30) > expiration:
@@ -567,8 +590,6 @@ class Client:
         """
         Returns a list of available tenants.
 
-        NOTE: this should only be called by users who have provided a USER-scoped API token.
-
         Returns:
             - List[Dict]: a list of dictionaries containing the id, slug, and name of
             available tenants
@@ -576,15 +597,13 @@ class Client:
         result = self.graphql(
             {"query": {"tenant(order_by: {slug: asc})": {"id", "slug", "name"}}},
             # use the API token to see all available tenants
-            token=self._api_token,
+            token=self._api_key,
         )  # type: ignore
         return result.data.tenant  # type: ignore
 
     def login_to_tenant(self, tenant_slug: str = None, tenant_id: str = None) -> bool:
         """
         Log in to a specific tenant
-
-        NOTE: this should only be called by users who have provided a USER-scoped API token.
 
         Args:
             - tenant_slug (str): the tenant's slug
@@ -618,7 +637,7 @@ class Client:
             },
             variables=dict(slug=tenant_slug, id=tenant_id),
             # use the API token to query the tenant
-            token=self._api_token,
+            token=self._api_key,
         )  # type: ignore
         if not tenant.data.tenant:  # type: ignore
             raise ValueError("No matching tenants found.")
@@ -638,7 +657,7 @@ class Client:
                 },
                 variables=dict(input=dict(tenant_id=tenant_id)),
                 # Use the API token to switch tenants
-                token=self._api_token,
+                token=self._api_key,
             )  # type: ignore
             self._access_token = payload.data.switch_tenant.access_token  # type: ignore
             self._access_token_expires_at = pendulum.parse(  # type: ignore
@@ -833,9 +852,7 @@ class Client:
             inputs.update(idempotency_key=idempotency_key)
 
         res = self.graphql(
-            create_mutation,
-            variables=dict(input=inputs),
-            retry_on_api_error=False,
+            create_mutation, variables=dict(input=inputs), retry_on_api_error=False,
         )  # type: Any
 
         flow_id = (
@@ -1227,9 +1244,7 @@ class Client:
         """
         mutation = {
             "mutation($input: set_flow_run_name_input!)": {
-                "set_flow_run_name(input: $input)": {
-                    "success": True,
-                }
+                "set_flow_run_name(input: $input)": {"success": True,}
             }
         }
 
@@ -1425,9 +1440,7 @@ class Client:
         """
         mutation = {
             "mutation($input: set_task_run_name_input!)": {
-                "set_task_run_name(input: $input)": {
-                    "success": True,
-                }
+                "set_task_run_name(input: $input)": {"success": True,}
             }
         }
 
@@ -1449,9 +1462,7 @@ class Client:
         """
         mutation = {
             "mutation($input: cancel_flow_run_input!)": {
-                "cancel_flow_run(input: $input)": {
-                    "state": True,
-                }
+                "cancel_flow_run(input: $input)": {"state": True,}
             }
         }
         result = self.graphql(

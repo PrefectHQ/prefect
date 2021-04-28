@@ -14,14 +14,9 @@ COMMON_START_OPTIONS = [
     ),
     click.option("--api", "-a", required=False, help="A Prefect API URL."),
     click.option(
-        "--agent-config-id",
-        help="An agent ID to link this agent instance with",
+        "--agent-config-id", help="An agent ID to link this agent instance with",
     ),
-    click.option(
-        "--name",
-        "-n",
-        help="A name to use for the agent",
-    ),
+    click.option("--name", "-n", help="A name to use for the agent",),
     click.option(
         "--label",
         "-l",
@@ -65,11 +60,7 @@ COMMON_START_OPTIONS = [
 
 
 COMMON_INSTALL_OPTIONS = [
-    click.option(
-        "--token",
-        "-t",
-        help="A Prefect Cloud API token with RUNNER scope.",
-    ),
+    click.option("--key", "-k", help="A Prefect Cloud API Key",),
     click.option(
         "--label",
         "-l",
@@ -254,8 +245,7 @@ def kubernetes():
 @kubernetes.command()
 @add_options(COMMON_START_OPTIONS)
 @click.option(
-    "--namespace",
-    help="Kubernetes namespace to deploy in. Defaults to `default`.",
+    "--namespace", help="Kubernetes namespace to deploy in. Defaults to `default`.",
 )
 @click.option(
     "--job-template",
@@ -538,10 +528,7 @@ _agents = {
     hidden=True,
 )
 @click.option(
-    "--docker-client-timeout",
-    default=None,
-    type=int,
-    hidden=True,
+    "--docker-client-timeout", default=None, type=int, hidden=True,
 )
 @click.pass_context
 def start(
@@ -846,6 +833,7 @@ def start(
 def install(
     name,
     token,
+    api_key,
     api,
     namespace,
     image_pull_secrets,
@@ -877,6 +865,7 @@ def install(
     \b
     Options:
         --token, -t                 TEXT    A Prefect Cloud API token
+        --api-key, -k               TEXT    A Prefect Cloud API Key
         --label, -l                 TEXT    Labels the agent will use to query for flow runs
                                             Multiple values supported.
                                                 e.g. `-l label1 -l label2`
@@ -910,6 +899,9 @@ def install(
         --show-flow-logs, -f                Display logging output from flows run by the
                                             agent
     """
+    if token and not api_key:
+        warnings.warn("token is DEPRECATED--use api_key")
+        api_key = token
 
     supported_agents = {
         "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
@@ -939,7 +931,7 @@ def install(
     labels = sorted(set(label))
     if name == "kubernetes":
         deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
-            token=token,
+            api_key=api_key,
             api=api,
             namespace=namespace,
             image_pull_secrets=image_pull_secrets,
