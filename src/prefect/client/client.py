@@ -83,7 +83,7 @@ class Client:
         - api_server (str, optional): the URL to send all GraphQL requests
             to; if not provided, will be pulled from `cloud.graphql` config var
         - api_key (str, optional): a Prefect Cloud API Key, taken from
-            `config.cloud.auth_token` if not provided. Used for authentication. 
+            `config.cloud.auth_token` if not provided. Used for authentication.
             User API Keys will default to the key's default tenant but can be used to login
             to any tenant in which the User has a membership, while Service
             Account API Keys will be constrained to their own tenant.
@@ -852,7 +852,9 @@ class Client:
             inputs.update(idempotency_key=idempotency_key)
 
         res = self.graphql(
-            create_mutation, variables=dict(input=inputs), retry_on_api_error=False,
+            create_mutation,
+            variables=dict(input=inputs),
+            retry_on_api_error=False,
         )  # type: Any
 
         flow_id = (
@@ -1244,7 +1246,9 @@ class Client:
         """
         mutation = {
             "mutation($input: set_flow_run_name_input!)": {
-                "set_flow_run_name(input: $input)": {"success": True,}
+                "set_flow_run_name(input: $input)": {
+                    "success": True,
+                }
             }
         }
 
@@ -1440,7 +1444,9 @@ class Client:
         """
         mutation = {
             "mutation($input: set_task_run_name_input!)": {
-                "set_task_run_name(input: $input)": {"success": True,}
+                "set_task_run_name(input: $input)": {
+                    "success": True,
+                }
             }
         }
 
@@ -1462,7 +1468,9 @@ class Client:
         """
         mutation = {
             "mutation($input: cancel_flow_run_input!)": {
-                "cancel_flow_run(input: $input)": {"state": True,}
+                "cancel_flow_run(input: $input)": {
+                    "state": True,
+                }
             }
         }
         result = self.graphql(

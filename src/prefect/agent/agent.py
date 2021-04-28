@@ -165,7 +165,7 @@ class Agent:
         """
         Checks whether a token with a `RUNNER` scope was provided (DEPRECATED)
         Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
-        
+
         Args:
             - token (str): The provided agent token to verify
         Raises:
