@@ -175,10 +175,11 @@ class FlowView:
         return cls.from_flow_data(flow)
 
     @staticmethod
-    def query_for_flow(where: dict, **kwargs: Any) -> dict:
+    def query_for_flow(where: dict, order_by: dict = None, **kwargs: Any) -> dict:
         """
         Query for flow data using `query_for_flows` but throw an exception if
-        more than one matching flow is found
+        more than one matching flow is found unless an order_by clause is passed, in
+        which case the first flow will be returned
 
         Args:
             where: The `where` clause to use
@@ -187,12 +188,12 @@ class FlowView:
         Returns:
             A dict of flow data
         """
-        flows = FlowView.query_for_flows(where=where, **kwargs)
+        flows = FlowView.query_for_flows(where=where, order_by=order_by, **kwargs)
 
-        if len(flows) > 1:
+        if len(flows) > 1 and order_by is None:
             raise ValueError(
                 f"Found multiple ({len(flows)}) flows while querying for flows "
-                f"where {where}: {flows}"
+                f"where {where}: {[flow.get('id') for flow in flows]}"
             )
 
         if not flows:
