@@ -1,75 +1,58 @@
 import json
 import textwrap
 import time
+import uuid
 import os
 
 import click
 from click import ClickException
 from tabulate import tabulate
 
+import prefect
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.cli.build_register import load_flows_from_script, load_flows_from_module
 from prefect.backend.flow import FlowView
+from prefect.backend.flow_run import execute_flow_run, watch_flow_run
 
 
-def get_flow_id_by_flow_group(flow_group_id: str) -> str:
-    """
-    Get the UUID of the newest flow in a flow group
+def get_flow_from_path_or_module(
+    path: str = None, module: str = None, name: str = None
+):
+    location = path if path is not None else module
+    flows = load_flows_from_script(path) if path else load_flows_from_module(module)
+    flows_by_name = {flow.name: flow for flow in flows}
+    flow_names = ", ".join(map(repr, flows_by_name.keys()))
 
-    Args:
-        flow_group_id:
+    if not flows:
+        raise ClickException(f"Found no flows at {location}.")
 
-    Returns:
-        A flow id
-    """
-    return ""
+    if len(flows) > 1 and not name:
+        raise ClickException(
+            f"Found multiple flows at {location}: {flow_names}\n\n"
+            f"Specify a flow name to run."
+        )
+    if name:
+        if name not in flows_by_name:
+            raise ClickException(
+                f"Did not find {name!r} in flows at {location}. Found {flow_names}"
+            )
+        flow = flows_by_name[name]
 
+    else:
+        flow = list(flows_by_name.values())[0]
 
-def get_flow_id_by_name(flow_name: str, project_name: str = None) -> str:
-    """
-    Get the UUID of a flow by name (and project). An error will be thrown if a project
-    is not provided and the flow name exists across projects.
-
-    Args:
-        flow_name:
-        project_name:
-
-    Returns:
-
-    """
-    return ""
-
-
-def get_flow_id_by_flow_object(flow: "prefect.Flow") -> str:
-    return ""
+    return flow
 
 
-def get_flow(
-    flow_id: str, flow_group_id: str, project: str, path: str, module: str, name: str
+def get_flow_view(
+    flow_id: str = None,
+    flow_group_id: str = None,
+    project: str = None,
+    path: str = None,
+    module: str = None,
+    name: str = None,
 ) -> "FlowView":
-    # Ensure that the user has not passed conflicting options
-    given_lookup_options = {
-        key
-        for key, option in {
-            "--flow-id": flow_id,
-            "--flow-group-id": flow_group_id,
-            "--project": project,
-            "--path": path,
-            "--module": module,
-        }.items()
-        if option is not None
-    }
-    if not given_lookup_options:
-        raise ClickException(
-            "Received no options to look up the flow." + FLOW_LOOKUP_MSG
-        )
-    if len(given_lookup_options) > 1:
-        raise ClickException(
-            "Received too many options to look up the flow: "
-            f"{', '.join(given_lookup_options)}" + FLOW_LOOKUP_MSG
-        )
-
     if flow_id:
         return FlowView.from_flow_id(flow_id)
 
@@ -85,29 +68,7 @@ def get_flow(
         return FlowView.from_flow_name(flow_name=name, project_name=project)
 
     if path or module:
-        location = path if path is not None else module
-        flows = load_flows_from_script(path) if path else load_flows_from_module(module)
-        flows_by_name = {flow.name: flow for flow in flows}
-        flow_names = ", ".join(map(repr, flows_by_name.keys()))
-
-        if not flows:
-            raise ClickException(f"Found no flows at {location}.")
-
-        if len(flows) > 1 and not name:
-            raise ClickException(
-                f"Found multiple flows at {location}: {flow_names}\n\n"
-                f"Specify a flow name to run."
-            )
-        if name:
-            if name not in flows_by_name:
-                raise ClickException(
-                    f"Did not find {name!r} in flows at {location}. Found {flow_names}"
-                )
-            flow = flows_by_name[name]
-        else:
-            flow = list(flows_by_name.values())[0]
-            click.echo(f"Found flow {flow.name} at {location}")
-
+        flow = get_flow_from_path_or_module(path=path, module=module, name=name)
         return FlowView.from_flow_obj(flow)
 
     if name and not flow_id:
@@ -225,11 +186,21 @@ See `prefect run --help` for more details on the options.
     ),
     default=False,
 )
+@click.option(
+    "--cancel/--no-cancel",
+    help=(
+        "If this command is terminated during flow execution, cancel the flow run. "
+        "Not applicable when `--wait` is not set."
+    ),
+    default=True,
+)
 # Display settings ---------------------------------------------------------------------
 @click.option(
     "--quiet",
     "-q",
-    help="Disable verbose messaging about the flow run and just print the flow run id",
+    help=(
+        "Disable verbose messaging about the flow run and just print the flow run id. "
+        "Not applicable when `--wait` is not set.",
     default=False,
 )
 @click.option(
@@ -275,9 +246,58 @@ def run(
             )
         return
 
-    # Validate the flow look up options we've been given and get a flow id
+    # We will wait for flow completion if any of these are set
+    wait = wait or no_agent or no_backend or stream_logs
+
+    # Ensure that the user has not passed conflicting options
+    given_lookup_options = {
+        key
+        for key, option in {
+            "--flow-id": flow_id,
+            "--flow-group-id": flow_group_id,
+            "--project": project,
+            "--path": path,
+            "--module": module,
+        }.items()
+        if option is not None
+    }
+    if not given_lookup_options:
+        raise ClickException(
+            "Received no options to look up the flow." + FLOW_LOOKUP_MSG
+        )
+    if len(given_lookup_options) > 1:
+        raise ClickException(
+            "Received too many options to look up the flow: "
+            f"{', '.join(given_lookup_options)}" + FLOW_LOOKUP_MSG
+        )
+
+    # Load parameters and context ------------------------------------------------------
+
+    # TODO: Wrap exceptions for a nicer message
+    context_dict = json.loads(context) if context is not None else {}
+
+    params_dict = {}
+    if param_file:
+        # TODO: Wrap exceptions for a nicer message
+        with open(param_file) as fp:
+            params_dict = json.load(fp)
+    for key, value in params:  # List[str, str]
+        if key in params_dict:
+            click.echo(
+                f"Warning: Parameter {key!r} was set twice. Overriding with CLI value."
+            )
+        # TODO: Wrap exceptions for a nicer message
+        params_dict[key] = json.loads(value)
+
+    # Run the flow (cloud) -------------------------------------------------------------
+
     if not no_backend:
-        flow_id = get_flow_id(
+
+        client = Client()
+
+        # Validate the flow look up options we've been given and get the flow from the
+        # backend
+        flow_view = get_flow_view(
             flow_id=flow_id,
             flow_group_id=flow_group_id,
             project=project,
@@ -286,8 +306,51 @@ def run(
             name=name,
         )
 
+        labels = set(labels)
+        if no_agent:
+            # Add a random label to prevent an agent from picking up this run
+            labels.add(f"no-agent-run-{uuid.uuid4()[:8]}")
 
-@run.command(hidden=True)
+        # Create a flow run in the backend
+        flow_run_id = client.create_flow_run(
+            flow_id=flow_view.flow_id,
+            parameters=params_dict,
+            context=context_dict,
+            labels=labels,
+            run_name=run_name,
+        )
+
+        if quiet:
+            click.echo(flow_run_id)
+        else:
+            # TODO: Display a nice message
+            click.echo("Created flow run {flow_run_id}")
+
+        # Exit now if we're not waiting for execution to finish
+        if not wait:
+            return
+
+        # Execute it here if they've specified `--no-agent`
+        if no_agent:
+            execute_flow_run(flow_run_id=flow_run_id)
+
+        # Otherwise, we'll watch for state changes
+        else:
+            try:
+                watch_flow_run(flow_run_id=flow_run_id)
+            except KeyboardInterrupt:
+                # TODO: Consider a way to exit watching without cancellation
+                client.cancel_flow_run(flow_run_id=flow_run_id)
+
+    # Run the flow (local) -------------------------------------------------------------
+
+    else:
+        flow = get_flow_from_path_or_module(path=path, module=module, name=name)
+        with prefect.context(**context_dict):
+            flow.run(params=params_dict)
+
+
+@run.command("flow", hidden=True)
 @click.option("--flow-id", help="The UUID of a flow to run.", default=None)
 @click.option(
     "--version-group-id",
@@ -341,7 +404,7 @@ def run(
     help="Only output flow run id instead of link.",
     hidden=True,
 )
-def flow(
+def run_flow(
     id,
     version_group_id,
     name,
