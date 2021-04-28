@@ -88,8 +88,8 @@ class Agent:
     Flow on the given platform. It is built in this way to keep Prefect API logic standard
     but allows for platform specific customizability.
 
-    In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
-    environment variable or in your user configuration file.
+    In order for this to authenticate, `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set
+    to an API Key as an environment variable or in your user configuration file.
 
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
@@ -164,7 +164,8 @@ class Agent:
     def _verify_token(self, token: str) -> None:
         """
         Checks whether a token with a `RUNNER` scope was provided (DEPRECATED)
-        Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+        Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+        for information on how to use API Keys.
 
         Args:
             - token (str): The provided agent token to verify

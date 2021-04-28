@@ -16,7 +16,9 @@ def check_override_auth_token():
 def warn_deprecated_api_tokens():
     warnings.warn(
         """
-        API Tokens are DEPRECATED.  Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+        API Tokens are DEPRECATED.
+        Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+        for information on how to use API Keys.
         """
     )
 
@@ -73,7 +75,8 @@ def auth():
 def login(token):
     """
     Log in to Prefect Cloud with an api token to use for Cloud communication. (DEPRECATED)
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
 
     \b
     Options:
@@ -126,7 +129,8 @@ def login(token):
 def logout():
     """
     Log out of Prefect Cloud (DEPRECATED)
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
     """
     check_override_auth_token()
 
@@ -204,16 +208,18 @@ def switch_tenants(id, slug):
 
 @auth.command(hidden=True)
 @click.option("--name", "-n", required=True, help="A token name.", hidden=True)
-@click.option("--scope", "-s", required=True, help="A token scopre.", hidden=True)
-def create_key(name, scope):
+@click.option("--user-id", "-u", required=True, help="a user id.", hidden=True)
+def create_key(name, user_id):
     """
-    Create a Prefect Cloud API Key for a user (must be active user or, if active user is an Administrator, a Service Account in the active tenant).
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+    Create a Prefect Cloud API Key for a user (must be active user or,
+    if active user is an Administrator, a Service Account in the active tenant).
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
 
     \b
     Options:
         --name, -n      TEXT    A name to give the generated Key
-        --user-id, -s   TEXT    User ID with whom to associate the API Key
+        --user-id, -u   TEXT    User ID with whom to associate the API Key
     """
     warn_deprecated_api_tokens()
 
@@ -240,7 +246,8 @@ def create_key(name, scope):
 def revoke_key(id):
     """
     Revoke a Prefect Cloud API Key
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
 
     \b
     Options:
@@ -268,7 +275,8 @@ def revoke_key(id):
 @auth.command(hidden=True)
 def list_keys():
     """
-    List available Prefect Cloud API keys for active user and, if active user is an Administrator, Service Account in the active tenant.
+    List available Prefect Cloud API keys for active user and,
+    if active user is an Administrator, Service Account in the active tenant.
     """
 
     warn_deprecated_api_tokens()
@@ -304,7 +312,8 @@ def list_keys():
 def create_token(name, scope):
     """
     Create a Prefect Cloud API token. (DEPRECATED)
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
 
     \b
     Options:
@@ -336,7 +345,8 @@ def create_token(name, scope):
 def revoke_token(id):
     """
     Revoke a Prefect Cloud API token (DEPRECATED)
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
 
     \b
     Options:
@@ -367,7 +377,8 @@ def revoke_token(id):
 def list_tokens():
     """
     List your available Prefect Cloud API tokens. (DEPRECATED)
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html for information on how to use API Keys.
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
     """
 
     warn_deprecated_api_tokens()
