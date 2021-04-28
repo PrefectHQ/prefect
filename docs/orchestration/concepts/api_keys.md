@@ -2,7 +2,8 @@
 
 API Keys are how clients authenticate with the Prefect Cloud API.  They encapsulate the identity of a User or a Service Account.  Ultimately, all clients that interact with the Prefect Cloud API must provide an API Key as a Bearer Token included in the request header.
 
-For more information on how to use these keys to interact with the GraphQL API, go [here](api.html).
+See our [API documentation](api.html) more information on how to use these keys to interact with the GraphQL API.
+
 ### User API Keys
 
 Users can generate API Keys to interact with the API with their personal permissions.  When creating an API key, you can configure the following attributes:
