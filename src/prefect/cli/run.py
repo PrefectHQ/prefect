@@ -105,6 +105,10 @@ See `prefect run --help` for more details on the options.
 @click.pass_context
 # Flow lookup settings -----------------------------------------------------------------
 @click.option("--flow-id", help="The UUID of a flow to run.")
+# TODO: Consider dropping the flow group id and instead just take `--id` and lookup
+#       by flow-id then flow-group-id second as a fallback. Since they're UUID the
+#       chance of a mistake is low and this simplifies the interface since users may
+#       copy a flow-group-id from the UI URL where it is unclear what kind of id it is
 @click.option(
     "--flow-group-id",
     help="The UUID of a flow group to run the latest flow from.",
