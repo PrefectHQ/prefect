@@ -259,13 +259,13 @@ def revoke_key(id):
     output = client.graphql(
         query={
             "mutation($input: delete_api_key_input!)": {
-                "delete_api_token(input: $input)": {"success"}
+                "delete_api_key(input: $input)": {"success"}
             }
         },
         variables=dict(input=dict(key_id=id)),
     )
 
-    if not output.get("data", None) or not output.data.delete_api_token.success:
+    if not output.get("data", None) or not output.data.delete_api_key.success:
         click.secho("Unable to revoke token with ID {}".format(id), fg="red")
         return
 
@@ -275,11 +275,10 @@ def revoke_key(id):
 @auth.command(hidden=True)
 def list_keys():
     """
-    List available Prefect Cloud API keys for active user and,
-    if active user is an Administrator, Service Account in the active tenant.
+    List available Prefect Cloud API keys for client's User.
+    If client's User has Administrator role, will also return API Keys
+    for Service Accounts in the client's tenant
     """
-
-    warn_deprecated_api_tokens()
 
     client = Client()
 
@@ -288,16 +287,16 @@ def list_keys():
     )
 
     if not output.get("data", None):
-        click.secho("Unable to list API tokens", fg="red")
+        click.secho("Unable to list API Keys", fg="red")
         return
 
-    tokens = []
-    for item in output.data.api_token:
-        tokens.append([item.name, item.id, item.user_id])
+    api_keys = []
+    for item in output.data.auth_api_key:
+        api_keys.append([item.name, item.id, item.user_id])
 
     click.echo(
         tabulate(
-            tokens,
+            api_keys,
             headers=["NAME", "ID", "USER_ID"],
             tablefmt="plain",
             numalign="left",

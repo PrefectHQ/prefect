@@ -323,11 +323,12 @@ class Client:
         Raises:
             - ClientError if there are errors raised by the GraphQL mutation
         """
-        warnings.warn(
-            "`token` argument is deprecated and will be removed from Prefect. "
-            "Use `api_key` instead.",
-            UserWarning,
-        )
+        if token:
+            warnings.warn(
+                "`token` argument is deprecated and will be removed from Prefect. "
+                "Use `api_key` instead.",
+                UserWarning,
+            )
         result = self.post(
             path="",
             server=self.api_server,

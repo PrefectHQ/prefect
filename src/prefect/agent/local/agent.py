@@ -246,7 +246,7 @@ class LocalAgent(Agent):
 
         Args:
             - api_key (str, optional): An API Key to give the agent
-            - token (str, optional): A `RUNNER` token to give the agent (DEPRECATED)
+            - token (str, optional): A `RUNNER` token to give the agent (DEPRECATED--use api_key)
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): a dictionary of environment variables and values that
@@ -262,8 +262,13 @@ class LocalAgent(Agent):
         """
 
         # Use defaults if not provided
-        token = token or ""
-        api_key = api_key or token
+        if token:
+            warnings.warn(
+                "`token` argument is deprecated and will be removed from Prefect. "
+                "Use `api_key` instead.",
+                UserWarning,
+            )
+        api_key = api_key or token or ""
         labels = labels or []
         env_vars = env_vars or {}
         import_paths = import_paths or []
@@ -274,7 +279,7 @@ class LocalAgent(Agent):
             conf = conf_file.read()
 
         add_opts = ""
-        add_opts += f"-k {api_key} " if token else ""
+        add_opts += f"-k {api_key} " if api_key else ""
         add_opts += "-f " if show_flow_logs else ""
         add_opts += " ".join(f"-l {label} " for label in labels)
         add_opts += " ".join(f"-e {k}={v} " for k, v in env_vars.items())

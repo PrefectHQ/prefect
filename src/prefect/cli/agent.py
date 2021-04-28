@@ -7,17 +7,12 @@ from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.cli import add_options
 
 COMMON_START_OPTIONS = [
-    click.option(
-        "--api-key",
-        "-k",
-        required=False,
-        help="A Prefect Cloud API Key with RUNNER scope. (DEPRECATED)",
-    ),
+    click.option("--api-key", "-k", required=False, help="A Prefect Cloud API Key",),
     click.option(
         "--token",
         "-t",
         required=False,
-        help="A Prefect Cloud API token with RUNNER scope.",
+        help="A Prefect Cloud API token with RUNNER scope. (DEPRECATED)",
     ),
     click.option("--api", "-a", required=False, help="A Prefect API URL."),
     click.option(
@@ -84,12 +79,19 @@ COMMON_INSTALL_OPTIONS = [
 ]
 
 
-def start_agent(agent_cls, token, api, label, env, log_level, **kwargs):
+def start_agent(agent_cls, api_key, token, api, label, env, log_level, **kwargs):
     labels = sorted(set(label))
     env_vars = dict(e.split("=", 1) for e in env)
+    if token:
+        warnings.warn(
+            "`token` argument is deprecated and will be removed from Prefect. "
+            "Use `api_key` instead.",
+            UserWarning,
+        )
+    api_key = api_key or token
 
     tmp_config = {
-        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+        "cloud.agent.auth_token": api_key or config.cloud.agent.auth_token,
         "cloud.agent.level": log_level or config.cloud.agent.level,
         "cloud.api": api or config.cloud.api,
     }
@@ -428,7 +430,14 @@ _agents = {
 )
 @click.argument("agent-option", default="local")
 @click.option(
-    "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
+    "--api-key", "-k", required=False, help="A Prefect Cloud API Key.", hidden=True,
+)
+@click.option(
+    "--token",
+    "-t",
+    required=False,
+    help="A Prefect Cloud API token. (DEPRECATED--use --api-key)",
+    hidden=True,
 )
 @click.option("--api", "-a", required=False, help="A Prefect API URL.", hidden=True)
 @click.option("--agent-config-id", required=False, help="An agent ID", hidden=True)
@@ -542,6 +551,7 @@ _agents = {
 def start(
     ctx,
     agent_option,
+    api_key,
     token,
     api,
     agent_config_id,
@@ -577,7 +587,8 @@ def start(
 
     \b
     Options:
-        --token, -t             TEXT    A Prefect Cloud API token with RUNNER scope
+        --api-key, -k           TEXT    A Prefect Cloud API Key
+        --token, -t             TEXT    A Prefect Cloud API token with RUNNER scope (DEPRECATED--use --api-key)
         --api, -a               TEXT    A Prefect API URL
         --agent-config--id      TEXT    An agent ID to link this agent instance with
         --name, -n              TEXT    A name to use for the agent
@@ -639,6 +650,13 @@ def start(
         Any of the configuration options outlined in the docs can be provided here
         https://docs.prefect.io/orchestration/agents/fargate.html#configuration
     """
+    if token:
+        warnings.warn(
+            "`token` argument is deprecated and will be removed from Prefect. "
+            "Use `--api-key` instead.",
+            UserWarning,
+        )
+    api_key = api_key or token or ""
     # Split context
     kwargs = dict()
     for item in ctx.args:
@@ -646,7 +664,7 @@ def start(
         kwargs.update([item.split("=", 1)])
 
     tmp_config = {
-        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+        "cloud.agent.auth_token": api_key or config.cloud.agent.auth_token,
     }
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"

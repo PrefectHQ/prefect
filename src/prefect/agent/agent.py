@@ -193,10 +193,10 @@ class Agent:
             - AuthorizationError: if token is empty or does not have a RUNNER role
         """
         warnings.warn(
-                "_verify_token method is deprecated and will be removed from Prefect. "
-                "Use `_verify_key` instead.",
-                UserWarning,
-            )
+            "_verify_token method is deprecated and will be removed from Prefect. "
+            "Use `_verify_api_key` instead.",
+            UserWarning,
+        )
         if not token:
             raise AuthorizationError("No agent API token provided.")
 
@@ -247,7 +247,7 @@ class Agent:
             - _loop_intervals (dict, optional): Exposed for testing only.
         """
         if config.backend == "cloud":
-            self._verify_key(self.client.get_auth_token())
+            self._verify_api_key(self.client._api_key)
 
         # Register agent with backend API
         self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})

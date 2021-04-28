@@ -28,7 +28,7 @@ class ResourceManager:
         self.loop_interval = prefect_config.cloud.agent.resource_manager.get(
             "loop_interval"
         )
-        self.client = Client(api_token=prefect_config.cloud.agent.get("auth_token"))
+        self.client = Client(api_key=prefect_config.cloud.agent.get("auth_token"))
         self.namespace = os.getenv("NAMESPACE", "default")
 
         logger = logging.getLogger("resource-manager")
