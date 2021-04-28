@@ -4,6 +4,7 @@ from typing import Any, List, Tuple, Union
 from prefect.client import Secret
 from prefect.core import Task
 from prefect.utilities.tasks import defaults_from_attrs
+from python_http_client.client import Response
 
 
 class SendEmail(Task):
@@ -66,7 +67,7 @@ class SendEmail(Task):
         category: Union[str, List[str]] = None,
         attachment_file_path: Union[str, Path] = None,
         sendgrid_secret: str = None,
-    ) -> None:
+    ) -> Response:
         """
         Run message which sends an email via SendGrid.
 
@@ -87,6 +88,11 @@ class SendEmail(Task):
             - sendgrid_secret (str, optional): the name of the Prefect Secret which stores your
                 SendGrid API key; defaults to `"SENDGRID_API_KEY"`; if not provided here,
                 will use the value provided at initialization
+
+        Returns:
+            - python_http_client.client.Response:
+                A [Python-HTTP-Client](https://github.com/sendgrid/python-http-client) object
+                indicating the status of the response
         """
 
         # Based on the SendGrid example use-case code here:
@@ -137,4 +143,6 @@ class SendEmail(Task):
             message.attachment = attachment
 
         sendgrid_client = SendGridAPIClient(sendgrid_api_key)
-        _ = sendgrid_client.send(message)  # response
+        response = sendgrid_client.send(message)
+
+        return response
