@@ -357,7 +357,7 @@ def run(
                 click.echo("Keyboard interrupt! Cancelling flow run...")
                 # TODO: Consider a way to exit watching without cancellation?
                 client.cancel_flow_run(flow_run_id=flow_run_id)
-                click.echo("Cancelled flow run succesfully.")
+                click.echo("Cancelled flow run successfully.")
 
     # Run the flow (local) -------------------------------------------------------------
 
