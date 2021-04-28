@@ -13,7 +13,7 @@ from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.cli.build_register import load_flows_from_script, load_flows_from_module
 from prefect.backend.flow import FlowView
-from prefect.backend.flow_run import execute_flow_run, watch_flow_run
+from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
 
 
 def get_flow_from_path_or_module(
@@ -104,16 +104,14 @@ See `prefect run --help` for more details on the options.
 @click.group(invoke_without_command=True, epilog=RUN_EPILOG)
 @click.pass_context
 # Flow lookup settings -----------------------------------------------------------------
-@click.option("--flow-id", help="The UUID of a flow to run.", default=None)
+@click.option("--flow-id", help="The UUID of a flow to run.")
 @click.option(
     "--flow-group-id",
     help="The UUID of a flow group to run the latest flow from.",
-    default=None,
 )
 @click.option(
     "--project",
     help="The name of the Prefect project containing the flow to run.",
-    default=None,
 )
 @click.option(
     "--path",
@@ -148,7 +146,6 @@ See `prefect run --help` for more details on the options.
 @click.option(
     "--context",
     help="A JSON string specifying a Prefect context to set for the flow run.",
-    default=None,
 )
 @click.option(
     "--param",
@@ -176,7 +173,7 @@ See `prefect run --help` for more details on the options.
         "Run the flow locally using `flow.run()` instead of creating a flow run using "
         "the Prefect backend API. Implies `--wait`."
     ),
-    default=False,
+    is_flag=True,
 )
 @click.option(
     "--no-agent",
@@ -184,15 +181,7 @@ See `prefect run --help` for more details on the options.
         "Run the flow inline instead of using an agent. This allows the flow run to "
         "be inspected with breakpoints during execution. Implies `--wait`."
     ),
-    default=False,
-)
-@click.option(
-    "--cancel/--no-cancel",
-    help=(
-        "If this command is terminated during flow execution, cancel the flow run. "
-        "Not applicable when `--wait` is not set."
-    ),
-    default=True,
+    is_flag=True,
 )
 # Display settings ---------------------------------------------------------------------
 @click.option(
@@ -200,20 +189,21 @@ See `prefect run --help` for more details on the options.
     "-q",
     help=(
         "Disable verbose messaging about the flow run and just print the flow run id. "
-        "Not applicable when `--wait` is not set.",
-    default=False,
+        "Not applicable when `--wait` is not set."
+    ),
+    is_flag=True,
 )
 @click.option(
     "--stream-logs",
     "-l",
     help="Stream logs from the flow run to this terminal. Implies `--wait`.",
-    default=False,
+    is_flag=True,
 )
 @click.option(
     "--wait",
     "-w",
     help="Wait for the flow run to finish executing, displaying status information.",
-    default=False,
+    is_flag=True,
 )
 def run(
     ctx,
@@ -246,6 +236,11 @@ def run(
             )
         return
 
+    # Define a simple function so we don't have to have a lot of `if not quiet` logic
+    def quiet_echo(*args, **kwargs):
+        if not quiet:
+            click.echo(*args, **kwargs)
+
     # We will wait for flow completion if any of these are set
     wait = wait or no_agent or no_backend or stream_logs
 
@@ -274,6 +269,7 @@ def run(
     # Load parameters and context ------------------------------------------------------
 
     # TODO: Wrap exceptions for a nicer message
+    # TODO: Consider loading context like params
     context_dict = json.loads(context) if context is not None else {}
 
     params_dict = {}
@@ -283,8 +279,8 @@ def run(
             params_dict = json.load(fp)
     for key, value in params:  # List[str, str]
         if key in params_dict:
-            click.echo(
-                f"Warning: Parameter {key!r} was set twice. Overriding with CLI value."
+            quiet_echo(
+                f"Warning: Parameter {key!r} was set twice. Overriding with CLI value.",
             )
         # TODO: Wrap exceptions for a nicer message
         params_dict[key] = json.loads(value)
@@ -297,7 +293,7 @@ def run(
 
         # Validate the flow look up options we've been given and get the flow from the
         # backend
-        flow_view = get_flow_view(
+        flow = get_flow_view(
             flow_id=flow_id,
             flow_group_id=flow_group_id,
             project=project,
@@ -306,14 +302,26 @@ def run(
             name=name,
         )
 
-        labels = set(labels)
         if no_agent:
             # Add a random label to prevent an agent from picking up this run
-            labels.add(f"no-agent-run-{uuid.uuid4()[:8]}")
+            labels.append(f"no-agent-run-{uuid.uuid4()[:8]}")
+
+        if not quiet:
+            quiet_echo(
+                textwrap.dedent(
+                    f"""
+                    Creating run for flow {flow.name!r} ({flow.flow_id}) with
+                        Labels: {labels}
+                        Parameters: {params_dict}
+                        Context: {context_dict}
+                        Name: {run_name if run_name else '<generated>'}
+                    """
+                ).strip()
+            )
 
         # Create a flow run in the backend
         flow_run_id = client.create_flow_run(
-            flow_id=flow_view.flow_id,
+            flow_id=flow.flow_id,
             parameters=params_dict,
             context=context_dict,
             labels=labels,
@@ -322,9 +330,11 @@ def run(
 
         if quiet:
             click.echo(flow_run_id)
-        else:
-            # TODO: Display a nice message
-            click.echo("Created flow run {flow_run_id}")
+
+        flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+        quiet_echo(
+            f"Created run {flow_run.name!r} ({flow_run_id}) for flow {flow.name!r} "
+        )
 
         # Exit now if we're not waiting for execution to finish
         if not wait:
@@ -337,10 +347,13 @@ def run(
         # Otherwise, we'll watch for state changes
         else:
             try:
-                watch_flow_run(flow_run_id=flow_run_id)
+                click.echo("Watching flow run execution...\n")
+                watch_flow_run(flow_run_id=flow_run_id, stream_logs=stream_logs)
             except KeyboardInterrupt:
-                # TODO: Consider a way to exit watching without cancellation
+                click.echo("Keyboard interrupt! Cancelling flow run...")
+                # TODO: Consider a way to exit watching without cancellation?
                 client.cancel_flow_run(flow_run_id=flow_run_id)
+                click.echo("Cancelled flow run succesfully.")
 
     # Run the flow (local) -------------------------------------------------------------
 
