@@ -1,4 +1,6 @@
 import copy
+import pendulum
+import time
 from collections import defaultdict
 
 from contextlib import contextmanager
@@ -194,6 +196,7 @@ class FlowRunView:
         parameters: dict,
         context: dict,
         state: State,
+        updated_at: pendulum.DateTime,
         task_runs: Iterable["TaskRunView"] = None,
     ):
         self.flow_run_id = flow_run_id
@@ -203,6 +206,7 @@ class FlowRunView:
         self.labels = labels
         self.parameters = parameters
         self.context = context
+        self.updated_at = updated_at
 
         # Cached value of all task run ids for this flow run, only cached if the flow
         # is done running
@@ -324,9 +328,14 @@ class FlowRunView:
         flow_run_id = flow_run_data.pop("id")
 
         state = State.deserialize(flow_run_data.pop("serialized_state"))
+        updated_at = pendulum.parse(flow_run_data.pop("updated"))
 
         return cls(
-            flow_run_id=flow_run_id, task_runs=task_runs, state=state, **flow_run_data
+            flow_run_id=flow_run_id,
+            task_runs=task_runs,
+            state=state,
+            updated_at=updated_at,
+            **flow_run_data,
         )
 
     @staticmethod
@@ -343,6 +352,7 @@ class FlowRunView:
                     "labels": True,
                     "parameters": True,
                     "context": True,
+                    "updated": True,
                 }
             }
         }
