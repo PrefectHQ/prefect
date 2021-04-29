@@ -96,6 +96,7 @@ FLOW_LOOKUP_MSG = """
 Look up a flow to run with one of the following option combinations:
     --flow-id
     --flow-group-id
+    --name
     --project and --name
     --path (--name if there are multiple flows)
     --module (and --name if there are multiple flows)
@@ -266,7 +267,9 @@ def run(
         }.items()
         if option is not None
     }
-    if not given_lookup_options:
+    # Since `name` can be passed in conjunction with several options and also alone
+    # it requires a special case here
+    if not given_lookup_options and not name:
         raise ClickException(
             "Received no options to look up the flow." + FLOW_LOOKUP_MSG
         )
