@@ -11,7 +11,11 @@ from tabulate import tabulate
 import prefect
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
-from prefect.cli.build_register import load_flows_from_script, load_flows_from_module
+from prefect.cli.build_register import (
+    load_flows_from_script,
+    load_flows_from_module,
+    log_exception,
+)
 from prefect.backend.flow import FlowView
 from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
 
@@ -87,7 +91,6 @@ RUN_EPILOG = """
 \b    $ prefect register --project my-project -p myflows/
 """
 
-
 FLOW_LOOKUP_MSG = """
 
 Look up a flow to run with one of the following option combinations:
@@ -99,6 +102,8 @@ Look up a flow to run with one of the following option combinations:
     
 See `prefect run --help` for more details on the options.
 """
+
+BREAKLINE = "\n" + ("****" * 4) + "\n"
 
 
 @click.group(invoke_without_command=True, epilog=RUN_EPILOG)
@@ -199,7 +204,7 @@ See `prefect run --help` for more details on the options.
 )
 @click.option(
     "--stream-logs",
-    "-l",
+    "-s",
     help="Stream logs from the flow run to this terminal. Implies `--wait`.",
     is_flag=True,
 )
@@ -243,7 +248,10 @@ def run(
     # Define a simple function so we don't have to have a lot of `if not quiet` logic
     def quiet_echo(*args, **kwargs):
         if not quiet:
-            click.echo(*args, **kwargs)
+            click.secho(*args, **kwargs)
+
+    # Cast labels to a list instead of a tuple so we can extend it
+    labels = list(labels)
 
     # We will wait for flow completion if any of these are set
     wait = wait or no_agent or no_backend or stream_logs
@@ -306,43 +314,48 @@ def run(
             name=name,
         )
 
-        if not labels:
-            # Add the default labels
-            labels = flow.flow_group_labels or []
-
         if no_agent:
             # Add a random label to prevent an agent from picking up this run
             labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
 
         if not quiet:
-            quiet_echo(
-                textwrap.dedent(
-                    f"""
-                    Creating run for flow {flow.name!r} ({flow.flow_id}) with
-                        Labels: {labels}
-                        Parameters: {params_dict}
-                        Context: {context_dict}
-                        Name: {run_name if run_name else '<generated>'}
-                    """
-                ).strip()
-            )
+            quiet_echo(f"Creating run for flow {flow.name!r}...", nl=False)
 
         # Create a flow run in the backend
-        flow_run_id = client.create_flow_run(
-            flow_id=flow.flow_id,
-            parameters=params_dict,
-            context=context_dict,
-            # If labels is an empty list pass `None` to get defaults
-            labels=labels or None,
-            run_name=run_name,
-        )
+        try:
+            flow_run_id = client.create_flow_run(
+                flow_id=flow.flow_id,
+                parameters=params_dict,
+                context=context_dict,
+                # If labels is an empty list pass `None` to get defaults
+                labels=labels or None,
+                run_name=run_name,
+            )
+        except Exception as exc:
+            quiet_echo(" Error", fg="red")
+            log_exception(exc, indent=2)
+            raise click.Abort()
+        else:
+            quiet_echo(" Done", fg="green")
 
+        # Just display the flow run id in quiet mode
         if quiet:
             click.echo(flow_run_id)
 
+        # Grab information about the flow run
         flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+        run_url = client.get_cloud_url("flow-run", flow_run_id)
         quiet_echo(
-            f"Created run {flow_run.name!r} ({flow_run_id}) for flow {flow.name!r} "
+            textwrap.dedent(
+                f"""
+                └── Name: {flow_run.name}
+                └── UUID: {flow_run.flow_run_id}
+                └── Labels: {flow_run.labels}
+                └── Parameters: {flow_run.parameters}
+                └── Context: {flow_run.context}
+                └── URL: {run_url}
+                """
+            ).strip()
         )
 
         # Exit now if we're not waiting for execution to finish
@@ -353,19 +366,28 @@ def run(
         if no_agent:
             # TODO: Check for compatibility with run types? Something like a
             #       DockerRun may not behave well and we should probably warn
-            quiet_echo("Running flow in-process...\n")
+            quiet_echo("Running flow in-process...")
             execute_flow_run(flow_run_id=flow_run_id)
 
         # Otherwise, we'll watch for state changes
         else:
+            result = None
             try:
-                quiet_echo("Watching flow run execution...\n")
-                watch_flow_run(flow_run_id=flow_run_id, stream_logs=stream_logs)
+                quiet_echo("Watching flow run execution...")
+                result = watch_flow_run(
+                    flow_run_id=flow_run_id, stream_logs=stream_logs
+                )
             except KeyboardInterrupt:
                 quiet_echo("Keyboard interrupt! Cancelling flow run...")
                 # TODO: Consider a way to exit watching without cancellation?
                 client.cancel_flow_run(flow_run_id=flow_run_id)
                 quiet_echo("Cancelled flow run successfully.")
+                raise
+
+            if result.state.is_failed():
+                quiet_echo("Flow run failed!")
+            else:
+                quiet_echo("Flow run succeeded!")
 
     # Run the flow (local) -------------------------------------------------------------
 
