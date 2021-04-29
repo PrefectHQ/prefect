@@ -1,4 +1,5 @@
 import copy
+import logging
 
 import pendulum
 import time
@@ -6,7 +7,19 @@ from collections import defaultdict
 
 from contextlib import contextmanager
 from types import MappingProxyType
-from typing import List, Optional, Dict, Set, Any, Iterator, Iterable, Type, Mapping
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Set,
+    Any,
+    Iterator,
+    Iterable,
+    Type,
+    Mapping,
+    Union,
+    Callable,
+)
 
 import prefect
 from prefect import Flow, Task, Client
@@ -21,7 +34,10 @@ logger = get_logger("backend.flow_run")
 
 
 def watch_flow_run(
-    flow_run_id: str, stream_logs: bool = False, poll_seconds: int = 5
+    flow_run_id: str,
+    stream_logs: bool = False,
+    poll_seconds: int = 5,
+    outputter: Callable[[int, str], None] = logger.log,
 ) -> "FlowRunView":
     """
     Watch execution of a flow run displaying state changes. This function will hang
@@ -32,6 +48,8 @@ def watch_flow_run(
         stream_logs: If set, logs will be streamed from the flow run to here
         poll_seconds: The number of seconds to wait between queries for the status
             of the flow run
+        outputter: A callable to use to display output. Must take a log level and
+            message.
 
     Returns:
         FlowRunView: A view of the final state of the flow run
@@ -53,14 +71,19 @@ def watch_flow_run(
             and warning_wait_time > 20
             and not flow_run.state.is_running()
         ):
-            logger.warning(
+            # TODO: Use `flow_run.flow` to determine required agent type?
+            # TODO: We could actually query for active agents here and instead of
+            #       asking a question actually tell them if they have no agents
+            #       for a really helpful UX -- `check_for_flow_run_agents`
+            outputter(
+                logging.WARN,
                 f"It has been {total_wait_time} seconds and your flow run is not "
-                "started; do you have an agent running?"
+                "started; do you have an agent running?",
             )
             warning_wait_time = 0
 
         if flow_run.state != last_state:
-            logger.info(f"Flow run entered state {flow_run.state}")
+            outputter(logging.INFO, f"Flow run entered state {flow_run.state}")
             last_state = flow_run.state
 
         if flow_run.state.is_finished():
@@ -73,7 +96,7 @@ def watch_flow_run(
         # Get the latest state for the next iteration
         flow_run = flow_run.get_latest()
 
-    logger.info(f"Flow run finished in state {flow_run.state}")
+    outputter(logging.INFO, f"Flow run finished in state {flow_run.state}")
     return flow_run
 
 

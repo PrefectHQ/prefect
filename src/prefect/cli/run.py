@@ -2,7 +2,8 @@ import json
 import textwrap
 import time
 import uuid
-import os
+import logging
+from functools import partial
 
 import click
 from click import ClickException
@@ -18,6 +19,17 @@ from prefect.cli.build_register import (
 )
 from prefect.backend.flow import FlowView
 from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
+
+
+def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
+    if log_level >= logging.ERROR:
+        color = "red"
+    elif log_level <= logging.DEBUG:
+        color = "gray"
+    else:
+        color = "white"
+
+    click.secho(prefix + message, fg=color)
 
 
 def get_flow_from_path_or_module(
@@ -376,7 +388,9 @@ def run(
             try:
                 quiet_echo("Watching flow run execution...")
                 result = watch_flow_run(
-                    flow_run_id=flow_run_id, stream_logs=stream_logs
+                    flow_run_id=flow_run_id,
+                    stream_logs=stream_logs,
+                    outputter=partial(echo_with_log_color, prefix="── "),
                 )
             except KeyboardInterrupt:
                 quiet_echo("Keyboard interrupt! Cancelling flow run...")
