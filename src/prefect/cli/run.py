@@ -21,6 +21,7 @@ from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.backend.flow import FlowView
 from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
+from prefect.utilities.logging import get_logger
 
 
 def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
@@ -449,6 +450,12 @@ def run(
 
     else:
         flow = get_flow_from_path_or_module(path=path, module=module, name=name)
+
+        # Set the desired log level
+        if log_level:
+            logger = get_logger()
+            logger.setLevel(log_level)
+
         with prefect.context(**context_dict):
             flow.run(parameters=params_dict)
 
