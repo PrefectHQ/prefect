@@ -20,6 +20,7 @@ from typing import (
     Union,
     Callable,
     NamedTuple,
+    cast,
 )
 
 import prefect
@@ -36,7 +37,7 @@ logger = get_logger("backend.flow_run")
 
 def watch_flow_run(
     flow_run_id: str,
-    stream_logs: bool = False,
+    stream_logs: bool = True,
     poll_seconds: int = 5,
     outputter: Callable[[int, str], None] = logger.log,
 ) -> "FlowRunView":
@@ -61,17 +62,27 @@ def watch_flow_run(
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
-    last_state = None
+    # The timestamp of the last displayed log so that we can scope each log query
+    # to logs that have not been shown yet
     last_log_timestamp = None
+
+    # A counter of states that have been displayed. Not a set so repeated states in the
+    # backend are shown well.
+    seen_states = 0
+
+    # Some times (in seconds) to track displaying a warning about the flow not starting
+    # on time
     total_wait_time = 0
     warning_wait_time = 0
 
     while not flow_run.state.is_finished():
+        # Get the latest state
+        flow_run = flow_run.get_latest()
 
         if (
             total_wait_time > 20
             and warning_wait_time > 20
-            and not flow_run.state.is_running()
+            and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
             # TODO: Use `flow_run.flow` to determine required agent type?
             # TODO: We could actually query for active agents here and instead of
@@ -84,33 +95,42 @@ def watch_flow_run(
             )
             warning_wait_time = 0
 
-        # TODO: Query for `states` and display _every_ state transition rather than
-        #       just the state when we happen to poll
-        if flow_run.state != last_state:
-            outputter(logging.INFO, f"Flow run entered state {flow_run.state}")
-            last_state = flow_run.state
+        # Create a shared message list so we can roll state changes and logs together
+        # in the correct order
+        messages = []
 
-        if flow_run.state.is_finished():
-            break
+        # Add state change messages
+        for state in flow_run.states[seen_states:]:
+            messages.append(
+                (
+                    logging.INFO,
+                    state.timestamp,
+                    f"Flow run entered state {state}",
+                )
+            )
+            seen_states += 1
+
+        if stream_logs:
+            # Display logs if asked and the flow is running
+            logs = flow_run.get_logs(start_time=last_log_timestamp)
+            for log in logs:
+                messages.append(
+                    (
+                        logging.getLevelName(log.level),
+                        log.timestamp,
+                        log.message,
+                    )
+                )
+            if logs:
+                last_log_timestamp = logs[-1].timestamp
+
+        for level, timestamp, message in sorted(messages):
+            outputter(level, f"{timestamp.in_tz(tz='local'):%H:%M:%S} - {message}")
 
         time.sleep(poll_seconds)
         warning_wait_time += poll_seconds
         total_wait_time += warning_wait_time
 
-        # Get the latest state for the next iteration
-        flow_run = flow_run.get_latest()
-
-        # Display logs now so that we log finished state logs
-        logs = flow_run.get_logs(start_time=last_log_timestamp)
-        for log in logs:
-            outputter(
-                logging.getLevelName(log.level),
-                f"{log.timestamp.in_tz(tz='local'):%H:%M:%S} - {log.message}",
-            )
-        if logs:
-            last_log_timestamp = logs[-1].timestamp
-
-    outputter(logging.INFO, f"Flow run finished in state {flow_run.state}")
     return flow_run
 
 
@@ -276,6 +296,22 @@ class FlowRunLog(NamedTuple):
         return cls(pendulum.parse(data["timestamp"]), data["message"], data["level"])
 
 
+class TimestampedState(State):
+    """
+    Small wrapper for flow run states to include a timestamp
+
+    TODO: We will likely want to include timestamps directly on `State`. This extension
+          is written as a subclass for compatibility with that future change
+    """
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "TimestampedState":
+        state = cls.deserialize(data["serialized_state"])
+        state.timestamp = pendulum.parse(data["timestamp"])
+        cast(state, TimestampedState)
+        return state
+
+
 class FlowRunView:
     """
     A view of Flow Run data stored in the Prefect API.
@@ -305,6 +341,7 @@ class FlowRunView:
         parameters: dict,
         context: dict,
         state: State,
+        states: List[TimestampedState],
         updated_at: pendulum.DateTime,
         task_runs: Iterable["TaskRunView"] = None,
     ):
@@ -316,6 +353,7 @@ class FlowRunView:
         self.parameters = parameters
         self.context = context
         self.updated_at = updated_at
+        self.states = states
 
         # Cached value of all task run ids for this flow run, only cached if the flow
         # is done running
@@ -382,7 +420,11 @@ class FlowRunView:
                     "where": {
                         "_and": [
                             {"timestamp": {"_lte": self.updated_at.isoformat()}},
-                            {"timestamp": {"_gt": start_time}},
+                            (
+                                {"timestamp": {"_gt": start_time.isoformat()}}
+                                if start_time
+                                else {}
+                            ),
                         ]
                     },
                 },
@@ -454,11 +496,20 @@ class FlowRunView:
         state = State.deserialize(flow_run_data.pop("serialized_state"))
         updated_at = pendulum.parse(flow_run_data.pop("updated"))
 
+        states_data = flow_run_data.pop("states", [])
+        states = list(
+            sorted(
+                [TimestampedState.from_dict(state_data) for state_data in states_data],
+                key=lambda s: s.timestamp,
+            )
+        )
+
         return cls(
             flow_run_id=flow_run_id,
             task_runs=task_runs,
             state=state,
             updated_at=updated_at,
+            states=states,
             **flow_run_data,
         )
 
@@ -513,6 +564,7 @@ class FlowRunView:
                     "name": True,
                     "flow_id": True,
                     "serialized_state": True,
+                    "states": {"timestamp", "serialized_state"},
                     "labels": True,
                     "parameters": True,
                     "context": True,

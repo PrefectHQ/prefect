@@ -214,9 +214,11 @@ See `prefect run --help` for more details on the options.
     is_flag=True,
 )
 @click.option(
-    "--stream-logs",
-    "-s",
-    help="Stream logs from the flow run to this terminal. Implies `--wait`.",
+    "--no-logs",
+    help=(
+        "Disable streaming logs from the flow run to this terminal. Only state changes "
+        "will be displayed. Not applicable when `--wait` is not set."
+    ),
     is_flag=True,
 )
 @click.option(
@@ -241,7 +243,7 @@ def run(
     no_agent,
     run_name,
     quiet,
-    stream_logs,
+    no_logs,
     wait,
 ):
     """Run a flow"""
@@ -249,7 +251,7 @@ def run(
     # mucking to smoothly deprecate it. Can be removed with `prefect run flow`
     # is removed.
     if ctx.invoked_subcommand is not None:
-        if any([params, stream_logs, quiet, wait, no_agent, no_backend, flow_id]):
+        if any([params, no_logs, quiet, wait, no_agent, no_backend, flow_id]):
             # These options are not supported by `prefect run flow`
             raise ClickException(
                 "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
@@ -265,7 +267,7 @@ def run(
     labels = list(labels)
 
     # We will wait for flow completion if any of these are set
-    wait = wait or no_agent or no_backend or stream_logs
+    wait = wait or no_agent or no_backend
 
     # Ensure that the user has not passed conflicting options
     given_lookup_options = {
@@ -389,8 +391,8 @@ def run(
                 quiet_echo("Watching flow run execution...")
                 result = watch_flow_run(
                     flow_run_id=flow_run_id,
-                    stream_logs=stream_logs,
-                    outputter=partial(echo_with_log_color, prefix="── "),
+                    stream_logs=not no_logs,
+                    outputter=partial(echo_with_log_color, prefix="└── "),  # type: ignore
                 )
             except KeyboardInterrupt:
                 quiet_echo("Keyboard interrupt! Cancelling flow run...")
@@ -400,9 +402,9 @@ def run(
                 raise
 
             if result.state.is_failed():
-                quiet_echo("Flow run failed!")
+                quiet_echo("Flow run failed!", fg="red")
             else:
-                quiet_echo("Flow run succeeded!")
+                quiet_echo("Flow run succeeded!", fg="green")
 
     # Run the flow (local) -------------------------------------------------------------
 
