@@ -344,6 +344,35 @@ class FlowRunView:
         return MappingProxyType(self._cached_task_runs)
 
     @classmethod
+    def from_flow_run_data(
+        cls, flow_run_data: dict, task_runs: Iterable["TaskRunview"] = None
+    ) -> "FlowRunView":
+        """
+        Get an instance of this class filled with a dict of flow run information.
+
+        Primarily for internal use by `from_flow_run_id`, exists to maintain
+        consistency in the design of backend View classes.
+
+        Args:
+            flow_run_data: A dict of flow run data
+            task_runs: An optional iterable of task runs to pre-populate the cache with
+
+        Returns:
+            A populated `FlowRunView` instance
+        """
+        flow_run_id = flow_run_data.pop("id")
+        state = State.deserialize(flow_run_data.pop("serialized_state"))
+        updated_at = pendulum.parse(flow_run_data.pop("updated"))
+
+        return cls(
+            flow_run_id=flow_run_id,
+            task_runs=task_runs,
+            state=state,
+            updated_at=updated_at,
+            **flow_run_data,
+        )
+
+    @classmethod
     def from_flow_run_id(
         cls,
         flow_run_id: str,
@@ -381,20 +410,7 @@ class FlowRunView:
         # Combine with the provided `_cached_task_runs` iterable
         task_runs = task_runs + list(_cached_task_runs or [])
 
-        # This is redundant because it is the id we already have but this makes tests
-        # easier
-        flow_run_id = flow_run_data.pop("id")
-
-        state = State.deserialize(flow_run_data.pop("serialized_state"))
-        updated_at = pendulum.parse(flow_run_data.pop("updated"))
-
-        return cls(
-            flow_run_id=flow_run_id,
-            task_runs=task_runs,
-            state=state,
-            updated_at=updated_at,
-            **flow_run_data,
-        )
+        return cls.from_flow_run_data(flow_run_data, task_runs=task_runs)
 
     @staticmethod
     def query_for_flow_run(where: dict) -> dict:
