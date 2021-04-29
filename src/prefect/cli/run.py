@@ -392,7 +392,7 @@ def run(
                 result = watch_flow_run(
                     flow_run_id=flow_run_id,
                     stream_logs=not no_logs,
-                    outputter=partial(echo_with_log_color, prefix="└── "),  # type: ignore
+                    output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
                 )
             except KeyboardInterrupt:
                 quiet_echo("Keyboard interrupt! Cancelling flow run...")

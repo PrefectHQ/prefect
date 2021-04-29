@@ -39,7 +39,7 @@ def watch_flow_run(
     flow_run_id: str,
     stream_logs: bool = True,
     poll_seconds: int = 5,
-    outputter: Callable[[int, str], None] = logger.log,
+    output_fn: Callable[[int, str], None] = logger.log,
 ) -> "FlowRunView":
     """
     Watch execution of a flow run displaying state changes. This function will hang
@@ -50,13 +50,12 @@ def watch_flow_run(
         stream_logs: If set, logs will be streamed from the flow run to here
         poll_seconds: The number of seconds to wait between queries for the status
             of the flow run
-        outputter: A callable to use to display output. Must take a log level and
+        output_fn: A callable to use to display output. Must take a log level and
             message.
 
     Returns:
         FlowRunView: A view of the final state of the flow run
 
-    TODO: Consider returning `None` instead of a view
     TODO: Consider a slight backoff instead of a fixed poll interval
     """
 
@@ -88,7 +87,7 @@ def watch_flow_run(
             # TODO: We could actually query for active agents here and instead of
             #       asking a question actually tell them if they have no agents
             #       for a really helpful UX -- `check_for_flow_run_agents`
-            outputter(
+            output_fn(
                 logging.WARN,
                 f"It has been {total_wait_time} seconds and your flow run is not "
                 "started; do you have an agent running?",
@@ -125,7 +124,7 @@ def watch_flow_run(
                 last_log_timestamp = logs[-1].timestamp
 
         for level, timestamp, message in sorted(messages):
-            outputter(level, f"{timestamp.in_tz(tz='local'):%H:%M:%S} - {message}")
+            output_fn(level, f"{timestamp.in_tz(tz='local'):%H:%M:%S} - {message}")
 
         time.sleep(poll_seconds)
         warning_wait_time += poll_seconds
