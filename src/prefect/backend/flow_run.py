@@ -72,6 +72,7 @@ def watch_flow_run(
         flow_run = flow_run.get_latest()
 
     logger.info(f"Flow run finished in state {flow_run.state}")
+    return flow_run
 
 
 def execute_flow_run(
@@ -247,6 +248,9 @@ class FlowRunView:
         flow_run_id: str,
         name: str,
         flow_id: str,
+        labels: List[str],
+        parameters: dict,
+        context: dict,
         state: State,
         task_runs: Iterable["TaskRunView"] = None,
     ):
@@ -254,6 +258,9 @@ class FlowRunView:
         self.name = name
         self.flow_id = flow_id
         self.state = state
+        self.labels = labels
+        self.parameters = parameters
+        self.context = context
 
         # Cached value of all task run ids for this flow run, only cached if the flow
         # is done running
@@ -374,12 +381,10 @@ class FlowRunView:
         # easier
         flow_run_id = flow_run_data.pop("id")
 
+        state = State.deserialize(flow_run_data.pop("serialized_state"))
+
         return cls(
-            flow_run_id=flow_run_id,
-            flow_id=flow_run_data["flow_id"],
-            task_runs=task_runs,
-            state=State.deserialize(flow_run_data["serialized_state"]),
-            name=flow_run_data["name"],
+            flow_run_id=flow_run_id, task_runs=task_runs, state=state, **flow_run_data
         )
 
     @staticmethod
@@ -393,6 +398,9 @@ class FlowRunView:
                     "name": True,
                     "flow_id": True,
                     "serialized_state": True,
+                    "labels": True,
+                    "parameters": True,
+                    "context": True,
                 }
             }
         }
