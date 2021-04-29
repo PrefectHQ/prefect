@@ -51,6 +51,7 @@ def test_serialize_kubernetes_run(config):
     msg = RunConfigSchema().dump(config)
     config2 = RunConfigSchema().load(msg)
     assert sorted(config.labels) == sorted(config2.labels)
+
     fields = [
         "job_template",
         "job_template_path",
@@ -62,9 +63,14 @@ def test_serialize_kubernetes_run(config):
         "memory_request",
         "service_account_name",
         "image_pull_secrets",
+        "always_pull_new_image",
     ]
     for field in fields:
-        assert getattr(config, field) == getattr(config2, field)
+        if field == "always_pull_new_image":
+            # False == False works in python but not with pytest for some reason
+            assert getattr(config, field) is getattr(config, field)
+        else:
+            assert getattr(config, field) == getattr(config2, field)
 
 
 @pytest.mark.parametrize(
