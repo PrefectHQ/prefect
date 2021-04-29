@@ -103,8 +103,6 @@ Look up a flow to run with one of the following option combinations:
 See `prefect run --help` for more details on the options.
 """
 
-BREAKLINE = "\n" + ("****" * 4) + "\n"
-
 
 @click.group(invoke_without_command=True, epilog=RUN_EPILOG)
 @click.pass_context
@@ -398,7 +396,7 @@ def run(
 
 
 @run.command("flow", hidden=True)
-@click.option("--flow-id", help="The UUID of a flow to run.", default=None)
+@click.option("--id", help="The UUID of a flow to run.", default=None)
 @click.option(
     "--version-group-id",
     required=False,
