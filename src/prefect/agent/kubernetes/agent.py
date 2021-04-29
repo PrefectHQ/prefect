@@ -80,21 +80,21 @@ class KubernetesAgent(Agent):
     """
 
     def __init__(
-        self,
-        agent_config_id: str = None,
-        namespace: str = None,
-        service_account_name: str = None,
-        image_pull_secrets: Iterable[str] = None,
-        job_template_path: str = None,
-        name: str = None,
-        labels: Iterable[str] = None,
-        env_vars: dict = None,
-        max_polls: int = None,
-        agent_address: str = None,
-        no_cloud_logs: bool = False,
-        volume_mounts: List[dict] = None,
-        volumes: List[dict] = None,
-        delete_finished_jobs: bool = True,
+            self,
+            agent_config_id: str = None,
+            namespace: str = None,
+            service_account_name: str = None,
+            image_pull_secrets: Iterable[str] = None,
+            job_template_path: str = None,
+            name: str = None,
+            labels: Iterable[str] = None,
+            env_vars: dict = None,
+            max_polls: int = None,
+            agent_address: str = None,
+            no_cloud_logs: bool = False,
+            volume_mounts: List[dict] = None,
+            volumes: List[dict] = None,
+            delete_finished_jobs: bool = True,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -122,7 +122,7 @@ class KubernetesAgent(Agent):
         self.volume_mounts = volume_mounts
         self.volumes = volumes
         self.delete_finished_jobs = delete_finished_jobs and (
-            os.getenv("DELETE_FINISHED_JOBS", "True") == "True"
+                os.getenv("DELETE_FINISHED_JOBS", "True") == "True"
         )
 
         from kubernetes import client, config
@@ -191,8 +191,8 @@ class KubernetesAgent(Agent):
                                 for container_status in pod.status.container_statuses:
                                     waiting = container_status.state.waiting
                                     if waiting and (
-                                        waiting.reason == "ErrImagePull"
-                                        or waiting.reason == "ImagePullBackOff"
+                                            waiting.reason == "ErrImagePull"
+                                            or waiting.reason == "ImagePullBackOff"
                                     ):
                                         self.logger.debug(
                                             f"Failing flow run {flow_run_id} due to pod {waiting.reason}"
@@ -227,14 +227,14 @@ class KubernetesAgent(Agent):
                                 )
 
                                 for event in sorted(
-                                    pod_events.items, key=lambda x: x.last_timestamp
+                                        pod_events.items, key=lambda x: x.last_timestamp
                                 ):
                                     # Skip old events
                                     if (
-                                        event.last_timestamp
-                                        < self.job_pod_event_timestamps[job_name][
-                                            pod_name
-                                        ]
+                                            event.last_timestamp
+                                            < self.job_pod_event_timestamps[job_name][
+                                        pod_name
+                                    ]
                                     ):
                                         continue
 
@@ -327,10 +327,10 @@ class KubernetesAgent(Agent):
 
                         # If there are failed pods and the run is not finished, fail the run
                         if (
-                            failed_pods
-                            and not self.client.get_flow_run_state(
-                                flow_run_id
-                            ).is_finished()
+                                failed_pods
+                                and not self.client.get_flow_run_state(
+                            flow_run_id
+                        ).is_finished()
                         ):
                             self.logger.debug(
                                 f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
@@ -446,7 +446,7 @@ class KubernetesAgent(Agent):
             return self.generate_job_spec_from_environment(flow_run)
 
     def generate_job_spec_from_environment(
-        self, flow_run: GraphQLResult, image: str = None
+            self, flow_run: GraphQLResult, image: str = None
     ) -> dict:
         """
         Populate a k8s job spec. This spec defines a k8s job that handles
@@ -580,7 +580,7 @@ class KubernetesAgent(Agent):
         return job
 
     def generate_job_spec_from_run_config(
-        self, flow_run: GraphQLResult, run_config: KubernetesRun
+            self, flow_run: GraphQLResult, run_config: KubernetesRun
     ) -> dict:
         """Generate a k8s job spec for a flow run.
 
@@ -623,7 +623,7 @@ class KubernetesAgent(Agent):
                 run_config.service_account_name
             )  # type: Optional[str]
         elif "serviceAccountName" in pod_spec and (
-            run_config.job_template or run_config.job_template_path
+                run_config.job_template or run_config.job_template_path
         ):
             # On run-config job-template, no override
             service_account_name = None
@@ -640,7 +640,7 @@ class KubernetesAgent(Agent):
                 run_config.image_pull_secrets
             )  # type: Optional[Iterable[str]]
         elif "imagePullSecrets" in pod_spec and (
-            run_config.job_template or run_config.job_template_path
+                run_config.job_template or run_config.job_template_path
         ):
             # On run-config job template, no override
             image_pull_secrets = None
@@ -663,6 +663,10 @@ class KubernetesAgent(Agent):
         container["image"] = image = get_flow_image(
             flow_run, default=container.get("image")
         )
+
+        # always pull latest docker image for tag if config is set to do so
+        if run_config.always_pull_new_image is True:
+            container["imagePullPolicy"] = "Always"
 
         # Set flow run command
         container["args"] = get_flow_run_command(flow_run).split()
@@ -715,21 +719,21 @@ class KubernetesAgent(Agent):
 
     @staticmethod
     def generate_deployment_yaml(
-        token: str = None,
-        api: str = None,
-        namespace: str = None,
-        image_pull_secrets: str = None,
-        rbac: bool = False,
-        latest: bool = False,
-        mem_request: str = None,
-        mem_limit: str = None,
-        cpu_request: str = None,
-        cpu_limit: str = None,
-        image_pull_policy: str = None,
-        service_account_name: str = None,
-        labels: Iterable[str] = None,
-        env_vars: dict = None,
-        backend: str = None,
+            token: str = None,
+            api: str = None,
+            namespace: str = None,
+            image_pull_secrets: str = None,
+            rbac: bool = False,
+            latest: bool = False,
+            mem_request: str = None,
+            mem_limit: str = None,
+            cpu_request: str = None,
+            cpu_limit: str = None,
+            image_pull_policy: str = None,
+            service_account_name: str = None,
+            labels: Iterable[str] = None,
+            env_vars: dict = None,
+            backend: str = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -784,7 +788,7 @@ class KubernetesAgent(Agent):
         )
 
         with open(
-            os.path.join(os.path.dirname(__file__), "deployment.yaml"), "r"
+                os.path.join(os.path.dirname(__file__), "deployment.yaml"), "r"
         ) as deployment_file:
             deployment = yaml.safe_load(deployment_file)
 
@@ -831,7 +835,7 @@ class KubernetesAgent(Agent):
         rbac_yaml = []
         if rbac:
             with open(
-                os.path.join(os.path.dirname(__file__), "rbac.yaml"), "r"
+                    os.path.join(os.path.dirname(__file__), "rbac.yaml"), "r"
             ) as rbac_file:
                 rbac_generator = yaml.safe_load_all(rbac_file)
 

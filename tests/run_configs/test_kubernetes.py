@@ -19,6 +19,7 @@ def test_no_args():
     assert config.service_account_name is None
     assert config.image_pull_secrets is None
     assert config.labels == set()
+    assert not config.always_pull_new_image
 
 
 def test_labels():

@@ -189,6 +189,14 @@ Use a custom Kubernetes Job spec for this flow, stored in S3:
 flow.run_config = KubernetesRun(job_template_path="s3://bucket/path/to/spec.yaml")
 ```
 
+Always pull the newest image for the job run.  This should be used when using a custom docker image 
+with a tag other than `:latest`.  Doing so will set the kubernetes [imagePullPolicy](https://kubernetes.io/docs/concepts/containers/images/#updating-images)
+to `Always` on the job run.
+
+```python
+flow.run_config = KubernetesRun(always_pull_latest_image=True)
+````
+
 ### ECSRun
 
 [ECSRun](/api/latest/run_configs.md#ecsrun) configures flow runs
