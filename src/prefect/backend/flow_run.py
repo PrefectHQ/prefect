@@ -38,7 +38,6 @@ logger = get_logger("backend.flow_run")
 def watch_flow_run(
     flow_run_id: str,
     stream_logs: bool = True,
-    poll_seconds: int = 5,
     output_fn: Callable[[int, str], None] = logger.log,
 ) -> "FlowRunView":
     """
@@ -48,15 +47,12 @@ def watch_flow_run(
     Args:
         flow_run_id: The flow run to watch
         stream_logs: If set, logs will be streamed from the flow run to here
-        poll_seconds: The number of seconds to wait between queries for the status
-            of the flow run
         output_fn: A callable to use to display output. Must take a log level and
             message.
 
     Returns:
         FlowRunView: A view of the final state of the flow run
 
-    TODO: Consider a slight backoff instead of a fixed poll interval
     """
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
@@ -74,6 +70,12 @@ def watch_flow_run(
     total_wait_time = 0
     warning_wait_time = 0
 
+    # We'll do a basic backoff for polling, not exposed as args because the user
+    # probably should not need to tweak these.
+    poll_min = 2
+    poll_max = 10
+    poll_factor = 1.5
+
     while not flow_run.state.is_finished():
         # Get the latest state
         flow_run = flow_run.get_latest()
@@ -89,7 +91,7 @@ def watch_flow_run(
             #       for a really helpful UX -- `check_for_flow_run_agents`
             output_fn(
                 logging.WARN,
-                f"It has been {total_wait_time} seconds and your flow run is not "
+                f"It has been {round(total_wait_time)} seconds and your flow run is not "
                 "started; do you have an agent running?",
             )
             warning_wait_time = 0
@@ -126,8 +128,16 @@ def watch_flow_run(
         for level, timestamp, message in sorted(messages):
             output_fn(level, f"{timestamp.in_tz(tz='local'):%H:%M:%S} - {message}")
 
-        time.sleep(poll_seconds)
-        warning_wait_time += poll_seconds
+        if not messages:
+            # Delay the poll if there are no messages
+            poll_interval *= poll_factor
+        else:
+            # Otherwise reset to the minumum poll time
+            poll_interval = poll_min
+
+        poll_interval = min(poll_interval, poll_max)
+        time.sleep(poll_interval)
+        warning_wait_time += poll_interval
         total_wait_time += warning_wait_time
 
     return flow_run
