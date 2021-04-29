@@ -32,6 +32,7 @@ class KubernetesRunSchema(RunConfigSchemaBase):
     memory_request = fields.String(allow_none=True)
     service_account_name = fields.String(allow_none=True)
     image_pull_secrets = fields.List(fields.String(), allow_none=True)
+    always_pull_new_image = fields.String(allow_none=False)
 
 
 class ECSRunSchema(RunConfigSchemaBase):

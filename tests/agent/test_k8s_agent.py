@@ -1262,12 +1262,14 @@ class TestK8sAgentRunConfig:
         template = self.read_default_template()
         labels = template.setdefault("metadata", {}).setdefault("labels", {})
         labels["TEST"] = "VALUE"
-        flow_run = self.build_flow_run(
-            KubernetesRun(job_template=template, always_pull_new_image=True)
-        )
+        config = KubernetesRun(job_template=template, always_pull_new_image=True)
+
+        flow_run = self.build_flow_run(config)
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
+
         # test always pull new image kwarg works
+        print(type(job))
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
             == "Always"
