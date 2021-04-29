@@ -17,19 +17,25 @@ from prefect.cli.build_register import (
     load_flows_from_module,
     log_exception,
 )
+from prefect.run_configs import RunConfig
+from prefect.serialization.run_config import RunConfigSchema
 from prefect.backend.flow import FlowView
 from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
 
 
 def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
+    extra = {}
     if log_level >= logging.ERROR:
         color = "red"
+    elif log_level >= logging.WARNING:
+        color = "yellow"
     elif log_level <= logging.DEBUG:
-        color = "gray"
+        color = "white"
+        extra["dim"] = True
     else:
         color = "white"
 
-    click.secho(prefix + message, fg=color)
+    click.secho(prefix + message, fg=color, **extra)
 
 
 def get_flow_from_path_or_module(
@@ -180,6 +186,15 @@ See `prefect run --help` for more details on the options.
     type=(str, str),
 )
 @click.option(
+    "--log-level",
+    help=(
+        "The log level to set for the flow run. "
+        "If not set, the default level will be used."
+    ),
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+    default=None,
+)
+@click.option(
     "--param-file",
     help=(
         "The path to a JSON file containing parameter keys and values. Any parameters "
@@ -238,6 +253,7 @@ def run(
     labels,
     context,
     params,
+    log_level,
     param_file,
     no_backend,
     no_agent,
@@ -336,6 +352,14 @@ def run(
         if not quiet:
             quiet_echo(f"Creating run for flow {flow.name!r}...", nl=False)
 
+        if log_level:
+            run_config: RunConfig = RunConfigSchema().load(flow.run_config)
+            if not run_config.env:
+                run_config.env = {}
+            run_config.env["PREFECT__LOGGING__LEVEL"] = log_level
+        else:
+            run_config = None
+
         # Create a flow run in the backend
         try:
             flow_run_id = client.create_flow_run(
@@ -345,6 +369,8 @@ def run(
                 # If labels is an empty list pass `None` to get defaults
                 labels=labels or None,
                 run_name=run_name,
+                # We only use the run config for setting logging levels right now
+                run_config=run_config,
             )
         except Exception as exc:
             quiet_echo(" Error", fg="red")
@@ -395,10 +421,21 @@ def run(
                     output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
                 )
             except KeyboardInterrupt:
-                quiet_echo("Keyboard interrupt! Cancelling flow run...")
-                # TODO: Consider a way to exit watching without cancellation?
-                client.cancel_flow_run(flow_run_id=flow_run_id)
-                quiet_echo("Cancelled flow run successfully.")
+                quiet_echo("Keyboard interrupt detected!", fg="yellow")
+                try:
+                    cancel = click.confirm(
+                        "Do you want to cancel this flow run?", default=True
+                    )
+                except click.Abort:
+                    # A second keyboard interrupt will exit without cancellation
+                    pass
+                else:
+                    if cancel:
+                        client.cancel_flow_run(flow_run_id=flow_run_id)
+                        quiet_echo("Cancelled flow run successfully.")
+                        return
+
+                quiet_echo("Exiting without cancelling flow run!", fg="yellow")
                 raise
 
             if result.state.is_failed():
@@ -411,7 +448,7 @@ def run(
     else:
         flow = get_flow_from_path_or_module(path=path, module=module, name=name)
         with prefect.context(**context_dict):
-            flow.run(params=params_dict)
+            flow.run(parameters=params_dict)
 
 
 @run.command("flow", hidden=True)

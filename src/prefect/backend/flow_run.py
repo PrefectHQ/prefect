@@ -68,7 +68,8 @@ def watch_flow_run(
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
     total_wait_time = 0
-    warning_wait_time = 0
+    agent_warning_wait_time = 0
+    agent_warn_interval = 15
 
     # We'll do a basic backoff for polling, not exposed as args because the user
     # probably should not need to tweak these.
@@ -81,8 +82,8 @@ def watch_flow_run(
         flow_run = flow_run.get_latest()
 
         if (
-            total_wait_time > 20
-            and warning_wait_time > 20
+            total_wait_time > agent_warn_interval
+            and agent_warning_wait_time > agent_warn_interval
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
             # TODO: Use `flow_run.flow` to determine required agent type?
@@ -94,7 +95,7 @@ def watch_flow_run(
                 f"It has been {round(total_wait_time)} seconds and your flow run is not "
                 "started; do you have an agent running?",
             )
-            warning_wait_time = 0
+            agent_warning_wait_time = 0
 
         # Create a shared message list so we can roll state changes and logs together
         # in the correct order
@@ -103,10 +104,11 @@ def watch_flow_run(
         # Add state change messages
         for state in flow_run.states[seen_states:]:
             messages.append(
-                (
-                    logging.INFO,
-                    state.timestamp,
-                    f"Flow run entered state {state}",
+                # Create some fake run logs
+                FlowRunLog(
+                    timestamp=state.timestamp,
+                    level=logging.INFO,
+                    message=f"Entered state <{type(state).__name__}>: {state.message}",
                 )
             )
             seen_states += 1
@@ -114,31 +116,30 @@ def watch_flow_run(
         if stream_logs:
             # Display logs if asked and the flow is running
             logs = flow_run.get_logs(start_time=last_log_timestamp)
-            for log in logs:
-                messages.append(
-                    (
-                        logging.getLevelName(log.level),
-                        log.timestamp,
-                        log.message,
-                    )
-                )
+            messages += logs
             if logs:
+                # Set the last timestamp so the next query is scoped to logs we have
+                # not seen yet
                 last_log_timestamp = logs[-1].timestamp
 
-        for level, timestamp, message in sorted(messages):
-            output_fn(level, f"{timestamp.in_tz(tz='local'):%H:%M:%S} - {message}")
+        for timestamp, level, message in sorted(messages):
+            level_name = logging.getLevelName(level)
+            output_fn(
+                level,
+                f"{timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} | {message}",
+            )
 
         if not messages:
             # Delay the poll if there are no messages
             poll_interval *= poll_factor
         else:
-            # Otherwise reset to the minumum poll time
+            # Otherwise reset to the min poll time for a fast query
             poll_interval = poll_min
 
         poll_interval = min(poll_interval, poll_max)
         time.sleep(poll_interval)
-        warning_wait_time += poll_interval
-        total_wait_time += warning_wait_time
+        agent_warning_wait_time += poll_interval
+        total_wait_time += poll_interval
 
     return flow_run
 
@@ -297,12 +298,16 @@ class FlowRunLog(NamedTuple):
     """
 
     timestamp: pendulum.DateTime
+    level: int
     message: str
-    level: str
 
     @classmethod
     def from_dict(cls, data: dict):
-        return cls(pendulum.parse(data["timestamp"]), data["message"], data["level"])
+        return cls(
+            pendulum.parse(data["timestamp"]),
+            logging.getLevelName(data["level"]),  # actually gets level int from name
+            data["message"],
+        )
 
 
 class TimestampedState(State):
@@ -312,6 +317,8 @@ class TimestampedState(State):
     TODO: We will likely want to include timestamps directly on `State`. This extension
           is written as a subclass for compatibility with that future change
     """
+
+    timestamp = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "TimestampedState":
