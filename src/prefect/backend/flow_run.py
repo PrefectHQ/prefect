@@ -19,6 +19,7 @@ from typing import (
     Mapping,
     Union,
     Callable,
+    NamedTuple,
 )
 
 import prefect
@@ -26,7 +27,7 @@ from prefect import Flow, Task, Client
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
-from prefect.utilities.graphql import with_args
+from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
 
@@ -61,6 +62,7 @@ def watch_flow_run(
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
     last_state = None
+    last_log_timestamp = None
     total_wait_time = 0
     warning_wait_time = 0
 
@@ -82,6 +84,8 @@ def watch_flow_run(
             )
             warning_wait_time = 0
 
+        # TODO: Query for `states` and display _every_ state transition rather than
+        #       just the state when we happen to poll
         if flow_run.state != last_state:
             outputter(logging.INFO, f"Flow run entered state {flow_run.state}")
             last_state = flow_run.state
@@ -95,6 +99,16 @@ def watch_flow_run(
 
         # Get the latest state for the next iteration
         flow_run = flow_run.get_latest()
+
+        # Display logs now so that we log finished state logs
+        logs = flow_run.get_logs(start_time=last_log_timestamp)
+        for log in logs:
+            outputter(
+                logging.getLevelName(log.level),
+                f"{log.timestamp.in_tz(tz='local'):%H:%M:%S} - {log.message}",
+            )
+        if logs:
+            last_log_timestamp = logs[-1].timestamp
 
     outputter(logging.INFO, f"Flow run finished in state {flow_run.state}")
     return flow_run
@@ -248,6 +262,20 @@ def fail_flow_run_on_exception(
         raise
 
 
+class FlowRunLog(NamedTuple):
+    """
+    Small wrapper for backend log objects
+    """
+
+    timestamp: pendulum.DateTime
+    message: str
+    level: str
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(pendulum.parse(data["timestamp"]), data["message"], data["level"])
+
+
 class FlowRunView:
     """
     A view of Flow Run data stored in the Prefect API.
@@ -339,6 +367,45 @@ class FlowRunView:
             load_static_tasks=load_static_tasks,
             _cached_task_runs=self._cached_task_runs.values(),
         )
+
+    def get_logs(
+        self,
+        start_time: pendulum.DateTime = None,
+    ) -> List["FlowRunLog"]:
+        client = Client()
+
+        logs_query = {
+            with_args(
+                "logs",
+                {
+                    "order_by": {EnumValue("timestamp"): EnumValue("asc")},
+                    "where": {
+                        "_and": [
+                            {"timestamp": {"_lte": self.updated_at.isoformat()}},
+                            {"timestamp": {"_gt": start_time}},
+                        ]
+                    },
+                },
+            ): {"timestamp": True, "message": True, "level": True}
+        }
+
+        result = client.graphql(
+            {
+                "query": {
+                    with_args(
+                        "flow_run",
+                        {
+                            "where": {"id": {"_eq": self.flow_run_id}},
+                        },
+                    ): logs_query
+                }
+            }
+        )
+
+        # Unpack the result
+        logs = result.get("data", {}).get("flow_run", [{}])[0].get("logs", [])
+
+        return [FlowRunLog.from_dict(log) for log in logs]
 
     @property
     def flow(self) -> "FlowView":
