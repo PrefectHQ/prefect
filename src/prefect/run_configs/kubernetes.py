@@ -73,20 +73,20 @@ class KubernetesRun(RunConfig):
     """
 
     def __init__(
-            self,
-            *,
-            job_template_path: str = None,
-            job_template: Union[str, dict] = None,
-            image: str = None,
-            env: dict = None,
-            cpu_limit: Union[float, str] = None,
-            cpu_request: Union[float, str] = None,
-            memory_limit: str = None,
-            memory_request: str = None,
-            service_account_name: str = None,
-            image_pull_secrets: Iterable[str] = None,
-            labels: Iterable[str] = None,
-            always_pull_new_image: bool = False
+        self,
+        *,
+        job_template_path: str = None,
+        job_template: Union[str, dict] = None,
+        image: str = None,
+        env: dict = None,
+        cpu_limit: Union[float, str] = None,
+        cpu_request: Union[float, str] = None,
+        memory_limit: str = None,
+        memory_request: str = None,
+        service_account_name: str = None,
+        image_pull_secrets: Iterable[str] = None,
+        labels: Iterable[str] = None,
+        always_pull_new_image: bool = False
     ) -> None:
         super().__init__(env=env, labels=labels)
         if job_template_path is not None and job_template is not None:
