@@ -191,7 +191,9 @@ See `prefect run --help` for more details on the options.
         "The log level to set for the flow run. "
         "If not set, the default level will be used."
     ),
-    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
+    ),
     default=None,
 )
 @click.option(
@@ -206,7 +208,7 @@ See `prefect run --help` for more details on the options.
     "--no-backend",
     help=(
         "Run the flow locally using `flow.run()` instead of creating a flow run using "
-        "the Prefect backend API. Implies `--wait`."
+        "the Prefect backend API. Implies `--watch`."
     ),
     is_flag=True,
 )
@@ -214,7 +216,7 @@ See `prefect run --help` for more details on the options.
     "--no-agent",
     help=(
         "Run the flow inline instead of using an agent. This allows the flow run to "
-        "be inspected with breakpoints during execution. Implies `--wait`."
+        "be inspected with breakpoints during execution. Implies `--watch`."
     ),
     is_flag=True,
 )
@@ -224,7 +226,7 @@ See `prefect run --help` for more details on the options.
     "-q",
     help=(
         "Disable verbose messaging about the flow run and just print the flow run id. "
-        "Not applicable when `--wait` is not set."
+        "Not applicable when `--watch` is not set."
     ),
     is_flag=True,
 )
@@ -232,14 +234,14 @@ See `prefect run --help` for more details on the options.
     "--no-logs",
     help=(
         "Disable streaming logs from the flow run to this terminal. Only state changes "
-        "will be displayed. Not applicable when `--wait` is not set."
+        "will be displayed. Not applicable when `--watch` is not set."
     ),
     is_flag=True,
 )
 @click.option(
-    "--wait",
+    "--watch",
     "-w",
-    help="Wait for the flow run to finish executing, displaying status information.",
+    help="Wait for the flow run to finish executing and display status information.",
     is_flag=True,
 )
 def run(
@@ -260,14 +262,14 @@ def run(
     run_name,
     quiet,
     no_logs,
-    wait,
+    watch,
 ):
     """Run a flow"""
     # Since the old command was a subcommand of this, we have to do some
     # mucking to smoothly deprecate it. Can be removed with `prefect run flow`
     # is removed.
     if ctx.invoked_subcommand is not None:
-        if any([params, no_logs, quiet, wait, no_agent, no_backend, flow_id]):
+        if any([params, no_logs, quiet, no_agent, no_backend, flow_id]):
             # These options are not supported by `prefect run flow`
             raise ClickException(
                 "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
@@ -283,7 +285,7 @@ def run(
     labels = list(labels)
 
     # We will wait for flow completion if any of these are set
-    wait = wait or no_agent or no_backend
+    wait = watch or no_agent or no_backend
 
     # Ensure that the user has not passed conflicting options
     given_lookup_options = {
