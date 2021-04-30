@@ -56,7 +56,7 @@ class EmailTask(Task):
         msg_plain: str = None,
         email_to_cc: str = None,
         email_to_bcc: str = None,
-        attachments: List[str] = [],
+        attachments: List[str] = None,
         **kwargs: Any,
     ):
         self.subject = subject
@@ -69,7 +69,7 @@ class EmailTask(Task):
         self.msg_plain = msg_plain
         self.email_to_cc = email_to_cc
         self.email_to_bcc = email_to_bcc
-        self.attachments = attachments
+        self.attachments = attachments or []
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
