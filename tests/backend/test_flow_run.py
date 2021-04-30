@@ -1,6 +1,7 @@
 """
 Tests for `FlowRunView`
 """
+import pendulum
 import pytest
 from unittest.mock import MagicMock
 
@@ -13,12 +14,20 @@ FLOW_RUN_DATA_1 = {
     "name": "name-1",
     "flow_id": "flow_id-1",
     "serialized_state": Success(message="state-1").serialize(),
+    "parameters": {"param": "value"},
+    "context": {"foo": "bar"},
+    "labels": ["label"],
+    "updated": pendulum.now().isoformat(),
 }
 FLOW_RUN_DATA_2 = {
     "id": "id-2",
     "name": "name-2",
     "flow_id": "flow_id-2",
     "serialized_state": Success(message="state-2").serialize(),
+    "parameters": {"param": "value"},
+    "context": {"bar": "foo"},
+    "labels": ["label"],
+    "updated": pendulum.now().isoformat(),
 }
 
 TASK_RUN_DATA_FINISHED = {
@@ -91,6 +100,10 @@ def test_flow_run_view_query_for_flow_run_includes_all_required_data(monkeypatch
         "name": True,
         "serialized_state": True,
         "flow_id": True,
+        "context": True,
+        "parameters": True,
+        "labels": True,
+        "updated": True,
     }
 
 
@@ -104,6 +117,10 @@ def test_flow_run_view_from_returns_instance(
     assert flow_run.flow_run_id == "id-1"
     assert flow_run.name == "name-1"
     assert flow_run.flow_id == "flow_id-1"
+    assert flow_run.parameters == {"param": "value"}
+    assert flow_run.context == {"foo": "bar"}
+    assert flow_run.labels == ["label"]
+    assert isinstance(flow_run.updated_at, pendulum.DateTime)
     # This state is deserialized at initialization
     assert flow_run.state == Success(message="state-1")
     # There are no cached tasks
