@@ -101,7 +101,7 @@ also requires an API key for the Agent. You can create one
 using the CLI:
 
 ```bash
-prefect auth create-token -s RUNNER
+prefect auth create-token -n XXX -s RUNNER
 ```
 
 You'll need this token later in the tutorial. You can save it locally either in
