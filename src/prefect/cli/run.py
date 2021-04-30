@@ -1,3 +1,5 @@
+from typing import Optional
+
 import json
 import textwrap
 import time
@@ -362,7 +364,7 @@ def run(
             labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
 
         if log_level:
-            run_config: RunConfig = RunConfigSchema().load(flow.run_config)
+            run_config: Optional[RunConfig] = RunConfigSchema().load(flow.run_config)
             if not run_config.env:
                 run_config.env = {}
             run_config.env["PREFECT__LOGGING__LEVEL"] = log_level
@@ -386,28 +388,30 @@ def run(
             quiet_echo(" Error", fg="red")
             log_exception(exc, indent=2)
             sys.exit(1)
-        else:
-            quiet_echo(" Done", fg="green")
 
-        # Just display the flow run id in quiet mode
         if quiet:
+            # Just display the flow run id in quiet mode
             click.echo(flow_run_id)
+        else:
+            # Grab information about the flow run (if quiet we can skip this query)
+            flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+            run_url = client.get_cloud_url("flow-run", flow_run_id)
 
-        # Grab information about the flow run
-        flow_run = FlowRunView.from_flow_run_id(flow_run_id)
-        run_url = client.get_cloud_url("flow-run", flow_run_id)
-        quiet_echo(
-            textwrap.dedent(
-                f"""
-                └── Name: {flow_run.name}
-                └── UUID: {flow_run.flow_run_id}
-                └── Labels: {flow_run.labels}
-                └── Parameters: {flow_run.parameters}
-                └── Context: {flow_run.context}
-                └── URL: {run_url}
-                """
-            ).strip()
-        )
+            # Display "Done" for creating flow run after pulling the info so there
+            # isn't a lag
+            quiet_echo(" Done", fg="green")
+            quiet_echo(
+                textwrap.dedent(
+                    f"""
+                    └── Name: {flow_run.name}
+                    └── UUID: {flow_run.flow_run_id}
+                    └── Labels: {flow_run.labels}
+                    └── Parameters: {flow_run.parameters}
+                    └── Context: {flow_run.context}
+                    └── URL: {run_url}
+                    """
+                ).strip()
+            )
 
         # Exit now if we're not waiting for execution to finish
         if not wait:
@@ -433,6 +437,8 @@ def run(
             except KeyboardInterrupt:
                 quiet_echo("Keyboard interrupt detected!", fg="yellow")
                 try:
+                    # TODO: Improve and clarify this messaging, consider having this
+                    #       apply from flow run creation -> now
                     cancel = click.confirm(
                         "Do you want to cancel this flow run?", default=True
                     )
