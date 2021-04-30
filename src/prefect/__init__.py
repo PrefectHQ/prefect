@@ -38,5 +38,3 @@ try:
     _signal.signal(29, _sig_handler)
 except:
     pass
-
-from prefect.hello_world import hello_flow
