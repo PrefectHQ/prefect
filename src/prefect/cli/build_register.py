@@ -162,7 +162,7 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
             raise TerminalError
 
     if isinstance(mod_or_obj, ModuleType):
-        flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
+        flows = [f for f in vars(mod_or_obj).values() if isinstance(f, prefect.Flow)]
     elif isinstance(mod_or_obj, prefect.Flow):
         flows = [mod_or_obj]
         # Get a valid module name for f.storage
