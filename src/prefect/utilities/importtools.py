@@ -25,4 +25,7 @@ def import_object(name: str) -> Any:
         mod = importlib.import_module(mod_name)
         return getattr(mod, attr_name)
     except ValueError:
-        return importlib.import_module(name)
+        pass
+
+    # When we can't split the string we'll just import the module
+    return importlib.import_module(name)
