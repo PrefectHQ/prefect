@@ -636,6 +636,10 @@ REGISTER_EPILOG = """
 
 \b    $ prefect register --project my-project -m "myproject.flows"
 
+\b  Register a flow in variable `flow_x` in a module `myproject.flows`.
+
+\b    $ prefect register --project my-project -m "myproject.flows.flow_x"
+
 \b  Register all pre-built flows from a remote JSON file.
 
 \b    $ prefect register --project my-project --json https://some-url/flows.json
@@ -667,8 +671,9 @@ REGISTER_EPILOG = """
     "-m",
     "modules",
     help=(
-        "A python module name containing the flow(s) to register. May be "
-        "passed multiple times to specify multiple modules."
+        "A python module name containing the flow(s) to register. May be the full "
+        "import path to a flow. May be passed multiple times to specify multiple "
+        "modules. "
     ),
     multiple=True,
 )
