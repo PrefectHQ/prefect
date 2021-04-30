@@ -24,9 +24,9 @@ FLOW_RUN_DATA_2 = {
     "name": "name-2",
     "flow_id": "flow_id-2",
     "serialized_state": Success(message="state-2").serialize(),
-    "parameters": {"param": "value"},
+    "parameters": {"param": "value2"},
     "context": {"bar": "foo"},
-    "labels": ["label"],
+    "labels": ["label2"],
     "updated": pendulum.now().isoformat(),
 }
 
@@ -107,12 +107,15 @@ def test_flow_run_view_query_for_flow_run_includes_all_required_data(monkeypatch
     }
 
 
-def test_flow_run_view_from_returns_instance(
-    patch_post,
-):
+@pytest.mark.parametrize("from_method", ["flow_run_id", "flow_run_data"])
+def test_flow_run_view_from_returns_instance(patch_post, from_method):
     patch_post({"data": {"flow_run": [FLOW_RUN_DATA_1]}})
 
-    flow_run = FlowRunView.from_flow_run_id("id-1", load_static_tasks=False)
+    if from_method == "flow_run_id":
+        flow_run = FlowRunView.from_flow_run_id("id-1", load_static_tasks=False)
+    elif from_method == "flow_run_data":
+        # Note the post patch will not be used since there is no query here
+        flow_run = FlowRunView.from_flow_run_data(FLOW_RUN_DATA_1)
 
     assert flow_run.flow_run_id == "id-1"
     assert flow_run.name == "name-1"
@@ -171,6 +174,10 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert flow_run.name == "name-1"
     assert flow_run.flow_id == "flow_id-1"
     assert flow_run.state == Success(message="state-1")
+    assert flow_run.parameters == {"param": "value"}
+    assert flow_run.context == {"foo": "bar"}
+    assert flow_run.labels == ["label"]
+    assert isinstance(flow_run.updated_at, pendulum.DateTime)
     assert len(flow_run.cached_task_runs) == 1
     assert flow_run.cached_task_runs["task-run-id-1"] == TaskRunView.from_task_run_data(
         TASK_RUN_DATA_FINISHED
@@ -183,6 +190,9 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert flow_run_2.name == "name-2"
     assert flow_run_2.flow_id == "flow_id-2"
     assert flow_run_2.state == Success(message="state-2")
+    assert flow_run_2.parameters == {"param": "value2"}
+    assert flow_run_2.context == {"bar": "foo"}
+    assert flow_run_2.labels == ["label2"]
 
     # Cached task runs are transferred
     assert len(flow_run.cached_task_runs) == 1
