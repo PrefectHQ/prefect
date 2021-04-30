@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 from collections import Counter, defaultdict
+from types import ModuleType
 from typing import Union, NamedTuple, List, Dict, Iterator, Tuple
 
 import marshmallow
@@ -20,6 +21,7 @@ import prefect
 from prefect.utilities.storage import extract_flow_from_file
 from prefect.utilities.filesystems import read_bytes_from_path, parse_path
 from prefect.utilities.graphql import with_args, EnumValue, compress
+from prefect.utilities.importtools import import_object
 from prefect.storage import Local, Module
 from prefect.run_configs import UniversalRun
 
@@ -138,10 +140,13 @@ def load_flows_from_script(path: str) -> "List[prefect.Flow]":
 
 
 def load_flows_from_module(name: str) -> "List[prefect.Flow]":
-    """Given a module name, load all flows found in the module"""
+    """
+    Given a module name (or full import path to a flow), load all flows found in the
+    module
+    """
     try:
         with prefect.context({"loading_flow": True}):
-            mod = importlib.import_module(name)
+            mod_or_obj = import_object(name)
     except Exception as exc:
         # If the requested module (or any parent module) isn't found, log
         # without a traceback, otherwise log a general message with the
@@ -156,7 +161,19 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
             log_exception(exc, 2)
             raise TerminalError
 
-    flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
+    if isinstance(mod_or_obj, ModuleType):
+        flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
+    elif isinstance(mod_or_obj, prefect.Flow):
+        flows = [mod_or_obj]
+        # Get a valid module name for f.storage
+        name, _ = name.rsplit(".", 1)
+    else:
+        click.secho(
+            f"Invalid object of type {type(mod_or_obj).__name__!r} found at {name!r}. "
+            f"Expected Module or Flow."
+        )
+        raise TerminalError
+
     if flows:
         for f in flows:
             if f.storage is None:
