@@ -1,12 +1,28 @@
 from typing import List, Dict, Any
 
 import prefect
+from prefect.run_configs.base import UniversalRun
 from prefect.serialization.flow import FlowSchema
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
 
 logger = get_logger("backend.flow")
+
+
+def drop_versions(serialized_flow: dict) -> dict:
+    # mutates a serialized flow dict in-place to drop `__version__` information
+    # cast to a list to avoid mutation during traversal
+    for key, val in list(serialized_flow.items()):
+        if key == "__version__":
+            serialized_flow.pop(key)
+        elif isinstance(val, dict):
+            drop_versions(val)
+        elif isinstance(val, list):
+            serialized_flow[key] = [
+                drop_versions(i) if isinstance(i, dict) else i for i in val
+            ]
+    return serialized_flow
 
 
 class FlowView:
@@ -138,16 +154,30 @@ class FlowView:
             A new instance of FlowView
         """
         where: Dict[str, Any] = {
-            "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
+            "serialized_flow": {"_contains": EnumValue("$serialized_flow")},
         }
         if not allow_archived:
             where["archived"] = {"_eq": False}
 
+        serialized_flow = dict(flow.serialize())
+
+        # Drop the 'flows' section of storage so we don't have to build storage now to
+        # get a matching set
+        serialized_flow["storage"].pop("flows")
+
+        # Set the run config to something reasonable if it's empty
+        if not serialized_flow["run_config"]:
+            serialized_flow["run_config"] = UniversalRun().serialize()
+
+        # __version__ can change as long as the flow is the same
+        drop_versions(serialized_flow)
+
         return cls.from_flow_data(
             cls.query_for_flow(
                 where=where,
-                jsonb_variables={"serialized_flow": flow.serialize()},
-            )
+                jsonb_variables={"serialized_flow": serialized_flow},
+            ),
+            flow=flow,
         )
 
     @classmethod
