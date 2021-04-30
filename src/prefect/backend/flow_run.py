@@ -287,7 +287,7 @@ class FlowRunView:
 
     @classmethod
     def from_flow_run_data(
-        cls, flow_run_data: dict, task_runs: Iterable["TaskRunview"] = None
+        cls, flow_run_data: dict, task_runs: Iterable["TaskRunView"] = None
     ) -> "FlowRunView":
         """
         Get an instance of this class filled with a dict of flow run information.
@@ -304,7 +304,7 @@ class FlowRunView:
         """
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
-        updated_at = pendulum.parse(flow_run_data.pop("updated"))
+        updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
 
         return cls(
             flow_run_id=flow_run_id,
