@@ -3,6 +3,7 @@ import textwrap
 import time
 import uuid
 import logging
+import sys
 from functools import partial
 
 import click
@@ -339,21 +340,26 @@ def run(
 
         # Validate the flow look up options we've been given and get the flow from the
         # backend
-        flow = get_flow_view(
-            flow_id=flow_id,
-            flow_group_id=flow_group_id,
-            project=project,
-            path=path,
-            module=module,
-            name=name,
-        )
+        quiet_echo(f"Looking up flow...", nl=False)
+        try:
+            flow = get_flow_view(
+                flow_id=flow_id,
+                flow_group_id=flow_group_id,
+                project=project,
+                path=path,
+                module=module,
+                name=name,
+            )
+        except Exception as exc:
+            quiet_echo(" Error", fg="red")
+            quiet_echo(f"{exc}")
+            sys.exit(1)
+        else:
+            quiet_echo(" Done", fg="green")
 
         if no_agent:
             # Add a random label to prevent an agent from picking up this run
             labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
-
-        if not quiet:
-            quiet_echo(f"Creating run for flow {flow.name!r}...", nl=False)
 
         if log_level:
             run_config: RunConfig = RunConfigSchema().load(flow.run_config)
@@ -364,6 +370,7 @@ def run(
             run_config = None
 
         # Create a flow run in the backend
+        quiet_echo(f"Creating run for flow {flow.name!r}...", nl=False)
         try:
             flow_run_id = client.create_flow_run(
                 flow_id=flow.flow_id,
@@ -378,7 +385,7 @@ def run(
         except Exception as exc:
             quiet_echo(" Error", fg="red")
             log_exception(exc, indent=2)
-            raise click.Abort()
+            sys.exit(1)
         else:
             quiet_echo(" Done", fg="green")
 
