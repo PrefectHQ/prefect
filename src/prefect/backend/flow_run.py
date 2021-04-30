@@ -302,6 +302,7 @@ class FlowRunView:
         Returns:
             A populated `FlowRunView` instance
         """
+        flow_run_data = flow_run_data.copy()  # Avoid mutating the input object
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
         updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
