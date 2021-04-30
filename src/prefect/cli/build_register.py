@@ -156,6 +156,8 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
             or (name.startswith(exc.name) and name[len(exc.name)] == ".")
         ):
             raise TerminalError(str(exc))
+        elif isinstance(exc, AttributeError):
+            raise TerminalError(str(exc))
         else:
             click.secho(f"Error loading {name!r}:", fg="red")
             log_exception(exc, 2)
