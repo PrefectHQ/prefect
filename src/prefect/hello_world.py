@@ -2,7 +2,7 @@ import prefect
 
 
 @prefect.task(log_stdout=True)
-def say_hello(name):
+def say_hello(name: str) -> None:
     print(f"Hello {name}")
 
 
