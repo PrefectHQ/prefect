@@ -1,0 +1,3 @@
+
+fix:
+  - "Set labels to null during `prefect build/register` if none are provided - [#4469](https://github.com/PrefectHQ/prefect/pull/4469)"
