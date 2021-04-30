@@ -1,3 +1,11 @@
+"""
+A very basic 'hello-world' flow for getting started quickly
+
+Examples:
+    > prefect register --project default -m prefect.hello_world
+    > prefect run -m prefect.hello_world --no-agent
+"""
+
 import prefect
 
 
