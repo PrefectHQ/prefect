@@ -19,6 +19,7 @@ from prefect.cli.build_register import (
     build_and_register,
     get_project_id,
     register_serialized_flow,
+    prepare_flows,
 )
 from prefect.engine.results import LocalResult
 from prefect.environments.execution import LocalEnvironment
@@ -396,6 +397,33 @@ class TestRegister:
         )
         with pytest.raises(TerminalError, match="is version 2, only version 1"):
             load_flows_from_json("https://some/url/flows.json")
+
+    @pytest.mark.parametrize("kind", ("run_config", None, "environment"))
+    @pytest.mark.parametrize("existing_labels", (None, [], ["existing"]))
+    @pytest.mark.parametrize("new_labels", (None, [], ["new"], ["existing", "new"]))
+    def test_prepare_flows_sets_labels(self, new_labels, existing_labels, kind):
+
+        config = {}
+        if kind == "run_config":
+            config["run_config"] = UniversalRun(labels=existing_labels)
+        elif kind == "environment":
+            config["environment"] = LocalEnvironment(labels=existing_labels)
+        else:
+            existing_labels = []
+
+        flow1 = Flow(
+            "flow 1",
+            storage=Module("testing"),
+            **config,
+        )
+        prepare_flows([flow1], new_labels)
+
+        # We set a run config if kind is None
+        kind = kind or "run_config"
+
+        assert getattr(flow1, kind).labels == set(existing_labels or []).union(
+            new_labels or []
+        )
 
     @pytest.mark.parametrize("force", [False, True])
     def test_build_and_register(self, capsys, monkeypatch, force):
