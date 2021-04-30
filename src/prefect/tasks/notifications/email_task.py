@@ -83,6 +83,7 @@ class EmailTask(Task):
         "msg_plain",
         "email_to_cc",
         "email_to_bcc",
+        "attachments",
     )
     def run(
         self,
@@ -96,7 +97,7 @@ class EmailTask(Task):
         msg_plain: str = None,
         email_to_cc: str = None,
         email_to_bcc: str = None,
-        attachments: List[str] = [],
+        attachments: List[str] = None,
     ) -> None:
         """
         Run method which sends an email.
