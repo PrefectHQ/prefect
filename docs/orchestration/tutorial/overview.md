@@ -97,12 +97,7 @@ export PREFECT__CLOUD__AUTH_TOKEN=<API_KEY>
 ### Create a Service Account Key
 
 Running deployed Flows with an [Agent](/orchestration/agents/overview.html)
-also requires an API key for the Agent. You can create one
-using the CLI:
-
-```bash
-prefect auth create-token -n XXX -s RUNNER
-```
+also requires an API key for the Agent. You can create one in the [Service Accounts page](https://cloud.prefect.io/team/service-accounts) of the UI.  
 
 You'll need this token later in the tutorial. You can save it locally either in
 your `~/.prefect/config.toml` config file, or as an environment variable:
