@@ -268,13 +268,15 @@ def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
     # for flows sharing storage instances
     for flow in flows:
         if isinstance(flow, dict):
-            # Add any extra labels to the flow
-            if flow.get("environment"):
-                new_labels = set(flow["environment"].get("labels") or []).union(labels)
-                flow["environment"]["labels"] = sorted(new_labels)
-            else:
-                new_labels = set(flow["run_config"].get("labels") or []).union(labels)
-                flow["run_config"]["labels"] = sorted(new_labels)
+            # Add any extra labels to the flow, avoid setting labels as an empty set
+            # if none have been passed
+            if labels:
+                if flow.get("environment"):
+                    new_labels = labels.union(flow["environment"].get("labels") or [])
+                    flow["environment"]["labels"] = sorted(new_labels)
+                else:
+                    new_labels = labels.union(flow["run_config"].get("labels") or [])
+                    flow["run_config"]["labels"] = sorted(new_labels)
         else:
             # Set the default flow result if not specified
             if not flow.result:
@@ -284,10 +286,11 @@ def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
             # Also add any extra labels to the flow
             if flow.run_config is None:
                 if flow.environment is not None:
-                    flow.environment.labels.update(labels)
+                    if labels:
+                        flow.environment.labels.update(labels)
                 else:
-                    flow.run_config = UniversalRun(labels=labels)
-            else:
+                    flow.run_config = UniversalRun(labels=labels if labels else None)
+            elif labels:
                 flow.run_config.labels.update(labels)
 
             # Add the flow to storage
