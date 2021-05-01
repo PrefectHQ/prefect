@@ -21,7 +21,7 @@ Best Practice: When tempted to create a long-lived token for CI, a Prefect Agent
 
 ### Service Account API Keys
 
-Users can generate API Keys for Service Accounts, which have permissions restricted to the tenant the Service Account belongs to. These keys will not inherit the full permissions of the user creating them. To create and manage your tenant's Service Accounts and their associated API keys, navigate to Team > Service Accounts.  
+Users can generate API Keys for Service Accounts, which have permissions restricted to the tenant the Service Account belongs to. These keys will not inherit the full permissions of the user creating them. To create and manage your tenant's Service Accounts and their associated API keys, navigate to Team > Service Accounts.
 
 When creating an API key, you can configure the following attributes:
 
@@ -54,6 +54,12 @@ mutation {
 To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
 
 ![token delete](/token_delete.png)
+
+### CLI
+```
+$ prefect auth revoke-api-key --id $KEY_ID
+Token successfully revoked
+```
 
 ### GraphQL
 

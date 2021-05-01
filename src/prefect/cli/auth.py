@@ -26,7 +26,7 @@ def warn_deprecated_api_tokens():
 @click.group(hidden=True)
 def auth():
     """
-    Handle Prefect Cloud authorization.
+    Manage Prefect Cloud API Keys.
 
     \b
     Usage:
@@ -34,38 +34,124 @@ def auth():
 
     \b
     Arguments:
-        login           Log in to Prefect Cloud
-        logout          Log out of Prefect Cloud
-        list-tenants    List your available tenants
-        switch-tenants  Switch to a different tenant
-        create-token    Create an API token
+        create-api-key   Print a new API Token for a User or Service Account
+        revoke-api-key   Revokes an API Key for a User or Service Account
+        list-api-keys    List API Key ids for User and Service Accounts (if Administrator)
 
     \b
     Examples:
-        $ prefect auth login --token MY_TOKEN
-        Login successful!
+        $ prefect auth create-api-key --user-id $USER_ID --name $KEY_NAME
+        API_KEY
 
     \b
-        $ prefect auth logout
-        Logged out from tenant TENANT_ID
+        $ prefect auth list-api-keys
+        NAME         ID         USER_ID
+        $KEY_NAME    $KEY_ID    $USER_ID
 
     \b
-        $ prefect auth list-tenants
-        NAME                        SLUG                        ID
-        Test Person                 test-person                 816sghf2-4d51-4338-a333-1771gns7614d
-        test@prefect.io's Account   test-prefect-io-s-account   \
-1971hs9f-e8ha-4a33-8c33-64512gds86g1  *
-
-    \b
-        $ prefect auth switch-tenants --slug test-person
-        Tenant switched
-
-    \b
-        $ prefect auth create-token -n MyToken -s RUNNER
-        ...token output...
+        $ prefect auth revoke-api-key --id $KEY_ID
+        Token successfully revoked
     """
     if config.backend == "server":
         raise click.UsageError("Auth commands with server are not currently supported.")
+
+
+@auth.command(hidden=True)
+@click.option("--name", "-n", required=True, help="A token name.", hidden=True)
+@click.option("--user-id", "-u", required=True, help="a user id.", hidden=True)
+def create_api_key(name, user_id):
+    """
+    Create a Prefect Cloud API Key for a user (must be active user or,
+    if active user is an Administrator, a Service Account in the active tenant).
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
+
+    \b
+    Options:
+        --name, -n      TEXT    A name to give the generated Key
+        --user-id, -u   TEXT    User ID with whom to associate the API Key
+    """
+
+    client = Client()
+
+    output = client.graphql(
+        query={
+            "mutation($input: create_api_key_input!)": {
+                "create_api_key(input: $input)": {"key"}
+            }
+        },
+        variables=dict(input=dict(name=name, user_id=user_id)),
+    )
+
+    if not output.get("data", None):
+        click.secho("Issue creating API token", fg="red")
+        return
+
+    click.echo(output.data.create_api_key.key)
+
+
+@auth.command(hidden=True)
+@click.option("--id", "-i", required=True, help="An API Key ID.", hidden=True)
+def revoke_api_key(id):
+    """
+    Revoke a Prefect Cloud API Key
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
+
+    \b
+    Options:
+        --id, -i    TEXT    The id of a key to revoke
+    """
+
+    client = Client()
+
+    output = client.graphql(
+        query={
+            "mutation($input: delete_api_key_input!)": {
+                "delete_api_key(input: $input)": {"success"}
+            }
+        },
+        variables=dict(input=dict(key_id=id)),
+    )
+
+    if not output.get("data", None) or not output.data.delete_api_key.success:
+        click.secho("Unable to revoke token with ID {}".format(id), fg="red")
+        return
+
+    click.secho("Token successfully revoked", fg="green")
+
+
+@auth.command(hidden=True)
+def list_api_keys():
+    """
+    List available Prefect Cloud API keys for client's User.
+    If client's User has Administrator role, will also return API Keys
+    for Service Accounts in the client's tenant
+    """
+
+    client = Client()
+
+    output = client.graphql(
+        query={"query": {"auth_api_key": {"id", "name", "user_id"}}}
+    )
+
+    if not output.get("data", None):
+        click.secho("Unable to list API Keys", fg="red")
+        return
+
+    api_keys = []
+    for item in output.data.auth_api_key:
+        api_keys.append([item.name, item.id, item.user_id])
+
+    click.echo(
+        tabulate(
+            api_keys,
+            headers=["NAME", "ID", "USER_ID"],
+            tablefmt="plain",
+            numalign="left",
+            stralign="left",
+        )
+    )
 
 
 @auth.command(hidden=True)
@@ -210,104 +296,6 @@ def switch_tenants(id, slug):
         return
 
     click.secho("Tenant switched", fg="green")
-
-
-@auth.command(hidden=True)
-@click.option("--name", "-n", required=True, help="A token name.", hidden=True)
-@click.option("--user-id", "-u", required=True, help="a user id.", hidden=True)
-def create_api_key(name, user_id):
-    """
-    Create a Prefect Cloud API Key for a user (must be active user or,
-    if active user is an Administrator, a Service Account in the active tenant).
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
-    for information on how to use API Keys.
-
-    \b
-    Options:
-        --name, -n      TEXT    A name to give the generated Key
-        --user-id, -u   TEXT    User ID with whom to associate the API Key
-    """
-
-    client = Client()
-
-    output = client.graphql(
-        query={
-            "mutation($input: create_api_key_input!)": {
-                "create_api_key(input: $input)": {"key"}
-            }
-        },
-        variables=dict(input=dict(name=name, user_id=user_id)),
-    )
-
-    if not output.get("data", None):
-        click.secho("Issue creating API token", fg="red")
-        return
-
-    click.echo(output.data.create_api_key.key)
-
-
-@auth.command(hidden=True)
-@click.option("--id", "-i", required=True, help="An API Key ID.", hidden=True)
-def revoke_api_key(id):
-    """
-    Revoke a Prefect Cloud API Key
-    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
-    for information on how to use API Keys.
-
-    \b
-    Options:
-        --id, -i    TEXT    The id of a key to revoke
-    """
-
-    client = Client()
-
-    output = client.graphql(
-        query={
-            "mutation($input: delete_api_key_input!)": {
-                "delete_api_key(input: $input)": {"success"}
-            }
-        },
-        variables=dict(input=dict(key_id=id)),
-    )
-
-    if not output.get("data", None) or not output.data.delete_api_key.success:
-        click.secho("Unable to revoke token with ID {}".format(id), fg="red")
-        return
-
-    click.secho("Token successfully revoked", fg="green")
-
-
-@auth.command(hidden=True)
-def list_api_keys():
-    """
-    List available Prefect Cloud API keys for client's User.
-    If client's User has Administrator role, will also return API Keys
-    for Service Accounts in the client's tenant
-    """
-
-    client = Client()
-
-    output = client.graphql(
-        query={"query": {"auth_api_key": {"id", "name", "user_id"}}}
-    )
-
-    if not output.get("data", None):
-        click.secho("Unable to list API Keys", fg="red")
-        return
-
-    api_keys = []
-    for item in output.data.auth_api_key:
-        api_keys.append([item.name, item.id, item.user_id])
-
-    click.echo(
-        tabulate(
-            api_keys,
-            headers=["NAME", "ID", "USER_ID"],
-            tablefmt="plain",
-            numalign="left",
-            stralign="left",
-        )
-    )
 
 
 @auth.command(hidden=True)
