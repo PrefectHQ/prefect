@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 import time
+import warnings
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any, Generator, Iterable, Optional, Set, Type, cast
@@ -88,8 +89,8 @@ class Agent:
     Flow on the given platform. It is built in this way to keep Prefect API logic standard
     but allows for platform specific customizability.
 
-    In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
-    environment variable or in your user configuration file.
+    In order for this to authenticate, supply an API Key as env var `PREFECT__CLOUD__AGENT__AUTH_TOKEN`
+    or set auth_token under [cloud.agent] in your configuration file (~/.prefect/config.toml).
 
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
@@ -161,14 +162,41 @@ class Agent:
 
         self.logger.debug(f"Prefect backend: {config.backend}")
 
+    def _verify_api_key(self, api_key: str) -> None:
+        """
+        Checks whether a valid api key was provided
+        
+        Args:
+            - api_key (str): The provided agent token to verify
+        Raises:
+            - AuthorizationError: if API Key is not valid
+        """
+        if not api_key:
+            raise AuthorizationError("No agent API Key provided.")
+
+        # Check for auth_api_key
+        result = self.client.graphql(query="query { auth_api_key { id } }")
+        if (
+            not result.data  # type: ignore
+        ):
+            raise AuthorizationError("Provided key is invalid.")
+
     def _verify_token(self, token: str) -> None:
         """
-        Checks whether a token with a `RUNNER` scope was provided
+        Checks whether a token with a `RUNNER` scope was provided (DEPRECATED)
+        Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+        for information on how to use API Keys.
+
         Args:
             - token (str): The provided agent token to verify
         Raises:
             - AuthorizationError: if token is empty or does not have a RUNNER role
         """
+        warnings.warn(
+            "_verify_token method is deprecated and will be removed from Prefect. "
+            "Use `_verify_api_key` instead.",
+            UserWarning,
+        )
         if not token:
             raise AuthorizationError("No agent API token provided.")
 

@@ -1,6 +1,7 @@
 import click
 from click.exceptions import Abort
 from tabulate import tabulate
+import warnings
 
 from prefect import Client, config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
@@ -10,6 +11,16 @@ def check_override_auth_token():
     if config.cloud.get("auth_token"):
         click.secho("Auth token already present in config.", fg="red")
         raise Abort
+
+
+def warn_deprecated_api_tokens():
+    warnings.warn(
+        """
+        API Tokens have been deprecated in favor of API Keys.
+        Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+        for information on how to use API Keys.
+        """
+    )
 
 
 @click.group(hidden=True)
@@ -63,12 +74,15 @@ def auth():
 )
 def login(token):
     """
-    Log in to Prefect Cloud with an api token to use for Cloud communication.
+    Log in to Prefect Cloud with an api token to use for Cloud communication. (DEPRECATED)
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
 
     \b
     Options:
         --token, -t         TEXT    A Prefect Cloud api token  [required]
     """
+    warn_deprecated_api_tokens()
     check_override_auth_token()
 
     client = Client(api_token=token)
@@ -115,8 +129,11 @@ def login(token):
 @auth.command(hidden=True)
 def logout():
     """
-    Log out of Prefect Cloud
+    Log out of Prefect Cloud (DEPRECATED)
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
     """
+    warn_deprecated_api_tokens()
     check_override_auth_token()
 
     click.confirm(
@@ -140,6 +157,7 @@ def list_tenants():
     """
     List available tenants
     """
+    warn_deprecated_api_tokens()
     check_override_auth_token()
 
     client = Client()
@@ -181,6 +199,7 @@ def switch_tenants(id, slug):
         --id, -i    TEXT    A Prefect Cloud tenant id
         --slug, -s  TEXT    A Prefect Cloud tenant slug
     """
+    warn_deprecated_api_tokens()
     check_override_auth_token()
 
     client = Client()
@@ -195,19 +214,117 @@ def switch_tenants(id, slug):
 
 @auth.command(hidden=True)
 @click.option("--name", "-n", required=True, help="A token name.", hidden=True)
+@click.option("--user-id", "-u", required=True, help="a user id.", hidden=True)
+def create_api_key(name, user_id):
+    """
+    Create a Prefect Cloud API Key for a user (must be active user or,
+    if active user is an Administrator, a Service Account in the active tenant).
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
+
+    \b
+    Options:
+        --name, -n      TEXT    A name to give the generated Key
+        --user-id, -u   TEXT    User ID with whom to associate the API Key
+    """
+
+    client = Client()
+
+    output = client.graphql(
+        query={
+            "mutation($input: create_api_key_input!)": {
+                "create_api_key(input: $input)": {"key"}
+            }
+        },
+        variables=dict(input=dict(name=name, user_id=user_id)),
+    )
+
+    if not output.get("data", None):
+        click.secho("Issue creating API token", fg="red")
+        return
+
+    click.echo(output.data.create_api_key.key)
+
+
+@auth.command(hidden=True)
+@click.option("--id", "-i", required=True, help="An API Key ID.", hidden=True)
+def revoke_api_key(id):
+    """
+    Revoke a Prefect Cloud API Key
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
+
+    \b
+    Options:
+        --id, -i    TEXT    The id of a key to revoke
+    """
+
+    client = Client()
+
+    output = client.graphql(
+        query={
+            "mutation($input: delete_api_key_input!)": {
+                "delete_api_key(input: $input)": {"success"}
+            }
+        },
+        variables=dict(input=dict(key_id=id)),
+    )
+
+    if not output.get("data", None) or not output.data.delete_api_key.success:
+        click.secho("Unable to revoke token with ID {}".format(id), fg="red")
+        return
+
+    click.secho("Token successfully revoked", fg="green")
+
+
+@auth.command(hidden=True)
+def list_api_keys():
+    """
+    List available Prefect Cloud API keys for client's User.
+    If client's User has Administrator role, will also return API Keys
+    for Service Accounts in the client's tenant
+    """
+
+    client = Client()
+
+    output = client.graphql(
+        query={"query": {"auth_api_key": {"id", "name", "user_id"}}}
+    )
+
+    if not output.get("data", None):
+        click.secho("Unable to list API Keys", fg="red")
+        return
+
+    api_keys = []
+    for item in output.data.auth_api_key:
+        api_keys.append([item.name, item.id, item.user_id])
+
+    click.echo(
+        tabulate(
+            api_keys,
+            headers=["NAME", "ID", "USER_ID"],
+            tablefmt="plain",
+            numalign="left",
+            stralign="left",
+        )
+    )
+
+
+@auth.command(hidden=True)
+@click.option("--name", "-n", required=True, help="A token name.", hidden=True)
 @click.option("--scope", "-s", required=True, help="A token scopre.", hidden=True)
 def create_token(name, scope):
     """
-    Create a Prefect Cloud API token.
-
-    For more info on API tokens visit https://docs.prefect.io/orchestration/concepts/api.html
+    Create a Prefect Cloud API token. (DEPRECATED)
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
 
     \b
     Options:
         --name, -n      TEXT    A name to give the generated token
         --scope, -s     TEXT    A scope for the token
     """
-    check_override_auth_token()
+    warn_deprecated_api_tokens()
 
     client = Client()
 
@@ -228,10 +345,46 @@ def create_token(name, scope):
 
 
 @auth.command(hidden=True)
+@click.option("--id", "-i", required=True, help="A token ID.", hidden=True)
+def revoke_token(id):
+    """
+    Revoke a Prefect Cloud API token (DEPRECATED)
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
+
+    \b
+    Options:
+        --id, -i    TEXT    The id of a token to revoke
+    """
+    warn_deprecated_api_tokens()
+    check_override_auth_token()
+
+    client = Client()
+
+    output = client.graphql(
+        query={
+            "mutation($input: delete_api_token_input!)": {
+                "delete_api_token(input: $input)": {"success"}
+            }
+        },
+        variables=dict(input=dict(token_id=id)),
+    )
+
+    if not output.get("data", None) or not output.data.delete_api_token.success:
+        click.secho("Unable to revoke token with ID {}".format(id), fg="red")
+        return
+
+    click.secho("Token successfully revoked", fg="green")
+
+
+@auth.command(hidden=True)
 def list_tokens():
     """
-    List your available Prefect Cloud API tokens.
+    List your available Prefect Cloud API tokens. (DEPRECATED)
+    Visit https://docs.prefect.io/orchestration/concepts/api_keys.html
+    for information on how to use API Keys.
     """
+    warn_deprecated_api_tokens()
     check_override_auth_token()
 
     client = Client()
@@ -255,33 +408,3 @@ def list_tokens():
             stralign="left",
         )
     )
-
-
-@auth.command(hidden=True)
-@click.option("--id", "-i", required=True, help="A token ID.", hidden=True)
-def revoke_token(id):
-    """
-    Revote a Prefect Cloud API token
-
-    \b
-    Options:
-        --id, -i    TEXT    The id of a token to revoke
-    """
-    check_override_auth_token()
-
-    client = Client()
-
-    output = client.graphql(
-        query={
-            "mutation($input: delete_api_token_input!)": {
-                "delete_api_token(input: $input)": {"success"}
-            }
-        },
-        variables=dict(input=dict(token_id=id)),
-    )
-
-    if not output.get("data", None) or not output.data.delete_api_token.success:
-        click.secho("Unable to revoke token with ID {}".format(id), fg="red")
-        return
-
-    click.secho("Token successfully revoked", fg="green")

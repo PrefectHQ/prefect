@@ -3,6 +3,7 @@ from datetime import datetime
 import os
 import pytz
 import time
+import warnings
 import uuid
 from typing import Optional, Iterable, List, Any
 
@@ -715,6 +716,7 @@ class KubernetesAgent(Agent):
 
     @staticmethod
     def generate_deployment_yaml(
+        api_key: str = None,
         token: str = None,
         api: str = None,
         namespace: str = None,
@@ -735,7 +737,8 @@ class KubernetesAgent(Agent):
         Generate and output an installable YAML spec for the agent.
 
         Args:
-            - token (str, optional): A `RUNNER` token to give the agent
+            - api_key (str, optional): An API Key to give the agent
+            - token (str, optional): A `RUNNER` token to give the agent (DEPRECATED--use api_key)
             - api (str, optional): A URL pointing to the Prefect API. Defaults to
                 `https://api.prefect.io`
             - namespace (str, optional): The namespace to create Prefect jobs in. Defaults
@@ -766,7 +769,13 @@ class KubernetesAgent(Agent):
         """
 
         # Use defaults if not provided
-        token = token or ""
+        if token:
+            warnings.warn(
+                "`token` argument is deprecated and will be removed from Prefect. "
+                "Use `api_key` instead.",
+                UserWarning,
+            )
+        api_key = api_key or token or ""
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
         labels = labels or []
@@ -791,7 +800,7 @@ class KubernetesAgent(Agent):
         agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
         # Populate env vars
-        agent_env[0]["value"] = token
+        agent_env[0]["value"] = api_key
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""
