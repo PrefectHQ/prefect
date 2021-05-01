@@ -10,13 +10,8 @@ Users can generate API Keys to interact with the API with their personal permiss
 
 - **API Key Name**: The name of this key
 - **API Key Expiration**: An optional expiration date for the key - if no expiration is provided, the key will never expire
-- **Tenant**: The tenant to associate with the API Key - clients using this key will interact with this tenant.  This key's 
+- **Tenant**: The tenant to associate with the API Key - clients using this key can interact with this tenant only.  This key's 
 permissions are the user's in that tenant.
-
-::: warning Mutable Tenancy
-
-Clients using this token can still list the User's available tenants and can modify the token's tenant association.
-:::
 
 To generate an API key for your User, navigate to User > API Keys within the UI and click "Create an API Key".
 
