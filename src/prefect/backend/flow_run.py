@@ -1,4 +1,5 @@
 import copy
+import sys
 import pendulum
 from collections import defaultdict
 
@@ -308,7 +309,7 @@ class FlowRunView:
             updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
         else:
             # Our 3.6 compatible version of pendulum does not have `fromisoformat`
-            updated_at = pendulum.DateTime.parse(flow_run_data.pop("updated"))
+            updated_at = pendulum.parse(flow_run_data.pop("updated"))
             assert isinstance(updated_at, pendulum.DateTime)  # mypy assert
 
         return cls(
