@@ -165,7 +165,7 @@ class Agent:
     def _verify_api_key(self, api_key: str) -> None:
         """
         Checks whether a valid api key was provided
-        
+
         Args:
             - api_key (str): The provided agent token to verify
         Raises:
@@ -176,9 +176,7 @@ class Agent:
 
         # Check for auth_api_key
         result = self.client.graphql(query="query { auth_api_key { id } }")
-        if (
-            not result.data  # type: ignore
-        ):
+        if not result.data:  # type: ignore
             raise AuthorizationError("Provided key is invalid.")
 
     def _verify_token(self, token: str) -> None:

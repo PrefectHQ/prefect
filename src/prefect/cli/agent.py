@@ -7,7 +7,12 @@ from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.cli import add_options
 
 COMMON_START_OPTIONS = [
-    click.option("--api-key", "-k", required=False, help="A Prefect Cloud API Key",),
+    click.option(
+        "--api-key",
+        "-k",
+        required=False,
+        help="A Prefect Cloud API Key",
+    ),
     click.option(
         "--token",
         "-t",
@@ -16,9 +21,14 @@ COMMON_START_OPTIONS = [
     ),
     click.option("--api", "-a", required=False, help="A Prefect API URL."),
     click.option(
-        "--agent-config-id", help="An agent ID to link this agent instance with",
+        "--agent-config-id",
+        help="An agent ID to link this agent instance with",
     ),
-    click.option("--name", "-n", help="A name to use for the agent",),
+    click.option(
+        "--name",
+        "-n",
+        help="A name to use for the agent",
+    ),
     click.option(
         "--label",
         "-l",
@@ -62,8 +72,16 @@ COMMON_START_OPTIONS = [
 
 
 COMMON_INSTALL_OPTIONS = [
-    click.option("--token", "-t", help="A Prefect Cloud API token (DEPRECATED)",),
-    click.option("--api-key", "-k", help="A Prefect Cloud API Key",),
+    click.option(
+        "--token",
+        "-t",
+        help="A Prefect Cloud API token (DEPRECATED)",
+    ),
+    click.option(
+        "--api-key",
+        "-k",
+        help="A Prefect Cloud API Key",
+    ),
     click.option(
         "--label",
         "-l",
@@ -431,7 +449,11 @@ _agents = {
 )
 @click.argument("agent-option", default="local")
 @click.option(
-    "--api-key", "-k", required=False, help="A Prefect Cloud API Key.", hidden=True,
+    "--api-key",
+    "-k",
+    required=False,
+    help="A Prefect Cloud API Key.",
+    hidden=True,
 )
 @click.option(
     "--token",
@@ -546,7 +568,10 @@ _agents = {
     hidden=True,
 )
 @click.option(
-    "--docker-client-timeout", default=None, type=int, hidden=True,
+    "--docker-client-timeout",
+    default=None,
+    type=int,
+    hidden=True,
 )
 @click.pass_context
 def start(
