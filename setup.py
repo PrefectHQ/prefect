@@ -83,6 +83,7 @@ extras = {
     "dremio": ["pyarrow>=0.15.1"],
     "exasol": ["pyexasol >= 0.16.1"],
     "sodasql": ["soda-sql >= 2.0.0b25"],
+    "sendgrid": ["sendgrid >= 6.7.0"],
 }
 
 
