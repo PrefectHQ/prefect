@@ -70,8 +70,7 @@ To authenticate, you'll need to create an [API Key](/orchestration/concepts/toke
 - Login to [https://cloud.prefect.io](https://cloud.prefect.io)
 - Navigate to the [API Keys page](https://cloud.prefect.io/user/keys). In the User menu in the top right corner go to **Account Settings** -> **API Keys** -> **Create An API Key**.
 - Copy the created key
-- Save the key locally either in
-your `~/.prefect/config.toml` config file, or as an environment variable:
+- Save the key locally either in your `~/.prefect/config.toml` config file, or as an environment variable:
 
 :::: tabs
 ::: tab config.toml
