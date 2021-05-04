@@ -73,7 +73,7 @@ def watch_flow_run(
 
     # We'll do a basic backoff for polling, not exposed as args because the user
     # probably should not need to tweak these.
-    poll_min = 2
+    poll_min = poll_interval = 2
     poll_max = 10
     poll_factor = 1.5
 
