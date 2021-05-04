@@ -1,10 +1,9 @@
 import copy
-import logging
-
-import pendulum
-import time
 from collections import defaultdict
 
+import logging
+import pendulum
+import time
 from contextlib import contextmanager
 from types import MappingProxyType
 from typing import (
@@ -17,7 +16,6 @@ from typing import (
     Iterable,
     Type,
     Mapping,
-    Union,
     Callable,
     NamedTuple,
     cast,
@@ -30,7 +28,6 @@ from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
-
 
 logger = get_logger("backend.flow_run")
 
