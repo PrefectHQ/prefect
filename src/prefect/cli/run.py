@@ -108,9 +108,29 @@ def get_flow_view(
 RUN_EPILOG = """
 \bExamples:
 
-\b  Register all flows found in a directory.
+\b  Run flow in a script locally
 
-\b    $ prefect register --project my-project -p myflows/
+\b    $ prefect run -p hello-world.py --local
+
+\b  Run flow in a module locally
+
+\b    $ prefect run -m prefect.hello_world --local
+
+\b  Run registered flow with the backend by flow name and watch execution
+
+\b    $ prefect run -n "hello-world" --watch
+
+\b  Run registered flow with the backend by flow id and exit after creation
+
+\b    $ prefect run -i "9a1cd70c-37d7-4cd4-ab91-d41c2700300d"
+
+\b  Run registered flow with backend reporting in-process instead of with an agent
+
+\b    $ prefect run -n "hello-world" --no-agent
+
+\b  Run registered flow with the backend and pipe flow run id to another program
+
+\b    $ prefect run -n "hello-world" -q | post_run.sh
 """
 
 FLOW_LOOKUP_MSG = """
@@ -120,8 +140,8 @@ Look up a flow to run with one of the following option combinations:
     --flow-group-id
     --name
     --project and --name
-    --path (--name if there are multiple flows)
-    --module (and --name if there are multiple flows)
+    --path (and --name if there are multiple flows in the script)
+    --module (and --name if there are multiple flows in the module)
     
 See `prefect run --help` for more details on the options.
 """
