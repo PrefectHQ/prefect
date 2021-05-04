@@ -301,10 +301,10 @@ See `prefect run --help` for more details on the options.
     default=None,
 )
 @click.option(
-    "--no-backend",
+    "--local",
     help=(
         "Run the flow locally using `flow.run()` instead of creating a flow run using "
-        "the Prefect backend API. Implies `--watch`."
+        "the Prefect backend API. Implies `--watch` since the flow is run in-process."
     ),
     is_flag=True,
 )
@@ -312,7 +312,8 @@ See `prefect run --help` for more details on the options.
     "--no-agent",
     help=(
         "Run the flow inline instead of using an agent. This allows the flow run to "
-        "be inspected with breakpoints during execution. Implies `--watch`."
+        "be inspected with breakpoints during execution. Implies `--watch`. since the "
+        "flow is run in-process."
     ),
     is_flag=True,
 )
@@ -321,8 +322,7 @@ See `prefect run --help` for more details on the options.
     "--quiet",
     "-q",
     help=(
-        "Disable verbose messaging about the flow run and just print the flow run id. "
-        "Not applicable when `--watch` is not set."
+        "Disable verbose messaging about the flow run and just print the flow run id."
     ),
     is_flag=True,
 )
@@ -330,7 +330,7 @@ See `prefect run --help` for more details on the options.
     "--no-logs",
     help=(
         "Disable streaming logs from the flow run to this terminal. Only state changes "
-        "will be displayed. Not applicable when `--watch` is not set."
+        "will be displayed. Only applicable when `--watch` is set."
     ),
     is_flag=True,
 )
@@ -352,7 +352,7 @@ def run(
     params,
     log_level,
     param_file,
-    no_backend,
+    local,
     no_agent,
     run_name,
     quiet,
@@ -364,7 +364,7 @@ def run(
     # mucking to smoothly deprecate it. Can be removed with `prefect run flow`
     # is removed.
     if ctx.invoked_subcommand is not None:
-        if any([params, no_logs, quiet, no_agent, no_backend, flow_id]):
+        if any([params, no_logs, quiet, no_agent, local, flow_or_group_id]):
             # These options are not supported by `prefect run flow`
             raise ClickException(
                 "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
@@ -380,7 +380,7 @@ def run(
     labels = list(labels)
 
     # We will wait for flow completion if any of these are set
-    wait = watch or no_agent or no_backend
+    wait = watch or no_agent or local
 
     # Ensure that the user has not passed conflicting options
     given_lookup_options = {
@@ -425,7 +425,7 @@ def run(
 
     # Run the flow (cloud) -------------------------------------------------------------
 
-    if not no_backend:
+    if not local:
 
         client = Client()
 
