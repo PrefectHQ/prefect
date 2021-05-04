@@ -473,6 +473,9 @@ def run(
             flow.run(parameters=params_dict)
 
 
+# DEPRECATED: prefect run flow ---------------------------------------------------------
+
+
 @run.command("flow", hidden=True)
 @click.option("--id", help="The UUID of a flow to run.", default=None)
 @click.option(
@@ -544,6 +547,8 @@ def run_flow(
 ):
     """
     Run a flow that is registered to the Prefect API
+
+    DEPRECATED: Use `prefect run` instead of `prefect run flow`
 
     \b
     Options:
