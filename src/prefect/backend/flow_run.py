@@ -146,18 +146,6 @@ def fail_flow_run_on_exception(
 
     try:
         yield
-    except KeyboardInterrupt:
-        if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
-            client.set_flow_run_state(
-                flow_run_id=flow_run_id,
-                state=prefect.engine.state.Cancelled("Keyboard interrupt."),
-            )
-            logger.warning("Keyboard interrupt. Flow run cancelled, exiting...")
-        else:
-            logger.warning(
-                "Keyboard interrupt. Flow run is already finished, exiting..."
-            )
-        raise
     except Exception as exc:
         if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
             message = message.format(exc=exc.__repr__())
