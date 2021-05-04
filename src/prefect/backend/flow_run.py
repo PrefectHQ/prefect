@@ -5,7 +5,18 @@ from collections import defaultdict
 
 from contextlib import contextmanager
 from types import MappingProxyType
-from typing import List, Optional, Dict, Set, Any, Iterator, Iterable, Type, Mapping
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Set,
+    Any,
+    Iterator,
+    Iterable,
+    Type,
+    Mapping,
+    cast,
+)
 
 import prefect
 from prefect import Flow, Task, Client
@@ -309,8 +320,9 @@ class FlowRunView:
             updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
         else:
             # Our 3.6 compatible version of pendulum does not have `fromisoformat`
-            updated_at = pendulum.parse(flow_run_data.pop("updated"))
-            assert isinstance(updated_at, pendulum.DateTime)  # mypy assert
+            updated_at = cast(
+                pendulum.DateTime, pendulum.parse(flow_run_data.pop("updated"))
+            )
 
         return cls(
             flow_run_id=flow_run_id,
