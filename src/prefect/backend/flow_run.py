@@ -305,7 +305,7 @@ class FlowRunView:
         flow_run_data = flow_run_data.copy()  # Avoid mutating the input object
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
-        if sys.version_info >= 3.7:
+        if sys.version_info >= (3, 7):
             updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
         else:
             # Our 3.6 compatible version of pendulum does not have `fromisoformat`
