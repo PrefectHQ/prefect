@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Callable, List, Dict, Union
 
 import json
 import textwrap
@@ -119,6 +119,56 @@ def get_flow_view(
     raise RuntimeError("Failed to find matching case for flow lookup.")
 
 
+def load_json_key_values(
+    cli_input: List[str], display_name: str
+) -> Dict[str, Union[dict, str, int]]:
+    """
+    Parse a list of strings formatted as "key=value" where the value is loaded as JSON.
+
+    We do the best here to display a helpful JSON parsing message, e.g.
+    ```
+    Error: Failed to parse JSON for parameter 'name' with value
+
+        foo
+
+    JSON Error: Expecting value: line 1 column 1 (char 0)
+    Did you forget to include quotes? You may need to escape so your shell does not remove them, e.g. \"
+    ```
+
+    Args:
+        cli_input: A list of "key=value" strings to parse
+        display_name: A name to display in exceptions
+
+    Returns:
+        A mapping of keys -> parsed values
+    """
+    parsed = {}
+    for spec in cli_input:
+        try:
+            key, value = spec.split("=")
+        except ValueError:
+            raise ClickException(
+                f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
+            )
+        try:
+            parsed[key] = json.loads(value)
+        except ValueError as exc:
+            indented_value = textwrap.indent(value, prefix="\t")
+            extra_help = ""
+            if "Expecting value" in str(exc) and '"' not in value:
+                extra_help += (
+                    "\nDid you forget to include quotes? You may need to escape so your"
+                    ' shell does not remove them, e.g. \\"'
+                )
+            raise ClickException(
+                f"Failed to parse JSON for {display_name} {key!r} with value"
+                f"\n\n{indented_value}\n\n"
+                f"JSON Error: {exc}{extra_help}"
+            )
+
+    return parsed
+
+
 RUN_EPILOG = """
 \bExamples:
 
@@ -129,6 +179,10 @@ RUN_EPILOG = """
 \b  Run flow in a module locally
 
 \b    $ prefect run -m prefect.hello_world --local
+
+\b  Run flow with a non-default parameter
+
+\b    $ prefect run -m prefect.hello_world -p name='"Marvin"'
 
 \b  Run registered flow with the backend by flow name and watch execution
 
@@ -178,7 +232,6 @@ See `prefect run --help` for more details on the options.
 )
 @click.option(
     "--path",
-    "-p",
     help="The path to a file or a directory containing the flow to run.",
 )
 @click.option(
@@ -208,19 +261,25 @@ See `prefect run --help` for more details on the options.
 @click.option("--run-name", help="A name to assign to the flow run.", default=None)
 @click.option(
     "--context",
-    help="A JSON string specifying a Prefect context to set for the flow run.",
+    "-c",
+    "context_vars",
+    help=(
+        "A key, value pair (key=value) specifying a flow context variable. The value "
+        "will be interpreted as JSON. May be passed multiple times to specify multiple "
+        "context values. Nested values may be set by passing a dict."
+    ),
+    multiple=True,
 )
 @click.option(
     "--param",
     "-p",
     "params",
     help=(
-        "A key, value pair specifying a value for a parameter. The value will be "
+        "A key, value pair (key=value) specifying a flow parameter. The value will be "
         "interpreted as JSON. May be passed multiple times to specify multiple "
         "parameter values."
     ),
     multiple=True,
-    type=(str, str),
 )
 @click.option(
     "--log-level",
@@ -289,7 +348,7 @@ def run(
     module,
     name,
     labels,
-    context,
+    context_vars,
     params,
     log_level,
     param_file,
@@ -347,23 +406,22 @@ def run(
         )
 
     # Load parameters and context ------------------------------------------------------
+    context_dict = load_json_key_values(context_vars, "context")
 
-    # TODO: Wrap exceptions for a nicer message
-    # TODO: Consider loading context like params
-    context_dict = json.loads(context) if context is not None else {}
-
-    params_dict = {}
+    file_params = {}
     if param_file:
         # TODO: Wrap exceptions for a nicer message
         with open(param_file) as fp:
-            params_dict = json.load(fp)
-    for key, value in params:  # List[str, str]
-        if key in params_dict:
-            quiet_echo(
-                f"Warning: Parameter {key!r} was set twice. Overriding with CLI value.",
-            )
-        # TODO: Wrap exceptions for a nicer message
-        params_dict[key] = json.loads(value)
+            file_params = json.load(fp)
+
+    cli_params = load_json_key_values(params, "parameter")
+    conflicting_keys = set(cli_params.keys()).intersection(file_params.keys())
+    if conflicting_keys:
+        quiet_echo(
+            "The following parameters were specified by file and CLI, the CLI value "
+            f"will be used: {conflicting_keys}"
+        )
+    params_dict = {**file_params, **cli_params}
 
     # Run the flow (cloud) -------------------------------------------------------------
 
