@@ -208,7 +208,7 @@ module.exports = {
           ]
         },
         {
-          title: 'Flow Run Configuration',
+          title: 'Flow Configuration',
           collapsable: true,
           children: [
             'flow_config/overview',
@@ -217,6 +217,16 @@ module.exports = {
             'flow_config/executors',
             'flow_config/docker',
             'flow_config/upgrade'
+          ]
+        },
+        {
+          title: 'Flow Runs',
+          collapsable: true,
+          children: [
+            'flow_run/overview',
+            'flow_run/creation',
+            'flow_run/inspection",
+            'flow_run/limits'
           ]
         },
         {
