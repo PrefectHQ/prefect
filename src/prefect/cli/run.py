@@ -467,6 +467,7 @@ def run(
                 parameters=params_dict,
                 context=context_dict,
                 # If labels is an empty list pass `None` to get defaults
+                # https://github.com/PrefectHQ/server/blob/77c301ce0c8deda4f8771f7e9991b25e7911224a/src/prefect_server/api/runs.py#L136
                 labels=labels or None,
                 run_name=run_name,
                 # We only use the run config for setting logging levels right now
