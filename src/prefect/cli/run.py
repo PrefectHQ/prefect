@@ -72,18 +72,32 @@ def get_flow_from_path_or_module(
 
 
 def get_flow_view(
-    flow_id: str = None,
-    flow_group_id: str = None,
+    flow_or_group_id: str = None,
     project: str = None,
     path: str = None,
     module: str = None,
     name: str = None,
 ) -> "FlowView":
-    if flow_id:
-        return FlowView.from_flow_id(flow_id)
+    if flow_or_group_id:
+        # Lookup by flow id then flow group id if that fails
+        try:
+            flow_view = FlowView.from_flow_id(flow_or_group_id)
+        except ValueError:
+            pass
+        else:
+            return flow_view
 
-    if flow_group_id:
-        return FlowView.from_flow_group_id(flow_group_id)
+        try:
+            flow_view = FlowView.from_flow_group_id(flow_or_group_id)
+        except ValueError:
+            pass
+        else:
+            return flow_view
+
+        # Fall through to failure
+        raise ClickException(
+            f"Failed to find flow id or flow group id matching {flow_or_group_id}"
+        )
 
     if project:
         if not name:
@@ -97,7 +111,7 @@ def get_flow_view(
         flow = get_flow_from_path_or_module(path=path, module=module, name=name)
         return FlowView.from_flow_obj(flow)
 
-    if name and not flow_id:
+    if name:
         # If name wasn't provided for use with another lookup, try a global name search
         return FlowView.from_flow_name(flow_name=name)
 
@@ -136,8 +150,7 @@ RUN_EPILOG = """
 FLOW_LOOKUP_MSG = """
 
 Look up a flow to run with one of the following option combinations:
-    --flow-id
-    --flow-group-id
+    --id
     --name
     --project and --name
     --path (and --name if there are multiple flows in the script)
@@ -150,14 +163,14 @@ See `prefect run --help` for more details on the options.
 @click.group(invoke_without_command=True, epilog=RUN_EPILOG)
 @click.pass_context
 # Flow lookup settings -----------------------------------------------------------------
-@click.option("--flow-id", help="The UUID of a flow to run.")
-# TODO: Consider dropping the flow group id and instead just take `--id` and lookup
-#       by flow-id then flow-group-id second as a fallback. Since they're UUID the
-#       chance of a mistake is low and this simplifies the interface since users may
-#       copy a flow-group-id from the UI URL where it is unclear what kind of id it is
 @click.option(
-    "--flow-group-id",
-    help="The UUID of a flow group to run the latest flow from.",
+    "--id",
+    "-i",
+    "flow_or_group_id",
+    help=(
+        "The UUID of a flow or flow group to run. If a flow group id is given, "
+        "the latest flow id will be used for the run."
+    ),
 )
 @click.option(
     "--project",
@@ -270,8 +283,7 @@ See `prefect run --help` for more details on the options.
 )
 def run(
     ctx,
-    flow_id,
-    flow_group_id,
+    flow_or_group_id,
     project,
     path,
     module,
@@ -315,8 +327,7 @@ def run(
     given_lookup_options = {
         key
         for key, option in {
-            "--flow-id": flow_id,
-            "--flow-group-id": flow_group_id,
+            "--id": flow_or_group_id,
             "--project": project,
             "--path": path,
             "--module": module,
@@ -362,11 +373,10 @@ def run(
 
         # Validate the flow look up options we've been given and get the flow from the
         # backend
-        quiet_echo(f"Looking up flow...", nl=False)
+        quiet_echo(f"Looking up flow metadata...", nl=False)
         try:
             flow = get_flow_view(
-                flow_id=flow_id,
-                flow_group_id=flow_group_id,
+                flow_or_group_id=flow_or_group_id,
                 project=project,
                 path=path,
                 module=module,
