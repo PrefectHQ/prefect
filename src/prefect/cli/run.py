@@ -7,6 +7,7 @@ import uuid
 import logging
 import sys
 from functools import partial
+from contextlib import contextmanager
 
 import click
 from click import ClickException
@@ -19,12 +20,58 @@ from prefect.cli.build_register import (
     load_flows_from_script,
     load_flows_from_module,
     log_exception,
+    TerminalError,
+    handle_terminal_error,
 )
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.backend.flow import FlowView
 from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
 from prefect.utilities.logging import get_logger
+
+
+@contextmanager
+def try_error_done(
+    message: str,
+    echo: Callable = click.secho,
+    traceback: bool = False,
+    skip_done: bool = False,
+):
+    """
+    Try to run the code in the context block. On error print "Error" and raise a
+    terminal error with the exception string. On succecss, print "Done".
+
+    Args:
+        message: The first message to display
+        echo: The function to use to echo. Must support `click.secho` arguments
+        traceback: Display the exception traceback instead of a short message
+        skip_done: Do not display 'Done', the user of the context should instead
+
+    Example:
+        >>> with try_error_done("Setting up foo..."):
+        >>>    pass
+        Setting up foo... Done
+        >>> with try_error_done("Setting up bar..."):
+        >>>    raise ValueError("no!")
+        Setting up bar... Error
+        no!
+    """
+    echo(message, nl=False)
+    try:
+        yield
+
+    except Exception as exc:
+        echo(" Error", fg="red")
+
+        if traceback:
+            log_exception(exc, indent=2)
+            raise TerminalError
+        else:
+            raise TerminalError(str(exc))
+
+    else:
+        if not skip_done:
+            echo(" Done", fg="green")
 
 
 def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
@@ -42,11 +89,11 @@ def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
     click.secho(prefix + message, fg=color, **extra)
 
 
-def get_flow_from_path_or_module(
-    path: str = None, module: str = None, name: str = None
+def get_flow_from_file_or_module(
+    file: str = None, module: str = None, name: str = None
 ):
-    location = path if path is not None else module
-    flows = load_flows_from_script(path) if path else load_flows_from_module(module)
+    location = file if file is not None else module
+    flows = load_flows_from_script(file) if file else load_flows_from_module(module)
     flows_by_name = {flow.name: flow for flow in flows}
     flow_names = ", ".join(map(repr, flows_by_name.keys()))
 
@@ -74,7 +121,7 @@ def get_flow_from_path_or_module(
 def get_flow_view(
     flow_or_group_id: str = None,
     project: str = None,
-    path: str = None,
+    file: str = None,
     module: str = None,
     name: str = None,
 ) -> "FlowView":
@@ -107,8 +154,8 @@ def get_flow_view(
             )
         return FlowView.from_flow_name(flow_name=name, project_name=project)
 
-    if path or module:
-        flow = get_flow_from_path_or_module(path=path, module=module, name=name)
+    if file or module:
+        flow = get_flow_from_file_or_module(file=file, module=module, name=name)
         return FlowView.from_flow_obj(flow)
 
     if name:
@@ -174,7 +221,7 @@ RUN_EPILOG = """
 
 \b  Run flow in a script locally
 
-\b    $ prefect run -p hello-world.py --local
+\b    $ prefect run -f hello-world.py --local
 
 \b  Run flow in a module locally
 
@@ -231,8 +278,9 @@ See `prefect run --help` for more details on the options.
     help="The name of the Prefect project containing the flow to run.",
 )
 @click.option(
-    "--path",
-    help="The path to a file or a directory containing the flow to run.",
+    "--file",
+    "-f",
+    help="The path to a file containing the flow to run.",
 )
 @click.option(
     "--module",
@@ -243,7 +291,7 @@ See `prefect run --help` for more details on the options.
     "--name",
     "-n",
     help=(
-        "The name of a flow to run from the specified path/module/project. If the "
+        "The name of a flow to run from the specified file/module/project. If the "
         "source contains multiple flows, this must be provided. "
     ),
 )
@@ -309,11 +357,12 @@ See `prefect run --help` for more details on the options.
     is_flag=True,
 )
 @click.option(
-    "--no-agent",
+    "--execute",
+    "-e",
     help=(
-        "Run the flow inline instead of using an agent. This allows the flow run to "
-        "be inspected with breakpoints during execution. Implies `--watch`. since the "
-        "flow is run in-process."
+        "Execute the flow run here instead of using an agent. This will ignore flow "
+        "configuration like a runtime container that would normally be created by the "
+        "agent. If this process exits, the flow run will be killed."
     ),
     is_flag=True,
 )
@@ -340,11 +389,12 @@ See `prefect run --help` for more details on the options.
     help="Wait for the flow run to finish executing and display status information.",
     is_flag=True,
 )
+@handle_terminal_error
 def run(
     ctx,
     flow_or_group_id,
     project,
-    path,
+    file,
     module,
     name,
     labels,
@@ -353,7 +403,7 @@ def run(
     log_level,
     param_file,
     local,
-    no_agent,
+    execute,
     run_name,
     quiet,
     no_logs,
@@ -364,7 +414,7 @@ def run(
     # mucking to smoothly deprecate it. Can be removed with `prefect run flow`
     # is removed.
     if ctx.invoked_subcommand is not None:
-        if any([params, no_logs, quiet, no_agent, local, flow_or_group_id]):
+        if any([params, no_logs, quiet, execute, local, flow_or_group_id]):
             # These options are not supported by `prefect run flow`
             raise ClickException(
                 "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
@@ -380,7 +430,7 @@ def run(
     labels = list(labels)
 
     # We will wait for flow completion if any of these are set
-    wait = watch or no_agent or local
+    wait = watch or execute or local
 
     # Ensure that the user has not passed conflicting options
     given_lookup_options = {
@@ -388,7 +438,7 @@ def run(
         for key, option in {
             "--id": flow_or_group_id,
             "--project": project,
-            "--path": path,
+            "--file": file,
             "--module": module,
         }.items()
         if option is not None
@@ -423,143 +473,203 @@ def run(
         )
     params_dict = {**file_params, **cli_params}
 
-    # Run the flow (cloud) -------------------------------------------------------------
+    # Retrieve the flow ----------------------------------------------------------------
 
-    if not local:
+    client = Client()
 
-        client = Client()
+    flow = None
+    if local and (file or module):
+        # We can load a flow for local execution immediately if given a file or module,
+        # otherwise, we'll lookup the flow then pull from storage for a local run
+        with try_error_done("Retrieving local flow...", quiet_echo):
+            flow = get_flow_from_file_or_module(file=file, module=module, name=name)
 
+    else:
         # Validate the flow look up options we've been given and get the flow from the
         # backend
-        quiet_echo(f"Looking up flow metadata...", nl=False)
-        try:
-            flow = get_flow_view(
+        with try_error_done("Looking up flow metadata...", quiet_echo):
+            flow_view = get_flow_view(
                 flow_or_group_id=flow_or_group_id,
                 project=project,
-                path=path,
+                file=file,
                 module=module,
                 name=name,
             )
-        except Exception as exc:
-            quiet_echo(" Error", fg="red")
-            quiet_echo(f"{exc}")
-            sys.exit(1)
-        else:
-            quiet_echo(" Done", fg="green")
 
-        if no_agent:
-            # Add a random label to prevent an agent from picking up this run
-            labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
+        if local:
+            # We need to unpack the flow object from storage. If we're not doing a local
+            # run this is taken care of by `execute_flow_run` which has handling for
+            # failing the flow run in the backend during exceptions
 
-        if log_level:
-            run_config: Optional[RunConfig] = RunConfigSchema().load(flow.run_config)
-            if not run_config.env:
-                run_config.env = {}
-            run_config.env["PREFECT__LOGGING__LEVEL"] = log_level
-        else:
-            run_config = None
+            with try_error_done(
+                f"Loading flow from {type(flow_view.storage).__name__} storage...",
+                quiet_echo,
+                traceback=True,
+            ):
+                # Populate global secrets
+                secrets = prefect.context.get("secrets", {})
+                for secret in flow_view.storage.secrets:
+                    secrets[secret] = prefect.tasks.secrets.PrefectSecret(
+                        name=secret
+                    ).run()
 
-        # Create a flow run in the backend
-        quiet_echo(f"Creating run for flow {flow.name!r}...", nl=False)
-        try:
-            flow_run_id = client.create_flow_run(
-                flow_id=flow.flow_id,
-                parameters=params_dict,
-                context=context_dict,
-                # If labels is an empty list pass `None` to get defaults
-                # https://github.com/PrefectHQ/server/blob/77c301ce0c8deda4f8771f7e9991b25e7911224a/src/prefect_server/api/runs.py#L136
-                labels=labels or None,
-                run_name=run_name,
-                # We only use the run config for setting logging levels right now
-                run_config=run_config,
-            )
-        except Exception as exc:
-            quiet_echo(" Error", fg="red")
-            log_exception(exc, indent=2)
-            sys.exit(1)
-
-        if quiet:
-            # Just display the flow run id in quiet mode
-            click.echo(flow_run_id)
-        else:
-            # Grab information about the flow run (if quiet we can skip this query)
-            flow_run = FlowRunView.from_flow_run_id(flow_run_id)
-            run_url = client.get_cloud_url("flow-run", flow_run_id)
-
-            # Display "Done" for creating flow run after pulling the info so there
-            # isn't a lag
-            quiet_echo(" Done", fg="green")
-            quiet_echo(
-                textwrap.dedent(
-                    f"""
-                    └── Name: {flow_run.name}
-                    └── UUID: {flow_run.flow_run_id}
-                    └── Labels: {flow_run.labels}
-                    └── Parameters: {flow_run.parameters}
-                    └── Context: {flow_run.context}
-                    └── URL: {run_url}
-                    """
-                ).strip()
-            )
-
-        # Exit now if we're not waiting for execution to finish
-        if not wait:
-            return
-
-        # Execute it here if they've specified `--no-agent`
-        if no_agent:
-            # TODO: Check for compatibility with run types? Something like a
-            #       DockerRun may not behave well and we should probably warn
-            quiet_echo("Running flow in-process...")
-            execute_flow_run(flow_run_id=flow_run_id)
-
-        # Otherwise, we'll watch for state changes
-        else:
-            result = None
-            try:
-                quiet_echo("Watching flow run execution...")
-                result = watch_flow_run(
-                    flow_run_id=flow_run_id,
-                    stream_logs=not no_logs,
-                    output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
-                )
-            except KeyboardInterrupt:
-                quiet_echo("Keyboard interrupt detected!", fg="yellow")
-                try:
-                    # TODO: Improve and clarify this messaging, consider having this
-                    #       apply from flow run creation -> now
-                    cancel = click.confirm(
-                        "Do you want to cancel this flow run?", default=True
-                    )
-                except click.Abort:
-                    # A second keyboard interrupt will exit without cancellation
-                    pass
-                else:
-                    if cancel:
-                        client.cancel_flow_run(flow_run_id=flow_run_id)
-                        quiet_echo("Cancelled flow run successfully.")
-                        return
-
-                quiet_echo("Exiting without cancelling flow run!", fg="yellow")
-                raise
-
-            if result.state.is_failed():
-                quiet_echo("Flow run failed!", fg="red")
-            else:
-                quiet_echo("Flow run succeeded!", fg="green")
+                # Load the flow from storage
+                with prefect.context(secrets=secrets, loading_flow=True):
+                    flow = flow_view.storage.get_flow(flow_view.name)
 
     # Run the flow (local) -------------------------------------------------------------
 
-    else:
-        flow = get_flow_from_path_or_module(path=path, module=module, name=name)
+    if local:
 
         # Set the desired log level
         if log_level:
             logger = get_logger()
             logger.setLevel(log_level)
 
+        run_info = ""
+        if params_dict:
+            run_info += f"└── Parameters: {params_dict}"
+        if context_dict:
+            run_info += "\n"
+            run_info += f"└── Context: {context_dict}"
+
+        if run_info:
+            quiet_echo("Configured local flow run")
+            quiet_echo(run_info)
+
+        quiet_echo("Running flow locally...")
         with prefect.context(**context_dict):
-            flow.run(parameters=params_dict)
+            try:
+                result_state = flow.run(parameters=params_dict)
+            except Exception as exc:
+                quiet_echo()
+                log_exception(exc, indent=2)
+                raise TerminalError("Flow run failed!")
+
+        if result_state.is_failed():
+            quiet_echo("Flow run failed!", fg="red")
+        else:
+            quiet_echo("Flow run succeeded!", fg="green")
+
+        return
+
+    # Run the flow (cloud) -------------------------------------------------------------
+
+    if execute:
+        # Add a random label to prevent an agent from picking up this run
+        labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
+
+    if log_level:
+        run_config: Optional[RunConfig] = RunConfigSchema().load(flow.run_config)
+        if not run_config.env:
+            run_config.env = {}
+        run_config.env["PREFECT__LOGGING__LEVEL"] = log_level
+    else:
+        run_config = None
+
+    # Create a flow run in the backend
+    with try_error_done(
+        f"Creating run for flow {flow_view.name!r}...",
+        quiet_echo,
+        traceback=True,
+        skip_done=True,  # Display 'Done' after querying for data to display
+    ):
+        flow_run_id = client.create_flow_run(
+            flow_id=flow_view.flow_id,
+            parameters=params_dict,
+            context=context_dict,
+            # If labels is an empty list pass `None` to get defaults
+            # https://github.com/PrefectHQ/server/blob/77c301ce0c8deda4f8771f7e9991b25e7911224a/src/prefect_server/api/runs.py#L136
+            labels=labels or None,
+            run_name=run_name,
+            # We only use the run config for setting logging levels right now
+            run_config=run_config,
+        )
+
+    if quiet:
+        # Just display the flow run id in quiet mode
+        click.echo(flow_run_id)
+    else:
+        # Grab information about the flow run (if quiet we can skip this query)
+        flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+        run_url = client.get_cloud_url("flow-run", flow_run_id)
+
+        # Display "Done" for creating flow run after pulling the info so there
+        # isn't a weird lag
+        quiet_echo(" Done", fg="green")
+        quiet_echo(
+            textwrap.dedent(
+                f"""
+                └── Name: {flow_run.name}
+                └── UUID: {flow_run.flow_run_id}
+                └── Labels: {flow_run.labels}
+                └── Parameters: {flow_run.parameters}
+                └── Context: {flow_run.context}
+                └── URL: {run_url}
+                """
+            ).strip()
+        )
+
+    # Exit now if we're not waiting for execution to finish
+    if not wait:
+        return
+
+    # Execute it here if they've specified `--no-agent`
+    if execute:
+        # TODO: Check for compatibility with run types? Something like a
+        #       DockerRun may not behave well and we should probably warn
+        quiet_echo("Executing flow run in-process...")
+        try:
+            execute_flow_run(flow_run_id=flow_run_id)
+        except KeyboardInterrupt:
+            quiet_echo(
+                "Keyboard interrupt detected! Cancelling flow run...",
+                fg="yellow",
+                nl=False,
+            )
+            try:
+                client.cancel_flow_run(flow_run_id)
+            except Exception as exc:
+                quiet_echo("Error")
+                log_exception(exc, indent=2)
+            else:
+                quiet_echo("Done")
+            raise
+
+    # Otherwise, we'll watch for state changes
+    else:
+        result = None
+        try:
+            quiet_echo("Watching flow run execution...")
+            result = watch_flow_run(
+                flow_run_id=flow_run_id,
+                stream_logs=not no_logs,
+                output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
+            )
+        except KeyboardInterrupt:
+            quiet_echo("Keyboard interrupt detected!", fg="yellow")
+            try:
+                # TODO: Improve and clarify this messaging, consider having this
+                #       apply from flow run creation -> now
+                cancel = click.confirm(
+                    "Do you want to cancel this flow run?", default=True
+                )
+            except click.Abort:
+                # A second keyboard interrupt will exit without cancellation
+                pass
+            else:
+                if cancel:
+                    client.cancel_flow_run(flow_run_id=flow_run_id)
+                    quiet_echo("Cancelled flow run successfully.")
+                    return
+
+            quiet_echo("Exiting without cancelling flow run!", fg="yellow")
+            raise
+
+        if result.state.is_failed():
+            quiet_echo("Flow run failed!", fg="red")
+        else:
+            quiet_echo("Flow run succeeded!", fg="green")
 
 
 # DEPRECATED: prefect run flow ---------------------------------------------------------
