@@ -8,9 +8,9 @@ from prefect.utilities.aws import get_boto_client
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class S3Download(Task):
+class _S3Base(Task):
     """
-    Task for downloading data from an S3 bucket and returning it as a string.
+    Base Task for operation with S3 bucket.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     For authentication, there are two options: you can set the `AWS_CREDENTIALS` Prefect Secret
@@ -35,6 +35,17 @@ class S3Download(Task):
             self.boto_kwargs = boto_kwargs
 
         super().__init__(**kwargs)
+
+    def get_client(self):
+        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+        return s3_client
+
+    
+class S3Download(_S3Base):
+    """
+    Task for downloading data from an S3 bucket and returning it as a string.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+    """
 
     @defaults_from_attrs("bucket")
     def run(
@@ -67,7 +78,7 @@ class S3Download(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+        s3_client = self.get_client()
 
         stream = io.BytesIO()
 
@@ -88,33 +99,11 @@ class S3Download(Task):
         return output if as_bytes else output.decode()
 
 
-class S3Upload(Task):
+class S3Upload(_S3Base):
     """
     Task for uploading string data (e.g., a JSON string) to an S3 bucket.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
-
-    For authentication, there are two options: you can set a Prefect Secret containing your AWS
-    access keys which will be passed directly to the `boto3` client, or you can [configure your
-    flow's runtime
-    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
-    for `boto3`.
-
-    Args:
-        - bucket (str, optional): the name of the S3 Bucket to upload to
-        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
     """
-
-    def __init__(self, bucket: str = None, boto_kwargs: dict = None, **kwargs):
-        self.bucket = bucket
-
-        if boto_kwargs is None:
-            self.boto_kwargs = {}
-        else:
-            self.boto_kwargs = boto_kwargs
-
-        super().__init__(**kwargs)
 
     @defaults_from_attrs("bucket")
     def run(
@@ -147,7 +136,7 @@ class S3Upload(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
+        s3_client = self.get_client()
 
         # compress data if compression is specified
         if compression:
@@ -171,26 +160,11 @@ class S3Upload(Task):
         return key
 
 
-class S3List(Task):
+class S3List(_S3Base):
     """
     Task for listing files from an S3 bucket.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
-
-    For authentication, there are two options: you can set the `AWS_CREDENTIALS` Prefect Secret
-    containing your AWS access keys which will be passed directly to the `boto3` client, or you
-    can [configure your flow's runtime
-    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
-    for `boto3`.
-
-    Args:
-        - bucket (str, optional): the name of the S3 Bucket to list the files of.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
     """
-
-    def __init__(self, bucket: str = None, **kwargs):
-        self.bucket = bucket
-        super().__init__(**kwargs)
 
     @defaults_from_attrs("bucket")
     def run(
@@ -231,7 +205,7 @@ class S3List(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = get_boto_client("s3", credentials=credentials)
+        s3_client = self.get_client()
 
         config = {"PageSize": page_size, "MaxItems": max_items}
         paginator = s3_client.get_paginator("list_objects_v2")
