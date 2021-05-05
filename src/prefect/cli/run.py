@@ -228,6 +228,10 @@ RUN_EPILOG = """
 
 \b    $ prefect run -m prefect.hello_world -p name='"Marvin"'
 
+\b  Run flow with custom labels
+
+\b    $ prefect run -m prefect.hello_world -l example -l hello
+
 \b  Run registered flow with the backend by flow name and watch execution
 
 \b    $ prefect run -n "hello-world" --watch
@@ -236,13 +240,13 @@ RUN_EPILOG = """
 
 \b    $ prefect run -i "9a1cd70c-37d7-4cd4-ab91-d41c2700300d"
 
-\b  Run registered flow with backend reporting in-process instead of with an agent
+\b  Run registered flow with backend in-process instead of with an agent
 
-\b    $ prefect run -n "hello-world" --no-agent
+\b    $ prefect run -n "hello-world" --execute
 
 \b  Run registered flow with the backend and pipe flow run id to another program
 
-\b    $ prefect run -n "hello-world" -q | post_run.sh
+\b    $ prefect run -n "hello-world" --quiet | post_run.sh
 """
 
 FLOW_LOOKUP_MSG = """
