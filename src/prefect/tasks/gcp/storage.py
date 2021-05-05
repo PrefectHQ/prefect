@@ -260,7 +260,7 @@ class GCSUpload(GCSBaseTask):
     )
     def run(
         self,
-        data: Union[str, bytes, BytesIO],
+        data: Union[str, bytes, io.BytesIO],
         bucket: str = None,
         blob: str = None,
         project: str = None,
@@ -346,7 +346,9 @@ class GCSUpload(GCSBaseTask):
         elif type(data) == io.BytesIO:
             gcs_blob.upload_from_file(data, timeout=request_timeout)
         else:
-            raise TypeError(f"data must be str, bytes or BytesIO: got {type(data)} instead")
+            raise TypeError(
+                f"data must be str, bytes or BytesIO: got {type(data)} instead"
+            )
         return gcs_blob.name
 
 
