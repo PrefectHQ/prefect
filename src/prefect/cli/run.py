@@ -561,7 +561,7 @@ def run(
         labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
 
     if log_level:
-        run_config: Optional[RunConfig] = RunConfigSchema().load(flow.run_config)
+        run_config: Optional[RunConfig] = RunConfigSchema().load(flow_view.run_config)
         if not run_config.env:
             run_config.env = {}
         run_config.env["PREFECT__LOGGING__LEVEL"] = log_level
