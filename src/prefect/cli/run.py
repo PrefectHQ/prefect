@@ -1,21 +1,18 @@
-from typing import Optional, Callable, List, Dict, Union
-
+import click
 import json
+import logging
 import textwrap
 import time
 import uuid
-import logging
-import sys
-from functools import partial
-from contextlib import contextmanager
-
-import click
 from click import ClickException
+from contextlib import contextmanager
+from functools import partial
 from tabulate import tabulate
+from typing import Optional, Callable, List, Dict, Union
 
 import prefect
-from prefect.client import Client
-from prefect.utilities.graphql import EnumValue, with_args
+from prefect.backend.flow import FlowView
+from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
 from prefect.cli.build_register import (
     load_flows_from_script,
     load_flows_from_module,
@@ -23,10 +20,10 @@ from prefect.cli.build_register import (
     TerminalError,
     handle_terminal_error,
 )
+from prefect.client import Client
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
-from prefect.backend.flow import FlowView
-from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
+from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.logging import get_logger
 
 
