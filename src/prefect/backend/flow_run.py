@@ -94,7 +94,8 @@ def watch_flow_run(
             output_fn(
                 logging.WARN,
                 f"It has been {round(total_wait_time)} seconds and your flow run is "
-                "not started; do you have an agent running?",
+                "not started; do you have an agent running with labels "
+                f"{set(flow_run.labels)!r}?",
             )
             agent_warning_wait_time = 0
 

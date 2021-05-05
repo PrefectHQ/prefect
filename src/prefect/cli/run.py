@@ -631,7 +631,8 @@ def run(
                 log_exception(exc, indent=2)
             else:
                 quiet_echo("Done")
-            raise
+
+            raise  # Re-raise the interrupt
 
     # Otherwise, we'll watch for state changes
     else:
@@ -649,7 +650,9 @@ def run(
                 # TODO: Improve and clarify this messaging, consider having this
                 #       apply from flow run creation -> now
                 cancel = click.confirm(
-                    "Do you want to cancel this flow run?", default=True
+                    "On exit, we can leave your flow run executing or cancel it.\n"
+                    "Do you want to cancel this flow run?",
+                    default=True,
                 )
             except click.Abort:
                 # A second keyboard interrupt will exit without cancellation
@@ -657,11 +660,11 @@ def run(
             else:
                 if cancel:
                     client.cancel_flow_run(flow_run_id=flow_run_id)
-                    quiet_echo("Cancelled flow run successfully.")
+                    quiet_echo("Cancelled flow run.", fg="green")
                     return
 
             quiet_echo("Exiting without cancelling flow run!", fg="yellow")
-            raise
+            raise  # Re-raise the interrupt
 
         if result.state.is_failed():
             quiet_echo("Flow run failed!", fg="red")
