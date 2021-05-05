@@ -54,6 +54,10 @@ def watch_flow_run(
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
+    if flow_run.state.is_finished():
+        output_fn(logging.INFO, "Your flow run is already finished!")
+        return flow_run
+
     # The timestamp of the last displayed log so that we can scope each log query
     # to logs that have not been shown yet
     last_log_timestamp = None
@@ -89,8 +93,8 @@ def watch_flow_run(
             #       for a really helpful UX -- `check_for_flow_run_agents`
             output_fn(
                 logging.WARN,
-                f"It has been {round(total_wait_time)} seconds and your flow run is not "
-                "started; do you have an agent running?",
+                f"It has been {round(total_wait_time)} seconds and your flow run is "
+                "not started; do you have an agent running?",
             )
             agent_warning_wait_time = 0
 
