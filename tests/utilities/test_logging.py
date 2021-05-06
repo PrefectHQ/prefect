@@ -36,7 +36,9 @@ def logger(log_manager):
         }
     ):
         logger = utilities.logging.configure_logging(testing=True)
-        yield logger
+        # Enable logs to the backend by pretending this is during a run
+        with prefect.context(running_with_backend=True):
+            yield logger
         logger.handlers.clear()
 
 
