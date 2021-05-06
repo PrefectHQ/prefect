@@ -23,6 +23,8 @@ from typing import (
 
 import prefect
 from prefect import Flow, Task, Client
+from prefect.run_configs import RunConfig
+from prefect.serialization.run_config import RunConfigSchema
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
@@ -361,6 +363,7 @@ class FlowRunView:
         state: State,
         states: List[TimestampedState],
         updated_at: pendulum.DateTime,
+        run_config: "RunConfig",
         task_runs: Iterable["TaskRunView"] = None,
     ):
         self.flow_run_id = flow_run_id
@@ -372,6 +375,7 @@ class FlowRunView:
         self.context = context
         self.updated_at = updated_at
         self.states = states
+        self.run_config = run_config
 
         # Cached value of all task run ids for this flow run, only cached if the flow
         # is done running
@@ -512,6 +516,7 @@ class FlowRunView:
         """
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
+        run_config = RunConfigSchema().load(flow_run_data.pop("run_config"))
         updated_at = pendulum.parse(flow_run_data.pop("updated"))
 
         states_data = flow_run_data.pop("states", [])
@@ -528,6 +533,7 @@ class FlowRunView:
             state=state,
             updated_at=updated_at,
             states=states,
+            run_config=run_config,
             **flow_run_data,
         )
 
