@@ -1,5 +1,6 @@
 import click
 import json
+import os
 import logging
 import textwrap
 import time
@@ -25,6 +26,21 @@ from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.logging import get_logger
+
+
+@contextmanager
+def temporary_environ(environ):
+    """
+    Temporarily add environment variables to the current os.environ
+    The original environment will be restored at context exit
+    """
+    old_environ = os.environ.copy()
+    os.environ.update(environ)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(old_environ)
 
 
 @contextmanager
@@ -590,6 +606,7 @@ def run(
     if quiet:
         # Just display the flow run id in quiet mode
         click.echo(flow_run_id)
+        flow_run = None
     else:
         # Grab information about the flow run (if quiet we can skip this query)
         flow_run = FlowRunView.from_flow_run_id(flow_run_id)
@@ -617,11 +634,18 @@ def run(
 
     # Execute it here if they've specified `--no-agent`
     if execute:
+
+        # Set the desired log level
+        if log_level:
+            logger = get_logger()
+            logger.setLevel(log_level)
+
         # TODO: Check for compatibility with run types? Something like a
         #       DockerRun may not behave well and we should probably warn
         quiet_echo("Executing flow run in-process...")
         try:
-            execute_flow_run(flow_run_id=flow_run_id)
+            with temporary_environ(flow_run.run_config.env or {}):
+                execute_flow_run(flow_run_id=flow_run_id)
         except KeyboardInterrupt:
             quiet_echo(
                 "Keyboard interrupt detected! Cancelling flow run...",
