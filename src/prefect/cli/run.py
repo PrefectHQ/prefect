@@ -26,6 +26,7 @@ from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.logging import get_logger
+from prefect.utilities.configuration import set_temporary_config
 
 
 @contextmanager
@@ -636,16 +637,25 @@ def run(
     if execute:
 
         # Set the desired log level
+        logger = get_logger()
         if log_level:
-            logger = get_logger()
             logger.setLevel(log_level)
 
         # TODO: Check for compatibility with run types? Something like a
         #       DockerRun may not behave well and we should probably warn
         quiet_echo("Executing flow run in-process...")
         try:
-            with temporary_environ(flow_run.run_config.env or {}):
-                execute_flow_run(flow_run_id=flow_run_id)
+            run_env = flow_run.run_config.env or {}
+            run_env.setdefault("PREFECT__LOGGING__LOG_TO_CLOUD", "True")
+            with temporary_environ(run_env):
+                # Ensure that Prefect settings are updated with the environment values
+                # since we're not spawning a subprocess
+                new_config = prefect.configuration.load_default_config()
+                with set_temporary_config(new_config):
+                    # We need to set a flow run id or logs will fail to write to cloud
+                    with prefect.context(flow_run_id=flow_run_id):
+                        execute_flow_run(flow_run_id=flow_run_id)
+
         except KeyboardInterrupt:
             quiet_echo(
                 "Keyboard interrupt detected! Cancelling flow run...",

@@ -222,7 +222,9 @@ def execute_flow_run(
         f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
         f"with {runner_cls.__name__!r}"
     )
-    with prefect.context(flow_run_id=flow_run_id):
+    with prefect.context(
+        flow_run_id=flow_run_id,
+    ):
         with fail_flow_run_on_exception(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
@@ -593,6 +595,7 @@ class FlowRunView:
                     "parameters": True,
                     "context": True,
                     "updated": True,
+                    "run_config": True,
                 }
             }
         }
