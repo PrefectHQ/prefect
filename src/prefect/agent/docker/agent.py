@@ -442,15 +442,28 @@ class DockerAgent(Agent):
             "io.prefect.flow-id": flow_run.flow.id,
             "io.prefect.flow-run-id": flow_run.id,
         }
+
+        # Generate a container name to match the flow run name, ensuring it is unique
+        container_name = flow_run.name
+        containers = self.docker_client.containers()
+        existing_names = {c["name"] for c in containers}
+        index = 0
+        while container_name in existing_names:
+            index += 1
+            container_name = f"{flow_run.name}-{index}"
+
+        # Create the container
         container = self.docker_client.create_container(
             image,
             command=get_flow_run_command(flow_run),
             environment=env_vars,
+            name=container_name,
             volumes=container_mount_paths,
             host_config=self.docker_client.create_host_config(**host_config),
             networking_config=networking_config,
             labels=labels,
         )
+
         # Connect the rest of the networks
         if self.networks:
             for network in self.networks[1:]:
