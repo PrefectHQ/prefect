@@ -18,7 +18,7 @@ docker = pytest.importorskip("docker")
 @pytest.fixture(autouse=True)
 def mock_cloud_config(cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
     ):
         yield
 
@@ -139,7 +139,7 @@ def test_populate_env_vars(api, backend):
         "PREFECT__CONTEXT__FLOW_ID": "foo",
         "PREFECT__CONTEXT__IMAGE": "test-image",
         "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-        "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
+        "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
         "PREFECT__LOGGING__LEVEL": "INFO",
         "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
         "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
@@ -164,7 +164,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api):
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
-    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
+    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
 
 
 def test_populate_env_vars_from_run_config(api):

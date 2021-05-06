@@ -35,7 +35,7 @@ def default_task_definition():
 @pytest.fixture(autouse=True)
 def mock_cloud_config(cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
     ):
         yield
 
@@ -559,7 +559,7 @@ class TestGetRunTaskKwargs:
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": "flow-id",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
             "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # agent envs override agent run-task-kwargs

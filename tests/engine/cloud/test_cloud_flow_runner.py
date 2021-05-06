@@ -454,7 +454,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     def my_run_task(*args, **kwargs):
         with prefect.utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False, "cloud.auth_token": ""}
+            {"cloud.send_flow_run_logs": False, "cloud.auth_token": ""}
         ):
             return run_task(*args, **kwargs)
 
@@ -491,7 +491,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     with prefect.utilities.configuration.set_temporary_config(
         {
-            "logging.log_to_cloud": True,
+            "cloud.send_flow_run_logs": True,
             "special_key": 42,
             "cloud.auth_token": "original",
         }
@@ -722,7 +722,7 @@ class TestCloudFlowRunnerCancellation:
         with set_temporary_config(
             {
                 "cloud.check_cancellation_interval": 0.1,
-                "logging.log_to_cloud": True,
+                "cloud.send_flow_run_logs": True,
                 "special_key": 42,
             }
         ):

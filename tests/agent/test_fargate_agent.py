@@ -1055,7 +1055,7 @@ def test_deploy_flow_register_task_definition_all_args(
                 {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                 {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1195,7 +1195,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                 },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {
-                    "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                    "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
                     "value": str(not flag).lower(),
                 },
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
@@ -1296,7 +1296,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                     {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1678,7 +1678,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                         "value": "['aws', 'staging']",
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",

@@ -50,7 +50,10 @@ COMMON_START_OPTIONS = [
     click.option(
         "--no-cloud-logs",
         is_flag=True,
-        help="Turn off logging for all flows run through this agent.",
+        help=(
+            "Turn off logging for all flows run through this agent. If not set, the "
+            "Prefect config value will be used."
+        ),
     ),
     click.option(
         "--log-level",

@@ -236,7 +236,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
@@ -306,7 +306,7 @@ def test_k8s_agent_replace_yaml_respects_multiple_image_secrets(monkeypatch, clo
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
@@ -344,7 +344,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         volume_mounts = [{"name": "my-vol", "mountPath": "/mnt/my-mount"}]
         volumes = [{"name": "my-vol", "hostPath": "/host/folder"}]
@@ -1416,7 +1416,7 @@ class TestK8sAgentRunConfig:
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
             "PREFECT__CONTEXT__IMAGE": "test-image",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
