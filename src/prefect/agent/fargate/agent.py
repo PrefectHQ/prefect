@@ -637,6 +637,10 @@ class FargateAgent(Agent):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
+                    {
+                        "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                        "value": str(self.log_to_cloud).lower(),
+                    },
                 ],
                 "essential": True,
             }

@@ -1065,6 +1065,8 @@ def test_deploy_flow_register_task_definition_all_args(
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {"name": "TEST_ENV", "value": "Success!"},
             ],
             "essential": True,

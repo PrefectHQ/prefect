@@ -1417,6 +1417,8 @@ class TestK8sAgentRunConfig:
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
             "PREFECT__CONTEXT__IMAGE": "test-image",
             "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.agent.log_to_cloud).lower(),
+            # Backwards compatibility variable for containers on Prefect <0.15.0
+            "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,

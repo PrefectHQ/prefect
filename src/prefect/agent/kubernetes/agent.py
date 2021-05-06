@@ -690,6 +690,8 @@ class KubernetesAgent(Agent):
                 "PREFECT__CONTEXT__IMAGE": image,
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]

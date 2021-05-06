@@ -166,6 +166,9 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api):
     )
     assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
 
+    # Backwards compatibility variable for containers on Prefect <0.15.0
+    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
+
 
 def test_populate_env_vars_from_run_config(api):
     agent = DockerAgent(env_vars={"KEY1": "VAL1", "KEY2": "VAL2"})

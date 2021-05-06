@@ -502,6 +502,8 @@ class ECSAgent(Agent):
                 "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]
