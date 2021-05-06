@@ -281,6 +281,11 @@ def kubernetes():
     is_flag=True,
     default=True,  # Defaults to `True` because setting this flag sets `delete_finished_jobs` to `False`
 )
+@click.option(
+    "--kube-config-file",
+    "kube_config_file",
+    help="Path to kube config file to customize where agent creates flow runs.",
+)
 def start(image_pull_secrets=None, **kwargs):
     """Start a Kubernetes agent"""
     from prefect.agent.kubernetes import KubernetesAgent

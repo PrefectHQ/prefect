@@ -155,7 +155,18 @@ prefect agent kubernetes start --job-template /path/to/my_template.yaml
 prefect agent kubernetes start --job-template s3://bucket/path/to/my_template.yaml
 ```
 
-## Running In-Cluster
+### Custom Kube Config
+
+By default the Kubernetes Jobs created by the agent are created in the cluster
+where the agent is running. It is also possible to customize the cluster the
+agent is using by supplying a custom kube config file with the `--kube-config-file`
+flag:
+
+```bash
+prefect agent kubernetes start --kube-config-file /path/custom/kube-config
+```
+
+## Deployment
 
 For production deployments, we recommend running the Kubernetes Agent inside
 the Kubernetes Cluster as a

@@ -77,6 +77,10 @@ class KubernetesAgent(Agent):
         - delete_finished_jobs (bool, optional): A boolean to toggle if finished Prefect jobs
             in the agent's namespace should be deleted. Defaults to the environment variable
             `DELETE_FINISHED_JOBS` or `True`.
+        - kube_config_file (str, optional): Path to kube config file to customize where
+            agent creates flow runs. Can also be set through environment variable
+            `KUBE_CONFIG_FILE`. If omitted, agent tries to load configuration from in-cluster
+            or the default kube config location.
     """
 
     def __init__(
@@ -95,6 +99,7 @@ class KubernetesAgent(Agent):
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
         delete_finished_jobs: bool = True,
+        kube_config_file: str = None,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -124,18 +129,23 @@ class KubernetesAgent(Agent):
         self.delete_finished_jobs = delete_finished_jobs and (
             os.getenv("DELETE_FINISHED_JOBS", "True") == "True"
         )
+        self.kube_config_file = kube_config_file or os.getenv("KUBE_CONFIG_FILE")
 
         from kubernetes import client, config
 
-        try:
-            self.logger.debug("Loading incluster configuration")
-            config.load_incluster_config()
-        except config.config_exception.ConfigException as exc:
-            self.logger.warning(
-                "{} Using out of cluster configuration option.".format(exc)
-            )
-            self.logger.debug("Loading out of cluster configuration")
-            config.load_kube_config()
+        if self.kube_config_file:
+            self.logger.debug(f"Loading configuration from {self.kube_config_file}")
+            config.load_kube_config(self.kube_config_file)
+        else:
+            try:
+                self.logger.debug("Loading incluster configuration")
+                config.load_incluster_config()
+            except config.config_exception.ConfigException as exc:
+                self.logger.warning(
+                    "{} Using out of cluster configuration option.".format(exc)
+                )
+                self.logger.debug("Loading out of cluster configuration")
+                config.load_kube_config()
 
         self.batch_client = client.BatchV1Api()
         self.core_client = client.CoreV1Api()

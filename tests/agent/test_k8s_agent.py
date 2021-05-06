@@ -22,21 +22,30 @@ from prefect.utilities.graphql import GraphQLResult
 def mocked_k8s_config(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
+    return k8s_config
 
 
-def test_k8s_agent_init(monkeypatch, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
+def test_k8s_agent_init(monkeypatch, cloud_api, mocked_k8s_config):
     agent = KubernetesAgent()
     assert agent
     assert agent.agent_config_id is None
     assert agent.labels == []
     assert agent.name == "agent"
     assert agent.batch_client
+    assert mocked_k8s_config.load_incluster_config.call_count == 1
+    assert mocked_k8s_config.load_kube_config.call_count == 0
+
+
+def test_k8s_agent_init_uses_kube_config(monkeypatch, cloud_api, mocked_k8s_config):
+    agent = KubernetesAgent(kube_config_file="/path/file")
+    assert agent
+    assert agent.agent_config_id is None
+    assert agent.labels == []
+    assert agent.name == "agent"
+    assert agent.batch_client
+    assert mocked_k8s_config.load_incluster_config.call_count == 0
+    assert mocked_k8s_config.load_kube_config.call_count == 1
+    assert mocked_k8s_config.load_kube_config.call_args[0][0] == "/path/file"
 
 
 def test_k8s_agent_config_options(monkeypatch, cloud_api):
