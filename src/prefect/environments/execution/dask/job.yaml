@@ -40,6 +40,9 @@ spec:
               value: "prefect.executors.DaskExecutor"
             - name: PREFECT__CLOUD__SEND_FLOW_RUN_LOGS
               value: "true"
+            # Backwards compatibility variable for `SEND_FLOW_RUN_LOGS`
+            - name: PREFECT__LOGGING__LOG_TO_CLOUD
+              value: "true"
             - name: PREFECT__LOGGING__LEVEL
               value: "INFO"
             - name: PREFECT__DEBUG
