@@ -498,7 +498,10 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     ):
         # captures config at init
         flow = prefect.Flow("test", tasks=[log_stuff])
-        flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
+
+        # Pretend that this is a 'backend' flow run so logs are emitted to cloud
+        with prefect.context(running_with_backend=True):
+            flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
