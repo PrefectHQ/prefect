@@ -54,6 +54,7 @@ COMMON_START_OPTIONS = [
             "Turn off logging for all flows run through this agent. If not set, the "
             "Prefect config value will be used."
         ),
+        default=None,
     ),
     click.option(
         "--log-level",

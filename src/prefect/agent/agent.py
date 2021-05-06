@@ -131,8 +131,9 @@ class Agent:
         self.max_polls = max_polls
 
         if no_cloud_logs is None:  # Load from config if unset
-            no_cloud_logs = config.cloud.send_flow_run_logs
-        self.log_to_cloud = not no_cloud_logs
+            self.log_to_cloud = config.cloud.send_flow_run_logs
+        else:
+            self.log_to_cloud = not no_cloud_logs
 
         self.heartbeat_period = 60  # exposed for testing
 
