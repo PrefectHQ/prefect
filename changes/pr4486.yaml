@@ -1,0 +1,5 @@
+feature:
+  - "KubernetesAgent: allow to customize cluster by providing path to kube config - [#4486](https://github.com/PrefectHQ/prefect/pull/4486)"
+
+contributor:
+  - "[Joël Luijmes](https://github.com/joelluijmes)"
