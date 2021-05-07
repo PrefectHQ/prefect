@@ -212,3 +212,24 @@ def backend(request):
 def running_with_backend():
     with prefect.context({"running_with_backend": True}):
         yield
+
+
+# ----------------
+# set up platform fixtures
+# for every test that performs OS dependent logic
+# ----------------
+
+
+@pytest.fixture()
+def linux_platform(monkeypatch):
+    monkeypatch.setattr("sys.platform", "linux")
+
+
+@pytest.fixture()
+def windows_platform(monkeypatch):
+    monkeypatch.setattr("sys.platform", "windows")
+
+
+@pytest.fixture()
+def macos_platform(monkeypatch):
+    monkeypatch.setattr("sys.platform", "darwin")
