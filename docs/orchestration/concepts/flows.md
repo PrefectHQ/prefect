@@ -187,6 +187,3 @@ mutation {
   }
 }
 ```
-
-## Scheduling
-
