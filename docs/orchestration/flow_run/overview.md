@@ -31,9 +31,9 @@ Flow run information is sent to Prefect's backend during the run and persists th
 
 For command-line inspection of flow runs, see the [flow run CLI documentation](./inspection#cli).
 
-For programatic inspection of flow runs, see the [`FlowRunView` documentation](./inspection#flow-run-view).
+For programatic inspection of flow runs, see the [Prefect library flow run documentation](./inspection#prefect-library).
 
-For customized GraphQL queries for flow run data, see [the documentation on query for flow runs](./inspection#flow-run-queries).
+For customized GraphQL queries for flow run data, see [the documentation on query for flow runs](./inspection#graphql).
 
 Or... keep reading for an overview of the task run concept.
 

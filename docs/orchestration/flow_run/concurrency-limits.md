@@ -8,6 +8,8 @@ Setting global concurrency limits is a feature of Prefect Cloud's Standard Tier.
 
 Flow run label based concurrency.
 
+<!-- TODO -->
+
 ## Task run <Badge text="Cloud"/>
 
 
@@ -60,11 +62,9 @@ You can edit and remove the concurrency limit of tags at any time. Select the bl
 
 ![](/orchestration/ui/task-concurrency-limit-icons.png)
 
-#### Core Client
+#### Prefect library
 
-<!-- TODO:core-client -->
-
-To update your tag concurrency limits programatically, use the Prefect Client:
+To update your tag concurrency limits programatically, use the Prefect library client:
 
 ```python
 from prefect import Client
