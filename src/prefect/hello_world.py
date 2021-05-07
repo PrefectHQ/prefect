@@ -2,18 +2,37 @@
 A very basic 'hello-world' flow for getting started quickly
 
 Examples:
-    > prefect register --project default -m prefect.hello_world
-    > prefect run -m prefect.hello_world --no-agent
+
+    Run this flow locally
+    --------------------
+    >>> from prefect.hello_world import hello_flow
+    >>> hello_flow.run()
+
+    Run this flow with a different parameter than the default
+    --------------------------------------------------------
+    >>> from prefect.hello_world import hello_flow
+    >>> hello_flow.run(name="marvin")
+
+
+    Register this flow with the Prefect backend
+    ------------------------------------------
+    $ prefect create project 'default'
+    $ prefect register --project default -m prefect.hello_world
 """
 
-import prefect
+from prefect import task, Flow, Parameter
 
 
-@prefect.task(log_stdout=True)
-def say_hello(name: str) -> None:
-    print(f"Hello {name}")
+@task(log_stdout=True)
+def say_hello(to: str) -> None:
+    print(f"Hello {to}")
 
 
-with prefect.Flow("hello-world") as flow:
-    name = prefect.Parameter("name", default="world")
-    say_hello(name)
+@task()
+def capitalize(word: str) -> str:
+    return word.capitalize()
+
+
+with Flow("hello-world") as hello_flow:
+    name = Parameter("name", default="world")
+    say_hello(capitalize(name))
