@@ -180,7 +180,7 @@ class ECSAgent(Agent):
         # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
         # for more info.
         boto_config = Config(**botocore_config or {})
-        if not boto_config.retries:
+        if not boto_config.retries and not os.environ.get("AWS_RETRY_MODE"):
             boto_config.retries = {"mode": "standard"}
 
         self.boto_kwargs = dict(
@@ -479,12 +479,15 @@ class ECSAgent(Agent):
         # Set flow run command
         container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
 
+        # Add `PREFECT__LOGGING__LEVEL` environment variable
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+
         # Populate environment variables from the following sources,
         # with precedence:
         # - Values required for flow execution, hardcoded below
         # - Values set on the ECSRun object
         # - Values set using the `--env` CLI flag on the agent
-        env = self.env_vars.copy()
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(

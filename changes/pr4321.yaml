@@ -1,2 +1,0 @@
-enhancement:
-  - "Expand logging for `DaskExecutor`, including the cluster dashboard address (if available) - [#4321](https://github.com/PrefectHQ/prefect/pull/4321)"

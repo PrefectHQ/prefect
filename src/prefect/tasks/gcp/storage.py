@@ -202,7 +202,8 @@ class GCSDownload(GCSBaseTask):
 
 class GCSUpload(GCSBaseTask):
     """
-    Task template for uploading data to Google Cloud Storage.  Data can be a string or bytes.
+    Task template for uploading data to Google Cloud Storage. Data can be a string, bytes or
+    io.BytesIO
 
     Args:
         - bucket (str): default bucket name to upload to
@@ -259,7 +260,7 @@ class GCSUpload(GCSBaseTask):
     )
     def run(
         self,
-        data: Union[str, bytes],
+        data: Union[str, bytes, io.BytesIO],
         bucket: str = None,
         blob: str = None,
         project: str = None,
@@ -280,7 +281,8 @@ class GCSUpload(GCSBaseTask):
         provided _either_ at initialization _or_ as arguments.
 
         Args:
-            - data (Union[str, bytes]): the data to upload; can be either string or bytes
+            - data (Union[str, bytes, BytesIO]): the data to upload; can be either string, bytes
+                or io.BytesIO
             - bucket (str, optional): the bucket name to upload to
             - blob (str, optional): blob name to upload to
                 a string beginning with `prefect-` and containing the Task Run ID will be used
@@ -328,20 +330,25 @@ class GCSUpload(GCSBaseTask):
             encryption_key_secret=encryption_key_secret,
         )
 
+        # Set content type and encoding if supplied.
+        # This is likely only desirable if uploading gzip data:
+        # https://cloud.google.com/storage/docs/metadata#content-encoding
+        if content_type:
+            gcs_blob.content_type = content_type
+        if content_encoding:
+            gcs_blob.content_encoding = content_encoding
+
         # Upload
         if type(data) == str:
             gcs_blob.upload_from_string(data, timeout=request_timeout)
         elif type(data) == bytes:
-            # Set content type and encoding if supplied.
-            # This is likely only desirable if uploading gzip data:
-            # https://cloud.google.com/storage/docs/metadata#content-encoding
-            if content_type:
-                gcs_blob.content_type = content_type
-            if content_encoding:
-                gcs_blob.content_encoding = content_encoding
             gcs_blob.upload_from_file(io.BytesIO(data), timeout=request_timeout)
+        elif type(data) == io.BytesIO:
+            gcs_blob.upload_from_file(data, timeout=request_timeout)
         else:
-            raise TypeError(f"data must be str or bytes: got {type(data)} instead")
+            raise TypeError(
+                f"data must be str, bytes or BytesIO: got {type(data)} instead"
+            )
         return gcs_blob.name
 
 

@@ -833,7 +833,9 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
     assert res.result[tt].result[0] == "test-map"
 
 
-@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "mthread", "sync", "mproc", "threaded_local"], indirect=True
+)
 def test_flow_runner_handles_timeouts(executor):
     sleeper = SlowTask(timeout=1)
 
@@ -844,18 +846,6 @@ def test_flow_runner_handles_timeouts(executor):
     assert state.is_failed()
     assert isinstance(state.result[res], TimedOut)
     assert "timed out" in state.result[res].message
-    assert isinstance(state.result[res].result, TaskTimeoutError)
-
-
-def test_flow_runner_handles_timeout_error_with_mproc(mproc):
-    sleeper = SlowTask(timeout=1)
-
-    with Flow(name="test") as flow:
-        res = sleeper(2)
-
-    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
-    assert state.is_failed()
-    assert isinstance(state.result[res], TimedOut)
     assert isinstance(state.result[res].result, TaskTimeoutError)
 
 
@@ -1410,7 +1400,7 @@ class TestContext:
 
 
 @pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    "executor", ["local", "sync", "mproc", "mthread", "threaded_local"], indirect=True
 )
 def test_task_logs_survive_if_timeout_is_used(caplog, executor):
     @prefect.task(timeout=2)

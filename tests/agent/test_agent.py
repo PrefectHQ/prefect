@@ -3,6 +3,7 @@ import socket
 import time
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 
 from prefect.agent import Agent
@@ -140,11 +141,12 @@ def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
 
 
 def test_get_ready_flow_runs(monkeypatch, cloud_api):
+    dt = pendulum.now()
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
                 get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
-                flow_run=[GraphQLResult({"id": "id", "scheduled_start_time": 1})],
+                flow_run=[GraphQLResult({"id": "id", "scheduled_start_time": str(dt)})],
             )
         )
     )
@@ -154,7 +156,7 @@ def test_get_ready_flow_runs(monkeypatch, cloud_api):
 
     agent = Agent()
     flow_runs = agent._get_ready_flow_runs()
-    assert flow_runs == [GraphQLResult({"id": "id", "scheduled_start_time": 1})]
+    assert flow_runs == [GraphQLResult({"id": "id", "scheduled_start_time": str(dt)})]
 
 
 def test_get_ready_flow_runs_ignores_currently_submitting_runs(monkeypatch, cloud_api):
@@ -162,7 +164,11 @@ def test_get_ready_flow_runs_ignores_currently_submitting_runs(monkeypatch, clou
         return_value=MagicMock(
             data=MagicMock(
                 get_runs_in_queue=MagicMock(flow_run_ids=["id1", "id2"]),
-                flow_run=[GraphQLResult({"id": "id", "scheduled_start_time": 1})],
+                flow_run=[
+                    GraphQLResult(
+                        {"id": "id", "scheduled_start_time": str(pendulum.now())}
+                    )
+                ],
             )
         )
     )
@@ -333,6 +339,7 @@ def test_submit_deploy_flow_run_jobs(monkeypatch, cloud_api):
                             "id": "id",
                             "serialized_state": Scheduled().serialize(),
                             "version": 1,
+                            "scheduled_start_time": str(pendulum.now()),
                             "task_runs": [
                                 GraphQLResult(
                                     {
@@ -342,7 +349,7 @@ def test_submit_deploy_flow_run_jobs(monkeypatch, cloud_api):
                                     }
                                 )
                             ],
-                            "scheduled_start_time": 1,
+                            "scheduled_start_time": str(pendulum.now()),
                         }
                     )
                 ],

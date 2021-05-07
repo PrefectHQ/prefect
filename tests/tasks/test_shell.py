@@ -10,10 +10,6 @@ from prefect import Flow
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32", reason="ShellTask currently not supported on Windows"
-)
-
 
 def test_shell_initializes_and_runs_basic_cmd():
     with Flow(name="test") as f:
@@ -235,7 +231,7 @@ def test_shell_task_handles_multiline_commands():
             cat $file
         done
         """.format(
-            tempdir
+            tempdir.replace("\\", "\\\\")
         )
         with open(tempdir + "/testfile.txt", "w") as f:
             f.write("this is a test")

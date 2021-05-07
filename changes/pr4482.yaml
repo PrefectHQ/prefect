@@ -1,0 +1,5 @@
+enhancement:
+  - "GCSUpload: allow passing in io.BytesIO - [#4482](https://github.com/PrefectHQ/prefect/pull/4482)"
+
+contributor:
+  - "[Joël Luijmes](https://github.com/joelluijmes)"

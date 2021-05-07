@@ -496,7 +496,7 @@ class TestRegister:
                 "  └── ID: new-id-1\n"
                 "  └── Version: 1\n"
                 "  Building `MyModule` storage...\n"
-                "  Registering 'flow 2'... Skipped\n"
+                "  Registering 'flow 2'... Skipped (metadata unchanged)\n"
                 "  Building `MyModule` storage...\n"
                 "  Registering 'flow 3'... Done\n"
                 "  └── ID: new-id-3\n"
@@ -519,7 +519,7 @@ class TestRegister:
                 "  Registering 'flow 7'... Done\n"
                 "  └── ID: new-id-7\n"
                 "  └── Version: 1\n"
-                "  Registering 'flow 8'... Skipped\n"
+                "  Registering 'flow 8'... Skipped (metadata unchanged)\n"
             ),
         ]
         out, err = capsys.readouterr()

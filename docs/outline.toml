@@ -238,7 +238,7 @@ classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun"
 [pages.storage]
 title = "Storage"
 module = "prefect.storage"
-classes = {"Storage" = ["add_flow", "build"], "Azure" = [], "Bitbucket" = [], "CodeCommit" = [], "Docker" = [], "GCS" = [], "GitHub" = [], "GitLab" = [], "Local" = [], "Module" = [], "S3" = [], "Webhook" = []}
+classes = {"Storage" = ["add_flow", "build"], "Azure" = [], "Bitbucket" = [], "CodeCommit" = [], "Docker" = [], "GCS" = [], "Git" = [], "GitHub" = [], "GitLab" = [], "Local" = [], "Module" = [], "S3" = [], "Webhook" = []}
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -660,3 +660,8 @@ functions = []
 title = "Dremio Tasks"
 module = "prefect.tasks.dremio"
 classes = ["DremioFetch"]
+
+[pages.tasks.sendgrid]
+title = "SendGrid Tasks"
+module = "prefect.tasks.sendgrid"
+classes = ["SendEmail"]

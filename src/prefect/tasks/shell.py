@@ -1,6 +1,7 @@
 import os
 import tempfile
 import logging
+import sys
 from subprocess import PIPE, STDOUT, Popen
 from typing import Any, List, Union, Optional
 
@@ -41,6 +42,10 @@ class ShellTask(prefect.Task):
             logged. defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
+    Raises:
+        - TypeError: if `stream_output` is passed in as a string, but cannot
+          successfully be converted to a numeric value by logging.getLevelName()
+
     Example:
         ```python
         from prefect import Flow
@@ -54,9 +59,6 @@ class ShellTask(prefect.Task):
 
         out = f.run()
         ```
-    Raises:
-        - TypeError: if `stream_output` is passed in as a string, but cannot
-          successfully be converted to a numeric value by logging.getLevelName()
     """
 
     def __init__(
@@ -125,11 +127,17 @@ class ShellTask(prefect.Task):
         with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
             if helper_script:
                 tmp.write(helper_script.encode())
-                tmp.write("\n".encode())
+                tmp.write(os.linesep.encode())
             tmp.write(command.encode())
             tmp.flush()
             with Popen(
-                [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
+                [self.shell, tmp.name],
+                stdout=PIPE,
+                stderr=STDOUT,
+                env=current_env,
+                # Windows does not use the PATH during subprocess creation
+                # by default so we will use `shell` mode to do so
+                shell=sys.platform == "win32",
             ) as sub_process:
                 line = None
                 lines = []

@@ -135,7 +135,7 @@ class TestMergeRunTaskKwargs:
         }
 
 
-def test_boto_kwargs():
+def test_boto_kwargs(monkeypatch):
     # Defaults to loaded from environment
     agent = ECSAgent()
     keys = [
@@ -159,6 +159,11 @@ def test_boto_kwargs():
         "mode": "adaptive",
         "max_attempts": 2,
     }
+
+    # Does not set 'standard' if env variable is set
+    monkeypatch.setenv("AWS_RETRY_MODE", "adaptive")
+    agent = ECSAgent()
+    assert (agent.boto_kwargs["config"].retries or {}).get("mode") is None
 
 
 def test_agent_defaults(default_task_definition):
@@ -555,11 +560,41 @@ class TestGetRunTaskKwargs:
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": "flow-id",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
+            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # agent envs override agent run-task-kwargs
             "CUSTOM3": "OVERRIDE3",  # run-config envs override agent
             "CUSTOM4": "VALUE4",
         }
+
+    @pytest.mark.parametrize(
+        "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+        [
+            ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {},
+                "TEST2",
+            ),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {"PREFECT__LOGGING__LEVEL": "TEST"},
+                "TEST",
+            ),
+        ],
+    )
+    def test_prefect_logging_level_override_logic(
+        self, config, agent_env_vars, run_config_env_vars, expected_logging_level
+    ):
+        with set_temporary_config(config):
+            kwargs = self.get_run_task_kwargs(
+                ECSRun(env=run_config_env_vars), env_vars=agent_env_vars
+            )
+            env_list = kwargs["overrides"]["containerOverrides"][0]["environment"]
+            env = {item["name"]: item["value"] for item in env_list}
+            assert env["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
 
 class TestDeployFlow:

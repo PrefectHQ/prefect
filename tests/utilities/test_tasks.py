@@ -33,7 +33,10 @@ class TestTaskDecorator:
         def fn(x):
             return x
 
-        with pytest.raises(ValueError, match="Could not infer an active Flow context"):
+        with pytest.raises(
+            ValueError,
+            match=f"Could not infer an active Flow context while creating edge to {fn}",
+        ):
             fn(1)
 
     def test_task_decorator_with_no_args_must_be_called_inside_flow_context(self):
