@@ -225,8 +225,10 @@ module.exports = {
           children: [
             'flow_run/overview',
             'flow_run/creation',
-            'flow_run/inspection",
-            'flow_run/limits'
+            'flow_run/inspection',
+            'flow_run/task-runs',
+            'flow_run/scheduling',
+            'flow_run/concurrency-limits'
           ]
         },
         {

@@ -55,9 +55,9 @@ Or... keep reading for an overview of how to limit the number of concurrent runs
 
 By default, there is no limit to the number of concurrent flow runs or task runs you can have. Prefect supports _unlimited_ concurrent execution of your flows. However, there are some cases where _you_ want to enforce some limits to reduce strain on your infrastructure. 
 
-The number of concurrent flow runs can be limited by label. See the [flow run concurrency documentation](./flow-run-concurrency.md) for details.
+The number of concurrent flow runs can be limited by label. See the [flow run concurrency documentation](./concurrency-limits.md#flow-run) for details.
 
-The number of concurrent task runs can be limited by tag. See the [task run concurrency documentation](./task-run-concurrency.md) for details.
+The number of concurrent task runs can be limited by tag. See the [task run concurrency documentation](./concurrency-limits.md#task-run) for details.
 
 ## Next steps
 
