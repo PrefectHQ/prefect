@@ -3,7 +3,7 @@
 If a flow has a schedule attached, then the Prefect backend can [automatically create new flow runs](#scheduled-flow-run-creation) according to that schedule.
 
 ::: tip
-Scheduling in this manner is nothing more than a convenient way to generate new runs; users can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
+Scheduling in this manner is nothing more than a convenient way to generate new runs; you can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
 :::
 
 Flow schedules can be defined when your flow is registered using the Prefect Core library or after registration using the Prefect API or UI. For details on defining a schedule at registration time, see the [Core scheduling documentation](../../core/concepts/schedules.md). The Core documentation will also be useful for understanding the basic building blocks of schedules, but if you'd like to venture forward here's a quick summary:
