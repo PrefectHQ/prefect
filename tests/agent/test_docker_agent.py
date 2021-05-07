@@ -306,6 +306,52 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
     assert api.start.call_args[1]["container"] == "container_id"
 
 
+@pytest.mark.parametrize("collision_count", (0, 1, 5))
+def test_docker_agent_deploy_flow_sets_container_name(api, collision_count):
+    """
+    Asserts that the container name is set to the flow run name and that collisions with
+    existing containers with the same name is handled by adding an index
+    """
+
+    if collision_count:
+        # Add the basic name first
+        existing_containers = [{"name": "flow-run-name"}]
+        for i in range(1, collision_count):
+            existing_containers.append({"name": f"flow-run-name-{i}"})
+    else:
+        # Ensure a random container doesn't matter
+        existing_containers = [{"name": "foobar"}]
+
+    api.containers.return_value = existing_containers
+
+    agent = DockerAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": Local().serialize(),
+                        "environment": LocalEnvironment(
+                            metadata={"image": "repo/name:tag"}
+                        ).serialize(),
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "id",
+                "name": "flow-run-name",
+            }
+        )
+    )
+
+    expected_name = "flow-run-name"
+    if collision_count:
+        expected_name += f"-{collision_count}"
+
+    assert api.create_container.call_args[1]["name"] == expected_name
+
+
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
 def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
