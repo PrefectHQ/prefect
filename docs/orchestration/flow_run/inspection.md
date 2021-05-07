@@ -2,7 +2,7 @@
 
 <!-- TODO -->
 
-For monitoring flow runs from the UI, see the [UI documentation on flow runs](/orchestration/ui/flow-run.md).
+For monitoring flow runs from the UI, see the [UI documentation on flow runs](../ui/flow-run.md).
 
 ## CLI
 

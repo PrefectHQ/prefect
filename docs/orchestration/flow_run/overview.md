@@ -29,7 +29,7 @@ Flow run information is sent to Prefect's backend during the run and persists th
 
 - For programatic inspection of flow runs, see the [Prefect library flow run documentation](./inspection#prefect-library).
 - For customized GraphQL queries for flow run data, see [the documentation on query for flow runs](./inspection#graphql).
-- For monitoring flow runs from the UI, see the [UI documentation on flow runs](/orchestration/ui/flow-run.md).
+- For monitoring flow runs from the UI, see the [UI documentation on flow runs](../ui/flow-run.md).
 
 Or... keep reading for an overview of the task run concept.
 
@@ -41,7 +41,7 @@ Similarly to flow runs, task runs can be inspected with various methods
 
 - For programatic inspection of task runs, see the [Prefect library task run documentation](./task-runs.md#prefect-libary).
 - For customized GraphQL queries for task run data, see [the documentation on query for task runs](./task-runs.md#graphql).
-- For monitoring task runs from the UI, see the [UI documentation on task runs](/orchestration/ui/task-runs.md).
+- For monitoring task runs from the UI, see the [UI documentation on task runs](../ui/task-runs.md).
 
 For more details on task runs, see the [task run documentation](./task-runs.md).
 
@@ -60,5 +60,5 @@ The number of concurrent task runs can be limited by tag. See the [task run conc
 
 Hopefully you have an understanding of how to create and interact with your flow runs now. Take a look at some related docs next:
 
-- Flows and their runs are deeply configurable, check out the [flow configuration documentation](/orchestration/flow_config/overview.md)
-- An agent is necessary to submit the flow runs you create for execution, check out the [agent documentation](/orchestration/agents/overview.md)
+- Flows and their runs are deeply configurable, check out the [flow configuration documentation](../flow_config/overview.md)
+- An agent is necessary to submit the flow runs you create for execution, check out the [agent documentation](../agents/overview.md)

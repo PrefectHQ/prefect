@@ -40,7 +40,7 @@ class MyTask(Task):
 my_task = MyTask(tags=["webservice"])
 ```
 
-These tags are then available via the `tags` attribute on your `Task` instances. More information about `Task` settings and initialization keywords can be found in the corresponding [API documentation](/api/latest/core/task.md#task-2).
+These tags are then available via the `tags` attribute on your `Task` instances. More information about `Task` settings and initialization keywords can be found in the corresponding [API documentation](../../api/latest/core/task.md#task-2).
 
 ### Setting Concurrency Limits
 
@@ -50,17 +50,17 @@ Once you have tagged your various tasks and [registered your Flow(s)](flows.md#r
 
 To set task tag concurrency limits from the UI, go to Prefect Cloud and navigate to Team Settings -> Task Concurrency Limits.
 
-![](/orchestration/ui/task-concurrency-limits.png)
+![](../ui/task-concurrency-limits.png)
 
 Select _Add Tag_ to open a dialog where you can set the concurrency limit on a tag. For example, you could set a concurrency limit of 10 on tasks with the "database" tag.
 
-![](/orchestration/ui/task-concurrency-add-limit.png)
+![](../ui/task-concurrency-add-limit.png)
 
 This means that Prefect Cloud will ensure that _no more than 10 tasks with the "database" tag will be running at any given time_. You are free to set / update as many of your task tags as you wish, and _all_ of your concurrency limits will be respected.
 
 You can edit and remove the concurrency limit of tags at any time. Select the blue edit icon for your tag to change its concurrency limit. Select the red delete icon for your tag to remove its concurrency limit.
 
-![](/orchestration/ui/task-concurrency-limit-icons.png)
+![](../ui/task-concurrency-limit-icons.png)
 
 #### Prefect library
 
@@ -109,7 +109,7 @@ If you wish to query for the currently set limit on a tag, or see _all_ of your 
 
 You can view your Task tag concurrency limits by navigating to Team Settings -> Task Concurrency Limits. You can also view the current number of task runs that are utilizing available concurrency space.
 
-![](/orchestration/ui/task-concurrency-limit-usage.png)
+![](../ui/task-concurrency-limit-usage.png)
 
 #### Core Client
 
@@ -149,4 +149,4 @@ query {
 
 ### Execution Behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/core/concepts/states.md) in Prefect Cloud. If there are no concurrency slots available for any one of your Task's tags, the Task will instead enter a `Queued` state. The same Python process that is attempting running your Task will then attempt to re-enter a `Running` state every 30 seconds (this value is configurable via `config.cloud.queue_interval` in [Prefect Configuration](/core/concepts/configuration.md)). Additionally, if that process ever fails, Prefect Cloud will create a new runner every 10 minutes, which will then attempt to rerun your task on the specified queue interval. This process will repeat until all requested concurrency slots become available.
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](../../core/concepts/states.md) in Prefect Cloud. If there are no concurrency slots available for any one of your Task's tags, the Task will instead enter a `Queued` state. The same Python process that is attempting running your Task will then attempt to re-enter a `Running` state every 30 seconds (this value is configurable via `config.cloud.queue_interval` in [Prefect Configuration](../../core/concepts/configuration.md)). Additionally, if that process ever fails, Prefect Cloud will create a new runner every 10 minutes, which will then attempt to rerun your task on the specified queue interval. This process will repeat until all requested concurrency slots become available.

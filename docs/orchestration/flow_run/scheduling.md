@@ -6,12 +6,14 @@ If a flow has a schedule attached, then the Prefect backend can [automatically c
 Scheduling in this manner is nothing more than a convenient way to generate new runs; users can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
 :::
 
-Flow schedules can be defined when your flow is registered using the Prefect Core library or after registration using the Prefect API or UI. For details on defining a schedule at registration time, see the [Core scheduling documentation](/core/concepts/schedules.md). The Core documentation will also be useful for understanding the basic building blocks of schedules, but if you'd like to venture forward here's a quick summary:
+Flow schedules can be defined when your flow is registered using the Prefect Core library or after registration using the Prefect API or UI. For details on defining a schedule at registration time, see the [Core scheduling documentation](../../core/concepts/schedules.md). The Core documentation will also be useful for understanding the basic building blocks of schedules, but if you'd like to venture forward here's a quick summary:
 
 - Flows can have as many schedules as you want
 - Flows have two types of schedules: `CronClock` (datetime based) and `IntervalClock` (every x seconds)
 - Schedules are independent; if schedules overlap, multiple flow runs will be created
 - Schedules can set flow parameter values
+
+If you're looking to run a flow _once_ in the future instead of creating a recurring schedule you can create a flow run with a specified start time. See the [flow run creation documentation](./creation.md#start-times) for details.
 
 ## Creating flow schedules <Badge text="GQL" />
 
@@ -22,7 +24,7 @@ Setting flow group schedules will remove any existing schedules.
 :::
 
 ::: tip Scheduling in the Prefect UI
-The UI provides a friendly interface for setting schedules in the [flow group settings page](/orchestration/ui/flow.md#settings).
+The UI provides a friendly interface for setting schedules in the [flow group settings page](../ui/flow.md#settings).
 The UI will preserve existing schedules and generate CRON clocks for you.
 :::
 
@@ -77,7 +79,7 @@ x = Parameter('x', default=1)
 
 ## Scheduled flow run creation
 
-Flows with an active schedule will have some of their flow runs created ahead of time. These flow runs will have a scheduled start time and will not begin executing until then. When a flow schedule is updated, these generated runs will be deleted and new runs will be created. Scheduled flow run creation is handled by the [Prefect Scheduler](/orchestration/concepts/services.md#scheduler).
+Flows with an active schedule will have some of their flow runs created ahead of time. These flow runs will have a scheduled start time and will not begin executing until then. When a flow schedule is updated, these generated runs will be deleted and new runs will be created. Scheduled flow run creation is handled by the [Prefect Scheduler](../concepts/services.md#scheduler).
 
 
 ## Querying for flow schedules <Badge text="GQL" />

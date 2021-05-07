@@ -6,7 +6,9 @@
 
 ## Creation
 
-<!-- TODO -->
+To create a flow run from the UI, visit the [flow page](/orchestration/ui/flow.html#run) and click "Run Flow".
+
+![](/orchestration/ui/flow-run.png)
 
 ## Schematic
 
