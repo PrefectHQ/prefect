@@ -339,15 +339,16 @@ class Agent:
         Args:
             - flow_run (GraphQLResult): The specific flow run to deploy
         """
-        # Wait for the flow run's start time. The agent pre-fetches runs that may not
-        # need to start until up to 10 seconds later so we need to wait to prevent the
-        # flow from starting early
-        start_time = pendulum.parse(flow_run.scheduled_start_time)
-        delay_seconds = max(0, (start_time - pendulum.now()).total_seconds())
-        time.sleep(delay_seconds)
 
         # Deploy flow run and mark failed if any deployment error
         try:
+            # Wait for the flow run's start time. The agent pre-fetches runs that may
+            # not need to start until up to 10 seconds later so we need to wait to
+            # prevent the flow from starting early
+            start_time = pendulum.parse(flow_run.scheduled_start_time)
+            delay_seconds = max(0, (start_time - pendulum.now()).total_seconds())
+            time.sleep(delay_seconds)
+
             self._mark_flow_as_submitted(flow_run)
 
             # Call the main deployment hook

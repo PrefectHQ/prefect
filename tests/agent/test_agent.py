@@ -339,7 +339,6 @@ def test_submit_deploy_flow_run_jobs(monkeypatch, cloud_api):
                             "id": "id",
                             "serialized_state": Scheduled().serialize(),
                             "version": 1,
-                            "scheduled_start_time": str(pendulum.now()),
                             "task_runs": [
                                 GraphQLResult(
                                     {
