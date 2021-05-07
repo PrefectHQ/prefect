@@ -521,12 +521,12 @@ class Agent:
             }
         }
 
-        before = pendulum.now("UTC").add(seconds=prefetch_seconds)
+        now = pendulum.now("UTC")
         result = self.client.graphql(
             mutation,
             variables={
                 "input": {
-                    "before": str(now),
+                    "before": str(now.add(seconds=prefetch_seconds)),
                     "labels": list(self.labels),
                     "tenant_id": self.client.active_tenant_id,
                 }

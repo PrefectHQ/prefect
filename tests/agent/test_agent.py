@@ -407,6 +407,7 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, caplog, cloud_api):
             {
                 "id": "id",
                 "serialized_state": Scheduled().serialize(),
+                "scheduled_start_time": str(pendulum.now()),
                 "version": 1,
                 "task_runs": [
                     GraphQLResult(
