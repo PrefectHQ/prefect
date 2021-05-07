@@ -391,7 +391,45 @@ def test_submit_deploy_flow_run_jobs_no_runs_found(monkeypatch, cloud_api):
     assert not executor.submit.called
 
 
-def test_agent_logs_flow_run_exceptions(monkeypatch, caplog, cloud_api):
+def test_deploy_flow_run_sleeps_until_start_time(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(data=MagicMock(write_run_logs=MagicMock(success=True)))
+    )
+    client = MagicMock()
+    client.return_value.write_run_logs = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock(return_value=client))
+    sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", sleep)
+
+    dt = pendulum.now()
+    agent = Agent()
+    agent.deploy_flow = MagicMock()
+    agent._deploy_flow_run(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "scheduled_start_time": str(dt.add(seconds=10)),
+                "version": 1,
+                "task_runs": [
+                    GraphQLResult(
+                        {
+                            "id": "id",
+                            "version": 1,
+                            "serialized_state": Scheduled().serialize(),
+                        }
+                    )
+                ],
+            }
+        )
+    )
+
+    sleep_time = sleep.call_args[0][0]
+    assert 10 > sleep_time > 9
+    agent.deploy_flow.assert_called_once()
+
+
+def test_deploy_flow_run_logs_flow_run_exceptions(monkeypatch, caplog, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(data=MagicMock(write_run_logs=MagicMock(success=True)))
     )
