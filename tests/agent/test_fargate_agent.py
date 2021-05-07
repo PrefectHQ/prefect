@@ -1209,6 +1209,10 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
+                {
+                    "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                    "value": str(not flag).lower(),
+                },
             ],
             "essential": True,
         }
@@ -1308,6 +1312,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 ],
                 "essential": True,
             }
@@ -1690,6 +1695,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
                 ],
                 "essential": True,
             }

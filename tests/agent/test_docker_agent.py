@@ -140,6 +140,7 @@ def test_populate_env_vars(api, backend):
         "PREFECT__CONTEXT__IMAGE": "test-image",
         "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
         "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
+        "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
         "PREFECT__LOGGING__LEVEL": "INFO",
         "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
         "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
