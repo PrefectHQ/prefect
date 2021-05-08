@@ -33,7 +33,7 @@ Flow run information is sent to Prefect's backend during the run and persists th
 
 Or... keep reading for an overview of the task run concept.
 
-## Task runs
+## Inspecting task runs
 
 Each flow contains tasks which actually do the _work_ of your flow. The state of your tasks is also tracked in Prefect's backend for inspection.
 

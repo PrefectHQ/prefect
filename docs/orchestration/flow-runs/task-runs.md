@@ -1,4 +1,4 @@
-# Task runs
+# Inspecting task runs
 
 ::: tip Results
 Prefect does not store the _results_ of your task runs. The data that your task returns is stored safely on your own infrastructure unless explicitly sent to Prefect's backend. 

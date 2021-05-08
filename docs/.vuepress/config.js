@@ -222,12 +222,12 @@ module.exports = {
           title: 'Flow Runs',
           collapsable: true,
           children: [
-            'flow_run/overview',
-            'flow_run/creation',
-            'flow_run/inspection',
-            'flow_run/task-runs',
-            'flow_run/scheduling',
-            'flow_run/concurrency-limits'
+            'flow-runs/overview',
+            'flow-runs/creation',
+            'flow-runs/inspection',
+            'flow-runs/task-runs',
+            'flow-runs/scheduling',
+            'flow-runs/concurrency-limits'
           ]
         },
         {
