@@ -1,5 +1,6 @@
 ---
-sidebarDepth: 1
+sidebarDepth: 0
+editLink: false
 ---
 
 # Overview
