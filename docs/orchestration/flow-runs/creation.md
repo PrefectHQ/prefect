@@ -52,14 +52,24 @@ For flows which update regularly, you can provide a `flow_group_id` to `create_f
 
 A flow run can be provided new parameters.
 
+:::: tabs
+
+::: tab CLI
 ```bash
 $ prefect run --id "<flow-id>" --param a=2
 ```
+:::
 
+::: tab Prefect library
 ```python
-client.create_flow_run(flow_id="<flow-id>", parameters={"a": 2})
+client.create_flow_run(
+    flow_id="<flow-id>", 
+    parameters={"a": 2}
+)
 ```
+:::
 
+::: tab GraphQL API
 ```graphql
 mutation {
   create_flow_run(input: { 
@@ -70,15 +80,26 @@ mutation {
   }
 }
 ```
+:::
+
+::::
 
 ### Start times
 
 Flows can be assigned a start time in the future rather than being marked for execution immediately.
 
-```python
-client.create_flow_run(flow_id="<flow-id>", scheduled_start_time=pendulum.now().add(minutes=10))
-```
+:::: tabs
 
+::: tab Prefect library
+```python
+client.create_flow_run(
+    flow_id="<flow-id>", 
+    scheduled_start_time=pendulum.now().add(minutes=10)
+)
+```
+:::
+
+::: tab GraphQL API
 ```graphql
 mutation {
   create_flow_run(input: { 
@@ -89,8 +110,11 @@ mutation {
   }
 }
 ```
+:::
 
-::: tip Generating time strings in GraphQL
+::::
+
+::: tip Generating time strings for GraphQL
 GraphQL expects ISO formatted datetime strings. This is default when you cast a `pendulum.DateTime` to a string. You can also explicitly call the conversion `pendulum.now().isoformat()` in newer versions of `pendulum`.
 :::
 
@@ -98,10 +122,18 @@ GraphQL expects ISO formatted datetime strings. This is default when you cast a 
 
 If you provide an `idempotency_key` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Idempotency is preserved for 24 hours, after which time a new run will be created for the same key. Each idempotent request refreshes the cache for an additional 24 hours.
 
-```python
-client.create_flow_run(flow_id="<flow-id>", idempotency_key="do-not-create-two-runs")
-```
+:::: tabs
 
+::: tab Prefect library
+```python
+client.create_flow_run(
+    flow_id="<flow-id>", 
+    idempotency_key="do-not-create-two-runs"
+)
+```
+:::
+
+::: tab GraphQL API
 ```graphql
 mutation {
   create_flow_run(input: { flow_id: "<flow-id>", idempotency_key: "any-key" }) {
@@ -109,4 +141,7 @@ mutation {
   }
 }
 ```
+:::
+
+::::
 
