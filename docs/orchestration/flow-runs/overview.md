@@ -5,7 +5,7 @@ editLink: false
 
 # Overview
 
-When a flow is run with Prefect Core, it runs locally and its state is not persisted. When a flow is run with a Prefect backend i.e. Prefect Cloud, information about the flow is streamed to the backend for live inspection of your flow's status. This information is persisted for later access. In the Prefect backend, a flow run represents the full picture of your flow's execution from scheduling to completion.
+When a flow is run with Prefect Core, it executes locally and its state is not persisted. When a flow is run with a Prefect backend i.e. Prefect Cloud, information about the flow's execution is streamed to the backend for live inspection of your flow's status. This information is persisted for later access. In the Prefect backend, a flow run represents the full picture of your flow's execution from scheduling to completion.
 
 ## Creating flow runs
 
