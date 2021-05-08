@@ -9,17 +9,47 @@ This module implements the Prefect context that is available when tasks run.
 Tasks can import prefect.context and access attributes that will be overwritten
 when the task is run.
 
-Example:
+### Examples:
 
+Using the context to encapsulate information within your code:
 ```python
-import prefect.context
+from prefect.utilities.context import context
 
-with prefect.context(a=1, b=2):
-    print(prefect.context.a) # 1
+with context(a=1, b=2):
+    print(context.a) # 1
 
-print(prefect.context.a) # undefined
+try:
+    print(context.a) # undefined
+except Exception as e:
+    print(e)
 ```
 
+Using the context helpers within a flow for thread-safe access to common needs within logic:
+
+```python
+from prefect.utilities.context import context
+from prefect import task, Flow
+
+@task
+def today_context() -> None:
+    today = context.today
+    print("Today's Date (YYYY-MM-DD): ", today)
+    # prints: Today's Date (YYYY-MM-DD):  2021-05-08
+
+@task
+def task_context() -> None:
+    task_info = context.task_full_name
+    print("Task Full Name: ", task_info) 
+    # prints: Task Full Name:  task_context
+
+with Flow('context-example') as flow:
+    today_context()
+    task_context()
+
+flow.run()
+```
+
+### Built-in Context Helpers
 Prefect provides various key / value pairs in context that are always available during task runs:
 
 | Variable | Description |
