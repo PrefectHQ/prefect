@@ -94,7 +94,7 @@ The `Context` can be accessed at any time, and Prefect will populate it with inf
 ```
 
 ### Adding context globally
-Adding context globally is possible via your `config.toml` in a section called `[context]`. For any keys specified here, as long as Prefect Core does not override this key internally, it will be accessible globally from `prefect.context`, even outside of a flow run.
+Adding context globally is possible via your `config.toml` in a section called `[context]`. For any keys specified here, as long as Prefect Core does not override this key internally, it will be accessible globally from `prefect.utilities.context.Context`, even outside of a flow run.
 ```
 # config.toml
 [context]
