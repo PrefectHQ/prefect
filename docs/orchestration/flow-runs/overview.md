@@ -1,7 +1,6 @@
 ---
-sidebarDepth: 0
+sidebarDepth: 1
 ---
-<!-- Do not list sub-headers in the sidebar -->
 
 # Overview
 
