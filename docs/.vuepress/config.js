@@ -202,8 +202,7 @@ module.exports = {
             'concepts/secrets',
             'concepts/services',
             'concepts/api_keys',
-            'concepts/roles',
-            'concepts/task-concurrency-limiting'
+            'concepts/roles'
           ]
         },
         {
