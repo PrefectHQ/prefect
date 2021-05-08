@@ -84,12 +84,12 @@ Prefect provides a powerful `Context` object to share information without requir
 The `Context` can be accessed at any time, and Prefect will populate it with information during flow and task execution. The context object itself can be populated with any arbitrary user-defined key-value pair, which in turn can be accessed with dot notation or with dictionary-like indexing. For example, the following code assumes a user has provided the context `a=1` , and can access it one of three ways:
 
 ```python
->>> import prefect
->>> prefect.context.a
+>>> from prefect.utilities.context import context
+>>> context.a
 1
->>> prefect.context['a']
+>>> context['a']
 1
->>> prefect.context.get('a')
+>>> context.get('a')
 1
 ```
 
@@ -102,17 +102,17 @@ a = 1
 ```
 
 ```python
->>> import prefect
->>> prefect.context.a
+>>> from prefect.utilities.context import context
+>>> context.a
 1
 ```
 
 ### Modifying context at runtime
 Modifying context, even globally set context keys, at specific times is possible using a provided context manager:
 ```python
->>> import prefect
->>> with prefect.context(a=2):
-...    print(prefect.context.a)
+>>> from prefect.utilities.context import context
+>>> with context(a=2):
+...    print(context.a)
 ...
 2
 ```
@@ -122,7 +122,7 @@ This is often useful to run flows under different situations for rapid iterative
 ```python
 @task
 def try_unlock():
-    if prefect.context.key == 'abc':
+    if context.key == 'abc':
         return True
     else:
         raise signals.FAIL()
@@ -132,7 +132,7 @@ with Flow('Using Context') as flow:
 
 flow.run() # this run fails
 
-with prefect.context(key='abc'):
+with context(key='abc'):
     flow.run() # this run is successful
 ```
 
@@ -142,8 +142,8 @@ In addition to your own context keys, Prefect supplies context to the context ob
 ```python{4}
 @task
 def report_start_day():
-    logger = prefect.context.get("logger")
-    logger.info(prefect.context.today)
+    logger = context.get("logger")
+    logger.info(context.today)
 
 with Flow('My flow') as flow:
 	report_start_day()
