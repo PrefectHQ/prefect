@@ -1,11 +1,13 @@
-import multiprocessing
 import ntpath
 import posixpath
+
+import multiprocessing
 import re
 import sys
+import warnings
+from slugify import slugify
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
-import warnings
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -443,14 +445,35 @@ class DockerAgent(Agent):
             "io.prefect.flow-run-id": flow_run.id,
         }
 
-        # Generate a container name to match the flow run name, ensuring it is unique
-        container_name = flow_run.name
-        containers = self.docker_client.containers()
-        existing_names = {c["name"] for c in containers}
+        # Generate a container name to match the flow run name, ensuring it is docker
+        # compatible and unique. Must match `[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
+        container_name = slugified_name = (
+            re.sub(
+                # Docker does not allow leading _, -, . so we need to remove those from
+                # the slugified name
+                "^[._-]+",
+                "",
+                slugify(
+                    flow_run.name,
+                    lowercase=False,
+                    # Docker does not limit length but URL limits apply eventually so
+                    # limit the length for safety
+                    max_length=250,
+                    # Docker allows these characters for container names
+                    regex_pattern=r"[^a-zA-Z0-9_.-]+",
+                ),
+            )
+            # Docker does not allow 0 character names so use the flow run id if name
+            # would be empty
+            or flow_run.id
+        )
+        # Checking for container names here is a slight deploy performance hit. If
+        # it ends up being an issue we can move to a try/except model
+        existing_names = {c["name"] for c in self.docker_client.containers()}
         index = 0
         while container_name in existing_names:
             index += 1
-            container_name = f"{flow_run.name}-{index}"
+            container_name = f"{slugified_name}-{index}"
 
         # Create the container
         container = self.docker_client.create_container(

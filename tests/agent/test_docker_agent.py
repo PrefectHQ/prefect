@@ -307,7 +307,7 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
 
 
 @pytest.mark.parametrize("collision_count", (0, 1, 5))
-def test_docker_agent_deploy_flow_sets_container_name(api, collision_count):
+def test_docker_agent_deploy_flow_sets_container_name_with_index(api, collision_count):
     """
     Asserts that the container name is set to the flow run name and that collisions with
     existing containers with the same name is handled by adding an index
@@ -350,6 +350,52 @@ def test_docker_agent_deploy_flow_sets_container_name(api, collision_count):
         expected_name += f"-{collision_count}"
 
     assert api.create_container.call_args[1]["name"] == expected_name
+
+
+@pytest.mark.parametrize(
+    "run_name,container_name",
+    [
+        ("_flow_run", "flow_run"),
+        ("...flow_run", "flow_run"),
+        ("._-flow_run", "flow_run"),
+        ("9flow-run", "9flow-run"),
+        ("-flow.run", "flow.run"),
+        ("flow*run", "flow-run"),
+        ("flow9.-foo_bar^x", "flow9.-foo_bar-x"),
+        ("", "id"),  # Falls back to ID on empty name
+        ("_._-_", "id"),  # Falls back to ID on empty name after trim
+    ],
+)
+def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
+    api, run_name, container_name
+):
+    """
+    Asserts that the container name is set to the flow run name and that collisions with
+    existing containers with the same name is handled by adding an index
+    """
+
+    agent = DockerAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": Local().serialize(),
+                        "environment": LocalEnvironment(
+                            metadata={"image": "repo/name:tag"}
+                        ).serialize(),
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "id",
+                "name": run_name,
+            }
+        )
+    )
+
+    assert api.create_container.call_args[1]["name"] == container_name
 
 
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
