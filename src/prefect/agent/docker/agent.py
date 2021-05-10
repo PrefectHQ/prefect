@@ -1,11 +1,13 @@
-import multiprocessing
 import ntpath
 import posixpath
+
+import multiprocessing
 import re
 import sys
+import warnings
+from slugify import slugify
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
-import warnings
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -442,15 +444,46 @@ class DockerAgent(Agent):
             "io.prefect.flow-id": flow_run.flow.id,
             "io.prefect.flow-run-id": flow_run.id,
         }
+
+        # Generate a container name to match the flow run name, ensuring it is docker
+        # compatible and unique. Must match `[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
+        container_name = slugified_name = (
+            slugify(
+                flow_run.name,
+                lowercase=False,
+                # Docker does not limit length but URL limits apply eventually so
+                # limit the length for safety
+                max_length=250,
+                # Docker allows these characters for container names
+                regex_pattern=r"[^a-zA-Z0-9_.-]+",
+            ).lstrip(
+                # Docker does not allow leading underscore, dash, or period
+                "_-."
+            )
+            # Docker does not allow 0 character names so use the flow run id if name
+            # would be empty after cleaning
+            or flow_run.id
+        )
+        # Checking for container names here is a slight deploy performance hit. If
+        # it ends up being an issue we can move to a try/except model
+        existing_names = {c["name"] for c in self.docker_client.containers()}
+        index = 0
+        while container_name in existing_names:
+            index += 1
+            container_name = f"{slugified_name}-{index}"
+
+        # Create the container
         container = self.docker_client.create_container(
             image,
             command=get_flow_run_command(flow_run),
             environment=env_vars,
+            name=container_name,
             volumes=container_mount_paths,
             host_config=self.docker_client.create_host_config(**host_config),
             networking_config=networking_config,
             labels=labels,
         )
+
         # Connect the rest of the networks
         if self.networks:
             for network in self.networks[1:]:
