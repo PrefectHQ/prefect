@@ -128,7 +128,7 @@ class KubernetesRun(RunConfig):
         ):
             raise ValueError(
                 f"Invalid image_pull_policy {image_pull_policy!r}.  "
-                "Expected `Always`, `IfNotPresent`, or `Never`"
+                "Expected 'Always', 'IfNotPresent', or 'Never'"
             )
 
         self.job_template_path = job_template_path
