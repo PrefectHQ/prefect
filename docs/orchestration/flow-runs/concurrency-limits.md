@@ -6,14 +6,112 @@ Setting global concurrency limits is a feature of Prefect Cloud's Standard Tier.
 
 ## Flow run limits <Badge text="Cloud"/>
 
-Flow run label based concurrency.
+Sometimes, you want to limit the number of flow runs executing simulatneously. For example, you may have an agent on a machine that cannot handle the load of many flow runs.
 
-<!-- TODO -->
+Prefect Cloud provides functionality to limit the number of simultaneous flow runs. This limit is based on [flow run labels](../agents/overview.md#labels). Flow runs can be given as many labels as you wish, and each label can be provided a concurrency limit. If a flow has multiple labels, it will only run if _all_ the labels have available concurrency. Flow run label concurrency limits are enforced globally across your entire team, and labels without explicit limits are considered to have unlimited concurrency.
+
+### Labeling your flow runs
+
+Labels can be set on a `Flow` via the run config
+
+```python
+from prefect import Flow
+from prefect.run_configs import UniversalRun
+
+flow = Flow("example-flow")
+flow.run_config = UniversalRun(labels=["small-machine"])
+```
+
+Labels can also be set per flow run, see the [flow run creation documentation](./creation.md#labels) for details.
+
+### Setting concurrency limits
+
+:::: tabs
+
+::: tab UI
+
+To set flow concurrency limits from the UI, go to Prefect Cloud and navigate to Team -> Flow Concurrency.
+
+![](/orchestration/ui/flow-concurrency-limits.png)
+
+Select _Add Label_ to open a dialog where you can set the concurrency limit on a label. For example, you could set a concurrency limit of 10 for flow runs with the "small-machine" label.
+
+![](/orchestration/ui/flow-concurrency-add-limit.png)
+
+This means that Prefect Cloud will ensure that _no more than 10 flow runs with the "small-machine" label will be running at any given time_.
+
+You can edit and remove the concurrency limit of labels at any time. Select the blue edit icon for your label to change its concurrency limit. Select the red delete icon for your label to remove its concurrency limit.
+
+![](/orchestration/ui/flow-concurrency-limit-icons.png)
+:::
+
+::: tab GraphQL
+
+To update your flow concurrency limits with GraphQL, issue the following mutation:
+
+```graphql
+mutation {
+  update_flow_concurrency_limit(input: { label: "small-machine", limit: 10 }) {
+    id
+  }
+}
+```
+
+To remove all concurrency limits on a label, issue:
+
+```graphql
+mutation {
+  delete_flow_concurrency_limit(input: { limit_id: "uuid-returned-from-above" }) {
+    success
+  }
+}
+
+::::
+
+### Inspecting concurrency limits
+
+:::: tabs
+
+::: tab UI
+
+You can view your flow concurrency limits by navigating to Team -> Flow Concurrency. You can also view the current number of flow runs that are utilizing available concurrency space.
+
+![](/orchestration/ui/flow-concurrency-limit-usage.png)
+
+:::
+
+::: tab GraphQL
+
+GraphQL allows you to retrieve tag limit IDs, which is useful for deleting limits:
+
+```graphql
+query {
+  flow_concurrency_limit (where: { name: { _eq: "small-machine" } }) {
+    limit
+    id
+  }
+}
+```
+
+You can query for specific labels, as shown above, or retrieve _all_ of your flow conurrency limits:
+
+```graphql
+query {
+  flow_concurrency_limit  {
+    limit
+    name
+    id
+  }
+}
+```
+:::
+
+::::
 
 ## Task run limits <Badge text="Cloud"/>
 
 
-Oftentimes there are situations in which users want to actively prevent too many tasks from running simultaneously; for example, if many tasks across multiple Flows are designed to interact with a database that only allows 10 max connections, we want to ensure that no more than 10 tasks which connect to this database are running at any given time.
+There are situations in which you want to actively prevent too many tasks from running simultaneously; for example, if many tasks across multiple Flows are designed to interact with a database that only allows 10 max connections, we want to ensure that no more than 10 tasks which connect to this database are running at any given time.
 
 Prefect Cloud has built-in functionality for achieving this; tasks can be "tagged" with as many tags as you wish, and each tag can optionally be provided a concurrency limit. If a task has multiple tags, it will only run if _all_ tags have available concurrency. Tag concurrency limits are enforced globally across your entire team, and tags without explicit limits are considered to have unlimited concurrency.
 
@@ -50,7 +148,7 @@ Once you have tagged your various tasks and [registered your Flow(s)](flows.md#r
 
 ::: tab UI
 
-To set task tag concurrency limits from the UI, go to Prefect Cloud and navigate to Team Settings -> Task Concurrency Limits.
+To set task tag concurrency limits from the UI, go to Prefect Cloud and navigate to Team Settings -> Task Concurrency.
 
 ![](/orchestration/ui/task-concurrency-limits.png)
 
@@ -104,7 +202,7 @@ mutation {
 
 ::::
 
-### Querying concurrency limits
+### Inspecting concurrency limits
 
 If you wish to query for the currently set limit on a tag, or see _all_ of your limits across all of your tags, you can do so in any of the following three ways.
 
@@ -112,7 +210,7 @@ If you wish to query for the currently set limit on a tag, or see _all_ of your 
 
 ::: tab UI
 
-You can view your Task tag concurrency limits by navigating to Team Settings -> Task Concurrency Limits. You can also view the current number of task runs that are utilizing available concurrency space.
+You can view your Task tag concurrency limits by navigating to Team Settings -> Task Concurrency. You can also view the current number of task runs that are utilizing available concurrency space.
 
 ![](/orchestration/ui/task-concurrency-limit-usage.png)
 
