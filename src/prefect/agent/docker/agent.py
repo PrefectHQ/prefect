@@ -448,23 +448,20 @@ class DockerAgent(Agent):
         # Generate a container name to match the flow run name, ensuring it is docker
         # compatible and unique. Must match `[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
         container_name = slugified_name = (
-            re.sub(
-                # Docker does not allow leading _, -, . so we need to remove those from
-                # the slugified name
-                "^[._-]+",
-                "",
-                slugify(
-                    flow_run.name,
-                    lowercase=False,
-                    # Docker does not limit length but URL limits apply eventually so
-                    # limit the length for safety
-                    max_length=250,
-                    # Docker allows these characters for container names
-                    regex_pattern=r"[^a-zA-Z0-9_.-]+",
-                ),
+            slugify(
+                flow_run.name,
+                lowercase=False,
+                # Docker does not limit length but URL limits apply eventually so
+                # limit the length for safety
+                max_length=250,
+                # Docker allows these characters for container names
+                regex_pattern=r"[^a-zA-Z0-9_.-]+",
+            ).lstrip(
+                # Docker does not allow leading underscore, dash, or period
+                "_-."
             )
             # Docker does not allow 0 character names so use the flow run id if name
-            # would be empty
+            # would be empty after cleaning
             or flow_run.id
         )
         # Checking for container names here is a slight deploy performance hit. If
