@@ -1262,18 +1262,10 @@ class TestK8sAgentRunConfig:
         template = self.read_default_template()
         labels = template.setdefault("metadata", {}).setdefault("labels", {})
         labels["TEST"] = "VALUE"
-        config = KubernetesRun(job_template=template, always_pull_new_image=True)
 
         flow_run = self.build_flow_run(config)
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
-
-        # test always pull new image kwarg works
-        print(type(job))
-        assert (
-            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
-            == "Always"
-        )
 
     def test_generate_job_spec_uses_job_template_path_provided_in_run_config(
         self, tmpdir, monkeypatch
@@ -1607,3 +1599,18 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-agent-template"}
         ]
+
+    @pytest.mark.parametrize("image_pull_policy", ["Always", "Never", "IfNotPresent"])
+    def test_generate_job_spec_sets_image_pull_policy_from_run_config(
+        self, image_pull_policy
+    ):
+        template = self.read_default_template()
+        config = KubernetesRun(
+            job_template=template, image_pull_policy=image_pull_policy
+        )
+        flow_run = self.build_flow_run(config)
+        job = self.agent.generate_job_spec(flow_run)
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == image_pull_policy
+        )

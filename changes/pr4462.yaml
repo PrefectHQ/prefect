@@ -1,5 +1,5 @@
 enhancement:
-  - "Add an `always_pull_new_image` kwarg to `KubernetesRun` [#4462](https://github.com/PrefectHQ/prefect/pull/4462)"
+  - "Add an `image_pull_policy` kwarg to `KubernetesRun` [#4462](https://github.com/PrefectHQ/prefect/pull/4462)"
 
 contributor:
   - "[Zach Schumacher](https://github.com/zschumacher)"

@@ -39,10 +39,8 @@ class KubernetesRun(RunConfig):
         - labels (Iterable[str], optional): an iterable of labels to apply to this
             run config. Labels are string identifiers used by Prefect Agents
             for selecting valid flow runs when polling for work
-        - always_pull_new_image (bool): a boolean flag for telling kubernetes to
-            always pull new images.  This is useful when you are using a tag on
-            and image other than :latest
-            https://kubernetes.io/docs/concepts/containers/images/#updating-images
+        - image_pull_policy (str, optional): The imagePullPolicy to use for the job.
+            https://kubernetes.io/docs/concepts/configuration/overview/#container-images
 
     Examples:
 
@@ -70,6 +68,15 @@ class KubernetesRun(RunConfig):
         cpu_limit=2,
     )
     ```
+
+    Use an image not tagged with :latest, and set the image pull policy to `Always`:
+
+    ```python
+    flow.run_config = KubernetesRun(
+        image="example/my-custom-image:my-tag,
+        image_pull_policy="Always"
+    )
+    ```
     """
 
     def __init__(
@@ -86,7 +93,7 @@ class KubernetesRun(RunConfig):
         service_account_name: str = None,
         image_pull_secrets: Iterable[str] = None,
         labels: Iterable[str] = None,
-        always_pull_new_image: bool = False
+        image_pull_policy: str = None,
     ) -> None:
         super().__init__(env=env, labels=labels)
         if job_template_path is not None and job_template is not None:
@@ -114,6 +121,15 @@ class KubernetesRun(RunConfig):
         if image_pull_secrets is not None:
             image_pull_secrets = list(image_pull_secrets)
 
+        image_pull_policies = {"Always", "IfNotPresent", "Never"}
+        if (
+            image_pull_policy is not None
+            and image_pull_policy not in image_pull_policies
+        ):
+            raise ValueError(
+                f"Invalid image_pull_policy {image_pull_policy}.  Expected `Always`, `IfNotPresent`, or `Never`"
+            )
+
         self.job_template_path = job_template_path
         self.job_template = job_template
         self.image = image
@@ -123,4 +139,4 @@ class KubernetesRun(RunConfig):
         self.memory_request = memory_request
         self.service_account_name = service_account_name
         self.image_pull_secrets = image_pull_secrets
-        self.always_pull_new_image = always_pull_new_image
+        self.image_pull_policy = image_pull_policy

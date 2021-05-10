@@ -37,6 +37,7 @@ def test_serialize_universal_run(config):
             service_account_name="my-account",
             image_pull_secrets=["secret-1", "secret-2"],
             labels=["a", "b"],
+            image_pull_policy="Always",
         ),
         KubernetesRun(
             job_template={
@@ -63,14 +64,10 @@ def test_serialize_kubernetes_run(config):
         "memory_request",
         "service_account_name",
         "image_pull_secrets",
-        "always_pull_new_image",
+        "image_pull_policy",
     ]
     for field in fields:
-        if field == "always_pull_new_image":
-            # False == False works in python but not with pytest for some reason
-            assert getattr(config, field) is getattr(config, field)
-        else:
-            assert getattr(config, field) == getattr(config2, field)
+        assert getattr(config, field) == getattr(config2, field)
 
 
 @pytest.mark.parametrize(

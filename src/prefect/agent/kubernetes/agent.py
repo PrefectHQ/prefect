@@ -664,9 +664,9 @@ class KubernetesAgent(Agent):
             flow_run, default=container.get("image")
         )
 
-        # always pull latest docker image for tag if config is set to do so
-        if run_config.always_pull_new_image:
-            container["imagePullPolicy"] = "Always"
+        # set the the kubernetes imagePullPolicy, if image_pull_policy was specified
+        if run_config.image_pull_policy is not None:
+            container["imagePullPolicy"] = run_config.image_pull_policy
 
         # Set flow run command
         container["args"] = get_flow_run_command(flow_run).split()
