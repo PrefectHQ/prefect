@@ -127,7 +127,7 @@ class KubernetesRun(RunConfig):
             and image_pull_policy not in image_pull_policies
         ):
             raise ValueError(
-                f"Invalid image_pull_policy {image_pull_policy}.  "
+                f"Invalid image_pull_policy {image_pull_policy!r}.  "
                 "Expected `Always`, `IfNotPresent`, or `Never`"
             )
 
