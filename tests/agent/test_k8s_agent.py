@@ -1263,7 +1263,7 @@ class TestK8sAgentRunConfig:
         labels = template.setdefault("metadata", {}).setdefault("labels", {})
         labels["TEST"] = "VALUE"
 
-        flow_run = self.build_flow_run(config)
+        flow_run = self.build_flow_run(KubernetesRun(job_template=template))
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
 
