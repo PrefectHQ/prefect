@@ -194,7 +194,7 @@ for the Kubernetes job:
 
 
 ```python
-flow.run_config = KubernetesRun(imagePullPolicy="Always")
+flow.run_config = KubernetesRun(image_pull_policy="Always")
 ````
 
 ### ECSRun
