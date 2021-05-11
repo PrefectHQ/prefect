@@ -443,7 +443,7 @@ class FlowRunView:
         if task_run_id is not None:
             # Load from the cache if available or query for results
             result = (
-                self.cached_task_runs[task_run_id]
+                self._cached_task_runs[task_run_id]
                 if task_run_id in self._cached_task_runs
                 else TaskRunView.from_task_run_id(task_run_id)
             )
@@ -467,7 +467,7 @@ class FlowRunView:
                 # Check for the 'base' task, for unmapped tasks there should always
                 # just be one run id but for mapped tasks there will be multiple
                 for task_run_id in task_run_ids:
-                    result = self.cached_task_runs[task_run_id]
+                    result = self._cached_task_runs[task_run_id]
                     if result.map_index == -1:
                         return result
 
@@ -524,7 +524,7 @@ class FlowRunView:
             "map_index": {"_eq": index},
         }
         task_run = TaskRunView._from_task_run_data(
-            TaskRunView.query_for_task_run(where=where(-1))
+            TaskRunView._query_for_task_run(where=where(-1))
         )
         if not task_run.state.is_mapped():
             raise TypeError(
@@ -534,7 +534,7 @@ class FlowRunView:
 
         map_index = 0
         while task_run:
-            task_run_data = TaskRunView.query_for_task_run(
+            task_run_data = TaskRunView._query_for_task_run(
                 where=where(map_index), error_on_empty=False
             )
             if not task_run_data:
@@ -565,7 +565,7 @@ class FlowRunView:
             )
 
         # Run a single query instead of querying for each task run separately
-        task_run_data = TaskRunView.query_for_task_runs(
+        task_run_data = TaskRunView._query_for_task_runs(
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
                 "task_run_id": {"_not", {"_in": list(self._cached_task_runs.keys())}},
@@ -633,7 +633,7 @@ class FlowRunView:
                     f"flow_run_id={self.flow_run_id!r}",
                     f"name={self.name!r}",
                     f"state={self.state!r}",
-                    f"cached_task_runs={len(self.cached_task_runs)}",
+                    f"cached_task_runs={len(self._cached_task_runs)}",
                 ]
             )
             + ")"
