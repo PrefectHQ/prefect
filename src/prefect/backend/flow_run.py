@@ -4,7 +4,6 @@ import pendulum
 from collections import defaultdict
 
 from contextlib import contextmanager
-from types import MappingProxyType
 from typing import (
     List,
     Optional,
