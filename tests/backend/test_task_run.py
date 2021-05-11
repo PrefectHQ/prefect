@@ -33,33 +33,33 @@ def test_task_run_view_query_for_task_runs_raises_bad_responses(patch_post):
     patch_post({})
 
     with pytest.raises(ValueError, match="bad result while querying for task runs"):
-        TaskRunView.query_for_task_runs(where={})
+        TaskRunView._query_for_task_runs(where={})
 
 
 def test_task_run_view_query_for_task_runs_raises_when_not_found(patch_post):
     patch_post({"data": {"task_run": []}})
 
     with pytest.raises(ValueError, match="No task runs found"):
-        TaskRunView.query_for_task_runs(where={})
+        TaskRunView._query_for_task_runs(where={})
 
 
 def test_task_run_view_query_for_task_runs_allows_return_when_not_found(patch_post):
     patch_post({"data": {"task_run": []}})
 
-    assert TaskRunView.query_for_task_runs(where={}, error_on_empty=False) == []
+    assert TaskRunView._query_for_task_runs(where={}, error_on_empty=False) == []
 
 
 def test_task_run_view_query_for_task_runs_allows_returns_all_task_run_data(patch_post):
     patch_post({"data": {"task_run": [1, 2]}})
 
-    assert TaskRunView.query_for_task_runs(where={}) == [1, 2]
+    assert TaskRunView._query_for_task_runs(where={}) == [1, 2]
 
 
 def test_task_run_view_query_for_task_runs_uses_where_in_query(monkeypatch):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
-    TaskRunView.query_for_task_runs(where={"foo": {"_eq": "bar"}})
+    TaskRunView._query_for_task_runs(where={"foo": {"_eq": "bar"}})
 
     assert (
         'task_run(where: { foo: { _eq: "bar" } })'
@@ -71,7 +71,7 @@ def test_task_run_view_query_for_task_runs_uses_order_by_in_query(monkeypatch):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.backend.client.Client.post", post)
 
-    TaskRunView.query_for_task_runs(where={}, order_by={"foo": EnumValue("asc")})
+    TaskRunView._query_for_task_runs(where={}, order_by={"foo": EnumValue("asc")})
 
     assert (
         "task_run(where: {}, order_by: { foo: asc })"
@@ -83,7 +83,7 @@ def test_task_run_view_query_for_task_runs_includes_all_required_data(monkeypatc
     graphql = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.backend.client.Client.graphql", graphql)
 
-    TaskRunView.query_for_task_runs(where={})
+    TaskRunView._query_for_task_runs(where={})
 
     query_dict = graphql.call_args[0][0]
     selection_set = query_dict["query"]["task_run(where: {})"]
@@ -101,13 +101,13 @@ def test_task_run_view_query_for_task_run_errors_on_multiple_task_runs(patch_pos
     patch_post({"data": {"task_run": [1, 2]}})
 
     with pytest.raises(ValueError, match=r"multiple \(2\) task runs"):
-        TaskRunView.query_for_task_run(where={})
+        TaskRunView._query_for_task_run(where={})
 
 
 def test_task_run_view_query_for_task_run_unpacks_singleton_result(patch_post):
     patch_post({"data": {"task_run": [1]}})
 
-    assert TaskRunView.query_for_task_run(where={}) == 1
+    assert TaskRunView._query_for_task_run(where={}) == 1
 
 
 @pytest.mark.parametrize("from_method", ["task_run_id", "task_slug", "task_data"])
@@ -120,7 +120,7 @@ def test_task_run_view_from_returns_instance(patch_post, from_method):
         task_run = TaskRunView.from_task_run_id("fake-id")
     elif from_method == "task_data":
         # Note the post patch will not be used since there is no query here
-        task_run = TaskRunView.from_task_run_data(TASK_RUN_DATA_1)
+        task_run = TaskRunView._from_task_run_data(TASK_RUN_DATA_1)
 
     assert task_run.task_run_id == "id-1"
     assert task_run.name == "name-1"
@@ -129,33 +129,6 @@ def test_task_run_view_from_returns_instance(patch_post, from_method):
     assert task_run.map_index == "map_index-1"
     # This state is deserialized at initialization
     assert task_run.state == Success(message="state-1")
-
-
-def test_task_run_view_get_latest_returns_new_instance(patch_post):
-
-    task_run = TaskRunView.from_task_run_data(TASK_RUN_DATA_1)
-
-    patch_post({"data": {"task_run": [TASK_RUN_DATA_2]}})
-
-    task_run_2 = task_run.get_latest()
-
-    # Assert we have not mutated the original task run object
-    assert task_run.task_run_id == "id-1"
-    assert task_run.name == "name-1"
-    assert task_run.task_id == "task-id-1"
-    assert task_run.task_slug == "task-slug-1"
-    assert task_run.map_index == "map_index-1"
-    assert task_run.state == Success(message="state-1")
-
-    # Assert the new object has the data returned by the query
-    # In reality, the task run ids and such would match because that's how the lookup
-    # is done
-    assert task_run_2.task_run_id == "id-2"
-    assert task_run_2.name == "name-2"
-    assert task_run_2.task_id == "task-id-2"
-    assert task_run_2.task_slug == "task-slug-2"
-    assert task_run_2.map_index == "map_index-2"
-    assert task_run_2.state == Success(message="state-2")
 
 
 def test_task_run_view_from_task_run_id_where_clause(monkeypatch):
@@ -243,7 +216,7 @@ def test_task_run_view_result_loads_mapped_result_data(tmpdir):
     # We'll mock the query so we can assert its called correctly and returns the
     # mock data
     query_mock = MagicMock(return_value=[map_1, map_2])
-    task_run.query_for_task_runs = query_mock
+    task_run._query_for_task_runs = query_mock
 
     # The result is loaded
     assert task_run.result == [1, 2]

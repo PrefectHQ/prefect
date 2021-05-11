@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 
 import prefect
+import prefect.run_configs
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -15,18 +16,18 @@ class FlowView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created
 
-    Attributes:
-        flow_id: The uuid of the flow
-        flow: A deserialized copy of the flow. This is not loaded from storage, so tasks
-            will not be runnable but the DAG can be explored.
-        settings: A dict of flow settings
-        run_config: A dict representation of the flow's run configuration
-        serialized_flow: A serialized copy of the flow
-        archived: A bool indicating if this flow is archived or not
-        project_name: The name of the project the flow is registered to
-        core_version: The core version that was used to register the flow
-        storage: The deserialized Storage object used to store this flow
-        name: The name of the flow
+    Args:
+        - flow_id: The uuid of the flow
+        - flow: A deserialized copy of the flow. This is not loaded from storage, so
+             tasks will not be runnable but the DAG can be explored.
+        - settings: A dict of flow settings
+        - run_config: A dict representation of the flow's run configuration
+        - serialized_flow: A serialized copy of the flow
+        - archived: A bool indicating if this flow is archived or not
+        - project_name: The name of the project the flow is registered to
+        - core_version: The core version that was used to register the flow
+        - storage: The deserialized Storage object used to store this flow
+        - name: The name of the flow
     """
 
     def __init__(
@@ -34,7 +35,7 @@ class FlowView:
         flow_id: str,
         flow: "prefect.Flow",
         settings: dict,
-        run_config: dict,
+        run_config: "prefect.run_configs.base.RunConfig",
         serialized_flow: dict,
         archived: bool,
         project_name: str,
@@ -54,29 +55,43 @@ class FlowView:
         self.name = name
 
     @classmethod
-    def from_flow_data(cls, flow_data: dict) -> "FlowView":
+    def _from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
         """
-        Get an instance of this class given a dict of required flow data
+        Instantiate a `FlowView` from serialized data
 
-        Handles deserializing any objects that we want real representations of
+        This method deserializes objects into their Prefect types.
+
+        Args:
+            - flow_data: The dict of serialized data
+            - **kwargs: Additional kwargs are passed to __init__ and overrides attributes
+                from `flow_data`
         """
+        from prefect.serialization.flow import FlowSchema
+        from prefect.serialization.run_config import RunConfigSchema
+        from prefect.serialization.storage import StorageSchema
+
+        flow_data = flow_data.copy()
 
         flow_id = flow_data.pop("id")
         project_name = flow_data.pop("project")["name"]
-        deserialized_flow = prefect.serialization.flow.FlowSchema().load(
-            data=flow_data["serialized_flow"]
-        )
-        storage = prefect.serialization.storage.StorageSchema().load(
-            flow_data.pop("storage")
-        )
+        deserialized_flow = FlowSchema().load(data=flow_data["serialized_flow"])
+        storage = StorageSchema().load(flow_data.pop("storage"))
+        run_config = RunConfigSchema().load(flow_data.pop("run_config"))
 
-        return cls(
-            flow_id=flow_id,
-            project_name=project_name,
-            flow=deserialized_flow,
-            storage=storage,
-            **flow_data,
-        )
+        # Combine the data from `flow_data` with `kwargs`
+        flow_args = {
+            **dict(
+                flow_id=flow_id,
+                project_name=project_name,
+                flow=deserialized_flow,
+                storage=storage,
+                run_config=run_config,
+                **flow_data,
+            ),
+            **kwargs,
+        }
+
+        return cls(**flow_args)
 
     @classmethod
     def from_flow_id(cls, flow_id: str) -> "FlowView":
@@ -84,7 +99,7 @@ class FlowView:
         Get an instance of this class given a `flow_id` to lookup
 
         Args:
-            flow_id: The uuid of the flow
+            - flow_id: The uuid of the flow
 
         Returns:
             A new instance of FlowView
@@ -94,35 +109,30 @@ class FlowView:
                 f"Unexpected type {type(flow_id)!r} for `flow_id`, " f"expected 'str'."
             )
 
-        return cls.from_flow_data(cls.query_for_flow(where={"id": {"_eq": flow_id}}))
+        return cls._from_flow_data(cls._query_for_flow(where={"id": {"_eq": flow_id}}))
 
     @classmethod
-    def from_flow_obj(
-        cls, flow: "prefect.Flow", allow_archived: bool = False
-    ) -> "FlowView":
+    def from_flow_group_id(cls, flow_group_id: str) -> "FlowView":
         """
-        Get an instance of this class given a `flow` object. Lookups are done by
-        searching for matches using the serialized flow
+        Get an instance of this class given a `flow_group_id` to lookup; the newest
+        flow in the flow group will be retrieved
 
         Args:
-            flow: The flow object to use
-            allow_archived: By default, archived flows are not included in the query
-                because it is possible that more than one flow will be found. If `True`
-                an archived flow can be returned.
+            - flow_group_id: The uuid of the flow group
 
         Returns:
             A new instance of FlowView
         """
-        where: Dict[str, Any] = {
-            "serialized_flow": {"_eq": EnumValue("$serialized_flow")},
-        }
-        if not allow_archived:
-            where["archived"] = {"_eq": False}
+        if not isinstance(flow_group_id, str):
+            raise TypeError(
+                f"Unexpected type {type(flow_group_id)!r} for `flow_group_id`, "
+                f"expected 'str'."
+            )
 
-        return cls.from_flow_data(
-            cls.query_for_flow(
-                where=where,
-                jsonb_variables={"serialized_flow": flow.serialize()},
+        return cls._from_flow_data(
+            cls._query_for_flow(
+                where={"flow_group_id": {"_eq": flow_group_id}},
+                order_by={"created": EnumValue("desc")},
             )
         )
 
@@ -135,11 +145,11 @@ class FlowView:
         be included since flow names are not guaranteed to be unique across projects.
 
         Args:
-            flow_name: The name of the flow to lookup
-            project_name: The name of the project to lookup. If `None`, flows with an
+            - flow_name: The name of the flow to lookup
+            - project_name: The name of the project to lookup. If `None`, flows with an
                 explicitly null project will be searched. If `""` (default), the
                 lookup will be across all projects.
-            last_updated: By default, if multiple flows are found an error will be
+            - last_updated: By default, if multiple flows are found an error will be
                 thrown. If `True`, the most recently updated flow will be returned
                 instead.
 
@@ -152,9 +162,9 @@ class FlowView:
                 "name": ({"_eq": project_name} if project_name else {"_is_null": True})
             }
 
-        flows = cls.query_for_flow(
+        flows = cls._query_for_flows(
             where=where,
-            order_by={"updated_at": EnumValue("desc")},
+            order_by={"created": EnumValue("desc")},
         )
         if len(flows) > 1 and not last_updated:
             raise ValueError(
@@ -164,22 +174,22 @@ class FlowView:
             )
 
         flow = flows[0]
-        return cls.from_flow_data(flow)
+        return cls._from_flow_data(flow)
 
     @staticmethod
-    def query_for_flow(where: dict, **kwargs: Any) -> dict:
+    def _query_for_flow(where: dict, **kwargs: Any) -> dict:
         """
-        Query for flow data using `query_for_flows` but throw an exception if
+        Query for flow data using `_query_for_flows` but throw an exception if
         more than one matching flow is found
 
         Args:
-            where: The `where` clause to use
-            **kwargs: Additional kwargs are passed to `query_for_flows`
+            - where: The `where` clause to use
+            - **kwargs: Additional kwargs are passed to `_query_for_flows`
 
         Returns:
             A dict of flow data
         """
-        flows = FlowView.query_for_flows(where=where, **kwargs)
+        flows = FlowView._query_for_flows(where=where, **kwargs)
 
         if len(flows) > 1:
             raise ValueError(
@@ -194,7 +204,7 @@ class FlowView:
         return flow
 
     @staticmethod
-    def query_for_flows(
+    def _query_for_flows(
         where: dict,
         order_by: dict = None,
         error_on_empty: bool = True,
@@ -205,12 +215,12 @@ class FlowView:
         with `Flow.from_flow_data`.
 
         Args:
-            where (required): The Hasura `where` clause to filter by
-            order_by (optional): An optional Hasura `order_by` clause to order results
-                by
-            error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
-                will be raised
-            jsonb_variables (optional): Dict-typed variables to inject into the query
+            - where (required): The Hasura `where` clause to filter by
+            - order_by (optional): An optional Hasura `order_by` clause to order
+                 results by
+            - error_on_empty (optional): If `True` and no tasks are found, a
+                `ValueError` will be raised
+            - jsonb_variables (optional): Dict-typed variables to inject into the query
                 as jsonb GraphQL types. Keys must be consumed in the query i.e.
                 in the passed `where` clause as `EnumValue("$key")`
 

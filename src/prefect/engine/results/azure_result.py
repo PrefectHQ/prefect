@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING, Any
 
-from prefect.backend import Secret
+from prefect.backend.secrets import Secret
 from prefect.engine.result import Result
 
 if TYPE_CHECKING:

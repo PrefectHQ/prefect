@@ -29,7 +29,7 @@ class TaskMethodsMixin:
         else:
             return super().get_attribute(obj, key, default)  # type: ignore
 
-    def load_inputs(self, task: prefect.core.Task) -> Dict[str, Dict]:
+    def load_inputs(self, task: "prefect.core.Task") -> Dict[str, Dict]:
         if not isinstance(task, prefect.core.Task):
             return self.get_attribute(task, "inputs", None)
         inputs = {}
@@ -37,13 +37,13 @@ class TaskMethodsMixin:
             inputs[k] = dict(required=v["required"], type=str(v["type"]))
         return inputs
 
-    def load_outputs(self, task: prefect.core.Task) -> str:
+    def load_outputs(self, task: "prefect.core.Task") -> str:
         if not isinstance(task, prefect.core.Task):
             return self.get_attribute(task, "outputs", None)
         return str(task.outputs())
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> prefect.core.Task:
+    def create_object(self, data: dict, **kwargs: Any) -> "prefect.core.Task":
         """
         Sometimes we deserialize tasks and edges simultaneously (for example, when a
         Flow is being deserialized), in which case we check slugs to see if we already
@@ -65,7 +65,7 @@ class TaskMethodsMixin:
 
 class TaskSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
-        object_class = lambda: prefect.core.Task
+        object_class = lambda: "prefect.core.Task"
         exclude_fields = ["type", "inputs", "outputs"]
 
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
