@@ -103,11 +103,11 @@ def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
     click.secho(prefix + message, fg=color, **extra)
 
 
-def get_flow_from_file_or_module(
-    file: str = None, module: str = None, name: str = None
+def get_flow_from_path_or_module(
+    path: str = None, module: str = None, name: str = None
 ):
-    location = file if file is not None else module
-    flows = load_flows_from_script(file) if file else load_flows_from_module(module)
+    location = path if path is not None else module
+    flows = load_flows_from_script(path) if path else load_flows_from_module(module)
     flows_by_name = {flow.name: flow for flow in flows}
     flow_names = ", ".join(map(repr, flows_by_name.keys()))
 
@@ -290,8 +290,8 @@ See `prefect run --help` for more details on the options.
     help="The name of the Prefect project containing the flow to run.",
 )
 @click.option(
-    "--file",
-    "-f",
+    "--path",
+    "-p",
     help="The path to a file containing the flow to run.",
 )
 @click.option(
@@ -310,7 +310,6 @@ See `prefect run --help` for more details on the options.
 # Flow run settings --------------------------------------------------------------------
 @click.option(
     "--label",
-    "-l",
     "labels",
     help=(
         "A label to add to the flow run. May be passed multiple times to specify "
@@ -321,7 +320,6 @@ See `prefect run --help` for more details on the options.
 @click.option("--run-name", help="A name to assign to the flow run.", default=None)
 @click.option(
     "--context",
-    "-c",
     "context_vars",
     help=(
         "A key, value pair (key=value) specifying a flow context variable. The value "
@@ -332,7 +330,6 @@ See `prefect run --help` for more details on the options.
 )
 @click.option(
     "--param",
-    "-p",
     "params",
     help=(
         "A key, value pair (key=value) specifying a flow parameter. The value will be "
@@ -388,7 +385,7 @@ def run(
     ctx,
     flow_or_group_id,
     project,
-    file,
+    path,
     module,
     name,
     labels,
@@ -427,7 +424,7 @@ def run(
         for key, option in {
             "--id": flow_or_group_id,
             "--project": project,
-            "--file": file,
+            "--path": path,
             "--module": module,
         }.items()
         if option is not None
@@ -571,40 +568,40 @@ def run(
     if not watch:
         return
 
-        result = None
+    result = None
+    try:
+        quiet_echo("Watching flow run execution...")
+        result = watch_flow_run(
+            flow_run_id=flow_run_id,
+            stream_logs=not no_logs,
+            output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
+        )
+    except KeyboardInterrupt:
+        quiet_echo("Keyboard interrupt detected!", fg="yellow")
         try:
-            quiet_echo("Watching flow run execution...")
-            result = watch_flow_run(
-                flow_run_id=flow_run_id,
-                stream_logs=not no_logs,
-                output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
+            # TODO: Improve and clarify this messaging, consider having this
+            #       apply from flow run creation -> now
+            cancel = click.confirm(
+                "On exit, we can leave your flow run executing or cancel it.\n"
+                "Do you want to cancel this flow run?",
+                default=True,
             )
-        except KeyboardInterrupt:
-            quiet_echo("Keyboard interrupt detected!", fg="yellow")
-            try:
-                # TODO: Improve and clarify this messaging, consider having this
-                #       apply from flow run creation -> now
-                cancel = click.confirm(
-                    "On exit, we can leave your flow run executing or cancel it.\n"
-                    "Do you want to cancel this flow run?",
-                    default=True,
-                )
-            except click.Abort:
-                # A second keyboard interrupt will exit without cancellation
-                pass
-            else:
-                if cancel:
-                    client.cancel_flow_run(flow_run_id=flow_run_id)
-                    quiet_echo("Cancelled flow run.", fg="green")
-                    return
-
-            quiet_echo("Exiting without cancelling flow run!", fg="yellow")
-            raise  # Re-raise the interrupt
-
-        if result.state.is_failed():
-            quiet_echo("Flow run failed!", fg="red")
+        except click.Abort:
+            # A second keyboard interrupt will exit without cancellation
+            pass
         else:
-            quiet_echo("Flow run succeeded!", fg="green")
+            if cancel:
+                client.cancel_flow_run(flow_run_id=flow_run_id)
+                quiet_echo("Cancelled flow run.", fg="green")
+                return
+
+        quiet_echo("Exiting without cancelling flow run!", fg="yellow")
+        raise  # Re-raise the interrupt
+
+    if result.state.is_failed():
+        quiet_echo("Flow run failed!", fg="red")
+    else:
+        quiet_echo("Flow run succeeded!", fg="green")
 
 
 # DEPRECATED: prefect run flow ---------------------------------------------------------
