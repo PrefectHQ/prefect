@@ -52,34 +52,34 @@ def test_flow_run_view_query_for_flow_run_raises_bad_responses(patch_post):
     patch_post({})
 
     with pytest.raises(ValueError, match="bad result while querying for flow runs"):
-        FlowRunView.query_for_flow_run(where={})
+        FlowRunView._query_for_flow_run(where={})
 
 
 def test_flow_run_view_query_for_flow_run_raises_when_not_found(patch_post):
     patch_post({"data": {"flow_run": []}})
 
     with pytest.raises(ValueError, match="No flow runs found"):
-        FlowRunView.query_for_flow_run(where={})
+        FlowRunView._query_for_flow_run(where={})
 
 
 def test_flow_run_view_query_for_flow_run_errors_on_multiple_flow_runs(patch_post):
     patch_post({"data": {"flow_run": [1, 2]}})
 
     with pytest.raises(ValueError, match=r"multiple \(2\) flow runs"):
-        FlowRunView.query_for_flow_run(where={})
+        FlowRunView._query_for_flow_run(where={})
 
 
 def test_flow_run_view_query_for_flow_run_unpacks_result_singleton(patch_post):
     patch_post({"data": {"flow_run": [1]}})
 
-    assert FlowRunView.query_for_flow_run(where={}) == 1
+    assert FlowRunView._query_for_flow_run(where={}) == 1
 
 
 def test_flow_run_view_query_for_flow_run_uses_where_in_query(monkeypatch):
     post = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.client.client.Client.post", post)
 
-    FlowRunView.query_for_flow_run(where={"foo": {"_eq": "bar"}})
+    FlowRunView._query_for_flow_run(where={"foo": {"_eq": "bar"}})
 
     assert (
         'flow_run(where: { foo: { _eq: "bar" } })'
@@ -91,7 +91,7 @@ def test_flow_run_view_query_for_flow_run_includes_all_required_data(monkeypatch
     graphql = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.client.client.Client.graphql", graphql)
 
-    FlowRunView.query_for_flow_run(where={})
+    FlowRunView._query_for_flow_run(where={})
 
     query_dict = graphql.call_args[0][0]
     selection_set = query_dict["query"]["flow_run(where: {})"]

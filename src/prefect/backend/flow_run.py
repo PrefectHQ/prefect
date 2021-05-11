@@ -341,7 +341,7 @@ class FlowRunView:
         Returns:
             A populated `FlowRunView` instance
         """
-        flow_run_data = cls.query_for_flow_run(where={"id": {"_eq": flow_run_id}})
+        flow_run_data = cls._query_for_flow_run(where={"id": {"_eq": flow_run_id}})
 
         if load_static_tasks:
             task_run_data = TaskRunView.query_for_task_runs(
@@ -361,7 +361,7 @@ class FlowRunView:
         return cls.from_flow_run_data(flow_run_data, task_runs=task_runs)
 
     @staticmethod
-    def query_for_flow_run(where: dict) -> dict:
+    def _query_for_flow_run(where: dict) -> dict:
         client = Client()
 
         flow_run_query = {
