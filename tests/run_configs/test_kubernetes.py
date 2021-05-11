@@ -19,6 +19,7 @@ def test_no_args():
     assert config.service_account_name is None
     assert config.image_pull_secrets is None
     assert config.labels == set()
+    assert config.image_pull_policy is None
 
 
 def test_labels():
@@ -100,3 +101,14 @@ def test_service_account_name_and_image_pull_secrets():
     # Ensure falsey-lists aren't converted to `None`.
     config = KubernetesRun(image_pull_secrets=[])
     assert config.image_pull_secrets == []
+
+
+@pytest.mark.parametrize("image_pull_policy", ["Always", "IfNotPresent", "Never"])
+def test_image_pull_policy_valid_value(image_pull_policy):
+    config = KubernetesRun(image_pull_policy=image_pull_policy)
+    assert config.image_pull_policy == image_pull_policy
+
+
+def test_image_pull_policy_invalid_value():
+    with pytest.raises(ValueError):
+        KubernetesRun(image_pull_policy="WrongPolicy")
