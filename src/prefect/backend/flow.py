@@ -19,7 +19,7 @@ class FlowView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created
 
-    Attributes:
+    Args:
         flow_id: The uuid of the flow
         flow: A deserialized copy of the flow. This is not loaded from storage, so tasks
             will not be runnable but the DAG can be explored.

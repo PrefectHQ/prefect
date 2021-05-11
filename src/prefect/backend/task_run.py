@@ -20,7 +20,7 @@ class TaskRunView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created.
 
-    Attributes:
+    Args:
         task_run_id: The task run uuid
         task_id: The uuid of the task associated with this task run
         task_slug: The slug of the task associated with this task run
@@ -29,7 +29,10 @@ class TaskRunView:
         map_index: The map index of the task run. Is -1 if it is not a mapped subtask,
             otherwise it is in the index of the task run in the mapping
         flow_run_id: The uuid of the flow run associated with this task run
-        result: The result of this task run loaded from the `Result` location
+
+    Properties:
+        result: The result of this task run loaded from the `Result` location; lazily
+            retrieved on first use
     """
 
     def __init__(

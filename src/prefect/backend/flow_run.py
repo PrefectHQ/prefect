@@ -177,13 +177,16 @@ class FlowRunView:
     the latest data for that task will be pulled since they are loaded lazily. Finished
     task runs will be cached in this object to reduce the amount of network IO.
 
-    Attributes:
+    Args:
         flow_run_id: The uuid of the flow run
         name: The name of the flow run
         flow_id: The uuid of the flow this run is associated with
         state: The state of the flow run
-        flow: Metadata for the flow this run is associated with
         task_runs: A view of cached task run metadata associated with this flow run
+
+    Properties:
+        flow: Metadata for the flow this run is associated with; lazily retrived on
+            first use
 
     """
 
