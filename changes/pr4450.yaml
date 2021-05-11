@@ -1,0 +1,5 @@
+task:
+  - "Add basic implementation of SendGrid to Task Library - [#4450](https://github.com/PrefectHQ/prefect/pull/4450)"
+
+contributor:
+  - "[Stéphan Taljaard](https://github.com/taljaards)"

@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.16)', link: '/api/latest/' },
+          { text: 'Latest (0.14.17)', link: '/api/latest/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
@@ -199,6 +199,7 @@ module.exports = {
             'concepts/projects',
             'concepts/flows',
             'concepts/flow_runs',
+            'concepts/cloud_hooks',
             'concepts/automations',
             'concepts/secrets',
             'concepts/services',

@@ -343,7 +343,8 @@ class TestRegister:
             load_flows_from_module("mymodule3.submodule")
 
         with pytest.raises(
-            TerminalError, match="No module named 'mymodule1.submodule'"
+            TerminalError,
+            match="module 'mymodule1' has no attribute 'submodule'",
         ):
             load_flows_from_module("mymodule1.submodule")
 

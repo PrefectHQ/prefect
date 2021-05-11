@@ -1,2 +1,0 @@
-enhancement:
-  - "Add environment variable support to UniversalRunConfig - [#4383](https://github.com/PrefectHQ/prefect/pull/4383)"

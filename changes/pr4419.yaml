@@ -1,0 +1,5 @@
+fix:
+  - "BigQuery: logging errors if exception is thrown during load_table_from_uri - [#4419](https://github.com/PrefectHQ/prefect/pull/4419)"
+
+contributor:
+  - "[Joël Luijmes](https://github.com/joelluijmes)"

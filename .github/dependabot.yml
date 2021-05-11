@@ -1,0 +1,11 @@
+version: 2
+updates:
+- package-ecosystem: pip
+  directory: "/"
+  schedule:
+    interval: weekly
+    day: saturday
+    time: "04:00"
+    timezone: America/New_York
+  open-pull-requests-limit: 10
+  rebase-strategy: disabled
