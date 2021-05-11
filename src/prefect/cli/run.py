@@ -135,8 +135,6 @@ def get_flow_from_file_or_module(
 def get_flow_view(
     flow_or_group_id: str = None,
     project: str = None,
-    file: str = None,
-    module: str = None,
     name: str = None,
 ) -> "FlowView":
     if flow_or_group_id:
@@ -167,10 +165,6 @@ def get_flow_view(
                 "without also passing a name."
             )
         return FlowView.from_flow_name(flow_name=name, project_name=project)
-
-    if file or module:
-        flow = get_flow_from_file_or_module(file=file, module=module, name=name)
-        return FlowView.from_flow_obj(flow)
 
     if name:
         # If name wasn't provided for use with another lookup, try a global name search
@@ -366,24 +360,6 @@ See `prefect run --help` for more details on the options.
     ),
     default=None,
 )
-@click.option(
-    "--local",
-    help=(
-        "Run the flow locally using `flow.run()` instead of creating a flow run using "
-        "the Prefect backend API. Implies `--watch` since the flow is run in-process."
-    ),
-    is_flag=True,
-)
-@click.option(
-    "--execute",
-    "-e",
-    help=(
-        "Execute the flow run here instead of using an agent. This will ignore flow "
-        "configuration like a runtime container that would normally be created by the "
-        "agent. If this process exits, the flow run will be killed."
-    ),
-    is_flag=True,
-)
 # Display settings ---------------------------------------------------------------------
 @click.option(
     "--quiet",
@@ -420,8 +396,6 @@ def run(
     params,
     log_level,
     param_file,
-    local,
-    execute,
     run_name,
     quiet,
     no_logs,
@@ -446,9 +420,6 @@ def run(
 
     # Cast labels to a list instead of a tuple so we can extend it
     labels = list(labels)
-
-    # We will wait for flow completion if any of these are set
-    wait = watch or execute or local
 
     # Ensure that the user has not passed conflicting options
     given_lookup_options = {
@@ -491,53 +462,13 @@ def run(
         )
     params_dict = {**file_params, **cli_params}
 
-    # Retrieve the flow ----------------------------------------------------------------
+    # Local flow run -------------------------------------------------------------------
 
-    client = Client()
-
-    flow = None
-    if local and (file or module):
-        # We can load a flow for local execution immediately if given a file or module,
+    if path or module:
+        # We can load a flow for local execution immediately if given a path or module,
         # otherwise, we'll lookup the flow then pull from storage for a local run
         with try_error_done("Retrieving local flow...", quiet_echo):
-            flow = get_flow_from_file_or_module(file=file, module=module, name=name)
-
-    else:
-        # Validate the flow look up options we've been given and get the flow from the
-        # backend
-        with try_error_done("Looking up flow metadata...", quiet_echo):
-            flow_view = get_flow_view(
-                flow_or_group_id=flow_or_group_id,
-                project=project,
-                file=file,
-                module=module,
-                name=name,
-            )
-
-        if local:
-            # We need to unpack the flow object from storage. If we're not doing a local
-            # run this is taken care of by `execute_flow_run` which has handling for
-            # failing the flow run in the backend during exceptions
-
-            with try_error_done(
-                f"Loading flow from {type(flow_view.storage).__name__} storage...",
-                quiet_echo,
-                traceback=True,
-            ):
-                # Populate global secrets
-                secrets = prefect.context.get("secrets", {})
-                for secret in flow_view.storage.secrets:
-                    secrets[secret] = prefect.tasks.secrets.PrefectSecret(
-                        name=secret
-                    ).run()
-
-                # Load the flow from storage
-                with prefect.context(secrets=secrets, loading_flow=True):
-                    flow = flow_view.storage.get_flow(flow_view.name)
-
-    # Run the flow (local) -------------------------------------------------------------
-
-    if local:
+            flow = get_flow_from_path_or_module(path=path, module=module, name=name)
 
         # Set the desired log level
         if log_level:
@@ -571,11 +502,18 @@ def run(
 
         return
 
-    # Run the flow (cloud) -------------------------------------------------------------
+    # Backend flow run -----------------------------------------------------------------
 
-    if execute:
-        # Add a random label to prevent an agent from picking up this run
-        labels.append(f"no-agent-run-{str(uuid.uuid4())[:8]}")
+    client = Client()
+
+    # Validate the flow look up options we've been given and get the flow from the
+    # backend
+    with try_error_done("Looking up flow metadata...", quiet_echo):
+        flow_view = get_flow_view(
+            flow_or_group_id=flow_or_group_id,
+            project=project,
+            name=name,
+        )
 
     if log_level:
         run_config: Optional[RunConfig] = RunConfigSchema().load(flow_view.run_config)
@@ -630,50 +568,9 @@ def run(
         )
 
     # Exit now if we're not waiting for execution to finish
-    if not wait:
+    if not watch:
         return
 
-    # Execute it here if they've specified `--no-agent`
-    if execute:
-
-        # Set the desired log level
-        logger = get_logger()
-        if log_level:
-            logger.setLevel(log_level)
-
-        # TODO: Check for compatibility with run types? Something like a
-        #       DockerRun may not behave well and we should probably warn
-        quiet_echo("Executing flow run in-process...")
-        try:
-            run_env = flow_run.run_config.env or {}
-            run_env.setdefault("PREFECT__LOGGING__LOG_TO_CLOUD", "True")
-            with temporary_environ(run_env):
-                # Ensure that Prefect settings are updated with the environment values
-                # since we're not spawning a subprocess
-                new_config = prefect.configuration.load_default_config()
-                with set_temporary_config(new_config):
-                    # We need to set a flow run id or logs will fail to write to cloud
-                    with prefect.context(flow_run_id=flow_run_id):
-                        execute_flow_run(flow_run_id=flow_run_id)
-
-        except KeyboardInterrupt:
-            quiet_echo(
-                "Keyboard interrupt detected! Cancelling flow run...",
-                fg="yellow",
-                nl=False,
-            )
-            try:
-                client.cancel_flow_run(flow_run_id)
-            except Exception as exc:
-                quiet_echo("Error")
-                log_exception(exc, indent=2)
-            else:
-                quiet_echo("Done")
-
-            raise  # Re-raise the interrupt
-
-    # Otherwise, we'll watch for state changes
-    else:
         result = None
         try:
             quiet_echo("Watching flow run execution...")
