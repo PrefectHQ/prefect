@@ -1,3 +1,0 @@
-
-fix:
-  - "Remove unnecessary docker interface detection - [#4446](https://github.com/PrefectHQ/prefect/pull/4446)"
