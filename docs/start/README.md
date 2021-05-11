@@ -170,7 +170,7 @@ Labels are a powerful feature of Prefect Cloud, providing fine control over exac
 
 ## Video Guides
 
-[how to Deploy Prefect Server](https://youtu.be/yjORjWHyKhg)
+Check out the Prefect YouTube channel for advice and guides such as [how to Deploy Prefect Server.](https://youtu.be/yjORjWHyKhg)
 
 ## Ideas and Tutorials from the Prefect Blog
 The Prefect blog has lots of guides on getting started and ideas on simple ways to get started with Prefect
