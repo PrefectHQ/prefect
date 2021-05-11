@@ -622,7 +622,10 @@ def start(
         ):
             while not started:
                 try:
-                    client = prefect.Client()
+                    # Get a client with the correct server port
+                    client = prefect.Client(
+                        api_server=f"{config.server.host}:{server_port}"
+                    )
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True
                     # Create a default tenant if no tenant exists
