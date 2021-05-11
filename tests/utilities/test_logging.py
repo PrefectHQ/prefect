@@ -15,9 +15,9 @@ from prefect.utilities.logging import CloudHandler, LogManager
 @pytest.fixture
 def log_manager(monkeypatch):
     log_manager = LogManager()
-    Client = MagicMock()
+    mock_client = MagicMock()
     monkeypatch.setattr(log_manager, "enqueue", MagicMock(wraps=log_manager.enqueue))
-    monkeypatch.setattr(prefect, "Client", Client)
+    monkeypatch.setattr("prefect.backend.Client", mock_client)
     monkeypatch.setattr(utilities.logging, "LOG_MANAGER", log_manager)
     try:
         yield log_manager

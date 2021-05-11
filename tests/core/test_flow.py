@@ -2692,7 +2692,7 @@ class TestFlowRegister:
         ["prefect.storage.Docker", "prefect.storage.Local"],
     )
     def test_flow_register_uses_default_storage(self, monkeypatch, storage):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
         f = Flow(name="test")
 
         assert f.storage is None
@@ -2712,7 +2712,7 @@ class TestFlowRegister:
         assert f.result == from_qualified_name(storage)().result
 
     def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
         f = Flow(name="test")
 
         assert f.storage is None
@@ -2734,7 +2734,7 @@ class TestFlowRegister:
         assert f.run_config.labels == set()
 
     def test_flow_register_sets_universal_run_if_empty(self, monkeypatch):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
 
         f = Flow(name="test")
         f.environment = None
@@ -2754,7 +2754,7 @@ class TestFlowRegister:
     def test_flow_register_auto_labels_if_labeled_storage_used(
         self, monkeypatch, storage, kind
     ):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
         f = Flow(name="Test me!! I should get labeled", storage=storage)
         if kind == "run_config":
             obj = f.run_config = LocalRun(labels=["test-label"])
@@ -2777,7 +2777,7 @@ class TestFlowRegister:
     def test_flow_register_auto_sets_result_if_storage_has_default(
         self, monkeypatch, storage
     ):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
         f = Flow(name="Test me!! I should get labeled", storage=storage)
         assert f.result is None
 
@@ -2786,7 +2786,7 @@ class TestFlowRegister:
         assert f.result == storage.result
 
     def test_flow_register_doesnt_override_custom_set_result(self, monkeypatch):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
         f = Flow(
             name="Test me!! I should get labeled",
             storage=prefect.storage.S3(bucket="t"),
@@ -2800,7 +2800,7 @@ class TestFlowRegister:
     def test_flow_register_doesnt_overwrite_labels_if_local_storage_is_used(
         self, monkeypatch
     ):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
         f = Flow(
             name="test",
             environment=prefect.environments.LocalEnvironment(labels=["foo"]),
@@ -2825,7 +2825,7 @@ class TestFlowRegister:
         )
 
     def test_flow_register_warns_if_mixing_environment_and_executor(self, monkeypatch):
-        monkeypatch.setattr("prefect.Client", MagicMock())
+        monkeypatch.setattr("prefect.backend.Client", MagicMock())
         flow = Flow(
             name="test", environment=LocalEnvironment(), executor=LocalExecutor()
         )

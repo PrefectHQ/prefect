@@ -38,7 +38,7 @@ def test_register_flow_help():
 @pytest.mark.parametrize("kind", ["run_config", "environment", "neither"])
 def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
     client = MagicMock()
-    monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
+    monkeypatch.setattr("prefect.backend.Client", MagicMock(return_value=client))
 
     if kind == "environment":
         contents = (
@@ -655,7 +655,7 @@ class TestRegister:
     def test_register_cli_project_not_found(self, monkeypatch):
         client = MagicMock()
         client.graphql.return_value = GraphQLResult({"data": {"project": []}})
-        monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.backend.Client", MagicMock(return_value=client))
         cmd = [
             "register",
             "--project",
