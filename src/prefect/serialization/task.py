@@ -65,7 +65,7 @@ class TaskMethodsMixin:
 
 class TaskSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
-        object_class = lambda: "prefect.core.Task"
+        object_class = lambda: prefect.core.Task
         exclude_fields = ["type", "inputs", "outputs"]
 
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
