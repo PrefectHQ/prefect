@@ -69,6 +69,10 @@ module.exports = {
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.png',
     nav: [
+      // {
+      //   text: 'Get Started',
+      //   link: '/start/'
+      // },
       {
         text: 'Core Engine',
         link: '/core/'
@@ -285,6 +289,16 @@ module.exports = {
           ]
         }
       ],
+      '/start/':[
+        '/start/',
+      //   {
+      //     title: 'Getting Started',
+      //     collapsable: true,
+      //     children: [
+      //       'quick_start',
+      //     ]
+      // }
+    ],
       '/core/': [
         '/core/',
         {
