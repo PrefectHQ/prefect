@@ -78,7 +78,7 @@ class TaskRunView:
             # to load results of all mapped subtasks
             child_task_runs = [
                 self.from_task_run_data(task_run)
-                for task_run in self.query_for_task_runs(
+                for task_run in self._query_for_task_runs(
                     where={
                         "task": {"slug": {"_eq": self.task_slug}},
                         "flow_run_id": {"_eq": self.flow_run_id},
@@ -120,13 +120,13 @@ class TaskRunView:
             )
 
         return cls.from_task_run_data(
-            cls.query_for_task_run(where={"id": {"_eq": task_run_id}})
+            cls._query_for_task_run(where={"id": {"_eq": task_run_id}})
         )
 
     @classmethod
     def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunView":
         return cls.from_task_run_data(
-            cls.query_for_task_run(
+            cls._query_for_task_run(
                 where={
                     "task": {"slug": {"_eq": task_slug}},
                     "flow_run_id": {"_eq": flow_run_id},
@@ -138,19 +138,19 @@ class TaskRunView:
         )
 
     @staticmethod
-    def query_for_task_run(where: dict, **kwargs: Any) -> dict:
+    def _query_for_task_run(where: dict, **kwargs: Any) -> dict:
         """
-        Query for task run data using `query_for_task_runs` but throw an exception if
+        Query for task run data using `_query_for_task_runs` but throw an exception if
         more than one matching task run is found
 
         Args:
             where: The `where` clause to use
-            **kwargs: Additional kwargs are passed to `query_for_task_runs`
+            **kwargs: Additional kwargs are passed to `_query_for_task_runs`
 
         Returns:
             A dict of task run data
         """
-        task_runs = TaskRunView.query_for_task_runs(where=where, **kwargs)
+        task_runs = TaskRunView._query_for_task_runs(where=where, **kwargs)
 
         if len(task_runs) > 1:
             raise ValueError(
@@ -159,14 +159,14 @@ class TaskRunView:
             )
 
         if not task_runs:
-            # Erroring on an empty result is handled by `query_for_task_runs`
+            # Erroring on an empty result is handled by `_query_for_task_runs`
             return {}
 
         task_run = task_runs[0]
         return task_run
 
     @staticmethod
-    def query_for_task_runs(
+    def _query_for_task_runs(
         where: dict,
         order_by: dict = None,
         error_on_empty: bool = True,

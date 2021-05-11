@@ -332,7 +332,7 @@ class FlowRunView:
         flow_run_data = cls._query_for_flow_run(where={"id": {"_eq": flow_run_id}})
 
         if load_static_tasks:
-            task_run_data = TaskRunView.query_for_task_runs(
+            task_run_data = TaskRunView._query_for_task_runs(
                 where={
                     "map_index": {"_eq": -1},
                     "flow_run_id": {"_eq": flow_run_id},
