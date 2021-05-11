@@ -35,9 +35,9 @@ For example, given an environment with the environment variable `PREFECT__CONTEX
 ::: tab Secret API
 
 ```python
->> > from prefect.backend.secrets import Secret
->> > s = Secret("FOO")
->> > s.get()
+>>> from prefect.backend.secrets import Secret
+>>> s = Secret("FOO")
+>>> s.get()
 'mypassword'
 ```
 :::
