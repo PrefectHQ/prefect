@@ -596,7 +596,7 @@ class FlowRunView:
         if self._task_run_ids:
             return self._task_run_ids
 
-        client = Client()
+        client = prefect.Client()
 
         task_query = {
             "query": {
