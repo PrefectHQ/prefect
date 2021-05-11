@@ -272,18 +272,6 @@ class FlowRunView:
 
         return self._flow
 
-    @property
-    def cached_task_runs(self) -> MappingProxyType:
-        """
-        A view of all cached task runs from this flow run. To pull new task runs, see
-        `get`.
-
-        Returns:
-            A proxy view of the cached task run dict mapping
-                task_run_id -> task run data
-        """
-        return MappingProxyType(self._cached_task_runs)
-
     @classmethod
     def from_flow_run_data(
         cls, flow_run_data: dict, task_runs: Iterable["TaskRunView"] = None

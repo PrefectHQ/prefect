@@ -127,7 +127,7 @@ def test_flow_run_view_from_returns_instance(patch_post, from_method):
     # This state is deserialized at initialization
     assert flow_run.state == Success(message="state-1")
     # There are no cached tasks
-    assert flow_run.cached_task_runs == {}
+    assert flow_run._cached_task_runs == {}
 
 
 def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
@@ -149,10 +149,10 @@ def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
     assert flow_run.state == Success(message="state-1")
 
     # Only the finished task is cached
-    assert len(flow_run.cached_task_runs) == 1
-    assert flow_run.cached_task_runs["task-run-id-1"] == TaskRunView.from_task_run_data(
-        TASK_RUN_DATA_FINISHED
-    )
+    assert len(flow_run._cached_task_runs) == 1
+    assert flow_run._cached_task_runs[
+        "task-run-id-1"
+    ] == TaskRunView.from_task_run_data(TASK_RUN_DATA_FINISHED)
 
 
 def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
@@ -178,10 +178,10 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert flow_run.context == {"foo": "bar"}
     assert flow_run.labels == ["label"]
     assert isinstance(flow_run.updated_at, pendulum.DateTime)
-    assert len(flow_run.cached_task_runs) == 1
-    assert flow_run.cached_task_runs["task-run-id-1"] == TaskRunView.from_task_run_data(
-        TASK_RUN_DATA_FINISHED
-    )
+    assert len(flow_run._cached_task_runs) == 1
+    assert flow_run._cached_task_runs[
+        "task-run-id-1"
+    ] == TaskRunView.from_task_run_data(TASK_RUN_DATA_FINISHED)
 
     # Assert the new object has the data returned by the query
     # In reality, the flow run ids and such would match because that's how the lookup
@@ -195,10 +195,10 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert flow_run_2.labels == ["label2"]
 
     # Cached task runs are transferred
-    assert len(flow_run.cached_task_runs) == 1
-    assert flow_run.cached_task_runs["task-run-id-1"] == TaskRunView.from_task_run_data(
-        TASK_RUN_DATA_FINISHED
-    )
+    assert len(flow_run._cached_task_runs) == 1
+    assert flow_run._cached_task_runs[
+        "task-run-id-1"
+    ] == TaskRunView.from_task_run_data(TASK_RUN_DATA_FINISHED)
 
 
 def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
