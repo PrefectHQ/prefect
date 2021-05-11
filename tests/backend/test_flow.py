@@ -102,7 +102,7 @@ def test_flow_view_from_returns_instance(patch_post, from_method):
         flow = FlowView.from_flow_id("id-1")
     elif from_method == "flow_data":
         # Note the post patch will not be used since there is no query here
-        flow = FlowView.from_flow_data(FLOW_DATA_1)
+        flow = FlowView._from_flow_data(FLOW_DATA_1)
 
     assert flow.flow_id == "id-1"
     assert flow.serialized_flow == FLOW_DATA_1["serialized_flow"]

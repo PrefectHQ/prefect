@@ -58,11 +58,16 @@ class FlowView:
         self.name = name
 
     @classmethod
-    def from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
+    def _from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
         """
-        Get an instance of this class given a dict of required flow data
+        Instantiate a `FlowView` from serialized data
 
-        Handles deserializing any objects that we want real representations of
+        This method deserializes objects into their Prefect types.
+
+        Args:
+            flow_data: The dict of serialized data
+            **kwargs: Additional kwargs are passed to __init__ and overrides attributes
+                from `flow_data`
         """
         flow_data = flow_data.copy()
 
@@ -103,7 +108,7 @@ class FlowView:
                 f"Unexpected type {type(flow_id)!r} for `flow_id`, " f"expected 'str'."
             )
 
-        return cls.from_flow_data(cls._query_for_flow(where={"id": {"_eq": flow_id}}))
+        return cls._from_flow_data(cls._query_for_flow(where={"id": {"_eq": flow_id}}))
 
     @classmethod
     def from_flow_group_id(cls, flow_group_id: str) -> "FlowView":
@@ -123,7 +128,7 @@ class FlowView:
                 f"expected 'str'."
             )
 
-        return cls.from_flow_data(
+        return cls._from_flow_data(
             cls._query_for_flow(
                 where={"flow_group_id": {"_eq": flow_group_id}},
                 order_by={"created": EnumValue("desc")},
@@ -168,7 +173,7 @@ class FlowView:
             )
 
         flow = flows[0]
-        return cls.from_flow_data(flow)
+        return cls._from_flow_data(flow)
 
     @staticmethod
     def _query_for_flow(where: dict, **kwargs: Any) -> dict:
