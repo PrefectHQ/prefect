@@ -181,7 +181,11 @@ class FlowRunView:
         - name: The name of the flow run
         - flow_id: The uuid of the flow this run is associated with
         - state: The state of the flow run
-        - task_runs: A view of cached task run metadata associated with this flow run
+        - labels: The labels assigned to this flow run
+        - parameters: Parameter overrides for this flow run
+        - context: Context overrides for this flow run
+        - updated_at: When this flow run was last updated in the backend
+        - task_runs: An iterable of task run metadata to cache in this view
 
     Properties:
         - flow: Metadata for the flow this run is associated with; lazily retrived on
