@@ -495,7 +495,7 @@ def register_internal(
         - in_watch (bool, optional): Whether this call resulted from a
             `register --watch` call.
     """
-    client = prefect.Client()
+    client = prefect.backend.Client()
 
     # Determine the project id
     project_id = get_project_id(client, project)

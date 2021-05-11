@@ -621,7 +621,7 @@ def start(
         ):
             while not started:
                 try:
-                    client = prefect.Client()
+                    client = prefect.backend.Client()
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True
                     # Create a default tenant if no tenant exists
@@ -724,7 +724,7 @@ def create_tenant(name, slug):
         --name, -n       TEXT    The name of a tenant to create
         --slug, -n       TEXT    The slug of a tenant to create (optional)
     """
-    client = prefect.Client()
+    client = prefect.backend.Client()
     tenant_id = client.create_tenant(name=name, slug=slug)
 
     click.secho(f"Tenant created with ID: {tenant_id}", fg="green")

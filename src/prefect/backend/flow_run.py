@@ -143,7 +143,7 @@ def fail_flow_run_on_exception(
             with the exception details.
     """
     message = message or "Flow run failed with {exc}"
-    client = prefect.Client()
+    client = prefect.backend.Client()
 
     try:
         yield
@@ -364,7 +364,7 @@ class FlowRunView:
 
     @staticmethod
     def _query_for_flow_run(where: dict) -> dict:
-        client = prefect.Client()
+        client = prefect.backend.Client()
 
         flow_run_query = {
             "query": {
@@ -596,7 +596,7 @@ class FlowRunView:
         if self._task_run_ids:
             return self._task_run_ids
 
-        client = prefect.Client()
+        client = prefect.backend.Client()
 
         task_query = {
             "query": {

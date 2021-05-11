@@ -50,7 +50,7 @@ class LogManager:
     def ensure_started(self) -> None:
         """Ensure the log manager is started"""
         if self.thread is None:
-            self.client = prefect.Client()
+            self.client = prefect.backend.Client()
             self.logging_period = context.config.cloud.logging_heartbeat
             self.thread = threading.Thread(
                 target=self._write_logs_loop,

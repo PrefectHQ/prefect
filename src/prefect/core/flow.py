@@ -1699,7 +1699,7 @@ class Flow:
         if not self.result:
             self.result = self.storage.result
 
-        client = prefect.Client()
+        client = prefect.backend.Client()
 
         registered_flow = client.register(
             flow=self,

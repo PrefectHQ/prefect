@@ -232,7 +232,7 @@ class FlowView:
         Returns:
             A dict of task run information (or a list of dicts if `many` is `True`)
         """
-        client = prefect.Client()
+        client = prefect.backend.Client()
 
         query_args = {"where": where}
         if order_by is not None:
