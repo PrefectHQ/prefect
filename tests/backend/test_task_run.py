@@ -120,7 +120,7 @@ def test_task_run_view_from_returns_instance(patch_post, from_method):
         task_run = TaskRunView.from_task_run_id("fake-id")
     elif from_method == "task_data":
         # Note the post patch will not be used since there is no query here
-        task_run = TaskRunView.from_task_run_data(TASK_RUN_DATA_1)
+        task_run = TaskRunView._from_task_run_data(TASK_RUN_DATA_1)
 
     assert task_run.task_run_id == "id-1"
     assert task_run.name == "name-1"

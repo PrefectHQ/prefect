@@ -77,7 +77,7 @@ class TaskRunView:
             # Mapped tasks require the state.map_states field to be manually filled
             # to load results of all mapped subtasks
             child_task_runs = [
-                self.from_task_run_data(task_run)
+                self._from_task_run_data(task_run)
                 for task_run in self._query_for_task_runs(
                     where={
                         "task": {"slug": {"_eq": self.task_slug}},
@@ -97,7 +97,18 @@ class TaskRunView:
         return self.state.result
 
     @classmethod
-    def from_task_run_data(cls, task_run: dict) -> "TaskRunView":
+    def _from_task_run_data(cls, task_run: dict) -> "TaskRunView":
+        """
+        Instantiate a `TaskRunView` from the serialized data returned by a GraphQL query
+
+        This method deserializes objects into their Prefect types.
+
+        Args:
+            task_run: The serialized task run data
+
+        Returns:
+            A populated `TaskRunView` instance
+        """
         task_run = task_run.copy()  # Create a copy to avoid mutation
         task_run_id = task_run.pop("id")
         task_data = task_run.pop("task")
@@ -113,19 +124,39 @@ class TaskRunView:
 
     @classmethod
     def from_task_run_id(cls, task_run_id: str = None) -> "TaskRunView":
+        """
+        Get an instance of this class; query by task run id
+
+        Args:
+            task_run_id: The UUID identifying the task run in the backend
+
+        Returns:
+            A populated `TaskRunView` instance
+        """
         if not isinstance(task_run_id, str):
             raise TypeError(
                 f"Unexpected type {type(task_run_id)!r} for `task_run_id`, "
                 f"expected 'str'."
             )
 
-        return cls.from_task_run_data(
+        return cls._from_task_run_data(
             cls._query_for_task_run(where={"id": {"_eq": task_run_id}})
         )
 
     @classmethod
     def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunView":
-        return cls.from_task_run_data(
+        """
+        Get an instance of this class; query by task slug and flow run id.
+
+        Args:
+            task_slug: The unique string identifying this task in the flow. Typically
+                `<task-name>-1`.
+            flow_run_id: The UUID identifying the flow run the task run occurred in
+
+        Returns:
+            A populated `TaskRunView` instance
+        """
+        return cls._from_task_run_data(
             cls._query_for_task_run(
                 where={
                     "task": {"slug": {"_eq": task_slug}},

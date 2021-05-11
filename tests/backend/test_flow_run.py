@@ -152,7 +152,7 @@ def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
     assert len(flow_run._cached_task_runs) == 1
     assert flow_run._cached_task_runs[
         "task-run-id-1"
-    ] == TaskRunView.from_task_run_data(TASK_RUN_DATA_FINISHED)
+    ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
 
 
 def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
@@ -181,7 +181,7 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert len(flow_run._cached_task_runs) == 1
     assert flow_run._cached_task_runs[
         "task-run-id-1"
-    ] == TaskRunView.from_task_run_data(TASK_RUN_DATA_FINISHED)
+    ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
 
     # Assert the new object has the data returned by the query
     # In reality, the flow run ids and such would match because that's how the lookup
@@ -198,7 +198,7 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert len(flow_run._cached_task_runs) == 1
     assert flow_run._cached_task_runs[
         "task-run-id-1"
-    ] == TaskRunView.from_task_run_data(TASK_RUN_DATA_FINISHED)
+    ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
 
 
 def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):

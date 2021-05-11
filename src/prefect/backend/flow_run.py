@@ -341,7 +341,9 @@ class FlowRunView:
                     "flow_run_id": {"_eq": flow_run_id},
                 },
             )
-            task_runs = [TaskRunView.from_task_run_data(data) for data in task_run_data]
+            task_runs = [
+                TaskRunView._from_task_run_data(data) for data in task_run_data
+            ]
 
         else:
             task_runs = []
@@ -517,7 +519,7 @@ class FlowRunView:
             "flow_run_id": {"_eq": self.flow_run_id},
             "map_index": {"_eq": index},
         }
-        task_run = TaskRunView.from_task_run_data(
+        task_run = TaskRunView._from_task_run_data(
             TaskRunView.query_for_task_run(where=where(-1))
         )
         if not task_run.state.is_mapped():
@@ -534,7 +536,7 @@ class FlowRunView:
             if not task_run_data:
                 break
 
-            task_run = TaskRunView.from_task_run_data(task_run_data)
+            task_run = TaskRunView._from_task_run_data(task_run_data)
 
             # Allow the user to skip the cache if they have a lot of task runs
             if cache_results:
@@ -565,7 +567,7 @@ class FlowRunView:
                 "task_run_id": {"_not", {"_in": list(self._cached_task_runs.keys())}},
             }
         )
-        task_runs = [TaskRunView.from_task_run_data(data) for data in task_run_data]
+        task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
         # Add to cache
         for task_run in task_runs:
             self._cache_task_run_if_finished(task_run)
