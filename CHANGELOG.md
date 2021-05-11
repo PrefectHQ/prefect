@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.14.18 <Badge text="beta" type="success" />
+
+Released on May 11, 2021.
+
+### Enhancements
+
+- Add an `image_pull_policy` kwarg to `KubernetesRun` - [#4462](https://github.com/PrefectHQ/prefect/pull/4462)
+- Allow `prefect build/register --module` to accept full import path to flow - [#4468](https://github.com/PrefectHQ/prefect/pull/4468)
+- Add `hello world` flow to prefect module - [#4470](https://github.com/PrefectHQ/prefect/pull/4470)
+- Set docker container names to flow run names when running with the docker agent - [#4485](https://github.com/PrefectHQ/prefect/pull/4485)
+
+### Task Library
+
+- Add basic implementation of `SendGrid` to Task Library - [#4450](https://github.com/PrefectHQ/prefect/pull/4450)
+- Log link to flow run in `StartFlowRun` - [#4458](https://github.com/PrefectHQ/prefect/pull/4458)
+- Allow passing in `io.BytesIO` to `GCSUpload` - [#4482](https://github.com/PrefectHQ/prefect/pull/4482)
+
+### Fixes
+
+- Fix logging errors within `BigQuery` task - [#4419](https://github.com/PrefectHQ/prefect/pull/4419)
+- Remove unnecessary docker interface detection in Docker agent - [#4446](https://github.com/PrefectHQ/prefect/pull/4446)
+- Upgrade `kubernetes` package requirement upper limit - [#4452](https://github.com/PrefectHQ/prefect/pull/4452)
+- Fix Prefect server startup check for custom server port - [#4501](https://github.com/PrefectHQ/prefect/pull/4501)
+
+### Contributors
+
+- [Brett Naul](https://github.com/bnaul)
+- [Joël Luijmes](https://github.com/joelluijmes)
+- [Stéphan Taljaard](https://github.com/taljaards)
+- [Zach Schumacher](https://github.com/zschumacher)
+
 ## 0.14.17 <Badge text="beta" type="success" />
 
 Released on April 27, 2021.
