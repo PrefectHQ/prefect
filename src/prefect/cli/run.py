@@ -229,31 +229,27 @@ RUN_EPILOG = """
 
 \b  Run flow in a script locally
 
-\b    $ prefect run -f hello-world.py --local
+\b    $ prefect run -p hello-world.py
 
 \b  Run flow in a module locally
 
-\b    $ prefect run -m prefect.hello_world --local
+\b    $ prefect run -m prefect.hello_world
 
-\b  Run flow with a non-default parameter
+\b  Run flow with a non-default parameter locally
 
-\b    $ prefect run -m prefect.hello_world -p name='"Marvin"'
-
-\b  Run flow with custom labels
-
-\b    $ prefect run -m prefect.hello_world -l example -l hello
+\b    $ prefect run -m prefect.hello_world --param name='"Marvin"'
 
 \b  Run registered flow with the backend by flow name and watch execution
 
 \b    $ prefect run -n "hello-world" --watch
 
+\b  Run registered flow with the backend with custom labels
+
+\b    $ prefect run -n "hello-world" --label example --label hello
+
 \b  Run registered flow with the backend by flow id and exit after creation
 
 \b    $ prefect run -i "9a1cd70c-37d7-4cd4-ab91-d41c2700300d"
-
-\b  Run registered flow with backend in-process instead of with an agent
-
-\b    $ prefect run -n "hello-world" --execute
 
 \b  Run registered flow with the backend and pipe flow run id to another program
 
