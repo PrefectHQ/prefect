@@ -10,21 +10,6 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow")
 
 
-def drop_versions(serialized_flow: dict) -> dict:
-    # mutates a serialized flow dict in-place to drop `__version__` information
-    # cast to a list to avoid mutation during traversal
-    for key, val in list(serialized_flow.items()):
-        if key == "__version__":
-            serialized_flow.pop(key)
-        elif isinstance(val, dict):
-            drop_versions(val)
-        elif isinstance(val, list):
-            serialized_flow[key] = [
-                drop_versions(i) if isinstance(i, dict) else i for i in val
-            ]
-    return serialized_flow
-
-
 class FlowView:
     """
     A view of Flow data stored in the Prefect API.
@@ -140,50 +125,6 @@ class FlowView:
                 where={"flow_group_id": {"_eq": flow_group_id}},
                 order_by={"created": EnumValue("desc")},
             )
-        )
-
-    @classmethod
-    def from_flow_obj(
-        cls, flow: "prefect.Flow", allow_archived: bool = False
-    ) -> "FlowView":
-        """
-        Get an instance of this class given a `flow` object. Lookups are done by
-        searching for matches using the serialized flow
-
-        Args:
-            flow: The flow object to use
-            allow_archived: By default, archived flows are not included in the query
-                because it is possible that more than one flow will be found. If `True`
-                an archived flow can be returned.
-
-        Returns:
-            A new instance of FlowView
-        """
-        where: Dict[str, Any] = {
-            "serialized_flow": {"_contains": EnumValue("$serialized_flow")},
-        }
-        if not allow_archived:
-            where["archived"] = {"_eq": False}
-
-        serialized_flow = dict(flow.serialize())
-
-        # Drop the 'flows' section of storage so we don't have to build storage now to
-        # get a matching set
-        serialized_flow["storage"].pop("flows")
-
-        # Set the run config to something reasonable if it's empty
-        if not serialized_flow["run_config"]:
-            serialized_flow["run_config"] = UniversalRun().serialize()
-
-        # __version__ can change as long as the flow is the same
-        drop_versions(serialized_flow)
-
-        return cls.from_flow_data(
-            cls.query_for_flow(
-                where=where,
-                jsonb_variables={"serialized_flow": serialized_flow},
-            ),
-            flow=flow,
         )
 
     @classmethod
