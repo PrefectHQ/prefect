@@ -100,7 +100,7 @@ class FlowView:
                 f"Unexpected type {type(flow_id)!r} for `flow_id`, " f"expected 'str'."
             )
 
-        return cls.from_flow_data(cls.query_for_flow(where={"id": {"_eq": flow_id}}))
+        return cls.from_flow_data(cls._query_for_flow(where={"id": {"_eq": flow_id}}))
 
     @classmethod
     def from_flow_group_id(cls, flow_group_id: str) -> "FlowView":
@@ -121,7 +121,7 @@ class FlowView:
             )
 
         return cls.from_flow_data(
-            cls.query_for_flow(
+            cls._query_for_flow(
                 where={"flow_group_id": {"_eq": flow_group_id}},
                 order_by={"created": EnumValue("desc")},
             )
@@ -153,7 +153,7 @@ class FlowView:
                 "name": ({"_eq": project_name} if project_name else {"_is_null": True})
             }
 
-        flows = cls.query_for_flows(
+        flows = cls._query_for_flows(
             where=where,
             order_by={"created": EnumValue("desc")},
         )
@@ -168,19 +168,19 @@ class FlowView:
         return cls.from_flow_data(flow)
 
     @staticmethod
-    def query_for_flow(where: dict, **kwargs: Any) -> dict:
+    def _query_for_flow(where: dict, **kwargs: Any) -> dict:
         """
-        Query for flow data using `query_for_flows` but throw an exception if
+        Query for flow data using `_query_for_flows` but throw an exception if
         more than one matching flow is found
 
         Args:
             where: The `where` clause to use
-            **kwargs: Additional kwargs are passed to `query_for_flows`
+            **kwargs: Additional kwargs are passed to `_query_for_flows`
 
         Returns:
             A dict of flow data
         """
-        flows = FlowView.query_for_flows(where=where, **kwargs)
+        flows = FlowView._query_for_flows(where=where, **kwargs)
 
         if len(flows) > 1:
             raise ValueError(
@@ -195,7 +195,7 @@ class FlowView:
         return flow
 
     @staticmethod
-    def query_for_flows(
+    def _query_for_flows(
         where: dict,
         order_by: dict = None,
         error_on_empty: bool = True,
