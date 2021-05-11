@@ -174,7 +174,8 @@ class FlowRunView:
 
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created. However, each time a task run is retrieved
-    the latest data for that task will be pulled since they are loaded lazily.
+    the latest data for that task will be pulled since they are loaded lazily. Finished
+    task runs will be cached in this object to reduce the amount of network IO.
 
     Attributes:
         flow_run_id: The uuid of the flow run
@@ -239,7 +240,9 @@ class FlowRunView:
 
     def get_latest(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
-        Get the a new copy of this object with the latest data from the API
+        Get the a new copy of this object with the latest data from the API. Cached
+        `TaskRunView` objects will be passed to the new object. Only finished tasks
+        are cached so the cached data cannot be stale.
 
         This will not mutate the current object.
 
