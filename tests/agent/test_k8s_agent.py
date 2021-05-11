@@ -1151,7 +1151,7 @@ class TestK8sAgentRunConfig:
         )
 
     @pytest.mark.parametrize("run_config", [None, UniversalRun()])
-    def test_generate_job_spec_null_or_univeral_run_config(self, run_config):
+    def test_generate_job_spec_null_or_universal_run_config(self, run_config):
         self.agent.generate_job_spec_from_run_config = MagicMock(
             wraps=self.agent.generate_job_spec_from_run_config
         )
@@ -1170,6 +1170,7 @@ class TestK8sAgentRunConfig:
         template = self.read_default_template()
         labels = template.setdefault("metadata", {}).setdefault("labels", {})
         labels["TEST"] = "VALUE"
+
         flow_run = self.build_flow_run(KubernetesRun(job_template=template))
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
@@ -1506,3 +1507,18 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-agent-template"}
         ]
+
+    @pytest.mark.parametrize("image_pull_policy", ["Always", "Never", "IfNotPresent"])
+    def test_generate_job_spec_sets_image_pull_policy_from_run_config(
+        self, image_pull_policy
+    ):
+        template = self.read_default_template()
+        config = KubernetesRun(
+            job_template=template, image_pull_policy=image_pull_policy
+        )
+        flow_run = self.build_flow_run(config)
+        job = self.agent.generate_job_spec(flow_run)
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == image_pull_policy
+        )
