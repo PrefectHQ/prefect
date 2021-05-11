@@ -1,8 +1,10 @@
 from typing import List, Dict, Any
 
 import prefect
-from prefect.run_configs.base import UniversalRun
+from prefect.run_configs.base import RunConfig
 from prefect.serialization.flow import FlowSchema
+from prefect.serialization.run_config import RunConfigSchema
+from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -36,7 +38,7 @@ class FlowView:
         flow_id: str,
         flow: "prefect.Flow",
         settings: dict,
-        run_config: dict,
+        run_config: RunConfig,
         serialized_flow: dict,
         archived: bool,
         project_name: str,
@@ -62,13 +64,13 @@ class FlowView:
 
         Handles deserializing any objects that we want real representations of
         """
+        flow_data = flow_data.copy()
 
         flow_id = flow_data.pop("id")
         project_name = flow_data.pop("project")["name"]
         deserialized_flow = FlowSchema().load(data=flow_data["serialized_flow"])
-        storage = prefect.serialization.storage.StorageSchema().load(
-            flow_data.pop("storage")
-        )
+        storage = StorageSchema().load(flow_data.pop("storage"))
+        run_config = RunConfigSchema().load(flow_data.pop("run_config"))
 
         # Combine the data from `flow_data` with `kwargs`
         flow_args = {
@@ -77,6 +79,7 @@ class FlowView:
                 project_name=project_name,
                 flow=deserialized_flow,
                 storage=storage,
+                run_config=run_config,
                 **flow_data,
             ),
             **kwargs,
