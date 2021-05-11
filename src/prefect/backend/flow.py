@@ -20,17 +20,17 @@ class FlowView:
     backend API at the time it is created
 
     Args:
-        flow_id: The uuid of the flow
-        flow: A deserialized copy of the flow. This is not loaded from storage, so tasks
-            will not be runnable but the DAG can be explored.
-        settings: A dict of flow settings
-        run_config: A dict representation of the flow's run configuration
-        serialized_flow: A serialized copy of the flow
-        archived: A bool indicating if this flow is archived or not
-        project_name: The name of the project the flow is registered to
-        core_version: The core version that was used to register the flow
-        storage: The deserialized Storage object used to store this flow
-        name: The name of the flow
+        - flow_id: The uuid of the flow
+        - flow: A deserialized copy of the flow. This is not loaded from storage, so
+             tasks will not be runnable but the DAG can be explored.
+        - settings: A dict of flow settings
+        - run_config: A dict representation of the flow's run configuration
+        - serialized_flow: A serialized copy of the flow
+        - archived: A bool indicating if this flow is archived or not
+        - project_name: The name of the project the flow is registered to
+        - core_version: The core version that was used to register the flow
+        - storage: The deserialized Storage object used to store this flow
+        - name: The name of the flow
     """
 
     def __init__(
@@ -65,8 +65,8 @@ class FlowView:
         This method deserializes objects into their Prefect types.
 
         Args:
-            flow_data: The dict of serialized data
-            **kwargs: Additional kwargs are passed to __init__ and overrides attributes
+            - flow_data: The dict of serialized data
+            - **kwargs: Additional kwargs are passed to __init__ and overrides attributes
                 from `flow_data`
         """
         flow_data = flow_data.copy()
@@ -98,7 +98,7 @@ class FlowView:
         Get an instance of this class given a `flow_id` to lookup
 
         Args:
-            flow_id: The uuid of the flow
+            - flow_id: The uuid of the flow
 
         Returns:
             A new instance of FlowView
@@ -117,7 +117,7 @@ class FlowView:
         flow in the flow group will be retrieved
 
         Args:
-            flow_group_id: The uuid of the flow group
+            - flow_group_id: The uuid of the flow group
 
         Returns:
             A new instance of FlowView
@@ -144,11 +144,11 @@ class FlowView:
         be included since flow names are not guaranteed to be unique across projects.
 
         Args:
-            flow_name: The name of the flow to lookup
-            project_name: The name of the project to lookup. If `None`, flows with an
+            - flow_name: The name of the flow to lookup
+            - project_name: The name of the project to lookup. If `None`, flows with an
                 explicitly null project will be searched. If `""` (default), the
                 lookup will be across all projects.
-            last_updated: By default, if multiple flows are found an error will be
+            - last_updated: By default, if multiple flows are found an error will be
                 thrown. If `True`, the most recently updated flow will be returned
                 instead.
 
@@ -182,8 +182,8 @@ class FlowView:
         more than one matching flow is found
 
         Args:
-            where: The `where` clause to use
-            **kwargs: Additional kwargs are passed to `_query_for_flows`
+            - where: The `where` clause to use
+            - **kwargs: Additional kwargs are passed to `_query_for_flows`
 
         Returns:
             A dict of flow data
@@ -214,12 +214,12 @@ class FlowView:
         with `Flow.from_flow_data`.
 
         Args:
-            where (required): The Hasura `where` clause to filter by
-            order_by (optional): An optional Hasura `order_by` clause to order results
-                by
-            error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
-                will be raised
-            jsonb_variables (optional): Dict-typed variables to inject into the query
+            - where (required): The Hasura `where` clause to filter by
+            - order_by (optional): An optional Hasura `order_by` clause to order
+                 results by
+            - error_on_empty (optional): If `True` and no tasks are found, a
+                `ValueError` will be raised
+            - jsonb_variables (optional): Dict-typed variables to inject into the query
                 as jsonb GraphQL types. Keys must be consumed in the query i.e.
                 in the passed `where` clause as `EnumValue("$key")`
 

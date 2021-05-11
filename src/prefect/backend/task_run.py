@@ -21,17 +21,17 @@ class TaskRunView:
     backend API at the time it is created.
 
     Args:
-        task_run_id: The task run uuid
-        task_id: The uuid of the task associated with this task run
-        task_slug: The slug of the task associated with this task run
-        name: The task run name
-        state: The state of the task run
-        map_index: The map index of the task run. Is -1 if it is not a mapped subtask,
-            otherwise it is in the index of the task run in the mapping
-        flow_run_id: The uuid of the flow run associated with this task run
+        - task_run_id: The task run uuid
+        - task_id: The uuid of the task associated with this task run
+        - task_slug: The slug of the task associated with this task run
+        - name: The task run name
+        - state: The state of the task run
+        - map_index: The map index of the task run. Is -1 if it is not a mapped subtask,
+             otherwise it is in the index of the task run in the mapping
+        - flow_run_id: The uuid of the flow run associated with this task run
 
     Properties:
-        result: The result of this task run loaded from the `Result` location; lazily
+        - result: The result of this task run loaded from the `Result` location; lazily
             retrieved on first use
     """
 
@@ -107,7 +107,7 @@ class TaskRunView:
         This method deserializes objects into their Prefect types.
 
         Args:
-            task_run: The serialized task run data
+            - task_run: The serialized task run data
 
         Returns:
             A populated `TaskRunView` instance
@@ -131,7 +131,7 @@ class TaskRunView:
         Get an instance of this class; query by task run id
 
         Args:
-            task_run_id: The UUID identifying the task run in the backend
+            - task_run_id: The UUID identifying the task run in the backend
 
         Returns:
             A populated `TaskRunView` instance
@@ -152,9 +152,9 @@ class TaskRunView:
         Get an instance of this class; query by task slug and flow run id.
 
         Args:
-            task_slug: The unique string identifying this task in the flow. Typically
+            - task_slug: The unique string identifying this task in the flow. Typically
                 `<task-name>-1`.
-            flow_run_id: The UUID identifying the flow run the task run occurred in
+            - flow_run_id: The UUID identifying the flow run the task run occurred in
 
         Returns:
             A populated `TaskRunView` instance
@@ -178,8 +178,8 @@ class TaskRunView:
         more than one matching task run is found
 
         Args:
-            where: The `where` clause to use
-            **kwargs: Additional kwargs are passed to `_query_for_task_runs`
+            - where: The `where` clause to use
+            - **kwargs: Additional kwargs are passed to `_query_for_task_runs`
 
         Returns:
             A dict of task run data
@@ -210,10 +210,10 @@ class TaskRunView:
         with `TaskRunView.from_task_run_data`.
 
         Args:
-            where (required): The Hasura `where` clause to filter by
-            order_by (optional): An optional Hasura `order_by` clause to order results
+            - where (required): The Hasura `where` clause to filter by
+            - order_by (optional): An optional Hasura `order_by` clause to order results
                 by.
-            error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
+            - error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
                 will be raised.
 
         Returns:

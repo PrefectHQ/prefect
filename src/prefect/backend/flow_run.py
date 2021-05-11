@@ -41,12 +41,12 @@ def execute_flow_run(
     in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
 
     Args:
-        flow_run_id: The flow run id to execute; this run id must exist in the database
-        flow: A Flow object can be passed to execute a flow without loading t from
+        - flow_run_id: The flow run id to execute; this run id must exist in the database
+        - flow: A Flow object can be passed to execute a flow without loading t from
             Storage. If `None`, the flow's Storage metadata will be pulled from the
             API and used to get a functional instance of the Flow and its tasks.
-        runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
-        **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
+        - runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
+        - **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
 
     Returns:
         A `FlowRunView` instance with information about the state of the flow run and its
@@ -137,8 +137,8 @@ def fail_flow_run_on_exception(
     will be re-raised.
 
     Args:
-        flow_run_id: The flow run id to update the state of
-        message: The message to include in the state and logs. `{exc}` will be formatted
+        - flow_run_id: The flow run id to update the state of
+        - message: The message to include in the state and logs. `{exc}` will be formatted
             with the exception details.
     """
     message = message or "Flow run failed with {exc}"
@@ -178,14 +178,14 @@ class FlowRunView:
     task runs will be cached in this object to reduce the amount of network IO.
 
     Args:
-        flow_run_id: The uuid of the flow run
-        name: The name of the flow run
-        flow_id: The uuid of the flow this run is associated with
-        state: The state of the flow run
-        task_runs: A view of cached task run metadata associated with this flow run
+        - flow_run_id: The uuid of the flow run
+        - name: The name of the flow run
+        - flow_id: The uuid of the flow this run is associated with
+        - state: The state of the flow run
+        - task_runs: A view of cached task run metadata associated with this flow run
 
     Properties:
-        flow: Metadata for the flow this run is associated with; lazily retrived on
+        - flow: Metadata for the flow this run is associated with; lazily retrived on
             first use
 
     """
@@ -233,7 +233,7 @@ class FlowRunView:
         Add a task run to the cache if it is in a finished state
 
         Args:
-            task_run: The task run to add
+            - task_run: The task run to add
         """
         if task_run.state.is_finished():
             self._cached_task_runs[task_run.task_run_id] = task_run
@@ -250,7 +250,7 @@ class FlowRunView:
         This will not mutate the current object.
 
         Args:
-            load_static_tasks: Pre-populate the task runs with results from flow tasks
+            - load_static_tasks: Pre-populate the task runs with results from flow tasks
                 that are unmapped. Defaults to `False` because it may be wasteful to
                 query for task run data when cached tasks are already copied over
                 from the old object.
@@ -290,8 +290,8 @@ class FlowRunView:
         Exists to maintain consistency in the design of backend "View" classes.
 
         Args:
-            flow_run_data: A dict of flow run data
-            task_runs: An optional iterable of task runs to pre-populate the cache with
+            - flow_run_data: A dict of flow run data
+            - task_runs: An optional iterable of task runs to pre-populate the cache with
 
         Returns:
             A populated `FlowRunView` instance
@@ -327,11 +327,11 @@ class FlowRunView:
         flow run id
 
         Args:
-            flow_run_id: the flow run id to lookup
-            load_static_tasks: Pre-populate the task runs with results from flow tasks
+            - flow_run_id: the flow run id to lookup
+            - load_static_tasks: Pre-populate the task runs with results from flow tasks
                 that are unmapped.
-            _cached_task_runs: Pre-populate the task runs with an existing iterable of
-               task runs
+            - _cached_task_runs: Pre-populate the task runs with an existing iterable of
+                task runs
 
         Returns:
             A populated `FlowRunView` instance
@@ -411,10 +411,10 @@ class FlowRunView:
         repeated calls
 
         Args:
-            task: A `prefect.Task` object to use for the lookup. The slug will be
+            -  task: A `prefect.Task` object to use for the lookup. The slug will be
                 pulled from the task to actually perform the query
-            task_slug: A task slug string to use for the lookup
-            task_run_id: A task run uuid to use for the lookup
+            - task_slug: A task slug string to use for the lookup
+            - task_run_id: A task run uuid to use for the lookup
 
         Returns:
             A cached or newly constructed TaskRunView instance
@@ -497,10 +497,10 @@ class FlowRunView:
         the mapped task instead.
 
         Args:
-            task: A `prefect.Task` object to use for the lookup. The slug will be
+            - task: A `prefect.Task` object to use for the lookup. The slug will be
                 pulled from the task to actually perform the query
-            task_slug: A task slug string to use for the lookup
-            cache_results: By default, task run data is cached for future lookups.
+            - task_slug: A task slug string to use for the lookup
+            - cache_results: By default, task run data is cached for future lookups.
                 However, since we lazily generate the mapped results, caching can be
                 disabled to reduce memory consumption for large mapped tasks.
 
