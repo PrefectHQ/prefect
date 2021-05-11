@@ -20,16 +20,19 @@ class TaskRunView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created.
 
-    Attributes:
-        task_run_id: The task run uuid
-        task_id: The uuid of the task associated with this task run
-        task_slug: The slug of the task associated with this task run
-        name: The task run name
-        state: The state of the task run
-        map_index: The map index of the task run. Is -1 if it is not a mapped subtask,
-            otherwise it is in the index of the task run in the mapping
-        flow_run_id: The uuid of the flow run associated with this task run
-        result: The result of this task run loaded from the `Result` location
+    Args:
+        - task_run_id: The task run uuid
+        - task_id: The uuid of the task associated with this task run
+        - task_slug: The slug of the task associated with this task run
+        - name: The task run name
+        - state: The state of the task run
+        - map_index: The map index of the task run. Is -1 if it is not a mapped subtask,
+             otherwise it is in the index of the task run in the mapping
+        - flow_run_id: The uuid of the flow run associated with this task run
+
+    Properties:
+        - result: The result of this task run loaded from the `Result` location; lazily
+            retrieved on first use
     """
 
     def __init__(
@@ -77,8 +80,8 @@ class TaskRunView:
             # Mapped tasks require the state.map_states field to be manually filled
             # to load results of all mapped subtasks
             child_task_runs = [
-                self.from_task_run_data(task_run)
-                for task_run in self.query_for_task_runs(
+                self._from_task_run_data(task_run)
+                for task_run in self._query_for_task_runs(
                     where={
                         "task": {"slug": {"_eq": self.task_slug}},
                         "flow_run_id": {"_eq": self.flow_run_id},
@@ -97,7 +100,18 @@ class TaskRunView:
         return self.state.result
 
     @classmethod
-    def from_task_run_data(cls, task_run: dict) -> "TaskRunView":
+    def _from_task_run_data(cls, task_run: dict) -> "TaskRunView":
+        """
+        Instantiate a `TaskRunView` from serialized data
+
+        This method deserializes objects into their Prefect types.
+
+        Args:
+            - task_run: The serialized task run data
+
+        Returns:
+            A populated `TaskRunView` instance
+        """
         task_run = task_run.copy()  # Create a copy to avoid mutation
         task_run_id = task_run.pop("id")
         task_data = task_run.pop("task")
@@ -113,20 +127,40 @@ class TaskRunView:
 
     @classmethod
     def from_task_run_id(cls, task_run_id: str = None) -> "TaskRunView":
+        """
+        Get an instance of this class; query by task run id
+
+        Args:
+            - task_run_id: The UUID identifying the task run in the backend
+
+        Returns:
+            A populated `TaskRunView` instance
+        """
         if not isinstance(task_run_id, str):
             raise TypeError(
                 f"Unexpected type {type(task_run_id)!r} for `task_run_id`, "
                 f"expected 'str'."
             )
 
-        return cls.from_task_run_data(
-            cls.query_for_task_run(where={"id": {"_eq": task_run_id}})
+        return cls._from_task_run_data(
+            cls._query_for_task_run(where={"id": {"_eq": task_run_id}})
         )
 
     @classmethod
     def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunView":
-        return cls.from_task_run_data(
-            cls.query_for_task_run(
+        """
+        Get an instance of this class; query by task slug and flow run id.
+
+        Args:
+            - task_slug: The unique string identifying this task in the flow. Typically
+                `<task-name>-1`.
+            - flow_run_id: The UUID identifying the flow run the task run occurred in
+
+        Returns:
+            A populated `TaskRunView` instance
+        """
+        return cls._from_task_run_data(
+            cls._query_for_task_run(
                 where={
                     "task": {"slug": {"_eq": task_slug}},
                     "flow_run_id": {"_eq": flow_run_id},
@@ -138,19 +172,19 @@ class TaskRunView:
         )
 
     @staticmethod
-    def query_for_task_run(where: dict, **kwargs: Any) -> dict:
+    def _query_for_task_run(where: dict, **kwargs: Any) -> dict:
         """
-        Query for task run data using `query_for_task_runs` but throw an exception if
+        Query for task run data using `_query_for_task_runs` but throw an exception if
         more than one matching task run is found
 
         Args:
-            where: The `where` clause to use
-            **kwargs: Additional kwargs are passed to `query_for_task_runs`
+            - where: The `where` clause to use
+            - **kwargs: Additional kwargs are passed to `_query_for_task_runs`
 
         Returns:
             A dict of task run data
         """
-        task_runs = TaskRunView.query_for_task_runs(where=where, **kwargs)
+        task_runs = TaskRunView._query_for_task_runs(where=where, **kwargs)
 
         if len(task_runs) > 1:
             raise ValueError(
@@ -159,14 +193,14 @@ class TaskRunView:
             )
 
         if not task_runs:
-            # Erroring on an empty result is handled by `query_for_task_runs`
+            # Erroring on an empty result is handled by `_query_for_task_runs`
             return {}
 
         task_run = task_runs[0]
         return task_run
 
     @staticmethod
-    def query_for_task_runs(
+    def _query_for_task_runs(
         where: dict,
         order_by: dict = None,
         error_on_empty: bool = True,
@@ -176,10 +210,10 @@ class TaskRunView:
         with `TaskRunView.from_task_run_data`.
 
         Args:
-            where (required): The Hasura `where` clause to filter by
-            order_by (optional): An optional Hasura `order_by` clause to order results
+            - where (required): The Hasura `where` clause to filter by
+            - order_by (optional): An optional Hasura `order_by` clause to order results
                 by.
-            error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
+            - error_on_empty (optional): If `True` and no tasks are found, a `ValueError`
                 will be raised.
 
         Returns:
@@ -219,19 +253,6 @@ class TaskRunView:
             )
 
         return task_runs
-
-    def get_latest(self) -> "TaskRunView":
-        """
-        Get the a new copy of this object with the latest data from the API
-
-        This will not mutate the current object.
-
-        Returns:
-            A new instance of TaskRunView
-        """
-        return self.from_task_run_id(
-            task_run_id=self.task_run_id,
-        )
 
     def __repr__(self) -> str:
         result = "<not loaded>" if self._result is NotLoaded else repr(self.result)

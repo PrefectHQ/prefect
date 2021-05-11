@@ -6,6 +6,11 @@ import pendulum
 import time
 from contextlib import contextmanager
 from types import MappingProxyType
+import sys
+import pendulum
+from collections import defaultdict
+
+from contextlib import contextmanager
 from typing import (
     List,
     Optional,
@@ -22,7 +27,7 @@ from typing import (
 )
 
 import prefect
-from prefect import Flow, Task, Client
+from prefect import Flow, Task
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.backend.flow import FlowView
@@ -159,12 +164,12 @@ def execute_flow_run(
     in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
 
     Args:
-        flow_run_id: The flow run id to execute; this run id must exist in the database
-        flow: A Flow object can be passed to execute a flow without loading t from
+        - flow_run_id: The flow run id to execute; this run id must exist in the database
+        - flow: A Flow object can be passed to execute a flow without loading t from
             Storage. If `None`, the flow's Storage metadata will be pulled from the
             API and used to get a functional instance of the Flow and its tasks.
-        runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
-        **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
+        - runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
+        - **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
 
     Returns:
         A `FlowRunView` instance with information about the state of the flow run and its
@@ -222,9 +227,7 @@ def execute_flow_run(
         f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
         f"with {runner_cls.__name__!r}"
     )
-    with prefect.context(
-        flow_run_id=flow_run_id,
-    ):
+    with prefect.context(flow_run_id=flow_run_id):
         with fail_flow_run_on_exception(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
@@ -257,8 +260,8 @@ def fail_flow_run_on_exception(
     will be re-raised.
 
     Args:
-        flow_run_id: The flow run id to update the state of
-        message: The message to include in the state and logs. `{exc}` will be formatted
+        - flow_run_id: The flow run id to update the state of
+        - message: The message to include in the state and logs. `{exc}` will be formatted
             with the exception details.
     """
     message = message or "Flow run failed with {exc}"
@@ -266,18 +269,6 @@ def fail_flow_run_on_exception(
 
     try:
         yield
-    except KeyboardInterrupt:
-        if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
-            client.set_flow_run_state(
-                flow_run_id=flow_run_id,
-                state=prefect.engine.state.Cancelled("Keyboard interrupt."),
-            )
-            logger.warning("Keyboard interrupt. Flow run cancelled, exiting...")
-        else:
-            logger.warning(
-                "Keyboard interrupt. Flow run is already finished, exiting..."
-            )
-        raise
     except Exception as exc:
         if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
             message = message.format(exc=exc.__repr__())
@@ -342,15 +333,23 @@ class FlowRunView:
 
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created. However, each time a task run is retrieved
-    the latest data for that task will be pulled since they are loaded lazily.
+    the latest data for that task will be pulled since they are loaded lazily. Finished
+    task runs will be cached in this object to reduce the amount of network IO.
 
-    Attributes:
-        flow_run_id: The uuid of the flow run
-        name: The name of the flow run
-        flow_id: The uuid of the flow this run is associated with
-        state: The state of the flow run
-        flow: Metadata for the flow this run is associated with
-        task_runs: A view of cached task run metadata associated with this flow run
+    Args:
+        - flow_run_id: The uuid of the flow run
+        - name: The name of the flow run
+        - flow_id: The uuid of the flow this run is associated with
+        - state: The state of the flow run
+        - labels: The labels assigned to this flow run
+        - parameters: Parameter overrides for this flow run
+        - context: Context overrides for this flow run
+        - updated_at: When this flow run was last updated in the backend
+        - task_runs: An iterable of task run metadata to cache in this view
+
+    Properties:
+        - flow: Metadata for the flow this run is associated with; lazily retrived on
+            first use
 
     """
 
@@ -401,7 +400,7 @@ class FlowRunView:
         Add a task run to the cache if it is in a finished state
 
         Args:
-            task_run: The task run to add
+            - task_run: The task run to add
         """
         if task_run.state.is_finished():
             self._cached_task_runs[task_run.task_run_id] = task_run
@@ -411,12 +410,14 @@ class FlowRunView:
 
     def get_latest(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
-        Get the a new copy of this object with the latest data from the API
+        Get the a new copy of this object with the latest data from the API. Cached
+        `TaskRunView` objects will be passed to the new object. Only finished tasks
+        are cached so the cached data cannot be stale.
 
         This will not mutate the current object.
 
         Args:
-            load_static_tasks: Pre-populate the task runs with results from flow tasks
+            - load_static_tasks: Pre-populate the task runs with results from flow tasks
                 that are unmapped. Defaults to `False` because it may be wasteful to
                 query for task run data when cached tasks are already copied over
                 from the old object.
@@ -434,7 +435,7 @@ class FlowRunView:
         self,
         start_time: pendulum.DateTime = None,
     ) -> List["FlowRunLog"]:
-        client = Client()
+        client = prefect.Client()
 
         logs_query = {
             with_args(
@@ -487,39 +488,29 @@ class FlowRunView:
 
         return self._flow
 
-    @property
-    def cached_task_runs(self) -> MappingProxyType:
-        """
-        A view of all cached task runs from this flow run. To pull new task runs, see
-        `get`.
-
-        Returns:
-            A proxy view of the cached task run dict mapping
-                task_run_id -> task run data
-        """
-        return MappingProxyType(self._cached_task_runs)
-
     @classmethod
-    def from_flow_run_data(
-        cls, flow_run_data: dict, task_runs: Iterable["TaskRunview"] = None
+    def _from_flow_run_data(
+        cls, flow_run_data: dict, task_runs: Iterable["TaskRunView"] = None
     ) -> "FlowRunView":
         """
-        Get an instance of this class filled with a dict of flow run information.
+        Instantiate a `TaskRunView` from serialized data.
 
-        Primarily for internal use by `from_flow_run_id`, exists to maintain
-        consistency in the design of backend View classes.
+        This method deserializes objects into their Prefect types.
+
+        Exists to maintain consistency in the design of backend "View" classes.
 
         Args:
-            flow_run_data: A dict of flow run data
-            task_runs: An optional iterable of task runs to pre-populate the cache with
+            - flow_run_data: A dict of flow run data
+            - task_runs: An optional iterable of task runs to pre-populate the cache with
 
         Returns:
             A populated `FlowRunView` instance
         """
+        flow_run_data = flow_run_data.copy()  # Avoid mutating the input object
+
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
         run_config = RunConfigSchema().load(flow_run_data.pop("run_config"))
-        updated_at = pendulum.parse(flow_run_data.pop("updated"))
 
         states_data = flow_run_data.pop("states", [])
         states = list(
@@ -528,6 +519,14 @@ class FlowRunView:
                 key=lambda s: s.timestamp,
             )
         )
+
+        if sys.version_info >= (3, 7):
+            updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
+        else:
+            # Our 3.6 compatible version of pendulum does not have `fromisoformat`
+            updated_at = cast(
+                pendulum.DateTime, pendulum.parse(flow_run_data.pop("updated"))
+            )
 
         return cls(
             flow_run_id=flow_run_id,
@@ -551,25 +550,27 @@ class FlowRunView:
         flow run id
 
         Args:
-            flow_run_id: the flow run id to lookup
-            load_static_tasks: Pre-populate the task runs with results from flow tasks
+            - flow_run_id: the flow run id to lookup
+            - load_static_tasks: Pre-populate the task runs with results from flow tasks
                 that are unmapped.
-            _cached_task_runs: Pre-populate the task runs with an existing iterable of
-               task runs
+            - _cached_task_runs: Pre-populate the task runs with an existing iterable of
+                task runs
 
         Returns:
             A populated `FlowRunView` instance
         """
-        flow_run_data = cls.query_for_flow_run(where={"id": {"_eq": flow_run_id}})
+        flow_run_data = cls._query_for_flow_run(where={"id": {"_eq": flow_run_id}})
 
         if load_static_tasks:
-            task_run_data = TaskRunView.query_for_task_runs(
+            task_run_data = TaskRunView._query_for_task_runs(
                 where={
                     "map_index": {"_eq": -1},
                     "flow_run_id": {"_eq": flow_run_id},
                 },
             )
-            task_runs = [TaskRunView.from_task_run_data(data) for data in task_run_data]
+            task_runs = [
+                TaskRunView._from_task_run_data(data) for data in task_run_data
+            ]
 
         else:
             task_runs = []
@@ -577,11 +578,11 @@ class FlowRunView:
         # Combine with the provided `_cached_task_runs` iterable
         task_runs = task_runs + list(_cached_task_runs or [])
 
-        return cls.from_flow_run_data(flow_run_data, task_runs=task_runs)
+        return cls._from_flow_run_data(flow_run_data, task_runs=task_runs)
 
     @staticmethod
-    def query_for_flow_run(where: dict) -> dict:
-        client = Client()
+    def _query_for_flow_run(where: dict) -> dict:
+        client = prefect.Client()
 
         flow_run_query = {
             "query": {
@@ -635,10 +636,10 @@ class FlowRunView:
         repeated calls
 
         Args:
-            task: A `prefect.Task` object to use for the lookup. The slug will be
+            -  task: A `prefect.Task` object to use for the lookup. The slug will be
                 pulled from the task to actually perform the query
-            task_slug: A task slug string to use for the lookup
-            task_run_id: A task run uuid to use for the lookup
+            - task_slug: A task slug string to use for the lookup
+            - task_run_id: A task run uuid to use for the lookup
 
         Returns:
             A cached or newly constructed TaskRunView instance
@@ -667,7 +668,7 @@ class FlowRunView:
         if task_run_id is not None:
             # Load from the cache if available or query for results
             result = (
-                self.cached_task_runs[task_run_id]
+                self._cached_task_runs[task_run_id]
                 if task_run_id in self._cached_task_runs
                 else TaskRunView.from_task_run_id(task_run_id)
             )
@@ -691,7 +692,7 @@ class FlowRunView:
                 # Check for the 'base' task, for unmapped tasks there should always
                 # just be one run id but for mapped tasks there will be multiple
                 for task_run_id in task_run_ids:
-                    result = self.cached_task_runs[task_run_id]
+                    result = self._cached_task_runs[task_run_id]
                     if result.map_index == -1:
                         return result
 
@@ -721,10 +722,10 @@ class FlowRunView:
         the mapped task instead.
 
         Args:
-            task: A `prefect.Task` object to use for the lookup. The slug will be
+            - task: A `prefect.Task` object to use for the lookup. The slug will be
                 pulled from the task to actually perform the query
-            task_slug: A task slug string to use for the lookup
-            cache_results: By default, task run data is cached for future lookups.
+            - task_slug: A task slug string to use for the lookup
+            - cache_results: By default, task run data is cached for future lookups.
                 However, since we lazily generate the mapped results, caching can be
                 disabled to reduce memory consumption for large mapped tasks.
 
@@ -747,8 +748,8 @@ class FlowRunView:
             "flow_run_id": {"_eq": self.flow_run_id},
             "map_index": {"_eq": index},
         }
-        task_run = TaskRunView.from_task_run_data(
-            TaskRunView.query_for_task_run(where=where(-1))
+        task_run = TaskRunView._from_task_run_data(
+            TaskRunView._query_for_task_run(where=where(-1))
         )
         if not task_run.state.is_mapped():
             raise TypeError(
@@ -758,13 +759,13 @@ class FlowRunView:
 
         map_index = 0
         while task_run:
-            task_run_data = TaskRunView.query_for_task_run(
+            task_run_data = TaskRunView._query_for_task_run(
                 where=where(map_index), error_on_empty=False
             )
             if not task_run_data:
                 break
 
-            task_run = TaskRunView.from_task_run_data(task_run_data)
+            task_run = TaskRunView._from_task_run_data(task_run_data)
 
             # Allow the user to skip the cache if they have a lot of task runs
             if cache_results:
@@ -789,13 +790,13 @@ class FlowRunView:
             )
 
         # Run a single query instead of querying for each task run separately
-        task_run_data = TaskRunView.query_for_task_runs(
+        task_run_data = TaskRunView._query_for_task_runs(
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
                 "task_run_id": {"_not", {"_in": list(self._cached_task_runs.keys())}},
             }
         )
-        task_runs = [TaskRunView.from_task_run_data(data) for data in task_run_data]
+        task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
         # Add to cache
         for task_run in task_runs:
             self._cache_task_run_if_finished(task_run)
@@ -815,7 +816,7 @@ class FlowRunView:
         if self._task_run_ids:
             return self._task_run_ids
 
-        client = Client()
+        client = prefect.Client()
 
         task_query = {
             "query": {
@@ -857,7 +858,7 @@ class FlowRunView:
                     f"flow_run_id={self.flow_run_id!r}",
                     f"name={self.name!r}",
                     f"state={self.state!r}",
-                    f"cached_task_runs={len(self.cached_task_runs)}",
+                    f"cached_task_runs={len(self._cached_task_runs)}",
                 ]
             )
             + ")"

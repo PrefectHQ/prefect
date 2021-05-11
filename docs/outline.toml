@@ -18,6 +18,22 @@ functions = [
     "some_successful",
 ]
 
+[pages.backend.flow]
+title = "Flow"
+module = "prefect.backend.flow"
+classes = ["FlowView"]
+
+[pages.backend.flow_run]
+title = "Flow Run"
+module = "prefect.backend.flow_run"
+classes = ["FlowRunView"]
+methods = ["execute_flow_run", "watch_flow_run"]
+
+[pages.backend.task_run]
+title = "Task Run"
+module = "prefect.backend.task_run"
+classes = ["TaskRunView"]
+
 [pages.client.client]
 title = "Client"
 module = "prefect.client"

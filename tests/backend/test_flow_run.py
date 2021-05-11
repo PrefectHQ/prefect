@@ -1,11 +1,13 @@
 """
 Tests for `FlowRunView`
 """
+import pendulum
 import pytest
 from unittest.mock import MagicMock
 
 from prefect.backend import FlowRunView, TaskRunView
 from prefect.engine.state import Success, Running
+from prefect.run_configs import UniversalRun
 
 
 FLOW_RUN_DATA_1 = {
@@ -13,12 +15,22 @@ FLOW_RUN_DATA_1 = {
     "name": "name-1",
     "flow_id": "flow_id-1",
     "serialized_state": Success(message="state-1").serialize(),
+    "parameters": {"param": "value"},
+    "context": {"foo": "bar"},
+    "labels": ["label"],
+    "updated": pendulum.now().isoformat(),
+    "run_config": UniversalRun().serialize(),
 }
 FLOW_RUN_DATA_2 = {
     "id": "id-2",
     "name": "name-2",
     "flow_id": "flow_id-2",
     "serialized_state": Success(message="state-2").serialize(),
+    "parameters": {"param": "value2"},
+    "context": {"bar": "foo"},
+    "labels": ["label2"],
+    "updated": pendulum.now().isoformat(),
+    "run_config": UniversalRun().serialize(),
 }
 
 TASK_RUN_DATA_FINISHED = {
@@ -43,34 +55,34 @@ def test_flow_run_view_query_for_flow_run_raises_bad_responses(patch_post):
     patch_post({})
 
     with pytest.raises(ValueError, match="bad result while querying for flow runs"):
-        FlowRunView.query_for_flow_run(where={})
+        FlowRunView._query_for_flow_run(where={})
 
 
 def test_flow_run_view_query_for_flow_run_raises_when_not_found(patch_post):
     patch_post({"data": {"flow_run": []}})
 
     with pytest.raises(ValueError, match="No flow runs found"):
-        FlowRunView.query_for_flow_run(where={})
+        FlowRunView._query_for_flow_run(where={})
 
 
 def test_flow_run_view_query_for_flow_run_errors_on_multiple_flow_runs(patch_post):
     patch_post({"data": {"flow_run": [1, 2]}})
 
     with pytest.raises(ValueError, match=r"multiple \(2\) flow runs"):
-        FlowRunView.query_for_flow_run(where={})
+        FlowRunView._query_for_flow_run(where={})
 
 
 def test_flow_run_view_query_for_flow_run_unpacks_result_singleton(patch_post):
     patch_post({"data": {"flow_run": [1]}})
 
-    assert FlowRunView.query_for_flow_run(where={}) == 1
+    assert FlowRunView._query_for_flow_run(where={}) == 1
 
 
 def test_flow_run_view_query_for_flow_run_uses_where_in_query(monkeypatch):
     post = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.client.client.Client.post", post)
 
-    FlowRunView.query_for_flow_run(where={"foo": {"_eq": "bar"}})
+    FlowRunView._query_for_flow_run(where={"foo": {"_eq": "bar"}})
 
     assert (
         'flow_run(where: { foo: { _eq: "bar" } })'
@@ -82,7 +94,7 @@ def test_flow_run_view_query_for_flow_run_includes_all_required_data(monkeypatch
     graphql = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.client.client.Client.graphql", graphql)
 
-    FlowRunView.query_for_flow_run(where={})
+    FlowRunView._query_for_flow_run(where={})
 
     query_dict = graphql.call_args[0][0]
     selection_set = query_dict["query"]["flow_run(where: {})"]
@@ -90,24 +102,37 @@ def test_flow_run_view_query_for_flow_run_includes_all_required_data(monkeypatch
         "id": True,
         "name": True,
         "serialized_state": True,
+        "states": {"serialized_state", "timestamp"},
         "flow_id": True,
+        "context": True,
+        "parameters": True,
+        "labels": True,
+        "updated": True,
+        "run_config": True,
     }
 
 
-def test_flow_run_view_from_returns_instance(
-    patch_post,
-):
+@pytest.mark.parametrize("from_method", ["flow_run_id", "flow_run_data"])
+def test_flow_run_view_from_returns_instance(patch_post, from_method):
     patch_post({"data": {"flow_run": [FLOW_RUN_DATA_1]}})
 
-    flow_run = FlowRunView.from_flow_run_id("id-1", load_static_tasks=False)
+    if from_method == "flow_run_id":
+        flow_run = FlowRunView.from_flow_run_id("id-1", load_static_tasks=False)
+    elif from_method == "flow_run_data":
+        # Note the post patch will not be used since there is no query here
+        flow_run = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_1)
 
     assert flow_run.flow_run_id == "id-1"
     assert flow_run.name == "name-1"
     assert flow_run.flow_id == "flow_id-1"
+    assert flow_run.parameters == {"param": "value"}
+    assert flow_run.context == {"foo": "bar"}
+    assert flow_run.labels == ["label"]
+    assert isinstance(flow_run.updated_at, pendulum.DateTime)
     # This state is deserialized at initialization
     assert flow_run.state == Success(message="state-1")
     # There are no cached tasks
-    assert flow_run.cached_task_runs == {}
+    assert flow_run._cached_task_runs == {}
 
 
 def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
@@ -129,10 +154,10 @@ def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
     assert flow_run.state == Success(message="state-1")
 
     # Only the finished task is cached
-    assert len(flow_run.cached_task_runs) == 1
-    assert flow_run.cached_task_runs["task-run-id-1"] == TaskRunView.from_task_run_data(
-        TASK_RUN_DATA_FINISHED
-    )
+    assert len(flow_run._cached_task_runs) == 1
+    assert flow_run._cached_task_runs[
+        "task-run-id-1"
+    ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
 
 
 def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
@@ -154,10 +179,14 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert flow_run.name == "name-1"
     assert flow_run.flow_id == "flow_id-1"
     assert flow_run.state == Success(message="state-1")
-    assert len(flow_run.cached_task_runs) == 1
-    assert flow_run.cached_task_runs["task-run-id-1"] == TaskRunView.from_task_run_data(
-        TASK_RUN_DATA_FINISHED
-    )
+    assert flow_run.parameters == {"param": "value"}
+    assert flow_run.context == {"foo": "bar"}
+    assert flow_run.labels == ["label"]
+    assert isinstance(flow_run.updated_at, pendulum.DateTime)
+    assert len(flow_run._cached_task_runs) == 1
+    assert flow_run._cached_task_runs[
+        "task-run-id-1"
+    ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
 
     # Assert the new object has the data returned by the query
     # In reality, the flow run ids and such would match because that's how the lookup
@@ -166,12 +195,15 @@ def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     assert flow_run_2.name == "name-2"
     assert flow_run_2.flow_id == "flow_id-2"
     assert flow_run_2.state == Success(message="state-2")
+    assert flow_run_2.parameters == {"param": "value2"}
+    assert flow_run_2.context == {"bar": "foo"}
+    assert flow_run_2.labels == ["label2"]
 
     # Cached task runs are transferred
-    assert len(flow_run.cached_task_runs) == 1
-    assert flow_run.cached_task_runs["task-run-id-1"] == TaskRunView.from_task_run_data(
-        TASK_RUN_DATA_FINISHED
-    )
+    assert len(flow_run._cached_task_runs) == 1
+    assert flow_run._cached_task_runs[
+        "task-run-id-1"
+    ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
 
 
 def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
