@@ -425,7 +425,7 @@ def test_deploy_flow_run_sleeps_until_start_time(monkeypatch, cloud_api):
     )
 
     sleep_time = sleep.call_args[0][0]
-    assert 10 > sleep_time > 9
+    assert 10 >= sleep_time > 9
     agent.deploy_flow.assert_called_once()
 
 
