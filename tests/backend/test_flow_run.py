@@ -115,7 +115,7 @@ def test_flow_run_view_from_returns_instance(patch_post, from_method):
         flow_run = FlowRunView.from_flow_run_id("id-1", load_static_tasks=False)
     elif from_method == "flow_run_data":
         # Note the post patch will not be used since there is no query here
-        flow_run = FlowRunView.from_flow_run_data(FLOW_RUN_DATA_1)
+        flow_run = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_1)
 
     assert flow_run.flow_run_id == "id-1"
     assert flow_run.name == "name-1"

@@ -276,14 +276,15 @@ class FlowRunView:
         return self._flow
 
     @classmethod
-    def from_flow_run_data(
+    def _from_flow_run_data(
         cls, flow_run_data: dict, task_runs: Iterable["TaskRunView"] = None
     ) -> "FlowRunView":
         """
-        Get an instance of this class filled with a dict of flow run information.
+        Instantiate a `TaskRunView` from serialized data.
 
-        Primarily for internal use by `from_flow_run_id`, exists to maintain
-        consistency in the design of backend View classes.
+        This method deserializes objects into their Prefect types.
+
+        Exists to maintain consistency in the design of backend "View" classes.
 
         Args:
             flow_run_data: A dict of flow run data
@@ -351,7 +352,7 @@ class FlowRunView:
         # Combine with the provided `_cached_task_runs` iterable
         task_runs = task_runs + list(_cached_task_runs or [])
 
-        return cls.from_flow_run_data(flow_run_data, task_runs=task_runs)
+        return cls._from_flow_run_data(flow_run_data, task_runs=task_runs)
 
     @staticmethod
     def _query_for_flow_run(where: dict) -> dict:

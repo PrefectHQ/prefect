@@ -99,7 +99,7 @@ class TaskRunView:
     @classmethod
     def _from_task_run_data(cls, task_run: dict) -> "TaskRunView":
         """
-        Instantiate a `TaskRunView` from the serialized data returned by a GraphQL query
+        Instantiate a `TaskRunView` from serialized data
 
         This method deserializes objects into their Prefect types.
 
