@@ -131,33 +131,6 @@ def test_task_run_view_from_returns_instance(patch_post, from_method):
     assert task_run.state == Success(message="state-1")
 
 
-def test_task_run_view_get_latest_returns_new_instance(patch_post):
-
-    task_run = TaskRunView.from_task_run_data(TASK_RUN_DATA_1)
-
-    patch_post({"data": {"task_run": [TASK_RUN_DATA_2]}})
-
-    task_run_2 = task_run.get_latest()
-
-    # Assert we have not mutated the original task run object
-    assert task_run.task_run_id == "id-1"
-    assert task_run.name == "name-1"
-    assert task_run.task_id == "task-id-1"
-    assert task_run.task_slug == "task-slug-1"
-    assert task_run.map_index == "map_index-1"
-    assert task_run.state == Success(message="state-1")
-
-    # Assert the new object has the data returned by the query
-    # In reality, the task run ids and such would match because that's how the lookup
-    # is done
-    assert task_run_2.task_run_id == "id-2"
-    assert task_run_2.name == "name-2"
-    assert task_run_2.task_id == "task-id-2"
-    assert task_run_2.task_slug == "task-slug-2"
-    assert task_run_2.map_index == "map_index-2"
-    assert task_run_2.state == Success(message="state-2")
-
-
 def test_task_run_view_from_task_run_id_where_clause(monkeypatch):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.client.client.Client.post", post)
