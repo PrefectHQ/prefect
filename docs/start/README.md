@@ -1,10 +1,18 @@
-# Quick Start
+# Welcome to Prefect
 
-## Universal Deploy
+Depending on your use case, you can choose to use Prefect Core, Prefect Server or Prefect Cloud. 
+
+Prefect Core is our core package that allows you to run flows in python.  If you don't need an API or UI, you can get started with Prefect Core and leave the second half of this tutorial.
+
+Prefect Cloud is our hosted orchestration layer.  It provides an API and UI with authentication and you don't need to worry about set up and hosting.  Users can run up to 10 000 task runs for free with our Starter plan. 
+
+Prefect Server is our open source API and Orchestration layer. 
+
+## Quick Start Tutorial
 
 This tutorial guides you through writing a simple flow and deploying it using [Universal Deploy](https://docs.prefect.io/core/PINs/PIN-13-Universal-Deploy.html#pin-13-universal-cloud-deploys), which allows you to register a flow with Prefect Cloud (or Prefect Server) and run it without configuring external storage.
 
-## Set up your local environment
+### Set up your local environment
 
 First, let's make sure that your local environment is set up to run Prefect.
 
@@ -15,7 +23,7 @@ pip install prefect -U
 conda install prefect -c conda-forge
 ```
 
-## Run a Flow Using Prefect Core
+### Run a Flow Using Prefect Core
 
 ```python
 import prefect
@@ -44,7 +52,11 @@ Paste the code above into an interactive Python REPL session. You should see the
 
 If you're running into issues, check that your Python environment is properly set up to run Prefect. Refer to the [Prefect Core Installation](https://docs.prefect.io/core/getting_started/installation.html) documentation for further details.
 
-## Select an Orchestration Backend
+*** If you just want to run code and don't need an API or UI you can finish here and have fun running Prefect Core.  See more in our [Core Engine](/core) docs. ***
+
+### Select an Orchestration Backend
+
+If you want an orchestration (API and UI) then continue to learn about Prefect Server and Prefect Cloud.
 
 Prefect supports two different orchestration backends:
 
@@ -75,7 +87,10 @@ $ prefect backend server
 
 Note that you can change backends at any time by rerunning the `prefect backend ...` command.
 
-## Authenticating with Prefect Cloud <Badge text="Cloud"/>
+### Set up for the correct environment:
+
+:::: tabs
+::: tab Cloud
 
 To authenticate, you'll need to create an [API Key](/user/keys) and save it.
 
@@ -93,11 +108,9 @@ auth_token = <API_KEY>
 export PREFECT__CLOUD__AUTH_TOKEN=<API_KEY>
 ```
 
-### Create a Service Account Key
-
 Running deployed Flows with an [Agent](https://docs.prefect.io/orchestration/agents/overview.html) also requires an API key for the Agent. You can create one in the [Service Accounts](/team/service-accounts) page of the UI.
 
-You'll need this token later in the tutorial. You can save it locally either in your `~/.prefect/config.toml` config file, or as an environment variable:
+You'll need this token later. You can save it locally either in your `~/.prefect/config.toml` config file, or as an environment variable:
 
 ```bash
 # ~/.prefect/config.toml
@@ -108,8 +121,19 @@ auth_token = <SERVICE_ACCOUNT_API_KEY>
 ```bash
 export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
 ```
+::: tab Server
 
-## Creating a project
+To get server up and running you'll need docker-compose >= 1.18.0 and docker to be installed.  You can then get server running using the built-in command in the Prefect CLI:
+
+```bash
+prefect server start
+```
+
+:::
+::::
+
+
+### Creating a project
 
 Projects are used to organize flows that have been deployed to Prefect Cloud.
 
@@ -123,7 +147,7 @@ prefect create project tester
 
 You can also create a project using the project selector on the dashboard page of the UI or using the API.
 
-## Deploy your flow with Universal Deploy
+### Deploy your flow 
 
 We're almost there! With a very slight modification to our flow code, we will be able to register our flow with Prefect Cloud and get a local agent running:
 
@@ -154,7 +178,7 @@ And that's it! Your flow is now registered with Prefect Cloud, and an agent proc
 
 We call this pattern `"Universal Deploy"` because all it requires is a working Python environment to create a Prefect Deployment!
 
-## Run Your Flow In Prefect Cloud or Prefect Server
+### Run Your Flow In Prefect Cloud or Prefect Server
 
 To run your flow in Prefect Cloud (or Server), navigate to it from the `Flows` tab of the Dashboard and use the `Quick Run` button at the top of the page. This will run your flow with no additional settings.
 
@@ -166,7 +190,7 @@ You may have noticed that both your registered flow and your local agent have la
 
 This hostname label ensures that only local agents started on this machine can execute your registered flow. Without labels, your flow might get picked up by other agents running in your infrastructure, or your locally running agent would attempt to execute other flows - potentially even flows that it can't access!
 
-Labels are a powerful feature of Prefect Cloud, providing fine control over exactly what flows your agents can execute. Keep an eye out for an upcoming tutorial that will cover running a flow with custom labels.
+Labels are a powerful feature of Prefect Cloud, providing fine control over exactly what flows your agents can execute. 
 
 ## Video Guides
 
