@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 from prefect.agent import Agent
-from prefect.engine.state import Scheduled
+from prefect.engine.state import Scheduled, Failed
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult
@@ -269,17 +269,9 @@ def test_mark_flow_as_submitted_passes_task_runs(monkeypatch, cloud_api):
 
 
 def test_mark_flow_as_failed(monkeypatch, cloud_api):
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
-        )
-    )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.agent.agent.Client", client)
-
     agent = Agent()
-    assert not agent._mark_flow_as_failed(
+    agent.client = MagicMock()
+    agent._mark_flow_as_failed(
         flow_run=GraphQLResult(
             {
                 "id": "id",
@@ -288,7 +280,11 @@ def test_mark_flow_as_failed(monkeypatch, cloud_api):
                 "task_runs": [],
             }
         ),
-        exc=Exception(),
+        message="foo",
+    )
+
+    agent.client.set_flow_run_state.assert_called_with(
+        flow_run_id="id", version=1, state=Failed(message="foo")
     )
 
 
