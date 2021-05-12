@@ -164,16 +164,16 @@ def get_flow_from_path_or_module(
     flow_names = ", ".join(map(repr, flows_by_name.keys()))
 
     if not flows:
-        raise ClickException(f"Found no flows at {location}.")
+        raise TerminalError(f"Found no flows at {location}.")
 
     if len(flows) > 1 and not name:
-        raise ClickException(
+        raise TerminalError(
             f"Found multiple flows at {location}: {flow_names}\n\n"
             f"Specify a flow name to run."
         )
     if name:
         if name not in flows_by_name:
-            raise ClickException(
+            raise TerminalError(
                 f"Did not find {name!r} in flows at {location}. Found {flow_names}"
             )
         flow = flows_by_name[name]
