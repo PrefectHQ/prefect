@@ -313,8 +313,9 @@ class Agent:
             self.logger.error("Failed to query for ready flow runs", exc_info=True)
             return []
 
-        self.logger.info(
-            "Found {} flow run(s) to submit for execution.".format(len(flow_runs))
+        self.logger.log(
+            logging.INFO if flow_runs else logging.DEBUG,
+            "Found {} flow run(s) to submit for execution.".format(len(flow_runs)),
         )
 
         for flow_run in flow_runs:
