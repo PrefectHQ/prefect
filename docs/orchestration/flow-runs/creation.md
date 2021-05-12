@@ -153,28 +153,6 @@ mutation {
 GraphQL expects ISO formatted datetime strings. This is default when you cast a `pendulum.DateTime` to a string. You can also explicitly call the conversion `pendulum.now().isoformat()` in newer versions of `pendulum`.
 :::
 
-### Agentless execution
-
-Sometimes you'll want to run your flow without setting up an agent. You can run the flow locally with the `--local` CLI flag or `flow.run()` but then you lose features only available with the Prefect backend and can't view your flow run in the UI. 
-
-The CLI provides an agentless execution mode with the `--execute` flag. This indicates that the flow should be executed locally instead of being submitted to an agent but the run will still be reported to the Prefect backend.
-
-```bash
-$ prefect run --name "hello-world" --execute
-```
-
-::: warning Run configuration and environments
-When running your flow with agentless execution, we will ignore some flow configuration values. For example, if your flow has a `DockerRun` config, an agent would create a container for your flow to execute in, but agentless execution expects the flow to be in a valid environment already and will not create a container. Agentless execution will _always_ run your flow in the current process and will not create infrastructure for the flow run.
-
-The following run configuration settings are retained:
-- Environment variables
-:::
-
-::: warning Exiting during agentless execution
-If you exit the process running the flow (i.e. with Ctrl-C), the flow run will be cancelled.
-:::
-
-This mode of flow run execution is currently only available via the CLI.
 
 ### Idempotency
 
