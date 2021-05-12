@@ -1,10 +1,13 @@
 import json
 import logging
 import os
+import runpy
+import sys
 import textwrap
 import time
 from contextlib import contextmanager
 from functools import partial
+from types import ModuleType
 from typing import Callable, Dict, List, Optional, Union
 
 import click
@@ -17,14 +20,13 @@ from prefect.backend.flow_run import FlowRunView, watch_flow_run
 from prefect.cli.build_register import (
     TerminalError,
     handle_terminal_error,
-    load_flows_from_module,
-    load_flows_from_script,
     log_exception,
 )
 from prefect.client import Client
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.graphql import EnumValue, with_args
+from prefect.utilities.importtools import import_object
 from prefect.utilities.logging import get_logger
 
 
