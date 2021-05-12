@@ -590,6 +590,7 @@ class Agent:
         if not flow_run_ids:
             return []
 
+        flow_run_ids = list(flow_run_ids)
         self.logger.debug(f"Retrieving metadata for {len(flow_run_ids)} flow run(s)...")
 
         query = {
@@ -599,7 +600,7 @@ class Agent:
                     {
                         # match flow runs in the flow_run_ids list
                         "where": {
-                            "id": {"_in": list(flow_run_ids)},
+                            "id": {"_in": flow_run_ids},
                             "_or": [
                                 # who are EITHER scheduled...
                                 {"state": {"_eq": "Scheduled"}},
