@@ -76,7 +76,7 @@ def try_error_done(
     except Exception as exc:
         echo(" Error", fg="red")
 
-        if traceback:
+        if traceback and not isinstance(exc, (TerminalError, ClickException)):
             log_exception(exc, indent=2)
             raise TerminalError
         else:
