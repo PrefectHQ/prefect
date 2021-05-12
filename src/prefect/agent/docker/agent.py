@@ -368,8 +368,6 @@ class DockerAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         # 'import docker' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low
         import docker
@@ -396,7 +394,7 @@ class DockerAgent(Agent):
                 pull_output = self.docker_client.pull(image, stream=True, decode=True)
                 for line in pull_output:
                     self.logger.debug(line)
-                self.logger.info("Successfully pulled image {}...".format(image))
+                self.logger.info("Successfully pulled image {}".format(image))
 
         # Create any named volumes (if they do not already exist)
         for named_volume_name in self.named_volumes:

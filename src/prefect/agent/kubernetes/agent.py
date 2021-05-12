@@ -397,8 +397,6 @@ class KubernetesAgent(Agent):
         """
         import urllib3.exceptions
 
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         job_spec = self.generate_job_spec(flow_run=flow_run)
         job_name = job_spec["metadata"]["name"]
 

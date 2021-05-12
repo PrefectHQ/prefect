@@ -43,7 +43,7 @@ def exit_handler(agent: "Agent") -> Generator:
     exit_event = threading.Event()
 
     def _exit_handler(*args: Any, **kwargs: Any) -> None:
-        agent.logger.info("Keyboard Interrupt received: Agent is shutting down.")
+        agent.logger.info("Keyboard interrupt received! Shutting down...")
         exit_event.set()
         AGENT_WAKE_EVENT.set()
 
@@ -283,7 +283,7 @@ class Agent:
                 remaining_polls -= 1
 
                 self.logger.debug(
-                    "Next query for flow runs in {} seconds".format(
+                    "Sleeping flow run poller for {} seconds...".format(
                         self._loop_intervals[backoff_index]
                     )
                 )
@@ -313,12 +313,8 @@ class Agent:
             self.logger.error("Failed to query for ready flow runs", exc_info=True)
             return []
 
-        self.logger.log(
-            logging.INFO if flow_runs else logging.DEBUG,
-            "Found {} flow run(s) to submit for execution.".format(len(flow_runs)),
-        )
-
         for flow_run in flow_runs:
+            self.logger.debug(f"Submitting flow run {flow_run.id} for deployment...")
             executor.submit(self._deploy_flow_run, flow_run).add_done_callback(
                 functools.partial(
                     self._deploy_flow_run_completed_callback, flow_run_id=flow_run.id
@@ -334,7 +330,8 @@ class Agent:
     ) -> None:
         """
         Deploy a flow run and update Cloud with the resulting deployment info.
-        If any errors occur when submitting the flow run, capture the error and log to Cloud.
+        If any errors occur when submitting the flow run, capture the error and log to
+        Cloud.
 
         Args:
             - flow_run (GraphQLResult): The specific flow run to deploy
@@ -347,12 +344,23 @@ class Agent:
             # prevent the flow from starting early
             start_time = pendulum.parse(flow_run.scheduled_start_time)
             delay_seconds = max(0, (start_time - pendulum.now()).total_seconds())
-            time.sleep(delay_seconds)
+            if delay_seconds:
+                self.logger.debug(
+                    f"Waiting {delay_seconds}s to deploy flow run {flow_run.id} on "
+                    "time..."
+                )
+                time.sleep(delay_seconds)
+
+            self.logger.info(
+                f"Deploying flow run {flow_run.id} to execution environment..."
+            )
 
             self._mark_flow_as_submitted(flow_run)
 
             # Call the main deployment hook
             deployment_info = self.deploy_flow(flow_run)
+
+            self.logger.info(f"Completed deployment of flow run {flow_run.id}")
 
             self._safe_write_run_log(
                 flow_run,
@@ -369,17 +377,25 @@ class Agent:
                 self.logger.debug("Updating Flow Run state failed: {}".format(str(exc)))
                 return
 
+            # This is to match existing past behavior, I cannot imagine we would reach
+            # this point with a flow run that has no id
+            if not getattr(flow_run, "id"):
+                self.logger.error("Flow run is missing an id.", exc_info=True)
+                return
+
             self.logger.error(
-                "Logging platform error for flow run {}".format(
-                    getattr(flow_run, "id", "UNKNOWN")  # type: ignore
-                )
+                f"Encountered exception while deploying flow run {flow_run.id}",
+                exc_info=True,
             )
+
             self._safe_write_run_log(
                 flow_run,
                 message=str(exc),
                 level="ERROR",
             )
-            self._mark_flow_as_failed(flow_run=flow_run, exc=exc)
+            self._mark_flow_as_failed(flow_run=flow_run, message=str(exc))
+
+            self.logger.error(f"Deployment of {flow_run.id} aborted!")
 
     def _deploy_flow_run_completed_callback(
         self, _: "Future", flow_run_id: str
@@ -395,7 +411,6 @@ class Agent:
             - flow_run_id (str): the id of the flow run that the future represents.
         """
         self.submitting_flow_runs.remove(flow_run_id)
-        self.logger.debug("Completed flow run submission (id: {})".format(flow_run_id))
 
     # Background jobs ------------------------------------------------------------------
     # - Agent API server
@@ -466,17 +481,18 @@ class Agent:
         def run() -> None:
             while True:
                 try:
-                    self.logger.debug("Running agent heartbeat...")
+                    self.logger.debug("Sending agent heartbeat...")
                     self.heartbeat()
                 except Exception:
                     self.logger.error(
-                        "Error in agent heartbeat, will try again in %.1f seconds",
+                        "Error in agent heartbeat, will try again in %.1f seconds...",
                         self.heartbeat_period,
                         exc_info=True,
                     )
                 else:
                     self.logger.debug(
-                        "Sleeping heartbeat for %.1f seconds", self.heartbeat_period
+                        "Heartbeat succesful! Sleeping for %.1f seconds...",
+                        self.heartbeat_period,
                     )
                 time.sleep(self.heartbeat_period)
 
@@ -490,7 +506,7 @@ class Agent:
         Stop the heartbeat thread, should be called at `cleanup`
         """
         if self._heartbeat_thread is not None:
-            self.logger.debug("Stopping heartbeat thread")
+            self.logger.debug("Stopping heartbeat thread...")
             self._heartbeat_thread.join(timeout=1)
 
     # Backend API queries --------------------------------------------------------------
@@ -541,9 +557,9 @@ class Agent:
         flow_run_ids = set(result.data.get_runs_in_queue.flow_run_ids)  # type: ignore
 
         if flow_run_ids:
-            msg = f"Found {len(flow_run_ids)} ready flow runs: {flow_run_ids}"
+            msg = f"Found {len(flow_run_ids)} ready flow run(s): {flow_run_ids}"
         else:
-            msg = "No ready flow runs found"
+            msg = "No ready flow runs found."
 
         already_submitting = flow_run_ids & currently_submitting_flow_runs
         target_flow_run_ids = flow_run_ids - already_submitting
@@ -574,7 +590,7 @@ class Agent:
         if not flow_run_ids:
             return []
 
-        self.logger.debug("Querying for flow run metadata...")
+        self.logger.debug(f"Retrieving metadata for {len(flow_run_ids)} flow run(s)...")
 
         query = {
             "query": {
@@ -642,13 +658,11 @@ class Agent:
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
         """
-        self.logger.debug(f"Updating states for flow run {flow_run.id}")
-
         # Set flow run state to `Submitted` if it is currently `Scheduled`
         if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
 
             self.logger.debug(
-                f"Updating flow run {flow_run.id} from Scheduled state to Submitted"
+                f"Updating flow run {flow_run.id} state from Scheduled -> Submitted..."
             )
             self.client.set_flow_run_state(
                 flow_run_id=flow_run.id,
@@ -674,11 +688,11 @@ class Agent:
                 )
         if task_runs_updated:
             self.logger.debug(
-                f"Updated {task_runs_updated} task runs from Scheduled state to "
-                f"Submitted"
+                f"Updated {task_runs_updated} task runs states for flow run "
+                f"{flow_run.id} from  Scheduled -> Submitted"
             )
 
-    def _mark_flow_as_failed(self, flow_run: GraphQLResult, exc: Exception) -> None:
+    def _mark_flow_as_failed(self, flow_run: GraphQLResult, message: str) -> None:
         """
         Mark a flow run as `Failed`
 
@@ -687,12 +701,14 @@ class Agent:
             - exc (Exception): An exception that was raised to use as the `Failed`
                 message
         """
+        self.logger.error(
+            f"Updating flow run {flow_run.id} state to Failed...",
+        )
         self.client.set_flow_run_state(
             flow_run_id=flow_run.id,
             version=flow_run.version,
-            state=Failed(message=str(exc)),
+            state=Failed(message=message),
         )
-        self.logger.error("Error while deploying flow", exc_info=exc)
 
     def _get_run_config(
         self, flow_run: GraphQLResult, run_config_cls: Type[RunConfig]
