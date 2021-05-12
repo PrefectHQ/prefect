@@ -21,7 +21,7 @@ By default, this command will create a flow run and return immediately. An agent
 $ prefect run --name "hello-world" --watch
 ```
 
-See [optional settings](#optional-settings) for additional flags that can be passed.
+See `prefect run --help` or [optional settings](#optional-settings) for additional flags that can be passed.
 
 ## Prefect library
 
