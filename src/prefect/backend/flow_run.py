@@ -1,40 +1,36 @@
 import copy
-from collections import defaultdict
-
 import logging
-import pendulum
-import time
-from contextlib import contextmanager
-from types import MappingProxyType
 import sys
-import pendulum
+import time
 from collections import defaultdict
-
 from contextlib import contextmanager
 from typing import (
-    List,
-    Optional,
-    Dict,
-    Set,
     Any,
-    Iterator,
-    Iterable,
-    Type,
-    Mapping,
     Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
     NamedTuple,
+    Optional,
+    Set,
+    Type,
     cast,
 )
 
+import pendulum
+
 import prefect
 from prefect import Flow, Task
-from prefect.run_configs import RunConfig
-from prefect.serialization.run_config import RunConfigSchema
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
-from prefect.utilities.graphql import with_args, EnumValue
+from prefect.run_configs import RunConfig
+from prefect.serialization.run_config import RunConfigSchema
+from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.logging import get_logger
+
 
 logger = get_logger("backend.flow_run")
 
