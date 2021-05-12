@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Allow `prefect build/register --module` to accept full import path to flow - [#4468](https://github.com/PrefectHQ/prefect/pull/4468)"

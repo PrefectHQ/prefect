@@ -315,14 +315,20 @@ def test_docker_agent_deploy_flow_sets_container_name_with_index(api, collision_
 
     if collision_count:
         # Add the basic name first
-        existing_containers = [{"name": "flow-run-name"}]
+        existing_names = ["flow-run-name"]
         for i in range(1, collision_count):
-            existing_containers.append({"name": f"flow-run-name-{i}"})
+            existing_names.append(f"flow-run-name-{i}")
     else:
-        # Ensure a random container doesn't matter
-        existing_containers = [{"name": "foobar"}]
+        existing_names = []
 
-    api.containers.return_value = existing_containers
+    def fail_if_name_exists(*args, **kwargs):
+        if kwargs.get("name") in existing_names:
+            raise docker.errors.APIError(
+                "Conflict. The container name 'foobar' is already in use"
+            )
+        return {}
+
+    api.create_container = MagicMock(side_effect=fail_if_name_exists)
 
     agent = DockerAgent()
     agent.deploy_flow(
@@ -345,10 +351,9 @@ def test_docker_agent_deploy_flow_sets_container_name_with_index(api, collision_
         )
     )
 
-    expected_name = "flow-run-name"
-    if collision_count:
-        expected_name += f"-{collision_count}"
-
+    expected_name = (
+        "flow-run-name" if not collision_count else f"flow-run-name-{collision_count}"
+    )
     assert api.create_container.call_args[1]["name"] == expected_name
 
 
