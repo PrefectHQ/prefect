@@ -12,11 +12,22 @@ The Prefect library provides an object for inspecting flow runs without writing 
 
 ### Creating a `FlowRunView`
 
+A `FlowRunView` can be created using the `from_flow_run_id` class method. This methods will query for flow run information and populate a `FlowRunView` instance.
+
+```python
+from prefect.backend import FlowRunView
+
+flow_run = FlowRunView.from_flow_run_id("4c0101af-c6bb-4b96-8661-63a5bbfb5596")
+```
+
 :::warning Immutability
 :::
 
 ### Getting flow run states
 
+The state of the flow run is inspectable using the `.state` property
+```python
+flow_run.state
 ::: tip Watching a flow run
 :::
 
