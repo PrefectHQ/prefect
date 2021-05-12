@@ -115,7 +115,9 @@ def load_flows_from_script(path: str) -> "List[prefect.Flow]":
         with prefect.context({"loading_flow": True, "local_script_path": path}):
             namespace = runpy.run_path(path, run_name="<flow>")
     except FileNotFoundError as exc:
-        raise TerminalError(f"File does not exist: {os.path.abspath(path)!r}")
+        if path in str(exc):  # Only capture it if it's about our file
+            raise TerminalError(f"File does not exist: {os.path.abspath(path)!r}")
+        raise
     finally:
         sys.path[:] = orig_sys_path
 
