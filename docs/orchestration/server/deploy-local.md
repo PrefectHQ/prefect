@@ -48,8 +48,8 @@ Because the UI is code that runs in your browser, you can reuse Prefect Cloud's 
 
 To achieve this:
 
-- [sign up for a free Developer account](https://cloud.prefect.io/)
-- login; if you click the Prefect Cloud logo at the bottom of the left menu bar, the UI will switch the endpoint that it talks to
+- [sign up for a free account](https://cloud.prefect.io/)
+- login; if you click the status indicator to the right of the nav-bar, the UI will switch the endpoint that it talks to
 - you can further configure the location of this endpoint on the Home page
   :::
 
