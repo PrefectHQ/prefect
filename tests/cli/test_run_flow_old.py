@@ -5,26 +5,16 @@ import tempfile
 from unittest.mock import MagicMock
 
 import pytest
-import requests
 from click.testing import CliRunner
-
-import prefect
 from prefect.cli.run import run
 from prefect.utilities.configuration import set_temporary_config
 
 
-def test_run_init():
-    runner = CliRunner()
-    result = runner.invoke(run)
-    assert result.exit_code == 0
-    assert "Run Prefect flows." in result.output
-
-
 def test_run_help():
     runner = CliRunner()
-    result = runner.invoke(run, ["--help"])
+    result = runner.invoke(run, ["flow", "--help"])
     assert result.exit_code == 0
-    assert "Run Prefect flows." in result.output
+    assert "Usage: run flow" in result.output
 
 
 def test_run_flow(monkeypatch, cloud_api):
