@@ -516,20 +516,23 @@ def run(
             flow = get_flow_from_path_or_module(path=path, module=module, name=name)
 
         # Set the desired log level
+        if no_logs:
+            log_level = 100  # CRITICAL is 50 so this should do it
+
         if log_level:
             logger = get_logger()
+            existing_log_level = logger.level
             logger.setLevel(log_level)
 
         run_info = ""
         if params_dict:
-            run_info += f"└── Parameters: {params_dict}"
+            run_info += f"└── Parameters: {params_dict}\n"
         if context_dict:
-            run_info += "\n"
-            run_info += f"└── Context: {context_dict}"
+            run_info += f"└── Context: {context_dict}\n"
 
         if run_info:
             quiet_echo("Configured local flow run")
-            quiet_echo(run_info)
+            quiet_echo(run_info, nl=False)
 
         quiet_echo("Running flow locally...")
         with prefect.context(**context_dict):
@@ -539,6 +542,10 @@ def run(
                 quiet_echo()
                 log_exception(exc, indent=2)
                 raise TerminalError("Flow run failed!")
+
+        if log_level:
+            # Restore the old level to avoid breaking tests
+            logger.setLevel(existing_log_level)
 
         if result_state.is_failed():
             quiet_echo("Flow run failed!", fg="red")
