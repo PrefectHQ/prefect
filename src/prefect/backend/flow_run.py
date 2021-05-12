@@ -1,6 +1,5 @@
 import copy
 import logging
-import sys
 import time
 from collections import defaultdict
 from contextlib import contextmanager

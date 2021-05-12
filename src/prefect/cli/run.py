@@ -1,32 +1,31 @@
-import click
 import json
-import os
 import logging
+import os
 import textwrap
 import time
-import uuid
-from click import ClickException
 from contextlib import contextmanager
 from functools import partial
+from typing import Callable, Dict, List, Optional, Union
+
+import click
+from click import ClickException
 from tabulate import tabulate
-from typing import Optional, Callable, List, Dict, Union
 
 import prefect
 from prefect.backend.flow import FlowView
-from prefect.backend.flow_run import execute_flow_run, watch_flow_run, FlowRunView
+from prefect.backend.flow_run import FlowRunView, watch_flow_run
 from prefect.cli.build_register import (
-    load_flows_from_script,
-    load_flows_from_module,
-    log_exception,
     TerminalError,
     handle_terminal_error,
+    load_flows_from_module,
+    load_flows_from_script,
+    log_exception,
 )
 from prefect.client import Client
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.logging import get_logger
-from prefect.utilities.configuration import set_temporary_config
 
 
 @contextmanager
@@ -399,7 +398,7 @@ def run(
     # mucking to smoothly deprecate it. Can be removed with `prefect run flow`
     # is removed.
     if ctx.invoked_subcommand is not None:
-        if any([params, no_logs, quiet, execute, local, flow_or_group_id]):
+        if any([params, no_logs, quiet, flow_or_group_id]):
             # These options are not supported by `prefect run flow`
             raise ClickException(
                 "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
