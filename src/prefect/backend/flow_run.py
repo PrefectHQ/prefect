@@ -342,6 +342,8 @@ class FlowRunView:
         - parameters: Parameter overrides for this flow run
         - context: Context overrides for this flow run
         - updated_at: When this flow run was last updated in the backend
+        - run_config: The `RunConfig` this flow run was configured with
+        - states: A sorted list of past states the flow run has been in
         - task_runs: An iterable of task run metadata to cache in this view
 
     Properties:
@@ -432,6 +434,19 @@ class FlowRunView:
         self,
         start_time: pendulum.DateTime = None,
     ) -> List["FlowRunLog"]:
+        """
+        Get logs for this flow run from `start_time` to `self.updated_at` which is the
+        last time that the flow run was updated in the backend before this object was
+        created.
+
+        Args:
+            start_time (optional): A time to start the log query at, useful for limiting
+                the scope. If not provided, all logs up to `updated_at` are retrieved.
+
+        Returns
+            A list of `FlowRunLog` objects sorted by timestamp
+        """
+
         client = prefect.Client()
 
         logs_query = {

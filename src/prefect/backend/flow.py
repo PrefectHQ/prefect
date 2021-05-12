@@ -31,6 +31,7 @@ class FlowView:
         - core_version: The core version that was used to register the flow
         - storage: The deserialized Storage object used to store this flow
         - name: The name of the flow
+        - flow_group_labels: Labels that are assigned to the parent flow group
     """
 
     def __init__(
