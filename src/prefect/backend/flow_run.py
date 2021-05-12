@@ -115,7 +115,7 @@ def watch_flow_run(
             messages.append(
                 # Create some fake run logs
                 FlowRunLog(
-                    timestamp=state.timestamp,
+                    timestamp=state.timestamp,  # type: ignore
                     level=logging.INFO,
                     message=f"Entered state <{type(state).__name__}>: {state.message}",
                 )
@@ -140,7 +140,7 @@ def watch_flow_run(
 
         if not messages:
             # Delay the poll if there are no messages
-            poll_interval *= poll_factor
+            poll_interval = int(poll_interval * poll_factor)
         else:
             # Otherwise reset to the min poll time for a fast query
             poll_interval = poll_min
@@ -265,7 +265,7 @@ def fail_flow_run_on_exception(
             with the exception details.
     """
     message = message or "Flow run failed with {exc}"
-    client = Client()
+    client = prefect.Client()
 
     try:
         yield
@@ -299,9 +299,9 @@ class FlowRunLog(NamedTuple):
     message: str
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: dict) -> "FlowRunLog":
         return cls(
-            pendulum.parse(data["timestamp"]),
+            cast(pendulum.DateTime, pendulum.parse(data["timestamp"])),
             logging.getLevelName(data["level"]),  # actually gets level int from name
             data["message"],
         )
@@ -315,13 +315,15 @@ class TimestampedState(State):
           is written as a subclass for compatibility with that future change
     """
 
-    timestamp = None
+    timestamp: pendulum.DateTime
 
     @classmethod
     def from_dict(cls, data: dict) -> "TimestampedState":
         state = cls.deserialize(data["serialized_state"])
-        state.timestamp = pendulum.parse(data["timestamp"])
-        cast(state, TimestampedState)
+        state = cast(TimestampedState, state)
+        # Our 3.6 compatible version of pendulum does not have `fromisoformat` so we
+        # parse and cast
+        state.timestamp = cast(pendulum.DateTime, pendulum.parse(data["timestamp"]))
         return state
 
 
@@ -519,14 +521,9 @@ class FlowRunView:
                 key=lambda s: s.timestamp,
             )
         )
-
-        if sys.version_info >= (3, 7):
-            updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
-        else:
-            # Our 3.6 compatible version of pendulum does not have `fromisoformat`
-            updated_at = cast(
-                pendulum.DateTime, pendulum.parse(flow_run_data.pop("updated"))
-            )
+        updated_at = cast(
+            pendulum.DateTime, pendulum.parse(flow_run_data.pop("updated"))
+        )
 
         return cls(
             flow_run_id=flow_run_id,
