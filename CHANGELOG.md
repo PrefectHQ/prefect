@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.19 <Badge text="beta" type="success" />
+
+Released on May 11, 2021 as a hotfix for 0.14.18
+
+### Fixes
+
+- Fix docker container name error while using docker agents - [#4511](https://github.com/PrefectHQ/prefect/pull/4511)
+
 ## 0.14.18 <Badge text="beta" type="success" />
 
 Released on May 11, 2021.
