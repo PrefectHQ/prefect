@@ -102,6 +102,59 @@ def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
     click.secho(prefix + message, fg=color, **extra)
 
 
+def load_flows_from_script(path: str) -> "List[prefect.Flow]":
+    """Given a file path, load all flows found in the file"""
+    # Temporarily add the flow's local directory to `sys.path` so that local
+    # imports work. This ensures that `sys.path` is the same as it would be if
+    # the flow script was run directly (i.e. `python path/to/flow.py`).
+    orig_sys_path = sys.path.copy()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(path)))
+    try:
+        with prefect.context({"loading_flow": True, "local_script_path": path}):
+            namespace = runpy.run_path(path, run_name="<flow>")
+    except FileNotFoundError as exc:
+        raise TerminalError(f"File does not exist: {os.path.abspath(path)!r}")
+    finally:
+        sys.path[:] = orig_sys_path
+
+    flows = [f for f in namespace.values() if isinstance(f, prefect.Flow)]
+    return flows
+
+
+def load_flows_from_module(name: str) -> "List[prefect.Flow]":
+    """
+    Given a module name (or full import path to a flow), load all flows found in the
+    module
+    """
+    try:
+        with prefect.context({"loading_flow": True}):
+            mod_or_obj = import_object(name)
+    except Exception as exc:
+        # If the requested module isn't found, log without a traceback
+        # otherwise log a general message with the traceback.
+        if isinstance(exc, ModuleNotFoundError) and (
+            name == exc.name
+            or (name.startswith(exc.name) and name[len(exc.name)] == ".")
+        ):
+            raise TerminalError(str(exc).capitalize())
+        elif isinstance(exc, AttributeError):
+            raise TerminalError(str(exc).capitalize())
+        else:
+            raise
+
+    if isinstance(mod_or_obj, ModuleType):
+        flows = [f for f in vars(mod_or_obj).values() if isinstance(f, prefect.Flow)]
+    elif isinstance(mod_or_obj, prefect.Flow):
+        flows = [mod_or_obj]
+    else:
+        raise TerminalError(
+            f"Invalid object of type {type(mod_or_obj).__name__!r} found at {name!r}. "
+            f"Expected Module or Flow."
+        )
+
+    return flows
+
+
 def get_flow_from_path_or_module(
     path: str = None, module: str = None, name: str = None
 ):
