@@ -87,7 +87,7 @@ commands = ["build"]
 [pages.cli.run]
 title = "run"
 module = "prefect.cli.run"
-commands = ["flow"]
+commands = ["run", "run_flow"]
 
 [pages.cli.server]
 title = "server"
