@@ -606,6 +606,7 @@ class Agent:
                     "parameters": True,
                     "scheduled_start_time": True,
                     "run_config": True,
+                    "name": True,
                     "flow": {
                         "id",
                         "name",

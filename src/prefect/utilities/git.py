@@ -1,9 +1,6 @@
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from dulwich.index import build_index_from_tree
-from dulwich.porcelain import clone
-
 
 class TemporaryGitRepo:
     """
@@ -39,6 +36,13 @@ class TemporaryGitRepo:
         self.clone_depth = clone_depth
 
     def __enter__(self) -> "TemporaryGitRepo":
+        try:
+            from dulwich.porcelain import clone
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import dulwich, please ensure you have installed the git extra"
+            ) from exc
+
         self.temp_dir = TemporaryDirectory()
         self.repo = clone(
             source=self.git_clone_url, target=self.temp_dir.name, depth=self.clone_depth
@@ -54,6 +58,13 @@ class TemporaryGitRepo:
         """
         Checkout a specific ref from the repo
         """
+        try:
+            from dulwich.index import build_index_from_tree
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import dulwich, please ensure you have installed the git extra"
+            ) from exc
+
         build_index_from_tree(
             self.repo.path,
             self.repo.index_path(),
