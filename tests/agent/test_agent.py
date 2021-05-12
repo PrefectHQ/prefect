@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 from prefect.agent import Agent
-from prefect.engine.state import Scheduled, Failed
+from prefect.engine.state import Scheduled, Failed, Submitted
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult
@@ -214,58 +214,45 @@ def test_get_ready_flow_runs_does_not_use_submitting_flow_runs_directly(
     copy_mock.assert_called_once_with()
 
 
-def test_mark_flow_as_submitted_passes_no_task_runs(monkeypatch, cloud_api):
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
-        )
-    )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.agent.agent.Client", client)
-
+@pytest.mark.parametrize("with_task_runs", [True, False])
+def test_mark_flow_as_submitted(monkeypatch, cloud_api, with_task_runs):
     agent = Agent()
-    assert not agent._mark_flow_as_submitted(
+    agent.client = MagicMock()
+    agent._mark_flow_as_submitted(
         flow_run=GraphQLResult(
             {
                 "id": "id",
                 "serialized_state": Scheduled().serialize(),
                 "version": 1,
-                "task_runs": [],
+                "task_runs": (
+                    [
+                        GraphQLResult(
+                            {
+                                "id": "task-id",
+                                "version": 1,
+                                "serialized_state": Scheduled().serialize(),
+                            }
+                        )
+                    ]
+                    if with_task_runs
+                    else []
+                ),
             }
         )
     )
 
-
-def test_mark_flow_as_submitted_passes_task_runs(monkeypatch, cloud_api):
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
-        )
+    agent.client.set_flow_run_state.assert_called_once_with(
+        flow_run_id="id", version=1, state=Submitted(message="Submitted for execution")
     )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.agent.agent.Client", client)
 
-    agent = Agent()
-    assert not agent._mark_flow_as_submitted(
-        flow_run=GraphQLResult(
-            {
-                "id": "id",
-                "serialized_state": Scheduled().serialize(),
-                "version": 1,
-                "task_runs": [
-                    GraphQLResult(
-                        {
-                            "id": "id",
-                            "version": 1,
-                            "serialized_state": Scheduled().serialize(),
-                        }
-                    )
-                ],
-            }
+    if with_task_runs:
+        agent.client.set_task_run_state.assert_called_once_with(
+            task_run_id="task-id",
+            version=1,
+            state=Submitted(message="Submitted for execution"),
         )
-    )
+    else:
+        agent.client.set_task_run_state.assert_not_called()
 
 
 def test_mark_flow_as_failed(monkeypatch, cloud_api):
