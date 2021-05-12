@@ -512,7 +512,7 @@ def run(
     if path or module:
         # We can load a flow for local execution immediately if given a path or module,
         # otherwise, we'll lookup the flow then pull from storage for a local run
-        with try_error_done("Retrieving local flow...", quiet_echo):
+        with try_error_done("Retrieving local flow...", quiet_echo, traceback=True):
             flow = get_flow_from_path_or_module(path=path, module=module, name=name)
 
         # Set the desired log level
