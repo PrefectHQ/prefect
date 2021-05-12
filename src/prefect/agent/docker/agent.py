@@ -458,25 +458,29 @@ class DockerAgent(Agent):
             # would be empty after cleaning
             or flow_run.id
         )
-        # Checking for container names here is a slight deploy performance hit. If
-        # it ends up being an issue we can move to a try/except model
-        existing_names = {c["name"] for c in self.docker_client.containers()}
-        index = 0
-        while container_name in existing_names:
-            index += 1
-            container_name = f"{slugified_name}-{index}"
 
-        # Create the container
-        container = self.docker_client.create_container(
-            image,
-            command=get_flow_run_command(flow_run),
-            environment=env_vars,
-            name=container_name,
-            volumes=container_mount_paths,
-            host_config=self.docker_client.create_host_config(**host_config),
-            networking_config=networking_config,
-            labels=labels,
-        )
+        # Create the container with retries on name conflicts
+        index = 0  # will be bumped on name colissions
+        while True:
+            try:
+                container = self.docker_client.create_container(
+                    image,
+                    command=get_flow_run_command(flow_run),
+                    environment=env_vars,
+                    name=container_name,
+                    volumes=container_mount_paths,
+                    host_config=self.docker_client.create_host_config(**host_config),
+                    networking_config=networking_config,
+                    labels=labels,
+                )
+            except docker.errors.APIError as exc:
+                if "Conflict" in str(exc) and "container name" in str(exc):
+                    index += 1
+                    container_name = f"{slugified_name}-{index}"
+                else:
+                    raise
+            else:
+                break
 
         # Connect the rest of the networks
         if self.networks:
@@ -486,7 +490,8 @@ class DockerAgent(Agent):
                 )
         # Start the container
         self.logger.debug(
-            "Starting Docker container with ID {}".format(container.get("Id"))
+            f"Starting Docker container with ID {container.get('Id')} and "
+            f"name {container_name!r}"
         )
         if self.networks:
             self.logger.debug(
