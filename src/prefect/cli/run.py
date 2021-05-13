@@ -24,7 +24,6 @@ from prefect.cli.build_register import (
 )
 from prefect.client import Client
 from prefect.run_configs import RunConfig
-from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.importtools import import_object
 
@@ -586,7 +585,7 @@ def run(
         )
 
     if log_level:
-        run_config: Optional[RunConfig] = RunConfigSchema().load(flow_view.run_config)
+        run_config = flow_view.run_config
         if not run_config.env:
             run_config.env = {}
         run_config.env["PREFECT__LOGGING__LEVEL"] = log_level
