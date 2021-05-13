@@ -77,7 +77,7 @@ def try_error_done(
     except Exception as exc:
         echo(" Error", fg="red")
 
-        if traceback and not isinstance(exc, (TerminalError, ClickException)):
+        if traceback and not isinstance(exc, TerminalError):
             log_exception(exc, indent=2)
             raise TerminalError
         else:
@@ -209,13 +209,13 @@ def get_flow_view(
             return flow_view
 
         # Fall through to failure
-        raise ClickException(
+        raise TerminalError(
             f"Failed to find flow id or flow group id matching {flow_or_group_id}"
         )
 
     if project:
         if not name:
-            raise ClickException(
+            raise TerminalError(
                 "Missing required option `--name`. Cannot look up a flow by project "
                 "without also passing a name."
             )
@@ -257,7 +257,7 @@ def load_json_key_values(
         try:
             key, value = spec.split("=")
         except ValueError:
-            raise ClickException(
+            raise TerminalError(
                 f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
             )
         try:
@@ -270,7 +270,7 @@ def load_json_key_values(
                     "\nDid you forget to include quotes? You may need to escape so your"
                     ' shell does not remove them, e.g. \\"'
                 )
-            raise ClickException(
+            raise TerminalError(
                 f"Failed to parse JSON for {display_name} {key!r} with value"
                 f"\n\n{indented_value}\n\n"
                 f"JSON Error: {exc}{extra_help}"
