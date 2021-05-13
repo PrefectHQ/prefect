@@ -440,10 +440,11 @@ class FlowRunView:
         created.
 
         Args:
-            start_time (optional): A time to start the log query at, useful for limiting
-                the scope. If not provided, all logs up to `updated_at` are retrieved.
+            - start_time (optional): A time to start the log query at, useful for
+                limiting the scope. If not provided, all logs up to `updated_at` are
+                retrieved.
 
-        Returns
+        Returns:
             A list of `FlowRunLog` objects sorted by timestamp
         """
 
