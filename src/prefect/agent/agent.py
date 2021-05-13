@@ -797,6 +797,12 @@ class Agent:
         Returns:
             - The agent ID as a string
         """
+
+        config_id_blub = (
+            f" with config {self.agent_config_id}" if self.agent_config_id else ""
+        )
+        self.logger.info(f"Registering agent{config_id_blub}...")
+
         agent_id = self.client.register_agent(
             agent_type=type(self).__name__,
             name=self.name,
@@ -804,7 +810,8 @@ class Agent:
             agent_config_id=self.agent_config_id,
         )
 
-        self.logger.debug(f"Agent ID: {agent_id}")
+        self.logger.info("Registration successful!")
+        self.logger.debug(f"Assigned agent id: {agent_id}")
 
         if self.agent_config_id:
             self.agent_config = self._retrieve_agent_config()
