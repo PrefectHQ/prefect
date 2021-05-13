@@ -105,6 +105,8 @@ def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
 
 def load_flows_from_script(path: str) -> "List[prefect.Flow]":
     """Given a file path, load all flows found in the file"""
+    # TODO: This is copied and slightly modified from `prefect.cli.build_register`
+    #       we should probably abstract this in the future
     # Temporarily add the flow's local directory to `sys.path` so that local
     # imports work. This ensures that `sys.path` is the same as it would be if
     # the flow script was run directly (i.e. `python path/to/flow.py`).
@@ -129,6 +131,8 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
     Given a module name (or full import path to a flow), load all flows found in the
     module
     """
+    # TODO: This is copied and slightly modified from `prefect.cli.build_register`
+    #       we should probably abstract this in the future
     try:
         with prefect.context({"loading_flow": True}):
             mod_or_obj = import_object(name)

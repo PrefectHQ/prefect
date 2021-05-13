@@ -233,7 +233,7 @@ def test_run_wraps_json_parsing_exception_with_extra_quotes_message(tmpdir):
         run, ["--module", "prefect.hello_world", "--param", "x=foo"]
     )
     assert result.exit_code
-    assert f"Failed to parse JSON for parameter 'x'" in result.output
+    assert "Failed to parse JSON for parameter 'x'" in result.output
     assert "Did you forget to include quotes?" in result.output
 
 
@@ -275,6 +275,7 @@ def test_run_local_asks_for_name_with_multiple_flows(tmpdir, multiflow_file, kin
     location = multiflow_file if kind == "path" else "flow"
 
     result = CliRunner().invoke(run, [f"--{kind}", location])
+
     assert result.exit_code
     assert (
         f"Found multiple flows at {location!r}: 'a', 'b'\n\nSpecify a flow name to run"
@@ -390,7 +391,7 @@ def test_run_local_handles_flow_run_failure(caplog, runtime_failing_flow):
 def test_run_local_handles_flow_load_failure_with_script_issue(at_load_failing_flow):
     result = CliRunner().invoke(run, ["--path", at_load_failing_flow])
     assert result.exit_code
-    assert f"Retrieving local flow... Error" in result.output
+    assert "Retrieving local flow... Error" in result.output
     assert "Traceback" in result.output
 
 
@@ -401,7 +402,7 @@ def test_run_local_handles_flow_load_failure_with_missing_file(tmpdir):
     missing_file = str(tmpdir.join("file"))
     result = CliRunner().invoke(run, ["--path", missing_file])
     assert result.exit_code
-    assert f"Retrieving local flow... Error" in result.output
+    assert "Retrieving local flow... Error" in result.output
     # Instead of a traceback there is a short error
     assert "Traceback" not in result.output
     assert f"File does not exist: {missing_file!r}" in result.output
@@ -411,20 +412,20 @@ def test_run_local_handles_flow_load_failure_with_missing_module(tmpdir):
     missing_file = str(tmpdir.join("file"))
     result = CliRunner().invoke(run, ["--module", "my_very_unique_module_name"])
     assert result.exit_code
-    assert f"Retrieving local flow... Error" in result.output
+    assert "Retrieving local flow... Error" in result.output
     # Instead of a traceback there is a short error
     assert "Traceback" not in result.output
-    assert f"No module named 'my_very_unique_module_name'" in result.output
+    assert "No module named 'my_very_unique_module_name'" in result.output
 
 
 def test_run_local_handles_flow_load_failure_with_missing_module_attr(tmpdir):
     missing_file = str(tmpdir.join("file"))
     result = CliRunner().invoke(run, ["--module", "prefect.foobar"])
     assert result.exit_code
-    assert f"Retrieving local flow... Error" in result.output
+    assert "Retrieving local flow... Error" in result.output
     # Instead of a traceback there is a short error
     assert "Traceback" not in result.output
-    assert f"Module 'prefect' has no attribute 'foobar'" in result.output
+    assert "Module 'prefect' has no attribute 'foobar'" in result.output
 
 
 @pytest.mark.parametrize(
