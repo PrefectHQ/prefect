@@ -71,7 +71,6 @@ def try_error_done(
     echo(message, nl=False)
     try:
         yield
-
     except TerminalError:
         echo(" Error", fg="red")
         raise

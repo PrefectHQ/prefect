@@ -509,9 +509,7 @@ def test_run_cloud_watch(cloud_mocks, watch):
 
     if watch:
         cloud_mocks.watch_flow_run.assert_called_once()
-        assert (
-            cloud_mocks.watch_flow_run.call_args.kwargs["flow_run_id"] == "fake-run-id"
-        )
+        assert cloud_mocks.watch_flow_run.call_args[1]["flow_run_id"] == "fake-run-id"
     else:
         cloud_mocks.watch_flow_run.assert_not_called()
 
@@ -521,7 +519,7 @@ def test_run_cloud_watch_respects_no_logs(cloud_mocks):
 
     assert not result.exit_code
     cloud_mocks.watch_flow_run.assert_called_once()
-    assert cloud_mocks.watch_flow_run.call_args.kwargs["stream_logs"] is False
+    assert cloud_mocks.watch_flow_run.call_args[1]["stream_logs"] is False
 
 
 def test_run_cloud_lookup_by_flow_id(cloud_mocks):
