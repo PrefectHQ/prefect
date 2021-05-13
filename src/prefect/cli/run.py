@@ -523,11 +523,6 @@ def run(
         if no_logs:
             log_level = 100  # CRITICAL is 50 so this should do it
 
-        if log_level:
-            logger = get_logger()
-            existing_log_level = logger.level
-            logger.setLevel(log_level)
-
         run_info = ""
         if params_dict:
             run_info += f"└── Parameters: {params_dict}\n"
@@ -539,17 +534,20 @@ def run(
             quiet_echo(run_info, nl=False)
 
         quiet_echo("Running flow locally...")
-        with prefect.context(**context_dict):
-            try:
-                result_state = flow.run(parameters=params_dict)
-            except Exception as exc:
-                quiet_echo()
-                log_exception(exc, indent=2)
-                raise TerminalError("Flow run failed!")
+        from prefect.utilities.logging import temporary_logger_config
 
-        if log_level:
-            # Restore the old level to avoid breaking tests
-            logger.setLevel(existing_log_level)
+        with temporary_logger_config(
+            level=log_level,
+            stream_fmt="└── %(asctime)s | %(levelname)-7s | %(message)s",
+            stream_datefmt="%H:%M:%S",
+        ):
+            with prefect.context(**context_dict):
+                try:
+                    result_state = flow.run(parameters=params_dict)
+                except Exception as exc:
+                    quiet_echo()
+                    log_exception(exc, indent=2)
+                    raise TerminalError("Flow run failed!")
 
         if result_state.is_failed():
             quiet_echo("Flow run failed!", fg="red")

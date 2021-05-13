@@ -1,4 +1,5 @@
 import textwrap
+import sys
 
 import pytest
 from click.testing import CliRunner
