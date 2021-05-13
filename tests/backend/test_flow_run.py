@@ -6,7 +6,6 @@ import pytest
 from unittest.mock import MagicMock
 
 from prefect.backend import FlowRunView, TaskRunView
-from prefect.backend.flow_run import TimestampedState
 from prefect.engine.state import Success, Running, Submitted
 from prefect.run_configs import UniversalRun
 
