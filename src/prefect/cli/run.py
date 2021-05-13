@@ -74,6 +74,9 @@ def try_error_done(
     try:
         yield
 
+    except TerminalError as exc:
+        echo(" Error", fg="red")
+        raise
     except Exception as exc:
         echo(" Error", fg="red")
 
@@ -81,7 +84,7 @@ def try_error_done(
             log_exception(exc, indent=2)
             raise TerminalError
         else:
-            raise TerminalError(str(exc))
+            raise TerminalError(f"{type(exc).__name__}: {exc}")
 
     else:
         if not skip_done:
