@@ -318,9 +318,13 @@ def temporary_logger_config(
         ]
         stream_formatters = [h.formatter for h in stream_handlers]
         for handler, formatter in zip(stream_handlers, stream_formatters):
+            # `formatter` can be null
+            existing_fmt = formatter._fmt if formatter else None
+            existing_datefmt = formatter.datefmt if formatter else None
+            # Create a new formatter with settings; load existing settings if needed
             handler.formatter = logging.Formatter(
-                fmt=stream_fmt if stream_fmt else formatter._fmt,
-                datefmt=stream_datefmt if stream_datefmt else formatter.datefmt,
+                fmt=stream_fmt if stream_fmt else existing_fmt,
+                datefmt=stream_datefmt if stream_datefmt else existing_datefmt,
             )
 
     if level is not None:
