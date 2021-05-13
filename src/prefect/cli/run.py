@@ -502,9 +502,18 @@ def run(
 
     file_params = {}
     if param_file:
-        # TODO: Wrap exceptions for a nicer message
-        with open(param_file) as fp:
-            file_params = json.load(fp)
+
+        try:
+            with open(param_file) as fp:
+                file_params = json.load(fp)
+        except FileNotFoundError:
+            raise TerminalError(
+                f"Parameter file does not exist: {os.path.abspath(param_file)!r}"
+            )
+        except ValueError as exc:
+            raise TerminalError(
+                f"Failed to parse JSON at {os.path.abspath(param_file)!r}: {exc}"
+            )
 
     cli_params = load_json_key_values(params, "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(file_params.keys())
