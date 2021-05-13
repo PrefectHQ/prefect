@@ -8,7 +8,7 @@ import time
 from contextlib import contextmanager
 from functools import partial
 from types import ModuleType
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Union
 
 import click
 from click import ClickException
@@ -23,7 +23,6 @@ from prefect.cli.build_register import (
     log_exception,
 )
 from prefect.client import Client
-from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.importtools import import_object
 
@@ -73,7 +72,7 @@ def try_error_done(
     try:
         yield
 
-    except TerminalError as exc:
+    except TerminalError:
         echo(" Error", fg="red")
         raise
     except Exception as exc:
