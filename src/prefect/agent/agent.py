@@ -199,7 +199,7 @@ class Agent:
             agent_config_id=self.agent_config_id,
         )
 
-        self.logger.info(f"Registration successful!")
+        self.logger.info("Registration successful!")
         self.logger.debug(f"Assigned agent id: {agent_id}")
 
         if self.agent_config_id:
