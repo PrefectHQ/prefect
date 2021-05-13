@@ -302,7 +302,7 @@ class FlowRunLog(NamedTuple):
         )
 
 
-class TimestampedState(State):
+class _TimestampedState(State):
     """
     Small wrapper for flow run states to include a timestamp
 
@@ -313,9 +313,9 @@ class TimestampedState(State):
     timestamp: pendulum.DateTime
 
     @classmethod
-    def from_dict(cls, data: dict) -> "TimestampedState":
+    def from_dict(cls, data: dict) -> "_TimestampedState":
         state = cls.deserialize(data["serialized_state"])
-        state = cast(TimestampedState, state)
+        state = cast(_TimestampedState, state)
         # Our 3.6 compatible version of pendulum does not have `fromisoformat` so we
         # parse and cast
         state.timestamp = cast(pendulum.DateTime, pendulum.parse(data["timestamp"]))
@@ -361,7 +361,7 @@ class FlowRunView:
         parameters: dict,
         context: dict,
         state: State,
-        states: List[TimestampedState],
+        states: List[_TimestampedState],
         updated_at: pendulum.DateTime,
         run_config: "RunConfig",
         task_runs: Iterable["TaskRunView"] = None,
@@ -528,7 +528,7 @@ class FlowRunView:
         states_data = flow_run_data.pop("states", [])
         states = list(
             sorted(
-                [TimestampedState.from_dict(state_data) for state_data in states_data],
+                [_TimestampedState.from_dict(state_data) for state_data in states_data],
                 key=lambda s: s.timestamp,
             )
         )
