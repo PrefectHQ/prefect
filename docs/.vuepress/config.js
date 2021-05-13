@@ -227,6 +227,7 @@ module.exports = {
             'flow-runs/inspection',
             'flow-runs/task-runs',
             'flow-runs/scheduling',
+            'flow-runs/setting-states',
             'flow-runs/concurrency-limits'
           ]
         },
