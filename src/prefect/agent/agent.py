@@ -158,7 +158,6 @@ class Agent:
         self.logger.debug(f"Max polls: {self.max_polls}")
         self.logger.debug(f"Agent address: {self.agent_address}")
         self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
-
         self.logger.debug(f"Prefect backend: {config.backend}")
 
     def _verify_token(self, token: str) -> None:
@@ -187,6 +186,12 @@ class Agent:
         Returns:
             - The agent ID as a string
         """
+
+        config_id_blub = (
+            f" with config {self.agent_config_id}" if self.agent_config_id else ""
+        )
+        self.logger.info(f"Registering agent{config_id_blub}...")
+
         agent_id = self.client.register_agent(
             agent_type=type(self).__name__,
             name=self.name,
@@ -194,7 +199,8 @@ class Agent:
             agent_config_id=self.agent_config_id,
         )
 
-        self.logger.debug(f"Agent ID: {agent_id}")
+        self.logger.info(f"Registration successful!")
+        self.logger.debug(f"Assigned agent id: {agent_id}")
 
         if self.agent_config_id:
             self._retrieve_agent_config()
