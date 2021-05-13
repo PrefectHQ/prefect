@@ -213,7 +213,7 @@ def get_flow_view(
 
         # Fall through to failure
         raise TerminalError(
-            f"Failed to find flow id or flow group id matching {flow_or_group_id}"
+            f"Failed to find flow id or flow group id matching {flow_or_group_id!r}"
         )
 
     if project:
