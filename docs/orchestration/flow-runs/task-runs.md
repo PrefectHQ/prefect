@@ -14,9 +14,83 @@ You should typically access task runs from a `FlowRunView` object. This will cac
 
 ## GraphQL
 
-### Querying for a single task run
+### Querying for task runs in a flow run
+
+Here we query for all of the task runs in a run of the `prefect.hello_world` flow
+
+```graphql
+query {
+  task_run(where: {flow_run_id: {_eq: "8e445d74-9ca6-425b-98e5-72754b7ea174"}}) {
+    id
+    state
+    start_time
+    task {
+      slug
+    }
+  }
+}
+```
+
+Example response
+
+```json
+{
+  "data": {
+    "task_run": [
+      {
+        "id": "c8751f34-9d5e-4ea7-aead-8b50978dabb7",
+        "state": "Success",
+        "start_time": "2021-05-12T18:00:01.696849+00:00",
+        "task": {
+          "slug": "say_hello-1"
+        }
+      },
+      {
+        "id": "f5f422f6-4f56-45d2-bd55-5ea048070d84",
+        "state": "Success",
+        "start_time": "2021-05-12T18:00:00.229202+00:00",
+        "task": {
+          "slug": "capitalize-1"
+        }
+      },
+      {
+        "id": "7cc167d3-737d-4187-85d8-d5e5a75fbd93",
+        "state": "Success",
+        "start_time": "2021-05-12T17:59:58.33804+00:00",
+        "task": {
+          "slug": "name"
+        }
+      }
+    ]
+  }
+}
+```
 
 ### Querying for task run aggregates
+
+```graphql
+query {
+  task_run_aggregate(where: {state: {_eq: "Success"}}) {
+    aggregate{
+      count
+    }
+  }
+}
+```
+
+Example response
+
+```json
+{
+  "data": {
+    "task_run_aggregate": {
+      "aggregate": {
+        "count": 258
+      }
+    }
+  }
+}
+```
 
 ## CLI
 
