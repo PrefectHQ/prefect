@@ -275,6 +275,8 @@ def test_run_local_asks_for_name_with_multiple_flows(tmpdir, multiflow_file, kin
     location = multiflow_file if kind == "path" else "flow"
 
     result = CliRunner().invoke(run, [f"--{kind}", location])
+    print(result.output)
+    print(str(location))
     assert result.exit_code
     assert (
         f"Found multiple flows at '{location}': 'a', 'b'\n\nSpecify a flow name to run"
