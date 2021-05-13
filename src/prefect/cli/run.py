@@ -486,6 +486,11 @@ def run(
         raise ClickException(
             "Received no options to look up the flow." + FLOW_LOOKUP_MSG
         )
+    if "--id" in given_lookup_options and name:
+        raise ClickException(
+            "Received too many options to look up the flow; "
+            "cannot specifiy both `--name` and `--id`" + FLOW_LOOKUP_MSG
+        )
     if len(given_lookup_options) > 1:
         raise ClickException(
             "Received too many options to look up the flow: "
