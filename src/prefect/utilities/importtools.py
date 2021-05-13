@@ -20,12 +20,17 @@ def import_object(name: str) -> Any:
     True
     ```
     """
-    try:
-        mod_name, attr_name = name.rsplit(".", 1)
-        mod = importlib.import_module(mod_name)
-        return getattr(mod, attr_name)
-    except ValueError:
-        pass
 
-    # When we can't split the string we'll just import the module
-    return importlib.import_module(name)
+    # Try importing it first so we support "module" or "module.sub_module"
+    try:
+        module = importlib.import_module(name)
+        return module
+    except ImportError:
+        # If no subitem was included raise the import error
+        if "." not in name:
+            raise
+
+    # Otherwise, we'll try to load it as an attribute of a module
+    mod_name, attr_name = name.rsplit(".", 1)
+    module = importlib.import_module(mod_name)
+    return getattr(module, attr_name)
