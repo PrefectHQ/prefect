@@ -1,5 +1,6 @@
 import textwrap
 import sys
+import json
 
 import pytest
 from click.testing import CliRunner
@@ -98,6 +99,75 @@ def test_run_help():
     assert "Examples:" in result.output
 
 
+@pytest.mark.parametrize(
+    "options",
+    (
+        ["--name", "hello", "--id", "fake-id"],
+        ["--project", "hello", "--path", "fake-id"],
+        ["--project", "hello", "--id", "fake-id"],
+        ["--module", "hello", "--id", "fake-id"],
+    ),
+)
+def test_run_lookup_help_too_many_options(options):
+    result = CliRunner().invoke(run, options)
+    assert result.exit_code
+    assert "Received too many options to look up the flow" in result.output
+    assert (
+        "Look up a flow to run with one of the following option combinations"
+        in result.output
+    )
+
+
+def test_run_lookup_help_no_options():
+    result = CliRunner().invoke(run, "--param foo=1")
+    assert result.exit_code
+    assert "Received no options to look up the flow" in result.output
+    assert (
+        "Look up a flow to run with one of the following option combinations"
+        in result.output
+    )
+
+
+def test_run_wraps_parameter_file_parsing_exception(tmpdir):
+    params_file = tmpdir.join("params.json")
+    params_file.write_text("not-valid-json", encoding="UTF-8")
+    result = CliRunner().invoke(
+        run, ["--module", "prefect.hello_world", "--param-file", str(params_file)]
+    )
+    assert result.exit_code
+    assert "Failed to parse JSON" in result.output
+
+
+def test_run_wraps_parameter_file_not_found_exception(tmpdir):
+    params_file = tmpdir.join("params.json")
+    result = CliRunner().invoke(
+        run, ["--module", "prefect.hello_world", "--param-file", str(params_file)]
+    )
+    assert result.exit_code
+    assert "Parameter file does not exist" in result.output
+
+
+@pytest.mark.parametrize("kind", ["param", "context"])
+def test_run_wraps_parameter_and_context_json_parsing_exception(tmpdir, kind):
+    result = CliRunner().invoke(
+        run, ["--module", "prefect.hello_world", f"--{kind}", 'x="foo"1']
+    )
+    assert result.exit_code
+    assert (
+        f"Failed to parse JSON for {kind.replace('param', 'parameter')} 'x'"
+        in result.output
+    )
+
+
+def test_run_wraps_json_parsing_exception_with_extra_quotes_message(tmpdir):
+    result = CliRunner().invoke(
+        run, ["--module", "prefect.hello_world", "--param", "x=foo"]
+    )
+    assert result.exit_code
+    assert f"Failed to parse JSON for parameter 'x'" in result.output
+    assert "Did you forget to include quotes?" in result.output
+
+
 @pytest.mark.parametrize("kind", ["path", "module"])
 def test_run_local(tmpdir, kind, caplog, hello_world_flow_file):
     location = hello_world_flow_file if kind == "path" else "prefect.hello_world"
@@ -143,9 +213,24 @@ def test_run_local_respects_no_logs(caplog):
     assert caplog.text == ""
 
 
-def test_run_local_passes_parameters(caplog, hello_world_flow_file):
+def test_run_local_passes_parameters(caplog):
     result = CliRunner().invoke(
         run, ["--module", "prefect.hello_world", "--param", 'name="foo"']
+    )
+    assert not result.exit_code
+    # A configured section will apppear now that a parameter is set
+    for line in SUCCESSFUL_LOCAL_STDOUT:
+        assert line in result.output
+    assert "Configured local flow run\n└── Parameters: {'name': 'foo'}" in result.output
+    # Parameter was used by the flow
+    assert "Hello Foo" in caplog.text
+
+
+def test_run_local_passes_parameters_from_file(caplog, tmpdir):
+    params_file = tmpdir.join("params.json")
+    params_file.write_text(json.dumps({"name": "foo"}), encoding="UTF-8")
+    result = CliRunner().invoke(
+        run, ["--module", "prefect.hello_world", "--param-file", str(params_file)]
     )
     assert not result.exit_code
     # A configured section will apppear now that a parameter is set
