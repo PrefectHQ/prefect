@@ -23,6 +23,10 @@ $ prefect run --name "hello-world" --watch
 
 See `prefect run --help` or [optional settings](#optional-settings) for additional flags that can be passed.
 
+::: tip Local flow runs
+`prefect run` can be used to execute a local flow as well if you provide a `--path` or a `--module` to load the flow from
+:::
+
 ## Prefect library
 
 ```python
