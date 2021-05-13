@@ -33,9 +33,10 @@ orchestration_extras = {
     "azure": ["azure-storage-blob >= 12.1.0, < 13.0"],
     "bitbucket": ["atlassian-python-api >= 2.0.1"],
     "gcp": ["google-cloud-storage >= 1.13, < 2.0"],
+    "git": ["dulwich >= 0.19.7"],
     "github": ["PyGithub >= 1.51, < 2.0"],
     "gitlab": ["python-gitlab >= 2.5.0, < 3.0"],
-    "kubernetes": ["kubernetes >= 9.0.0a1, <= 11.0.0b2"],
+    "kubernetes": ["kubernetes >= 9.0.0a1, <= 13.0"],
 }
 
 extras = {
@@ -55,6 +56,7 @@ extras = {
         "google-cloud-bigquery >= 1.6.0, < 2.0",
     ]
     + orchestration_extras["gcp"],
+    "git": orchestration_extras["git"],
     "github": orchestration_extras["github"],
     "gitlab": orchestration_extras["gitlab"],
     "google": [
@@ -81,6 +83,7 @@ extras = {
     "dremio": ["pyarrow>=0.15.1"],
     "exasol": ["pyexasol >= 0.16.1"],
     "sodasql": ["soda-sql >= 2.0.0b25"],
+    "sendgrid": ["sendgrid >= 6.7.0"],
 }
 
 

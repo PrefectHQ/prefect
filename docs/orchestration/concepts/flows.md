@@ -24,6 +24,13 @@ The CLI command supports several additional options, see the
 [docs](/api/latest/cli/register.md#register) for more information.
 
 
+::: tip Get started quickly
+Prefect provides a classic Hello World flow to get you started. Just register the flow in the Prefect library.
+```bash
+$ prefect register --project "my project" --module "prefect.hello_world"
+```
+:::
+
 ### Core Client
 
 To register a flow from Prefect Core, use its `register()` method:

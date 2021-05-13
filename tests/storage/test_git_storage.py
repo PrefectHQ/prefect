@@ -3,6 +3,8 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
+dulwich = pytest.importorskip("dulwich")
+
 import prefect
 from prefect import context, Flow
 from prefect.storage import Git

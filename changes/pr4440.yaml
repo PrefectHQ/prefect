@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix compatibility with PyGithub >= 1.55 - [#4440](https://github.com/PrefectHQ/prefect/pull/4440)"

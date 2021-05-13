@@ -216,11 +216,13 @@ def docker():
 )
 @click.option(
     "--no-docker-interface",
+    default=None,
     is_flag=True,
     help=(
         "Disable the check of a Docker interface on this machine. "
         "Note: This is mostly relevant for some Docker-in-Docker "
-        "setups that users may be running their agent with."
+        "setups that users may be running their agent with. "
+        "DEPRECATED."
     ),
 )
 @click.option(
@@ -236,7 +238,9 @@ def start(volumes, no_docker_interface, **kwargs):
     start_agent(
         DockerAgent,
         volumes=list(volumes),
-        docker_interface=not no_docker_interface,
+        docker_interface=(
+            not no_docker_interface if no_docker_interface is not None else None
+        ),
         **kwargs,
     )
 

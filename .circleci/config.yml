@@ -548,25 +548,6 @@ jobs:
           name: Upload Package to PyPI
           command: twine upload dist/*
 
-  run_prefect_cloud_flow:
-    docker:
-      - image: prefecthq/prefect:latest
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
-    parameters:
-      version_group_id:
-        type: string
-    environment:
-      VERSION_GROUP_ID: << parameters.version_group_id >>
-      PREFECT__CLOUD__AUTH_TOKEN: $CLOUD_TENANT_TOKEN
-    steps:
-      - checkout
-
-      - run:
-          name: Run Flow
-          command: prefect run flow --version-group-id $VERSION_GROUP_ID
-
 orbs:
   docker: circleci/docker@1.0.0
 
@@ -639,13 +620,6 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - promote_server_artifacts:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - run_prefect_cloud_flow:
-          version_group_id: 'b54fca5c-a89b-4035-9b31-48710aed45df'
           filters:
             branches:
               ignore: /.*/

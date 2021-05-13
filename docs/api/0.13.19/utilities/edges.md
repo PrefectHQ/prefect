@@ -79,7 +79,7 @@ A container for specifying that a task's output should be flattened before being
 
     with Flow("My Flow"):
         add = Add()
-        ll = ListTask()
+        ll = NestedListTask()
 
         result = add.map(x=flatten(ll))
 
