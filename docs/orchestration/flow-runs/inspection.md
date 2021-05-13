@@ -108,4 +108,60 @@ For more details on the `TaskRunView`, see [the task runs documentation](./task-
 
 ### Querying for a single flow run
 
+You can query for a flow run by any of its properties. Here's a query using the flow run name
+
+```graphql
+query {
+  flow_run(where: {name: {_eq: "woodoo-leopard"}}) {
+    id
+    state
+    start_time
+  }
+}
+```
+
+Example response
+
+```json
+{
+  "data": {
+    "flow_run": [
+      {
+        "id": "8e445d74-9ca6-425b-98e5-72754b7ea174",
+        "state": "Success",
+        "start_time": "2021-05-12T17:59:56.383629+00:00"
+      }
+    ]
+  }
+}
+```
+
+Note that the response returns a `list` in the `flow_run` section because your query could return multiple results if the name is not unique.
+
 ### Querying for flow run aggregates
+
+Aggregate queries allow you to collect information about many flow runs. Here's a query using the
+
+```graphql
+query {
+  flow_run_aggregate(where: {state: {_eq: "Failed"}}) {
+    aggregate {
+      count
+    }
+  }
+}
+```
+
+
+Example response
+```
+{
+  "data": {
+    "flow_run_aggregate": {
+      "aggregate": {
+        "count": 14
+      }
+    }
+  }
+}
+```
