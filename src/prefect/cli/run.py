@@ -174,7 +174,7 @@ def get_flow_from_path_or_module(
 
     if len(flows) > 1 and not name:
         raise TerminalError(
-            f"Found multiple flows at {location}: {flow_names}\n\n"
+            f"Found multiple flows at {location!r}: {flow_names}\n\n"
             f"Specify a flow name to run."
         )
     if name:
