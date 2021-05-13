@@ -851,10 +851,11 @@ class Agent:
         # Register agent with backend API
         self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
-        self.logger.info(f"Agent connecting to the Prefect API at {config.cloud.api}")
+        self.logger.debug(f"Sending test query to API at {config.cloud.api!r}...")
 
         try:
             self.client.graphql(query="query { hello }")
+            self.logger.debug("Test query successful!")
         except Exception as exc:
             raise RuntimeError(
                 f"Error while contacting API at {config.cloud.api}"
