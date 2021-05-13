@@ -202,6 +202,9 @@ def test_run_local_handles_flow_load_failure_with_script_issue(at_load_failing_f
     assert "Traceback" in result.output
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Full traceback displayed on Windows"
+)
 def test_run_local_handles_flow_load_failure_with_missing_file(tmpdir):
     missing_file = str(tmpdir.join("file"))
     result = CliRunner().invoke(run, ["--path", missing_file])
