@@ -27,7 +27,6 @@ from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.importtools import import_object
-from prefect.utilities.logging import get_logger
 
 
 @contextmanager
