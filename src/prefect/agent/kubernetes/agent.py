@@ -77,34 +77,21 @@ class KubernetesAgent(Agent):
         - delete_finished_jobs (bool, optional): A boolean to toggle if finished Prefect jobs
             in the agent's namespace should be deleted. Defaults to the environment variable
             `DELETE_FINISHED_JOBS` or `True`.
+        - kwargs: Additional keyword arguments are passed to the `Agent` base class
     """
 
     def __init__(
         self,
-        agent_config_id: str = None,
         namespace: str = None,
         service_account_name: str = None,
         image_pull_secrets: Iterable[str] = None,
         job_template_path: str = None,
-        name: str = None,
-        labels: Iterable[str] = None,
-        env_vars: dict = None,
-        max_polls: int = None,
-        agent_address: str = None,
-        no_cloud_logs: bool = False,
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
         delete_finished_jobs: bool = True,
+        **kwargs,
     ) -> None:
-        super().__init__(
-            agent_config_id=agent_config_id,
-            name=name,
-            labels=labels,
-            env_vars=env_vars,
-            max_polls=max_polls,
-            agent_address=agent_address,
-            no_cloud_logs=no_cloud_logs,
-        )
+        super().__init__(**kwargs)
 
         self.namespace = namespace or os.getenv("NAMESPACE", "default")
         self.service_account_name = service_account_name or os.getenv(

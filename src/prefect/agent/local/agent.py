@@ -32,22 +32,6 @@ class LocalAgent(Agent):
     ```
 
     Args:
-        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
-            configuration based on an agent from a backend API. If set all configuration values will be
-            pulled from backend agent configuration.
-        - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
-        - labels (List[str], optional): a list of labels, which are arbitrary string
-            identifiers used by Prefect Agents when polling for work
-        - env_vars (dict, optional): a dictionary of environment variables and values that will
-            be set on each flow run that this agent submits for execution
-        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
-            for flow runs; defaults to infinite
-        - agent_address (str, optional):  Address to serve internal api at. Currently this is
-            just health checks for use by an orchestration layer. Leave blank for no api server
-            (default).
-        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
-            and all deployed flow runs
         - import_paths (List[str], optional): system paths which will be provided to each
             Flow's runtime environment; useful for Flows which import from locally hosted
             scripts or packages
@@ -58,34 +42,22 @@ class LocalAgent(Agent):
             flows which are stored on the local filesystem.
         - storage_labels (boolean, optional, DEPRECATED): a boolean specifying whether this agent should
             auto-label itself with all of the storage options labels.
+        - kwargs: Additional keyword arguments are passed to the `Agent` base class
     """
 
     def __init__(
         self,
-        agent_config_id: str = None,
-        name: str = None,
-        labels: Iterable[str] = None,
-        env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
         hostname_label: bool = True,
-        max_polls: int = None,
-        agent_address: str = None,
-        no_cloud_logs: bool = False,
         storage_labels: bool = None,
+        **kwargs,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
-        super().__init__(
-            agent_config_id=agent_config_id,
-            name=name,
-            labels=labels,
-            env_vars=env_vars,
-            max_polls=max_polls,
-            agent_address=agent_address,
-            no_cloud_logs=no_cloud_logs,
-        )
+        super().__init__(**kwargs)
+
         hostname = socket.gethostname()
 
         # Resolve common Docker hostname by using IP

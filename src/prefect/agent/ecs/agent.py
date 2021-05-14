@@ -70,25 +70,6 @@ class ECSAgent(Agent):
     Agent which deploys flow runs as ECS tasks.
 
     Args:
-        - agent_config_id (str, optional): An optional agent configuration ID
-            that can be used to set configuration based on an agent from a
-            backend API. If set all configuration values will be pulled from
-            the backend agent configuration.
-        - name (str, optional): An optional name to give this agent. Can also
-            be set through the environment variable `PREFECT__CLOUD__AGENT__NAME`.
-            Defaults to "agent".
-        - labels (List[str], optional): A list of labels, which are arbitrary
-            string identifiers used by Prefect Agents when polling for work.
-        - env_vars (dict, optional): A dictionary of environment variables and
-            values that will be set on each flow run that this agent submits
-            for execution.
-        - max_polls (int, optional): Maximum number of times the agent will
-            poll Prefect Cloud for flow runs; defaults to infinite.
-        - agent_address (str, optional):  Address to serve internal api at.
-            Currently this is just health checks for use by an orchestration
-            layer. Leave blank for no api server (default).
-        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend
-            for this agent and all deployed flow runs. Defaults to `False`.
         - task_definition_path (str, optional): Path to a task definition
             template to use when defining new tasks. If not provided, the
             default template will be used.
@@ -126,6 +107,7 @@ class ECSAgent(Agent):
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
+        - kwargs: Additional keyword arguments are passed to the `Agent` base class
 
 
     [1]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
@@ -135,13 +117,6 @@ class ECSAgent(Agent):
 
     def __init__(  # type: ignore
         self,
-        agent_config_id: str = None,
-        name: str = None,
-        labels: Iterable[str] = None,
-        env_vars: dict = None,
-        max_polls: int = None,
-        agent_address: str = None,
-        no_cloud_logs: bool = False,
         task_definition_path: str = None,
         run_task_kwargs_path: str = None,
         aws_access_key_id: str = None,
@@ -153,16 +128,9 @@ class ECSAgent(Agent):
         task_role_arn: str = None,
         execution_role_arn: str = None,
         botocore_config: dict = None,
+        **kwargs,
     ) -> None:
-        super().__init__(
-            agent_config_id=agent_config_id,
-            name=name,
-            labels=labels,
-            env_vars=env_vars,
-            max_polls=max_polls,
-            agent_address=agent_address,
-            no_cloud_logs=no_cloud_logs,
-        )
+        super().__init__(**kwargs)
 
         from botocore.config import Config
         from prefect.utilities.aws import get_boto_client

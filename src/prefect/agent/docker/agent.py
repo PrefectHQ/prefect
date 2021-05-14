@@ -50,22 +50,6 @@ class DockerAgent(Agent):
     ```
 
     Args:
-        - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
-            configuration based on an agent from a backend API. If set all configuration values will be
-            pulled from backend agent configuration.
-        - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
-        - labels (List[str], optional): a list of labels, which are arbitrary string
-            identifiers used by Prefect Agents when polling for work
-        - env_vars (dict, optional): a dictionary of environment variables and values that will
-            be set on each flow run that this agent submits for execution
-        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
-            for flow runs; defaults to infinite
-        - agent_address (str, optional):  Address to serve internal api at. Currently this is
-            just health checks for use by an orchestration layer. Leave blank for no api server
-            (default).
-        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
-            and all deployed flow runs
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
@@ -83,17 +67,11 @@ class DockerAgent(Agent):
         - docker_client_timeout (int, optional): The timeout to use for docker
             API calls, defaults to 60 seconds.
         - docker_interface: This option has been deprecated and has no effect.
+        - kwargs: Additional keyword arguments are passed to the `Agent` base class
     """
 
     def __init__(
         self,
-        agent_config_id: str = None,
-        name: str = None,
-        labels: Iterable[str] = None,
-        env_vars: dict = None,
-        max_polls: int = None,
-        agent_address: str = None,
-        no_cloud_logs: bool = False,
         base_url: str = None,
         no_pull: bool = None,
         volumes: List[str] = None,
@@ -103,16 +81,9 @@ class DockerAgent(Agent):
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
         docker_interface: bool = None,
+        **kwargs,
     ) -> None:
-        super().__init__(
-            agent_config_id=agent_config_id,
-            name=name,
-            labels=labels,
-            env_vars=env_vars,
-            max_polls=max_polls,
-            agent_address=agent_address,
-            no_cloud_logs=no_cloud_logs,
-        )
+        super().__init__(**kwargs)
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
         else:
