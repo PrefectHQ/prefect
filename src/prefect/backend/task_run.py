@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Iterator
 
 from prefect import Client
 from prefect.engine.state import State
@@ -98,6 +98,37 @@ class TaskRunView:
         # Fire the state result hydration
         self.state.load_result()
         return self.state.result
+
+    def iter_mapped(self) -> Iterator["TaskRunView"]:
+        """
+        Iterate over the results of a mapped task, yielding a `TaskRunView` for each map
+        index. This query is not performed in bulk so the results can be lazily
+        consumed. If you want all of the task results at once, use `result` instead.
+
+        Yields:
+            A `TaskRunView` for each mapped item
+        """
+        where = lambda index: {
+            "task": {"slug": {"_eq": self.task_slug}},
+            "flow_run_id": {"_eq": self.flow_run_id},
+            "map_index": {"_eq": index},
+        }
+        if not self.state.is_mapped():
+            raise TypeError(
+                f"Task run {self.task_run_id!r} ({self.task_slug}) is not a "
+                "mapped task."
+            )
+
+        map_index = 0
+        while True:
+            task_run_data = self._query_for_task_run(
+                where=where(map_index), error_on_empty=False
+            )
+            if not task_run_data:
+                break
+
+            yield self._from_task_run_data(task_run_data)
+            map_index += 1
 
     @classmethod
     def _from_task_run_data(cls, task_run: dict) -> "TaskRunView":
