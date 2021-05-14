@@ -6,7 +6,7 @@ import re
 import warnings
 from slugify import slugify
 from sys import platform
-from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple, Any
 
 from prefect import config, context
 from prefect.agent import Agent
