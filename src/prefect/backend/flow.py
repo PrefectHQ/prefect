@@ -296,7 +296,7 @@ class FlowView:
                 [
                     f"flow_id={self.flow_id!r}",
                     f"name={self.name!r}",
-                    f"project_name={self.project_name!r}"
+                    f"project_name={self.project_name!r}",
                     f"storage_type={type(self.storage).__name__}",
                 ]
             )
