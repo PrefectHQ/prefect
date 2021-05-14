@@ -172,6 +172,8 @@ class Agent:
         if self.max_concurrent_runs:
             self.logger.debug(f"Max concurrent runs: {self.max_concurrent_runs}")
 
+        self.agent_id: Optional[str] = None  # Filled by `_register_agent()`
+
     def start(self) -> None:
         """
         The main entrypoint to the agent process. Sets up the agent then continuously
@@ -539,7 +541,33 @@ class Agent:
     # Backend API queries --------------------------------------------------------------
 
     def _get_running_flow_count(self) -> int:
-        return 0
+        self.logger.debug("Checking for running flow run count...")
+        if not self.agent_id:
+            raise ValueError("Missing value for `agent_id`. Is the agent started?")
+
+        query = {
+            "query": {
+                with_args(
+                    "flow_run_aggregate",
+                    {
+                        "where": {
+                            {"state": {"_eq": "Running"}},
+                            {"agent_id": {"_eq": self.agent_id}},
+                        },
+                    },
+                ): {"aggregate": {"count"}}
+            }
+        }
+
+        result = self.client.graphql(query)
+        count = result.get("data", {}).get("aggregate", {}).get("count")
+
+        if count is None:
+            raise ValueError(
+                f"Recieved bad result from API for running flow count: {result}"
+            )
+
+        return count
 
     def _get_ready_flow_runs(self, prefetch_seconds: int = 10) -> list:
         """
@@ -879,7 +907,8 @@ class Agent:
             self._verify_token(self.client.get_auth_token())
 
         # Register agent with backend API
-        self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+        self.agent_id = self._register_agent()
+        self.client.attach_headers({"X-PREFECT-AGENT-ID": self.agent_id})
 
         self.logger.debug(f"Sending test query to API at {config.cloud.api!r}...")
 
