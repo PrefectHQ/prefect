@@ -541,7 +541,7 @@ class Agent:
     # Backend API queries --------------------------------------------------------------
 
     def _get_running_flow_count(self) -> int:
-        self.logger.debug("Checking for running flow run count...")
+        self.logger.debug("Checking flow run concurrency count...")
         if not self.agent_id:
             raise ValueError("Missing value for `agent_id`. Is the agent started?")
 
@@ -551,8 +551,8 @@ class Agent:
                     "flow_run_aggregate",
                     {
                         "where": {
-                            {"state": {"_eq": "Running"}},
-                            {"agent_id": {"_eq": self.agent_id}},
+                            "state": {"_eq": "Running"},
+                            "agent_id": {"_eq": self.agent_id},
                         },
                     },
                 ): {"aggregate": {"count"}}
@@ -560,7 +560,12 @@ class Agent:
         }
 
         result = self.client.graphql(query)
-        count = result.get("data", {}).get("aggregate", {}).get("count")
+        count = (
+            result.get("data", {})
+            .get("flow_run_aggregate", {})
+            .get("aggregate", {})
+            .get("count")
+        )
 
         if count is None:
             raise ValueError(
