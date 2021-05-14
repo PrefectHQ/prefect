@@ -130,6 +130,7 @@ class Agent:
         max_polls: int = None,
         agent_address: str = None,
         no_cloud_logs: bool = False,
+        max_concurrent_runs: int = None,
     ) -> None:
         # Load token and initialize client
         token = config.cloud.agent.get("auth_token")
@@ -145,6 +146,10 @@ class Agent:
         self.log_to_cloud = False if no_cloud_logs else True
         self.heartbeat_period = 60  # exposed for testing
         self.agent_address = agent_address or config.cloud.agent.get("agent_address")
+
+        if max_concurrent_runs is not None and max_concurrent_runs < 1:
+            raise ValueError("`max_concurrent_runs` must be an integer greater zero.")
+        self.max_concurrent_runs = max_concurrent_runs
 
         # These track background task objects so we can tear them down on exit
         self._api_server: Optional[HTTPServer] = None
@@ -164,6 +169,8 @@ class Agent:
         self.logger.debug(f"Agent address: {self.agent_address}")
         self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
         self.logger.debug(f"Prefect backend: {config.backend}")
+        if self.max_concurrent_runs:
+            self.logger.debug(f"Max concurrent runs: {self.max_concurrent_runs}")
 
     def start(self) -> None:
         """
@@ -257,8 +264,8 @@ class Agent:
         backoff_index = 0
         remaining_polls = math.inf if self.max_polls is None else self.max_polls
 
-        # the max workers default has changed in 3.8. For stable results the
-        # default 3.8 behavior is elected here.
+        # the max workers default has changed in 3.8. For stable results the default
+        #  3.8 behavior is elected here.
         max_workers = min(32, (os.cpu_count() or 1) + 4)
         self.logger.debug(
             f"Running thread pool with {max_workers} workers to handle flow deployment"
@@ -294,6 +301,7 @@ class Agent:
 
     def _submit_deploy_flow_run_jobs(self, executor: "ThreadPoolExecutor") -> list:
         """
+        - Check for agent-level flow run concurrency
         - Queries for ready flow runs
         - Submits calls of `_deploy_flow_run(flow_run)` to the executor
         - Tracks submitted runs to prevent double deployments
@@ -305,6 +313,18 @@ class Agent:
         Returns:
             - A list of submitted flow runs
         """
+        # Check if this agent is at its concurrency limit
+        concurrency_limit_msg = (
+            f"At max concurrent run count of {self.max_concurrent_runs}!"
+        )
+        if self.max_concurrent_runs:
+            run_count = self._get_running_flow_count()
+            if run_count >= self.max_concurrent_runs:
+                self.logger.info(
+                    concurrency_limit_msg + " Skipping query for new runs."
+                )
+                return []
+
         # Query for ready runs -- allowing for intermittent failures by handling
         # exceptions
         try:
@@ -314,6 +334,13 @@ class Agent:
             return []
 
         for flow_run in flow_runs:
+            if self.max_concurrent_runs:
+                run_count += 1
+                if run_count > self.max_concurrent_runs:
+                    self.logger.info(
+                        concurrency_limit_msg + " Ignoring remaining ready flow runs."
+                    )
+                    break
             self.logger.debug(f"Submitting flow run {flow_run.id} for deployment...")
             executor.submit(self._deploy_flow_run, flow_run).add_done_callback(
                 functools.partial(
@@ -510,6 +537,9 @@ class Agent:
             self._heartbeat_thread.join(timeout=1)
 
     # Backend API queries --------------------------------------------------------------
+
+    def _get_running_flow_count(self) -> int:
+        return 0
 
     def _get_ready_flow_runs(self, prefetch_seconds: int = 10) -> list:
         """
