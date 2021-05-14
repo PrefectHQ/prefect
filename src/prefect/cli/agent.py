@@ -61,6 +61,17 @@ COMMON_START_OPTIONS = [
             "environment."
         ),
     ),
+    click.option(
+        "--concurrency-limit",
+        "-L",
+        "max_concurrent_runs",
+        type=int,
+        default=None,
+        help=(
+            "The maximum number of concurrent flow runs this agent can submit. "
+            "Defaults to unlimited."
+        ),
+    ),
 ]
 
 
