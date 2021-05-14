@@ -551,7 +551,10 @@ class Agent:
                     "flow_run_aggregate",
                     {
                         "where": {
-                            "state": {"_eq": "Running"},
+                            "_or": [
+                                {"state": {"_eq": "Running"}},
+                                {"state": {"_eq": "Submitted"}},
+                            ],
                             "agent_id": {"_eq": self.agent_id},
                         },
                     },
