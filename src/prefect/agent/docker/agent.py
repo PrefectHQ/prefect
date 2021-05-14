@@ -67,7 +67,7 @@ class DockerAgent(Agent):
         - docker_client_timeout (int, optional): The timeout to use for docker
             API calls, defaults to 60 seconds.
         - docker_interface: This option has been deprecated and has no effect.
-        - kwargs: Additional keyword arguments are passed to the `Agent` base class
+        - **kwargs: Additional keyword arguments are passed to the `Agent` base class
     """
 
     def __init__(
@@ -81,7 +81,7 @@ class DockerAgent(Agent):
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
         docker_interface: bool = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         if platform == "win32":

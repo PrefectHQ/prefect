@@ -107,7 +107,7 @@ class ECSAgent(Agent):
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
-        - kwargs: Additional keyword arguments are passed to the `Agent` base class
+        - **kwargs: Additional keyword arguments are passed to the `Agent` base class
 
 
     [1]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html

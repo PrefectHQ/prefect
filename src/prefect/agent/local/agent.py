@@ -42,7 +42,7 @@ class LocalAgent(Agent):
             flows which are stored on the local filesystem.
         - storage_labels (boolean, optional, DEPRECATED): a boolean specifying whether this agent should
             auto-label itself with all of the storage options labels.
-        - kwargs: Additional keyword arguments are passed to the `Agent` base class
+        - **kwargs: Additional keyword arguments are passed to the `Agent` base class
     """
 
     def __init__(

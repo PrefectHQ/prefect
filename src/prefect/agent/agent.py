@@ -541,6 +541,12 @@ class Agent:
     # Backend API queries --------------------------------------------------------------
 
     def _get_running_flow_count(self) -> int:
+        """
+        Query the Prefect API for the number of running flows created by this agent id;
+        limits returned count to `self.max_concurrent_runs` to avoid querying over more
+        data than necessary
+        """
+
         self.logger.debug("Checking flow run concurrency count...")
         if not self.agent_id:
             raise ValueError("Missing value for `agent_id`. Is the agent started?")
@@ -557,6 +563,8 @@ class Agent:
                             ],
                             "agent_id": {"_eq": self.agent_id},
                         },
+                        # Add one so we could check if the metric has been exceeded
+                        "limit": self.max_concurrent_runs + 1,
                     },
                 ): {"aggregate": {"count"}}
             }

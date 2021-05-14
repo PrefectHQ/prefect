@@ -77,7 +77,7 @@ class KubernetesAgent(Agent):
         - delete_finished_jobs (bool, optional): A boolean to toggle if finished Prefect jobs
             in the agent's namespace should be deleted. Defaults to the environment variable
             `DELETE_FINISHED_JOBS` or `True`.
-        - kwargs: Additional keyword arguments are passed to the `Agent` base class
+        - **kwargs: Additional keyword arguments are passed to the `Agent` base class
     """
 
     def __init__(
@@ -89,7 +89,7 @@ class KubernetesAgent(Agent):
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
         delete_finished_jobs: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
