@@ -108,19 +108,20 @@ class TaskRunView:
         Yields:
             A `TaskRunView` for each mapped item
         """
-        where = lambda index: {
-            "task": {"slug": {"_eq": self.task_slug}},
-            "flow_run_id": {"_eq": self.flow_run_id},
-            "map_index": {"_eq": index},
-        }
         if not self.state.is_mapped():
             raise TypeError(
                 f"Task run {self.task_run_id!r} ({self.task_slug}) is not a "
                 "mapped task."
             )
 
+        # Generate a where clause given the map index
+        where = lambda index: {
+            "task": {"slug": {"_eq": self.task_slug}},
+            "flow_run_id": {"_eq": self.flow_run_id},
+            "map_index": {"_eq": index},
+        }
         map_index = 0
-        while True:
+        while True:  # Iterate until we are out of child task runs
             task_run_data = self._query_for_task_run(
                 where=where(map_index), error_on_empty=False
             )

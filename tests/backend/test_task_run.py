@@ -279,6 +279,7 @@ def test_task_run_view_iter_mapped():
     query_mock = MagicMock(side_effect=return_index)
     task_run._query_for_task_run = query_mock
 
+    # Yields each mapped task
     for index, child_run in enumerate(task_run.iter_mapped()):
         assert isinstance(child_run, TaskRunView)
         assert child_run.map_index == index
