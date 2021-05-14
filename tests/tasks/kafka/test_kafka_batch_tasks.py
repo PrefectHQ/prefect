@@ -44,3 +44,38 @@ class TestKafkaBatchConsume:
         assert len(messages) == 2
         for message in messages:
             assert message == 'value'
+
+
+class TestKafkaBatchProduce:
+    def test_construction(self):
+        task = KafkaBatchProduce('localhost:9092')
+        assert task.bootstrap_servers == 'localhost:9092'
+
+        # raises when bootstrap_servers isn't provided
+        with pytest.raises(TypeError):
+            task = KafkaBatchProduce()
+
+    def test_topic_must_be_provided(self):
+        task = KafkaBatchProduce('localhost:9092')
+        with pytest.raises(TypeError):
+            task.run()
+
+    def test_messages_must_be_provided(self):
+        task = KafkaBatchProduce('localhost:9092')
+        with pytest.raises(TypeError):
+            task.run(topic='mytopic')
+
+    def test_run_with_no_messages(self):
+        task = KafkaBatchProduce('localhost:9092')
+        task.run(topic='mytopic', messages=[])
+
+    @mock.patch("prefect.tasks.kafka.kafka.confluent_kafka")
+    def test_run_with_messages(self, mock_confluent_kafka):
+        task = KafkaBatchProduce('localhost:9092')
+        mock_producer = mock.MagicMock()
+        message = {'key': 'a', 'value': 'b'}
+        topic = 'mytopic'
+
+        mock_confluent_kafka.Producer.return_value = mock_producer
+        task.run(topic, [message,])
+        mock_producer.produce.assert_called_with(topic=topic, key=message['key'], value=message['value'], callback=None)
