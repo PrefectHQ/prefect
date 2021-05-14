@@ -1,4 +1,4 @@
-from confluent_kafka import Consumer, Producer, KafkaError, KafkaException
+import confluent_kafka
 from typing import List
 from prefect import Task
 
@@ -17,13 +17,14 @@ class KafkaBatchConsume(Task):
 
     def run(
         self,
-        topic: str,
+        topic: List[str],
         timeout: float = 1.0,
         auto_offset_reset: str = 'earliest',
         message_consume_limit: int = None,
         **consumer_options,
     ) -> List[bytes]:
-        consumer = Consumer(
+
+        consumer = confluent_kafka.Consumer(
             {
                 'bootstrap.servers': self.bootstrap_servers,
                 'group.id': self.group_id,
@@ -43,14 +44,14 @@ class KafkaBatchConsume(Task):
 
                 if message is not None:
                     if message.error():
-                        if mesage.error().code() == KafkaError._PARTITION_EOF:
+                        if message.error().code() == confluent_kafka.KafkaError._PARTITION_EOF:
                             # End of partition event, exit consumer
                             self.logger.warn(
                                 f"{msg.topic()} [{msg.partition()}] reached end at offset {msg.offset()}"
                             )
                             running = False
                         elif message.error():
-                            raise KafkaException(message.error())
+                            raise confluent_kafka.KafkaException(message.error())
                     else:
                         messages.append(message.value())
                         message_consume_count += 1
@@ -88,7 +89,7 @@ class KafkaBatchProduce(Task):
         **producer_options,
     ):
 
-        producer = Producer(
+        producer = confluent_kafka.Producer(
             {'bootstrap.servers': self.bootstrap_servers, **producer_options}
         )
         message_produce_count = 0
