@@ -147,7 +147,9 @@ class TaskRunView:
         )
 
     @classmethod
-    def from_task_slug(cls, task_slug: str, flow_run_id: str) -> "TaskRunView":
+    def from_task_slug(
+        cls, task_slug: str, flow_run_id: str, map_index: int = -1
+    ) -> "TaskRunView":
         """
         Get an instance of this class; query by task slug and flow run id.
 
@@ -155,6 +157,8 @@ class TaskRunView:
             - task_slug: The unique string identifying this task in the flow. Typically
                 `<task-name>-1`.
             - flow_run_id: The UUID identifying the flow run the task run occurred in
+            - map_index (optional): The index to access for mapped tasks; defaults to
+                the parent task with a map index of -1
 
         Returns:
             A populated `TaskRunView` instance
@@ -164,9 +168,7 @@ class TaskRunView:
                 where={
                     "task": {"slug": {"_eq": task_slug}},
                     "flow_run_id": {"_eq": flow_run_id},
-                    # Since task slugs can be duplicated for mapped tasks, only allow
-                    # the root task to be pulled by this
-                    "map_index": {"_eq": -1},
+                    "map_index": {"_eq": map_index},
                 }
             )
         )

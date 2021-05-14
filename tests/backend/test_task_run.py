@@ -143,17 +143,23 @@ def test_task_run_view_from_task_run_id_where_clause(monkeypatch):
     )
 
 
-def test_task_run_view_from_task_slug_where_clause(monkeypatch):
+@pytest.mark.parametrize("map_index", [None, -1, 0, 3])
+def test_task_run_view_from_task_slug_where_clause(monkeypatch, map_index):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.client.client.Client.post", post)
 
-    TaskRunView.from_task_slug(task_slug="task-slug-1", flow_run_id="flow-run-id-1")
+    kwargs = {}
+    if map_index is not None:  # None indicating not to pass an arg
+        kwargs["map_index"] = map_index
 
+    TaskRunView.from_task_slug(
+        task_slug="task-slug-1", flow_run_id="flow-run-id-1", **kwargs
+    )
     assert (
         "task_run(where: { "
         'task: { slug: { _eq: "task-slug-1" } }, '
         'flow_run_id: { _eq: "flow-run-id-1" }, '
-        "map_index: { _eq: -1 } "
+        f"map_index: {{ _eq: {map_index if map_index is not None else -1} }} "
         "})"
     ) in post.call_args[1]["params"]["query"]
 
