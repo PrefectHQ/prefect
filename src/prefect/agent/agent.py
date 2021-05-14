@@ -8,7 +8,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Optional, Set, Type, cast
+from typing import Any, Generator, Optional, Set, Type, cast
 from urllib.parse import urlparse
 
 import pendulum
@@ -551,6 +551,14 @@ class Agent:
         if not self.agent_id:
             raise ValueError("Missing value for `agent_id`. Is the agent started?")
 
+        if not self.max_concurrent_runs:
+            raise ValueError(
+                "`_get_running_flow_count` should not be called unless "
+                "`max_concurrent_runs` is set"
+            )
+
+        # TODO: This query will likely be replaced with a more performant query with a
+        #       dedicated backend route
         query = {
             "query": {
                 with_args(
