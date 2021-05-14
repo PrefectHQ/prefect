@@ -1,5 +1,7 @@
-import confluent_kafka
+import logging
 from typing import List
+
+import confluent_kafka
 from prefect import Task
 
 
@@ -98,7 +100,7 @@ class KafkaBatchProduce(Task):
             if threshold:
                 if i % threshold == 0:
                     producer.flush()
-                    self.logging.debug(
+                    logging.debug(
                         f"Producer flushed {threshold} messages to {topic}"
                     )
 
@@ -109,6 +111,6 @@ class KafkaBatchProduce(Task):
             message_produce_count += 1
 
         producer.flush()
-        self.logging.debug(
+        logging.debug(
             f"Producer flushed {message_produce_count} messages to {topic}"
         )
