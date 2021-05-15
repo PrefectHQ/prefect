@@ -65,7 +65,10 @@ class KafkaBatchConsume(Task):
 
                 if message is not None:
                     if message.error():
-                        if message.error().code() == confluent_kafka.KafkaError._PARTITION_EOF:
+                        if (
+                            message.error().code()
+                            == confluent_kafka.KafkaError._PARTITION_EOF
+                        ):
                             # End of partition event, exit consumer
                             self.logger.warn(
                                 f"{msg.topic()} [{msg.partition()}] reached end at offset {msg.offset()}"
@@ -148,6 +151,4 @@ class KafkaBatchProduce(Task):
             message_produce_count += 1
 
         producer.flush()
-        logging.debug(
-            f"Producer flushed {message_produce_count} messages to {topic}"
-        )
+        logging.debug(f"Producer flushed {message_produce_count} messages to {topic}")

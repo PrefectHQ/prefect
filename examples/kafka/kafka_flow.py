@@ -30,7 +30,12 @@ with Flow('Kafka Example') as flow:
 
     time.sleep(5)
 
-    messages = kafka_consume.run(topic=[TOPIC], timeout=1.0, message_consume_limit=10000, auto_offset_reset='latest')
+    messages = kafka_consume.run(
+        topic=[TOPIC],
+        timeout=1.0,
+        message_consume_limit=10000,
+        auto_offset_reset='latest',
+    )
     print_results(messages)
 
     remaining_messages = kafka_consume.run(topic=[TOPIC], timeout=1.0)
