@@ -67,7 +67,7 @@ extras = {
     "jira": ["jira >= 2.0.0"],
     "jupyter": ["papermill >= 2.2.0", "nbconvert >= 6.0.7"],
     "kafka": ["confluent-kafka >= 1.7.0"],
-    "kubernetes": ["kubernetes >= 9.0.0a1, <= 11.0.0b2", "dask-kubernetes >= 0.8.0"],
+    "kubernetes": ["dask-kubernetes >= 0.8.0"] + orchestration_extras["kubernetes"],
     "pandas": ["pandas >= 1.0.1"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
     "mysql": ["pymysql >= 0.9.3"],
