@@ -195,7 +195,6 @@ def test_get_flow_runs_cloud(monkeypatch, cloud_api):
             and "STATE" in result.output
             and "AGE" in result.output
             and "START TIME" in result.output
-            and "DURATION" in result.output
         )
 
         query = """
@@ -208,7 +207,6 @@ def test_get_flow_runs_cloud(monkeypatch, cloud_api):
                 created
                 state
                 name
-                duration
                 start_time
             }
         }
@@ -255,7 +253,6 @@ def test_get_flow_runs_populated(monkeypatch, cloud_api):
                 created
                 state
                 name
-                duration
                 start_time
             }
         }

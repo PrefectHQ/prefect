@@ -219,7 +219,7 @@ def gmail_notifier(
     ignore_states = ignore_states or []
     only_states = only_states or []
 
-    if any([isinstance(new_state, ignored) for ignored in ignore_states]):
+    if any(isinstance(new_state, ignored) for ignored in ignore_states):
         return new_state
 
     if only_states and not any(
@@ -233,8 +233,10 @@ def gmail_notifier(
     server.login(username, password)
     try:
         server.sendmail("notifications@prefect.io", username, body)
-    except Exception:
-        raise ValueError("Email notification for {} failed".format(tracked_obj))
+    except Exception as exc:
+        raise ValueError(
+            "Email notification for {} failed".format(tracked_obj)
+        ) from exc
     finally:
         server.quit()
 
@@ -295,7 +297,7 @@ def slack_notifier(
     ignore_states = ignore_states or []
     only_states = only_states or []
 
-    if any([isinstance(new_state, ignored) for ignored in ignore_states]):
+    if any(isinstance(new_state, ignored) for ignored in ignore_states):
         return new_state
 
     if only_states and not any(

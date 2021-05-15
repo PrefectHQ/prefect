@@ -52,6 +52,19 @@ class Test_read_bytes_from_path:
         res = read_bytes_from_path(path_arg)
         assert res == b"hello"
 
+    @pytest.mark.parametrize("scheme", ["http", "https"])
+    def test_read_http_file(self, monkeypatch, scheme):
+        pytest.importorskip("requests")
+
+        url = f"{scheme}://some/file.json"
+
+        requests_get = MagicMock(return_value=MagicMock(content=b"testing"))
+        monkeypatch.setattr("requests.get", requests_get)
+
+        res = read_bytes_from_path(url)
+        assert requests_get.call_args[0] == (url,)
+        assert res == b"testing"
+
     def test_read_gcs(self, monkeypatch):
         pytest.importorskip("prefect.utilities.gcp")
         client = MagicMock()
@@ -74,5 +87,5 @@ class Test_read_bytes_from_path:
         )
         res = read_bytes_from_path("s3://mybucket/path/to/thing.yaml")
         assert client.download_fileobj.call_args[1]["Bucket"] == "mybucket"
-        assert client.download_fileobj.call_args[1]["Key"] == "/path/to/thing.yaml"
+        assert client.download_fileobj.call_args[1]["Key"] == "path/to/thing.yaml"
         assert isinstance(res, bytes)

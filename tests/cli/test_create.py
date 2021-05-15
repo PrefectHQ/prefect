@@ -49,3 +49,33 @@ def test_create_project_description(patch_post, cloud_api):
     result = runner.invoke(create, ["project", "test", "-d", "description"])
     assert result.exit_code == 0
     assert "test created" in result.output
+
+
+def test_create_project_that_already_exists(patch_posts):
+    patch_posts(
+        [
+            {
+                "errors": [
+                    {"message": "Uniqueness violation.", "path": ["create_project"]}
+                ],
+                "data": {"create_project": None},
+            },
+            {"data": {"project": [{"id": "proj-id"}]}},
+        ]
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(create, ["project", "test"])
+    assert result.exit_code == 0
+    assert "test created" in result.output
+
+
+def test_skip_if_exists(patch_post, cloud_api):
+    patch_post(dict(data=dict(project=[dict(id="id")])))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        create, ["project", "test", "-d", "description", "--skip-if-exists"]
+    )
+    assert result.exit_code == 0
+    assert "test already exists" in result.output

@@ -34,18 +34,16 @@ repository.
 ## Deploying Prefect Server
 
 Prefect Server is designed to be deployed inside user infrastructure, and should be runnable in a wide
-variety of deployment backends. Currently the core team only officially supports a single-node
-deployment, but there are plans to expand to other deployment models (e.g. Kubernetes) in the near future. If you're
-interested in supporting such efforts, please [feel free to reach out](mailto:hello@prefect.io).
+variety of deployment backends. 
 
-In the meantime, please read our guide to [Single-Node Deployment](/orchestration/Server/deploy-local.html).
+For deployment instructions, read our guide to [Single-Node Deployment](/orchestration/Server/deploy-local.html) or, if you have a Kubernetes cluste you'd prefer to use, see the [Helm chart README](https://github.com/PrefectHQ/server/tree/master/helm/prefect-server).
 
 ::: warning Migrating off of Prefect Server <= 0.12.6
 The initial release of Prefect Server with Prefect Core 0.12.6 is no longer supported. Due to the large number of features and changes in the new [Server codebase](https://github.com/PrefectHQ/server) there is unfortunately no route to migrating your run and state history to a new Server installation.
 :::
 
 ::: warning Docker and Docker Compose required
-Because of [the diverse collection of services required](architecture.html) to run the full backend, Prefect Server ships as a docker-compose file that allows each of these services to run inside a custom configured Docker image within an appropriately configured Docker network.  This allows users to get up and running with a single CLI command.
+Because of [the diverse collection of services required](architecture.html) to run the full backend, Prefect Server ships as a docker-compose file that allows each of these services to run inside a custom configured Docker image within an appropriately configured Docker network.  This allows users to get up and running with a single CLI command. docker-compose is not included in our Python requirements file as it is not necessary for general use of Prefect. We require a minimum docker-compose version of `1.18.0`.
 :::
 
 ## Prefect Server vs. Prefect Cloud - which should I choose?

@@ -1,7 +1,6 @@
 import io
 from typing import Any, TYPE_CHECKING, Dict
 
-import prefect
 from prefect.engine.result import Result
 
 if TYPE_CHECKING:
@@ -25,7 +24,7 @@ class S3Result(Result):
         - bucket (str): the name of the bucket to write to / read from
         - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client
             session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
-            is initialized (changing the "service_name" is not permitted).
+            is initialized.
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
@@ -33,48 +32,20 @@ class S3Result(Result):
         self, bucket: str, boto3_kwargs: Dict[str, Any] = None, **kwargs: Any
     ) -> None:
         self.bucket = bucket
-        self.boto3_kwargs = boto3_kwargs or dict()
-        assert (
-            "service_name" not in self.boto3_kwargs.keys()
-        ), 'Changing the boto3 "service_name" is not permitted!'
-        self._client = None
+        self.boto3_kwargs = boto3_kwargs or {}
         super().__init__(**kwargs)
-
-    def initialize_client(self) -> None:
-        """
-        Initializes an S3 Client.
-        """
-        from prefect.utilities.aws import get_boto_client
-
-        # use a new boto session when initializing in case we are in a new thread see
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
-        s3_client = get_boto_client(
-            "s3", credentials=None, use_session=True, **self.boto3_kwargs
-        )
-        self.client = s3_client
 
     @property
     def client(self) -> "boto3.client":
-        """
-        Initializes a client if we believe we are in a new thread.
+        if getattr(self, "_client", None) is None:
+            from prefect.utilities.aws import get_boto_client
 
-        We consider ourselves in a new thread if we haven't stored a client yet in the current
-        context.
-        """
-        if not prefect.context.get("boto3client") or not getattr(self, "_client", None):
-            self.initialize_client()
-            prefect.context["boto3client"] = self._client
-
+            self._client = get_boto_client("s3", **self.boto3_kwargs)
         return self._client
-
-    @client.setter
-    def client(self, val: Any) -> None:
-        self._client = val
 
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
-        if "_client" in state:
-            del state["_client"]
+        state.pop("_client", None)
         return state
 
     def __setstate__(self, state: dict) -> None:
@@ -135,10 +106,9 @@ class S3Result(Result):
             self.client.download_fileobj(
                 Bucket=self.bucket, Key=location, Fileobj=stream
             )
-            stream.seek(0)
 
             try:
-                new.value = new.serializer.deserialize(stream.read())
+                new.value = new.serializer.deserialize(stream.getvalue())
             except EOFError:
                 new.value = None
             self.logger.debug("Finished downloading result from {}.".format(location))

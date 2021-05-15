@@ -1,5 +1,12 @@
 # Custom Environment
 
+::: warning
+Flows configured with environments are being deprecated - we recommend users
+transition to using "Run Configs" instead. See [flow
+configuration](/orchestration/flow_config/overview.md) and [upgrading
+tips](/orchestration/flow_config/upgrade.md) for more information.
+:::
+
 [[toc]]
 
 Prefect environments allow for completely custom, user-created environments. The only requirement is that your custom environment inherit from the base `Environment` class.
@@ -19,7 +26,7 @@ from typing import Any, Callable, List
 
 from prefect import config
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Storage
+from prefect.storage import Storage
 
 
 class MyCustomEnvironment(Environment):
@@ -105,7 +112,7 @@ class MyCustomEnvironment(Environment):
 
 
 from prefect import task, Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 
 @task

@@ -63,7 +63,7 @@ class TestListImagesTask(DockerLoggingTestingUtilityMixin):
             docker_server_url="test",
         )
         assert task.repository_name == "test"
-        assert task.all_layers == True
+        assert task.all_layers is True
         assert task.filters == {"name": "test"}
         assert task.docker_server_url == "test"
 
@@ -197,6 +197,28 @@ class TestPullImageTask(DockerLoggingTestingUtilityMixin):
 
             result = task.run(repository="test")
             assert result == expected_docker_output
+
+    def test_returns_pull_value_with_stream_logs(self, monkeypatch, caplog):
+
+        task = PullImage()
+
+        api = MagicMock()
+        expected_docker_output = [
+            {"status": "Pulling"},
+            {"status": "Digest"},
+            {"status": "Test"},
+        ]
+        expected_result = (
+            "{'status': 'Pulling'}\n{'status': 'Digest'}\n{'status': 'Test'}"
+        )
+
+        api.return_value.pull = MagicMock(return_value=expected_docker_output)
+        monkeypatch.setattr("docker.APIClient", api)
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+
+            result = task.run(repository="original", stream_logs=True)
+            assert result == expected_result
 
     def test_logs_twice_on_success(self, monkeypatch, caplog):
         tag = "A very specific tag for an image"
@@ -333,7 +355,7 @@ class TestRemoveImageTask(DockerLoggingTestingUtilityMixin):
     def test_filled_initialization(self):
         task = RemoveImage(image="test", force=True, docker_server_url="test")
         assert task.image == "test"
-        assert task.force == True
+        assert task.force is True
         assert task.docker_server_url == "test"
 
     def test_empty_image_raises_error(self):
@@ -423,7 +445,7 @@ class TestTagImageTask(DockerLoggingTestingUtilityMixin):
         assert task.image == "test"
         assert task.repository == "test"
         assert task.tag == "test"
-        assert task.force == True
+        assert task.force is True
         assert task.docker_server_url == "test"
 
     def test_empty_image_raises_error(self):
@@ -535,9 +557,9 @@ class TestBuildImageTask(DockerLoggingTestingUtilityMixin):
         )
         assert task.path == "test"
         assert task.tag == "test"
-        assert task.nocache == True
+        assert task.nocache is True
         assert not task.rm
-        assert task.forcerm == True
+        assert task.forcerm is True
         assert task.docker_server_url == "test"
 
     def test_empty_path_raises_error(self):
@@ -581,9 +603,9 @@ class TestBuildImageTask(DockerLoggingTestingUtilityMixin):
         monkeypatch.setattr("docker.APIClient", api)
 
         return_value = task.run(path="test")
-        assert all([isinstance(value, dict) for value in return_value])
-        assert all([len(value) >= 1 for value in return_value])
-        assert all([key for value in return_value for key in value])
+        assert all(isinstance(value, dict) for value in return_value)
+        assert all(len(value) >= 1 for value in return_value)
+        assert all(key for value in return_value for key in value)
 
     def test_image_is_replaced(self, monkeypatch):
         task = BuildImage(path="original")

@@ -1,5 +1,6 @@
 import os
 import signal
+import sys
 import threading
 from time import sleep as time_sleep
 from typing import Any, Callable, Dict, Iterable, Optional, Iterator
@@ -73,7 +74,15 @@ class CloudFlowRunner(FlowRunner):
             # use empty string for testing purposes
             flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
             self.client.update_flow_run_heartbeat(flow_run_id)
-            self.heartbeat_cmd = ["prefect", "heartbeat", "flow-run", "-i", flow_run_id]
+            self.heartbeat_cmd = [
+                sys.executable,
+                "-m",
+                "prefect",
+                "heartbeat",
+                "flow-run",
+                "-i",
+                flow_run_id,
+            ]
 
             query = {
                 "query": {
@@ -197,22 +206,18 @@ class CloudFlowRunner(FlowRunner):
                         flow_run_version = flow_run_info.version
                         # If not already leaving context, raise KeyboardInterrupt in the main thread
                         if not exiting_context:
-                            if hasattr(signal, "raise_signal"):
-                                # New in python 3.8
-                                signal.raise_signal(signal.SIGINT)  # type: ignore
-                            else:
-                                if os.name == "nt":
-                                    # This doesn't actually send a signal, so it will only
-                                    # interrupt the next Python bytecode instruction - if the
-                                    # main thread is blocked in a c extension the interrupt
-                                    # won't be seen until that returns.
-                                    from _thread import interrupt_main
+                            if os.name == "nt":
+                                # This doesn't actually send a signal, so it will only
+                                # interrupt the next Python bytecode instruction - if the
+                                # main thread is blocked in a c extension the interrupt
+                                # won't be seen until that returns.
+                                from _thread import interrupt_main
 
-                                    interrupt_main()
-                                else:
-                                    signal.pthread_kill(
-                                        threading.main_thread().ident, signal.SIGINT  # type: ignore
-                                    )
+                                interrupt_main()
+                            else:
+                                signal.pthread_kill(
+                                    threading.main_thread().ident, signal.SIGINT  # type: ignore
+                                )
                         break
                     elif exiting_context:
                         break
@@ -238,7 +243,7 @@ class CloudFlowRunner(FlowRunner):
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
         task_runner_state_handlers: Iterable[Callable] = None,
-        executor: "prefect.engine.executors.Executor" = None,
+        executor: "prefect.executors.Executor" = None,
         context: Dict[str, Any] = None,
         task_contexts: Dict[Task, Dict[str, Any]] = None,
     ) -> State:
@@ -269,7 +274,8 @@ class CloudFlowRunner(FlowRunner):
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
         """
-        context = context or {}
+        context = (context or {}).copy()
+        context.update(running_with_backend=True)
 
         end_state = super().run(
             state=state,
@@ -380,20 +386,27 @@ class CloudFlowRunner(FlowRunner):
             flow_run_version=flow_run_info.version,
             flow_run_name=flow_run_info.name,
             scheduled_start_time=flow_run_info.scheduled_start_time,
+            project_name=flow_run_info.project.name,
+            project_id=flow_run_info.project.id,
         )
 
         tasks = {slug: t for t, slug in self.flow.slugs.items()}
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
+
             try:
                 task = tasks[task_run.task_slug]
             except KeyError as exc:
-                msg = (
-                    f"Task slug {task_run.task_slug} not found in the current Flow; "
-                    f"this is usually caused by changing the Flow without reregistering "
-                    f"it with the Prefect API."
-                )
-                raise KeyError(msg) from exc
+                raise KeyError(
+                    f"Task slug {task_run.task_slug} is not found in the current Flow. "
+                    "This is usually caused by a mismatch between the flow version "
+                    "stored in the Prefect backend and the flow that was loaded from "
+                    "storage.\n"
+                    "- Did you change the flow without re-registering it?\n"
+                    "- Did you register the flow without updating it in your storage "
+                    "location (if applicable)?"
+                ) from exc
+
             task_states.setdefault(task, task_run.state)
             task_contexts.setdefault(task, {}).update(
                 task_id=task_run.task_id,

@@ -187,7 +187,7 @@ class DatabricksHook:
                         "Response: {0}, Status Code: {1}".format(
                             e.response.content, e.response.status_code
                         )
-                    )
+                    ) from e
 
                 self._log_request_error(attempt_num, e)
 

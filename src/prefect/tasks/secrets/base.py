@@ -3,7 +3,6 @@ import warnings
 from prefect.client.secrets import Secret as _Secret
 from prefect.core.task import Task
 from prefect.engine.results import SecretResult
-from prefect.utilities.tasks import defaults_from_attrs
 
 
 class SecretBase(Task):
@@ -36,18 +35,17 @@ class PrefectSecret(SecretBase):
     the Prefect Secrets API (which has the ability to toggle between local vs. Cloud secrets).
 
     Args:
-        - name (str): The name of the underlying secret
+        - name (str, optional): The name of the underlying secret
         - **kwargs (Any, optional): additional keyword arguments to pass to the Task constructor
 
     Raises:
         - ValueError: if a `result` keyword is passed
     """
 
-    def __init__(self, name, **kwargs):
-        kwargs["name"] = name
-        super().__init__(**kwargs)
+    def __init__(self, name=None, **kwargs):
+        self.secret_name = name
+        super().__init__(name=name, **kwargs)
 
-    @defaults_from_attrs("name")
     def run(self, name: str = None):
         """
         The run method for Secret Tasks.  This method actually retrieves and returns the
@@ -63,6 +61,10 @@ class PrefectSecret(SecretBase):
         Returns:
             - Any: the underlying value of the Prefect Secret
         """
+        if name is None:
+            name = self.secret_name
+        if name is None:
+            raise ValueError("A secret name must be provided.")
         return _Secret(name).get()
 
 

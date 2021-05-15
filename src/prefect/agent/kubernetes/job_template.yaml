@@ -3,13 +3,5 @@ kind: Job
 spec:
   template:
     spec:
-      restartPolicy: Never
       containers:
         - name: flow
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
-          resources:
-            requests:
-              cpu: "100m"
-            limits:
-              cpu: "100m"

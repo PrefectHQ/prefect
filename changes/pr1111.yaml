@@ -1,2 +1,0 @@
-enhancement:
-  - "Update error message when registering flow to non-existant project - [#3418](https://github.com/PrefectHQ/prefect/pull/3418)"

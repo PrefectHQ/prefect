@@ -58,7 +58,11 @@ class TestAzureResult:
         assert service.get_blob_client.call_args[1]["container"] == "foo"
 
     def test_azure_reads_and_updates_location(self, monkeypatch):
-        client = MagicMock(download_blob=MagicMock(return_value=b""))
+        client = MagicMock(
+            download_blob=MagicMock(
+                return_value=MagicMock(content_as_bytes=MagicMock(return_value=b""))
+            )
+        )
         service = MagicMock(get_blob_client=MagicMock(return_value=client))
         monkeypatch.setattr(
             "prefect.engine.results.azure_result.AzureResult.service", service

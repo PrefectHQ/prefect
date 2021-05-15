@@ -41,10 +41,10 @@ with Flow("Spark") as flow:
     # define data dependencies
     cluster = create_cluster()
     submitted = run_spark_job(cluster)
-    tear_down_cluster(cluster)
+    result = tear_down_cluster(cluster)
 
     # wait for the job to finish before tearing down the cluster
-    tear_down_cluster.set_upstream(submitted)
+    result.set_upstream(submitted)
 
 ```
 

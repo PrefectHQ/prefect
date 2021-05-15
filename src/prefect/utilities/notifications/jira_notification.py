@@ -1,20 +1,12 @@
 """
 A state-handler that will create and assign a Jira ticket.
 """
-
 from typing import TYPE_CHECKING, Union, cast, Optional
 from datetime import datetime
 from toolz import curry
 
 import prefect
 
-
-try:
-    from jira import JIRA
-except ImportError:
-    raise ImportError(
-        'Using `jira_notifier` requires Prefect to be installed with the "jira" extra.'
-    )
 
 if TYPE_CHECKING:
     import prefect.engine.state
@@ -110,6 +102,12 @@ def jira_notifier(
             return x + y
         ```
     """
+    try:
+        from jira import JIRA
+    except ImportError as exc:
+        raise ImportError(
+            'Using `jira_notifier` requires Prefect to be installed with the "jira" extra.'
+        ) from exc
 
     options = options or dict()
     jira_credentials = cast(dict, prefect.client.Secret("JIRASECRETS").get())
@@ -122,7 +120,7 @@ def jira_notifier(
     ignore_states = ignore_states or []
     only_states = only_states or []
 
-    if any([isinstance(new_state, ignored) for ignored in ignore_states]):
+    if any(isinstance(new_state, ignored) for ignored in ignore_states):
         return new_state
 
     if only_states and not any(

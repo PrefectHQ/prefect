@@ -2,7 +2,7 @@ from typing import Any
 
 from marshmallow import fields, post_load
 
-from prefect.engine import result, state
+from prefect.engine import state
 from prefect.serialization.result import StateResultSchema
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -19,10 +19,8 @@ def get_safe(obj: state.State, context: dict) -> Any:
     safe way prior to serialization (if they want the result to be avaiable post-serialization).
     """
     if context.get("attr") == "_result":
-        if getattr(obj._result, "location", None) is not None:
-            return obj._result
-        return obj._result.safe_value  # type: ignore
-    value = context.get("value", result.NoResult)
+        return obj._result
+    value = context.get("value", None)
     return value
 
 
@@ -41,7 +39,7 @@ class BaseStateSchema(ObjectSchema):
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> state.State:
-        result_obj = data.pop("_result", result.NoResult)
+        result_obj = data.pop("_result", None)
         data["result"] = result_obj
         base_obj = super().create_object(data)
         return base_obj

@@ -51,7 +51,7 @@ After making your decisions, click the green "Authorize" button to proceed. Assu
 
 ![slack hook authorized](/slack_page2.png){.viz-xl .viz-padded}
 
-That's it! Save the URL in your secure location of choice; soon, you will be able to automatically import this into your database of Prefect Secrets.
+That's it! Save the URL in your secure location of choice.
 
 ::: tip Multiple Installations
 It's perfectly OK to integrate the Prefect App multiple times into the same workspace; for example, you and a coworker who both use Prefect might want customized notifications. Follow these steps as many times as you desire, but make sure to keep track of which channel each URL is attached to!
@@ -59,7 +59,9 @@ It's perfectly OK to integrate the Prefect App multiple times into the same work
 
 ## Using your URL to get notifications
 
-Sooner rather than later, you will be able to store your slack webhook URL in your secure database of Prefect Secrets under `"SLACK_WEBHOOK_URL"`; until then, you need to include it in the `[context.secrets]` section of your prefect configuration file. To do so, create a file `~/.prefect/config.toml` and place the following into it:
+You can store your slack webhook URL in your secure database of Prefect Secrets under `"SLACK_WEBHOOK_URL"`. 
+
+Alternatively, for testing and development, you can include it in the `[context.secrets]` section of your prefect configuration file. To do so, create a file `~/.prefect/config.toml` and place the following into it:
 
 ```
 [context.secrets]
@@ -67,7 +69,7 @@ SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXXXXXXXX/xxxxxxxxx/XXXXXX
 ```
 
 ::: warning Storing Secrets
-This method of storing secrets is intended _only_ for local development and testing!
+This method of storing secrets is intended _only_ for local development and testing! For production usage, use a Prefect Secret instead.
 :::
 
 Almost there - all that's left is to actually hook up the `slack_notifier` state handler to your favorite task or flow! All task and flow initializations accept an optional `state_handler` keyword argument. This should consist of a _list_ of "state handler" callables with call signature

@@ -31,7 +31,7 @@ classes = ["Secret"]
 [pages.cli.agent]
 title = "agent"
 module = "prefect.cli.agent"
-commands = ["start", "install"]
+commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
 
 [pages.cli.auth]
 title = "auth"
@@ -41,6 +41,11 @@ commands = ["login", "logout", "list_tenants", "switch_tenants", "create_token",
 [pages.cli.create]
 title = "create"
 module = "prefect.cli.create"
+commands = ["project"]
+
+[pages.cli.delete]
+title = "delete"
+module = "prefect.cli.delete"
 commands = ["project"]
 
 [pages.cli.describe]
@@ -55,8 +60,13 @@ commands = ["flows", "tasks", "projects", "flow_runs", "logs"]
 
 [pages.cli.register]
 title = "register"
-module = "prefect.cli.register"
-commands = ["flow"]
+module = "prefect.cli.build_register"
+commands = ["register"]
+
+[pages.cli.build]
+title = "build"
+module = "prefect.cli.build_register"
+commands = ["build"]
 
 [pages.cli.run]
 title = "run"
@@ -66,7 +76,7 @@ commands = ["flow"]
 [pages.cli.server]
 title = "server"
 module = "prefect.cli.server"
-commands = ["start", "create_tenant"]
+commands = ["start", "create_tenant", "stop", "config_cmd"]
 
 [pages.schedules.schedules]
 title = "Schedules"
@@ -99,7 +109,9 @@ functions = [
     "between_times",
     "is_weekday",
     "is_weekend",
-    "is_month_end"
+    "is_day_of_week",
+    "is_month_end",
+    "is_month_start"
 ]
 
 [pages.schedules.adjustments]
@@ -188,19 +200,10 @@ title = "TaskRunner"
 module = "prefect.engine.task_runner"
 classes = ["TaskRunner"]
 
-[pages.engine.executors]
-title = "Executors"
-module = "prefect.engine.executors"
-classes = [
-            "Executor",
-            "DaskExecutor",
-            "LocalDaskExecutor",
-            "LocalExecutor"]
-
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
-classes = ["Result", "SafeResult", "NoResultType"]
+classes = ["Result"]
 
 [pages.engine.results]
 title = "Result Subclasses"
@@ -210,32 +213,32 @@ classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult
 [pages.engine.serializers]
 title = "Result Serializers"
 module = "prefect.engine.serializers"
-classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer"]
-
-[pages.engine.result_handlers]
-title = "Result Handlers"
-module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler", "SecretResultHandler"]
+classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializer", "PandasSerializer", "CompressedSerializer"]
 
 [pages.engine.cloud]
 title = "Cloud"
 module = "prefect.engine.cloud"
 classes = ["CloudFlowRunner", "CloudTaskRunner"]
 
-[pages.environments.storage]
-title = "Storage"
-module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "Local", "S3", "GCS", "Azure", "GitHub", "Webhook"]
-
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
 classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
 
+[pages.executors]
+title = "Executors"
+module = "prefect.executors"
+classes = {Executor=[], LocalExecutor=[], LocalDaskExecutor=[], DaskExecutor=[]}
+
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "KubernetesRun"]
+classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+
+[pages.storage]
+title = "Storage"
+module = "prefect.storage"
+classes = {"Storage" = ["add_flow", "build"], "Azure" = [], "Bitbucket" = [], "CodeCommit" = [], "Docker" = [], "GCS" = [], "Git" = [], "GitHub" = [], "GitLab" = [], "Local" = [], "Module" = [], "S3" = [], "Webhook" = []}
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -251,7 +254,7 @@ classes = ["WriteAirtableRow", "ReadAirtableRow"]
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
-classes = ["S3Download", "S3Upload", "S3List", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate", "AWSSecretsManager"]
+classes = ["S3Download", "S3Upload", "S3List", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate", "AWSSecretsManager", "BatchSubmit", "AWSClientWait"]
 
 [pages.tasks.azure]
 title = "Azure Tasks"
@@ -273,10 +276,15 @@ classes = ["DatasetCreateFromDelimitedFiles",
            "DatastoreGet",
            "DatastoreUpload"]
 
+[pages.tasks.fivetran]
+title = "Fivetran Tasks"
+module = "prefect.tasks.fivetran"
+classes = ["FivetranSyncTask"]
+
 [pages.tasks.prefect]
 title = "Prefect Tasks"
 module = "prefect.tasks.prefect"
-classes = ["FlowRunTask"]
+classes = ["StartFlowRun", "RenameFlowRun", "CancelFlowRun"]
 
 [pages.tasks.github]
 title = "GitHub Tasks"
@@ -300,24 +308,32 @@ classes = [
         "ReadNamespacedJob",
         "ReplaceNamespacedJob",
         "RunNamespacedJob",
+        "ConnectGetNamespacedPodExec",
         "CreateNamespacedPod",
         "DeleteNamespacedPod",
         "ListNamespacedPod",
         "PatchNamespacedPod",
         "ReadNamespacedPod",
+        "ReadNamespacedPodLogs",
         "ReplaceNamespacedPod",
         "CreateNamespacedService",
         "DeleteNamespacedService",
         "ListNamespacedService",
         "PatchNamespacedService",
         "ReadNamespacedService",
-        "ReplaceNamespacedService"
+        "ReplaceNamespacedService",
+        "KubernetesSecret",
         ]
 
 [pages.tasks.dbt]
 title = "DBT Tasks"
 module = "prefect.tasks.dbt"
 classes = ["DbtShellTask"]
+
+[pages.tasks.asana]
+title = "Asana Tasks"
+module = "prefect.tasks.asana"
+classes = ["OpenAsanaToDo"]
 
 [pages.tasks.docker]
 title = "Docker Tasks"
@@ -343,6 +359,27 @@ title = "Dropbox Tasks"
 module = "prefect.tasks.dropbox"
 classes = ["DropboxDownload"]
 
+[pages.tasks.exasol]
+title = "Exasol Tasks"
+module = "prefect.tasks.exasol"
+classes = [
+        "ExasolFetch",
+        "ExasolExecute",
+        "ExasolImportFromIterable",
+        "ExasolExportToFile"
+        ]
+
+[pages.tasks.files]
+title = "File and Filesystem Tasks"
+module = "prefect.tasks.files"
+classes = [
+        "Copy",
+        "Move",
+        "Remove",
+        "Unzip",
+        "Zip",
+        ]
+
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.gcp"
@@ -350,6 +387,7 @@ classes = [
         "GCSDownload",
         "GCSUpload",
         "GCSCopy",
+        "GCSBlobExists",
         "BigQueryTask",
         "BigQueryStreamingInsert",
         "CreateBigQueryTable",
@@ -361,7 +399,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = [
-        "RunGreatExpectationsCheckpoint",
+        "RunGreatExpectationsValidation", "RunGreatExpectationsCheckpoint",
         ]
 
 [pages.tasks.gsheets]
@@ -377,14 +415,24 @@ title = "Jira Tasks"
 module = "prefect.tasks.jira"
 classes = ["JiraTask", "JiraServiceDeskTask"]
 
+[pages.tasks.jupyter]
+title = "Jupyter Tasks"
+module = "prefect.tasks.jupyter"
+classes = ["ExecuteNotebook"]
+
 [pages.tasks.monday]
 title = "Monday Tasks"
 module = "prefect.tasks.monday"
 classes = ["CreateItem"]
 
+[pages.tasks.trello]
+title = "Trello Tasks"
+module = "prefect.tasks.trello"
+classes = ["CreateCard"]
+
 [pages.tasks.mysql]
 title = "MySQL Tasks"
-module = "prefect.contrib.tasks.mysql"
+module = "prefect.tasks.mysql"
 classes = ["MySQLExecute", "MySQLFetch"]
 
 [pages.tasks.notifications]
@@ -395,7 +443,12 @@ classes = ["EmailTask", "SlackTask", "PushbulletTask"]
 [pages.tasks.postgres]
 title = "Postgres Tasks"
 module = "prefect.tasks.postgres"
-classes = ["PostgresExecute", "PostgresFetch"]
+classes = ["PostgresExecute", "PostgresExecuteMany", "PostgresFetch"]
+
+[pages.tasks.sql_server]
+title = "SQL Server Tasks"
+module = "prefect.tasks.sql_server"
+classes = ["SqlServerExecute", "SqlServerExecuteMany", "SqlServerFetch"]
 
 [pages.tasks.redis]
 title = "Redis Tasks"
@@ -419,7 +472,7 @@ classes = ["SnowflakeQuery"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
-module = "prefect.contrib.tasks.databricks"
+module = "prefect.tasks.databricks"
 classes = ["DatabricksSubmitRun", "DatabricksRunNow"]
 
 [pages.tasks.spacy]
@@ -447,6 +500,7 @@ title = "Operator Tasks"
 module = "prefect.tasks.core.operators"
 classes = [
     "GetItem",
+    "GetAttr",
     "Add",
     "Sub",
     "Mul",
@@ -493,27 +547,44 @@ classes = ["LoadTweetReplies"]
 [pages.agent.agent]
 title = "Agent"
 module = "prefect.agent"
-classes = ["Agent"]
+classes = {Agent = ["start"]}
 
 [pages.agent.local]
 title = "Local Agent"
 module = "prefect.agent.local"
-classes = ["LocalAgent"]
+classes = {LocalAgent = ["start"]}
 
 [pages.agent.docker]
 title = "Docker Agent"
 module = "prefect.agent.docker"
-classes = ["DockerAgent"]
+classes = {DockerAgent = ["start"]}
 
 [pages.agent.kubernetes]
 title = "Kubernetes Agent"
 module = "prefect.agent.kubernetes"
-classes = ["KubernetesAgent"]
+classes = {KubernetesAgent = ["start"]}
 
 [pages.agent.fargate]
 title = "Fargate Agent"
 module = "prefect.agent.fargate"
-classes = ["FargateAgent"]
+classes = {FargateAgent = ["start"]}
+
+[pages.agent.ecs]
+title = "ECS Agent"
+module = "prefect.agent.ecs"
+classes = {ECSAgent = ["start"]}
+
+[pages.artifacts.artifacts]
+title = "Artifacts"
+module = "prefect.artifacts"
+functions = [
+    "create_link",
+    "update_link",
+    "create_markdown",
+    "update_markdown",
+    "delete_artifact"
+]
+experimental = true
 
 [pages.utilities.collections]
 title = "Collections"
@@ -544,7 +615,7 @@ functions = ["diagnostic_info", "flow_information", "system_information", "confi
 [pages.utilities.executors]
 title = "Executors"
 module = "prefect.utilities.executors"
-functions = ["timeout_handler"]
+functions = ["run_task_with_timeout"]
 
 [pages.utilities.gcp]
 title = "Google Utilities"
@@ -584,3 +655,13 @@ title = "Edge Utilities"
 module = "prefect.utilities.edges"
 classes = ["unmapped", "mapped", "flatten"]
 functions = []
+
+[pages.tasks.dremio]
+title = "Dremio Tasks"
+module = "prefect.tasks.dremio"
+classes = ["DremioFetch"]
+
+[pages.tasks.sendgrid]
+title = "SendGrid Tasks"
+module = "prefect.tasks.sendgrid"
+classes = ["SendEmail"]

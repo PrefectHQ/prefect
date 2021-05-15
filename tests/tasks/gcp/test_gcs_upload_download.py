@@ -23,6 +23,7 @@ class TestInitialization:
         assert task.encryption_key_secret is None
         assert task.project is None
         assert task.create_bucket is False
+        assert task.request_timeout == 60
 
     def test_additional_kwargs_passed_upstream(self, klass):
         task = klass(bucket="", name="test-task", checkpoint=True, tags=["bob"])
@@ -34,13 +35,15 @@ class TestInitialization:
         with pytest.raises(TypeError, match="bucket"):
             task = klass()
 
-    @pytest.mark.parametrize("attr", ["blob", "project"])
+    @pytest.mark.parametrize("attr", ["blob", "project", "request_timeout"])
     def test_download_initializes_attr_from_kwargs(self, attr):
         task = GCSDownload(bucket="bucket", **{attr: "my-value"})
         assert task.bucket == "bucket"
         assert getattr(task, attr) == "my-value"
 
-    @pytest.mark.parametrize("attr", ["blob", "project", "create_bucket"])
+    @pytest.mark.parametrize(
+        "attr", ["blob", "project", "create_bucket", "request_timeout"]
+    )
     def test_upload_initializes_attr_from_kwargs(self, attr):
         task = GCSUpload(bucket="bucket", **{attr: "my-value"})
         assert task.bucket == "bucket"
@@ -123,3 +126,20 @@ class TestBlob:
         task.run(blob="run-time", credentials={})
 
         assert blob.call_args[0] == ("run-time",)
+
+
+class TestRuntimeValidation:
+    def test_invalid_data_type_raises_error(self, monkeypatch):
+        task = GCSUpload(bucket="test", blob="blobber")
+
+        blob = MagicMock()
+        client = MagicMock()
+        client.return_value = MagicMock(
+            get_bucket=MagicMock(return_value=MagicMock(blob=blob))
+        )
+        monkeypatch.setattr("prefect.tasks.gcp.storage.get_storage_client", client)
+
+        with pytest.raises(
+            TypeError, match="data must be str, bytes or BytesIO: got .* instead"
+        ):
+            task.run([1, 2, 3])

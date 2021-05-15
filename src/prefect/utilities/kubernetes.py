@@ -13,13 +13,12 @@ K8S_CLIENTS = {
     "job": client.BatchV1Api,
     "pod": client.CoreV1Api,
     "service": client.CoreV1Api,
-    "deployment": client.ExtensionsV1beta1Api,
+    "deployment": client.AppsV1Api,
+    "secret": client.CoreV1Api,
 }
 
 
-KubernetesClient = Union[
-    client.BatchV1Api, client.CoreV1Api, client.ExtensionsV1beta1Api
-]
+KubernetesClient = Union[client.BatchV1Api, client.CoreV1Api, client.AppsV1Api]
 
 
 def get_kubernetes_client(
