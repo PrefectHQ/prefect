@@ -39,9 +39,10 @@ class KafkaBatchConsume(Task):
         - topic (List[str], required): list of topic names to consume messages from
         - timeout (float, optional): Maximum time to block waiting for message, event or callback
         - auto_offset_reset (str, optional): configurable offset reset policy
-        - message_consume_limit (int, optional): max number of messages to consume before closing the consumer
-        - **consumer_options (Any, optional): additional keyword arguments to pass to confluent_kafka's `Consumer`
-            init config
+        - message_consume_limit (int, optional): max number of messages to consume before closing
+            the consumer
+        - **consumer_options (Any, optional): additional keyword arguments to pass to
+            confluent_kafka's `Consumer` init config
         Returns:
             - List of consumed messages
         """
@@ -70,8 +71,9 @@ class KafkaBatchConsume(Task):
                             == confluent_kafka.KafkaError._PARTITION_EOF
                         ):
                             # End of partition event, exit consumer
-                            self.logger.warn(
-                                f"{msg.topic()} [{msg.partition()}] reached end at offset {msg.offset()}"
+                            logging.warn(
+                                f"{message.topic()} [{message.partition()}] "
+                                f"reached end at offset {message.offset()}"
                             )
                             running = False
                         elif message.error():
@@ -84,7 +86,7 @@ class KafkaBatchConsume(Task):
                             if message_consume_count >= message_consume_limit:
                                 break
                 else:
-                    self.logger.debug(
+                    logging.debug(
                         f"No messages found for topic {topic}; closing consumer..."
                     )
                     break
@@ -127,8 +129,8 @@ class KafkaBatchProduce(Task):
             a single message is a dictionary with a key and a value.
         - flush_threshold (int, optional): threshold of messages produced before flushing
         - callback (Callable, optional): callback assigned to a produce call
-        - **producer_options (any, optional): additional keyword arguments to pass to confluent_kafka's `Producer`
-            init config
+        - **producer_options (any, optional): additional keyword arguments to pass to
+            confluent_kafka's `Producer` init config
         """
 
         producer = confluent_kafka.Producer(
