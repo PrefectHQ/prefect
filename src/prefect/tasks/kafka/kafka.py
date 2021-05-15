@@ -28,7 +28,7 @@ class KafkaBatchConsume(Task):
         self,
         topic: List[str],
         timeout: float = 1.0,
-        auto_offset_reset: str = 'earliest',
+        auto_offset_reset: str = "earliest",
         message_consume_limit: int = None,
         **consumer_options,
     ) -> List[bytes]:
@@ -47,9 +47,9 @@ class KafkaBatchConsume(Task):
         """
         consumer = confluent_kafka.Consumer(
             {
-                'bootstrap.servers': self.bootstrap_servers,
-                'group.id': self.group_id,
-                'auto.offset.reset': auto_offset_reset,
+                "bootstrap.servers": self.bootstrap_servers,
+                "group.id": self.group_id,
+                "auto.offset.reset": auto_offset_reset,
                 **consumer_options,
             }
         )
@@ -132,7 +132,7 @@ class KafkaBatchProduce(Task):
         """
 
         producer = confluent_kafka.Producer(
-            {'bootstrap.servers': self.bootstrap_servers, **producer_options}
+            {"bootstrap.servers": self.bootstrap_servers, **producer_options}
         )
         message_produce_count = 0
 
@@ -144,8 +144,8 @@ class KafkaBatchProduce(Task):
                         f"Producer flushed {flush_threshold} messages to {topic}"
                     )
 
-            key = message.get('key')
-            value = message.get('value')
+            key = message.get("key")
+            value = message.get("value")
 
             producer.produce(topic=topic, key=key, value=value, callback=callback)
             message_produce_count += 1
