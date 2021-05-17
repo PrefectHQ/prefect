@@ -283,6 +283,11 @@ You can find more information about configuring Deploy Keys for common providers
 - [GitHub](https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys)
 - [GitLab](https://docs.gitlab.com/ee/user/project/deploy_keys/)
 - [BitBucket](https://bitbucket.org/blog/deployment-keys)
+
+For Deploy Keys to work correctly, the flow execution environment must be configured to clone a repository using ssh.
+This configuration is not Prefect specific and varies across configurations.
+
+When using the `prefecthq/prefect` Docker image, ssh keys should be mounted to the `/root.ssh` directory.
 :::
 
 :::tip GitLab Deploy Tokens
