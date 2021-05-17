@@ -189,7 +189,7 @@ class Docker(Storage):
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
                 self.installation_commands.append(
-                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*"
+                    "apt update && apt install -y gcc git make && rm -rf /var/lib/apt/lists/*"
                 )
         elif base_image and dockerfile:
             raise ValueError(

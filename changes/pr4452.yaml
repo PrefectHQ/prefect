@@ -1,3 +1,0 @@
-
-fix:
-  - "Upgrade `kubernetes` package requirement upper limit - [#4452](https://github.com/PrefectHQ/prefect/pull/4452)"

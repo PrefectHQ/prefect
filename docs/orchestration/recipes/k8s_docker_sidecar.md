@@ -19,7 +19,7 @@ config to specify the custom job template. The Kubernetes Agent will use this
 template when starting the flow run, instead of the default template set on the
 agent.
 
-The flow itself is composed of [Docker Tasks](/core/task_library/docker.html)
+The flow itself is composed of [Docker Tasks](/api/latest/tasks/docker.html)
 from Prefect's task library. It pulls an image, starts a container, then waits
 for it to finish before pulling the container's logs.
 
