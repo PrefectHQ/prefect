@@ -63,7 +63,7 @@ task_run = TaskRunView.from_task_run_id("c8751f34-9d5e-4ea7-aead-8b50978dabb7")
 
 Results from task runs are persisted to the location you've specified in the task's `result` attribute. The `Result` type allows you to store task results in many locations on your own infrastrucuture. See the [results documentation](/core/concepts/results.md) for more details on configuring results.
 
-`TaskRunView` provides a `.result` property which will load and cache the return value of your task from the result location. 
+`TaskRunView` provides a `get_result` method which will load and cache the return value of your task from the result location. 
 
 ```python
 # Presume we have a flow with the following task
@@ -72,12 +72,12 @@ def foo():
   return "foobar!"
 
 task_run = TaskRunView.from_task_slug("foo-1", flow_run_id="<id>")
-task_run.result  # "foobar!"
+task_run.get_result()  # "foobar!"
 ```
 
 ##### Mapped task results
 
-The `result` property of a _child_ of a mapped task will return the single result for that task run. For the _parent_ task, an additional query will be run to get the result locations all of the children and a list will be returned populated with all of the child results.
+The `get_result` method of a _child_ of a mapped task will return the single result for that task run. For the _parent_ task, an additional query will be run to get the result locations all of the children and a list will be returned populated with all of the child results.
 
 For example, with the following flow:
 ```python
@@ -96,12 +96,11 @@ You can retrieve all of the mapped results or a single result at a time:
 from prefect.backend import TaskRunView
 
 inc_parent = TaskRunView.from_task_slug("inc-1", flow_run_id="<id>")
-inc_parent.result  # [1, 2, 3, 4, 5, 6]
+inc_parent.get_result()  # [1, 2, 3, 4, 5, 6]
 
 inc_child = TaskRunView.from_task_slug("inc-1", flow_run_id="<id>", map_index=2)
-inc_child.result  # 3
+inc_child.get_result()  # 3
 ```
-
 
 ### GraphQL
 
