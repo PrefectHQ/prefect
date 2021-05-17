@@ -8,7 +8,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Optional, Set, Type, cast
+from typing import Any, Generator, Iterable, Optional, Set, Type, cast, Set, List
 from urllib.parse import urlparse
 
 import pendulum
@@ -308,11 +308,20 @@ class Agent:
         # Query for ready runs -- allowing for intermittent failures by handling
         # exceptions
         try:
-            flow_runs = self._get_ready_flow_runs()
+            flow_run_ids = self._get_ready_flow_runs()
         except Exception:
             self.logger.error("Failed to query for ready flow runs", exc_info=True)
             return []
 
+        # Get the flow run metadata necessary for deployment in bulk; this also filters
+        # flow runs that may have been submitted by another agent in the meantime
+        try:
+            flow_runs = self._get_flow_run_metadata(flow_run_ids)
+        except Exception:
+            self.logger.error("Failed to query for flow run metadata", exc_info=True)
+            return []
+
+        # Deploy each flow run in parallel with the executor
         for flow_run in flow_runs:
             self.logger.debug(f"Submitting flow run {flow_run.id} for deployment...")
             executor.submit(self._deploy_flow_run, flow_run).add_done_callback(
@@ -511,9 +520,11 @@ class Agent:
 
     # Backend API queries --------------------------------------------------------------
 
-    def _get_ready_flow_runs(self, prefetch_seconds: int = 10) -> list:
+    def _get_ready_flow_runs(self, prefetch_seconds: int = 10) -> Set[str]:
         """
-        Query the Prefect API for flow runs which need to be deployed and executed
+        Query the Prefect API for flow runs in the 'ready' queue. Results from here
+        should be filtered by '_get_flow_run_metadata' to prevent duplicate submissions
+        across agents.
 
         Args:
             - prefetch_seconds: The number of seconds in the future to fetch runs for.
@@ -523,7 +534,7 @@ class Agent:
                 deploying the flow.
 
         Returns:
-            - list: A list of GraphQLResult flow run objects
+            - set: A set of flow run ids that are ready
         """
         self.logger.debug("Querying for ready flow runs...")
 
@@ -543,7 +554,7 @@ class Agent:
             mutation,
             variables={
                 "input": {
-                    "before": str(now.add(seconds=prefetch_seconds)),
+                    "before": now.add(seconds=prefetch_seconds).isoformat(),
                     "labels": list(self.labels),
                     "tenant_id": self.client.active_tenant_id,
                 }
@@ -570,15 +581,24 @@ class Agent:
             )
 
         self.logger.debug(msg)
-        return self._get_flow_run_metadata(
-            target_flow_run_ids, start_time=now.subtract(seconds=3)
-        )
+        return target_flow_run_ids
 
     def _get_flow_run_metadata(
-        self, flow_run_ids: Iterable[str], start_time: pendulum.DateTime
-    ) -> list:
+        self,
+        flow_run_ids: Iterable[str],
+    ) -> List["GraphQLResult"]:
         """
-        Get metadata about a collection of flow run ids
+        Get metadata about a collection of flow run ids to that the agent is preparing
+        to submit
+
+        This function will filter the flow runs to a collection where:
+
+        - The flow run is in a 'Scheduled' state. This prevents flow runs that have
+          been submitted by another agent from being submitted again.
+
+        - The flow run is in another state, but has task runs in a 'Running' state
+          scheduled to start now. This is for retries in which the flow run is placed
+          back into the ready queue but is not in a Scheduled state.
 
         Args:
             flow_run_ids: Flow run ids to query (order will not be respected)
@@ -593,29 +613,34 @@ class Agent:
         flow_run_ids = list(flow_run_ids)
         self.logger.debug(f"Retrieving metadata for {len(flow_run_ids)} flow run(s)...")
 
+        # This buffer allows flow runs to retry immediately in their own deployment
+        # without the agent creating a second deployment
+        retry_start_time_buffer = pendulum.now("UTC").subtract(seconds=3).isoformat()
+
+        where = {
+            # Only get flow runs in the requested set
+            "id": {"_in": flow_run_ids},
+            # and filter by the additional criteria...
+            "_or": [
+                # This flow run has not been taken by another agent
+                {"state": {"_eq": "Scheduled"}},
+                # Or, this flow run has been set to retry and has not been immediately
+                # retried in its own process
+                {
+                    "state": {"_eq": "Running"},
+                    "task_runs": {
+                        "state_start_time": {"_lte": retry_start_time_buffer}
+                    },
+                },
+            ],
+        }
+
         query = {
             "query": {
                 with_args(
                     "flow_run",
                     {
-                        # match flow runs in the flow_run_ids list
-                        "where": {
-                            "id": {"_in": flow_run_ids},
-                            "_or": [
-                                # who are EITHER scheduled...
-                                {"state": {"_eq": "Scheduled"}},
-                                # OR running with task runs scheduled to start more than 3
-                                # seconds ago
-                                {
-                                    "state": {"_eq": "Running"},
-                                    "task_runs": {
-                                        "state_start_time": {
-                                            "_lte": str(start_time)  # type: ignore
-                                        }
-                                    },
-                                },
-                            ],
-                        },
+                        "where": where,
                         "order_by": {"scheduled_start_time": EnumValue("asc")},
                     },
                 ): {
@@ -635,13 +660,13 @@ class Agent:
                         "version",
                         "core_version",
                     },
+                    # Collect and return task run metadata as well so the state can be
+                    # updated in `_mark_flow_as_submitted`
                     with_args(
                         "task_runs",
                         {
                             "where": {
-                                "state_start_time": {
-                                    "_lte": str(start_time)  # type: ignore
-                                }
+                                "state_start_time": {"_lte": retry_start_time_buffer}
                             }
                         },
                     ): {"id", "version", "task_id", "serialized_state"},
