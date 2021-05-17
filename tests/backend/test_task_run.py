@@ -165,7 +165,7 @@ def test_task_run_view_from_task_slug_where_clause(monkeypatch, map_index):
 
 
 @pytest.mark.parametrize("result_value", [None, "hello-world"])
-def test_task_run_view_result_loads_result_data(tmpdir, result_value):
+def test_task_run_view_get_result_loads_result_data(tmpdir, result_value):
     result = LocalResult(dir=tmpdir).write(result_value)
 
     # Instantiate a very minimal task run view
@@ -184,17 +184,17 @@ def test_task_run_view_result_loads_result_data(tmpdir, result_value):
     assert "result=<not loaded>" in repr(task_run)
 
     # The result is loaded
-    assert task_run.result == result_value
+    assert task_run.get_result() == result_value
 
     # Future calls are cached
     assert task_run._result == result_value
-    assert task_run.result is task_run.result
+    assert task_run.get_result() is task_run.get_result()
 
     # Displays in the repr now
     assert f"result={result_value!r}" in repr(task_run)
 
 
-def test_task_run_view_result_loads_mapped_result_data(tmpdir):
+def test_task_run_view_get_result_loads_mapped_result_data(tmpdir):
     # Instantiate a very minimal task run view
     task_run = TaskRunView(
         task_run_id="fake-id",
@@ -225,11 +225,11 @@ def test_task_run_view_result_loads_mapped_result_data(tmpdir):
     task_run._query_for_task_runs = query_mock
 
     # The result is loaded
-    assert task_run.result == [1, 2]
+    assert task_run.get_result() == [1, 2]
 
     # Future calls are cached
     assert task_run._result == [1, 2]
-    assert task_run.result is task_run.result
+    assert task_run.get_result() is task_run.get_result()
 
     # Displays in the repr now
     assert f"result={[1, 2]!r}" in repr(task_run)
