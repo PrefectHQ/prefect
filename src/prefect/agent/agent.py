@@ -588,7 +588,7 @@ class Agent:
         flow_run_ids: Iterable[str],
     ) -> List["GraphQLResult"]:
         """
-        Get metadata about a collection of flow run ids to that the agent is preparing
+        Get metadata about a collection of flow run ids that the agent is preparing
         to submit
 
         This function will filter the flow runs to a collection where:
