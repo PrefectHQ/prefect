@@ -156,7 +156,7 @@ def test_get_ready_flow_runs(monkeypatch, cloud_api):
 
     agent = Agent()
     flow_runs = agent._get_ready_flow_runs()
-    assert flow_runs == [GraphQLResult({"id": "id", "scheduled_start_time": str(dt)})]
+    assert flow_runs == {"id"}
 
 
 def test_get_ready_flow_runs_ignores_currently_submitting_runs(monkeypatch, cloud_api):
