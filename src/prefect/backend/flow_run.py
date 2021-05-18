@@ -93,11 +93,13 @@ def watch_flow_run(
             # TODO: We could actually query for active agents here and instead of
             #       asking a question actually tell them if they have no agents
             #       for a really helpful UX -- `check_for_flow_run_agents`
+            labels = (
+                f"labels {set(flow_run.labels)!r}" if flow_run.labels else "no labels"
+            )
             output_fn(
                 logging.WARN,
                 f"It has been {round(total_wait_time)} seconds and your flow run is "
-                "not started; do you have an agent running with labels "
-                f"{set(flow_run.labels)!r}?",
+                f"not started; do you have an agent running with {labels}?",
             )
             agent_warning_wait_time = 0
 
