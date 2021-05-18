@@ -845,8 +845,17 @@ class Agent:
         Raises:
             RuntimeError: On failed test query
         """
+
         if config.backend == "cloud":
-            self._verify_token(self.client.get_auth_token())
+            self.logger.debug("Verifying authentication with Prefect Cloud...")
+            try:
+                self._verify_token(self.client.get_auth_token())
+                self.logger.debug("Authentication successful!")
+            except Exception as exc:
+                self.logger.error("Failed to verify authentication.")
+                raise RuntimeError(
+                    f"Error while contacting API at {config.cloud.api}",
+                ) from exc
 
         # Register agent with backend API
         self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
