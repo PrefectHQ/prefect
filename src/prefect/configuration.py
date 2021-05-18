@@ -1,6 +1,7 @@
 import datetime
 import os
 import re
+import warnings
 from ast import literal_eval
 from typing import Optional, Union, cast
 
@@ -320,6 +321,15 @@ def load_configuration(
     return config
 
 
+def warn_on_deprecated_config_keys(config):
+    # Only warn if they've tried to disable logging using this key
+    if "log_to_cloud" in config.logging and config.logging.log_to_cloud is False:
+        warnings.warn(
+            "`prefect.logging.log_to_cloud` is deprecated. "
+            "Please use `prefect.cloud.send_flow_run_logs` instead."
+        )
+
+
 # load prefect configuration
 config = load_configuration(
     path=DEFAULT_CONFIG,
@@ -330,3 +340,5 @@ config = load_configuration(
 
 # add task defaults
 config = process_task_defaults(config)
+
+warn_on_deprecated_config_keys(config)
