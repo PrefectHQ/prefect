@@ -216,24 +216,24 @@ class MySQLFetch(Task):
         Task run method. Executes a query against MySQL database and fetches results.
 
         Args:
-        - db_name (str): name of MySQL database
-        - user (str): user name used to authenticate
-        - password (str): password used to authenticate
-        - host (str): database host address
-        - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not
-            provided
-        - fetch (str, optional): one of "one" "many" or "all", used to determine how many
-            results to fetch from executed query
-        - fetch_count (int, optional): if fetch = 'many', determines the number of results to
-            fetch, defaults to 10
-        - query (str, optional): query to execute against database
-        - commit (bool, optional): set to True to commit transaction, defaults to false
-        - charset (str, optional): charset of the query, defaults to "utf8mb4"
-        - cursor_type (Union[str, Callable], optional): The cursor type to use.
-            Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
-            or a full cursor class.
-        - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
-                parameters used for establishing encrypted connections using SSL
+            - db_name (str): name of MySQL database
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not
+                provided
+            - fetch (str, optional): one of "one" "many" or "all", used to determine how many
+                results to fetch from executed query
+            - fetch_count (int, optional): if fetch = 'many', determines the number of results to
+                fetch, defaults to 10
+            - query (str, optional): query to execute against database
+            - commit (bool, optional): set to True to commit transaction, defaults to false
+            - charset (str, optional): charset of the query, defaults to "utf8mb4"
+            - cursor_type (Union[str, Callable], optional): The cursor type to use.
+                Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
+                or a full cursor class.
+            - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
+                    parameters used for establishing encrypted connections using SSL
 
         Returns:
             - results (tuple or list of tuples): records from provided query
