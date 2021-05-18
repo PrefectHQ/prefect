@@ -154,20 +154,20 @@ class MySQLFetch(Task):
     """
 
     def __init__(
-            self,
-            db_name: str = None,
-            user: str = None,
-            password: str = None,
-            host: str = None,
-            port: int = 3306,
-            fetch: str = "one",
-            fetch_count: int = 10,
-            query: str = None,
-            commit: bool = False,
-            charset: str = "utf8mb4",
-            cursor_type: Union[str, Callable] = "cursor",
-            ssl: dict = None,
-            **kwargs: Any,
+        self,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
+        port: int = 3306,
+        fetch: str = "one",
+        fetch_count: int = 10,
+        query: str = None,
+        commit: bool = False,
+        charset: str = "utf8mb4",
+        cursor_type: Union[str, Callable] = "cursor",
+        ssl: dict = None,
+        **kwargs: Any,
     ):
         self.db_name = db_name
         self.user = user
