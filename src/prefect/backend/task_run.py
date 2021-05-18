@@ -56,8 +56,7 @@ class TaskRunView:
         # Uses NotLoaded so to separate from return values of `None`
         self._result: Any = NotLoaded
 
-    @property
-    def result(self) -> Any:
+    def get_result(self) -> Any:
         """
         The result of this task run loaded from the `Result` location. Lazily loaded
         on the first call then cached for repeated access. For the parent of mapped
@@ -65,6 +64,9 @@ class TaskRunView:
         credentials to be present if the result location is remote (ie S3). If your
         flow was run on another machine and `LocalResult` was used, we will fail
         to load the result.
+
+        See `TaskRunView.iter_mapped` for lazily iterating through mapped tasks instead
+        of retrieving all of the results at once.
 
         Returns:
             Any: The value your task returned
@@ -289,7 +291,7 @@ class TaskRunView:
         return task_runs
 
     def __repr__(self) -> str:
-        result = "<not loaded>" if self._result is NotLoaded else repr(self.result)
+        result = "<not loaded>" if self._result is NotLoaded else repr(self._result)
         return (
             f"{type(self).__name__}"
             "("
