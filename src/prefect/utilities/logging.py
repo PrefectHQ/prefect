@@ -9,6 +9,7 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
 import atexit
+import os
 import logging
 
 import logging.config
@@ -67,6 +68,13 @@ def configure_logging() -> logging.Logger:
     Returns:
         - logging.Logger: The root `prefect` logger
     """
+    try:
+        os.makedirs(context.config.logging.log_dir, exist_ok=True)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not create directory for logs at {context.config.logging.log_dir}"
+        ) from exc
+
     logging.config.dictConfig(context.config.logging.setup)
 
     # Add context injector
