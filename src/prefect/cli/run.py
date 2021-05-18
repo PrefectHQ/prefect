@@ -8,7 +8,7 @@ import time
 from contextlib import contextmanager
 from functools import partial
 from types import ModuleType
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List, Union, Any
 
 import click
 from click import ClickException
@@ -88,19 +88,18 @@ def try_error_done(
             echo(" Done", fg="green")
 
 
-def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
-    extra = {}
+def echo_with_log_color(log_level: int, message: str, prefix: str = "", **kwargs: Any):
     if log_level >= logging.ERROR:
         color = "red"
     elif log_level >= logging.WARNING:
         color = "yellow"
     elif log_level <= logging.DEBUG:
         color = "white"
-        extra["dim"] = True
+        kwargs.setdefault("dim", True)
     else:
         color = "white"
 
-    click.secho(prefix + message, fg=color, **extra)
+    click.secho(prefix + message, fg=color, **kwargs)
 
 
 def load_flows_from_script(path: str) -> "List[prefect.Flow]":

@@ -1,5 +1,6 @@
 import copy
 import logging
+import re
 import time
 from collections import defaultdict
 from contextlib import contextmanager
@@ -71,9 +72,10 @@ def watch_flow_run(
 
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
-    total_wait_time = 0
-    agent_warning_wait_time = 0
-    agent_warn_interval = 15
+    total_time_elapsed = 0
+    agent_warning_time_elapsed = 0
+    agent_warning_initial_wait = 5
+    agent_warning_repeat_interval = 30
 
     # We'll do a basic backoff for polling, not exposed as args because the user
     # probably should not need to tweak these.
@@ -86,23 +88,17 @@ def watch_flow_run(
         flow_run = flow_run.get_latest()
 
         if (
-            total_wait_time > agent_warn_interval
-            and agent_warning_wait_time > agent_warn_interval
+            total_time_elapsed > agent_warning_initial_wait
+            and agent_warning_time_elapsed > agent_warning_repeat_interval
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
-            # TODO: Use `flow_run.flow` to determine required agent type?
-            # TODO: We could actually query for active agents here and instead of
-            #       asking a question actually tell them if they have no agents
-            #       for a really helpful UX -- `check_for_flow_run_agents`
-            labels = (
-                f"labels {set(flow_run.labels)!r}" if flow_run.labels else "no labels"
-            )
+            agent_msg = check_for_compatible_agents(flow_run.labels)
             output_fn(
                 logging.WARN,
-                f"It has been {round(total_wait_time)} seconds and your flow run is "
-                f"not started; do you have an agent running with {labels}?",
+                f"It has been {round(total_time_elapsed)} seconds and your flow run is "
+                f"not started. {agent_msg}",
             )
-            agent_warning_wait_time = 0
+            agent_warning_time_elapsed = 0
 
         # Create a shared message list so we can roll state changes and logs together
         # in the correct order
@@ -145,8 +141,8 @@ def watch_flow_run(
 
         poll_interval = min(poll_interval, poll_max)
         time.sleep(poll_interval)
-        agent_warning_wait_time += poll_interval
-        total_wait_time += poll_interval
+        agent_warning_time_elapsed += poll_interval
+        total_time_elapsed += poll_interval
 
     return flow_run
 
@@ -243,6 +239,83 @@ def execute_flow_run(
     flow_run = flow_run.get_latest()
     logger.info(f"Run finished with final state {flow_run.state}")
     return flow_run
+
+
+def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -> str:
+    """
+    Checks for agents compatible with a set of labels returning a user-friendly message
+    indicating the status, roughly one of the following cases
+    - There's an agent with matching labels that has queried recently
+    - There are N agents but none of them have matching labels
+    - There are no agents that are active
+
+    Args:
+        - labels: A set of labels; typically associated with a flow run
+        - since_minutes: The amount of time in minutes to allow an agent to be idle and
+            considered active/healthy still
+
+    Returns:
+        A message string
+    """
+    client = prefect.Client()
+
+    labels = set(labels)
+    labels_blurb = f"labels {labels!r}" if labels else "no labels"
+
+    result = client.graphql(
+        {"query": {"agents": {"last_queried", "labels", "name", "id"}}}
+    )
+
+    agents = result.get("data", {}).get("agents")
+    if agents is None:
+        raise ValueError(f"Recieved bad result while querying for agents: {result}")
+
+    # Parse heartbeat times
+    for agent in agents:
+        agent.last_queried = (
+            cast(Optional[pendulum.DateTime], pendulum.parse(agent.last_queried))
+            if agent.last_queried
+            else None
+        )
+
+    # Drop agents that have sent no heartbeats
+    agents = filter(lambda agent: agent.last_queried is not None, agents)
+
+    # Drop agents that have not sent a recent hearbeat
+    since = pendulum.now().subtract(minutes=since_minutes)
+    agents = filter(lambda agent: agent.last_queried >= since, agents)
+
+    # Search for the flow run labels in running agents
+    found = False
+    for agent in agents:
+        agent_labels = set(agent.labels)
+        if not agent_labels and not labels:
+            found = True
+            break
+        elif labels.issubset(agent_labels):
+            found = True
+            break
+
+    if found:
+        name_blurb = f" ({agent.name})" if agent.name else ""
+        last_queried = (pendulum.now() - pendulum.parse(agent.last_queried)).in_words()
+        return (
+            f"Agent {agent.id}{name_blurb} has matching labels and last queried "
+            f"{last_queried}. It should pick up your flow if it is still running."
+        )
+
+    agent_count = len(list(agents))
+    if not agent_count:
+        return (
+            "There are no healthy agents in your tenant. Start an agent with "
+            f"{labels_blurb} to run your flow."
+        )
+
+    return (
+        f"You have {agent_count} healthy agents in your tenant but do not have an "
+        f"agent with {labels_blurb}. Start an agent with matching labels to run your "
+        "flow."
+    )
 
 
 @contextmanager
