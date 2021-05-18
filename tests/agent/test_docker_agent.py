@@ -306,6 +306,103 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(api):
     assert api.start.call_args[1]["container"] == "container_id"
 
 
+@pytest.mark.parametrize("collision_count", (0, 1, 5))
+def test_docker_agent_deploy_flow_sets_container_name_with_index(api, collision_count):
+    """
+    Asserts that the container name is set to the flow run name and that collisions with
+    existing containers with the same name is handled by adding an index
+    """
+
+    if collision_count:
+        # Add the basic name first
+        existing_names = ["flow-run-name"]
+        for i in range(1, collision_count):
+            existing_names.append(f"flow-run-name-{i}")
+    else:
+        existing_names = []
+
+    def fail_if_name_exists(*args, **kwargs):
+        if kwargs.get("name") in existing_names:
+            raise docker.errors.APIError(
+                "Conflict. The container name 'foobar' is already in use"
+            )
+        return {}
+
+    api.create_container = MagicMock(side_effect=fail_if_name_exists)
+
+    agent = DockerAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": Local().serialize(),
+                        "environment": LocalEnvironment(
+                            metadata={"image": "repo/name:tag"}
+                        ).serialize(),
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "id",
+                "name": "flow-run-name",
+            }
+        )
+    )
+
+    expected_name = (
+        "flow-run-name" if not collision_count else f"flow-run-name-{collision_count}"
+    )
+    assert api.create_container.call_args[1]["name"] == expected_name
+
+
+@pytest.mark.parametrize(
+    "run_name,container_name",
+    [
+        ("_flow_run", "flow_run"),
+        ("...flow_run", "flow_run"),
+        ("._-flow_run", "flow_run"),
+        ("9flow-run", "9flow-run"),
+        ("-flow.run", "flow.run"),
+        ("flow*run", "flow-run"),
+        ("flow9.-foo_bar^x", "flow9.-foo_bar-x"),
+        ("", "id"),  # Falls back to ID on empty name
+        ("_._-_", "id"),  # Falls back to ID on empty name after trim
+    ],
+)
+def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
+    api, run_name, container_name
+):
+    """
+    Asserts that the container name is set to the flow run name and that collisions with
+    existing containers with the same name is handled by adding an index
+    """
+
+    agent = DockerAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": Local().serialize(),
+                        "environment": LocalEnvironment(
+                            metadata={"image": "repo/name:tag"}
+                        ).serialize(),
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "id",
+                "name": run_name,
+            }
+        )
+    )
+
+    assert api.create_container.call_args[1]["name"] == container_name
+
+
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
 def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
@@ -843,31 +940,6 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
         agent._parse_volume_spec([candidate])
 
 
-@pytest.mark.parametrize("max_polls", [0, 1, 2])
-def test_docker_agent_start_max_polls(max_polls, api, monkeypatch, runner_token):
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.docker.agent.DockerAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.DockerAgent.heartbeat", heartbeat)
-
-    agent = DockerAgent(max_polls=max_polls)
-    agent.start()
-
-    assert agent_connect.call_count == 1
-    assert agent_process.call_count == max_polls
-    assert heartbeat.call_count == 1
-    assert on_shutdown.call_count == 1
-
-
 def test_docker_agent_network(api):
     api.create_networking_config.return_value = {"test-network": "config"}
 
@@ -941,63 +1013,3 @@ def test_docker_agent_networks(api):
         "test-network-1": "config1",
         "test-network-2": "config2",
     }
-
-
-def test_docker_agent_deploy_with_interface_check_linux(
-    api, monkeypatch, linux_platform
-):
-    get_ip = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.get_docker_ip", get_ip)
-
-    agent = DockerAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Docker(
-                            registry_url="", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert get_ip.called
-
-
-def test_docker_agent_deploy_with_no_interface_check_linux(
-    api, monkeypatch, linux_platform
-):
-    get_ip = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.get_docker_ip", get_ip)
-
-    agent = DockerAgent(docker_interface=False)
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Docker(
-                            registry_url="", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert not get_ip.called

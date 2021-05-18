@@ -397,8 +397,6 @@ class KubernetesAgent(Agent):
         """
         import urllib3.exceptions
 
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         job_spec = self.generate_job_spec(flow_run=flow_run)
         job_name = job_spec["metadata"]["name"]
 
@@ -663,6 +661,10 @@ class KubernetesAgent(Agent):
         container["image"] = image = get_flow_image(
             flow_run, default=container.get("image")
         )
+
+        # set the the kubernetes imagePullPolicy, if image_pull_policy was specified
+        if run_config.image_pull_policy is not None:
+            container["imagePullPolicy"] = run_config.image_pull_policy
 
         # Set flow run command
         container["args"] = get_flow_run_command(flow_run).split()

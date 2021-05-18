@@ -762,98 +762,6 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, cloud_api):
             assert document["metadata"]["name"] == "prefect-agent-rbac"
 
 
-def test_k8s_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=1)
-    agent.start()
-
-    assert agent_process.called
-    assert heartbeat.called
-
-
-def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=2)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 2
-    assert heartbeat.call_count == 1
-
-
-def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=0)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 0
-    assert heartbeat.call_count == 1
-
-
 def test_k8s_agent_manage_jobs_pass(monkeypatch, cloud_api):
     job_mock = MagicMock()
     job_mock.metadata.labels = {
@@ -1243,7 +1151,7 @@ class TestK8sAgentRunConfig:
         )
 
     @pytest.mark.parametrize("run_config", [None, UniversalRun()])
-    def test_generate_job_spec_null_or_univeral_run_config(self, run_config):
+    def test_generate_job_spec_null_or_universal_run_config(self, run_config):
         self.agent.generate_job_spec_from_run_config = MagicMock(
             wraps=self.agent.generate_job_spec_from_run_config
         )
@@ -1262,6 +1170,7 @@ class TestK8sAgentRunConfig:
         template = self.read_default_template()
         labels = template.setdefault("metadata", {}).setdefault("labels", {})
         labels["TEST"] = "VALUE"
+
         flow_run = self.build_flow_run(KubernetesRun(job_template=template))
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
@@ -1598,3 +1507,18 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-agent-template"}
         ]
+
+    @pytest.mark.parametrize("image_pull_policy", ["Always", "Never", "IfNotPresent"])
+    def test_generate_job_spec_sets_image_pull_policy_from_run_config(
+        self, image_pull_policy
+    ):
+        template = self.read_default_template()
+        config = KubernetesRun(
+            job_template=template, image_pull_policy=image_pull_policy
+        )
+        flow_run = self.build_flow_run(config)
+        job = self.agent.generate_job_spec(flow_run)
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == image_pull_policy
+        )

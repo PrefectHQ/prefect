@@ -189,6 +189,14 @@ Use a custom Kubernetes Job spec for this flow, stored in S3:
 flow.run_config = KubernetesRun(job_template_path="s3://bucket/path/to/spec.yaml")
 ```
 
+Specify an [imagePullPolicy](https://kubernetes.io/docs/concepts/configuration/overview/#container-images) 
+for the Kubernetes job:
+
+
+```python
+flow.run_config = KubernetesRun(image_pull_policy="Always")
+````
+
 ### ECSRun
 
 [ECSRun](/api/latest/run_configs.md#ecsrun) configures flow runs

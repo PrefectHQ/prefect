@@ -465,8 +465,6 @@ class FargateAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         # create copies of kwargs to apply overrides as needed
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
