@@ -9,7 +9,7 @@ import pytest
 
 import prefect
 from prefect import context, utilities
-from prefect.utilities.logging import CloudHandler, LogManager
+from prefect.backend.logging import CloudHandler, LogManager
 
 
 @pytest.fixture

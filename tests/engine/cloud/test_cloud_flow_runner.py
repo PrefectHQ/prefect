@@ -504,9 +504,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     assert flow_state.result[log_stuff].result == (42, "original")
 
     # LOG_MANAGER.enqueue is mocked out in `no_cloud_logs` in conftest.py
-    logs = [
-        c[0][0] for c in prefect.utilities.logging.LOG_MANAGER.enqueue.call_args_list
-    ]
+    logs = [c[0][0] for c in prefect.backend.logging.LOG_MANAGER.enqueue.call_args_list]
     assert len(logs) >= 5  # actual number of logs
 
     loggers = {l["name"] for l in logs}
@@ -726,7 +724,7 @@ class TestCloudFlowRunnerCancellation:
                 "special_key": 42,
             }
         ):
-            monkeypatch.setattr("prefect.utilities.logging.CloudHandler.emit", emit)
+            monkeypatch.setattr("prefect.backend.logging.CloudHandler.emit", emit)
             CloudFlowRunner(flow=flow).run()
 
         # The logging was called, and all logging calls were successful

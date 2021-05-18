@@ -24,7 +24,7 @@ def no_cloud_logs(monkeypatch):
     """Prevent cloud logging from doing anything actually sending requests to
     Prefect, regardless of status of `logging.log_to_cloud`. Test checking
     cloud logging works explicitly may need to override this mock."""
-    monkeypatch.setattr("prefect.utilities.logging.LOG_MANAGER.enqueue", MagicMock())
+    monkeypatch.setattr("prefect.backend.logging.LOG_MANAGER.enqueue", MagicMock())
 
 
 @pytest.fixture(autouse=True)
