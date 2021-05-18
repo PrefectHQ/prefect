@@ -118,8 +118,9 @@ def test_agent_log_level_debug(cloud_api):
 
 
 def test_agent_fails_no_auth_token(cloud_api):
-    with pytest.raises(AuthorizationError):
-        agent = Agent().start()
+    with pytest.raises(RuntimeError, match="Error while contacting API") as err:
+        Agent().start()
+    assert isinstance(err.value.__cause__, AuthorizationError)
 
 
 def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
@@ -136,8 +137,9 @@ def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with pytest.raises(AuthorizationError):
-        agent = Agent().start()
+    with pytest.raises(RuntimeError, match="Error while contacting API") as err:
+        Agent().start()
+    assert isinstance(err.value.__cause__, AuthorizationError)
 
 
 def test_get_ready_flow_runs(monkeypatch, cloud_api):
