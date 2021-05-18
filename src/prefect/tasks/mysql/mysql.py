@@ -88,8 +88,6 @@ class MySQLExecute(Task):
             - charset (str, optional): charset you want to use (defaults to "utf8mb4")
             - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
                 parameters used for establishing encrypted connections using SSL
-            - **kwargs (Any, optional): additional keyword arguments to pass to the
-                Task constructor
 
         Returns:
             - executed (int): number of affected rows
