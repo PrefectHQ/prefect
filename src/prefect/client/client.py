@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
+from prefect.utilities.logging import get_logger
+
 # if simplejson is installed, `requests` defaults to using it instead of json
 # this allows the client to gracefully handle either json or simplejson
 try:
@@ -22,6 +24,7 @@ from slugify import slugify
 
 import prefect
 from prefect.run_configs import RunConfig
+from prefect.utilities.logging import get_logger
 from prefect.utilities.exceptions import (
     AuthorizationError,
     ClientError,
@@ -35,7 +38,6 @@ from prefect.utilities.graphql import (
     with_args,
     format_graphql_request_error,
 )
-from prefect.utilities.logging import create_diagnostic_logger
 
 if TYPE_CHECKING:
     from prefect.core import Flow
@@ -95,7 +97,7 @@ class Client:
         self._access_token_expires_at = pendulum.now()
         self._active_tenant_id = None
         self._attached_headers = {}  # type: Dict[str, str]
-        self.logger = create_diagnostic_logger("Diagnostics")
+        self.logger = get_logger("client")
 
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")

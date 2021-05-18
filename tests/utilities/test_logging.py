@@ -35,25 +35,23 @@ def logger(log_manager):
             "logging.log_to_cloud": True,
         }
     ):
-        logger = utilities.logging.configure_logging(testing=True)
+        logger = utilities.logging.configure_logging()
         yield logger
         logger.handlers.clear()
 
 
 def test_root_logger_level_responds_to_config():
     with utilities.configuration.set_temporary_config({"logging.level": "DEBUG"}):
-        assert utilities.logging.configure_logging(testing=True).level == logging.DEBUG
+        assert utilities.logging.configure_logging().level == logging.DEBUG
 
     with utilities.configuration.set_temporary_config({"logging.level": "WARNING"}):
-        assert (
-            utilities.logging.configure_logging(testing=True).level == logging.WARNING
-        )
+        assert utilities.logging.configure_logging().level == logging.WARNING
 
 
 @pytest.mark.parametrize("datefmt", ["%Y", "%Y -- %D"])
 def test_root_logger_datefmt_responds_to_config(caplog, datefmt):
     with utilities.configuration.set_temporary_config({"logging.datefmt": datefmt}):
-        logger = utilities.logging.configure_logging(testing=True)
+        logger = utilities.logging.configure_logging()
         logger.error("badness")
         logs = [r for r in caplog.records if r.levelname == "ERROR"]
         assert logs[0].asctime == datetime.datetime.now().strftime(datefmt)
