@@ -3,7 +3,7 @@ Tests for `TaskRunView`
 """
 import time
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 from prefect.backend import TaskRunView
 from prefect.backend.task_run import NotLoaded
@@ -143,23 +143,29 @@ def test_task_run_view_from_task_run_id_where_clause(monkeypatch):
     )
 
 
-def test_task_run_view_from_task_slug_where_clause(monkeypatch):
+@pytest.mark.parametrize("map_index", [None, -1, 0, 3])
+def test_task_run_view_from_task_slug_where_clause(monkeypatch, map_index):
     post = MagicMock(return_value={"data": {"task_run": [TASK_RUN_DATA_1]}})
     monkeypatch.setattr("prefect.client.client.Client.post", post)
 
-    TaskRunView.from_task_slug(task_slug="task-slug-1", flow_run_id="flow-run-id-1")
+    kwargs = {}
+    if map_index is not None:  # None indicating not to pass an arg
+        kwargs["map_index"] = map_index
 
+    TaskRunView.from_task_slug(
+        task_slug="task-slug-1", flow_run_id="flow-run-id-1", **kwargs
+    )
     assert (
         "task_run(where: { "
         'task: { slug: { _eq: "task-slug-1" } }, '
         'flow_run_id: { _eq: "flow-run-id-1" }, '
-        "map_index: { _eq: -1 } "
+        f"map_index: {{ _eq: {map_index if map_index is not None else -1} }} "
         "})"
     ) in post.call_args[1]["params"]["query"]
 
 
 @pytest.mark.parametrize("result_value", [None, "hello-world"])
-def test_task_run_view_result_loads_result_data(tmpdir, result_value):
+def test_task_run_view_get_result_loads_result_data(tmpdir, result_value):
     result = LocalResult(dir=tmpdir).write(result_value)
 
     # Instantiate a very minimal task run view
@@ -178,17 +184,17 @@ def test_task_run_view_result_loads_result_data(tmpdir, result_value):
     assert "result=<not loaded>" in repr(task_run)
 
     # The result is loaded
-    assert task_run.result == result_value
+    assert task_run.get_result() == result_value
 
     # Future calls are cached
     assert task_run._result == result_value
-    assert task_run.result is task_run.result
+    assert task_run.get_result() is task_run.get_result()
 
     # Displays in the repr now
     assert f"result={result_value!r}" in repr(task_run)
 
 
-def test_task_run_view_result_loads_mapped_result_data(tmpdir):
+def test_task_run_view_get_result_loads_mapped_result_data(tmpdir):
     # Instantiate a very minimal task run view
     task_run = TaskRunView(
         task_run_id="fake-id",
@@ -219,11 +225,11 @@ def test_task_run_view_result_loads_mapped_result_data(tmpdir):
     task_run._query_for_task_runs = query_mock
 
     # The result is loaded
-    assert task_run.result == [1, 2]
+    assert task_run.get_result() == [1, 2]
 
     # Future calls are cached
     assert task_run._result == [1, 2]
-    assert task_run.result is task_run.result
+    assert task_run.get_result() is task_run.get_result()
 
     # Displays in the repr now
     assert f"result={[1, 2]!r}" in repr(task_run)
@@ -239,4 +245,72 @@ def test_task_run_view_result_loads_mapped_result_data(tmpdir):
         },
         # Ensure the returned tasks are ordered matching map indices
         order_by={"map_index": EnumValue("asc")},
+    )
+
+
+def test_task_run_view_iter_mapped():
+    # Instantiate a very minimal task run view
+    task_run = TaskRunView(
+        task_run_id="fake-id",
+        task_id=None,
+        task_slug="fake-slug",
+        name=None,
+        state=Mapped(map_states=[]),
+        map_index=-1,
+        flow_run_id="fake-flow-run-id",
+    )
+
+    # The parent task will query for children, here we build some basic child tasks
+    map_1 = TASK_RUN_DATA_1.copy()
+    map_1["map_index"] = 0
+    map_2 = TASK_RUN_DATA_2.copy()
+    map_2["map_index"] = 1
+
+    # We'll mock the query so we can assert its called correctly and returns the
+    # mock data
+    return_data = [map_1, map_2, None]
+
+    def return_index(*args, **kwargs):
+        index = kwargs.get("where", {}).get("map_index", {}).get("_eq")
+        if index is None:
+            raise ValueError("iter_mapped did not include a map index in where query")
+        return return_data[index]
+
+    query_mock = MagicMock(side_effect=return_index)
+    task_run._query_for_task_run = query_mock
+
+    # Yields each mapped task
+    for index, child_run in enumerate(task_run.iter_mapped()):
+        assert isinstance(child_run, TaskRunView)
+        assert child_run.map_index == index
+
+    # Queries in order for each task run
+    query_mock.assert_has_calls(
+        [
+            call(
+                where={
+                    "task": {"slug": {"_eq": task_run.task_slug}},
+                    "flow_run_id": {"_eq": task_run.flow_run_id},
+                    "map_index": {"_eq": 0},
+                },
+                error_on_empty=False,
+            ),
+            call(
+                where={
+                    "task": {"slug": {"_eq": task_run.task_slug}},
+                    "flow_run_id": {"_eq": task_run.flow_run_id},
+                    "map_index": {"_eq": 1},
+                },
+                error_on_empty=False,
+            ),
+            # This query fails but is still made to check that the end is reached
+            call(
+                where={
+                    "task": {"slug": {"_eq": task_run.task_slug}},
+                    "flow_run_id": {"_eq": task_run.flow_run_id},
+                    "map_index": {"_eq": 2},
+                },
+                error_on_empty=False,
+            ),
+        ]
     )

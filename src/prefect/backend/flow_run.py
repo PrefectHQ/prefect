@@ -8,12 +8,13 @@ from typing import (
     Callable,
     Dict,
     Iterable,
-    Iterator,
     List,
     Mapping,
     NamedTuple,
     Optional,
     Set,
+    Any,
+    Iterable,
     Type,
     cast,
 )
@@ -718,72 +719,6 @@ class FlowRunView:
         raise ValueError(
             "One of `task_run_id`, `task`, or `task_slug` must be provided!"
         )
-
-    def iter_mapped_task_runs(
-        self,
-        task: Task = None,
-        task_slug: str = None,
-        cache_results: bool = True,
-    ) -> Iterator["TaskRunView"]:
-        """
-        Iterate over the results of a mapped task, yielding a `TaskRunView` for each map
-        index. This query is not performed in bulk so the results can be lazily
-        consumed. If you want all of the task results at once, use `get_task_run` on
-        the mapped task instead.
-
-        Args:
-            - task: A `prefect.Task` object to use for the lookup. The slug will be
-                pulled from the task to actually perform the query
-            - task_slug: A task slug string to use for the lookup
-            - cache_results: By default, task run data is cached for future lookups.
-                However, since we lazily generate the mapped results, caching can be
-                disabled to reduce memory consumption for large mapped tasks.
-
-        Yields:
-            A TaskRunView object for each mapped item
-        """
-        if task is not None:
-            if task_slug is not None and task_slug != task.slug:
-                raise ValueError(
-                    "Both `task` and `task_slug` were provided but "
-                    f"`task.slug == {task.slug!r}` and `task_slug == {task_slug!r}`"
-                )
-            task_slug = task.slug
-
-        if task_slug is None:
-            raise ValueError("Either `task` or `task_slug` must be provided!")
-
-        where = lambda index: {
-            "task": {"slug": {"_eq": task_slug}},
-            "flow_run_id": {"_eq": self.flow_run_id},
-            "map_index": {"_eq": index},
-        }
-        task_run = TaskRunView._from_task_run_data(
-            TaskRunView._query_for_task_run(where=where(-1))
-        )
-        if not task_run.state.is_mapped():
-            raise TypeError(
-                f"Task run {task_run.task_run_id!r} ({task_run.task_slug}) is not a "
-                "mapped task."
-            )
-
-        map_index = 0
-        while task_run:
-            task_run_data = TaskRunView._query_for_task_run(
-                where=where(map_index), error_on_empty=False
-            )
-            if not task_run_data:
-                break
-
-            task_run = TaskRunView._from_task_run_data(task_run_data)
-
-            # Allow the user to skip the cache if they have a lot of task runs
-            if cache_results:
-                self._cache_task_run_if_finished(task_run)
-
-            yield task_run
-
-            map_index += 1
 
     def get_all_task_runs(self) -> List["TaskRunView"]:
         """
