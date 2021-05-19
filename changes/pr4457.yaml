@@ -1,0 +1,5 @@
+feature:
+  - "Enable sending attachments with emails in the EmailTask - [#4457](https://github.com/PrefectHQ/prefect/pull/4457)"
+
+contributor:
+  - "[Thomas Heyenbrock](https://github.com/thomasheyenbrock)"
