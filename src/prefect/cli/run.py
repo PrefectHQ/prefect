@@ -565,7 +565,7 @@ def run(
                 try:
                     result_state = flow.run(parameters=params_dict)
                 except Exception as exc:
-                    quiet_echo()
+                    quiet_echo("Flow runner encountered an exception!")
                     log_exception(exc, indent=2)
                     raise TerminalError("Flow run failed!")
 
