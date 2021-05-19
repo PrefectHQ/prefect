@@ -24,7 +24,14 @@ with Flow("Kafka Example") as flow:
 
     kafka_produce.run(
         topic=TOPIC,
-        messages=messages,
+        messages=messages[0:20000],
+        flush_threshold=1000,
+    )
+
+    kafka_produce.run(
+        bootstrap_servers=BOOTSTRAP_SERVER,
+        topic=TOPIC,
+        messages=messages[20000:],
         flush_threshold=1000,
     )
 
@@ -32,13 +39,18 @@ with Flow("Kafka Example") as flow:
 
     messages = kafka_consume.run(
         topic=[TOPIC],
-        timeout=1.0,
+        request_timeout=1.0,
         message_consume_limit=10000,
         auto_offset_reset="latest",
     )
     print_results(messages)
 
-    remaining_messages = kafka_consume.run(topic=[TOPIC], timeout=1.0)
+    remaining_messages = kafka_consume.run(
+        bootstrap_servers=BOOTSTRAP_SERVER,
+        group_id=GROUP_ID,
+        topic=[TOPIC],
+        request_timeout=1.0,
+    )
     print_results(remaining_messages)
 
 flow.run()
