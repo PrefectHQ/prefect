@@ -396,8 +396,9 @@ See `prefect run --help` for more details on the options.
 @click.option(
     "--log-level",
     help=(
-        "The log level to set for the flow run. "
-        "If not set, the default level will be used."
+        "The log level to set for the flow run. If passed, the level must be a valid "
+        "Python logging level name. If this option is not passed, the default level "
+        "for the flow will be used."
     ),
     type=click.Choice(
         ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
