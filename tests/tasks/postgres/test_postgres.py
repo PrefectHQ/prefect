@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.tasks.postgres import PostgresExecute, PostgresFetch
+from prefect.tasks.postgres import PostgresExecute, PostgresExecuteMany, PostgresFetch
 
 
 class TestPostgresExecute:
@@ -11,6 +11,24 @@ class TestPostgresExecute:
     def test_query_string_must_be_provided(self):
         task = PostgresExecute(db_name="test", user="test", host="test")
         with pytest.raises(ValueError, match="A query string must be provided"):
+            task.run()
+
+
+class TestPostgresExecuteMany:
+    def test_construction(self):
+        task = PostgresExecuteMany(db_name="test", user="test", host="test")
+        assert task.commit is False
+
+    def test_query_string_must_be_provided(self):
+        task = PostgresExecuteMany(db_name="test", user="test", host="test")
+        with pytest.raises(ValueError, match="A query string must be provided"):
+            task.run()
+
+    def test_data_list_must_be_provided(self):
+        task = PostgresExecuteMany(
+            db_name="test", user="test", host="test", query="test"
+        )
+        with pytest.raises(ValueError, match="A data list must be provided"):
             task.run()
 
 

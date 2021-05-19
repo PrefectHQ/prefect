@@ -11,7 +11,7 @@ if sys.platform != "win32":
 from distributed import Client
 
 import prefect
-from prefect.engine.executors import DaskExecutor, LocalDaskExecutor, LocalExecutor
+from prefect.executors import DaskExecutor, LocalDaskExecutor, LocalExecutor
 from prefect.utilities import configuration
 
 
@@ -20,9 +20,11 @@ prefect.utilities.logging.get_logger().setLevel("DEBUG")
 
 
 @pytest.fixture(autouse=True)
-def logging_heartbeat():
-    with configuration.set_temporary_config({"cloud.logging_heartbeat": 0.15}):
-        yield
+def no_cloud_logs(monkeypatch):
+    """Prevent cloud logging from doing anything actually sending requests to
+    Prefect, regardless of status of `logging.log_to_cloud`. Test checking
+    cloud logging works explicitly may need to override this mock."""
+    monkeypatch.setattr("prefect.utilities.logging.LOG_MANAGER.enqueue", MagicMock())
 
 
 @pytest.fixture(autouse=True)
@@ -73,6 +75,12 @@ def mproc_local():
     yield LocalDaskExecutor(scheduler="processes")
 
 
+@pytest.fixture()
+def threaded_local():
+    "Multithreaded executor using local dask (not distributed cluster)"
+    yield LocalDaskExecutor(scheduler="threads")
+
+
 @pytest.fixture(scope="session")
 def mproc():
     "Multi-processing executor using dask distributed"
@@ -87,7 +95,7 @@ def mproc():
 
 
 @pytest.fixture()
-def _switch(mthread, local, sync, mproc, mproc_local):
+def _switch(mthread, local, sync, mproc, mproc_local, threaded_local):
     """
     A construct needed so we can parametrize the executor fixture.
 
@@ -95,7 +103,12 @@ def _switch(mthread, local, sync, mproc, mproc_local):
     in slightly different ways.
     """
     execs = dict(
-        mthread=mthread, local=local, sync=sync, mproc=mproc, mproc_local=mproc_local
+        mthread=mthread,
+        local=local,
+        sync=sync,
+        mproc=mproc,
+        mproc_local=mproc_local,
+        threaded_local=threaded_local,
     )
     return lambda e: execs[e]
 
@@ -179,9 +192,20 @@ def cloud_api():
 @pytest.fixture()
 def server_api():
     with prefect.utilities.configuration.set_temporary_config(
-        {"cloud.api": "https:/localhost:4200", "backend": "server"}
+        {"cloud.api": "https://localhost:4200", "backend": "server"}
     ):
         yield
+
+
+@pytest.fixture(
+    params=[("cloud", "https://api.prefect.io"), ("server", "https://localhost:4200")]
+)
+def backend(request):
+    backend, api = request.param
+    with prefect.utilities.configuration.set_temporary_config(
+        {"cloud.api": api, "backend": backend}
+    ):
+        yield backend
 
 
 @pytest.fixture()

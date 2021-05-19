@@ -5,6 +5,7 @@ from textwrap import dedent
 
 import pytest
 from box import Box
+from requests import Response, Request
 
 from prefect.engine.state import Pending
 from prefect.utilities.graphql import (
@@ -17,6 +18,7 @@ from prefect.utilities.graphql import (
     parse_graphql,
     parse_graphql_arguments,
     with_args,
+    format_graphql_request_error,
 )
 
 
@@ -458,3 +460,77 @@ def test_graphql_repr_falls_back_to_dict_repr():
     gql = {"flow_run": Pending("test")}
     res = GraphQLResult(gql)
     assert repr(res) == """{'flow_run': <Pending: "test">}"""
+
+
+class TestFormatGraphQLResponseError:
+    @staticmethod
+    def make_response(params: dict, content: dict) -> Response:
+        request = Request(json=params, url="http://localhost/", method="POST")
+        response = Response()
+        response.request = request.prepare()
+        response._content = json.dumps(content).encode()
+        return response
+
+    def test_empty_error_does_not_throw_exception(self):
+        response = TestFormatGraphQLResponseError.make_response(params={}, content={})
+        message = format_graphql_request_error(response)
+        assert "The server did not provide any error messages" in message
+
+    def test_displays_query_and_variables(self):
+        response = TestFormatGraphQLResponseError.make_response(
+            params={"query": "example query", "variables": "variable"}, content={}
+        )
+        message = format_graphql_request_error(response)
+        assert (
+            dedent(
+                """
+                The server did not provide any error messages.
+        
+        
+                The GraphQL query was:
+                    
+                    example query
+                
+                The passed variables were:
+                
+                    variable
+                """
+            ).strip()
+            == message.strip()
+        )
+
+    def test_displays_error_message_and_code(self):
+        response = TestFormatGraphQLResponseError.make_response(
+            params={},
+            content={
+                "errors": [
+                    {
+                        "message": "Example message",
+                        "extensions": {"code": "EXAMPLECODE"},
+                    },
+                    {"message": "Message without code"},
+                    {"extensions": {"code": "CODEWITHOUTMESSAGE"}},
+                ]
+            },
+        )
+        message = format_graphql_request_error(response)
+        assert (
+            dedent(
+                """
+                The following error messages were provided by the GraphQL server:
+
+                    EXAMPLECODE: Example message
+                    UNKNOWN_ERROR: Message without code
+                    CODEWITHOUTMESSAGE: No error message supplied.
+
+                The GraphQL query was:
+                
+                    null
+                
+                The passed variables were:
+                
+                    null
+                """
+            ).strip()
+            == message.strip()
+        )

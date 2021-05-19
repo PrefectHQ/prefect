@@ -37,8 +37,8 @@ def test_serialize_schedule_with_parameters():
 
     output = s2.next(3, after=dt, return_events=True)
 
-    assert all([e.labels is None for e in output])
-    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+    assert all(e.labels is None for e in output)
+    assert all(isinstance(e, clocks.ClockEvent) for e in output)
 
 
 def test_serialize_schedule_with_labels():
@@ -56,7 +56,7 @@ def test_serialize_schedule_with_labels():
 
     output = s2.next(3, after=dt, return_events=True)
 
-    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+    assert all(isinstance(e, clocks.ClockEvent) for e in output)
 
 
 def test_serialize_complex_schedule():

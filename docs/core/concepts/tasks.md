@@ -195,6 +195,56 @@ This will automatically add a `GetItem` task to the flow that receives `x` as it
 Because Prefect flows are not executed at runtime, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
 :::
 
+## Multiple Return Values
+
+Sometimes your task may have multiple return values that you want to deal with
+separately. By default Prefect tasks aren't iterable, so the standard Python
+pattern will error:
+
+```python
+from prefect import Flow, task
+
+@task
+def inc_and_dec(x):
+    return x + 1, x - 1
+
+with Flow("This Errors") as flow:
+    # This raises a TypeError, since Prefect doesn't know how many values
+    # `inc_and_dec` returns
+    inc, dec = inc_and_dec(1)
+```
+
+To make this work, you need to let Prefect know how many return values your
+task has. You can do this by either:
+
+- Passing in `nout` to the `@task` decorator or the `Task` constructor when defining your task.
+- Providing a return type annotation for your task (in a class-based task, this
+  would go on the `run` method).
+
+For example:
+
+```python
+# Passing in `nout` explicitly
+@task(nout=2)
+def inc_and_dec(x):
+    return x + 1, x - 1
+
+# Using a return type annotation
+from typing import Tuple
+
+@task
+def double_and_triple(x: int) -> Tuple[int, int]:
+    return x * 2, x * 3
+
+with Flow("This works") as flow:
+    inc, dec = inc_and_dec(1)
+    double, triple = double_and_triple(inc)
+```
+
+Note that multiple return values can also be used by explicitly indexing tasks
+(as described above). Providing `nout` or a return type annotation only adds
+the convenience of tuple unpacking.
+
 ## Mapping
 
 _For more detail, see the [mapping concept docs](mapping.html)._

@@ -85,6 +85,15 @@ class TestMagicInteractionMethods:
         assert isinstance(y.result, LocalResult)
         assert y.result.dir.endswith("home")
 
+    def test_getitem_name(self):
+        with Flow(name="test") as f:
+            x = Parameter("x")[0]
+            assert x.name == "x[0]"
+            y = Parameter("y")["a"]
+            assert y.name == "y['a']"
+            z = Parameter("z")[Parameter("a")]
+            assert z.name == "z[a]"
+
     # -----------------------------------------
     # or / pipe / |
 
@@ -123,7 +132,7 @@ class TestMagicInteractionMethods:
 
             (t1 | t2 | t3 | t4)
 
-        assert all([e in f.edges for e in [Edge(t1, t2), Edge(t2, t3), Edge(t3, t4)]])
+        assert all(e in f.edges for e in [Edge(t1, t2), Edge(t2, t3), Edge(t3, t4)])
 
 
 class TestMagicOperatorMethods:

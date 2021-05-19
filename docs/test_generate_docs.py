@@ -1,4 +1,6 @@
+import glob
 import inspect
+import os
 import re
 import sys
 import textwrap
@@ -23,6 +25,7 @@ try:
         get_call_signature,
         get_class_methods,
         patch_imports,
+        build_example,
         VALID_DOCSTRING_SECTIONS,
     )
 
@@ -36,6 +39,8 @@ except ImportError:
 
 pytest.mark.skipif(sys.version_info < (3, 6))
 
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 
 def consistency_check(obj, obj_name):
     patt = re.compile(r"(?<=>`)(.*?)(?=[\(|`:])")
@@ -48,15 +53,8 @@ def consistency_check(obj, obj_name):
     except ValueError:
         doc_args = set()
 
-    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
-    actual_args = (
-        set()
-        .union(standalone)
-        .union(varargs)
-        .union([k for k, v in kwonly])
-        .union([k for k, v in kwargs])
-        .union(varkwargs)
-    )
+    items = get_call_signature(obj)
+    actual_args = {(a if isinstance(a, str) else a[0]) for a in items}
 
     undocumented = actual_args.difference(doc_args)
     # If the sig contains **kwargs, any keyword is valid
@@ -180,8 +178,8 @@ def test_tokenizer():
     [
         (no_args, ""),
         (one_arg, "x"),
-        (one_string_kwarg, 'k="key"'),
-        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (one_string_kwarg, "k=&quot;key&quot;"),
+        (standard_sig, "x, y, k=&quot;key&quot;, q=None, b=True"),
         (varargs_with_default, "*args, iso=None, **kwargs"),
         (varargs_no_default, "*args, iso, **kwargs"),
         (A, "attr, keep=True"),
@@ -202,8 +200,8 @@ def test_format_signature(obj, exp):
     [
         (no_args, ""),
         (one_arg, "x"),
-        (one_string_kwarg, 'k="key"'),
-        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (one_string_kwarg, "k=&quot;key&quot;"),
+        (standard_sig, "x, y, k=&quot;key&quot;, q=None, b=True"),
         (varargs_with_default, "*args, iso=None, **kwargs"),
         (varargs_no_default, "*args, iso, **kwargs"),
         (A.run, "*args, b=True, **kwargs"),
@@ -229,8 +227,8 @@ def test_format_signature_with_partial(obj, exp):
     [
         (no_args, ""),
         (one_arg, "x"),
-        (one_string_kwarg, 'k="key"'),
-        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (one_string_kwarg, "k=&quot;key&quot;"),
+        (standard_sig, "x, y, k=&quot;key&quot;, q=None, b=True"),
         (varargs_with_default, "*args, iso=None, **kwargs"),
         (varargs_no_default, "*args, iso, **kwargs"),
         (A.run, "*args, b=True, **kwargs"),
@@ -374,7 +372,7 @@ def test_consistency_of_function_docs(fn):
 
 
 @pytest.mark.parametrize(
-    "obj", [obj for page in OUTLINE for obj in page.get("classes", [])]
+    "obj", [obj for page in OUTLINE for obj, _ in page.get("classes", [])]
 )
 def test_consistency_of_class_docs(obj):
     consistency_check(obj, f"{obj.__module__}.{obj.__name__}")
@@ -385,8 +383,8 @@ def test_consistency_of_class_docs(obj):
     [
         (obj, fn)
         for page in OUTLINE
-        for obj in page.get("classes", [])
-        for fn in get_class_methods(obj)
+        for obj, methods in page.get("classes", [])
+        for fn in get_class_methods(obj, methods)
     ],
 )  # parametrized like this for easy reading of tests
 def test_consistency_of_class_method_docs(obj, fn):
@@ -473,9 +471,9 @@ def test_format_doc_escapes_asteriks_inside_tables():
 all_objects = []
 for page in OUTLINE:
     all_objects.extend(page.get("functions", []))
-    for cls in page.get("classes"):
+    for cls, methods in page.get("classes"):
         all_objects.append(cls)
-        all_objects.extend(get_class_methods(cls))
+        all_objects.extend(get_class_methods(cls, methods))
 
 
 @pytest.mark.parametrize("obj", all_objects)
@@ -488,3 +486,8 @@ def test_section_headers_are_properly_formatted(obj):
             assert (
                 False
             ), f"{obj.__module__}.{obj.__qualname__} has a poorly formatted '{section}' header"
+
+
+@pytest.mark.parametrize("path", glob.glob(os.path.join(ROOT, "examples", "*.py")))
+def test_example(path):
+    build_example(path)

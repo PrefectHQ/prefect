@@ -10,11 +10,13 @@ def test_no_args():
     config = ECSRun()
     assert config.task_definition is None
     assert config.task_definition_path is None
+    assert config.task_definition_arn is None
     assert config.image is None
     assert config.env is None
     assert config.cpu is None
     assert config.memory is None
     assert config.task_role_arn is None
+    assert config.execution_role_arn is None
     assert config.run_task_kwargs is None
     assert config.labels == set()
 
@@ -27,6 +29,7 @@ def test_all_args():
         cpu=1024,
         memory=2048,
         task_role_arn="my-task-role",
+        execution_role_arn="execution-role",
         run_task_kwargs={"overrides": {"taskRoleArn": "example"}},
         labels=["a", "b"],
     )
@@ -36,6 +39,7 @@ def test_all_args():
     assert config.cpu == "1024"
     assert config.memory == "2048"
     assert config.task_role_arn == "my-task-role"
+    assert config.execution_role_arn == "execution-role"
     assert config.run_task_kwargs == {"overrides": {"taskRoleArn": "example"}}
     assert config.labels == {"a", "b"}
 
@@ -45,15 +49,29 @@ def test_labels():
     assert config.labels == {"a", "b"}
 
 
-def test_cant_specify_both_task_definition_and_task_definition_path():
-    with pytest.raises(ValueError, match="Cannot provide both"):
-        ECSRun(task_definition={}, task_definition_path="/some/path")
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(task_definition={}, task_definition_path="/some/path"),
+        dict(task_definition={}, task_definition_arn="some_arn"),
+        dict(task_definition_path="/some/path", task_definition_arn="some_arn"),
+        dict(
+            task_definition={},
+            task_definition_path="/some/path",
+            task_definition_arn="some_arn",
+        ),
+    ],
+)
+def test_can_only_specify_task_definition_one_way(kwargs):
+    with pytest.raises(ValueError, match="Can only provide one of"):
+        ECSRun(**kwargs)
 
 
 def test_remote_task_definition_path():
     config = ECSRun(task_definition_path="s3://bucket/example.yaml")
     assert config.task_definition_path == "s3://bucket/example.yaml"
     assert config.task_definition is None
+    assert config.task_definition_arn is None
 
 
 @pytest.mark.parametrize("scheme", ["local", "file", None])
@@ -78,7 +96,19 @@ def test_local_task_definition_path(tmpdir, scheme):
     config = ECSRun(task_definition_path=task_definition_path)
 
     assert config.task_definition_path is None
+    assert config.task_definition_arn is None
     assert config.task_definition == task_definition
+
+
+def test_task_definition_arn():
+    config = ECSRun(task_definition_arn="my-task-definition")
+    assert config.task_definition_arn == "my-task-definition"
+    assert config.task_definition is None
+    assert config.task_definition_path is None
+
+    # Can't mix `image` and `task_definition_arn`
+    with pytest.raises(ValueError, match="task_definition_arn"):
+        ECSRun(task_definition_arn="my-task-definition", image="my-image")
 
 
 def test_task_definition():
@@ -90,6 +120,7 @@ def test_task_definition():
     config = ECSRun(task_definition=task_definition)
 
     assert config.task_definition_path is None
+    assert config.task_definition_arn is None
     assert config.task_definition == task_definition
 
 

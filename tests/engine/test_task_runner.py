@@ -22,13 +22,8 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import Result, NoResult
 from prefect.engine.results import LocalResult, PrefectResult
-from prefect.engine.result_handlers import (
-    JSONResultHandler,
-    ResultHandler,
-    SecretResultHandler,
-)
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -51,6 +46,7 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
+from prefect.utilities.exceptions import TaskTimeoutError
 from prefect.utilities.tasks import pause_task
 
 
@@ -348,7 +344,7 @@ def test_timeout_actually_stops_execution():
 
     assert state.is_failed()
     assert isinstance(state, TimedOut)
-    assert isinstance(state.result, TimeoutError)
+    assert isinstance(state.result, TaskTimeoutError)
 
 
 def test_task_runner_can_handle_timeouts_by_default():
@@ -359,7 +355,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
-    assert isinstance(state.result, TimeoutError)
+    assert isinstance(state.result, TaskTimeoutError)
 
 
 def test_task_runner_handles_secrets():
@@ -433,6 +429,23 @@ class TestInitializeRun:
             assert "resume" not in ctx
             result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
+
+    def test_task_runner_puts_resume_in_context_if_paused_start_time_elapsed(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc")), context=ctx
+            )
+            assert result.context.resume is True
+
+    def test_task_runner_ignores_resume_in_context_if_paused_start_time_in_future(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc").add(seconds=10)),
+                context=ctx,
+            )
+            assert "resume" not in ctx
 
     def test_task_runner_puts_checkpointing_in_context(self):
         with prefect.context() as ctx:
@@ -1376,7 +1389,8 @@ class TestCacheResultStep:
             state=state, inputs={"x": Result(1)}
         )
         assert new_state is state
-        assert new_state._result is NoResult
+        assert new_state._result == NoResult
+        assert new_state.result is None
 
     @pytest.mark.parametrize(
         "validator",
@@ -2062,9 +2076,9 @@ def test_pending_raised_from_endrun_has_updated_metadata():
 
 @pytest.mark.parametrize("checkpoint", [True, None])
 def test_failures_arent_checkpointed(checkpoint):
-    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+    result = MagicMock(write=MagicMock(side_effect=SyntaxError))
 
-    @prefect.task(checkpoint=checkpoint, result_handler=handler)
+    @prefect.task(checkpoint=checkpoint, result=result)
     def fn():
         raise TypeError("Bad types")
 
@@ -2076,9 +2090,9 @@ def test_failures_arent_checkpointed(checkpoint):
 
 @pytest.mark.parametrize("checkpoint", [True, None])
 def test_skips_arent_checkpointed(checkpoint):
-    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+    result = MagicMock(write=MagicMock(side_effect=SyntaxError))
 
-    @prefect.task(checkpoint=checkpoint, result_handler=handler)
+    @prefect.task(checkpoint=checkpoint, result=result)
     def fn():
         return 2
 
@@ -2183,19 +2197,21 @@ class TestLooping:
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_looping_checkpoints_all_iterations(self, checkpoint):
-        class Handler(ResultHandler):
+        class MyResult(Result):
             data = []
 
-            def write(self, obj):
+            def write(self, obj, **kwargs):
                 self.data.append(obj)
-                return self.data.index(obj)
+                self.location = self.data.index(obj)
+                self.value = obj
+                return self
 
-            def read(self, idx):
+            def read(self, idx, **kwargs):
                 return self.data[idx]
 
-        handler = Handler()
+        result = MyResult()
 
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=result)
         def my_task():
             curr = prefect.context.get("task_loop_result", 0)
             if prefect.context.get("task_loop_count", 1) < 3:
@@ -2205,8 +2221,8 @@ class TestLooping:
 
         state = TaskRunner(my_task).run(context={"checkpointing": True})
         assert state.is_successful()
+        assert result.data == [1, 2, 3]
         assert state.result == 3
-        assert handler.data == [1, 2, 3]
 
     def test_looping_works_with_retries(self):
         @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))

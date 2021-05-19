@@ -5,9 +5,8 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import Result, NoResult
 from prefect.engine.results import PrefectResult
-from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cancelled,
     Cached,
@@ -32,7 +31,6 @@ from prefect.engine.state import (
     ValidationFailed,
     _MetaState,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -61,8 +59,6 @@ class TestCreateStates:
     def test_create_state_with_kwarg_result_arg(self, cls):
         state = cls(result=1)
         assert isinstance(state._result, Result)
-        assert state._result.safe_value is NoResult
-        assert state._result.result_handler is None
         assert state.result == 1
         assert state.message is None
         assert isinstance(state._result, Result)
@@ -91,6 +87,7 @@ class TestCreateStates:
     def test_create_state_with_positional_message_arg(self, cls):
         state = cls("i am a string")
         assert state.message == "i am a string"
+        assert state.result is None
         assert state._result == NoResult
 
     @pytest.mark.parametrize("cls", all_states)
@@ -269,44 +266,6 @@ def test_serialize_and_deserialize_on_mixed_cached_state():
     assert new_state._result.location == json.dumps(dict(hi=5, bye=6))
     assert new_state.cached_result_expiration == state.cached_result_expiration
     assert new_state.cached_inputs == dict.fromkeys(["x", "p"], PrefectResult())
-
-
-def test_serialize_and_deserialize_on_safe_cached_state():
-    safe = SafeResult("99", result_handler=JSONResultHandler())
-    safe_dct = SafeResult(dict(hi=5, bye=6), result_handler=JSONResultHandler())
-    now = pendulum.now("utc")
-    state = Cached(
-        cached_inputs=dict(x=safe, p=safe),
-        result=safe_dct,
-        cached_result_expiration=now,
-    )
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Cached)
-    assert new_state.color == state.color
-    assert new_state.result == dict(hi=5, bye=6)
-    assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == state.cached_inputs
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
-def test_serialization_of_cached_inputs_with_safe_values(cls):
-    safe5 = SafeResult(5, result_handler=JSONResultHandler())
-    state = cls(cached_inputs=dict(hi=safe5, bye=safe5))
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == state.cached_inputs
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
-def test_serialization_of_cached_inputs_with_unsafe_values(cls):
-    unsafe5 = PrefectResult(value=5)
-    state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == dict(hi=PrefectResult(), bye=PrefectResult())
 
 
 def test_state_equality():
@@ -617,28 +576,6 @@ class TestResultInterface:
         assert new_state._result.location is None
 
     @pytest.mark.parametrize("cls", all_states)
-    def test_state_load_result_reads_if_location_is_provided(self, cls):
-        class MyResult(Result):
-            def read(self, *args, **kwargs):
-                self.value = "bar"
-                return self
-
-        state = cls(result=Result())
-        assert state.message is None
-        assert state.result is None
-        assert state._result.location is None
-
-        new_state = state.load_result(MyResult(location="foo"))
-        assert new_state.message is None
-
-        if not new_state.is_mapped():
-            assert new_state.result == "bar"
-            assert new_state._result.location == "foo"
-        else:
-            assert new_state.result is None
-            assert not new_state._result.location
-
-    @pytest.mark.parametrize("cls", all_states)
     def test_state_load_cached_results_calls_read(self, cls):
         """
         This test ensures that the read logic of the provided result is
@@ -734,3 +671,8 @@ def test_n_map_states():
 
     state = Mapped(map_states=[1, 2], n_map_states=4)
     assert state.n_map_states == 4
+
+
+def test_init_with_falsey_value():
+    state = Success(result={})
+    assert state.result == {}

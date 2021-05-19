@@ -1,5 +1,4 @@
 from contextlib import redirect_stdout
-from dask.base import tokenize
 from contextlib import AbstractContextManager
 from typing import (
     Any,
@@ -18,13 +17,14 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import Result
+from prefect.engine.result.base import Result, ResultNotImplementedError
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
     Failed,
     Looped,
     Mapped,
+    Paused,
     Pending,
     Resume,
     Retrying,
@@ -42,6 +42,7 @@ from prefect.utilities.executors import (
     tail_recursive,
 )
 from prefect.utilities.compatibility import nullcontext
+from prefect.utilities.exceptions import TaskTimeoutError
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -141,7 +142,13 @@ class TaskRunner(Runner):
         else:
             run_count = state.context.get("task_run_count", 1)
 
-        if isinstance(state, Resume):
+        # detect if currently Paused with a recent start_time
+        should_resume = (
+            isinstance(state, Paused)
+            and state.start_time
+            and state.start_time <= pendulum.now("utc")  # type: ignore
+        )
+        if isinstance(state, Resume) or should_resume:
             context.update(resume=True)
 
         if "_loop_count" in state.context:
@@ -700,6 +707,8 @@ class TaskRunner(Runner):
         Returns:
             - State: the state of the task after running the check
         """
+        from dask.base import tokenize
+
         result = self.result
         target = self.task.target
 
@@ -861,7 +870,7 @@ class TaskRunner(Runner):
                 )
 
         # inform user of timeout
-        except TimeoutError as exc:
+        except TaskTimeoutError as exc:
             if prefect.context.get("raise_on_exception"):
                 raise exc
             state = TimedOut("Task timed out during execution.", result=exc)
@@ -889,7 +898,7 @@ class TaskRunner(Runner):
                     **raw_inputs,
                 }
                 result = self.result.write(value, **formatting_kwargs)
-            except NotImplementedError:
+            except ResultNotImplementedError:
                 result = self.result.from_value(value=value)
         else:
             result = self.result.from_value(value=value)
@@ -921,6 +930,8 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        from dask.base import tokenize
+
         if (
             state.is_successful()
             and not state.is_skipped()
@@ -978,7 +989,7 @@ class TaskRunner(Runner):
                         loop_result = self.result.write(
                             loop_result.value, **formatting_kwargs
                         )
-                    except NotImplementedError:
+                    except ResultNotImplementedError:
                         pass
 
                 state_context = {"_loop_count": prefect.context["task_loop_count"]}

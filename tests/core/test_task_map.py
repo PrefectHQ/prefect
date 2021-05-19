@@ -7,7 +7,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.flow_runner import FlowRunner
-from prefect.engine.result import NoResult, Result, NoResult
+from prefect.engine.result import Result, NoResult
 from prefect.engine.state import Mapped, Pending, Retrying, Success
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task
@@ -89,7 +89,7 @@ def test_map_spawns_new_tasks(executor):
     assert m.is_mapped()
     assert isinstance(m.map_states, list)
     assert len(m.map_states) == 3
-    assert all([isinstance(ms, Success) for ms in m.map_states])
+    assert all(isinstance(ms, Success) for ms in m.map_states)
     assert m.result == [2, 3, 4]
 
 
@@ -325,6 +325,7 @@ def test_map_skips_dont_leak_out(executor):
     assert isinstance(m.map_states, list)
     assert len(m.result) == 3
     assert m.result == [None, 4, 5]
+    assert m.map_states[0].result is None
     assert m.map_states[0]._result == NoResult
     assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
@@ -486,7 +487,7 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
 
     s = f.run(executor=executor)
     assert s.is_failed()
-    assert all([sub.is_failed() for sub in s.result[res].map_states])
+    assert all(sub.is_failed() for sub in s.result[res].map_states)
     assert all(
         [
             isinstance(sub, prefect.engine.state.TriggerFailed)

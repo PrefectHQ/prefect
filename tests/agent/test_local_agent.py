@@ -1,5 +1,6 @@
 import os
 import socket
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,20 +8,25 @@ from marshmallow.exceptions import ValidationError
 from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
+import prefect
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import Docker, Local, Azure, GCS, S3, Webhook, GitLab
-from prefect.run_configs import LocalRun, KubernetesRun
+from prefect.storage import (
+    Docker,
+    Local,
+    Azure,
+    GCS,
+    S3,
+    Webhook,
+    GitLab,
+    Bitbucket,
+    CodeCommit,
+)
+from prefect.run_configs import LocalRun, KubernetesRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 DEFAULT_AGENT_LABELS = [
     socket.gethostname(),
-    "azure-flow-storage",
-    "gcs-flow-storage",
-    "s3-flow-storage",
-    "github-flow-storage",
-    "webhook-flow-storage",
-    "gitlab-flow-storage",
 ]
 
 
@@ -40,7 +46,7 @@ def test_local_agent_init():
 
 
 def test_local_agent_deduplicates_labels():
-    agent = LocalAgent(labels=["azure-flow-storage"])
+    agent = LocalAgent(labels=[socket.gethostname()])
     assert sorted(agent.labels) == sorted(DEFAULT_AGENT_LABELS)
 
 
@@ -57,17 +63,6 @@ def test_local_agent_config_options():
     assert agent.processes == set()
     assert agent.import_paths == ["test_path"]
     assert set(agent.labels) == {"test_label", *DEFAULT_AGENT_LABELS}
-
-
-def test_local_agent_config_no_storage_labels():
-    agent = LocalAgent(
-        labels=["test_label"],
-        storage_labels=False,
-    )
-    assert set(agent.labels) == {
-        socket.gethostname(),
-        "test_label",
-    }
 
 
 @pytest.mark.parametrize("hostname_label", [True, False])
@@ -87,7 +82,7 @@ def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch):
     assert "IP" in agent.labels
 
 
-def test_populate_env_vars(monkeypatch):
+def test_populate_env_vars(monkeypatch, backend):
     agent = LocalAgent()
 
     # The python path may be a single item and we want to ensure the correct separator
@@ -103,7 +98,8 @@ def test_populate_env_vars(monkeypatch):
     expected.update(
         {
             "PYTHONPATH": os.getcwd() + os.pathsep + expected.get("PYTHONPATH", ""),
-            "PREFECT__CLOUD__API": "https://api.prefect.io",
+            "PREFECT__BACKEND": backend,
+            "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
             "PREFECT__CLOUD__AGENT__LABELS": str(DEFAULT_AGENT_LABELS),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
@@ -204,7 +200,8 @@ def test_populate_env_vars_from_run_config(tmpdir):
             {
                 "id": "id",
                 "name": "name",
-                "flow": {"id": "foo", "run_config": run.serialize()},
+                "flow": {"id": "foo"},
+                "run_config": run.serialize(),
             }
         ),
         run,
@@ -216,6 +213,39 @@ def test_populate_env_vars_from_run_config(tmpdir):
 
 
 @pytest.mark.parametrize(
+    "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+    [
+        ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+        ({"logging.level": "DEBUG"}, {"PREFECT__LOGGING__LEVEL": "TEST2"}, {}, "TEST2"),
+        (
+            {"logging.level": "DEBUG"},
+            {"PREFECT__LOGGING__LEVEL": "TEST2"},
+            {"PREFECT__LOGGING__LEVEL": "TEST"},
+            "TEST",
+        ),
+    ],
+)
+def test_prefect_logging_level_override_logic(
+    config, agent_env_vars, run_config_env_vars, expected_logging_level, tmpdir
+):
+    with set_temporary_config(config):
+        agent = LocalAgent(env_vars=agent_env_vars)
+        run = LocalRun(working_dir=str(tmpdir), env=run_config_env_vars)
+        env_vars = agent.populate_env_vars(
+            GraphQLResult(
+                {
+                    "id": "id",
+                    "name": "name",
+                    "flow": {"id": "foo"},
+                    "run_config": run.serialize(),
+                }
+            ),
+            run,
+        )
+        assert env_vars["PREFECT__LOGGING__LEVEL"] == expected_logging_level
+
+
+@pytest.mark.parametrize(
     "storage",
     [
         Local(directory="test"),
@@ -223,6 +253,8 @@ def test_populate_env_vars_from_run_config(tmpdir):
         S3(bucket="test"),
         Azure(container="test"),
         GitLab("test/repo", path="path/to/flow.py"),
+        Bitbucket(project="PROJECT", repo="test-repo", path="test-flow.py"),
+        CodeCommit("test/repo", path="path/to/flow.py"),
         Webhook(
             build_request_kwargs={"url": "test-service/upload"},
             build_request_http_method="POST",
@@ -315,23 +347,51 @@ def test_local_agent_deploy_unsupported_run_config(monkeypatch):
 
     agent = LocalAgent()
 
-    with pytest.raises(TypeError, match="Unsupported RunConfig type: Kubernetes"):
+    with pytest.raises(
+        TypeError,
+        match="`run_config` of type `KubernetesRun`, only `LocalRun` is supported",
+    ):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
                     "id": "id",
                     "flow": {
                         "storage": Local().serialize(),
-                        "run_config": KubernetesRun().serialize(),
                         "id": "foo",
                         "core_version": "0.13.0",
                     },
+                    "run_config": KubernetesRun().serialize(),
                 },
             )
         )
 
     assert not popen.called
     assert len(agent.processes) == 0
+
+
+@pytest.mark.parametrize("run_config", [None, UniversalRun()])
+def test_local_agent_deploy_null_or_univeral_run_config(monkeypatch, run_config):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "flow": {
+                    "storage": Local().serialize(),
+                    "id": "foo",
+                    "core_version": "0.13.0",
+                },
+                "run_config": run_config.serialize() if run_config else None,
+            },
+        )
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
 
 
 @pytest.mark.parametrize("working_dir", [None, "existing"])
@@ -350,10 +410,10 @@ def test_local_agent_deploy_run_config_working_dir(monkeypatch, working_dir, tmp
                 "id": "id",
                 "flow": {
                     "storage": Local().serialize(),
-                    "run_config": LocalRun(working_dir=working_dir).serialize(),
                     "id": "foo",
                     "core_version": "0.13.0",
                 },
+                "run_config": LocalRun(working_dir=working_dir).serialize(),
             },
         )
     )
@@ -378,10 +438,10 @@ def test_local_agent_deploy_run_config_missing_working_dir(monkeypatch, tmpdir):
                     "id": "id",
                     "flow": {
                         "storage": Local().serialize(),
-                        "run_config": LocalRun(working_dir=working_dir).serialize(),
                         "id": "foo",
                         "core_version": "0.13.0",
                     },
+                    "run_config": LocalRun(working_dir=working_dir).serialize(),
                 },
             )
         )
@@ -422,7 +482,7 @@ def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
     popen = MockPopen()
     # expect a process to be called with the following command (with specified behavior)
     popen.set_command(
-        "prefect execute flow-run",
+        [sys.executable, "-m", "prefect", "execute", "flow-run"],
         stdout=b"awesome output!",
         stderr=b"blerg, eRroR!",
         returncode=returncode,
@@ -474,26 +534,3 @@ def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
     # the heartbeat should stop tracking upon exit
     compare(process.returncode, returncode)
     assert len(agent.processes) == 0
-
-
-@pytest.mark.parametrize("max_polls", [0, 1, 2])
-def test_local_agent_start_max_polls(max_polls, monkeypatch, runner_token):
-    on_shutdown = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
-
-    agent = LocalAgent(max_polls=max_polls)
-    agent.start()
-
-    assert agent_connect.call_count == 1
-    assert agent_process.call_count == max_polls
-    assert heartbeat.call_count == 1
-    assert on_shutdown.call_count == 1

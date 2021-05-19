@@ -2,10 +2,13 @@ import time
 import datetime
 import warnings
 from typing import Any
+from urllib.parse import urlparse
 
 from prefect import context, Task
+from prefect.artifacts import create_link
 from prefect.client import Client
 from prefect.engine.signals import signal_from_state
+from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -23,13 +26,15 @@ class StartFlowRun(Task):
             running with Prefect Core's server as the backend, this should not be provided.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
-        - new_flow_context (dict, optional): the optional run context for the new flow run
-        - run_name (str, optional): name to be set for the flow run
+        - run_config (RunConfig, optional): a run-config to use for this flow
+            run, overriding any existing flow settings.
         - wait (bool, optional): whether to wait the triggered flow run's state; if True, this
             task will wait until the flow run is complete, and then reflect the corresponding
             state as the state of this task.  Defaults to `False`.
+        - new_flow_context (dict, optional): the optional run context for the new flow run
+        - run_name (str, optional): name to be set for the flow run
         - scheduled_start_time (datetime, optional): the time to schedule the execution
-                for; if not provided, defaults to now
+            for; if not provided, defaults to now
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -38,6 +43,7 @@ class StartFlowRun(Task):
         flow_name: str = None,
         project_name: str = None,
         parameters: dict = None,
+        run_config: RunConfig = None,
         wait: bool = False,
         new_flow_context: dict = None,
         run_name: str = None,
@@ -46,7 +52,20 @@ class StartFlowRun(Task):
     ):
         self.flow_name = flow_name
         self.project_name = project_name
+        # Check that users haven't passed tasks to `parameters`
+        if parameters is not None:
+            for v in parameters.values():
+                if isinstance(v, Task):
+                    raise TypeError(
+                        "An instance of `Task` was passed to the `StartFlowRun` constructor via the "
+                        "`parameters` kwarg. You'll want to pass these parameters when calling the "
+                        "task instead. For example:\n\n"
+                        "  start_flow_run = StartFlowRun(...)  # static (non-Task) args go here\n"
+                        "  res = start_flow_run(parameters=...)  # dynamic (Task) args go here\n\n"
+                        "see https://docs.prefect.io/core/concepts/flows.html#apis for more info."
+                    )
         self.parameters = parameters
+        self.run_config = run_config
         self.new_flow_context = new_flow_context
         self.run_name = run_name
         self.wait = wait
@@ -59,6 +78,7 @@ class StartFlowRun(Task):
         "flow_name",
         "project_name",
         "parameters",
+        "run_config",
         "new_flow_context",
         "run_name",
         "scheduled_start_time",
@@ -68,9 +88,10 @@ class StartFlowRun(Task):
         flow_name: str = None,
         project_name: str = None,
         parameters: dict = None,
-        idempotency_key: str = None,
+        run_config: RunConfig = None,
         new_flow_context: dict = None,
         run_name: str = None,
+        idempotency_key: str = None,
         scheduled_start_time: datetime.datetime = None,
     ) -> str:
         """
@@ -85,11 +106,14 @@ class StartFlowRun(Task):
             - parameters (dict, optional): the parameters to pass to the flow run being
                 scheduled; if not provided, this method will use the parameters provided at
                 initialization
-            - idempotency_key (str, optional): an optional idempotency key for scheduling the
-                flow run; if provided, ensures that only one run is created if this task is retried
-                or rerun with the same inputs.  If not provided, the current flow run ID will be used.
+            - run_config (RunConfig, optional): a run-config to use for this flow
+                run, overriding any existing flow settings.
             - new_flow_context (dict, optional): the optional run context for the new flow run
             - run_name (str, optional): name to be set for the flow run
+            - idempotency_key (str, optional): a unique idempotency key for scheduling the
+                flow run. Duplicate flow runs with the same idempotency key will only create
+                a single flow run. This is useful for ensuring that only one run is created
+                if this task is retried. If not provided, defaults to the active `task_run_id`.
             - scheduled_start_time (datetime, optional): the time to schedule the execution
                 for; if not provided, defaults to now
 
@@ -145,26 +169,27 @@ class StartFlowRun(Task):
         # grab the ID for the most recent version
         flow_id = flow[0].id
 
-        idem_key = None
-        if context.get("flow_run_id"):
-            map_index = context.get("map_index")
-            default = context.get("flow_run_id") + (
-                f"-{map_index}" if map_index else ""
-            )
-            idem_key = idempotency_key or default
+        if idempotency_key is None:
+            idempotency_key = context.get("task_run_id", None)
 
         # providing an idempotency key ensures that retries for this task
         # will not create additional flow runs
         flow_run_id = client.create_flow_run(
             flow_id=flow_id,
             parameters=parameters,
-            idempotency_key=idem_key or idempotency_key,
+            run_config=run_config,
+            idempotency_key=idempotency_key,
             context=new_flow_context,
             run_name=run_name,
             scheduled_start_time=scheduled_start_time,
         )
 
         self.logger.debug(f"Flow Run {flow_run_id} created.")
+
+        self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
+        run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
+        create_link(urlparse(run_link).path)
+        self.logger.info(f"Flow Run: {run_link}")
 
         if not self.wait:
             return flow_run_id

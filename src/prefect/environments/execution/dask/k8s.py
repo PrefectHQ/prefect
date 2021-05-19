@@ -23,6 +23,10 @@ class DaskKubernetesEnvironment(Environment):
     [dask-kubernetes](https://kubernetes.dask.org/en/latest/)) and running the Prefect
     `DaskExecutor` on this cluster.
 
+    DEPRECATED: Environment based configuration is deprecated, please transition to
+    configuring `flow.run_config` instead of `flow.environment`. See
+    https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+
     When running your flows that are registered with a private container registry, you should
     either specify the name of an `image_pull_secret` on the flow's `DaskKubernetesEnvironment`
     or directly set the `imagePullSecrets` on your custom worker/scheduler specs.
@@ -163,9 +167,11 @@ class DaskKubernetesEnvironment(Environment):
             # Verify environment is running in cluster
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except config.config_exception.ConfigException as config_exception:
                 self.logger.error("Environment not currently running inside a cluster")
-                raise EnvironmentError("Environment not currently inside a cluster")
+                raise EnvironmentError(
+                    "Environment not currently inside a cluster"
+                ) from config_exception
 
             v1 = client.CoreV1Api()
             namespace = prefect.context.get("namespace", "default")
@@ -205,9 +211,11 @@ class DaskKubernetesEnvironment(Environment):
         # Verify environment is running in cluster
         try:
             config.load_incluster_config()
-        except config.config_exception.ConfigException:
+        except config.config_exception.ConfigException as config_exception:
             self.logger.error("Environment not currently running inside a cluster")
-            raise EnvironmentError("Environment not currently inside a cluster")
+            raise EnvironmentError(
+                "Environment not currently inside a cluster"
+            ) from config_exception
 
         batch_client = client.BatchV1Api()
 
@@ -289,7 +297,7 @@ class DaskKubernetesEnvironment(Environment):
 
         try:
             from prefect.engine import get_default_flow_runner_class
-            from prefect.engine.executors import DaskExecutor
+            from prefect.executors import DaskExecutor
             from dask_kubernetes import KubeCluster
 
             if self._worker_spec:
@@ -495,7 +503,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
-                "value": "prefect.engine.executors.DaskExecutor",
+                "value": "prefect.executors.DaskExecutor",
             },
         ]
 
@@ -568,7 +576,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
-                "value": "prefect.engine.executors.DaskExecutor",
+                "value": "prefect.executors.DaskExecutor",
             },
         ]
 

@@ -58,6 +58,7 @@ use_local_secrets = true
 heartbeat_interval = 30.0
 check_cancellation_interval = 15.0
 diagnostics = false
+request_timeout = 15
 
 # rate at which to batch upload logs
 logging_heartbeat = 5
@@ -120,7 +121,7 @@ checkpointing = false
         # controlling Agent's workflows.
         add_default_labels = true
         # the default storage class, specified using a full path
-        default_class = "prefect.environments.storage.Local"
+        default_class = "prefect.storage.Local"
 
 [tasks]
 
@@ -139,7 +140,7 @@ checkpointing = false
     [engine.executor]
 
     # the default executor, specified using a full path
-    default_class = "prefect.engine.executors.LocalExecutor"
+    default_class = "prefect.executors.LocalExecutor"
 
         [engine.executor.dask]
         # the default scheduler address for the DaskExecutor.

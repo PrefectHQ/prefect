@@ -9,10 +9,9 @@ import yaml
 
 import prefect
 from prefect.environments import DaskKubernetesEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
-
 
 base_flow = prefect.Flow("test", storage=Docker())
 
@@ -194,7 +193,7 @@ def test_create_namespaced_job_fails_outside_cluster():
 
 
 def test_environment_run(monkeypatch):
-    from prefect.engine.executors import DaskExecutor
+    from prefect.executors import DaskExecutor
 
     start_func = MagicMock()
     exit_func = MagicMock()
@@ -478,7 +477,7 @@ def test_populate_custom_worker_spec_yaml(log_flag):
     assert env[3]["value"] == "false"
     assert env[4]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
-    assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[6]["value"] == "prefect.executors.DaskExecutor"
     assert env[7]["value"] == str(log_flag).lower()
     assert env[8]["value"] == "INFO"
     assert (
@@ -526,7 +525,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
     assert env[5]["value"] == "false"
     assert env[6]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[7]["value"] == "prefect.engine.cloud.CloudTaskRunner"
-    assert env[8]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[8]["value"] == "prefect.executors.DaskExecutor"
     assert env[9]["value"] == str(log_flag).lower()
     assert env[10]["value"] == "INFO"
     assert (

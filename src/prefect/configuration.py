@@ -136,8 +136,6 @@ def process_task_defaults(config: Config) -> Config:
     # timeout defaults to None if not set - also check for False because TOML has no NULL
     if defaults.setdefault("timeout", False) is False:
         defaults.timeout = None
-    elif isinstance(defaults.timeout, int):
-        defaults.timeout = datetime.timedelta(seconds=defaults.timeout)
 
     return config
 

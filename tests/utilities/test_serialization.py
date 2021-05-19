@@ -18,6 +18,7 @@ from prefect.utilities.serialization import (
     ObjectSchema,
     OneOfSchema,
     StatefulFunctionReference,
+    SortedList,
 )
 
 json_test_values = [
@@ -54,6 +55,14 @@ class TestNestedField:
 
     def test_nested_respects_missing(self):
         assert self.Schema().dump({"child key": False}) == {}
+
+
+class TestSortedList:
+    class Schema(marshmallow.Schema):
+        lst = SortedList(marshmallow.fields.String())
+
+    def test_sorted_list_sorts_strings(self):
+        assert self.Schema().dump({"lst": ["c", "b", "a"]}) == {"lst": ["a", "b", "c"]}
 
 
 class TestJSONCompatibleField:
