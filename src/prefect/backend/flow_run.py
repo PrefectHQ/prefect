@@ -244,9 +244,13 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     """
     Checks for agents compatible with a set of labels returning a user-friendly message
     indicating the status, roughly one of the following cases
-    - There's an agent with matching labels that has queried recently
-    - There are N agents but none of them have matching labels
-    - There are no agents that are active
+    - There is a healthy agent with matching labels
+    - There are N healthy agents with matching labels
+    - There is an unhealthy agent with matching labels but no healthy agents matching
+    - There are N unhealthy agents with matching labels but no healthy agents matching
+    - There are no healthy agents at all and no unhealthy agents with matching labels
+    - There are healthy agents but no healthy or unhealthy agent has matching labels
+
 
     Args:
         - labels: A set of labels; typically associated with a flow run
@@ -259,7 +263,7 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     client = prefect.Client()
 
     labels = set(labels)
-    labels_blurb = f"labels {labels!r}" if labels else "no labels"
+    labels_blurb = f"labels {labels!r}" if labels else "empty labels"
 
     result = client.graphql(
         {"query": {"agents": {"last_queried", "labels", "name", "id"}}}
@@ -269,51 +273,82 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     if agents is None:
         raise ValueError(f"Recieved bad result while querying for agents: {result}")
 
-    # Parse heartbeat times
+    # Parse last query times
     for agent in agents:
-        agent.last_queried = (
-            cast(Optional[pendulum.DateTime], pendulum.parse(agent.last_queried))
-            if agent.last_queried
-            else None
+        agent.last_queried = cast(
+            Optional[pendulum.DateTime],
+            pendulum.parse(agent.last_queried) if agent.last_queried else None,
         )
 
-    # Drop agents that have sent no heartbeats
-    agents = filter(lambda agent: agent.last_queried is not None, agents)
+    # Drop agents that have not queried
+    agents = [agent for agent in agents if agent.last_queried is not None]
 
     # Drop agents that have not sent a recent hearbeat
     since = pendulum.now().subtract(minutes=since_minutes)
-    agents = filter(lambda agent: agent.last_queried >= since, agents)
+    healthy_agents = [agent for agent in agents if agent.last_queried >= since]
 
     # Search for the flow run labels in running agents
-    found = False
-    for agent in agents:
-        agent_labels = set(agent.labels)
-        if not agent_labels and not labels:
-            found = True
-            break
-        elif labels.issubset(agent_labels):
-            found = True
-            break
+    matching_healthy = []
+    matching_unhealthy = []
 
-    if found:
+    for agent in agents:
+        empty_labels_match = not agent.labels and not labels
+        if empty_labels_match or (labels and labels.issubset(agent.labels)):
+            if agent in healthy_agents:
+                matching_healthy.append(agent)
+            else:
+                matching_unhealthy.append(agent)
+
+    if len(matching_healthy) == 1:
+        # Display the single matching agent
         name_blurb = f" ({agent.name})" if agent.name else ""
-        last_queried = (pendulum.now() - pendulum.parse(agent.last_queried)).in_words()
+        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
         return (
             f"Agent {agent.id}{name_blurb} has matching labels and last queried "
-            f"{last_queried}. It should pick up your flow if it is still running."
+            f"{last_queried} ago. It should deploy your flow run."
         )
 
-    agent_count = len(list(agents))
-    if not agent_count:
+    if len(matching_healthy) > 1:
+        # Display that there are multiple matching agents
         return (
-            "There are no healthy agents in your tenant. Start an agent with "
+            f"Found {len(matching_healthy)} healthy agents with matching labels. One "
+            "of them should pick up your flow."
+        )
+
+    # We now know we have no matching healthy agents...
+
+    if not healthy_agents and not matching_unhealthy:
+        # Display that there are no matching agents all-time
+        return (
+            "There are no healthy agents in your tenant and it does not look like an "
+            "agent with the required labels has been run recently. Start an agent with "
             f"{labels_blurb} to run your flow."
         )
 
+    if len(matching_unhealthy) == 1:
+        # Display that there is a single matching unhealthy agent
+        name_blurb = f" ({agent.name})" if agent.name else ""
+        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
+        return (
+            f"Agent {agent.id}{name_blurb} has matching labels and last queried "
+            f"{last_queried} ago. Since it hasn't queried recently, it looks "
+            f"unhealthy. Restart it or start a new agent with {labels_blurb} to deploy "
+            f"your flow run."
+        )
+
+    if len(matching_unhealthy) > 1:
+        # Display that there are multiple matching unhealthy agents
+        return (
+            f"Found {len(matching_unhealthy)} agents with matching labels but they "
+            "have not queried recently and look unhealthy. Restart one of them or "
+            f"start a new agent with {labels_blurb} deploy your flow run."
+        )
+
+    # No matching healthy or unhealthy agents
     return (
-        f"You have {agent_count} healthy agents in your tenant but do not have an "
-        f"agent with {labels_blurb}. Start an agent with matching labels to run your "
-        "flow."
+        f"You have {len(healthy_agents)} healthy agents in your tenant but do not have "
+        f"an agent with {labels_blurb}. Start an agent with matching labels to deploy "
+        "your flow run."
     )
 
 
