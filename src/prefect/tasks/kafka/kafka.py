@@ -1,8 +1,8 @@
-import logging
-from typing import List
+from typing import List, Callable
 
 import confluent_kafka
 from prefect import Task
+from prefect.utilities.tasks import defaults_from_attrs
 
 
 class KafkaBatchConsume(Task):
@@ -15,19 +15,46 @@ class KafkaBatchConsume(Task):
         - group_id (str:, required): name of the consumer group the consumer will belong to
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
             init method
+        - topic (List[str], required): list of topic names to consume messages from
+        - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
+        - auto_offset_reset (str, optional): configurable offset reset policy
+        - message_consume_limit (int, optional): max number of messages to consume before closing
+            the consumer
     """
 
-    def __init__(self, bootstrap_servers: str, group_id: str, **kwargs):
+    def __init__(
+        self,
+        bootstrap_servers: str = None,
+        group_id: str = None,
+        topic: List[str] = None,
+        request_timeout: float = 1.0,
+        auto_offset_reset: str = "earliest",
+        message_consume_limit: int = None,
+        **kwargs,
+    ):
 
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
-
+        self.topic = topic
+        self.request_timeout = request_timeout
+        self.auto_offset_reset = auto_offset_reset
+        self.message_consume_limit = message_consume_limit
         super().__init__(**kwargs)
 
+    @defaults_from_attrs(
+        "bootstrap_servers",
+        "group_id",
+        "topic",
+        "request_timeout",
+        "auto_offset_reset",
+        "message_consume_limit",
+    )
     def run(
         self,
-        topic: List[str],
-        timeout: float = 1.0,
+        bootstrap_servers: str = None,
+        group_id: str = None,
+        topic: List[str] = None,
+        request_timeout: float = 1.0,
         auto_offset_reset: str = "earliest",
         message_consume_limit: int = None,
         **consumer_options,
@@ -36,8 +63,11 @@ class KafkaBatchConsume(Task):
         Run method for this Task. Invoked by calling this Task after initialization within a
         Flow context, or by using `Task.bind`.
         Args:
+        - bootstrap_servers (str:, required): comma separated host and port pairs that are the
+            addresses of kafka brokers
+        - group_id (str:, required): name of the consumer group the consumer will belong to
         - topic (List[str], required): list of topic names to consume messages from
-        - timeout (float, optional): Maximum time to block waiting for message, event or callback
+        - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
         - auto_offset_reset (str, optional): configurable offset reset policy
         - message_consume_limit (int, optional): max number of messages to consume before closing
             the consumer
@@ -48,8 +78,8 @@ class KafkaBatchConsume(Task):
         """
         consumer = confluent_kafka.Consumer(
             {
-                "bootstrap.servers": self.bootstrap_servers,
-                "group.id": self.group_id,
+                "bootstrap.servers": bootstrap_servers,
+                "group.id": group_id,
                 "auto.offset.reset": auto_offset_reset,
                 **consumer_options,
             }
@@ -62,7 +92,7 @@ class KafkaBatchConsume(Task):
 
         try:
             while running:
-                message = consumer.poll(timeout=timeout)
+                message = consumer.poll(timeout=request_timeout)
 
                 if message is not None:
                     if message.error():
@@ -71,7 +101,7 @@ class KafkaBatchConsume(Task):
                             == confluent_kafka.KafkaError._PARTITION_EOF
                         ):
                             # End of partition event, exit consumer
-                            logging.warn(
+                            self.logger.warn(
                                 f"{message.topic()} [{message.partition()}] "
                                 f"reached end at offset {message.offset()}"
                             )
@@ -86,7 +116,7 @@ class KafkaBatchConsume(Task):
                             if message_consume_count >= message_consume_limit:
                                 break
                 else:
-                    logging.debug(
+                    self.logger.info(
                         f"No messages found for topic {topic}; closing consumer..."
                     )
                     break
@@ -104,26 +134,49 @@ class KafkaBatchProduce(Task):
     Args:
         - bootstrap_servers (str:, required): comma separated host and port pairs that are the
             addresses of kafka brokers
+        - topic (str, required): name of topic to produce messages to
+        - messages (List[dict], required): list of messages to produce into a topic where
+            a single message is a dictionary with a key and a value.
+        - flush_threshold (int, optional): threshold of messages produced before flushing
+        - callback (Callable, optional): callback assigned to a produce call
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
             init method
     """
 
-    def __init__(self, bootstrap_servers: str, **kwargs):
+    def __init__(
+        self,
+        bootstrap_servers: str = None,
+        topic: str = None,
+        messages: List[dict] = None,
+        flush_threshold: int = None,
+        callback: Callable = None,
+        **kwargs,
+    ):
         self.bootstrap_servers = bootstrap_servers
+        self.topic = topic
+        self.messages = messages
+        self.flush_threshold = flush_threshold
+        self.callback = callback
         super().__init__(**kwargs)
 
+    @defaults_from_attrs(
+        "bootstrap_servers", "topic", "messages", "flush_threshold", "callback"
+    )
     def run(
         self,
-        topic: str,
-        messages: List[dict],
+        bootstrap_servers: str = None,
+        topic: str = None,
+        messages: List[dict] = None,
         flush_threshold: int = None,
-        callback=None,
+        callback: Callable = None,
         **producer_options,
     ):
         """
         Run method for this Task. Invoked by calling this Task after initialization within a
         Flow context, or by using `Task.bind`.
         Args:
+        - bootstrap_servers (str:, required): comma separated host and port pairs that are the
+            addresses of kafka brokers
         - topic (str, required): name of topic to produce messages to
         - messages (List[dict], required): list of messages to produce into a topic where
             a single message is a dictionary with a key and a value.
@@ -134,7 +187,7 @@ class KafkaBatchProduce(Task):
         """
 
         producer = confluent_kafka.Producer(
-            {"bootstrap.servers": self.bootstrap_servers, **producer_options}
+            {"bootstrap.servers": bootstrap_servers, **producer_options}
         )
         message_produce_count = 0
 
@@ -142,7 +195,7 @@ class KafkaBatchProduce(Task):
             if flush_threshold:
                 if i % flush_threshold == 0:
                     producer.flush()
-                    logging.debug(
+                    self.logger.info(
                         f"Producer flushed {flush_threshold} messages to {topic}"
                     )
 
@@ -153,4 +206,4 @@ class KafkaBatchProduce(Task):
             message_produce_count += 1
 
         producer.flush()
-        logging.debug(f"Producer flushed {message_produce_count} messages to {topic}")
+        self.logger.info(f"Producer flushed {message_produce_count} messages to {topic}")
