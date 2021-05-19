@@ -1,3 +1,7 @@
+"""
+This file contains tests for the deprecated command `prefect run flow`
+This command is replaced by `prefect run` which has tests at `test_run.py`
+"""
 import json
 import os
 import re
