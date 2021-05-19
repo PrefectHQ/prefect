@@ -71,10 +71,10 @@ def watch_flow_run(
 
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
-    total_time_elapsed = 0
-    agent_warning_time_elapsed = 0
     agent_warning_initial_wait = 5
     agent_warning_repeat_interval = 30
+    total_time_elapsed = 0
+    agent_warning_time_elapsed = agent_warning_repeat_interval  # show first warning
 
     # We'll do a basic backoff for polling, not exposed as args because the user
     # probably should not need to tweak these.
@@ -94,8 +94,8 @@ def watch_flow_run(
             agent_msg = check_for_compatible_agents(flow_run.labels)
             output_fn(
                 logging.WARN,
-                f"It has been {round(total_time_elapsed)} seconds and your flow run is "
-                f"not started. {agent_msg}",
+                f"It has been {round(total_time_elapsed / 5) * 5} seconds and your "
+                f"flow run has not started. {agent_msg}",
             )
             agent_warning_time_elapsed = 0
 
