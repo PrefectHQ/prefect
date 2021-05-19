@@ -229,9 +229,10 @@ class KubernetesAgent(Agent):
                                 for event in sorted(
                                     pod_events.items, key=lambda x: x.last_timestamp
                                 ):
-                                    # Skip old events
+                                    # Skip old events or events without timestamps
                                     if (
-                                        event.last_timestamp
+                                        not event.last_timestamp
+                                        or event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
                                             pod_name
                                         ]
