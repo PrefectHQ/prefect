@@ -9,18 +9,18 @@ class TestKafkaBatchConsume:
         assert task.bootstrap_servers == "localhost:9092"
         assert task.group_id == "1"
 
-        # raises when group_id isn't provided
-        with pytest.raises(TypeError):
-            task = KafkaBatchConsume("localhost:9092")
-
     def test_topic_must_be_provided(self):
         task = KafkaBatchConsume("localhost:9092", "1")
         with pytest.raises(TypeError):
             task.run()
 
-    def test_no_messages_received(self):
+    @mock.patch("prefect.tasks.kafka.kafka.confluent_kafka")
+    def test_no_messages_received(self, mock_confluent_kafka):
+        mock_consumer = mock.MagicMock()
+        mock_confluent_kafka.Consumer.return_value = mock_consumer
+        mock_consumer.poll.return_value = None
         task = KafkaBatchConsume("localhost:9092", "1")
-        assert task.run(["topic"]) == []
+        assert task.run(topic=["topic"]) == []
 
     @mock.patch("prefect.tasks.kafka.kafka.confluent_kafka")
     def test_consumer_finally_closes(self, mock_confluent_kafka):
@@ -28,7 +28,7 @@ class TestKafkaBatchConsume:
         mock_confluent_kafka.Consumer.return_value = mock_consumer
         mock_consumer.poll.return_value = None
         task = KafkaBatchConsume("localhost:9092", "1")
-        task.run(["topic"])
+        task.run(topic=["topic"])
         assert mock_consumer.close.called
 
     @mock.patch("prefect.tasks.kafka.kafka.confluent_kafka")
@@ -40,7 +40,7 @@ class TestKafkaBatchConsume:
         mock_confluent_kafka.Consumer.return_value = mock_consumer
         mock_consumer.poll.side_effect = [mock_message, mock_message, None]
         task = KafkaBatchConsume("localhost:9092", "1")
-        messages = task.run(["topic"])
+        messages = task.run(topic=["topic"])
         assert len(messages) == 2
         for message in messages:
             assert message == "value"
@@ -50,10 +50,6 @@ class TestKafkaBatchProduce:
     def test_construction(self):
         task = KafkaBatchProduce("localhost:9092")
         assert task.bootstrap_servers == "localhost:9092"
-
-        # raises when bootstrap_servers isn't provided
-        with pytest.raises(TypeError):
-            task = KafkaBatchProduce()
 
     def test_topic_must_be_provided(self):
         task = KafkaBatchProduce("localhost:9092")
@@ -78,8 +74,8 @@ class TestKafkaBatchProduce:
 
         mock_confluent_kafka.Producer.return_value = mock_producer
         task.run(
-            topic,
-            [
+            topic=topic,
+            messages=[
                 message,
             ],
         )

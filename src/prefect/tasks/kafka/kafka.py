@@ -206,4 +206,6 @@ class KafkaBatchProduce(Task):
             message_produce_count += 1
 
         producer.flush()
-        self.logger.info(f"Producer flushed {message_produce_count} messages to {topic}")
+        self.logger.info(
+            f"Producer flushed {message_produce_count} messages to {topic}"
+        )
