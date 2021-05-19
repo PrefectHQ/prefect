@@ -17,7 +17,7 @@ from .run import run as _run
 from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
 from .build_register import register as _register, build as _build
-from .key_value import kv as _kv
+from .kv_store import kv as _kv
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])

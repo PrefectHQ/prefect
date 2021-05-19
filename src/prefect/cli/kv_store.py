@@ -1,9 +1,10 @@
 import click
 
-from prefect import Client, config
+from prefect import config
+from prefect.backend import kv_store
 
 
-@click.group(hidden=True)
+@click.group()
 def kv():
     """
     Handle Prefect Cloud authorization.
@@ -11,29 +12,6 @@ def kv():
     \b
     Usage:
         $ prefect kv [COMMAND]
-
-    \b
-    Arguments:
-        set             Set a key value pair
-        get             Get the value associated with a key
-        delete          Delete a key value pair
-        list            List keys
-
-    \b
-    Examples:
-        $ prefect kv set foo bar
-
-    \b
-        $ prefect kv get my_key
-        bar
-
-    \b
-        $ prefect kv list
-        foo
-
-    \b
-        $ prefect kv delete foo
-        Key foo has been deleted
     """
     if config.backend == "server":
         raise click.UsageError(
@@ -41,10 +19,10 @@ def kv():
         )
 
 
-@kv.command(name="set", hidden=True)
+@kv.command(name="set")
 @click.argument("key")
 @click.argument("value")
-def _set(key, value):
+def set_command(key, value):
     """
     Set a key value pair, overriding existing values if key exists
 
@@ -53,18 +31,17 @@ def _set(key, value):
         key         TEXT    Key to set
         value       TEXT    Value associated with key to set
     """
-    client = Client()
-    result = client.set_key_value(key=key, value=value)
+    result = kv_store.set_key_value(key=key, value=value)
 
     if result is not None:
         click.secho("Key set successfully", fg="green")
     else:
-        click.echo("An error occurred setting the key value pair", fg="red")
+        click.secho("An error occurred setting the key value pair", fg="red")
 
 
-@kv.command(hidden=True)
+@kv.command(name="get")
 @click.argument("key")
-def get(key):
+def get_command(key):
     """
     Get the value of a key
 
@@ -72,14 +49,13 @@ def get(key):
     Arguments:
         key         TEXT    Key to get
     """
-    client = Client()
-    result = client.get_key_value(key=key)
+    result = kv_store.get_key_value(key=key)
     click.secho(f"Key {key} has value {result}", fg="green")
 
 
-@kv.command(hidden=True)
+@kv.command(name="delete")
 @click.argument("key")
-def delete(key):
+def delete_command(key):
     """
     Delete a key value pair
 
@@ -87,21 +63,19 @@ def delete(key):
     Arguments:
         key         TEXT    Key to delete
     """
-    client = Client()
-    result = client.delete_key_value(key=key)
+    result = kv_store.delete_key(key=key)
     if result:
         click.secho(f"Key {key} has been deleted", fg="green")
     else:
         click.secho("An error occurred deleting the key", fg="red")
 
 
-@kv.command(name="list", hidden=True)
-def _list():
+@kv.command(name="list")
+def list_command():
     """
     List all key value pairs
     """
-    client = Client()
-    result = client.list_keys()
+    result = kv_store.list_keys()
 
     if result:
         click.secho("\n".join(result), fg="green")
