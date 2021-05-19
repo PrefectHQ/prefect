@@ -467,9 +467,11 @@ def run(
         return
 
     # Define a simple function so we don't have to have a lot of `if not quiet` logic
-    def quiet_echo(*args, **kwargs):
-        if not quiet:
-            click.secho(*args, **kwargs)
+    quiet_echo = (
+        (lambda *_, **__: None)
+        if quiet
+        else lambda *args, **kwargs: click.secho(*args, **kwargs)
+    )
 
     # Cast labels to a list instead of a tuple so we can extend it
     labels = list(labels)
