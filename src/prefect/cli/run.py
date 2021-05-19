@@ -310,7 +310,7 @@ RUN_EPILOG = """
 
 \b    $ prefect run -i "9a1cd70c-37d7-4cd4-ab91-d41c2700300d"
 
-\b  Run registered flow with the backend and pipe flow run id to another program
+\b  Run registered flow and pipe flow run id to another program
 
 \b    $ prefect run -n "hello-world" --quiet | post_run.sh
 """
