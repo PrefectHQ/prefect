@@ -249,20 +249,16 @@ def test_run_local(tmpdir, kind, caplog, hello_world_flow_file):
 
 
 @pytest.mark.parametrize("kind", ["path", "module"])
-def test_run_local_allows_selection_from_multiple_flows(tmpdir, multiflow_file, kind):
-    if kind == "module":
-        # Extend the sys.path so we can pull from the file like a module
-        orig_sys_path = sys.path.copy()
-        sys.path.insert(0, os.path.dirname(os.path.abspath(multiflow_file)))
+def test_run_local_allows_selection_from_multiple_flows(
+    monkeypatch, multiflow_file, kind
+):
+    monkeypatch.syspath_prepend(os.path.dirname(os.path.abspath(multiflow_file)))
 
     location = multiflow_file if kind == "path" else "flow"
 
     result = CliRunner().invoke(run, [f"--{kind}", location, "--name", "b"])
     assert not result.exit_code
     assert result.output == SUCCESSFUL_LOCAL_STDOUT
-
-    if kind == "module":
-        sys.path = orig_sys_path
 
 
 @pytest.mark.parametrize("kind", ["path", "module"])
