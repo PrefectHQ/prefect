@@ -52,15 +52,12 @@ If you are on a Standard or Enterprise plan you can also configure Prefect API a
 
 All events have a message associated with them. These events are templated when the event is created. For example, the flow run state change event has the message template:
 
-```
-"Run {flow_run_name} of flow {flow_name} entered state {state} with message {state_message}. See {flow_run_link} for more details."
-```
+`Run {flow_run_name} of flow {flow_name} entered state {state} with message {state_message}. See {flow_run_link} for more details.`
+
 
 Actions with a message will generally default to using the event's message but allow you to override the message with a templatable string. For example, you may want to modify the above message to be more specific to your use-case:
 
-```
-"Run for client {flow_run_name} failed: {state_message}. Please investigate at {flow_run_link}."
-```
+`Run for client {flow_run_name} failed: {state_message}. Please investigate at {flow_run_link}.`
 
 See [the reference](#events-reference) for more details on the attributes you can use to template messages.
 
@@ -92,9 +89,7 @@ All event types provide the following attributes:
 - `flow_run_link`
 
 **Default message**
-```
-Run {flow_run_name} of flow {flow_name} entered state {state} with message {state_message}. See {flow_run_link} for more details.
-```
+`Run {flow_run_name} of flow {flow_name} entered state {state} with message {state_message}. See {flow_run_link} for more details.`
 
 #### Flow SLA failure
 
@@ -118,9 +113,7 @@ This event fires if a flow is late to start or late to finish. Specifically, you
 - `duration_seconds`
 
 **Default message**
-```
-Run {flow_run_name} ({flow_run_id}) of flow {flow_name} failed {kind} SLA ({flow_sla_config_id}) after {duration_seconds} seconds. See {flow_run_link} for more details.
-```
+`Run {flow_run_name} ({flow_run_id}) of flow {flow_name} failed {kind} SLA ({flow_sla_config_id}) after {duration_seconds} seconds. See {flow_run_link} for more details.`
 
 #### Agent SLA failure
 
@@ -135,9 +128,7 @@ If _no_ agents linked to the config are querying the API for flow runs, the SLA 
 - `agent_config_id`
 
 **Default message**
-```
-Agents sharing the config {agent_config_id} have failed the minimum healthy count of {sla_min_healthy}. The following agents are unhealthy: {agent_ids}
-```
+`Agents sharing the config {agent_config_id} have failed the minimum healthy count of {sla_min_healthy}. The following agents are unhealthy: {agent_ids}`
 
 ### Actions reference
 
