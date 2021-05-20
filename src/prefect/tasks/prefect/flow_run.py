@@ -19,88 +19,57 @@ from prefect.utilities.tasks import defaults_from_attrs
 # Flow run creation --------------------------------------------------------------------
 
 
-class CreateFlowRun(Task):
-    def __init__(
-        self,
-        flow_id_default: str = None,
-        flow_name_default: str = None,
-        project_name_default: str = "",
-        parameters_default: dict = None,
-        context_default: dict = None,
-        labels_default: Iterable[str] = None,
-        run_name_default: str = None,
-        **kwargs,
-    ):
-        self.flow_id_default = flow_id_default
-        self.flow_name_default = flow_name_default
-        self.project_name_default = project_name_default
-        self.parameters_default = parameters_default or {}
-        self.context_default = context_default or {}
-        self.labels_default = set(labels_default or [])
-        self.run_name_default = run_name_default
-
-        super().__init__(**kwargs)
-
-    def run(
-        self,
-        flow_id: str = None,
-        flow_name: str = None,
-        project_name: str = None,
-        parameters: dict = None,
-        context: dict = None,
-        labels: Iterable[str] = None,
-        run_name: str = None,
-    ) -> str:
-        flow_id = flow_id or self.flow_id_default
-        flow_name = flow_name or self.flow_name_default
-        project_name = project_name or self.project_name_default
-        parameters = parameters or self.parameters_default
-        context = context or self.context_default
-        labels = set(labels or self.labels_default)
-        run_name = run_name or self.run_name_default
-
-        if flow_id and flow_name:
-            raise ValueError(
-                "Received both `flow_id` and `flow_name`. Only one flow identifier "
-                "can be passed."
-            )
-        if not flow_id and not flow_name:
-            raise ValueError(
-                "Both `flow_id` and `flow_name` are null. You must pass a flow "
-                "identifier"
-            )
-
-        self.logger.debug("Looking up flow metadata...")
-
-        if flow_id:
-            flow = FlowView.from_id(flow_id)
-
-        if flow_name:
-            flow = FlowView.from_flow_name(flow_name, project_name=project_name)
-
-        # Generate a 'sub-flow' run name
-        if not run_name:
-            current_run = prefect.context.get("flow_run_name")
-            if current_run:
-                run_name = f"{current_run}-{flow.name}"
-
-        self.logger.info(f"Creating flow run {run_name!r} for flow {flow.name!r}...")
-
-        client = Client()
-        flow_run_id = client.create_flow_run(
-            flow_id=flow.flow_id,
-            parameters=parameters,
-            context=context,
-            labels=labels or None,  # If labels is empty list pass `None` for defaults
-            run_name=run_name,
+@task
+def create_flow_run(
+    flow_id: str = None,
+    flow_name: str = None,
+    project_name: str = "",
+    parameters: dict = None,
+    context: dict = None,
+    labels: Iterable[str] = None,
+    run_name: str = None,
+) -> str:
+    if flow_id and flow_name:
+        raise ValueError(
+            "Received both `flow_id` and `flow_name`. Only one flow identifier "
+            "can be passed."
+        )
+    if not flow_id and not flow_name:
+        raise ValueError(
+            "Both `flow_id` and `flow_name` are null. You must pass a flow "
+            "identifier"
         )
 
-        run_url = client.get_cloud_url("flow-run", flow_run_id)
-        self.logger.info(f"Created flow run {run_name!r} ({run_url})")
-        return flow_run_id
+    logger = prefect.context.logger.getChild("create_flow_run")
 
+    logger.debug("Looking up flow metadata...")
 
-create_flow_run = CreateFlowRun()
+    if flow_id:
+        flow = FlowView.from_id(flow_id)
+
+    if flow_name:
+        flow = FlowView.from_flow_name(flow_name, project_name=project_name)
+
+    # Generate a 'sub-flow' run name
+    if not run_name:
+        current_run = prefect.context.get("flow_run_name")
+        if current_run:
+            run_name = f"{current_run}-{flow.name}"
+
+    logger.info(f"Creating flow run {run_name!r} for flow {flow.name!r}...")
+
+    client = Client()
+    flow_run_id = client.create_flow_run(
+        flow_id=flow.flow_id,
+        parameters=parameters,
+        context=context,
+        labels=labels or None,  # If labels is empty list pass `None` for defaults
+        run_name=run_name,
+    )
+
+    run_url = client.get_cloud_url("flow-run", flow_run_id)
+    logger.info(f"Created flow run {run_name!r} ({run_url})")
+    return flow_run_id
 
 
 # Flow run results ---------------------------------------------------------------------
@@ -116,6 +85,8 @@ def get_flow_run_state(flow_run_id: str) -> "State":
 def get_task_run_result(
     flow_run_id: str, task_slug: str, map_index: int = -1, poll_time: int = 5
 ):
+    logger = prefect.context.logger.getChild("get_task_run_result")
+
     if not task_slug:
         raise ValueError("Required argument `task_slug` is empty")
 
@@ -126,7 +97,7 @@ def get_task_run_result(
 
     # Wait for the flow run to be finished
     while not flow_run.state.is_finished():
-        prefect.context.logger.debug(
+        logger.debug(
             f"Waiting for flow run {flow_run_id} to finish before retreiving result "
             f"for task run {task_dsp}..."
         )
@@ -134,9 +105,13 @@ def get_task_run_result(
         flow_run = flow_run.get_latest()
 
     # Get the task run
+    logger.debug("Retrieving task run metadata...")
     task_run = flow_run.get_task_run(task_slug=task_slug, map_index=map_index)
 
     # Load the result from storage
+    logger.debug(
+        f"Loading task run result from {type(task_run.state._result).__name__}..."
+    )
     return task_run.get_result()
 
 
