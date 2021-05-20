@@ -1,22 +1,52 @@
+"""
+Tasks for creating and inspecting Prefect flow runs during a flow run
+
+
+Example:
+    ```python
+    import prefect
+    from prefect import task, Flow, Parameter
+    from prefect.tasks.prefect.flow_run import (
+        create_flow_run,
+        get_task_run_result,
+    )
+
+
+    @task
+    def create_some_data(length: int):
+        return list(range(length))
+
+
+    with Flow("child") as child_flow:
+        data_size = Parameter("data_size", default=5)
+        data = create_some_data(data_size)
+
+
+    with Flow("parent") as parent_flow:
+        child_run_id = create_flow_run(
+            flow_name=child_flow.name, parameters=dict(data_size=10)
+        )
+        child_data = get_task_run_result(child_run_id, "create_some_data-1")
+    ```
+"""
+
 import datetime
 import time
 import warnings
-from typing import Any, Iterable, Optional
+import pendulum
+from typing import Any, Iterable, Optional, Union
 from urllib.parse import urlparse
 
 import prefect
-from prefect import Client, Flow, Task, task
+from prefect import Client, Task, task
 from prefect.artifacts import create_link
 from prefect.backend.flow_run import FlowRunLog, FlowRunView, FlowView, watch_flow_run
 from prefect.client import Client
-from prefect.engine.signals import FAIL, signal_from_state
+from prefect.engine.signals import signal_from_state
 from prefect.engine.state import State
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
-
-
-# Flow run creation --------------------------------------------------------------------
 
 
 @task
@@ -28,7 +58,35 @@ def create_flow_run(
     context: dict = None,
     labels: Iterable[str] = None,
     run_name: str = None,
+    run_config: Optional[RunConfig] = None,
+    scheduled_start_time: Optional[Union[pendulum.DateTime, datetime.datetime]] = None,
 ) -> str:
+    """
+    Create a flow run in the Prefect backend.
+
+    The flow to run must be registered and an agent must be available to deploy the
+    flow run.
+
+    Args:
+        - flow_id: The flow or flow group uuid to lookup the flow to run
+        - flow_name: The flow name to lookup the flow to run
+        - project_name: The project name to lookup the flow to run. For use with
+            `flow_name` if you have flows with the same name in multiple projects
+        - parameters: An optional dictionary of parameters to pass to the flow run
+        - context: An optional dictionary of context variables to pass to the flow run
+        - labels: An optional iterable of labels to set on the flow run; if not
+            provided, the default set of labels for the flow will be used
+        - run_name: An optional name for the flow run; if not provided, the name will
+            be generated as "{current_run_name}-{flow_name}"
+        - run_config: An optional run config to use for the flow run; will override any
+            existing run config settings
+        - scheduled_start_time: An optional time in the future to schedule flow run
+            execution for. If not provided, the flow run will be scheduled to start now
+
+    Returns:
+        The created flow run uuid
+    """
+
     if flow_id and flow_name:
         raise ValueError(
             "Received both `flow_id` and `flow_name`. Only one flow identifier "
@@ -65,10 +123,12 @@ def create_flow_run(
         context=context,
         labels=labels or None,  # If labels is empty list pass `None` for defaults
         run_name=run_name,
+        run_config=run_config,
+        scheduled_start_time=scheduled_start_time,
     )
 
     run_url = client.get_cloud_url("flow-run", flow_run_id)
-    logger.info(f"Created flow run {run_name!r} ({run_url})")
+    logger.info(f"Created flow run {run_name!r}: {run_url}")
     return flow_run_id
 
 
