@@ -1,5 +1,5 @@
 """
-Tasks for creating and inspecting Prefect flow runs during a flow run
+Tasks for creating and inspecting Prefect flow runs
 
 
 Example:
@@ -27,6 +27,17 @@ Example:
             flow_name=child_flow.name, parameters=dict(data_size=10)
         )
         child_data = get_task_run_result(child_run_id, "create_some_data-1")
+
+    if __name__ == "__main__":
+        # Register the sub flow
+        child_flow.register("default")
+
+        # Run the parent flow locally
+        flow_run = parent_flow.run()
+
+        # Print the retrieved data
+        print(flow_run.result[child_data].result)
+
     ```
 """
 
