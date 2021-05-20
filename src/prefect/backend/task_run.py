@@ -102,22 +102,22 @@ class TaskRunView:
         if not self.state.is_mapped():
             raise ValueError("Child results cannot be loaded for an unmapped task.")
 
-            # Load all the child task runs
-            child_task_runs = [
-                self._from_task_run_data(task_run)
-                for task_run in self._query_for_task_runs(
-                    where={
-                        "task": {"slug": {"_eq": self.task_slug}},
-                        "flow_run_id": {"_eq": self.flow_run_id},
-                        # Ignore the root task since we are the root task
-                        "map_index": {"_neq": -1},
-                    },
-                    # Ensure the returned tasks are ordered matching map indices
-                    order_by={"map_index": EnumValue("asc")},
-                    # Handle errors cleanly below
-                    error_on_empty=False,
-                )
-            ]
+        # Load all the child task runs
+        child_task_runs = [
+            self._from_task_run_data(task_run)
+            for task_run in self._query_for_task_runs(
+                where={
+                    "task": {"slug": {"_eq": self.task_slug}},
+                    "flow_run_id": {"_eq": self.flow_run_id},
+                    # Ignore the root task since we are the root task
+                    "map_index": {"_neq": -1},
+                },
+                # Ensure the returned tasks are ordered matching map indices
+                order_by={"map_index": EnumValue("asc")},
+                # Handle errors cleanly below
+                error_on_empty=False,
+            )
+        ]
 
         # Raise an informative error if none were found
         if not child_task_runs:
