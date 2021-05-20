@@ -31,7 +31,7 @@ When you create an automation in the UI, you are actually creating a `Hook` betw
 
 ## Actions
 
-An _action_ is a response to the event. Within your automation you can configure an action to happen when certain event conditions are met. For example, if your flow run fails (the event) you can cancel the run (the action).  
+An _action_ is a response to the event. For each automation you can configure an action to happen when certain event conditions are met. For example, if your flow run fails (the event) you can cancel the run (the action).  
 
 You can configure actions which send notifications using the following services:
 
@@ -42,7 +42,7 @@ You can configure actions which send notifications using the following services:
 - Email
 
 
-Moreover, if you are on a Standard or Enterprise plan you can also configure Prefect API actions. These allow you to do the following:
+If you are on a Standard or Enterprise plan you can also configure Prefect API actions. These allow you to do the following:
 
 - Cancel a flow run
 - Pause a flow's schedule
