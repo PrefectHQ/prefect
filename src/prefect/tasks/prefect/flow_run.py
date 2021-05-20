@@ -109,8 +109,7 @@ def create_flow_run(
             "identifier"
         )
 
-    logger = prefect.context.logger.getChild("create_flow_run")
-
+    logger = prefect.context.logger
     logger.debug("Looking up flow metadata...")
 
     if flow_id:
@@ -155,8 +154,27 @@ def get_flow_run_state(flow_run_id: str) -> "State":
 @task
 def get_task_run_result(
     flow_run_id: str, task_slug: str, map_index: int = -1, poll_time: int = 5
-):
-    logger = prefect.context.logger.getChild("get_task_run_result")
+) -> Any:
+    """
+    Get the result of a task from a flow run. Will wait for the flow run to finish
+    entirely or dynamic task runs will not be properly populated.
+
+    Results are loaded from the `Result` location of the task which may not be
+    accessible from where this task is executed. You will need to ensure results can
+    be accessed.
+
+    Args:
+        - flow_run_id: The flow run the task run belongs to
+        - task_slug: The 'slug' of the task run you want to get the result of
+        - map_index: If the task is mapped, the index you would like to access. By
+            default, if given a mapped task, all of the child results will be loaded.
+        - poll_time: The amount of time to wait while polling to check if the sub-flow
+            has finished
+
+    Returns:
+        The return value of the task
+    """
+    logger = prefect.context.logger
 
     if not task_slug:
         raise ValueError("Required argument `task_slug` is empty")
@@ -190,14 +208,27 @@ def get_task_run_result(
 def wait_for_flow_run(
     flow_run_id: str, stream_state: bool = True, stream_logs: bool = False
 ) -> "FlowRunView":
+    """
+    Wait for a flow run to finish executing, streaming state and log information
+
+    Args:
+        - flow_run_id: The flow run id to wait for
+        - stream_state: Stream information about the flow run state; if `False` no
+            output will be shown
+        - stream_logs: Stream flow run logs; if `stream_state` is `False` this will be
+            ignored
+
+    Returns:
+        A `FlowRunView` of the final state of the flow run
+    """
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
-    def log_with_flow_run_id(log: FlowRunLog):
+    def log_with_flow_run_prefix(log: FlowRunLog):
         message = f"Flow {flow_run.name!r}: {log.message}"
         prefect.context.logger.log(log.level, message)
 
-    output_fn = log_with_flow_run_id if stream_state else lambda *_, **__: None
+    output_fn = log_with_flow_run_prefix if stream_state else lambda *_, **__: None
 
     if not stream_state and stream_logs:
         warnings.warn("`stream_logs` will be ignored since `stream_state` is `False`")
