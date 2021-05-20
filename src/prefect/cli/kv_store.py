@@ -1,13 +1,15 @@
+import sys
 import click
 
 from prefect import config
 from prefect.backend import kv_store
+from prefect.cli.build_register import log_exception
 
 
 @click.group()
 def kv():
     """
-    Handle Prefect Cloud authorization.
+    Interact with Prefect Cloud KV Store
 
     \b
     Usage:
@@ -31,12 +33,13 @@ def set_command(key, value):
         key         TEXT    Key to set
         value       TEXT    Value associated with key to set
     """
-    result = kv_store.set_key_value(key=key, value=value)
-
-    if result is not None:
-        click.secho("Key set successfully", fg="green")
-    else:
+    try:
+        kv_store.set_key_value(key=key, value=value)
+        click.secho("Key value pair set successfully", fg="green")
+    except Exception as exc:
+        log_exception(exc)
         click.secho("An error occurred setting the key value pair", fg="red")
+        sys.exit(1)
 
 
 @kv.command(name="get")
@@ -49,8 +52,13 @@ def get_command(key):
     Arguments:
         key         TEXT    Key to get
     """
-    result = kv_store.get_key_value(key=key)
-    click.secho(f"Key {key} has value {result}", fg="green")
+    try:
+        result = kv_store.get_key_value(key=key)
+        click.secho(f"Key {key} has value {result}", fg="green")
+    except Exception as exc:
+        log_exception(exc)
+        click.secho(f"Error retrieving value for key {key}", fg="red")
+        sys.exit(1)
 
 
 @kv.command(name="delete")
@@ -63,11 +71,13 @@ def delete_command(key):
     Arguments:
         key         TEXT    Key to delete
     """
-    result = kv_store.delete_key(key=key)
-    if result:
+    try:
+        kv_store.delete_key(key=key)
         click.secho(f"Key {key} has been deleted", fg="green")
-    else:
+    except Exception as exc:
+        log_exception(exc)
         click.secho("An error occurred deleting the key", fg="red")
+        sys.exit(1)
 
 
 @kv.command(name="list")
@@ -75,9 +85,13 @@ def list_command():
     """
     List all key value pairs
     """
-    result = kv_store.list_keys()
-
-    if result:
-        click.secho("\n".join(result), fg="green")
-    else:
-        click.secho("No keys found", fg="red")
+    try:
+        result = kv_store.list_keys()
+        if result:
+            click.secho("\n".join(result), fg="green")
+        else:
+            click.secho("No keys found", fg="yellow")
+    except Exception as exc:
+        log_exception(exc)
+        click.secho("An error occurred when listing keys")
+        sys.exit(1)

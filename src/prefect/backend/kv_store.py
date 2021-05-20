@@ -6,7 +6,7 @@ from prefect.client import Client
 from prefect.utilities.exceptions import ClientError
 
 
-def set_key_value(key: str, value: str) -> str:
+def set_key_value(key: str, value: Any) -> str:
     """
     Set key value pair, overwriting values for existing key
 
