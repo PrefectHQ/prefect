@@ -1,19 +1,23 @@
 # Automations 
 
-Automations allow you to configure actions (such as cancelling a flow run or sending a notification to certain endpoints) when your flows or agents encounter certain events.
+Automations allow you to configure actions (such as cancelling a flow run or sending a notification to certain endpoints) when an event occurs in the Prefect ecosystem.
 
 For example, you can send a Slack message to your team when a run from a production critical flow has failed, along with the reason for the failure so that you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour to enforce SLAs.  
 
-You can set up and edit your Automations using the [API](/orchestration/concepts/api.html) or the Automations page in the UI.
+The automations system is composed of events and actions. When an _event_ is paired with an _action_, we call it an _automation_. 
 
-## Events
-
-The automations system is composed of events and actions. When an _event_ is paired with an _action_, we call it an _automation_.
-
-An event is something that occurs in the Prefect backend. When creating an automation, you:
+When creating an automation, you:
 - Choose an event type
 - Place filters or conditions on the event data
 - Select an action to fire when the event occurs and the conditions are met
+
+The following documentation will cover the various types of events and actions you can configure.
+
+We recommend creating and managing your automations in the [UI Automations page](https://cloud.prefect.io/?automations). You can also manage automations via the GraphQL API, but it requires a deeper understanding of the system then this document will cover.
+
+## Events
+
+An event is something that occurs in the Prefect backend. 
 
 Currently you can configure automations for the following events:
 - Flow runs from a single, multiple, or all flows enter a given state or states
