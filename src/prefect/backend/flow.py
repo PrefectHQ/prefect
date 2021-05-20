@@ -112,20 +112,22 @@ class FlowView:
         """
 
         try:
-            flow = FlowView.from_flow_id(id)
+            flow = FlowView.from_flow_id(flow_id)
         except ValueError:
             pass
         else:
             return flow
 
         try:
-            flow = FlowView.from_flow_group_id(id)
+            flow = FlowView.from_flow_group_id(flow_id)
         except ValueError:
             pass
         else:
             return flow
 
-        raise ValueError(f"Given id {id!r} is not an existing flow or flow group id.")
+        raise ValueError(
+            f"Given id {flow_id!r} is not an existing flow or flow group id."
+        )
 
     @classmethod
     def from_flow_id(cls, flow_id: str) -> "FlowView":
