@@ -1,7 +1,7 @@
 from typing import Any, List, Iterator
 
 from prefect import Client
-from prefect.engine.state import State
+from prefect.engine.state import Scheduled, State
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -149,7 +149,10 @@ class TaskRunView:
         task_run = task_run.copy()  # Create a copy to avoid mutation
         task_run_id = task_run.pop("id")
         task_data = task_run.pop("task")
-        serialized_state = task_run.pop("serialized_state")
+
+        # The serialized state _could_ be null if the backend has not
+        # created it yet, this would typically be seen with mapped tasks
+        serialized_state = task_run.pop("serialized_state") or Scheduled().serialize()
 
         return cls(
             task_run_id=task_run_id,
