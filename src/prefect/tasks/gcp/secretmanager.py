@@ -76,7 +76,7 @@ class GCPSecret(SecretBase):
         response = client.access_secret_version(name=name)
 
         # Return the decoded payload.
-        secret_string = response.payload.data.decode('UTF-8')
+        secret_string = response.payload.data.decode("UTF-8")
 
         secret_dict = json.loads(secret_string)
 
