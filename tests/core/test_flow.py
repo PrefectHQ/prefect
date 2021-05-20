@@ -3093,9 +3093,7 @@ class TestSaveLoad:
     ["local", "sync", "mthread", "mproc_local", "mproc", "threaded_local"],
     indirect=True,
 )
-def test_timeout_actually_stops_execution(
-    executor,
-):
+def test_timeout_actually_stops_execution(executor, tmpdir):
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
@@ -3113,40 +3111,41 @@ def test_timeout_actually_stops_execution(
     # lower values will decrease test time but increase chances of intermittent failure
     SLEEP_TIME = 3
 
+    # The amount of time to enforce a timeout at. Must fulfill
+    #   2 <= TIMEOUT_TIME < SLEEP_TIME
+    # Less than 2 seconds will timeout before the file is written
+    TIMEOUT_TIME = 2
+
     # Determine if the executor is distributed and using daemonic processes which
     # cannot be cancelled and throw a warning instead.
     in_daemon_process = isinstance(
         executor, DaskExecutor
     ) and not executor.address.startswith("inproc")
 
-    with tempfile.TemporaryDirectory() as call_dir:
-        # Note: a real file must be used in the case of "mthread"
-        FILE = os.path.join(call_dir, "test.txt")
+    # Note: a real file must be used in the case of "mthread"
+    FILE = str(tmpdir.join("test.txt"))
 
-        @prefect.task(timeout=2)
-        def slow_fn():
-            with open(FILE, "w") as f:
-                f.write("called!")
-            time.sleep(SLEEP_TIME)
-            with open(FILE, "a") as f:
-                f.write("invalid")
+    @prefect.task(timeout=TIMEOUT_TIME)
+    def slow_fn():
+        with open(FILE, "w") as f:
+            f.write("called!")
+        time.sleep(SLEEP_TIME)
+        with open(FILE, "a") as f:
+            f.write("invalid")
 
-        flow = Flow("timeouts", tasks=[slow_fn])
+    flow = Flow("timeouts", tasks=[slow_fn])
 
-        assert not os.path.exists(FILE)
+    assert not os.path.exists(FILE)
 
-        start_time = time.time()
-        state = flow.run(executor=executor)
-        stop_time = time.time()
+    state = flow.run(executor=executor)
 
-        # Sleep so 'invalid' will be written if the task is not killed, subtracting the
-        # actual runtime to speed up the test a little
-        time.sleep(max(1, SLEEP_TIME - (stop_time - start_time)))
+    # Sleep so 'invalid' will be written if the task is not killed
+    time.sleep(SLEEP_TIME)
 
-        assert os.path.exists(FILE)
-        with open(FILE, "r") as f:
-            # `invalid` should *only be in the file if a daemon process was used
-            assert ("invalid" in f.read()) == in_daemon_process
+    assert os.path.exists(FILE)
+    with open(FILE, "r") as f:
+        # `invalid` should *only be in the file if a daemon process was used
+        assert ("invalid" in f.read()) == in_daemon_process
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
