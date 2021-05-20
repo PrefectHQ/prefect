@@ -78,6 +78,7 @@ All event types provide the following attributes:
 #### Flow run state change
 
 **Attributes**
+
 - `flow_id`
 - `flow_name`
 - `flow_group_id`
@@ -89,6 +90,7 @@ All event types provide the following attributes:
 - `flow_run_link`
 
 **Default message**
+
 `Run {flow_run_name} of flow {flow_name} entered state {state} with message {state_message}. See {flow_run_link} for more details.`
 
 #### Flow SLA failure
@@ -99,6 +101,7 @@ This event fires if a flow is late to start or late to finish. Specifically, you
 - The flow has not entered a finished state some time after entering a running state 
 
 **Attributes**
+
 - `flow_id`
 - `flow_name`
 - `flow_group_id`
@@ -113,6 +116,7 @@ This event fires if a flow is late to start or late to finish. Specifically, you
 - `duration_seconds`
 
 **Default message**
+
 `Run {flow_run_name} ({flow_run_id}) of flow {flow_name} failed {kind} SLA ({flow_sla_config_id}) after {duration_seconds} seconds. See {flow_run_link} for more details.`
 
 #### Agent SLA failure
@@ -122,12 +126,14 @@ This event fires if a group of agents have not queried the backend after an amou
 If _no_ agents linked to the config are querying the API for flow runs, the SLA failure event will fire. If _any_ of the agents are healthy, the SLA will pass.
 
 **Attributes**
+
 - `healthy_agent_ids`
 - `unhealthy_agent_ids`
 - `sla_min_healthy`
 - `agent_config_id`
 
 **Default message**
+
 `Agents sharing the config {agent_config_id} have failed the minimum healthy count of {sla_min_healthy}. The following agents are unhealthy: {agent_ids}`
 
 ### Actions reference
@@ -139,11 +145,13 @@ Sends a payload to the given url when an event fires.
 Expects a 200 OK response or the action will be marked as failed.
 
 **Configuration**
+
 - `url`: The URL to send the payload to
 - `payload`: Optional, a JSON payload to send to the URL. If not specified, all event data is dumped. Templatable.
 - `headers`: Optional, JSON headers to include in the request. If not specified, defaults to include the event id: `{"X-PREFECT-EVENT-ID": "{id}"}`.  Templatable.
 
 **Templating**
+
 Both the payload and the header JSON can be templated using event attributes. For example, we can include our tenant id in the headers instead of the event id.
 
 ```json
@@ -157,6 +165,7 @@ Event data can be templated into both keys and values.
 Send a notification using a Slack webhook.
 
 **Configuration**
+
 - `webhook_url_secret`: The name of the Prefect Secret with the Slack webhook URL
 - `message`: Optional, a custom message to send
 
@@ -165,6 +174,7 @@ Send a notification using a Slack webhook.
 Send a notification using a Microsoft Teams webhook.
 
 **Configuration**
+
 - `webhook_url_secret`: The name of the Prefect Secret with the Teans webhook URL
 - `message`: Optional, a custom message to send. Templatable.
 - `title`: Optional, a custom title to use for the message. Templatable.
@@ -174,6 +184,7 @@ Send a notification using a Microsoft Teams webhook.
 Send an email notification.
 
 **Configuration**
+
 - `to_emails`: A list of email addresses to send an email to
 - `subject`: Optional, a custom email subject. Templatable.
 - `body`: Optional, a custom email body. Templatable.
@@ -183,6 +194,7 @@ Send an email notification.
 Send a text message notification with Twilio.
 
 **Configuration**
+
 - `account_sid`: The Twilio account SID
 - `auth_token_secret` The name of the Prefect Secret with the Twilio auth token
 - `messaging_service_sid`: The Twilio messaging service SID
@@ -194,6 +206,7 @@ Send a text message notification with Twilio.
 Send a notification using PagerDuty.
 
 **Configuration**
+
 - `api_token_secret`: The name of the Prefect Secret with the PagerDuty API token
 - `routing_key`: The PagerDuty routing key
 - `severity`: The PagerDuty severity to send a message on. One of: info, warning, error, critical
@@ -204,6 +217,7 @@ Send a notification using PagerDuty.
 Cancel a flow run. This action _must_ be hooked to an event that provides a `flow_run_id` to cancel.
 
 **Configuration**
+
 - `message`: Optional, a custom text message. Templatable.
 
 #### PauseScheduleAction
@@ -211,4 +225,5 @@ Cancel a flow run. This action _must_ be hooked to an event that provides a `flo
 Pause scheduling additional flow runs for a flow group.
 
 **Configuration**
+
 - `flow_group_id`: Optional, the UUID of a flow group to pause the schedule of. If not provided, this action _must_ be hooked to an event that provides it.
