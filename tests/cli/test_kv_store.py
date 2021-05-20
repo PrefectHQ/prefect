@@ -1,12 +1,9 @@
 import uuid
 from unittest.mock import MagicMock
 
-import click
-import pytest
 from click.testing import CliRunner
 
 from prefect.cli.kv_store import kv
-from prefect.utilities.configuration import set_temporary_config
 
 
 def test_key_value_init():
@@ -23,12 +20,11 @@ def test_key_value_help():
     assert "Interact with Prefect Cloud KV Store" in result.output
 
 
-# TODO - fix this
-# def test_key_value_raises_on_server_backend():
-#     with set_temporary_config({'prefect.config.backend': 'server'}):
-#         runner = CliRunner()
-#         result = runner.invoke(kv)
-#         assert "Key value commands with server are not currently supported." in result.output
+def test_key_value_raises_on_server_backend(server_api):
+    runner = CliRunner()
+    result = runner.invoke(kv, ["set", "foo", "bar"])
+    assert result.exit_code == 1
+    assert "Key value commands are only available with Prefect Cloud" in result.output
 
 
 class TestSetKeyValue:

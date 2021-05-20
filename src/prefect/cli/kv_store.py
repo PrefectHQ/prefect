@@ -16,9 +16,8 @@ def kv():
         $ prefect kv [COMMAND]
     """
     if config.backend == "server":
-        raise click.UsageError(
-            "Key value commands with server are not currently supported."
-        )
+        click.secho("Key value commands are only available with Prefect Cloud")
+        sys.exit(1)
 
 
 @kv.command(name="set")
