@@ -35,10 +35,18 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
+def simple_flow_run_logger(log: "FlowRunLog") -> None:
+    level_name = logging.getLevelName(log.level)
+    logger.log(
+        log.level,
+        f"{log.timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} | {log.message}",
+    )
+
+
 def watch_flow_run(
     flow_run_id: str,
     stream_logs: bool = True,
-    output_fn: Callable[[int, str], None] = logger.log,
+    output_fn: Callable[["FlowRunLog"], None] = simple_flow_run_logger,
 ) -> "FlowRunView":
     """
     Watch execution of a flow run displaying state changes. This function will hang
@@ -129,12 +137,8 @@ def watch_flow_run(
                 # not seen yet
                 last_log_timestamp = logs[-1].timestamp
 
-        for timestamp, level, message in sorted(messages):
-            level_name = logging.getLevelName(level)
-            output_fn(
-                level,
-                f"{timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} | {message}",
-            )
+        for flow_run_log in sorted(messages):
+            output_fn(flow_run_log)
 
         if not messages:
             # Delay the poll if there are no messages

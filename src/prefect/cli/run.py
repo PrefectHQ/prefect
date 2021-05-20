@@ -16,7 +16,7 @@ from tabulate import tabulate
 
 import prefect
 from prefect.backend.flow import FlowView
-from prefect.backend.flow_run import FlowRunView, watch_flow_run
+from prefect.backend.flow_run import FlowRunView, watch_flow_run, FlowRunLog
 from prefect.cli.build_register import (
     TerminalError,
     handle_terminal_error,
@@ -88,19 +88,27 @@ def try_error_done(
             echo(" Done", fg="green")
 
 
-def echo_with_log_color(log_level: int, message: str, prefix: str = ""):
+def echo_with_log_color(log: FlowRunLog, prefix: str = ""):
     extra = {}
-    if log_level >= logging.ERROR:
+    if log.level >= logging.ERROR:
         color = "red"
-    elif log_level >= logging.WARNING:
+    elif log.level >= logging.WARNING:
         color = "yellow"
-    elif log_level <= logging.DEBUG:
+    elif log.level <= logging.DEBUG:
         color = "white"
         extra["dim"] = True
     else:
         color = "white"
 
-    click.secho(prefix + message, fg=color, **extra)
+    level_name = logging.getLevelName(log.level)
+    click.secho(
+        (
+            f"{prefix}{log.timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} "
+            f" | {log.message}"
+        ),
+        fg=color,
+        **extra,
+    )
 
 
 def load_flows_from_script(path: str) -> "List[prefect.Flow]":
