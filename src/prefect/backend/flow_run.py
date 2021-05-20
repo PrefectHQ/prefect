@@ -646,7 +646,11 @@ class FlowRunView:
         return flow_runs[0]
 
     def get_task_run(
-        self, task: Task = None, task_slug: str = None, task_run_id: str = None
+        self,
+        task: Task = None,
+        task_slug: str = None,
+        task_run_id: str = None,
+        map_index: int = -1,
     ) -> "TaskRunView":
         """
         Get information about a task run from this flow run. Lookup is available by one
@@ -715,14 +719,14 @@ class FlowRunView:
                 # just be one run id but for mapped tasks there will be multiple
                 for task_run_id in task_run_ids:
                     result = self._cached_task_runs[task_run_id]
-                    if result.map_index == -1:
+                    if result.map_index == map_index:
                         return result
 
                 # We did not find the base mapped task in the cache so we'll
                 # drop through to query for it
 
             result = TaskRunView.from_task_slug(
-                task_slug=task_slug, flow_run_id=self.flow_run_id
+                task_slug=task_slug, flow_run_id=self.flow_run_id, map_index=map_index
             )
             self._cache_task_run_if_finished(result)
             return result
