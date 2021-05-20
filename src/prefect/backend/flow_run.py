@@ -66,7 +66,14 @@ def watch_flow_run(
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
     if flow_run.state.is_finished():
-        output_fn(logging.INFO, "Your flow run is already finished!")
+        time_ago = (pendulum.now() - flow_run.updated_at).as_interval().in_words()
+        output_fn(
+            FlowRunLog(
+                timestamp=pendulum.now(),
+                level=logging.INFO,
+                message=f"Your flow run finished {time_ago} ago",
+            )
+        )
         return flow_run
 
     # The timestamp of the last displayed log so that we can scope each log query
