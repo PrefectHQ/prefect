@@ -71,6 +71,10 @@ class TaskRunView:
         Returns:
             Any: The value your task returned
         """
+
+        if not self.state.is_finished():
+            raise ValueError("The task result cannot be loaded if it is not finished.")
+
         if self._result is NotLoaded:
             # Load the result from the result location
             self._result = self._load_result()
