@@ -3,7 +3,10 @@ import click
 
 from prefect import config
 from prefect.backend import kv_store
-from prefect.cli.build_register import log_exception
+from prefect.cli.build_register import (
+    handle_terminal_error,
+    TerminalError,
+)
 
 
 @click.group()
@@ -23,6 +26,7 @@ def kv():
 @kv.command(name="set")
 @click.argument("key")
 @click.argument("value")
+@handle_terminal_error
 def set_command(key, value):
     """
     Set a key value pair, overriding existing values if key exists
@@ -36,13 +40,14 @@ def set_command(key, value):
         kv_store.set_key_value(key=key, value=value)
         click.secho("Key value pair set successfully", fg="green")
     except Exception as exc:
-        log_exception(exc)
-        click.secho("An error occurred setting the key value pair", fg="red")
-        sys.exit(1)
+        raise TerminalError(
+            f"An error occurred setting the key value pair: {str(exc)}"
+        ) from exc
 
 
 @kv.command(name="get")
 @click.argument("key")
+@handle_terminal_error
 def get_command(key):
     """
     Get the value of a key
@@ -55,13 +60,14 @@ def get_command(key):
         result = kv_store.get_key_value(key=key)
         click.secho(f"Key {key} has value {result}", fg="green")
     except Exception as exc:
-        log_exception(exc)
-        click.secho(f"Error retrieving value for key {key}", fg="red")
-        sys.exit(1)
+        raise TerminalError(
+            f"Error retrieving value for key {key}: {str(exc)}"
+        ) from exc
 
 
 @kv.command(name="delete")
 @click.argument("key")
+@handle_terminal_error
 def delete_command(key):
     """
     Delete a key value pair
@@ -74,12 +80,11 @@ def delete_command(key):
         kv_store.delete_key(key=key)
         click.secho(f"Key {key} has been deleted", fg="green")
     except Exception as exc:
-        log_exception(exc)
-        click.secho("An error occurred deleting the key", fg="red")
-        sys.exit(1)
+        raise TerminalError(f"An error occurred deleting the key: {str(exc)}") from exc
 
 
 @kv.command(name="list")
+@handle_terminal_error
 def list_command():
     """
     List all key value pairs
@@ -91,6 +96,4 @@ def list_command():
         else:
             click.secho("No keys found", fg="yellow")
     except Exception as exc:
-        log_exception(exc)
-        click.secho("An error occurred when listing keys")
-        sys.exit(1)
+        raise TerminalError(f"An error occurred when listing keys: {str(exc)}") from exc
