@@ -113,9 +113,15 @@ def watch_flow_run(
                 f"labels {set(flow_run.labels)!r}" if flow_run.labels else "no labels"
             )
             output_fn(
-                logging.WARN,
-                f"It has been {round(total_wait_time)} seconds and your flow run is "
-                f"not started; do you have an agent running with {labels}?",
+                FlowRunLog(
+                    timestamp=pendulum.now(),
+                    level=logging.WARN,
+                    message=(
+                        f"It has been {round(total_wait_time)} seconds and your flow "
+                        "run is  not started; do you have an agent running with "
+                        f"{labels}?"
+                    ),
+                )
             )
             agent_warning_wait_time = 0
 
