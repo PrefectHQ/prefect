@@ -195,7 +195,7 @@ jobs:
           command: pytest tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # ----------------------------------
-  # Run unit tests in Python 3.6-3.8
+  # Run unit tests in Python 3.6-3.9
   # ----------------------------------
 
   test_36:
