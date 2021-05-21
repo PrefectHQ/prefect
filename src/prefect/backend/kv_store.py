@@ -118,6 +118,6 @@ def list_keys() -> List[str]:
         raise ClientError("Key Value operations are Cloud only")
     client = Client()
     result = client.graphql(
-        {"query": {"key_value(order_by: {key: asc})": {"key"}}}
+    {"query": {"key_value": {"key"}}}
     )  # type: ignore
-    return [res["key"] for res in result.data.key_value]
+    return sorted([res["key"] for res in result.data.key_value])

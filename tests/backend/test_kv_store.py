@@ -160,8 +160,8 @@ class TestListKeyValue:
             return_value=MagicMock(
                 data=GraphQLResult(
                     key_value=[
+                        GraphQLResult({"key": "foo2"}), # keys will be sorted client side
                         GraphQLResult({"key": "foo"}),
-                        GraphQLResult({"key": "foo2"}),
                     ],
                 )
             )
@@ -172,6 +172,6 @@ class TestListKeyValue:
 
         keys = list_keys()
         client.return_value.graphql.assert_called_with(
-            {"query": {"key_value(order_by: {key: asc})": {"key"}}}
+            {"query": {"key_value": {"key"}}}
         )
         assert keys == ["foo", "foo2"]
