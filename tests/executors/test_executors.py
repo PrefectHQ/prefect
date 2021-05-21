@@ -178,18 +178,12 @@ class TestLocalDaskExecutor:
                 "locally. We should debug this later, but squashing it for now"
             )
 
-        # Windows implements `queue.get` using polling,
-        # which means we can set an exception to interrupt the call to `get`.
-        # Python 3 on other platforms requires sending SIGINT to the main thread.
-        if os.name == "nt":
-            from _thread import interrupt_main
-        else:
-            main_thread = threading.get_ident()
+        main_thread = threading.get_ident()
 
-            def interrupt_main():
-                import signal
+        def interrupt():
+            import signal
 
-                signal.pthread_kill(main_thread, signal.SIGINT)
+            signal.pthread_kill(main_thread, signal.SIGINT)
 
         def long_task():
             for i in range(50):
@@ -197,18 +191,18 @@ class TestLocalDaskExecutor:
 
         e = LocalDaskExecutor(scheduler)
         try:
-            interrupter = threading.Timer(0.5, interrupt_main)
+            interrupter = threading.Timer(0.5, interrupt)
             interrupter.start()
             start = time.time()
             with e.start():
                 e.wait(e.submit(long_task))
         except KeyboardInterrupt:
-            pass
-        except Exception:
-            assert False, "Failed to interrupt"
+            pass  # Don't exit test on the interrupt
+
         stop = time.time()
-        if stop - start > 4:
-            assert False, "Failed to interrupt"
+
+        # Stops within 4 seconds
+        assert (stop - start) < 4
 
 
 class TestLocalExecutor:
