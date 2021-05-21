@@ -199,13 +199,13 @@ module.exports = {
             'concepts/projects',
             'concepts/flows',
             'concepts/flow_runs',
-            'concepts/cloud_hooks',
-            'concepts/automations',
             'concepts/secrets',
-            'concepts/services',
             'concepts/api_keys',
             'concepts/roles',
-            'concepts/task-concurrency-limiting'
+            'concepts/automations',
+            'concepts/cloud_hooks',
+            'concepts/task-concurrency-limiting',
+            'concepts/services'
           ]
         },
         {
