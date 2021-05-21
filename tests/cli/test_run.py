@@ -249,20 +249,16 @@ def test_run_local(tmpdir, kind, caplog, hello_world_flow_file):
 
 
 @pytest.mark.parametrize("kind", ["path", "module"])
-def test_run_local_allows_selection_from_multiple_flows(tmpdir, multiflow_file, kind):
-    if kind == "module":
-        # Extend the sys.path so we can pull from the file like a module
-        orig_sys_path = sys.path.copy()
-        sys.path.insert(0, os.path.dirname(os.path.abspath(multiflow_file)))
+def test_run_local_allows_selection_from_multiple_flows(
+    monkeypatch, multiflow_file, kind
+):
+    monkeypatch.syspath_prepend(os.path.dirname(os.path.abspath(multiflow_file)))
 
     location = multiflow_file if kind == "path" else "flow"
 
     result = CliRunner().invoke(run, [f"--{kind}", location, "--name", "b"])
     assert not result.exit_code
     assert result.output == SUCCESSFUL_LOCAL_STDOUT
-
-    if kind == "module":
-        sys.path = orig_sys_path
 
 
 @pytest.mark.parametrize("kind", ["path", "module"])
@@ -487,6 +483,37 @@ def test_run_cloud_handles_create_flow_run_failure(cloud_mocks):
     assert "Creating run for flow 'flow-name'... Error" in result.output
     assert "Traceback" in result.output
     assert "ValueError: Foo!" in result.output
+
+
+def test_run_cloud_handles_keyboard_interrupt_during_create_flow_run(cloud_mocks):
+    cloud_mocks.FlowView.from_flow_id.return_value = TEST_FLOW_VIEW
+    cloud_mocks.Client().create_flow_run.side_effect = KeyboardInterrupt
+
+    result = CliRunner().invoke(run, ["--id", "flow-id"])
+
+    assert not result.exit_code
+    assert "Creating run for flow 'flow-name'..." in result.output
+    assert "Keyboard interrupt detected! Aborting..." in result.output
+    assert "Aborted." in result.output
+
+
+def test_run_cloud_handles_keyboard_interrupt_during_flow_run_info(cloud_mocks):
+    # This test differs from `...interrupt_during_create_flow_run` in that the flow
+    # run is created and the user has cancelled during metadata retrieval so we need
+    # to actually cancel the run
+    cloud_mocks.FlowView.from_flow_id.return_value = TEST_FLOW_VIEW
+    cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+    cloud_mocks.FlowRunView.from_flow_run_id.side_effect = KeyboardInterrupt
+
+    result = CliRunner().invoke(run, ["--id", "flow-id"])
+
+    assert not result.exit_code
+    assert "Creating run for flow 'flow-name'..." in result.output
+    assert "Keyboard interrupt detected! Aborting..." in result.output
+    assert "Cancelled flow run." in result.output
+    cloud_mocks.Client().cancel_flow_run.assert_called_once_with(
+        flow_run_id="fake-run-id"
+    )
 
 
 def test_run_cloud_respects_quiet(cloud_mocks):
