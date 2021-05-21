@@ -208,10 +208,12 @@ module.exports = {
             'concepts/automations',
             'concepts/kv_store',
             'concepts/secrets',
-            'concepts/services',
             'concepts/api_keys',
             'concepts/roles',
-            'concepts/task-concurrency-limiting'
+            'concepts/automations',
+            'concepts/cloud_hooks',
+            'concepts/task-concurrency-limiting',
+            'concepts/services'
           ]
         },
         {
