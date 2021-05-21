@@ -672,6 +672,8 @@ class FlowRunView:
                 pulled from the task to actually perform the query
             - task_slug: A task slug string to use for the lookup
             - task_run_id: A task run uuid to use for the lookup
+            - map_index: If given a slug of a mapped task, an index may be provided to
+                get the the task run for that child task instead of the parent
 
         Returns:
             A cached or newly constructed TaskRunView instance
