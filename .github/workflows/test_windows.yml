@@ -26,4 +26,4 @@ jobs:
           pip install -e .[dev]
       - name: Test with pytest
         run: |
-          pytest tests -vvrfEsx --numprocesses 4 --dist=loadfile
+          pytest tests -vvrfEsx
