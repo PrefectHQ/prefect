@@ -1,5 +1,4 @@
-import os
-
+import sys
 import pytest
 import yaml
 
@@ -74,7 +73,7 @@ def test_remote_task_definition_path():
     assert config.task_definition_arn is None
 
 
-@pytest.mark.parametrize("scheme", ["local", "file", None])
+@pytest.mark.parametrize("scheme", [pytest."local", "file", None])
 def test_local_task_definition_path(tmpdir, scheme):
     task_definition = {
         "containerDefinitions": [
@@ -86,6 +85,8 @@ def test_local_task_definition_path(tmpdir, scheme):
     if scheme is None:
         task_definition_path = path
     else:
+        if sys.platform == "win32":
+            pytest.skip(reason="Schemes are not supported on win32")
         task_definition_path = f"{scheme}://" + path
 
     with open(path, "w") as f:
