@@ -74,6 +74,25 @@ def test_agent_log_level_responds_to_config(cloud_api):
         assert agent.agent_address == "http://localhost:8000"
 
 
+@pytest.mark.parametrize("toggle", [True, False])
+def test_agent_cloud_logs_responds_to_config_by_default(cloud_api, toggle):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": toggle}
+    ):
+        agent = Agent()
+        assert agent.log_to_cloud is toggle
+
+
+@pytest.mark.parametrize("toggle", [True, False])
+def test_agent_cloud_logs_allows_explicit_override(cloud_api, toggle):
+    # Set the config to the opposite so we can ensure it's ignored
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": not toggle}
+    ):
+        agent = Agent(no_cloud_logs=not toggle)
+        assert agent.log_to_cloud is toggle
+
+
 def test_agent_env_vars(cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(env_vars=dict(AUTH_THING="foo"))

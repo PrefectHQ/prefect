@@ -129,7 +129,7 @@ class Agent:
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
     ) -> None:
         # Load token and initialize client
         token = config.cloud.agent.get("auth_token")
@@ -142,7 +142,12 @@ class Agent:
         self.labels = labels or list(config.cloud.agent.get("labels", []))
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
-        self.log_to_cloud = False if no_cloud_logs else True
+
+        if no_cloud_logs is None:  # Load from config if unset
+            self.log_to_cloud = config.cloud.send_flow_run_logs
+        else:
+            self.log_to_cloud = not no_cloud_logs
+
         self.heartbeat_period = 60  # exposed for testing
         self.agent_address = agent_address or config.cloud.agent.get("agent_address")
 

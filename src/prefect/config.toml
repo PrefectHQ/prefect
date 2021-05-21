@@ -60,6 +60,9 @@ check_cancellation_interval = 15.0
 diagnostics = false
 request_timeout = 15
 
+# If set, logs for flow runs reporting to the API will be sent to the backend
+send_flow_run_logs = true
+
 # rate at which to batch upload logs
 logging_heartbeat = 5
 
@@ -96,9 +99,6 @@ log_attributes = "[]"
 
 # the timestamp format
 datefmt = "%Y-%m-%d %H:%M:%S%z"
-
-# Send logs to Prefect Cloud
-log_to_cloud = false
 
 # Extra loggers for Prefect log configuration
 extra_loggers = "[]"
