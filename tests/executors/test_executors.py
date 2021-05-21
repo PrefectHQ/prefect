@@ -269,7 +269,7 @@ class TestDaskExecutor:
 
         def record_times():
             start_time = time.time()
-            time.sleep(0.75)
+            time.sleep(2)
             end_time = time.time()
             return start_time, end_time
 
