@@ -16,6 +16,9 @@ def set_key_value(key: str, value: Any) -> str:
 
     Returns:
         - id (str): the id of the key value pair
+
+    Raises:
+        - ClientError: if using Prefect Server instead of Cloud
     """
     if prefect.config.backend != "cloud":
         raise ClientError("Key Value operations are Cloud only")
@@ -43,6 +46,10 @@ def get_key_value(key: str) -> Any:
 
     Returns:
         - value (Any): A json compatible value
+
+    Raises:
+        - ValueError: if the specified key does not exist
+        - ClientError: if using Prefect Server instead of Cloud
     """
     if prefect.config.backend != "cloud":
         raise ClientError("Key Value operations are Cloud only")
@@ -66,7 +73,14 @@ def delete_key(key: str) -> bool:
 
     Returns:
         - success (bool): Whether or not deleting the key succeeded
+
+    Raises:
+        - ValueError: if the specified key does not exist
+        - ClientError: if using Prefect Server instead of Cloud
     """
+    if prefect.config.backend != "cloud":
+        raise ClientError("Key Value operations are Cloud only")
+
     query = {
         "query": {with_args("key_value", {"where": {"key": {"_eq": key}}}): {"id"}}
     }
@@ -96,6 +110,9 @@ def list_keys() -> List[str]:
 
     Returns:
         - keys (list): A list of keys
+
+    Raises:
+        - ClientError: if using Prefect Server instead of Cloud
     """
     if prefect.config.backend != "cloud":
         raise ClientError("Key Value operations are Cloud only")
