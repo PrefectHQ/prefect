@@ -14,15 +14,12 @@ class TestSetKeyValue:
     def test_set_key_value_calls_client_mutation_correctly(
         self, monkeypatch, cloud_api
     ):
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=GraphQLResult(
-                    set_key_value=GraphQLResult({"id": "123"}),
-                )
+        client = MagicMock()
+        client().graphql.return_value = GraphQLResult(
+            data=dict(
+                set_key_value=GraphQLResult({"id": "123"}),
             )
         )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
         monkeypatch.setattr("prefect.backend.kv_store.Client", client)
 
         key_value_id = set_key_value(key="foo", value="bar")
@@ -43,15 +40,12 @@ class TestGetKeyValue:
             get_key_value(key="foo")
 
     def test_get_key_value_calls_client_query_correctly(self, monkeypatch, cloud_api):
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=GraphQLResult(
-                    key_value=[GraphQLResult({"value": "bar"})],
-                )
+        client = MagicMock()
+        client().graphql.return_value = GraphQLResult(
+            data=dict(
+                key_value=[GraphQLResult({"value": "bar"})],
             )
         )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
         monkeypatch.setattr("prefect.backend.kv_store.Client", client)
 
         value = get_key_value(key="foo")
@@ -61,15 +55,8 @@ class TestGetKeyValue:
         assert value == "bar"
 
     def test_get_key_value_raises_if_key_not_found(self, monkeypatch, cloud_api):
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=GraphQLResult(
-                    key_value=[],
-                )
-            )
-        )
         client = MagicMock()
-        client.return_value.graphql = gql_return
+        client().graphql.return_value = GraphQLResult(data=dict(key_value=[]))
         monkeypatch.setattr("prefect.backend.kv_store.Client", client)
 
         with pytest.raises(ValueError):
@@ -86,25 +73,23 @@ class TestDeleteKeyValue:
             delete_key(key="foo")
 
     def test_get_key_value_calls_client_query_correctly(self, monkeypatch, cloud_api):
-        key_value_id_gql_return = MagicMock(
-            return_value=MagicMock(
-                data=GraphQLResult(
-                    key_value=[GraphQLResult({"id": "123"})],
-                )
+        key_value_id_gql_return = GraphQLResult(
+            data=dict(
+                key_value=[GraphQLResult({"id": "123"})],
             )
         )
-        delete_key_value_gql_return = MagicMock(
-            return_value=MagicMock(
-                data=GraphQLResult(
-                    delete_key_value=GraphQLResult({"success": True}),
-                )
+        delete_key_value_gql_return = GraphQLResult(
+            data=dict(
+                delete_key_value=GraphQLResult({"success": True}),
             )
         )
 
+        # helper function to return key value id
+        # and the delete_key_value depending on input
         def fake_graphql_responses(*args, **kwargs):
             if "query" in kwargs["query"]:
-                return key_value_id_gql_return.return_value
-            return delete_key_value_gql_return.return_value
+                return key_value_id_gql_return
+            return delete_key_value_gql_return
 
         client = MagicMock()
         client.return_value.graphql.side_effect = fake_graphql_responses
@@ -129,15 +114,12 @@ class TestDeleteKeyValue:
         ]
 
     def test_delete_key_value_raises_if_key_not_found(self, monkeypatch, cloud_api):
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=GraphQLResult(
-                    key_value=[],
-                )
+        client = MagicMock()
+        client().graphql.return_value = GraphQLResult(
+            data=dict(
+                key_value=[],
             )
         )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
         monkeypatch.setattr("prefect.backend.kv_store.Client", client)
 
         with pytest.raises(ValueError):
@@ -156,20 +138,15 @@ class TestListKeyValue:
     def test_list_key_value_calls_client_mutation_correctly(
         self, monkeypatch, cloud_api
     ):
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=GraphQLResult(
-                    key_value=[
-                        GraphQLResult(
-                            {"key": "foo2"}
-                        ),  # keys will be sorted client side
-                        GraphQLResult({"key": "foo"}),
-                    ],
-                )
+        client = MagicMock()
+        client().graphql.return_value = GraphQLResult(
+            data=dict(
+                key_value=[
+                    GraphQLResult({"key": "foo2"}),  # keys will be sorted client side
+                    GraphQLResult({"key": "foo"}),
+                ],
             )
         )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
         monkeypatch.setattr("prefect.backend.kv_store.Client", client)
 
         keys = list_keys()
