@@ -31,6 +31,7 @@ class FlowView:
         - core_version: The core version that was used to register the flow
         - storage: The deserialized Storage object used to store this flow
         - name: The name of the flow
+        - flow_group_labels: Labels that are assigned to the parent flow group
     """
 
     def __init__(
@@ -45,6 +46,7 @@ class FlowView:
         core_version: str,
         storage: prefect.storage.Storage,
         name: str,
+        flow_group_labels: List[str],
     ):
         self.flow_id = flow_id
         self.flow = flow
@@ -56,6 +58,7 @@ class FlowView:
         self.core_version = core_version
         self.storage = storage
         self.name = name
+        self.flow_group_labels = flow_group_labels
 
     @classmethod
     def _from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
@@ -72,6 +75,8 @@ class FlowView:
         flow_data = flow_data.copy()
 
         flow_id = flow_data.pop("id")
+        flow_group_data = flow_data.pop("flow_group")
+        flow_group_labels = flow_group_data["labels"]
         project_name = flow_data.pop("project")["name"]
         deserialized_flow = FlowSchema().load(data=flow_data["serialized_flow"])
         storage = StorageSchema().load(flow_data.pop("storage"))
@@ -84,6 +89,7 @@ class FlowView:
                 project_name=project_name,
                 flow=deserialized_flow,
                 storage=storage,
+                flow_group_labels=flow_group_labels,
                 run_config=run_config,
                 **flow_data,
             ),
@@ -265,6 +271,7 @@ class FlowView:
                     "project": {"name"},
                     "core_version": True,
                     "storage": True,
+                    "flow_group": {"labels"},
                 }
             }
         }

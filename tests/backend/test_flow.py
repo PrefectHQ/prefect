@@ -18,6 +18,7 @@ FLOW_DATA_1 = {
     "serialized_flow": Flow("flow-1").serialize(),
     "archived": False,
     "project": {"name": "project-1"},
+    "flow_group": {"labels": ["label-1"]},
     "core_version": "0.0.0",
     "storage": Local(stored_as_script=True, path="fake-path-1.py").serialize(),
 }
@@ -30,6 +31,7 @@ FLOW_DATA_2 = {
     "serialized_flow": Flow("flow-2").serialize(),
     "archived": False,
     "project": {"name": "project-2"},
+    "flow_group": {"labels": ["label-2"]},
     "core_version": "0.0.0",
     "storage": Local(stored_as_script=True, path="fake-path-2.py").serialize(),
 }
@@ -86,6 +88,7 @@ def test_flow_view_query_for_flow_includes_all_required_data(monkeypatch):
         "settings": True,
         "run_config": True,
         "serialized_flow": True,
+        "flow_group": {"labels"},
         "name": True,
         "archived": True,
         "project": {"name"},
@@ -109,6 +112,7 @@ def test_flow_view_from_returns_instance(patch_post, from_method):
     assert flow.flow == Flow("flow-1")
     assert flow.name == "name-1"
     assert flow.settings == {"key-1": "value-1"}
+    assert flow.flow_group_labels == ["label-1"]
     assert isinstance(flow.run_config, UniversalRun)
     assert flow.run_config.env == {"ENV-1": "VAL-1"}
     assert flow.archived is False

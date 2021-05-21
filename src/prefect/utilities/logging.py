@@ -15,7 +15,8 @@ import threading
 import time
 import warnings
 from queue import Empty, Queue
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Generator
+from contextlib import contextmanager
 
 import pendulum
 
@@ -280,6 +281,64 @@ def get_logger(name: str = None) -> logging.Logger:
         return prefect_logger
     else:
         return prefect_logger.getChild(name)
+
+
+@contextmanager
+def temporary_logger_config(
+    level: int = None,
+    stream_fmt: str = None,
+    stream_datefmt: str = None,
+) -> Generator[logging.Logger, None, None]:
+    """
+    Set a temporary config for the `prefect` logger. The formatting can be updated
+    for `StreamHandlers` but will not update the CloudHandler (or any others)
+
+    This function is only intended to be used internally.
+
+    Args:
+        - level (optional): The log level to use
+        - stream_fmt (optional): The log message format to set for stream handlers
+        - stream_datefmt (optional): The log date format to set for stream handlers
+
+    Yields:
+        The configured logger; also affects any `prefect` loggers in use
+    """
+
+    logger = get_logger()
+    # An initial sketch support sub-loggers but this is complicated since they
+    # inherit their formatting from the base logger
+
+    # Get existing log level
+    previous_level = logger.level
+
+    if stream_fmt or stream_datefmt:
+        # Get existing stream handlers
+        stream_handlers = [
+            h for h in logger.handlers if isinstance(h, logging.StreamHandler)
+        ]
+        stream_formatters = [h.formatter for h in stream_handlers]
+        for handler, formatter in zip(stream_handlers, stream_formatters):
+            # `formatter` can be null
+            existing_fmt = formatter._fmt if formatter else None
+            existing_datefmt = formatter.datefmt if formatter else None
+            # Create a new formatter with settings; load existing settings if needed
+            handler.formatter = logging.Formatter(
+                fmt=stream_fmt if stream_fmt else existing_fmt,
+                datefmt=stream_datefmt if stream_datefmt else existing_datefmt,
+            )
+
+    if level is not None:
+        logger.setLevel(level)
+
+    try:
+        yield logger
+    finally:
+        if stream_fmt or stream_datefmt:
+            for handler, formatter in zip(stream_handlers, stream_formatters):
+                handler.formatter = formatter
+
+        if level is not None:
+            logger.setLevel(previous_level)
 
 
 LOG_MANAGER = LogManager()

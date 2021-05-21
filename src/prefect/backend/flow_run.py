@@ -1,31 +1,154 @@
 import copy
-import sys
-import pendulum
+import logging
+import time
 from collections import defaultdict
-
 from contextlib import contextmanager
 from typing import (
-    List,
-    Optional,
+    Any,
+    Callable,
     Dict,
+    Iterable,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
     Set,
     Any,
     Iterable,
     Type,
-    Mapping,
     cast,
 )
 
+import pendulum
+
 import prefect
-from prefect import Flow, Task, Client
+from prefect import Flow, Task
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
-from prefect.utilities.graphql import with_args
+from prefect.run_configs import RunConfig
+from prefect.serialization.run_config import RunConfigSchema
+from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.logging import get_logger
 
 
 logger = get_logger("backend.flow_run")
+
+
+def watch_flow_run(
+    flow_run_id: str,
+    stream_logs: bool = True,
+    output_fn: Callable[[int, str], None] = logger.log,
+) -> "FlowRunView":
+    """
+    Watch execution of a flow run displaying state changes. This function will hang
+    until the flow run enters a 'Finished' state.
+
+    Args:
+        flow_run_id: The flow run to watch
+        stream_logs: If set, logs will be streamed from the flow run to here
+        output_fn: A callable to use to display output. Must take a log level and
+            message.
+
+    Returns:
+        FlowRunView: A view of the final state of the flow run
+
+    """
+
+    flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+
+    if flow_run.state.is_finished():
+        output_fn(logging.INFO, "Your flow run is already finished!")
+        return flow_run
+
+    # The timestamp of the last displayed log so that we can scope each log query
+    # to logs that have not been shown yet
+    last_log_timestamp = None
+
+    # A counter of states that have been displayed. Not a set so repeated states in the
+    # backend are shown well.
+    seen_states = 0
+
+    # Some times (in seconds) to track displaying a warning about the flow not starting
+    # on time
+    total_wait_time = 0
+    agent_warning_wait_time = 0
+    agent_warn_interval = 15
+
+    # We'll do a basic backoff for polling, not exposed as args because the user
+    # probably should not need to tweak these.
+    poll_min = poll_interval = 2
+    poll_max = 10
+    poll_factor = 1.5
+
+    while not flow_run.state.is_finished():
+        # Get the latest state
+        flow_run = flow_run.get_latest()
+
+        if (
+            total_wait_time > agent_warn_interval
+            and agent_warning_wait_time > agent_warn_interval
+            and not (flow_run.state.is_running() or flow_run.state.is_finished())
+        ):
+            # TODO: Use `flow_run.flow` to determine required agent type?
+            # TODO: We could actually query for active agents here and instead of
+            #       asking a question actually tell them if they have no agents
+            #       for a really helpful UX -- `check_for_flow_run_agents`
+            labels = (
+                f"labels {set(flow_run.labels)!r}" if flow_run.labels else "no labels"
+            )
+            output_fn(
+                logging.WARN,
+                f"It has been {round(total_wait_time)} seconds and your flow run is "
+                f"not started; do you have an agent running with {labels}?",
+            )
+            agent_warning_wait_time = 0
+
+        # Create a shared message list so we can roll state changes and logs together
+        # in the correct order
+        messages = []
+
+        # Add state change messages
+        for state in flow_run.states[seen_states:]:
+            messages.append(
+                # Create some fake run logs
+                FlowRunLog(
+                    timestamp=state.timestamp,  # type: ignore
+                    level=logging.INFO,
+                    message=f"Entered state <{type(state).__name__}>: {state.message}",
+                )
+            )
+            seen_states += 1
+
+        if stream_logs:
+            # Display logs if asked and the flow is running
+            logs = flow_run.get_logs(start_time=last_log_timestamp)
+            messages += logs
+            if logs:
+                # Set the last timestamp so the next query is scoped to logs we have
+                # not seen yet
+                last_log_timestamp = logs[-1].timestamp
+
+        for timestamp, level, message in sorted(messages):
+            level_name = logging.getLevelName(level)
+            output_fn(
+                level,
+                f"{timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} | {message}",
+            )
+
+        if not messages:
+            # Delay the poll if there are no messages
+            poll_interval = int(poll_interval * poll_factor)
+        else:
+            # Otherwise reset to the min poll time for a fast query
+            poll_interval = poll_min
+
+        poll_interval = min(poll_interval, poll_max)
+        time.sleep(poll_interval)
+        agent_warning_wait_time += poll_interval
+        total_wait_time += poll_interval
+
+    return flow_run
 
 
 def execute_flow_run(
@@ -140,7 +263,7 @@ def fail_flow_run_on_exception(
             with the exception details.
     """
     message = message or "Flow run failed with {exc}"
-    client = Client()
+    client = prefect.Client()
 
     try:
         yield
@@ -164,6 +287,44 @@ def fail_flow_run_on_exception(
         raise
 
 
+class FlowRunLog(NamedTuple):
+    """
+    Small wrapper for backend log objects
+    """
+
+    timestamp: pendulum.DateTime
+    level: int
+    message: str
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "FlowRunLog":
+        return cls(
+            cast(pendulum.DateTime, pendulum.parse(data["timestamp"])),
+            logging.getLevelName(data["level"]),  # actually gets level int from name
+            data["message"],
+        )
+
+
+class _TimestampedState(State):
+    """
+    Small wrapper for flow run states to include a timestamp
+
+    TODO: We will likely want to include timestamps directly on `State`. This extension
+          is written as a subclass for compatibility with that future change
+    """
+
+    timestamp: pendulum.DateTime
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "_TimestampedState":
+        state = cls.deserialize(data["serialized_state"])
+        state = cast(_TimestampedState, state)
+        # Our 3.6 compatible version of pendulum does not have `fromisoformat` so we
+        # parse and cast
+        state.timestamp = cast(pendulum.DateTime, pendulum.parse(data["timestamp"]))
+        return state
+
+
 class FlowRunView:
     """
     A view of Flow Run data stored in the Prefect API.
@@ -184,6 +345,8 @@ class FlowRunView:
         - parameters: Parameter overrides for this flow run
         - context: Context overrides for this flow run
         - updated_at: When this flow run was last updated in the backend
+        - run_config: The `RunConfig` this flow run was configured with
+        - states: A sorted list of past states the flow run has been in
         - task_runs: An iterable of task run metadata to cache in this view
 
     Properties:
@@ -201,7 +364,9 @@ class FlowRunView:
         parameters: dict,
         context: dict,
         state: State,
+        states: List[_TimestampedState],
         updated_at: pendulum.DateTime,
+        run_config: "RunConfig",
         task_runs: Iterable["TaskRunView"] = None,
     ):
         self.flow_run_id = flow_run_id
@@ -212,6 +377,8 @@ class FlowRunView:
         self.parameters = parameters
         self.context = context
         self.updated_at = updated_at
+        self.states = states
+        self.run_config = run_config
 
         # Cached value of all task run ids for this flow run, only cached if the flow
         # is done running
@@ -266,6 +433,63 @@ class FlowRunView:
             _cached_task_runs=self._cached_task_runs.values(),
         )
 
+    def get_logs(
+        self,
+        start_time: pendulum.DateTime = None,
+    ) -> List["FlowRunLog"]:
+        """
+        Get logs for this flow run from `start_time` to `self.updated_at` which is the
+        last time that the flow run was updated in the backend before this object was
+        created.
+
+        Args:
+            - start_time (optional): A time to start the log query at, useful for
+                limiting the scope. If not provided, all logs up to `updated_at` are
+                retrieved.
+
+        Returns:
+            A list of `FlowRunLog` objects sorted by timestamp
+        """
+
+        client = prefect.Client()
+
+        logs_query = {
+            with_args(
+                "logs",
+                {
+                    "order_by": {EnumValue("timestamp"): EnumValue("asc")},
+                    "where": {
+                        "_and": [
+                            {"timestamp": {"_lte": self.updated_at.isoformat()}},
+                            (
+                                {"timestamp": {"_gt": start_time.isoformat()}}
+                                if start_time
+                                else {}
+                            ),
+                        ]
+                    },
+                },
+            ): {"timestamp": True, "message": True, "level": True}
+        }
+
+        result = client.graphql(
+            {
+                "query": {
+                    with_args(
+                        "flow_run",
+                        {
+                            "where": {"id": {"_eq": self.flow_run_id}},
+                        },
+                    ): logs_query
+                }
+            }
+        )
+
+        # Unpack the result
+        logs = result.get("data", {}).get("flow_run", [{}])[0].get("logs", [])
+
+        return [FlowRunLog.from_dict(log) for log in logs]
+
     @property
     def flow(self) -> "FlowView":
         """
@@ -299,21 +523,29 @@ class FlowRunView:
             A populated `FlowRunView` instance
         """
         flow_run_data = flow_run_data.copy()  # Avoid mutating the input object
+
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
-        if sys.version_info >= (3, 7):
-            updated_at = pendulum.DateTime.fromisoformat(flow_run_data.pop("updated"))
-        else:
-            # Our 3.6 compatible version of pendulum does not have `fromisoformat`
-            updated_at = cast(
-                pendulum.DateTime, pendulum.parse(flow_run_data.pop("updated"))
+        run_config = RunConfigSchema().load(flow_run_data.pop("run_config"))
+
+        states_data = flow_run_data.pop("states", [])
+        states = list(
+            sorted(
+                [_TimestampedState.from_dict(state_data) for state_data in states_data],
+                key=lambda s: s.timestamp,
             )
+        )
+        updated_at = cast(
+            pendulum.DateTime, pendulum.parse(flow_run_data.pop("updated"))
+        )
 
         return cls(
             flow_run_id=flow_run_id,
             task_runs=task_runs,
             state=state,
             updated_at=updated_at,
+            states=states,
+            run_config=run_config,
             **flow_run_data,
         )
 
@@ -361,7 +593,7 @@ class FlowRunView:
 
     @staticmethod
     def _query_for_flow_run(where: dict) -> dict:
-        client = Client()
+        client = prefect.Client()
 
         flow_run_query = {
             "query": {
@@ -370,10 +602,12 @@ class FlowRunView:
                     "name": True,
                     "flow_id": True,
                     "serialized_state": True,
+                    "states": {"timestamp", "serialized_state"},
                     "labels": True,
                     "parameters": True,
                     "context": True,
                     "updated": True,
+                    "run_config": True,
                 }
             }
         }
@@ -527,7 +761,7 @@ class FlowRunView:
         if self._task_run_ids:
             return self._task_run_ids
 
-        client = Client()
+        client = prefect.Client()
 
         task_query = {
             "query": {

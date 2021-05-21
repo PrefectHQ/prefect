@@ -320,13 +320,20 @@ def load_configuration(
     return config
 
 
-# load prefect configuration
-config = load_configuration(
-    path=DEFAULT_CONFIG,
-    user_config_path=USER_CONFIG,
-    backend_config_path=BACKEND_CONFIG,
-    env_var_prefix=ENV_VAR_PREFIX,
-)
+def load_default_config() -> "Config":
+    # load prefect configuration
+    config = load_configuration(
+        path=DEFAULT_CONFIG,
+        user_config_path=USER_CONFIG,
+        backend_config_path=BACKEND_CONFIG,
+        env_var_prefix=ENV_VAR_PREFIX,
+    )
 
-# add task defaults
-config = process_task_defaults(config)
+    # add task defaults
+    config = process_task_defaults(config)
+
+    return config
+
+
+# Define `prefect.config` object
+config: "Config" = load_default_config()

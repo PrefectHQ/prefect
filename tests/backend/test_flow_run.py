@@ -6,7 +6,8 @@ import pytest
 from unittest.mock import MagicMock
 
 from prefect.backend import FlowRunView, TaskRunView
-from prefect.engine.state import Success, Running
+from prefect.engine.state import Success, Running, Submitted
+from prefect.run_configs import UniversalRun
 
 
 FLOW_RUN_DATA_1 = {
@@ -14,20 +15,42 @@ FLOW_RUN_DATA_1 = {
     "name": "name-1",
     "flow_id": "flow_id-1",
     "serialized_state": Success(message="state-1").serialize(),
+    "states": [
+        {
+            "timestamp": pendulum.now().subtract(seconds=10).isoformat(),
+            "serialized_state": Running(message="past-state").serialize(),
+        },
+        {
+            "timestamp": pendulum.now().subtract(seconds=20).isoformat(),
+            "serialized_state": Submitted(message="past-state").serialize(),
+        },
+    ],
     "parameters": {"param": "value"},
     "context": {"foo": "bar"},
     "labels": ["label"],
     "updated": pendulum.now().isoformat(),
+    "run_config": UniversalRun().serialize(),
 }
 FLOW_RUN_DATA_2 = {
     "id": "id-2",
     "name": "name-2",
     "flow_id": "flow_id-2",
     "serialized_state": Success(message="state-2").serialize(),
+    "states": [
+        {
+            "timestamp": pendulum.now().subtract(seconds=10).isoformat(),
+            "serialized_state": Running(message="past-state").serialize(),
+        },
+        {
+            "timestamp": pendulum.now().subtract(seconds=20).isoformat(),
+            "serialized_state": Submitted(message="past-state").serialize(),
+        },
+    ],
     "parameters": {"param": "value2"},
     "context": {"bar": "foo"},
     "labels": ["label2"],
     "updated": pendulum.now().isoformat(),
+    "run_config": UniversalRun().serialize(),
 }
 
 TASK_RUN_DATA_FINISHED = {
@@ -99,11 +122,13 @@ def test_flow_run_view_query_for_flow_run_includes_all_required_data(monkeypatch
         "id": True,
         "name": True,
         "serialized_state": True,
+        "states": {"serialized_state", "timestamp"},
         "flow_id": True,
         "context": True,
         "parameters": True,
         "labels": True,
         "updated": True,
+        "run_config": True,
     }
 
 
@@ -123,9 +148,16 @@ def test_flow_run_view_from_returns_instance(patch_post, from_method):
     assert flow_run.parameters == {"param": "value"}
     assert flow_run.context == {"foo": "bar"}
     assert flow_run.labels == ["label"]
+    assert isinstance(flow_run.run_config, UniversalRun)
     assert isinstance(flow_run.updated_at, pendulum.DateTime)
     # This state is deserialized at initialization
     assert flow_run.state == Success(message="state-1")
+    # Assert that past states are in timestamp sorted order and deserialized
+    assert flow_run.states[0].is_submitted()
+    assert flow_run.states[1].is_running()
+    for state in flow_run.states:
+        assert isinstance(state.timestamp, pendulum.DateTime)
+        assert state.message == "past-state"
     # There are no cached tasks
     assert flow_run._cached_task_runs == {}
 

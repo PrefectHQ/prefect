@@ -1,4 +1,4 @@
-from typing import Iterable, Set  # noqa
+from typing import Iterable, Set, Any  # noqa
 
 import prefect
 
@@ -30,6 +30,12 @@ class RunConfig:
         """
         schema = prefect.serialization.run_config.RunConfigSchema()
         return schema.dump(self)
+
+    def __eq__(self, other: Any) -> Any:
+        """This equality check is _only_ exposed for testing"""
+        if not isinstance(other, RunConfig):
+            return NotImplemented
+        return self.serialize() == other.serialize()
 
 
 class UniversalRun(RunConfig):
