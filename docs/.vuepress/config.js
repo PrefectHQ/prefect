@@ -204,8 +204,6 @@ module.exports = {
             'concepts/projects',
             'concepts/flows',
             'concepts/flow_runs',
-            'concepts/cloud_hooks',
-            'concepts/automations',
             'concepts/kv_store',
             'concepts/secrets',
             'concepts/api_keys',
