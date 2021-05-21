@@ -13,7 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 2
+          # Versioneer only generates correct versions with a full fetch
+          fetch-depth: 0
           persist-credentials: false
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
