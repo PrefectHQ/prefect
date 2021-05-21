@@ -602,7 +602,9 @@ def run(
         f"Creating run for flow {flow_view.name!r}...",
         quiet_echo,
         traceback=True,
-        skip_done=True,  # Display 'Done' after querying for data to display
+        # Display 'Done' manually after querying for data to display so there is not a
+        # lag
+        skip_done=True,
     ):
         flow_run_id = client.create_flow_run(
             flow_id=flow_view.flow_id,
