@@ -73,7 +73,7 @@ def test_remote_task_definition_path():
     assert config.task_definition_arn is None
 
 
-@pytest.mark.parametrize("scheme", [pytest."local", "file", None])
+@pytest.mark.parametrize("scheme", ["local", "file", None])
 def test_local_task_definition_path(tmpdir, scheme):
     task_definition = {
         "containerDefinitions": [
