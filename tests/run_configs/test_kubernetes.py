@@ -49,7 +49,7 @@ def test_local_job_template_path(tmpdir, scheme):
         job_template_path = path
     else:
         if sys.platform == "win32":
-            pytest.skip(reason="Schemes are not supported on win32")
+            pytest.skip("Schemes are not supported on win32")
         job_template_path = f"{scheme}://" + path
 
     with open(path, "w") as f:

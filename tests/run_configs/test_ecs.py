@@ -86,7 +86,7 @@ def test_local_task_definition_path(tmpdir, scheme):
         task_definition_path = path
     else:
         if sys.platform == "win32":
-            pytest.skip(reason="Schemes are not supported on win32")
+            pytest.skip("Schemes are not supported on win32")
         task_definition_path = f"{scheme}://" + path
 
     with open(path, "w") as f:
