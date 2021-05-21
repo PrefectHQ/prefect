@@ -605,49 +605,65 @@ def run(
     else:
         run_config = None
 
-    # Create a flow run in the backend
-    with try_error_done(
-        f"Creating run for flow {flow_view.name!r}...",
-        quiet_echo,
-        traceback=True,
-        skip_done=True,  # Display 'Done' after querying for data to display
-    ):
-        flow_run_id = client.create_flow_run(
-            flow_id=flow_view.flow_id,
-            parameters=params_dict,
-            context=context_dict,
-            # If labels is an empty list pass `None` to get defaults
-            # https://github.com/PrefectHQ/server/blob/77c301ce0c8deda4f8771f7e9991b25e7911224a/src/prefect_server/api/runs.py#L136
-            labels=labels or None,
-            run_name=run_name,
-            # We only use the run config for setting logging levels right now
-            run_config=run_config,
-        )
+    try:  # Handle keyboard interrupts during creation
+        flow_run_id = None
 
-    if quiet:
-        # Just display the flow run id in quiet mode
-        click.echo(flow_run_id)
-        flow_run = None
-    else:
-        # Grab information about the flow run (if quiet we can skip this query)
-        flow_run = FlowRunView.from_flow_run_id(flow_run_id)
-        run_url = client.get_cloud_url("flow-run", flow_run_id)
+        # Create a flow run in the backend
+        with try_error_done(
+            f"Creating run for flow {flow_view.name!r}...",
+            quiet_echo,
+            traceback=True,
+            # Display 'Done' manually after querying for data to display so there is not a
+            # lag
+            skip_done=True,
+        ):
+            flow_run_id = client.create_flow_run(
+                flow_id=flow_view.flow_id,
+                parameters=params_dict,
+                context=context_dict,
+                # If labels is an empty list pass `None` to get defaults
+                # https://github.com/PrefectHQ/server/blob/77c301ce0c8deda4f8771f7e9991b25e7911224a/src/prefect_server/api/runs.py#L136
+                labels=labels or None,
+                run_name=run_name,
+                # We only use the run config for setting logging levels right now
+                run_config=run_config,
+            )
 
-        # Display "Done" for creating flow run after pulling the info so there
-        # isn't a weird lag
-        quiet_echo(" Done", fg="green")
-        quiet_echo(
-            textwrap.dedent(
-                f"""
-                └── Name: {flow_run.name}
-                └── UUID: {flow_run.flow_run_id}
-                └── Labels: {flow_run.labels}
-                └── Parameters: {flow_run.parameters}
-                └── Context: {flow_run.context}
-                └── URL: {run_url}
-                """
-            ).strip()
-        )
+        if quiet:
+            # Just display the flow run id in quiet mode
+            click.echo(flow_run_id)
+            flow_run = None
+        else:
+            # Grab information about the flow run (if quiet we can skip this query)
+            flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+            run_url = client.get_cloud_url("flow-run", flow_run_id)
+
+            # Display "Done" for creating flow run after pulling the info so there
+            # isn't a weird lag
+            quiet_echo(" Done", fg="green")
+            quiet_echo(
+                textwrap.dedent(
+                    f"""
+                        └── Name: {flow_run.name}
+                        └── UUID: {flow_run.flow_run_id}
+                        └── Labels: {flow_run.labels}
+                        └── Parameters: {flow_run.parameters}
+                        └── Context: {flow_run.context}
+                        └── URL: {run_url}
+                        """
+                ).strip()
+            )
+
+    except KeyboardInterrupt:
+        # If the user interrupts here, they will expect the flow run to be cancelled
+        quiet_echo("\nKeyboard interrupt detected! Aborting...", fg="yellow")
+        if flow_run_id:
+            client.cancel_flow_run(flow_run_id=flow_run_id)
+            quiet_echo("Cancelled flow run.")
+        else:
+            # The flow run was not created so we can just exit
+            quiet_echo("Aborted.")
+        return
 
     # Exit now if we're not waiting for execution to finish
     if not watch:

@@ -485,6 +485,37 @@ def test_run_cloud_handles_create_flow_run_failure(cloud_mocks):
     assert "ValueError: Foo!" in result.output
 
 
+def test_run_cloud_handles_keyboard_interrupt_during_create_flow_run(cloud_mocks):
+    cloud_mocks.FlowView.from_flow_id.return_value = TEST_FLOW_VIEW
+    cloud_mocks.Client().create_flow_run.side_effect = KeyboardInterrupt
+
+    result = CliRunner().invoke(run, ["--id", "flow-id"])
+
+    assert not result.exit_code
+    assert "Creating run for flow 'flow-name'..." in result.output
+    assert "Keyboard interrupt detected! Aborting..." in result.output
+    assert "Aborted." in result.output
+
+
+def test_run_cloud_handles_keyboard_interrupt_during_flow_run_info(cloud_mocks):
+    # This test differs from `...interrupt_during_create_flow_run` in that the flow
+    # run is created and the user has cancelled during metadata retrieval so we need
+    # to actually cancel the run
+    cloud_mocks.FlowView.from_flow_id.return_value = TEST_FLOW_VIEW
+    cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+    cloud_mocks.FlowRunView.from_flow_run_id.side_effect = KeyboardInterrupt
+
+    result = CliRunner().invoke(run, ["--id", "flow-id"])
+
+    assert not result.exit_code
+    assert "Creating run for flow 'flow-name'..." in result.output
+    assert "Keyboard interrupt detected! Aborting..." in result.output
+    assert "Cancelled flow run." in result.output
+    cloud_mocks.Client().cancel_flow_run.assert_called_once_with(
+        flow_run_id="fake-run-id"
+    )
+
+
 def test_run_cloud_respects_quiet(cloud_mocks):
     cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
 
