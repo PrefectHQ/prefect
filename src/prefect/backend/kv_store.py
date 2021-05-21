@@ -117,7 +117,5 @@ def list_keys() -> List[str]:
     if prefect.config.backend != "cloud":
         raise ClientError("Key Value operations are Cloud only")
     client = Client()
-    result = client.graphql(
-    {"query": {"key_value": {"key"}}}
-    )  # type: ignore
+    result = client.graphql({"query": {"key_value": {"key"}}})  # type: ignore
     return sorted([res["key"] for res in result.data.key_value])

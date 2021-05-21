@@ -160,7 +160,9 @@ class TestListKeyValue:
             return_value=MagicMock(
                 data=GraphQLResult(
                     key_value=[
-                        GraphQLResult({"key": "foo2"}), # keys will be sorted client side
+                        GraphQLResult(
+                            {"key": "foo2"}
+                        ),  # keys will be sorted client side
                         GraphQLResult({"key": "foo"}),
                     ],
                 )
