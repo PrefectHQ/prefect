@@ -19,7 +19,7 @@ Setting a key value pair will overwrite the existing value if the key exists.
 :::: tabs
 ::: tab Prefect library
 ```python
-from prefect.backend.kv_store import set_key_value
+from prefect.backend import set_key_value
 key_value_uuid = set_key_value(key="foo", value="bar")
 ```
 :::
@@ -45,7 +45,7 @@ mutation {
 :::: tabs
 ::: tab Prefect library
 ```python
-from prefect.backend.kv_store import get_key_value
+from prefect.backend import get_key_value
 value = get_key_value(key="foo")
 ```
 :::
@@ -71,7 +71,7 @@ query {
 :::: tabs
 ::: tab Prefect library
 ```python
-from prefect.backend.kv_store import delete_key
+from prefect.backend import delete_key
 success = delete_key(key="foo")
 ```
 :::
@@ -97,7 +97,7 @@ mutation {
 :::: tabs
 ::: tab Prefect library
 ```python
-from prefect.backend.kv_store import list_keys
+from prefect.backend import list_keys
 my_keys = list_keys()
 ```
 :::
