@@ -1921,7 +1921,7 @@ class TestSerializedHash:
         hashes = []
         for _ in range(2):
             result = subprocess.run(
-                [sys.executable, script], stdout=subprocess.PIPE, check=True
+                [sys.executable, str(script)], stdout=subprocess.PIPE, check=True
             )
             hashes.append(result.stdout)
 
