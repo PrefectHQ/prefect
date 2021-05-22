@@ -1,6 +1,6 @@
-# KV Store
+# KV Store <Badge text="Cloud"/>
 
-Key Value Store is your managed metadata database within Prefect Cloud.
+Key Value Store is a managed metadata database within Prefect Cloud.
 
 **Keys** are strings. **Values** are json blobs.
 
