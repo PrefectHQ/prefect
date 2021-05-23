@@ -643,7 +643,7 @@ class Agent:
 
         query = {
             "query": {
-                with_args("flow_run", {"where": where,}): {
+                with_args("flow_run", {"where": where}): {
                     "id": True,
                     "version": True,
                     "state": True,
