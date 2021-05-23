@@ -24,7 +24,7 @@ from prefect.serialization.state import StateSchema
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.context import context
 from prefect.utilities.exceptions import AuthorizationError
-from prefect.utilities.graphql import GraphQLResult, with_args, EnumValue
+from prefect.utilities.graphql import GraphQLResult, with_args
 
 ascii_name = r"""
  ____            __           _        _                    _
@@ -643,13 +643,7 @@ class Agent:
 
         query = {
             "query": {
-                with_args(
-                    "flow_run",
-                    {
-                        "where": where,
-                        "order_by": {"scheduled_start_time": EnumValue("asc")},
-                    },
-                ): {
+                with_args("flow_run", {"where": where,}): {
                     "id": True,
                     "version": True,
                     "state": True,
@@ -680,7 +674,14 @@ class Agent:
             }
         }
         result = self.client.graphql(query)
-        return result.data.flow_run
+        return sorted(
+            result.data.flow_run,
+            key=lambda flow_run: getattr(
+                StateSchema().load(flow_run.serialized_state),
+                "start_time",
+                pendulum.now("utc"),
+            ),
+        )
 
     def _mark_flow_as_submitted(self, flow_run: GraphQLResult) -> None:
         """

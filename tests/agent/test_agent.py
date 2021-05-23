@@ -239,7 +239,6 @@ def test_get_flow_run_metadata(monkeypatch, cloud_api):
                                 },
                             ],
                         },
-                        "order_by": {"scheduled_start_time": EnumValue("asc")},
                     },
                 ): {
                     "id": True,
