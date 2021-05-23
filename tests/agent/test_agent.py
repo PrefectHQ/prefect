@@ -459,7 +459,7 @@ def test_deploy_flow_run_sleeps_until_start_time(monkeypatch, cloud_api):
                 "serialized_state": Scheduled(
                     start_time=dt.add(seconds=10)
                 ).serialize(),
-                "scheduled_start_time": str(dt.add(seconds=10)),
+                "scheduled_start_time": str(dt),
                 "version": 1,
                 "task_runs": [
                     GraphQLResult(
