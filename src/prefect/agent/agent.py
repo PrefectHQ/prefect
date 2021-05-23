@@ -20,7 +20,7 @@ from prefect import config
 from prefect.client import Client
 from prefect.engine.state import Failed, Submitted
 from prefect.run_configs import RunConfig, UniversalRun
-from prefect.serialization import state
+from prefect.serialization.state import StateSchema
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.context import context
 from prefect.utilities.exceptions import AuthorizationError
@@ -356,7 +356,8 @@ class Agent:
             # Wait for the flow run's start time. The agent pre-fetches runs that may
             # not need to start until up to 10 seconds later so we need to wait to
             # prevent the flow from starting early
-            start_time = pendulum.parse(flow_run.scheduled_start_time)
+            flow_run_state = StateSchema().load(flow_run.serialized_state)
+            start_time = getattr(flow_run_state, "start_time", pendulum.now())
             delay_seconds = max(0, (start_time - pendulum.now()).total_seconds())
             if delay_seconds:
                 self.logger.debug(
@@ -690,7 +691,7 @@ class Agent:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
         """
         # Set flow run state to `Submitted` if it is currently `Scheduled`
-        if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
+        if StateSchema().load(flow_run.serialized_state).is_scheduled():
 
             self.logger.debug(
                 f"Updating flow run {flow_run.id} state from Scheduled -> Submitted..."
@@ -700,21 +701,21 @@ class Agent:
                 version=flow_run.version,
                 state=Submitted(
                     message="Submitted for execution",
-                    state=state.StateSchema().load(flow_run.serialized_state),
+                    state=StateSchema().load(flow_run.serialized_state),
                 ),
             )
 
         # Set task run states to `Submitted` if they are currently `Scheduled`
         task_runs_updated = 0
         for task_run in flow_run.task_runs:
-            if state.StateSchema().load(task_run.serialized_state).is_scheduled():
+            if StateSchema().load(task_run.serialized_state).is_scheduled():
                 task_runs_updated += 1
                 self.client.set_task_run_state(
                     task_run_id=task_run.id,
                     version=task_run.version,
                     state=Submitted(
                         message="Submitted for execution.",
-                        state=state.StateSchema().load(task_run.serialized_state),
+                        state=StateSchema().load(task_run.serialized_state),
                     ),
                 )
         if task_runs_updated:

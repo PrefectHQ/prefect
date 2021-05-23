@@ -456,7 +456,9 @@ def test_deploy_flow_run_sleeps_until_start_time(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "id": "id",
-                "serialized_state": Scheduled().serialize(),
+                "serialized_state": Scheduled(
+                    start_time=dt.add(seconds=10)
+                ).serialize(),
                 "scheduled_start_time": str(dt.add(seconds=10)),
                 "version": 1,
                 "task_runs": [
@@ -464,7 +466,9 @@ def test_deploy_flow_run_sleeps_until_start_time(monkeypatch, cloud_api):
                         {
                             "id": "id",
                             "version": 1,
-                            "serialized_state": Scheduled().serialize(),
+                            "serialized_state": Scheduled(
+                                start_time=dt.add(seconds=10)
+                            ).serialize(),
                         }
                     )
                 ],
