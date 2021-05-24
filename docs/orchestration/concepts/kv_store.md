@@ -52,7 +52,7 @@ value = get_key_value(key="foo")
 ::: tab CLI
 ```bash
 $ prefect kv get foo
-Key foo has value bar
+Key 'foo' has value 'bar'
 ```
 :::
 ::: tab GraphQL API
@@ -78,7 +78,7 @@ success = delete_key(key="foo")
 ::: tab CLI
 ```bash
 $ prefect kv delete foo
-Key foo has been deleted
+Key 'foo' has been deleted
 ```
 :::
 ::: tab GraphQL API

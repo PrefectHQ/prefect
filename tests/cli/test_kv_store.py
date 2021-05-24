@@ -37,6 +37,7 @@ class TestSetKeyValue:
         result = runner.invoke(kv, ["set", "foo", "bar"])
         assert result.exit_code == 0
         assert set_kv.called_with(key="foo", value="bar")
+        assert "Key value pair set successfully" in result.stdout
 
     def test_set_key_value_logs_exception(self, monkeypatch, cloud_api):
         set_kv = MagicMock(side_effect=Exception())
@@ -58,6 +59,7 @@ class TestGetKeyValue:
         result = runner.invoke(kv, ["get", "foo"])
         assert result.exit_code == 0
         assert get_kv.called_with(key="foo")
+        assert "Key 'foo' has value 'bar'" in result.stdout
 
     def test_get_key_value_logs_exception(self, monkeypatch, cloud_api):
         get_kv = MagicMock(side_effect=Exception())
@@ -67,7 +69,7 @@ class TestGetKeyValue:
         result = runner.invoke(kv, ["get", "foo"])
         assert result.exit_code == 1
         assert get_kv.called_with(key="foo")
-        assert "Error retrieving value for key foo" in result.stdout
+        assert "Error retrieving value for key 'foo'" in result.stdout
 
 
 class TestDeleteKeyValue:
@@ -79,7 +81,7 @@ class TestDeleteKeyValue:
         result = runner.invoke(kv, ["delete", "foo"])
         assert result.exit_code == 0
         assert delete_kv.called_with(key="foo")
-        assert "Key foo has been deleted" in result.stdout
+        assert "Key 'foo' has been deleted" in result.stdout
 
     def test_delete_key_value_logs_exception(self, monkeypatch, cloud_api):
         delete_kv = MagicMock(side_effect=Exception())

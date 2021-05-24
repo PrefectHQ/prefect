@@ -7,6 +7,7 @@ from prefect.backend.kv_store import NON_CLOUD_BACKEND_ERROR_MESSAGE
 from prefect.cli.build_register import (
     handle_terminal_error,
     TerminalError,
+    log_exception,
 )
 
 
@@ -41,9 +42,8 @@ def set_command(key, value):
         kv_store.set_key_value(key=key, value=value)
         click.secho("Key value pair set successfully", fg="green")
     except Exception as exc:
-        raise TerminalError(
-            f"An error occurred setting the key value pair: {str(exc)}"
-        ) from exc
+        log_exception(exc)
+        raise TerminalError("An error occurred setting the key value pair")
 
 
 @kv.command(name="get")
@@ -59,11 +59,10 @@ def get_command(key):
     """
     try:
         result = kv_store.get_key_value(key=key)
-        click.secho(f"Key {key} has value {result}", fg="green")
+        click.secho(f"Key {key!r} has value {result!r}", fg="green")
     except Exception as exc:
-        raise TerminalError(
-            f"Error retrieving value for key {key}: {str(exc)}"
-        ) from exc
+        log_exception(exc)
+        raise TerminalError(f"Error retrieving value for key {key!r}")
 
 
 @kv.command(name="delete")
@@ -79,9 +78,10 @@ def delete_command(key):
     """
     try:
         kv_store.delete_key(key=key)
-        click.secho(f"Key {key} has been deleted", fg="green")
+        click.secho(f"Key {key!r} has been deleted", fg="green")
     except Exception as exc:
-        raise TerminalError(f"An error occurred deleting the key: {str(exc)}") from exc
+        log_exception(exc)
+        raise TerminalError("An error occurred deleting the key")
 
 
 @kv.command(name="list")
@@ -97,4 +97,5 @@ def list_command():
         else:
             click.secho("No keys found", fg="yellow")
     except Exception as exc:
-        raise TerminalError(f"An error occurred when listing keys: {str(exc)}") from exc
+        log_exception(exc)
+        raise TerminalError("An error occurred when listing keys")
