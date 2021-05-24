@@ -1,5 +1,6 @@
 import json
 import os
+import pathlib
 import textwrap
 import threading
 from unittest.mock import MagicMock
@@ -141,10 +142,8 @@ class TestWatchForChanges:
 
         # Later iterations only yield paths that are new or changed
         def update():
-            with open(path3, "wb"):
-                pass
-            with open(path4, "wb"):
-                pass
+            pathlib.Path(path3).ensure(file=True)
+            pathlib.Path(path4).ensure(file=True)
             os.utime(path1)
 
         timer = threading.Timer(0.15, update)
