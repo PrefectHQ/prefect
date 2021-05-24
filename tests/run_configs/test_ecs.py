@@ -81,7 +81,6 @@ def test_local_task_definition_path(tmpdir, scheme):
         ]
     }
     path = str(tmpdir.join("test.yaml"))
-    print(repr(path))
     if scheme is None:
         task_definition_path = path
     else:
