@@ -201,7 +201,7 @@ class TestLocalDaskExecutor:
 
         stop = time.time()
 
-        # Defining "quicky" here as 4 seconds generally and 6 seconds on
+        # Defining "quickly" here as 4 seconds generally and 6 seconds on
         # Windows which tends to be a little slower
         assert (stop - start) < (6 if sys.platform == "win32" else 4)
 
