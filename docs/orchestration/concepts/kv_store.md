@@ -122,7 +122,7 @@ query {
 :::
 ::::
 
-## Using Key Value Pairs in Flows
+## Using key value pairs in flows
 
 To interact with the KV Store from a flow, call the Prefect library functions in a task.
 
