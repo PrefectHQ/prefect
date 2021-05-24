@@ -181,11 +181,15 @@ class TestLocalDaskExecutor:
         main_thread = threading.get_ident()
 
         def interrupt():
-            import signal
 
             if sys.platform == "win32":
-                os.kill(os.getpid(), signal.CTRL_C_EVENT)
+                # pthread_kill is Windows only
+                from _thread import interrupt_main
+
+                interrupt_main()
             else:
+                import signal
+
                 signal.pthread_kill(main_thread, signal.SIGINT)
 
         def long_task():
