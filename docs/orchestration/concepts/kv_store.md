@@ -1,18 +1,18 @@
 # KV Store <Badge text="Cloud"/>
 
-Key Value Store is a managed metadata database within Prefect Cloud.
+Key Value Store is a managed metadata database for Prefect Cloud.
 
-**Keys** are strings. **Values** are json blobs.
+**Keys** are strings. **Values** are JSON blobs.
 
 The number of key value pairs allowed is limited by license, starting with 50 pairs on the Free tier. Values are limited to 1 MB in size.
 
-Key value pairs can be configured via the Prefect CLI, Python client, API, and UI.
+Key value pairs can be configured via the Prefect CLI, Python library, API, and UI.
 
 ## UI
 
 You can view, update, and delete key value pairs on the [KV Store page](https://cloud.prefect.io/team/kv) of the UI.  
 
-## Setting Key Value Pairs
+## Setting key value pairs
 
 Setting a key value pair will overwrite the existing value if the key exists.
 
@@ -40,7 +40,7 @@ mutation {
 :::
 ::::
 
-## Getting the Value of a Key
+## Getting the value of a key
 
 :::: tabs
 ::: tab Prefect library
@@ -66,7 +66,7 @@ query {
 :::
 ::::
 
-## Deleting Key Value Pairs
+## Deleting key value pairs
 
 :::: tabs
 ::: tab Prefect library
@@ -92,7 +92,7 @@ mutation {
 :::
 ::::
 
-## Listing Keys
+## Listing keys
 
 :::: tabs
 ::: tab Prefect library
@@ -124,7 +124,7 @@ query {
 
 ## Using Key Value Pairs in Flows
 
-To interact with KV Store in a flow, call the Prefect library functions from within tasks.
+To interact with the KV Store from a flow, call the Prefect library functions in a task.
 
 For example, let's say we wanted to track the last date a flow has been executed and pick up from that date.
 
