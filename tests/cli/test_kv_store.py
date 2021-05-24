@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from click.testing import CliRunner
 
 from prefect.cli.kv_store import kv
+from prefect.backend.kv_store import NON_CLOUD_BACKEND_ERROR_MESSAGE
 
 
 def test_key_value_init():
@@ -24,7 +25,7 @@ def test_key_value_raises_on_server_backend(server_api):
     runner = CliRunner()
     result = runner.invoke(kv, ["set", "foo", "bar"])
     assert result.exit_code == 1
-    assert "Key value commands are only available with Prefect Cloud" in result.output
+    assert NON_CLOUD_BACKEND_ERROR_MESSAGE in result.output
 
 
 class TestSetKeyValue:

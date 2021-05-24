@@ -3,6 +3,7 @@ import click
 
 from prefect import config
 from prefect.backend import kv_store
+from prefect.backend.kv_store import NON_CLOUD_BACKEND_ERROR_MESSAGE
 from prefect.cli.build_register import (
     handle_terminal_error,
     TerminalError,
@@ -18,8 +19,8 @@ def kv():
     Usage:
         $ prefect kv [COMMAND]
     """
-    if config.backend == "server":
-        click.secho("Key value commands are only available with Prefect Cloud")
+    if config.backend != "cloud":
+        click.secho(NON_CLOUD_BACKEND_ERROR_MESSAGE, fg="red")
         sys.exit(1)
 
 

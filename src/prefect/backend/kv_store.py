@@ -6,6 +6,9 @@ from prefect.client import Client
 from prefect.utilities.exceptions import ClientError
 
 
+NON_CLOUD_BACKEND_ERROR_MESSAGE = "KV Store operations are only supported while using Prefect Cloud as a backend."
+
+
 def set_key_value(key: str, value: Any) -> str:
     """
     Set key value pair, overwriting values for existing key
@@ -21,7 +24,7 @@ def set_key_value(key: str, value: Any) -> str:
         - ClientError: if using Prefect Server instead of Cloud
     """
     if prefect.config.backend != "cloud":
-        raise ClientError("Key Value operations are Cloud only")
+        raise ClientError(NON_CLOUD_BACKEND_ERROR_MESSAGE)
 
     mutation = {
         "mutation($input: set_key_value_input!)": {
@@ -52,7 +55,7 @@ def get_key_value(key: str) -> Any:
         - ClientError: if using Prefect Server instead of Cloud
     """
     if prefect.config.backend != "cloud":
-        raise ClientError("Key Value operations are Cloud only")
+        raise ClientError(NON_CLOUD_BACKEND_ERROR_MESSAGE)
 
     query = {
         "query": {with_args("key_value", {"where": {"key": {"_eq": key}}}): {"value"}}
@@ -79,7 +82,7 @@ def delete_key(key: str) -> bool:
         - ClientError: if using Prefect Server instead of Cloud
     """
     if prefect.config.backend != "cloud":
-        raise ClientError("Key Value operations are Cloud only")
+        raise ClientError(NON_CLOUD_BACKEND_ERROR_MESSAGE)
 
     query = {
         "query": {with_args("key_value", {"where": {"key": {"_eq": key}}}): {"id"}}
@@ -115,7 +118,7 @@ def list_keys() -> List[str]:
         - ClientError: if using Prefect Server instead of Cloud
     """
     if prefect.config.backend != "cloud":
-        raise ClientError("Key Value operations are Cloud only")
+        raise ClientError(NON_CLOUD_BACKEND_ERROR_MESSAGE)
     client = Client()
     result = client.graphql({"query": {"key_value": {"key"}}})  # type: ignore
     return sorted([res["key"] for res in result.data.key_value])
