@@ -14,16 +14,16 @@ class TestSetKeyValue:
     def test_set_key_value_calls_client_mutation_correctly(
         self, monkeypatch, cloud_api
     ):
-        client = MagicMock()
-        client().graphql.return_value = GraphQLResult(
+        Client = MagicMock()
+        Client().graphql.return_value = GraphQLResult(
             data=dict(
                 set_key_value=GraphQLResult({"id": "123"}),
             )
         )
-        monkeypatch.setattr("prefect.backend.kv_store.Client", client)
+        monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
         key_value_id = set_key_value(key="foo", value="bar")
-        client.return_value.graphql.assert_called_with(
+        Client.return_value.graphql.assert_called_with(
             query={
                 "mutation($input: set_key_value_input!)": {
                     "set_key_value(input: $input)": {"id"}
@@ -40,16 +40,16 @@ class TestGetKeyValue:
             get_key_value(key="foo")
 
     def test_get_key_value_calls_client_query_correctly(self, monkeypatch, cloud_api):
-        client = MagicMock()
-        client().graphql.return_value = GraphQLResult(
+        Client = MagicMock()
+        Client().graphql.return_value = GraphQLResult(
             data=dict(
                 key_value=[GraphQLResult({"value": "bar"})],
             )
         )
-        monkeypatch.setattr("prefect.backend.kv_store.Client", client)
+        monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
         value = get_key_value(key="foo")
-        client.return_value.graphql.assert_called_with(
+        Client.return_value.graphql.assert_called_with(
             {"query": {'key_value(where: { key: { _eq: "foo" } })': {"value"}}}
         )
         assert value == "bar"
@@ -91,15 +91,15 @@ class TestDeleteKeyValue:
                 return key_value_id_gql_return
             return delete_key_value_gql_return
 
-        client = MagicMock()
-        client.return_value.graphql.side_effect = fake_graphql_responses
-        monkeypatch.setattr("prefect.backend.kv_store.Client", client)
+        Client = MagicMock()
+        Client.return_value.graphql.side_effect = fake_graphql_responses
+        monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
         success = delete_key(key="foo")
 
         assert success
 
-        assert client.return_value.graphql.call_args_list == [
+        assert Client.return_value.graphql.call_args_list == [
             call(
                 query={"query": {'key_value(where: { key: { _eq: "foo" } })': {"id"}}}
             ),
@@ -114,18 +114,18 @@ class TestDeleteKeyValue:
         ]
 
     def test_delete_key_value_raises_if_key_not_found(self, monkeypatch, cloud_api):
-        client = MagicMock()
-        client().graphql.return_value = GraphQLResult(
+        Client = MagicMock()
+        Client().graphql.return_value = GraphQLResult(
             data=dict(
                 key_value=[],
             )
         )
-        monkeypatch.setattr("prefect.backend.kv_store.Client", client)
+        monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
         with pytest.raises(ValueError):
             delete_key(key="foo")
 
-        client.return_value.graphql.assert_called_with(
+        Client.return_value.graphql.assert_called_with(
             query={"query": {'key_value(where: { key: { _eq: "foo" } })': {"id"}}}
         )
 
@@ -138,8 +138,8 @@ class TestListKeyValue:
     def test_list_key_value_calls_client_mutation_correctly(
         self, monkeypatch, cloud_api
     ):
-        client = MagicMock()
-        client().graphql.return_value = GraphQLResult(
+        Client = MagicMock()
+        Client().graphql.return_value = GraphQLResult(
             data=dict(
                 key_value=[
                     GraphQLResult({"key": "foo2"}),  # keys will be sorted client side
@@ -147,10 +147,10 @@ class TestListKeyValue:
                 ],
             )
         )
-        monkeypatch.setattr("prefect.backend.kv_store.Client", client)
+        monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
         keys = list_keys()
-        client.return_value.graphql.assert_called_with(
+        Client.return_value.graphql.assert_called_with(
             {"query": {"key_value": {"key"}}}
         )
         assert keys == ["foo", "foo2"]
