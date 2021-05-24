@@ -6,7 +6,9 @@ from prefect.client import Client
 from prefect.utilities.exceptions import ClientError
 
 
-NON_CLOUD_BACKEND_ERROR_MESSAGE = "KV Store operations are only supported while using Prefect Cloud as a backend."
+NON_CLOUD_BACKEND_ERROR_MESSAGE = (
+    "KV Store operations are only supported while using Prefect Cloud as a backend."
+)
 
 
 def set_key_value(key: str, value: Any) -> str:
