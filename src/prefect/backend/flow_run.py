@@ -742,46 +742,24 @@ class FlowRunView:
         return flow_runs[0]
 
     def get_task_run(
-        self, task: Task = None, task_slug: str = None, task_run_id: str = None
+        self, task_slug: str = None, task_run_id: str = None
     ) -> "TaskRunView":
         """
         Get information about a task run from this flow run. Lookup is available by one
-        of the following arguments. If the task information is not available locally
-        already, we will query the database for it. If multiple arguments are provided,
-        we will validate that they are consistent with each other.
+        of the arguments. If the task information is not available locally already,
+        we will query the database for it. If multiple arguments are provided, we will
+        validate that they are consistent with each other.
 
         All retrieved task runs that are finished will be cached to avoid re-querying in
         repeated calls
 
         Args:
-            -  task: A `prefect.Task` object to use for the lookup. The slug will be
-                pulled from the task to actually perform the query
             - task_slug: A task slug string to use for the lookup
             - task_run_id: A task run uuid to use for the lookup
 
         Returns:
             A cached or newly constructed TaskRunView instance
         """
-
-        if task is not None:
-            if not task.slug and not task_slug:
-                raise ValueError(
-                    f"Given task {task} does not have a `slug` set and cannot be "
-                    "used for lookups; this generally occurs when the flow has not "
-                    "been registered or serialized."
-                )
-
-            if task_slug is not None and task_slug != task.slug:
-                raise ValueError(
-                    "Both `task` and `task_slug` were provided but they contain "
-                    "different slug values! "
-                    f"`task.slug == {task.slug!r}` and `task_slug == {task_slug!r}`"
-                )
-
-            # If they've passed a task_slug that matches this task's slug we can
-            # basically ignore the passed `task` object
-            if not task_slug:
-                task_slug = task.slug
 
         if task_run_id is not None:
             # Load from the cache if available or query for results
