@@ -166,6 +166,7 @@ def cloud_mocks(monkeypatch):
     [
         ("2", 2),
         ("2.0", 2.0),
+        ('"2.0"', "2.0"),
         ("foo", "foo"),
         ('"foo"', "foo"),  # auto-quoted
         ('{"key": "value"}', {"key": "value"}),
