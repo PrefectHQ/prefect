@@ -1,4 +1,3 @@
-import json
 from typing import Union
 
 from google.cloud import secretmanager
@@ -49,7 +48,7 @@ class GCPSecret(SecretBase):
         secret_id: str = None,
         version_id: Union[str, int] = "latest",
         credentials: dict = None,
-    ) -> dict:
+    ) -> str:
         """
         Task run method.
 
@@ -63,7 +62,7 @@ class GCPSecret(SecretBase):
                 (https://googleapis.dev/python/google-api-core/latest/auth.html) will be used.
 
         Returns:
-            - dict: the contents of this secret, as a dictionary
+            - str: the contents of this secret
         """
         if project_id is None:
             raise ValueError("A GCP project ID must be provided.")
@@ -80,8 +79,4 @@ class GCPSecret(SecretBase):
         response = client.access_secret_version(name=name)
 
         # Return the decoded payload.
-        secret_string = response.payload.data.decode("UTF-8")
-
-        secret_dict = json.loads(secret_string)
-
-        return secret_dict
+        return response.payload.data.decode("UTF-8")
