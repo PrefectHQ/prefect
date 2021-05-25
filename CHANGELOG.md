@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.14.20 <Badge text="beta" type="success" />
+
+Released on May 25, 2021.
+
+### Enhancements
+
+- Refactor `Agent` base class for readability - [#4341](https://github.com/PrefectHQ/prefect/pull/4341)
+- Display the agent config id on agent startup if set - [#4524](https://github.com/PrefectHQ/prefect/pull/4524)
+- Add debug logs during agent auth verification - [#4547](https://github.com/PrefectHQ/prefect/pull/4547)
+- Sending logs to Cloud can be globally disabled via config in addition to the agent flag - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
+
+### Task Library
+
+- Enable sending attachments with emails in the `EmailTask` - [#4457](https://github.com/PrefectHQ/prefect/pull/4457)
+- Add Google Cloud Platform `GCPSecret` task - [#4561](https://github.com/PrefectHQ/prefect/pull/4561)
+
+### Fixes
+
+- Fix `import_object` handling of submodules that are not attributes - [#4513](https://github.com/PrefectHQ/prefect/pull/4513)
+- Fix `DockerStorage` building with python slim image - [#4523](https://github.com/PrefectHQ/prefect/pull/4523)
+- Gracefully handle events with missing timestamps in K8s agent - [#4544](https://github.com/PrefectHQ/prefect/pull/4544)
+- Fix bug where agent uses originally scheduled start time instead of latest state time - [#4568](https://github.com/PrefectHQ/prefect/pull/4568)
+
+### Deprecations
+
+- `logging.log_to_cloud` has been deprecated in favor of `cloud.send_flow_run_logs` - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
+
+### Contributors
+
+- [Stéphan Taljaard](https://github.com/taljaards)
+- [Thomas Heyenbrock](https://github.com/thomasheyenbrock)
+
 ## 0.14.19 <Badge text="beta" type="success" />
 
 Released on May 11, 2021 as a hotfix for 0.14.18

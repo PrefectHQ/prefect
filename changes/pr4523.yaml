@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix `DockerStorage` building with python slim image - [#4523](https://github.com/PrefectHQ/prefect/pull/4523)"

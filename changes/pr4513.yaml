@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix `import_object` handling of submodules that are not attributes - [#4513](https://github.com/PrefectHQ/prefect/pull/4513)"

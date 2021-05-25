@@ -1,2 +1,0 @@
-fix:
-  - "Fix bug where agent uses originally scheduled start time instead of latest state - [#4568](https://github.com/PrefectHQ/prefect/pull/4568)"
