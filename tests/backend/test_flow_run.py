@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from prefect.backend import FlowRunView, TaskRunView
+from prefect.backend.flow_run import check_for_compatible_agents
 from prefect.engine.state import Success, Running, Submitted
 from prefect.run_configs import UniversalRun
 
@@ -242,4 +243,157 @@ def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
     assert (
         'flow_run(where: { id: { _eq: "id-1" } })'
         in post.call_args[1]["params"]["query"]
+    )
+
+
+def test_check_for_compatible_agents_no_agents_returned(patch_post):
+    patch_post(
+        {"data": {"agents": []}},
+    )
+
+    result = check_for_compatible_agents([])
+    assert "no healthy agents" in result
+
+
+def test_check_for_compatible_agents_healthy_without_matching_labels(patch_post):
+    patch_post(
+        {
+            "data": {
+                "agents": [
+                    {
+                        "id": "id-1",
+                        "name": "name-1",
+                        "labels": ["label-1", "label-2"],
+                        "last_queried": pendulum.now().isoformat(),
+                    }
+                ]
+            }
+        },
+    )
+
+    result = check_for_compatible_agents([])
+    assert "1 healthy agent" in result
+    assert "do not have an agent with empty labels" in result
+
+
+def test_check_for_compatible_agents_no_healthy_no_matching_unhealthy(patch_post):
+    patch_post(
+        {
+            "data": {
+                "agents": [
+                    {
+                        "id": "id-1",
+                        "name": "name-1",
+                        "labels": [],
+                        "last_queried": pendulum.now().subtract(minutes=5).isoformat(),
+                    }
+                ]
+            }
+        },
+    )
+
+    result = check_for_compatible_agents(["x"])
+    assert "no healthy agents in your tenant" in result
+    assert "Start an agent with labels {'x'}" in result
+
+
+def test_check_for_compatible_agents_matching_labels_in_single_unhealthy(patch_post):
+    patch_post(
+        {
+            "data": {
+                "agents": [
+                    {
+                        "id": "id-1",
+                        "name": "name-1",
+                        "labels": [],
+                        "last_queried": pendulum.now().subtract(minutes=5).isoformat(),
+                    }
+                ]
+            }
+        },
+    )
+
+    result = check_for_compatible_agents([])
+    assert (
+        "Agent id-1 (name-1) has matching labels and last queried 5 minutes ago"
+        in result
+    )
+
+
+def test_check_for_compatible_agents_matching_labels_in_multiple_unhealthy(patch_post):
+    patch_post(
+        {
+            "data": {
+                "agents": [
+                    {
+                        "id": "id-1",
+                        "name": "name-1",
+                        "labels": ["x"],
+                        "last_queried": pendulum.now().subtract(minutes=5).isoformat(),
+                    },
+                    {
+                        "id": "id-2",
+                        "name": "name-2",
+                        "labels": ["x"],
+                        "last_queried": pendulum.now().subtract(minutes=5).isoformat(),
+                    },
+                ]
+            }
+        },
+    )
+
+    result = check_for_compatible_agents(["x"])
+    assert "2 agents with matching labels but they have not queried recently" in result
+    assert "start a new agent with labels {'x'}" in result
+
+
+def test_check_for_compatible_agents_matching_labels_in_single_healthy(patch_post):
+    patch_post(
+        {
+            "data": {
+                "agents": [
+                    {
+                        "id": "id-1",
+                        "name": "name-1",
+                        "labels": ["x"],
+                        "last_queried": pendulum.now().subtract(seconds=20).isoformat(),
+                    }
+                ]
+            }
+        },
+    )
+
+    result = check_for_compatible_agents(["x"])
+    assert (
+        "Agent id-1 (name-1) has matching labels and last queried 20 seconds ago. "
+        "It should deploy your flow run."
+    ) in result
+
+
+def test_check_for_compatible_agents_matching_labels_in_multiple_unhealthy(patch_post):
+    patch_post(
+        {
+            "data": {
+                "agents": [
+                    {
+                        "id": "id-1",
+                        "name": "name-1",
+                        "labels": ["x"],
+                        "last_queried": pendulum.now().isoformat(),
+                    },
+                    {
+                        "id": "id-2",
+                        "name": "name-2",
+                        "labels": ["x"],
+                        "last_queried": pendulum.now().isoformat(),
+                    },
+                ]
+            }
+        },
+    )
+
+    result = check_for_compatible_agents(["x"])
+    assert (
+        "Found 2 healthy agents with matching labels. One of them should pick up your flow"
+        in result
     )

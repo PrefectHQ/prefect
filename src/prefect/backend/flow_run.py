@@ -86,9 +86,10 @@ def watch_flow_run(
 
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
-    total_wait_time = 0
-    agent_warning_wait_time = 0
-    agent_warn_interval = 15
+    agent_warning_initial_wait = 5
+    agent_warning_repeat_interval = 30
+    total_time_elapsed = 0
+    agent_warning_time_elapsed = agent_warning_repeat_interval  # show first warning
 
     # We'll do a basic backoff for polling, not exposed as args because the user
     # probably should not need to tweak these.
@@ -101,17 +102,11 @@ def watch_flow_run(
         flow_run = flow_run.get_latest()
 
         if (
-            total_wait_time > agent_warn_interval
-            and agent_warning_wait_time > agent_warn_interval
+            total_time_elapsed > agent_warning_initial_wait
+            and agent_warning_time_elapsed > agent_warning_repeat_interval
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
-            # TODO: Use `flow_run.flow` to determine required agent type?
-            # TODO: We could actually query for active agents here and instead of
-            #       asking a question actually tell them if they have no agents
-            #       for a really helpful UX -- `check_for_flow_run_agents`
-            labels = (
-                f"labels {set(flow_run.labels)!r}" if flow_run.labels else "no labels"
-            )
+            agent_msg = check_for_compatible_agents(flow_run.labels)
             output_fn(
                 FlowRunLog(
                     timestamp=pendulum.now(),
@@ -123,7 +118,7 @@ def watch_flow_run(
                     ),
                 )
             )
-            agent_warning_wait_time = 0
+            agent_warning_time_elapsed = 0
 
         # Create a shared message list so we can roll state changes and logs together
         # in the correct order
@@ -162,8 +157,8 @@ def watch_flow_run(
 
         poll_interval = min(poll_interval, poll_max)
         time.sleep(poll_interval)
-        agent_warning_wait_time += poll_interval
-        total_wait_time += poll_interval
+        agent_warning_time_elapsed += poll_interval
+        total_time_elapsed += poll_interval
 
     return flow_run
 
@@ -260,6 +255,118 @@ def execute_flow_run(
     flow_run = flow_run.get_latest()
     logger.info(f"Run finished with final state {flow_run.state}")
     return flow_run
+
+
+def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -> str:
+    """
+    Checks for agents compatible with a set of labels returning a user-friendly message
+    indicating the status, roughly one of the following cases
+    - There is a healthy agent with matching labels
+    - There are N healthy agents with matching labels
+    - There is an unhealthy agent with matching labels but no healthy agents matching
+    - There are N unhealthy agents with matching labels but no healthy agents matching
+    - There are no healthy agents at all and no unhealthy agents with matching labels
+    - There are healthy agents but no healthy or unhealthy agent has matching labels
+
+
+    Args:
+        - labels: A set of labels; typically associated with a flow run
+        - since_minutes: The amount of time in minutes to allow an agent to be idle and
+            considered active/healthy still
+
+    Returns:
+        A message string
+    """
+    client = prefect.Client()
+
+    labels = set(labels)
+    labels_blurb = f"labels {labels!r}" if labels else "empty labels"
+
+    result = client.graphql(
+        {"query": {"agents": {"last_queried", "labels", "name", "id"}}}
+    )
+
+    agents = result.get("data", {}).get("agents")
+    if agents is None:
+        raise ValueError(f"Recieved bad result while querying for agents: {result}")
+
+    # Parse last query times
+    for agent in agents:
+        agent.last_queried = cast(
+            Optional[pendulum.DateTime],
+            pendulum.parse(agent.last_queried) if agent.last_queried else None,
+        )
+
+    # Drop agents that have not queried
+    agents = [agent for agent in agents if agent.last_queried is not None]
+
+    # Drop agents that have not sent a recent hearbeat
+    since = pendulum.now().subtract(minutes=since_minutes)
+    healthy_agents = [agent for agent in agents if agent.last_queried >= since]
+
+    # Search for the flow run labels in running agents
+    matching_healthy = []
+    matching_unhealthy = []
+
+    for agent in agents:
+        empty_labels_match = not agent.labels and not labels
+        if empty_labels_match or (labels and labels.issubset(agent.labels)):
+            if agent in healthy_agents:
+                matching_healthy.append(agent)
+            else:
+                matching_unhealthy.append(agent)
+
+    if len(matching_healthy) == 1:
+        # Display the single matching agent
+        name_blurb = f" ({agent.name})" if agent.name else ""
+        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
+        return (
+            f"Agent {agent.id}{name_blurb} has matching labels and last queried "
+            f"{last_queried} ago. It should deploy your flow run."
+        )
+
+    if len(matching_healthy) > 1:
+        # Display that there are multiple matching agents
+        return (
+            f"Found {len(matching_healthy)} healthy agents with matching labels. One "
+            "of them should pick up your flow."
+        )
+
+    # We now know we have no matching healthy agents...
+
+    if not healthy_agents and not matching_unhealthy:
+        # Display that there are no matching agents all-time
+        return (
+            "There are no healthy agents in your tenant and it does not look like an "
+            "agent with the required labels has been run recently. Start an agent with "
+            f"{labels_blurb} to run your flow."
+        )
+
+    if len(matching_unhealthy) == 1:
+        # Display that there is a single matching unhealthy agent
+        name_blurb = f" ({agent.name})" if agent.name else ""
+        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
+        return (
+            f"Agent {agent.id}{name_blurb} has matching labels and last queried "
+            f"{last_queried} ago. Since it hasn't queried recently, it looks "
+            f"unhealthy. Restart it or start a new agent with {labels_blurb} to deploy "
+            f"your flow run."
+        )
+
+    if len(matching_unhealthy) > 1:
+        # Display that there are multiple matching unhealthy agents
+        return (
+            f"Found {len(matching_unhealthy)} agents with matching labels but they "
+            "have not queried recently and look unhealthy. Restart one of them or "
+            f"start a new agent with {labels_blurb} deploy your flow run."
+        )
+
+    # No matching healthy or unhealthy agents
+    return (
+        f"You have {len(healthy_agents)} healthy agents in your tenant but do not have "
+        f"an agent with {labels_blurb}. Start an agent with matching labels to deploy "
+        "your flow run."
+    )
 
 
 @contextmanager
@@ -653,51 +760,30 @@ class FlowRunView:
 
     def get_task_run(
         self,
-        task: Task = None,
         task_slug: str = None,
         task_run_id: str = None,
-        map_index: int = -1,
+        map_index: int = None,
     ) -> "TaskRunView":
         """
         Get information about a task run from this flow run. Lookup is available by one
-        of the following arguments. If the task information is not available locally
-        already, we will query the database for it. If multiple arguments are provided,
-        we will validate that they are consistent with each other.
+        of the arguments. If the task information is not available locally already,
+        we will query the database for it. If multiple arguments are provided, we will
+        validate that they are consistent with each other.
 
         All retrieved task runs that are finished will be cached to avoid re-querying in
         repeated calls
 
         Args:
-            -  task: A `prefect.Task` object to use for the lookup. The slug will be
-                pulled from the task to actually perform the query
             - task_slug: A task slug string to use for the lookup
             - task_run_id: A task run uuid to use for the lookup
             - map_index: If given a slug of a mapped task, an index may be provided to
-                get the the task run for that child task instead of the parent
+                get the the task run for that child task instead of the parent. This
+                value will only be used for a consistency check if passed with a
+                `task_run_id`
 
         Returns:
             A cached or newly constructed TaskRunView instance
         """
-
-        if task is not None:
-            if not task.slug and not task_slug:
-                raise ValueError(
-                    f"Given task {task} does not have a `slug` set and cannot be "
-                    "used for lookups; this generally occurs when the flow has not "
-                    "been registered or serialized."
-                )
-
-            if task_slug is not None and task_slug != task.slug:
-                raise ValueError(
-                    "Both `task` and `task_slug` were provided but they contain "
-                    "different slug values! "
-                    f"`task.slug == {task.slug!r}` and `task_slug == {task_slug!r}`"
-                )
-
-            # If they've passed a task_slug that matches this task's slug we can
-            # basically ignore the passed `task` object
-            if not task_slug:
-                task_slug = task.slug
 
         if task_run_id is not None:
             # Load from the cache if available or query for results
@@ -715,23 +801,35 @@ class FlowRunView:
                     f"`result.task_slug == {result.task_slug!r}`"
                 )
 
+            if map_index is not None and result.map_index != map_index:
+                raise ValueError(
+                    "Both `map_index` and `task_run_id` were provided but the task "
+                    "found using `task_run_id` has a different map index! "
+                    f"`map_index == {map_index}` and "
+                    f"`result.map_index == {result.map_index}`"
+                )
+
             self._cache_task_run_if_finished(result)
             return result
 
         if task_slug is not None:
 
+            # Default to loading the parent task
+            if map_index is None:
+                map_index = -1
+
             if task_slug in self._task_slug_to_task_run_ids:
                 task_run_ids = self._task_slug_to_task_run_ids[task_slug]
 
-                # Check for the 'base' task, for unmapped tasks there should always
-                # just be one run id but for mapped tasks there will be multiple
+                # Check for the task in the cache since for a mapped task there may
+                # be multiple
                 for task_run_id in task_run_ids:
                     result = self._cached_task_runs[task_run_id]
                     if result.map_index == map_index:
                         return result
 
-                # We did not find the base mapped task in the cache so we'll
-                # drop through to query for it
+                # We did not find the task in the cache so we'll drop through to query
+                # for it
 
             result = TaskRunView.from_task_slug(
                 task_slug=task_slug, flow_run_id=self.flow_run_id, map_index=map_index

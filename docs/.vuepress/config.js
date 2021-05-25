@@ -198,18 +198,16 @@ module.exports = {
             'concepts/cli',
             'concepts/projects',
             'concepts/flows',
-            'concepts/flow_runs',
             'concepts/cloud_hooks',
             'concepts/automations',
             'concepts/secrets',
             'concepts/services',
             'concepts/api_keys',
-            'concepts/roles',
-            'concepts/task-concurrency-limiting'
+            'concepts/roles'
           ]
         },
         {
-          title: 'Flow Run Configuration',
+          title: 'Flow Configuration',
           collapsable: true,
           children: [
             'flow_config/overview',
@@ -218,6 +216,19 @@ module.exports = {
             'flow_config/executors',
             'flow_config/docker',
             'flow_config/upgrade'
+          ]
+        },
+        {
+          title: 'Flow Runs',
+          collapsable: true,
+          children: [
+            'flow-runs/overview',
+            'flow-runs/creation',
+            'flow-runs/inspection',
+            'flow-runs/task-runs',
+            'flow-runs/scheduling',
+            'flow-runs/setting-states',
+            'flow-runs/concurrency-limits'
           ]
         },
         {
