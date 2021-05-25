@@ -302,7 +302,7 @@ RUN_EPILOG = """
 
 \b  Run flow with a non-default parameter locally
 
-\b    $ prefect run -m prefect.hello_world --param name='"Marvin"'
+\b    $ prefect run -m prefect.hello_world --param name=Marvin
 
 \b  Run registered flow with the backend by flow name and watch execution
 
