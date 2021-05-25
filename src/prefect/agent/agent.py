@@ -363,7 +363,7 @@ class Agent:
             #
             # There are two possible states the flow run could be in at this point
             # - Scheduled - in this case the flow run state will have a start time
-            # - Running - in this case the flow run state may not have a start time and we default to now
+            # - Running - in this case the flow run state will not have a start time so we default to now
             flow_run_state = StateSchema().load(flow_run.serialized_state)
             start_time = getattr(flow_run_state, "start_time", pendulum.now())
             delay_seconds = max(0, (start_time - pendulum.now()).total_seconds())
