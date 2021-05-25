@@ -13,7 +13,7 @@ from prefect.run_configs import UniversalRun
 from prefect.storage import Local as LocalStorage
 from prefect.backend import FlowRunView, FlowView
 
-from prefect.cli.run import run
+from prefect.cli.run import load_json_key_values, run
 
 
 SUCCESSFUL_LOCAL_STDOUT = """
@@ -161,6 +161,20 @@ def cloud_mocks(monkeypatch):
     return mocks
 
 
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        ("2", 2),
+        ("2.0", 2.0),
+        ("foo", "foo"),
+        ('"foo"', "foo"),  # auto-quoted
+        ('{"key": "value"}', {"key": "value"}),
+    ],
+)
+def test_load_json_key_values(input, output):
+    assert load_json_key_values([f"test={input}"], "")["test"] == output
+
+
 def test_run_help():
     result = CliRunner().invoke(run, ["--help"])
     assert not result.exit_code
@@ -228,13 +242,12 @@ def test_run_wraps_parameter_and_context_json_parsing_exception(tmpdir, kind):
     )
 
 
-def test_run_wraps_json_parsing_exception_with_extra_quotes_message(tmpdir):
+def test_run_automatically_quotes_simple_strings():
     result = CliRunner().invoke(
-        run, ["--module", "prefect.hello_world", "--param", "x=foo"]
+        run, ["--module", "prefect.hello_world", "--param", "name=foo"]
     )
-    assert result.exit_code
-    assert "Failed to parse JSON for parameter 'x'" in result.output
-    assert "Did you forget to include quotes?" in result.output
+    assert not result.exit_code
+    assert "Parameters: {'name': 'foo'}" in result.output
 
 
 @pytest.mark.parametrize("kind", ["path", "module"])
