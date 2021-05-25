@@ -239,7 +239,6 @@ def test_get_flow_run_metadata(monkeypatch, cloud_api):
                                 },
                             ],
                         },
-                        "order_by": {"scheduled_start_time": EnumValue("asc")},
                     },
                 ): {
                     "id": True,
@@ -456,15 +455,19 @@ def test_deploy_flow_run_sleeps_until_start_time(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "id": "id",
-                "serialized_state": Scheduled().serialize(),
-                "scheduled_start_time": str(dt.add(seconds=10)),
+                "serialized_state": Scheduled(
+                    start_time=dt.add(seconds=10)
+                ).serialize(),
+                "scheduled_start_time": str(dt),
                 "version": 1,
                 "task_runs": [
                     GraphQLResult(
                         {
                             "id": "id",
                             "version": 1,
-                            "serialized_state": Scheduled().serialize(),
+                            "serialized_state": Scheduled(
+                                start_time=dt.add(seconds=10)
+                            ).serialize(),
                         }
                     )
                 ],
