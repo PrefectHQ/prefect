@@ -13,7 +13,7 @@ learn more about how to initialize a great expectation deployment [on their Gett
 
 Task for running data validation with Great Expectations.
 
-Example using the GE getting started tutorial: https://github.com/superconductive/ge_tutorials/tree/main/ge_getting_started_tutorial
+Example using the GE getting started tutorial: https://docs.greatexpectations.io/en/latest/intro.html#how-do-i-get-started
 
 The task can be used to run validation in one of the following ways:
 
