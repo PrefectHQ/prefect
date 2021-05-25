@@ -88,14 +88,8 @@ def try_error_done(
             echo(" Done", fg="green")
 
 
-<<<<<<< HEAD
-def echo_with_log_color(log: FlowRunLog, prefix: str = ""):
-    extra = {}
+def echo_with_log_color(log: FlowRunLog, prefix: str = "", **kwargs: Any):
     if log.level >= logging.ERROR:
-=======
-def echo_with_log_color(log_level: int, message: str, prefix: str = "", **kwargs: Any):
-    if log_level >= logging.ERROR:
->>>>>>> run-flow-api_task-obj
         color = "red"
     elif log.level >= logging.WARNING:
         color = "yellow"
@@ -105,7 +99,6 @@ def echo_with_log_color(log_level: int, message: str, prefix: str = "", **kwargs
     else:
         color = "white"
 
-<<<<<<< HEAD
     level_name = logging.getLevelName(log.level)
     click.secho(
         (
@@ -113,11 +106,8 @@ def echo_with_log_color(log_level: int, message: str, prefix: str = "", **kwargs
             f" | {log.message}"
         ),
         fg=color,
-        **extra,
+        **kwargs,
     )
-=======
-    click.secho(prefix + message, fg=color, **kwargs)
->>>>>>> run-flow-api_task-obj
 
 
 def load_flows_from_script(path: str) -> "List[prefect.Flow]":
