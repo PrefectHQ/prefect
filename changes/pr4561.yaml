@@ -1,6 +1,0 @@
-
-task:
-  - "Add Google Cloud Platform GCPSecret task - [#4561](https://github.com/PrefectHQ/prefect/pull/4561)"
-
-contributor:
-  - "[Stéphan Taljaard](https://github.com/taljaards)"
