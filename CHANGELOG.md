@@ -9,6 +9,7 @@ Released on May 25, 2021.
 - Refactor `Agent` base class for readability - [#4341](https://github.com/PrefectHQ/prefect/pull/4341)
 - Display the agent config id on agent startup if set - [#4524](https://github.com/PrefectHQ/prefect/pull/4524)
 - Add debug logs during agent auth verification - [#4547](https://github.com/PrefectHQ/prefect/pull/4547)
+- Sending logs to Cloud can be globally disabled via config in addition to the agent flag - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
 
 ### Task Library
 
@@ -24,7 +25,7 @@ Released on May 25, 2021.
 
 ### Deprecations
 
-- `logging.log_to_cloud` has been deprecated in favor of `cloud.send_flow_run_logs` which can be toggled in the config - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
+- `logging.log_to_cloud` has been deprecated in favor of `cloud.send_flow_run_logs` - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
 
 ### Contributors
 
