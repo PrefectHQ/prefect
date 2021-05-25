@@ -356,6 +356,14 @@ class Agent:
             # Wait for the flow run's start time. The agent pre-fetches runs that may
             # not need to start until up to 10 seconds later so we need to wait to
             # prevent the flow from starting early
+            #
+            # `state.start_time` should be used instead of `scheduled_start_time` for
+            # execution, `scheduled_start_time` is only to record the originally scheduled
+            # start time of the flow run
+            #
+            # There are two possible states the flow run could be in at this point
+            # - Scheduled - in this case the flow run state will have a start time
+            # - Running - in this case the flow run state may not have a start time and we default to now
             flow_run_state = StateSchema().load(flow_run.serialized_state)
             start_time = getattr(flow_run_state, "start_time", pendulum.now())
             delay_seconds = max(0, (start_time - pendulum.now()).total_seconds())
@@ -676,10 +684,8 @@ class Agent:
         result = self.client.graphql(query)
         return sorted(
             result.data.flow_run,
-            key=lambda flow_run: getattr(
-                StateSchema().load(flow_run.serialized_state),
-                "start_time",
-                pendulum.now("utc"),
+            key=lambda flow_run: flow_run.serialized_state.get(
+                "start_time", pendulum.now("utc").isoformat()
             ),
         )
 
