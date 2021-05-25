@@ -1,7 +1,6 @@
 import copy
 import logging
 import time
-from collections import defaultdict
 from contextlib import contextmanager
 from typing import (
     Any,
@@ -9,20 +8,20 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Mapping,
     NamedTuple,
     Optional,
-    Set,
     Any,
     Iterable,
     Type,
     cast,
+    Dict,
+    Tuple,
 )
 
 import pendulum
 
 import prefect
-from prefect import Flow, Task
+from prefect import Flow
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
@@ -514,8 +513,8 @@ class FlowRunView:
         # Store a mapping of task run ids to task runs
         self._cached_task_runs: Dict[str, "TaskRunView"] = {}
 
-        # Store a mapping of slugs to task run ids (mapped tasks share a slug)
-        self._task_slug_to_task_run_ids: Mapping[str, Set[str]] = defaultdict(set)
+        # Store a mapping of (slug, map_index) to task run ids
+        self._slug_index_to_cached_id: Dict[Tuple[str, int], str] = {}
 
         if task_runs is not None:
             for task_run in task_runs:
@@ -530,9 +529,9 @@ class FlowRunView:
         """
         if task_run.state.is_finished():
             self._cached_task_runs[task_run.task_run_id] = task_run
-            self._task_slug_to_task_run_ids[task_run.task_slug].add(
-                task_run.task_run_id
-            )
+            self._slug_index_to_cached_id[
+                (task_run.task_slug, task_run.map_index)
+            ] = task_run.task_run_id
 
     def get_latest(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
@@ -818,18 +817,10 @@ class FlowRunView:
             if map_index is None:
                 map_index = -1
 
-            if task_slug in self._task_slug_to_task_run_ids:
-                task_run_ids = self._task_slug_to_task_run_ids[task_slug]
-
-                # Check for the task in the cache since for a mapped task there may
-                # be multiple
-                for task_run_id in task_run_ids:
-                    result = self._cached_task_runs[task_run_id]
-                    if result.map_index == map_index:
-                        return result
-
-                # We did not find the task in the cache so we'll drop through to query
-                # for it
+            # Check the cache
+            task_run_id = self._slug_index_to_cached_id.get((task_slug, map_index))
+            if task_run_id:
+                return self._cached_task_runs[task_run_id]
 
             result = TaskRunView.from_task_slug(
                 task_slug=task_slug, flow_run_id=self.flow_run_id, map_index=map_index
