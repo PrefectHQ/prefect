@@ -142,8 +142,8 @@ class TestWatchForChanges:
 
         # Later iterations only yield paths that are new or changed
         def update():
-            pathlib.Path(path3).ensure(file=True)
-            pathlib.Path(path4).ensure(file=True)
+            pathlib.Path(path3).touch()
+            pathlib.Path(path4).touch()
             os.utime(path1)
 
         timer = threading.Timer(0.15, update)
