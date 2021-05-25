@@ -357,8 +357,8 @@ class Agent:
             # not need to start until up to 10 seconds later so we need to wait to
             # prevent the flow from starting early
             #
-            # `state.start_time` should be used instead of `scheduled_start_time` for
-            # execution, `scheduled_start_time` is only to record the originally scheduled
+            # `state.start_time` is used instead of `flow_run.scheduled_start_time` for
+            # execution; `scheduled_start_time` is only to record the originally scheduled
             # start time of the flow run
             #
             # There are two possible states the flow run could be in at this point
