@@ -27,4 +27,4 @@ jobs:
           pip install -e .[dev]
       - name: Test with pytest
         run: |
-          pytest tests -v --dist=loadfile -n auto
+          pytest tests -v --dist=loadfile -n auto --timeout 600
