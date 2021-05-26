@@ -25,6 +25,7 @@ import prefect
 from prefect import Flow
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
+from prefect.cli.run import load_json_key_values
 from prefect.engine.state import State
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
@@ -673,7 +674,7 @@ class FlowRunView:
     def from_flow_run_id(
         cls,
         flow_run_id: str,
-        load_static_tasks: bool = True,
+        load_static_tasks: bool = False,
         _cached_task_runs: Iterable["TaskRunView"] = None,
     ) -> "FlowRunView":
         """
