@@ -4,7 +4,6 @@ import time
 from contextlib import contextmanager
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterable,
     List,
@@ -25,7 +24,6 @@ import prefect
 from prefect import Flow
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
-from prefect.cli.run import load_json_key_values
 from prefect.engine.state import State
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
@@ -88,7 +86,7 @@ def watch_flow_run(
 
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
-    agent_warning_initial_wait = 5
+    agent_warning_initial_wait = 10
     agent_warning_repeat_interval = 30
     total_time_elapsed = 0
     agent_warning_time_elapsed = agent_warning_repeat_interval  # show first warning
@@ -97,14 +95,23 @@ def watch_flow_run(
     # probably should not need to tweak these.
     poll_min = poll_interval = 2
     poll_max = 10
-    poll_factor = 1.5
+    poll_factor = 1.3
 
     while not flow_run.state.is_finished():
         # Get the latest state
         flow_run = flow_run.get_latest()
 
+        # Get a rounded time elapsed for display purposes
+        total_time_elapsed_rounded = round(total_time_elapsed / 5) * 5
+        # Check for a really long run
+        if total_time_elapsed > 60 * 60 * 12:
+            raise RuntimeError(
+                "`watch_flow_run` timed out after 12 hours of waiting for completion. "
+                "Your flow run is still in state: {flow_run.state}"
+            )
+
         if (
-            total_time_elapsed > agent_warning_initial_wait
+            total_time_elapsed >= agent_warning_initial_wait
             and agent_warning_time_elapsed > agent_warning_repeat_interval
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
@@ -113,7 +120,7 @@ def watch_flow_run(
                 timestamp=pendulum.now(),
                 level=logging.WARN,
                 message=(
-                    f"It has been {round(total_time_elapsed / 5) * 5} seconds and "
+                    f"It has been {total_time_elapsed_rounded} seconds and "
                     f"your flow run has not started. {agent_msg}"
                 ),
             )
@@ -126,7 +133,7 @@ def watch_flow_run(
         # Add state change messages
         for state in flow_run.states[seen_states:]:
             messages.append(
-                # Create some fake run logs
+                # Create some fake run logs with the state transitions
                 FlowRunLog(
                     timestamp=state.timestamp,  # type: ignore
                     level=logging.INFO,
@@ -190,9 +197,7 @@ def execute_flow_run(
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
     # Get a `FlowRunView` object
-    flow_run = FlowRunView.from_flow_run_id(
-        flow_run_id=flow_run_id, load_static_tasks=False
-    )
+    flow_run = FlowRunView.from_flow_run_id(flow_run_id=flow_run_id)
 
     logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
