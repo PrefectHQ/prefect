@@ -165,8 +165,10 @@ class S3(Storage):
 
                     try:
                         self._boto3_client.upload_file(
-                            self.local_script_path, self.bucket, self.flows[flow_name],
-                            ExtraArgs=self.upload_options
+                            self.local_script_path,
+                            self.bucket,
+                            self.flows[flow_name],
+                            ExtraArgs=self.upload_options,
                         )
                     except ClientError as err:
                         self.logger.error(
@@ -197,8 +199,10 @@ class S3(Storage):
 
             try:
                 self._boto3_client.upload_fileobj(
-                    stream, Bucket=self.bucket, Key=self.flows[flow_name],
-                    ExtraArgs=self.upload_options
+                    stream,
+                    Bucket=self.bucket,
+                    Key=self.flows[flow_name],
+                    ExtraArgs=self.upload_options,
                 )
             except ClientError as err:
                 self.logger.error(
