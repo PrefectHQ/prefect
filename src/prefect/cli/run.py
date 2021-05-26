@@ -608,8 +608,8 @@ def run(
             f"Creating run for flow {flow_view.name!r}...",
             quiet_echo,
             traceback=True,
-            # Display 'Done' manually after querying for data to display so there is not a
-            # lag
+            # Display 'Done' manually after querying for data to display so there is not
+            # a lag
             skip_done=True,
         ):
             flow_run_id = client.create_flow_run(
@@ -671,19 +671,14 @@ def run(
             stream_logs=not no_logs,
         ):
             level_name = logging.getLevelName(log.level)
-            timestamp =log.timestamp.in_tz(tz='local')
+            timestamp = log.timestamp.in_tz(tz="local")
             echo_with_log_color(
-                log.level,
-                (
-                    f"└── {timestamp:%H:%M:%S} | {level_name:<7} | {log.message}"
-                ),
+                log.level, f"└── {timestamp:%H:%M:%S} | {level_name:<7} | {log.message}"
             )
 
     except KeyboardInterrupt:
         quiet_echo("Keyboard interrupt detected!", fg="yellow")
         try:
-            # TODO: Improve and clarify this messaging, consider having this
-            #       apply from flow run creation -> now
             cancel = click.confirm(
                 "On exit, we can leave your flow run executing or cancel it.\n"
                 "Do you want to cancel this flow run?",
