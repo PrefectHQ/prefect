@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.19)', link: '/api/latest/' },
+          { text: 'Latest (0.14.20)', link: '/api/latest/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
@@ -198,12 +198,14 @@ module.exports = {
             'concepts/cli',
             'concepts/projects',
             'concepts/flows',
-            'concepts/cloud_hooks',
-            'concepts/automations',
+            'concepts/flow_runs',
             'concepts/secrets',
-            'concepts/services',
             'concepts/api_keys',
-            'concepts/roles'
+            'concepts/roles',
+            'concepts/automations',
+            'concepts/cloud_hooks',
+            'concepts/task-concurrency-limiting',
+            'concepts/services'
           ]
         },
         {

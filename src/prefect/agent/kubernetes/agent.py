@@ -91,7 +91,7 @@ class KubernetesAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
         delete_finished_jobs: bool = True,
@@ -229,9 +229,10 @@ class KubernetesAgent(Agent):
                                 for event in sorted(
                                     pod_events.items, key=lambda x: x.last_timestamp
                                 ):
-                                    # Skip old events
+                                    # Skip old events or events without timestamps
                                     if (
-                                        event.last_timestamp
+                                        not event.last_timestamp
+                                        or event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
                                             pod_name
                                         ]
@@ -396,8 +397,6 @@ class KubernetesAgent(Agent):
             - str: Information about the deployment
         """
         import urllib3.exceptions
-
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         job_spec = self.generate_job_spec(flow_run=flow_run)
         job_name = job_spec["metadata"]["name"]
@@ -688,12 +687,14 @@ class KubernetesAgent(Agent):
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
                 "PREFECT__CONTEXT__IMAGE": image,
-                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]
