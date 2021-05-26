@@ -6,7 +6,6 @@ import sys
 import textwrap
 import time
 from contextlib import contextmanager
-from functools import partial
 from types import ModuleType
 from typing import Callable, Dict, List, Union, Any
 
@@ -16,7 +15,7 @@ from tabulate import tabulate
 
 import prefect
 from prefect.backend.flow import FlowView
-from prefect.backend.flow_run import FlowRunView, watch_flow_run, FlowRunLog
+from prefect.backend.flow_run import FlowRunView, watch_flow_run
 from prefect.cli.build_register import (
     TerminalError,
     handle_terminal_error,
@@ -99,7 +98,6 @@ def echo_with_log_color(log_level: int, message: str, **kwargs: Any):
     else:
         kwargs.setdefault("fg", "white")
 
-    level_name = logging.getLevelName(log_level)
     click.secho(
         message,
         **kwargs,
