@@ -38,6 +38,8 @@ class S3(Storage):
             used. If neither are set then script will not be uploaded and users should manually place the
             script file in the desired `key` location in an S3 bucket.
         - client_options (dict, optional): Additional options for the `boto3` client.
+        - upload_options (dict, optional): Additional options s3 client upload_file()
+            and upload_fileobj() functions 'ExtraArgs' argument.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
