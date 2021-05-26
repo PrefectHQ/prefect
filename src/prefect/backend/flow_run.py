@@ -16,6 +16,7 @@ from typing import (
     cast,
     Dict,
     Tuple,
+    Iterator,
 )
 
 import pendulum
@@ -34,19 +35,23 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
-def simple_flow_run_logger(log: "FlowRunLog") -> None:
-    level_name = logging.getLevelName(log.level)
-    logger.log(
-        log.level,
-        f"{log.timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} | {log.message}",
-    )
+def stream_flow_run_logs(flow_run_id: str) -> None:
+    """
+    Basic wrapper for `watch_flow_run` to print the logs of the run
+    """
+    for log in watch_flow_run(flow_run_id):
+        level_name = logging.getLevelName(log.level)
+        timestamp = log.timestamp.in_tz(tz="local")
+        # Uses `print` instead of the logger to prevent duplicate timestamps
+        print(
+            f"{timestamp:%H:%M:%S} | {level_name:<7} | {log.message}",
+        )
 
 
 def watch_flow_run(
     flow_run_id: str,
     stream_logs: bool = True,
-    output_fn: Callable[["FlowRunLog"], None] = simple_flow_run_logger,
-) -> "FlowRunView":
+) -> Iterator["FlowRunLog"]:
     """
     Watch execution of a flow run displaying state changes. This function will hang
     until the flow run enters a 'Finished' state.
@@ -66,14 +71,12 @@ def watch_flow_run(
 
     if flow_run.state.is_finished():
         time_ago = (pendulum.now() - flow_run.updated_at).as_interval().in_words()
-        output_fn(
-            FlowRunLog(
-                timestamp=pendulum.now(),
-                level=logging.INFO,
-                message=f"Your flow run finished {time_ago} ago",
-            )
+        yield FlowRunLog(
+            timestamp=pendulum.now(),
+            level=logging.INFO,
+            message=f"Your flow run finished {time_ago} ago",
         )
-        return flow_run
+        return
 
     # The timestamp of the last displayed log so that we can scope each log query
     # to logs that have not been shown yet
@@ -106,15 +109,13 @@ def watch_flow_run(
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
             agent_msg = check_for_compatible_agents(flow_run.labels)
-            output_fn(
-                FlowRunLog(
-                    timestamp=pendulum.now(),
-                    level=logging.WARN,
-                    message=(
-                        f"It has been {round(total_time_elapsed / 5) * 5} seconds and "
-                        f"your flow run has not started. {agent_msg}",
-                    ),
-                )
+            yield FlowRunLog(
+                timestamp=pendulum.now(),
+                level=logging.WARN,
+                message=(
+                    f"It has been {round(total_time_elapsed / 5) * 5} seconds and "
+                    f"your flow run has not started. {agent_msg}"
+                ),
             )
             agent_warning_time_elapsed = 0
 
@@ -144,7 +145,7 @@ def watch_flow_run(
                 last_log_timestamp = logs[-1].timestamp
 
         for flow_run_log in sorted(messages):
-            output_fn(flow_run_log)
+            yield flow_run_log
 
         if not messages:
             # Delay the poll if there are no messages
@@ -157,8 +158,6 @@ def watch_flow_run(
         time.sleep(poll_interval)
         agent_warning_time_elapsed += poll_interval
         total_time_elapsed += poll_interval
-
-    return flow_run
 
 
 def execute_flow_run(

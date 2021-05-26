@@ -224,16 +224,16 @@ def wait_for_flow_run(
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
-    def log_with_flow_run_prefix(log: FlowRunLog):
-        message = f"Flow {flow_run.name!r}: {log.message}"
-        prefect.context.logger.log(log.level, message)
-
-    output_fn = log_with_flow_run_prefix if stream_state else lambda *_, **__: None
-
     if not stream_state and stream_logs:
         warnings.warn("`stream_logs` will be ignored since `stream_state` is `False`")
 
-    return watch_flow_run(flow_run_id, stream_logs=stream_logs, output_fn=output_fn)
+    for log in watch_flow_run(flow_run_id, stream_logs=stream_logs):
+        if stream_state:
+            message = f"Flow {flow_run.name!r}: {log.message}"
+            prefect.context.logger.log(log.level, message)
+
+    # Return the final view of the flow run
+    return flow_run.get_latest()
 
 
 # Legacy -------------------------------------------------------------------------------
