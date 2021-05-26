@@ -257,7 +257,7 @@ def load_json_key_values(
     """
     parsed = {}
 
-    def cast_value(value) -> Any:
+    def cast_value(value: str) -> Any:
         """Cast the value from a string to a valid JSON type; add quotes for the user
         if necessary
         """
