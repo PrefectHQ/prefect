@@ -53,17 +53,16 @@ def watch_flow_run(
     stream_logs: bool = True,
 ) -> Iterator["FlowRunLog"]:
     """
-    Watch execution of a flow run displaying state changes. This function will hang
-    until the flow run enters a 'Finished' state.
+    Watch execution of a flow run displaying state changes. This function will yield
+    `FlowRunLog` objects until the flow run enters a 'Finished' state.
 
     Args:
         flow_run_id: The flow run to watch
-        stream_logs: If set, logs will be streamed from the flow run to here
-        output_fn: A callable to use to display output. Must take a log level and
-            message.
+        stream_logs: If set, logs will be streamed from the flow run to here in addition
+            to state messages
 
-    Returns:
-        FlowRunView: A view of the final state of the flow run
+    Yields:
+        FlowRunLog: Sorted log entries
 
     """
 
