@@ -1,0 +1,3 @@
+
+fix:
+  - "Fix possible race condition in `LocalResult` directory creation - [#4587](https://github.com/PrefectHQ/prefect/pull/4587)"
