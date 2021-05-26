@@ -400,6 +400,7 @@ classes = [
 title = "Google Cloud Tasks"
 module = "prefect.tasks.gcp"
 classes = [
+        "GCPSecret",
         "GCSDownload",
         "GCSUpload",
         "GCSCopy",

@@ -111,9 +111,8 @@ def watch_flow_run(
                     timestamp=pendulum.now(),
                     level=logging.WARN,
                     message=(
-                        f"It has been {round(total_wait_time)} seconds and your flow "
-                        "run is  not started; do you have an agent running with "
-                        f"{labels}?"
+                        f"It has been {round(total_time_elapsed / 5) * 5} seconds and "
+                        f"your flow run has not started. {agent_msg}",
                     ),
                 )
             )

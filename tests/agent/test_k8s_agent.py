@@ -236,7 +236,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
@@ -306,7 +306,7 @@ def test_k8s_agent_replace_yaml_respects_multiple_image_secrets(monkeypatch, clo
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
@@ -344,7 +344,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         volume_mounts = [{"name": "my-vol", "mountPath": "/mnt/my-mount"}]
         volumes = [{"name": "my-vol", "hostPath": "/host/folder"}]
@@ -760,98 +760,6 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, cloud_api):
             assert "rbac" in document["apiVersion"]
             assert document["metadata"]["namespace"] == "test_namespace"
             assert document["metadata"]["name"] == "prefect-agent-rbac"
-
-
-def test_k8s_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=1)
-    agent.start()
-
-    assert agent_process.called
-    assert heartbeat.called
-
-
-def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=2)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 2
-    assert heartbeat.call_count == 1
-
-
-def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=0)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 0
-    assert heartbeat.call_count == 1
 
 
 def test_k8s_agent_manage_jobs_pass(monkeypatch, cloud_api):
@@ -1417,6 +1325,8 @@ class TestK8sAgentRunConfig:
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
             "PREFECT__CONTEXT__IMAGE": "test-image",
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.agent.log_to_cloud).lower(),
+            # Backwards compatibility variable for containers on Prefect <0.15.0
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",

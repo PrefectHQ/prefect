@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Display the agent config id on agent startup if set - [#4524](https://github.com/PrefectHQ/prefect/pull/4524)"

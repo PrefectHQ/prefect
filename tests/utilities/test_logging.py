@@ -37,11 +37,13 @@ def logger(log_manager):
         {
             "logging.level": "INFO",
             "cloud.logging_heartbeat": 0.25,
-            "logging.log_to_cloud": True,
+            "cloud.send_flow_run_logs": True,
         }
     ):
         logger = utilities.logging.configure_logging(testing=True)
-        yield logger
+        # Enable logs to the backend by pretending this is during a run
+        with prefect.context(running_with_backend=True):
+            yield logger
         logger.handlers.clear()
 
 
@@ -76,6 +78,18 @@ def test_diagnostic_logger_has_no_cloud_handler():
 
 
 def test_cloud_handler_emit_noop_if_cloud_logging_disabled(logger, log_manager):
+    with utilities.configuration.set_temporary_config(
+        {"cloud.send_flow_run_logs": False}
+    ):
+        logger.info("testing")
+    assert not log_manager.enqueue.called
+    assert log_manager.client is None
+    assert log_manager.thread is None
+
+
+def test_cloud_handler_emit_noop_if_cloud_logging_disabled_deprecated(
+    logger, log_manager
+):
     with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
         logger.info("testing")
     assert not log_manager.enqueue.called

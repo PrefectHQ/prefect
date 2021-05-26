@@ -178,15 +178,16 @@ class TestLocalDaskExecutor:
                 "locally. We should debug this later, but squashing it for now"
             )
 
-        # Windows implements `queue.get` using polling,
-        # which means we can set an exception to interrupt the call to `get`.
-        # Python 3 on other platforms requires sending SIGINT to the main thread.
-        if os.name == "nt":
-            from _thread import interrupt_main
-        else:
-            main_thread = threading.get_ident()
+        main_thread = threading.get_ident()
 
-            def interrupt_main():
+        def interrupt():
+
+            if sys.platform == "win32":
+                # pthread_kill is Windows only
+                from _thread import interrupt_main
+
+                interrupt_main()
+            else:
                 import signal
 
                 signal.pthread_kill(main_thread, signal.SIGINT)
@@ -197,18 +198,19 @@ class TestLocalDaskExecutor:
 
         e = LocalDaskExecutor(scheduler)
         try:
-            interrupter = threading.Timer(0.5, interrupt_main)
+            interrupter = threading.Timer(0.5, interrupt)
             interrupter.start()
             start = time.time()
             with e.start():
                 e.wait(e.submit(long_task))
         except KeyboardInterrupt:
-            pass
-        except Exception:
-            assert False, "Failed to interrupt"
+            pass  # Don't exit test on the interrupt
+
         stop = time.time()
-        if stop - start > 4:
-            assert False, "Failed to interrupt"
+
+        # Defining "quickly" here as 4 seconds generally and 6 seconds on
+        # Windows which tends to be a little slower
+        assert (stop - start) < (6 if sys.platform == "win32" else 4)
 
 
 class TestLocalExecutor:
@@ -269,7 +271,7 @@ class TestDaskExecutor:
 
         def record_times():
             start_time = time.time()
-            time.sleep(0.75)
+            time.sleep(2)
             end_time = time.time()
             return start_time, end_time
 
