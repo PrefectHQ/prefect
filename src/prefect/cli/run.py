@@ -256,6 +256,18 @@ def load_json_key_values(
         A mapping of keys -> parsed values
     """
     parsed = {}
+
+    def cast_value(value: str) -> Any:
+        """Cast the value from a string to a valid JSON type; add quotes for the user
+        if necessary
+        """
+        try:
+            return json.loads(value)
+        except ValueError as exc:
+            if "Expecting value" in str(exc) and '"' not in value:
+                return cast_value(f'"{value}"')
+            raise exc
+
     for spec in cli_input:
         try:
             key, value = spec.split("=")
@@ -263,20 +275,15 @@ def load_json_key_values(
             raise TerminalError(
                 f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
             )
+
         try:
-            parsed[key] = json.loads(value)
+            parsed[key] = cast_value(value)
         except ValueError as exc:
             indented_value = textwrap.indent(value, prefix="\t")
-            extra_help = ""
-            if "Expecting value" in str(exc) and '"' not in value:
-                extra_help += (
-                    "\nDid you forget to include quotes? You may need to escape so your"
-                    ' shell does not remove them, e.g. \\"'
-                )
             raise TerminalError(
                 f"Failed to parse JSON for {display_name} {key!r} with value"
                 f"\n\n{indented_value}\n\n"
-                f"JSON Error: {exc}{extra_help}"
+                f"JSON Error: {exc}"
             )
 
     return parsed
@@ -295,7 +302,7 @@ RUN_EPILOG = """
 
 \b  Run flow with a non-default parameter locally
 
-\b    $ prefect run -m prefect.hello_world --param name='"Marvin"'
+\b    $ prefect run -m prefect.hello_world --param name=Marvin
 
 \b  Run registered flow with the backend by flow name and watch execution
 
