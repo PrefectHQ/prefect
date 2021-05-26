@@ -36,7 +36,7 @@ class _S3Base(Task):
 
         super().__init__(**kwargs)
 
-    def get_client(self):
+    def get_client(self, credentials: str = None):
         s3_client = get_boto_client("s3", credentials=credentials, **self.boto_kwargs)
         return s3_client
 
@@ -78,7 +78,7 @@ class S3Download(_S3Base):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = self.get_client()
+        s3_client = self.get_client(credentials)
 
         stream = io.BytesIO()
 
@@ -136,7 +136,7 @@ class S3Upload(_S3Base):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = self.get_client()
+        s3_client = self.get_client(credentials)
 
         # compress data if compression is specified
         if compression:
@@ -205,7 +205,7 @@ class S3List(_S3Base):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        s3_client = self.get_client()
+        s3_client = self.get_client(credentials)
 
         config = {"PageSize": page_size, "MaxItems": max_items}
         paginator = s3_client.get_paginator("list_objects_v2")
