@@ -112,13 +112,15 @@ def test_client_attached_headers(monkeypatch, cloud_api):
         assert client._attached_headers == {"1": "1", "2": "2"}
 
 
-def test_client_posts_graphql_to_api_server(patch_post):
+def test_client_posts_graphql_to_api_server_with_cloud_backend(patch_post):
     post = patch_post(dict(data=dict(success=True)))
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.auth_token": "cloud_secret_token",
+            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            "server.auth_token": "server_secret_token",
             "backend": "cloud",
         }
     ):
@@ -126,7 +128,26 @@ def test_client_posts_graphql_to_api_server(patch_post):
     result = client.graphql("{projects{name}}")
     assert result.data == {"success": True}
     assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo"
+    assert post.call_args[0][0] == "http://my-prefect-cloud-endpoint.foo"
+
+
+def test_client_posts_graphql_to_api_server_with_server_backend(patch_post):
+    post = patch_post(dict(data=dict(success=True)))
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.auth_token": "cloud_secret_token",
+            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            "server.auth_token": "server_secret_token",
+            "backend": "server",
+        }
+    ):
+        client = Client()
+    result = client.graphql("{projects{name}}")
+    assert result.data == {"success": True}
+    assert post.called
+    assert post.call_args[0][0] == "http://my-prefect-server-endpoint.foo"
 
 
 # test actual mutation and query handling
