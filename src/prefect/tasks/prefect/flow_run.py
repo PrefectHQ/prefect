@@ -206,7 +206,7 @@ def get_task_run_result(
 
 @task
 def wait_for_flow_run(
-    flow_run_id: str, stream_state: bool = True, stream_logs: bool = False
+    flow_run_id: str, stream_states: bool = True, stream_logs: bool = False
 ) -> "FlowRunView":
     """
     Wait for a flow run to finish executing, streaming state and log information
@@ -224,13 +224,11 @@ def wait_for_flow_run(
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
-    if not stream_state and stream_logs:
-        warnings.warn("`stream_logs` will be ignored since `stream_state` is `False`")
-
-    for log in watch_flow_run(flow_run_id, stream_logs=stream_logs):
-        if stream_state:
-            message = f"Flow {flow_run.name!r}: {log.message}"
-            prefect.context.logger.log(log.level, message)
+    for log in watch_flow_run(
+        flow_run_id, stream_states=stream_states, stream_logs=stream_logs
+    ):
+        message = f"Flow {flow_run.name!r}: {log.message}"
+        prefect.context.logger.log(log.level, message)
 
     # Return the final view of the flow run
     return flow_run.get_latest()

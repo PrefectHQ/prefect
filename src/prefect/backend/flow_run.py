@@ -49,16 +49,20 @@ def stream_flow_run_logs(flow_run_id: str) -> None:
 
 def watch_flow_run(
     flow_run_id: str,
+    stream_states: bool = True,
     stream_logs: bool = True,
 ) -> Iterator["FlowRunLog"]:
     """
     Watch execution of a flow run displaying state changes. This function will yield
     `FlowRunLog` objects until the flow run enters a 'Finished' state.
 
+    If both stream_states and stream_logs are `False` then this will just block until
+    the flow run finishes.
+
     Args:
         flow_run_id: The flow run to watch
-        stream_logs: If set, logs will be streamed from the flow run to here in addition
-            to state messages
+        stream_states: If set, flow run state changes will be streamed as logs
+        stream_logs: If set, logs will be streamed from the flow run
 
     Yields:
         FlowRunLog: Sorted log entries
@@ -69,11 +73,12 @@ def watch_flow_run(
 
     if flow_run.state.is_finished():
         time_ago = (pendulum.now() - flow_run.updated_at).as_interval().in_words()
-        yield FlowRunLog(
-            timestamp=pendulum.now(),
-            level=logging.INFO,
-            message=f"Your flow run finished {time_ago} ago",
-        )
+        if stream_states:
+            yield FlowRunLog(
+                timestamp=pendulum.now(),
+                level=logging.INFO,
+                message=f"Your flow run finished {time_ago} ago",
+            )
         return
 
     # The timestamp of the last displayed log so that we can scope each log query
@@ -111,7 +116,8 @@ def watch_flow_run(
             )
 
         if (
-            total_time_elapsed >= agent_warning_initial_wait
+            stream_states  # The agent warning is counted as a state log
+            and total_time_elapsed >= agent_warning_initial_wait
             and agent_warning_time_elapsed > agent_warning_repeat_interval
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
@@ -131,16 +137,18 @@ def watch_flow_run(
         messages = []
 
         # Add state change messages
-        for state in flow_run.states[seen_states:]:
-            messages.append(
-                # Create some fake run logs with the state transitions
-                FlowRunLog(
-                    timestamp=state.timestamp,  # type: ignore
-                    level=logging.INFO,
-                    message=f"Entered state <{type(state).__name__}>: {state.message}",
+        if stream_states:
+            for state in flow_run.states[seen_states:]:
+                state_name = type(state).__name__
+                messages.append(
+                    # Create some fake run logs with the state transitions
+                    FlowRunLog(
+                        timestamp=state.timestamp,  # type: ignore
+                        level=logging.INFO,
+                        message=f"Entered state <{state_name}>: {state.message}",
+                    )
                 )
-            )
-            seen_states += 1
+                seen_states += 1
 
         if stream_logs:
             # Display logs if asked and the flow is running
