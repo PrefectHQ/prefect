@@ -269,8 +269,14 @@ class TestRegister:
         assert flow_version == exp_version
         assert is_new == is_new_version
 
-    def test_load_flows_from_script(self, tmpdir):
-        path = str(tmpdir.join("test.py"))
+    @pytest.mark.parametrize("relative", [False, True])
+    def test_load_flows_from_script(self, tmpdir, relative):
+        abs_path = str(tmpdir.join("test.py"))
+        if relative:
+            path = os.path.relpath(abs_path)
+        else:
+            path = abs_path
+
         source = textwrap.dedent(
             """
             from prefect import Flow
@@ -284,7 +290,7 @@ class TestRegister:
             assert __name__ != "__main__"
             """
         )
-        with open(path, "w") as f:
+        with open(abs_path, "w") as f:
             f.write(source)
 
         tmpdir.join("my_prefect_helper_file.py").write("def helper():\n    pass")
@@ -292,9 +298,9 @@ class TestRegister:
         flows = {f.name: f for f in load_flows_from_script(path)}
         assert len(flows) == 2
         assert isinstance(flows["f1"].storage, S3)
-        assert flows["f1"].storage.local_script_path == path
+        assert flows["f1"].storage.local_script_path == abs_path
         assert isinstance(flows["f2"].storage, Local)
-        assert flows["f2"].storage.path == path
+        assert flows["f2"].storage.path == abs_path
         assert flows["f2"].storage.stored_as_script
 
     def test_load_flows_from_script_error(self, tmpdir, capsys):

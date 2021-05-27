@@ -116,14 +116,17 @@ def expand_paths(paths: List[str]) -> List[str]:
 
 def load_flows_from_script(path: str) -> "List[prefect.Flow]":
     """Given a file path, load all flows found in the file"""
+    # We use abs_path for everything but logging (logging the original
+    # user-specified path provides a clearer message).
+    abs_path = os.path.abspath(path)
     # Temporarily add the flow's local directory to `sys.path` so that local
     # imports work. This ensures that `sys.path` is the same as it would be if
     # the flow script was run directly (i.e. `python path/to/flow.py`).
     orig_sys_path = sys.path.copy()
-    sys.path.insert(0, os.path.dirname(os.path.abspath(path)))
+    sys.path.insert(0, os.path.dirname(abs_path))
     try:
-        with prefect.context({"loading_flow": True, "local_script_path": path}):
-            namespace = runpy.run_path(path, run_name="<flow>")
+        with prefect.context({"loading_flow": True, "local_script_path": abs_path}):
+            namespace = runpy.run_path(abs_path, run_name="<flow>")
     except Exception as exc:
         click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, 2)
@@ -135,7 +138,7 @@ def load_flows_from_script(path: str) -> "List[prefect.Flow]":
     if flows:
         for f in flows:
             if f.storage is None:
-                f.storage = Local(path=path, stored_as_script=True)
+                f.storage = Local(path=abs_path, stored_as_script=True)
     return flows
 
 
