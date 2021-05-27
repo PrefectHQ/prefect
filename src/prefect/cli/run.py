@@ -8,7 +8,7 @@ import uuid
 import time
 from contextlib import contextmanager
 from types import ModuleType
-from typing import Callable, Dict, List, Union, Any
+from typing import Callable, Dict, List, Union, Any, Optional
 
 import click
 from click import ClickException
@@ -447,7 +447,12 @@ See `prefect run --help` for more details on the options.
     help="Wait for the flow run to finish executing and display status information.",
     is_flag=True,
 )
-@click.option("--agentless", is_flag=True)
+@click.option(
+    "--execute",
+    "-e",
+    help="Execute the flow run in this process without an agent.",
+    is_flag=True,
+)
 @handle_terminal_error
 def run(
     ctx,
@@ -464,7 +469,7 @@ def run(
     run_name,
     quiet,
     no_logs,
-    agentless,
+    execute,
     watch,
 ):
     """Run a flow"""
@@ -608,7 +613,7 @@ def run(
     else:
         run_config = None
 
-    if agentless:
+    if execute:
         # Add a random label to prevent an agent from picking up this run
         labels.append(f"agentless-run-{str(uuid.uuid4())[:8]}")
 
@@ -661,14 +666,6 @@ def run(
                 ).strip()
             )
 
-        if agentless:
-            with temporary_logger_config(
-                level=log_level,
-                stream_fmt="└── %(asctime)s | %(levelname)-7s | %(message)s",
-                stream_datefmt="%H:%M:%S",
-            ):
-                execute_flow_run_in_subprocess(flow_run_id)
-
     except KeyboardInterrupt:
         # If the user interrupts here, they will expect the flow run to be cancelled
         quiet_echo("\nKeyboard interrupt detected! Aborting...", fg="yellow")
@@ -680,41 +677,54 @@ def run(
             quiet_echo("Aborted.")
         return
 
-    # Exit now if we're not waiting for execution to finish
-    if not watch:
-        return
+    # Create placeholder for final flow run state
+    result: Optional["FlowRunView"] = None
 
-    try:
-        quiet_echo("Watching flow run execution...")
-        for log in watch_flow_run(
-            flow_run_id=flow_run_id,
-            stream_logs=not no_logs,
-        ):
-            level_name = logging.getLevelName(log.level)
-            timestamp = log.timestamp.in_tz(tz="local")
-            echo_with_log_color(
-                log.level, f"└── {timestamp:%H:%M:%S} | {level_name:<7} | {log.message}"
-            )
-
-    except KeyboardInterrupt:
-        quiet_echo("Keyboard interrupt detected!", fg="yellow")
+    # Handle agentless execution
+    if execute:
+        quiet_echo("Executing flow run...")
         try:
-            cancel = click.confirm(
-                "On exit, we can leave your flow run executing or cancel it.\n"
-                "Do you want to cancel this flow run?",
-                default=True,
-            )
-        except click.Abort:
-            # A second keyboard interrupt will exit without cancellation
+            with temporary_logger_config(
+                level=log_level,
+                stream_fmt="└── %(asctime)s | %(levelname)-7s | %(message)s",
+                stream_datefmt="%H:%M:%S",
+            ):
+                execute_flow_run_in_subprocess(flow_run_id)
+        except KeyboardInterrupt:
+            quiet_echo("Keyboard interrupt detected! Aborting...", fg="yellow")
             pass
-        else:
-            if cancel:
-                client.cancel_flow_run(flow_run_id=flow_run_id)
-                quiet_echo("Cancelled flow run.", fg="green")
-                return
 
-        quiet_echo("Exiting without cancelling flow run!", fg="yellow")
-        raise  # Re-raise the interrupt
+        result = FlowRunView.from_flow_run_id(flow_run_id)
+
+    elif watch:
+        try:
+            quiet_echo("Watching flow run execution...")
+            result = watch_flow_run(
+                flow_run_id=flow_run_id,
+                stream_logs=not no_logs,
+                output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
+            )
+        except KeyboardInterrupt:
+            quiet_echo("Keyboard interrupt detected!", fg="yellow")
+            try:
+                # TODO: Improve and clarify this messaging, consider having this
+                #       apply from flow run creation -> now
+                cancel = click.confirm(
+                    "On exit, we can leave your flow run executing or cancel it.\n"
+                    "Do you want to cancel this flow run?",
+                    default=True,
+                )
+            except click.Abort:
+                # A second keyboard interrupt will exit without cancellation
+                pass
+            else:
+                if cancel:
+                    client.cancel_flow_run(flow_run_id=flow_run_id)
+                    quiet_echo("Cancelled flow run.", fg="green")
+                    return
+
+            quiet_echo("Exiting without cancelling flow run!", fg="yellow")
+            raise  # Re-raise the interrupt
 
     # Wait for the flow run to be done up to 3 seconds
     elapsed_time = 0

@@ -28,6 +28,10 @@ def execute_flow_run_in_subprocess(
 
     Intended for executing a flow run without an agent.
 
+    If an interrupt is received during execution, the flow run is marked as failed in
+    contrast to an agent-based execution model where the flow run can be resubmitted by
+    Lazarus.
+
     Args:
         - flow_run_id: The flow run to execute
         - run_token: The authentication token to provide to the flow run for
@@ -82,13 +86,28 @@ def execute_flow_run_in_subprocess(
         else:
             logger.debug("No scheduled task runs found; trying to run flow now...")
 
-        logger.info("Creating subprocess to execute flow run...")
-        # Creating a subprocess allows us to pass environment variables and ensure the
-        # flow run loads a correct Prefect config. This CLI command calls out to
-        # `execute_flow_run`
-        result = subprocess.run(
-            [sys.executable, "-m", "prefect", "execute", "flow-run"], env=env
-        )
+        try:
+            # Creating a subprocess allows us to pass environment variables and ensure
+            # the flow run loads a correct Prefect config. This CLI command calls out to
+            # `execute_flow_run`
+            logger.info("Creating subprocess to execute flow run...")
+            result = subprocess.run(
+                [sys.executable, "-m", "prefect", "execute", "flow-run"], env=env
+            )
+        except KeyboardInterrupt:
+            fail_flow_run(
+                flow_run_id=flow_run_id,
+                message="Flow run recieved an interrupt signal.",
+            )
+            raise  # Reraise interrupts
+        except Exception as exc:
+            message = "Flow run encountered unexpected exception during execution"
+            fail_flow_run(
+                flow_run_id=flow_run_id,
+                message=f"{message}: {exc!r}",
+            )
+            raise RuntimeError(message) from exc
+
         logger.debug("Exited flow run subprocess.")
 
         try:
@@ -371,35 +390,43 @@ def fail_flow_run_on_exception(
     """
     A utility context manager to set the state of the given flow run to 'Failed' if
     an exception occurs. A custom message can be provided for more details and will
-    be attached to the state and added to the run logs. KeyboardInterrupts will set
-    the flow run state to 'Cancelled' instead and will not use the message. All errors
-    will be re-raised.
+    be attached to the state and added to the run logs. All errors will be re-raised.
+
+
 
     Args:
         - flow_run_id: The flow run id to update the state of
         - message: The message to include in the state and logs. `{exc}` will be formatted
             with the exception details.
+
     """
     message = message or "Flow run failed with {exc}"
-    client = prefect.Client()
 
     try:
         yield
     except Exception as exc:
+        message = message.format(exc=exc.__repr__())
         if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
-            message = message.format(exc=exc.__repr__())
-            client.set_flow_run_state(
-                flow_run_id=flow_run_id, state=prefect.engine.state.Failed(message)
-            )
-            client.write_run_logs(
-                [
-                    dict(
-                        flow_run_id=flow_run_id,  # type: ignore
-                        name="prefect.backend.execution.execute_flow_run",
-                        message=message,
-                        level="ERROR",
-                    )
-                ]
-            )
+            fail_flow_run(flow_run_id, message)
         logger.error(message, exc_info=True)
         raise
+
+
+def fail_flow_run(flow_run_id: str, message: str) -> None:
+    """
+    Set a flow run to a 'Failed' state and write a a failure message log
+    """
+    client = prefect.Client()
+    client.set_flow_run_state(
+        flow_run_id=flow_run_id, state=prefect.engine.state.Failed(message)
+    )
+    client.write_run_logs(
+        [
+            dict(
+                flow_run_id=flow_run_id,  # type: ignore
+                name="prefect.backend.execution.execute_flow_run",
+                message=message,
+                level="ERROR",
+            )
+        ]
+    )
