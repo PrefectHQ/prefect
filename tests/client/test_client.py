@@ -27,7 +27,7 @@ def test_client_posts_to_api_using_cloud_backend(patch_post):
         {
             "backend": "cloud",
             # Cloud config
-            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.graphql": "http://my-prefect-cloud-graphql.foo",
             "cloud.auth_token": "cloud_secret_token",
             # Server config
             "server.host": "http://my-prefect-server-host.foo",
@@ -44,7 +44,7 @@ def test_client_posts_to_api_using_cloud_backend(patch_post):
     result = client.post("/foo/bar")
     assert result == {"success": True}
     assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-cloud-endpoint.foo/foo/bar"
+    assert post.call_args[0][0] == "http://my-prefect-cloud-graphql.foo/foo/bar"
 
 
 def test_client_posts_to_api_using_server_backend(patch_post):
@@ -54,7 +54,7 @@ def test_client_posts_to_api_using_server_backend(patch_post):
         {
             "backend": "server",
             # Cloud config
-            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.graphql": "http://my-prefect-cloud-graphql.foo",
             "cloud.auth_token": "cloud_secret_token",
             # Server config
             "server.host": "http://my-prefect-server-host.foo",
@@ -135,7 +135,7 @@ def test_client_posts_graphql_to_api_server_using_cloud_backend(patch_post):
         {
             "backend": "cloud",
             # Cloud config
-            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.graphql": "http://my-prefect-cloud-graphql.foo",
             "cloud.auth_token": "cloud_secret_token",
             # Server config
             "server.host": "http://my-prefect-server-host.foo",
@@ -152,7 +152,7 @@ def test_client_posts_graphql_to_api_server_using_cloud_backend(patch_post):
     result = client.graphql("{projects{name}}")
     assert result.data == {"success": True}
     assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-cloud-endpoint.foo"
+    assert post.call_args[0][0] == "http://my-prefect-cloud-graphql.foo"
 
 
 def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
@@ -162,7 +162,7 @@ def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
         {
             "backend": "server",
             # Cloud config
-            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.graphql": "http://my-prefect-cloud-graphql.foo",
             "cloud.auth_token": "cloud_secret_token",
             # Server config
             "server.host": "http://my-prefect-server-host.foo",
