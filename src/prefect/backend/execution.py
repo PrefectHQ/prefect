@@ -18,9 +18,24 @@ from prefect.utilities.graphql import with_args
 logger = get_logger("backend.execution")
 
 
-def execute_flow_run_in_subprocess(flow_run_id: str, run_token: str = None):
+def execute_flow_run_in_subprocess(
+    flow_run_id: str, run_token: str = None
+) -> FlowRunView:
     """
-    Intended for executing a flow run without an agent
+    Execute a flow run in a subprocess.
+
+    See `execute_flow_run` for more details.
+
+    Intended for executing a flow run without an agent.
+
+    Args:
+        - flow_run_id: The flow run to execute
+        - run_token: The authentication token to provide to the flow run for
+            communicating with the Prefect Cloud API. If not set, it will be inferred
+            from the current config.
+
+    Returns:
+        FlowRunView: The final flow run object
     """
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
@@ -74,12 +89,33 @@ def execute_flow_run_in_subprocess(flow_run_id: str, run_token: str = None):
         try:
             result.check_returncode()
         except subprocess.CalledProcessError as exc:
+            # Wrap this error to provide a clearer one
             raise RuntimeError("The flow run process failed.") from exc
 
         flow_run = flow_run.get_latest()
 
+    return flow_run
+
 
 def get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
+    """
+    Queries task runs associated with a flow run to get the earliest state start time.
+    This time _may_ be in the past.
+
+    Long retries are handled by exiting flow execution leaving the flow run in a
+    'Running' state and attaching a start time to the task runs that need to be retried.
+    This function checks for a long retry by querying for task runs that have a start
+    time set. This allows us to wait until this run time is reached before starting
+    flow run execution. If we starterd execution, the runner would just walk the DAG and
+    exit since the task run is not ready to begin yet.
+
+    Args:
+        - flow_run_id: The flow run the task runs belong to
+
+    Returns:
+        None: If no scheduled task runs are found, otherwise
+        pendulum.DateTime: The earliest scheduled task run start time.
+    """
     client = prefect.Client()
     result = client.graphql(
         {
@@ -113,6 +149,31 @@ def get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime
 
 
 def get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
+    """
+    Queries for the current scheduled start time of a flow
+
+    Flow runs store a `scheduled_start_time` as their originally scheduled time to
+    start. 'Scheduled' flow run states also store a `start_time` that supercedes the
+    time on the flow run object itself. For example, if a flow run is scheduled for some
+    time in the future and a user clicks the 'Start Now' button in the UI, we'll create
+    a new 'Scheduled' state with an updated start time. This allows us to preserve
+    start time history while making the state the source of truth.
+
+    This function will always return the start time associated with the most recently
+    created 'Scheduled' state, if available. If the most recent 'Scheduled' state has a
+    null `start_time`, we will fall back to the flow run's `scheduled_start_time`.
+
+    Args:
+        - flow_run_id: The flow run of interest
+
+    Returns:
+        pendulum.DateTime: The most recent scheduled flow run start time
+
+    Raises:
+        - ValueError: On API error
+        - ValueError: When zero or more than one flow runs are found
+
+    """
     client = prefect.Client()
     result = client.graphql(
         {
@@ -147,7 +208,7 @@ def get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.Dat
             f"Found more than one flow run matching id {flow_run_id!r}: {result}"
         )
     elif not flow_runs:
-        return None  # No scheduled flow run states
+        raise ValueError(f"No flow run exists with id {flow_run_id!r}.")
 
     # Get the one found flow run
     flow_run = flow_runs[0]
@@ -216,6 +277,10 @@ def execute_flow_run(
     """ "
     The primary entry point for executing a flow run. The flow run will be run
     in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
+
+    This function assumes that the flow run's environment variables have been set
+    already. See `execute_flow_run_in_subprocess` if you neeed the environment to be
+    created.
 
     Args:
         - flow_run_id: The flow run id to execute; this run id must exist in the database
