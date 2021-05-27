@@ -219,14 +219,19 @@ def _create_logger(name: str) -> logging.Logger:
     logging.setLogRecordFactory(_log_record_context_injector)
 
     logger = logging.getLogger(name)
-    handler = logging.StreamHandler(sys.stdout)
+
+    # Set the format from the config for stdout
     formatter = logging.Formatter(
         context.config.logging.format, context.config.logging.datefmt
     )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    # Set the level
     logger.setLevel(context.config.logging.level)
     logger.addHandler(CloudHandler())
+
     return logger
 
 
@@ -244,6 +249,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
         - logging.Logger: a configured logging object
     """
     name = "prefect-test-logger" if testing else "prefect"
+
     return _create_logger(name)
 
 
@@ -312,42 +318,31 @@ def temporary_logger_config(
     Yields:
         The configured logger; also affects any `prefect` loggers in use
     """
-
     logger = get_logger()
-    # An initial sketch support sub-loggers but this is complicated since they
-    # inherit their formatting from the base logger
 
-    # Get existing log level
-    previous_level = logger.level
+    # This is the only key that seems likely to be adjusted after the config has been
+    # loaded
+    previous_log_level = logger.level
 
-    if stream_fmt or stream_datefmt:
-        # Get existing stream handlers
-        stream_handlers = [
-            h for h in logger.handlers if isinstance(h, logging.StreamHandler)
-        ]
-        stream_formatters = [h.formatter for h in stream_handlers]
-        for handler, formatter in zip(stream_handlers, stream_formatters):
-            # `formatter` can be null
-            existing_fmt = formatter._fmt if formatter else None
-            existing_datefmt = formatter.datefmt if formatter else None
-            # Create a new formatter with settings; load existing settings if needed
-            handler.formatter = logging.Formatter(
-                fmt=stream_fmt if stream_fmt else existing_fmt,
-                datefmt=stream_datefmt if stream_datefmt else existing_datefmt,
-            )
-
-    if level is not None:
-        logger.setLevel(level)
+    overrides = {
+        "logging.level": logging.getLevelName(level) if level else None,
+        "logging.format": stream_fmt,
+        "logging.datefmt": stream_datefmt,
+    }
+    # Drop empty values to retain existing settings
+    overrides = {key: value for key, value in overrides.items() if value}
 
     try:
-        yield logger
+        with prefect.utilities.configuration.set_temporary_config(overrides):
+            logger.handlers.clear()
+            logger = configure_logging()
+            yield logger
     finally:
-        if stream_fmt or stream_datefmt:
-            for handler, formatter in zip(stream_handlers, stream_formatters):
-                handler.formatter = formatter
-
-        if level is not None:
-            logger.setLevel(previous_level)
+        # Restore the old logger
+        logger = get_logger()
+        logger.handlers.clear()
+        logger = configure_logging()
+        logger.setLevel(previous_log_level)
 
 
 LOG_MANAGER = LogManager()
