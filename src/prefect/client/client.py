@@ -97,11 +97,27 @@ class Client:
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
-        self.backend_graphql_endpoint = backend_graphql_endpoint or prefect.context.config.cloud.get("graphql")
+        if prefect.context.config.get("backend") == "cloud":
+            self.backend_graphql_endpoint = prefect.context.config.cloud.get("graphql")
+            self._api_token = prefect.context.config.cloud.get("auth_token", None)
+        elif prefect.context.config.get("backend") == "server":
+            self.backend_graphql_endpoint = "{}:{}/{}".format(
+                prefect.context.config.server.graphql.get("host"),
+                prefect.context.config.server.graphql.get("port"),
+                prefect.context.config.server.graphql.get("path")
+                .lstrip("/")
+                .rstrip("/"),
+            )
+            self._api_token = prefect.context.config.server.get("auth_token", None)
+        else:
+            raise ValueError(
+                f'Prefect backend configuration must be one of: {["cloud", "server"]}'
+            )
 
-        self._api_token = api_token or prefect.context.config.cloud.get(
-            "auth_token", None
-        )
+        if backend_graphql_endpoint:
+            self.backend_graphql_endpoint = backend_graphql_endpoint
+        if api_token:
+            self._api_token = api_token
 
         # Initialize the tenant and api token if not yet set
         if not self._api_token and prefect.config.backend == "cloud":
@@ -512,7 +528,9 @@ class Client:
         """
         path = "{home}/client/{server}".format(
             home=prefect.context.config.home_dir,
-            server=slugify(self.backend_graphql_endpoint, regex_pattern=r"[^-\.a-z0-9]+"),
+            server=slugify(
+                self.backend_graphql_endpoint, regex_pattern=r"[^-\.a-z0-9]+"
+            ),
         )
         return Path(os.path.expanduser(path)) / "settings.toml"
 
