@@ -625,7 +625,7 @@ def start(
                 try:
                     # Get a client with the correct server port
                     client = prefect.Client(
-                        api_server=f"{config.server.host}:{server_port}"
+                        backend_graphql_endpoint=f"{config.server.host}:{server_port}"
                     )
                     client.graphql("query{hello}", retry_on_api_error=False)
                     started = True

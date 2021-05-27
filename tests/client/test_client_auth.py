@@ -39,7 +39,7 @@ class TestClientConfig:
             }
         ):
             client = Client()
-            assert client.api_server == "http://my-prefect-cloud-graphql.foo"
+            assert client.backend_graphql_endpoint == "http://my-prefect-cloud-graphql.foo"
             assert client._api_token == "cloud_secret_token"
 
         with set_temporary_config(
@@ -60,19 +60,19 @@ class TestClientConfig:
             }
         ):
             client = Client()
-            assert client.api_server == "http://my-prefect-server-graphql.foo:4200"
+            assert client.backend_graphql_endpoint == "http://my-prefect-server-graphql.foo:4200"
             assert client._api_token == "server_secret_token"
 
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(
             {
-                "cloud.graphql": "api_server",
+                "cloud.graphql": "backend_graphql_endpoint",
                 "cloud.auth_token": "token",
                 "backend": "cloud",
             }
         ):
-            client = Client(api_server="my-graphql")
-        assert client.api_server == "my-graphql"
+            client = Client(backend_graphql_endpoint="my-graphql")
+        assert client.backend_graphql_endpoint == "my-graphql"
         assert client._api_token == "token"
 
     def test_client_settings_path_is_path_object(self, cloud_api):
@@ -82,7 +82,7 @@ class TestClientConfig:
         self, prefect_home_dir, cloud_api
     ):
         path = Client(
-            api_server="https://a-test-api.prefect.test:12345/subdomain"
+            backend_graphql_endpoint="https://a-test-api.prefect.test:12345/subdomain"
         )._local_settings_path
         expected = os.path.join(
             prefect_home_dir,
@@ -94,7 +94,7 @@ class TestClientConfig:
 
     def test_client_settings_path_depends_on_home_dir(self, cloud_api):
         with set_temporary_config(dict(home_dir="abc/def")):
-            path = Client(api_server="xyz")._local_settings_path
+            path = Client(backend_graphql_endpoint="xyz")._local_settings_path
             expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
             assert str(path) == os.path.expanduser(expected)
 

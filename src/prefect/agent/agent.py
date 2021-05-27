@@ -133,7 +133,7 @@ class Agent:
     ) -> None:
         # Load token and initialize client
         token = config.cloud.agent.get("auth_token")
-        self.client = Client(api_server=config.cloud.api, api_token=token)
+        self.client = Client(backend_graphql_endpoint=config.cloud.api, api_token=token)
 
         self.agent_config_id = agent_config_id
         self._agent_config: Optional[dict] = None
