@@ -90,6 +90,11 @@ def get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime
                         "where": {
                             "state_start_time": {"_is_null": False},
                             "flow_run_id": {"_eq": flow_run_id},
+                            "flow_run": {
+                                # Only include flow runs in a 'Running' state to reduce
+                                # the scope of the query to retrying flow runs
+                                "state": {"_eq": "Running"}
+                            },
                         }
                     },
                 ): {"state_start_time"}
