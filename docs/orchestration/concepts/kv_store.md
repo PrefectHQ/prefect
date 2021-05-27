@@ -4,7 +4,7 @@ Key Value Store is a managed metadata database for Prefect Cloud.
 
 **Keys** are strings. **Values** are JSON blobs.
 
-The number of key value pairs allowed is limited by license, starting with 50 pairs on the Free tier. Values are limited to 1 MB in size.
+The number of key value pairs allowed is limited by license, starting with 10 pairs on the Free tier. Values are limited to 1 KB in size.
 
 Key value pairs can be configured via the Prefect CLI, Python library, API, and UI.
 
