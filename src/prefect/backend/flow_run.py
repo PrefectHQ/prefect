@@ -4,7 +4,6 @@ import time
 from contextlib import contextmanager
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterable,
     List,
@@ -16,6 +15,7 @@ from typing import (
     cast,
     Dict,
     Tuple,
+    Iterator,
 )
 
 import pendulum
@@ -34,31 +34,38 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
-def simple_flow_run_logger(log: "FlowRunLog") -> None:
-    level_name = logging.getLevelName(log.level)
-    logger.log(
-        log.level,
-        f"{log.timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} | {log.message}",
-    )
+def stream_flow_run_logs(flow_run_id: str) -> None:
+    """
+    Basic wrapper for `watch_flow_run` to print the logs of the run
+    """
+    for log in watch_flow_run(flow_run_id):
+        level_name = logging.getLevelName(log.level)
+        timestamp = log.timestamp.in_tz(tz="local")
+        # Uses `print` instead of the logger to prevent duplicate timestamps
+        print(
+            f"{timestamp:%H:%M:%S} | {level_name:<7} | {log.message}",
+        )
 
 
 def watch_flow_run(
     flow_run_id: str,
+    stream_states: bool = True,
     stream_logs: bool = True,
-    output_fn: Callable[["FlowRunLog"], None] = simple_flow_run_logger,
-) -> "FlowRunView":
+) -> Iterator["FlowRunLog"]:
     """
-    Watch execution of a flow run displaying state changes. This function will hang
-    until the flow run enters a 'Finished' state.
+    Watch execution of a flow run displaying state changes. This function will yield
+    `FlowRunLog` objects until the flow run enters a 'Finished' state.
+
+    If both stream_states and stream_logs are `False` then this will just block until
+    the flow run finishes.
 
     Args:
         flow_run_id: The flow run to watch
-        stream_logs: If set, logs will be streamed from the flow run to here
-        output_fn: A callable to use to display output. Must take a log level and
-            message.
+        stream_states: If set, flow run state changes will be streamed as logs
+        stream_logs: If set, logs will be streamed from the flow run
 
-    Returns:
-        FlowRunView: A view of the final state of the flow run
+    Yields:
+        FlowRunLog: Sorted log entries
 
     """
 
@@ -66,14 +73,13 @@ def watch_flow_run(
 
     if flow_run.state.is_finished():
         time_ago = (pendulum.now() - flow_run.updated_at).as_interval().in_words()
-        output_fn(
-            FlowRunLog(
+        if stream_states:
+            yield FlowRunLog(
                 timestamp=pendulum.now(),
                 level=logging.INFO,
                 message=f"Your flow run finished {time_ago} ago",
             )
-        )
-        return flow_run
+        return
 
     # The timestamp of the last displayed log so that we can scope each log query
     # to logs that have not been shown yet
@@ -85,7 +91,7 @@ def watch_flow_run(
 
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
-    agent_warning_initial_wait = 5
+    agent_warning_initial_wait = 10
     agent_warning_repeat_interval = 30
     total_time_elapsed = 0
     agent_warning_time_elapsed = agent_warning_repeat_interval  # show first warning
@@ -94,27 +100,35 @@ def watch_flow_run(
     # probably should not need to tweak these.
     poll_min = poll_interval = 2
     poll_max = 10
-    poll_factor = 1.5
+    poll_factor = 1.3
 
     while not flow_run.state.is_finished():
         # Get the latest state
         flow_run = flow_run.get_latest()
 
+        # Get a rounded time elapsed for display purposes
+        total_time_elapsed_rounded = round(total_time_elapsed / 5) * 5
+        # Check for a really long run
+        if total_time_elapsed > 60 * 60 * 12:
+            raise RuntimeError(
+                "`watch_flow_run` timed out after 12 hours of waiting for completion. "
+                "Your flow run is still in state: {flow_run.state}"
+            )
+
         if (
-            total_time_elapsed > agent_warning_initial_wait
+            stream_states  # The agent warning is counted as a state log
+            and total_time_elapsed >= agent_warning_initial_wait
             and agent_warning_time_elapsed > agent_warning_repeat_interval
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
             agent_msg = check_for_compatible_agents(flow_run.labels)
-            output_fn(
-                FlowRunLog(
-                    timestamp=pendulum.now(),
-                    level=logging.WARN,
-                    message=(
-                        f"It has been {round(total_time_elapsed / 5) * 5} seconds and "
-                        f"your flow run has not started. {agent_msg}",
-                    ),
-                )
+            yield FlowRunLog(
+                timestamp=pendulum.now(),
+                level=logging.WARN,
+                message=(
+                    f"It has been {total_time_elapsed_rounded} seconds and "
+                    f"your flow run has not started. {agent_msg}"
+                ),
             )
             agent_warning_time_elapsed = 0
 
@@ -123,16 +137,18 @@ def watch_flow_run(
         messages = []
 
         # Add state change messages
-        for state in flow_run.states[seen_states:]:
-            messages.append(
-                # Create some fake run logs
-                FlowRunLog(
-                    timestamp=state.timestamp,  # type: ignore
-                    level=logging.INFO,
-                    message=f"Entered state <{type(state).__name__}>: {state.message}",
+        if stream_states:
+            for state in flow_run.states[seen_states:]:
+                state_name = type(state).__name__
+                messages.append(
+                    # Create some fake run logs with the state transitions
+                    FlowRunLog(
+                        timestamp=state.timestamp,  # type: ignore
+                        level=logging.INFO,
+                        message=f"Entered state <{state_name}>: {state.message}",
+                    )
                 )
-            )
-            seen_states += 1
+                seen_states += 1
 
         if stream_logs:
             # Display logs if asked and the flow is running
@@ -144,7 +160,7 @@ def watch_flow_run(
                 last_log_timestamp = logs[-1].timestamp
 
         for flow_run_log in sorted(messages):
-            output_fn(flow_run_log)
+            yield flow_run_log
 
         if not messages:
             # Delay the poll if there are no messages
@@ -157,8 +173,6 @@ def watch_flow_run(
         time.sleep(poll_interval)
         agent_warning_time_elapsed += poll_interval
         total_time_elapsed += poll_interval
-
-    return flow_run
 
 
 def execute_flow_run(
@@ -191,9 +205,7 @@ def execute_flow_run(
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
     # Get a `FlowRunView` object
-    flow_run = FlowRunView.from_flow_run_id(
-        flow_run_id=flow_run_id, load_static_tasks=False
-    )
+    flow_run = FlowRunView.from_flow_run_id(flow_run_id=flow_run_id)
 
     logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
@@ -675,7 +687,7 @@ class FlowRunView:
     def from_flow_run_id(
         cls,
         flow_run_id: str,
-        load_static_tasks: bool = True,
+        load_static_tasks: bool = False,
         _cached_task_runs: Iterable["TaskRunView"] = None,
     ) -> "FlowRunView":
         """

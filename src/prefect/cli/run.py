@@ -6,7 +6,6 @@ import sys
 import textwrap
 import time
 from contextlib import contextmanager
-from functools import partial
 from types import ModuleType
 from typing import Callable, Dict, List, Union, Any
 
@@ -16,7 +15,7 @@ from tabulate import tabulate
 
 import prefect
 from prefect.backend.flow import FlowView
-from prefect.backend.flow_run import FlowRunView, watch_flow_run, FlowRunLog
+from prefect.backend.flow_run import FlowRunView, watch_flow_run
 from prefect.cli.build_register import (
     TerminalError,
     handle_terminal_error,
@@ -88,24 +87,19 @@ def try_error_done(
             echo(" Done", fg="green")
 
 
-def echo_with_log_color(log: FlowRunLog, prefix: str = "", **kwargs: Any):
-    if log.level >= logging.ERROR:
-        color = "red"
-    elif log.level >= logging.WARNING:
-        color = "yellow"
-    elif log.level <= logging.DEBUG:
-        color = "white"
+def echo_with_log_color(log_level: int, message: str, **kwargs: Any):
+    if log_level >= logging.ERROR:
+        kwargs.setdefault("fg", "red")
+    elif log_level >= logging.WARNING:
+        kwargs.setdefault("fg", "yellow")
+    elif log_level <= logging.DEBUG:
+        kwargs.setdefault("fg", "white")
         kwargs.setdefault("dim", True)
     else:
-        color = "white"
+        kwargs.setdefault("fg", "white")
 
-    level_name = logging.getLevelName(log.level)
     click.secho(
-        (
-            f"{prefix}{log.timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} "
-            f" | {log.message}"
-        ),
-        fg=color,
+        message,
         **kwargs,
     )
 
@@ -612,8 +606,8 @@ def run(
             f"Creating run for flow {flow_view.name!r}...",
             quiet_echo,
             traceback=True,
-            # Display 'Done' manually after querying for data to display so there is not a
-            # lag
+            # Display 'Done' manually after querying for data to display so there is not
+            # a lag
             skip_done=True,
         ):
             flow_run_id = client.create_flow_run(
@@ -668,19 +662,21 @@ def run(
     if not watch:
         return
 
-    result = None
     try:
         quiet_echo("Watching flow run execution...")
-        result = watch_flow_run(
+        for log in watch_flow_run(
             flow_run_id=flow_run_id,
             stream_logs=not no_logs,
-            output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
-        )
+        ):
+            level_name = logging.getLevelName(log.level)
+            timestamp = log.timestamp.in_tz(tz="local")
+            echo_with_log_color(
+                log.level, f"└── {timestamp:%H:%M:%S} | {level_name:<7} | {log.message}"
+            )
+
     except KeyboardInterrupt:
         quiet_echo("Keyboard interrupt detected!", fg="yellow")
         try:
-            # TODO: Improve and clarify this messaging, consider having this
-            #       apply from flow run creation -> now
             cancel = click.confirm(
                 "On exit, we can leave your flow run executing or cancel it.\n"
                 "Do you want to cancel this flow run?",
@@ -698,7 +694,9 @@ def run(
         quiet_echo("Exiting without cancelling flow run!", fg="yellow")
         raise  # Re-raise the interrupt
 
-    if result.state.is_failed():
+    # Check on the final state
+    flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+    if flow_run.state.is_failed():
         quiet_echo("Flow run failed!", fg="red")
     else:
         quiet_echo("Flow run succeeded!", fg="green")
