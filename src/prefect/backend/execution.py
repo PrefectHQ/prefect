@@ -58,33 +58,7 @@ def execute_flow_run_in_subprocess(
 
     while not flow_run.state.is_finished():
 
-        logger.debug("Checking for flow run scheduled start time...")
-        flow_run_start = get_flow_run_scheduled_start_time(flow_run_id)
-        if flow_run_start:
-            interval = flow_run_start.diff(abs=False).in_seconds() * -1
-            message = f"Flow run scheduled to run {flow_run_start.diff_for_humans()}; "
-            if interval > 0:
-                logger.info(message + "sleeping before trying to run flow...")
-                time.sleep(interval)
-            else:  # is scheduled in the past
-                logger.debug(message + "trying to run flow now...")
-        else:
-            logger.debug("No scheduled time found; trying to run flow now...")
-
-        logger.debug("Checking for retried task runs...")
-        next_task_start = get_next_task_run_start_time(flow_run_id)
-        if next_task_start:
-            interval = next_task_start.diff(abs=False).in_seconds() * -1
-            message = f"Found task run scheduled {next_task_start.diff_for_humans()}; "
-            if interval > 0:
-                logger.info(message + "sleeping before trying to run flow...")
-                # TODO: In the future we may want to set an upper limit if the backend
-                #       may update the state of the flow for an earlier retry
-                time.sleep(interval)
-            else:  # is scheduled in the past
-                logger.info(message + "trying to run flow now...")
-        else:
-            logger.debug("No scheduled task runs found; trying to run flow now...")
+        wait_for_flow_run_start_time(flow_run_id)
 
         try:
             # Creating a subprocess allows us to pass environment variables and ensure
@@ -119,6 +93,36 @@ def execute_flow_run_in_subprocess(
         flow_run = flow_run.get_latest()
 
     return flow_run
+
+
+def wait_for_flow_run_start_time(flow_run_id: str) -> None:
+    logger.debug("Checking for flow run scheduled start time...")
+    flow_run_start = get_flow_run_scheduled_start_time(flow_run_id)
+    if flow_run_start:
+        interval = flow_run_start.diff(abs=False).in_seconds() * -1
+        message = f"Flow run scheduled to run {flow_run_start.diff_for_humans()}; "
+        if interval > 0:
+            logger.info(message + "sleeping before trying to run flow...")
+            time.sleep(interval)
+        else:  # is scheduled in the past
+            logger.debug(message + "trying to run flow now...")
+    else:
+        logger.debug("No scheduled time found; trying to run flow now...")
+
+    logger.debug("Checking for retried task runs...")
+    next_task_start = get_next_task_run_start_time(flow_run_id)
+    if next_task_start:
+        interval = next_task_start.diff(abs=False).in_seconds() * -1
+        message = f"Found task run scheduled {next_task_start.diff_for_humans()}; "
+        if interval > 0:
+            logger.info(message + "sleeping before trying to run flow...")
+            # TODO: In the future we may want to set an upper limit if the backend
+            #       may update the state of the flow for an earlier retry
+            time.sleep(interval)
+        else:  # is scheduled in the past
+            logger.info(message + "trying to run flow now...")
+    else:
+        logger.debug("No scheduled task runs found; trying to run flow now...")
 
 
 def get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
