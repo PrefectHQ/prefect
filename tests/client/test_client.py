@@ -20,7 +20,7 @@ from prefect.utilities.exceptions import ClientError
 from prefect.utilities.graphql import decompress
 
 
-def test_client_posts_to_api_with_cloud_backend(patch_post):
+def test_client_posts_to_api_using_cloud_backend(patch_post):
     post = patch_post(dict(success=True))
 
     with set_temporary_config(
@@ -39,7 +39,7 @@ def test_client_posts_to_api_with_cloud_backend(patch_post):
     assert post.call_args[0][0] == "http://my-prefect-cloud-endpoint.foo/foo/bar"
 
 
-def test_client_posts_to_api_with_server_backend(patch_post):
+def test_client_posts_to_api_using_server_backend(patch_post):
     post = patch_post(dict(success=True))
 
     with set_temporary_config(
@@ -112,7 +112,7 @@ def test_client_attached_headers(monkeypatch, cloud_api):
         assert client._attached_headers == {"1": "1", "2": "2"}
 
 
-def test_client_posts_graphql_to_api_server_with_cloud_backend(patch_post):
+def test_client_posts_graphql_to_api_server_using_cloud_backend(patch_post):
     post = patch_post(dict(data=dict(success=True)))
 
     with set_temporary_config(
@@ -131,7 +131,7 @@ def test_client_posts_graphql_to_api_server_with_cloud_backend(patch_post):
     assert post.call_args[0][0] == "http://my-prefect-cloud-endpoint.foo"
 
 
-def test_client_posts_graphql_to_api_server_with_server_backend(patch_post):
+def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
     post = patch_post(dict(data=dict(success=True)))
 
     with set_temporary_config(
