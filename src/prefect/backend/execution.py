@@ -5,7 +5,7 @@ import pendulum
 import os
 import time
 from contextlib import contextmanager
-from typing import Any, Type, Optional
+from typing import Any, Type, Optional, cast
 
 import prefect
 from prefect import Flow
@@ -145,7 +145,7 @@ def get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime
 
     task_runs = sorted(task_runs, key=lambda task_run: task_run.state_start_time)
     next_start_time = task_runs[0].state_start_time
-    return pendulum.parse(next_start_time)
+    return cast(pendulum.DateTime, pendulum.parse(next_start_time))
 
 
 def get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
@@ -228,7 +228,7 @@ def get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.Dat
     if not start_time:
         return None  # There is no scheduled start time in the states or on the run
 
-    return pendulum.parse(start_time)
+    return cast(pendulum.DateTime, pendulum.parse(start_time))
 
 
 def generate_flow_run_environ(
