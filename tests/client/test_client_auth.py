@@ -82,12 +82,12 @@ class TestClientConfig:
         self, prefect_home_dir, cloud_api
     ):
         path = Client(
-            api_server="https://a-test-api.prefect.test/subdomain"
+            api_server="https://a-test-api.prefect.test:12345/subdomain"
         )._local_settings_path
         expected = os.path.join(
             prefect_home_dir,
             "client",
-            "https-a-test-api.prefect.test-subdomain",
+            "https-a-test-api.prefect.test-12345-subdomain",
             "settings.toml",
         )
         assert str(path) == expected
