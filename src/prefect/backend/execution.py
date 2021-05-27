@@ -47,6 +47,11 @@ def execute_flow_run_in_subprocess(
         run_config=flow_run.run_config,
     )
 
+    if flow_run.state.is_running() or flow_run.state.is_submitted():
+        raise RuntimeError(
+            f"Flow run is already in state {flow_run.state!r}! Cannot execute flow run."
+        )
+
     while not flow_run.state.is_finished():
 
         logger.debug("Checking for flow run scheduled start time...")
@@ -180,15 +185,7 @@ def get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.Dat
             # We cannot query for states directly and must go through the `flow_run`
             # object
             "query": {
-                with_args(
-                    "flow_run",
-                    {
-                        "where": {
-                            "state": {"_eq": "Scheduled"},
-                            "id": {"_eq": flow_run_id},
-                        }
-                    },
-                ): {
+                with_args("flow_run", {"where": {"id": {"_eq": flow_run_id},}},): {
                     with_args("states", {"where": {"state": {"_eq": "Scheduled"}}}): {
                         "start_time",
                         "created",
