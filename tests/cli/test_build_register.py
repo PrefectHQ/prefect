@@ -273,6 +273,11 @@ class TestRegister:
     def test_load_flows_from_script(self, tmpdir, relative):
         abs_path = str(tmpdir.join("test.py"))
         if relative:
+            if os.name == "nt":
+                pytest.skip(
+                    "This test can fail on windows if the test file is on a different "
+                    "drive. This should have no effect during actual execution."
+                )
             path = os.path.relpath(abs_path)
         else:
             path = abs_path
