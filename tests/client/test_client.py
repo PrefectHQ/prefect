@@ -25,11 +25,19 @@ def test_client_posts_to_api_using_cloud_backend(patch_post):
 
     with set_temporary_config(
         {
+            "backend": "cloud",
+            # Cloud config
             "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
             "cloud.auth_token": "cloud_secret_token",
-            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            # Server config
+            "server.host": "http://my-prefect-server-host.foo",
+            "server.port": "4200",
+            "server.host_port": "4199",
+            "server.graphql.host": "http://my-prefect-server-graphql.foo",
+            "server.graphql.port": "4201",
+            "server.graphql.host_port": "4202",
+            "server.graphql.path": "/graphql/",
             "server.auth_token": "server_secret_token",
-            "backend": "cloud",
         }
     ):
         client = Client()
@@ -44,18 +52,26 @@ def test_client_posts_to_api_using_server_backend(patch_post):
 
     with set_temporary_config(
         {
+            "backend": "server",
+            # Cloud config
             "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
             "cloud.auth_token": "cloud_secret_token",
-            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            # Server config
+            "server.host": "http://my-prefect-server-host.foo",
+            "server.port": "4200",
+            "server.host_port": "4199",
+            "server.graphql.host": "http://my-prefect-server-graphql.foo",
+            "server.graphql.port": "4201",
+            "server.graphql.host_port": "4202",
+            "server.graphql.path": "/graphql/",
             "server.auth_token": "server_secret_token",
-            "backend": "server",
         }
     ):
         client = Client()
     result = client.post("/foo/bar")
     assert result == {"success": True}
     assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-server-endpoint.foo/foo/bar"
+    assert post.call_args[0][0] == "http://my-prefect-server-host.foo:4201/foo/bar"
 
 
 def test_version_header(monkeypatch):
@@ -117,11 +133,19 @@ def test_client_posts_graphql_to_api_server_using_cloud_backend(patch_post):
 
     with set_temporary_config(
         {
+            "backend": "cloud",
+            # Cloud config
             "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
             "cloud.auth_token": "cloud_secret_token",
-            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            # Server config
+            "server.host": "http://my-prefect-server-host.foo",
+            "server.port": "4200",
+            "server.host_port": "4199",
+            "server.graphql.host": "http://my-prefect-server-graphql.foo",
+            "server.graphql.port": "4201",
+            "server.graphql.host_port": "4202",
+            "server.graphql.path": "/graphql/",
             "server.auth_token": "server_secret_token",
-            "backend": "cloud",
         }
     ):
         client = Client()
@@ -136,18 +160,26 @@ def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
 
     with set_temporary_config(
         {
+            "backend": "cloud",
+            # Cloud config
             "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
             "cloud.auth_token": "cloud_secret_token",
-            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            # Server config
+            "server.host": "http://my-prefect-server-host.foo",
+            "server.port": "4200",
+            "server.host_port": "4199",
+            "server.graphql.host": "http://my-prefect-server-graphql.foo",
+            "server.graphql.port": "4201",
+            "server.graphql.host_port": "4202",
+            "server.graphql.path": "/graphql/",
             "server.auth_token": "server_secret_token",
-            "backend": "server",
         }
     ):
         client = Client()
     result = client.graphql("{projects{name}}")
     assert result.data == {"success": True}
     assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-server-endpoint.foo"
+    assert post.call_args[0][0] == "http://my-prefect-server-graphql.foo:4201/graphql/"
 
 
 # test actual mutation and query handling
