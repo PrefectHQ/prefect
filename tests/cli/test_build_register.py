@@ -569,12 +569,18 @@ class TestRegister:
         if not names:
             names = ["flow 1", "flow 2"]
 
+        storage_labels = Local().labels
+
         assert register_serialized_flow.call_count == len(names)
         for args, kwargs in register_serialized_flow.call_args_list:
             assert not args
             assert kwargs["project_id"] == "my-project-id"
             assert kwargs["serialized_flow"]["name"] in names
-            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {"a", "b"}
+            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {
+                "a",
+                "b",
+                *storage_labels,
+            }
             assert kwargs["force"] == force
 
         # Bulk of the output is tested elsewhere, only a few smoketests here
@@ -747,7 +753,8 @@ class TestBuild:
         written_names = [f["name"] for f in out["flows"]]
         assert written_names == exp_names
 
-        assert flow2["run_config"]["labels"] == ["a", "b", "new"]
+        storage_labels = Local().labels
+        assert set(flow2["run_config"]["labels"]) == {"a", "b", "new", *storage_labels}
         assert flow2["run_config"]["type"] == "LocalRun"
 
         build_logs = "\n".join(

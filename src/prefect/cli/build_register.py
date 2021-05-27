@@ -303,14 +303,13 @@ def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
                 flow.result = flow.storage.result
 
             # Add a `run_config` if not configured explicitly
-            # Also add any extra labels to the flow
-            if flow.run_config is None:
-                if flow.environment is not None:
-                    flow.environment.labels.update(labels)
-                else:
-                    flow.run_config = UniversalRun(labels=labels)
-            else:
-                flow.run_config.labels.update(labels)
+            if flow.run_config is None and flow.environment is None:
+                flow.run_config = UniversalRun()
+            # Add any extra labels to the flow (either specified via the CLI,
+            # or from the storage object).
+            obj = flow.run_config or flow.environment
+            obj.labels.update(labels)
+            obj.labels.update(flow.storage.labels)
 
             # Add the flow to storage
             flow.storage.add_flow(flow)
