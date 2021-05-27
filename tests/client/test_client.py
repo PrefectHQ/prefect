@@ -20,14 +20,15 @@ from prefect.utilities.exceptions import ClientError
 from prefect.utilities.graphql import decompress
 
 
-def test_client_posts_to_api_server(patch_post):
+def test_client_posts_to_api_with_cloud_backend(patch_post):
     post = patch_post(dict(success=True))
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
+            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.auth_token": "cloud_secret_token",
+            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            "server.auth_token": "server_secret_token",
             "backend": "cloud",
         }
     ):
@@ -35,7 +36,26 @@ def test_client_posts_to_api_server(patch_post):
     result = client.post("/foo/bar")
     assert result == {"success": True}
     assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo/foo/bar"
+    assert post.call_args[0][0] == "http://my-prefect-cloud-endpoint.foo/foo/bar"
+
+
+def test_client_posts_to_api_with_server_backend(patch_post):
+    post = patch_post(dict(success=True))
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
+            "cloud.auth_token": "cloud_secret_token",
+            "server.graphql": "http://my-prefect-server-endpoint.foo",
+            "server.auth_token": "server_secret_token",
+            "backend": "server",
+        }
+    ):
+        client = Client()
+    result = client.post("/foo/bar")
+    assert result == {"success": True}
+    assert post.called
+    assert post.call_args[0][0] == "http://my-prefect-server-endpoint.foo/foo/bar"
 
 
 def test_version_header(monkeypatch):
