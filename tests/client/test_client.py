@@ -160,7 +160,7 @@ def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
 
     with set_temporary_config(
         {
-            "backend": "cloud",
+            "backend": "server",
             # Cloud config
             "cloud.graphql": "http://my-prefect-cloud-endpoint.foo",
             "cloud.auth_token": "cloud_secret_token",
