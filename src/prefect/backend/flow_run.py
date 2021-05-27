@@ -243,10 +243,9 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     if len(matching_healthy) == 1:
         # Display the single matching agent
         name_blurb = f" ({agent.name})" if agent.name else ""
-        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
         return (
             f"Agent {agent.id}{name_blurb} has matching labels and last queried "
-            f"{last_queried} ago. It should deploy your flow run."
+            f"{agent.last_queried.diff_for_humans()}. It should deploy your flow run."
         )
 
     if len(matching_healthy) > 1:
@@ -272,7 +271,7 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
         last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
         return (
             f"Agent {agent.id}{name_blurb} has matching labels and last queried "
-            f"{last_queried} ago. Since it hasn't queried recently, it looks "
+            f"{agent.last_queried.diff_for_humans()}. Since it hasn't queried recently, it looks "
             f"unhealthy. Restart it or start a new agent with {labels_blurb} to deploy "
             f"your flow run."
         )
