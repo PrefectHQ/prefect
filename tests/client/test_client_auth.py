@@ -23,14 +23,45 @@ class TestClientConfig:
     def test_client_initializes_from_config(self):
         with set_temporary_config(
             {
-                "cloud.graphql": "api_server",
-                "cloud.auth_token": "token",
                 "backend": "cloud",
+                # Cloud config
+                "cloud.graphql": "http://my-prefect-cloud-graphql.foo",
+                "cloud.auth_token": "cloud_secret_token",
+                # Server config
+                "server.host": "http://my-prefect-server-host.foo",
+                "server.port": "4200",
+                "server.host_port": "4199",
+                "server.graphql.host": "http://my-prefect-server-graphql.foo",
+                "server.graphql.port": "4201",
+                "server.graphql.host_port": "4202",
+                "server.graphql.path": "/graphql/",
+                "server.auth_token": "server_secret_token",
             }
         ):
             client = Client()
-        assert client.api_server == "api_server"
-        assert client._api_token == "token"
+        assert client.api_server == "http://my-prefect-cloud-graphql.foo"
+        assert client._api_token == "cloud_secret_token"
+
+        with set_temporary_config(
+            {
+                "backend": "server",
+                # Cloud config
+                "cloud.graphql": "http://my-prefect-cloud-graphql.foo",
+                "cloud.auth_token": "cloud_secret_token",
+                # Server config
+                "server.host": "http://my-prefect-server-host.foo",
+                "server.port": "4200",
+                "server.host_port": "4199",
+                "server.graphql.host": "http://my-prefect-server-graphql.foo",
+                "server.graphql.port": "4201",
+                "server.graphql.host_port": "4202",
+                "server.graphql.path": "/graphql/",
+                "server.auth_token": "server_secret_token",
+            }
+        ):
+            client = Client()
+        assert client.api_server == "http://my-prefect-server-graphql.foo:4200"
+        assert client._api_token == "server_secret_token"
 
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(
