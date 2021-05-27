@@ -41,10 +41,10 @@ def test_client_posts_to_api_using_cloud_backend(patch_post):
         }
     ):
         client = Client()
-    result = client.post("/foo/bar")
-    assert result == {"success": True}
-    assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-cloud-graphql.foo/foo/bar"
+        result = client.post("/foo/bar")
+        assert result == {"success": True}
+        assert post.called
+        assert post.call_args[0][0] == "http://my-prefect-cloud-graphql.foo/foo/bar"
 
 
 def test_client_posts_to_api_using_server_backend(patch_post):
@@ -68,10 +68,10 @@ def test_client_posts_to_api_using_server_backend(patch_post):
         }
     ):
         client = Client()
-    result = client.post("/foo/bar")
-    assert result == {"success": True}
-    assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-server-host.foo:4201/foo/bar"
+        result = client.post("/foo/bar")
+        assert result == {"success": True}
+        assert post.called
+        assert post.call_args[0][0] == "http://my-prefect-server-host.foo:4201/foo/bar"
 
 
 def test_version_header(monkeypatch):
@@ -149,10 +149,10 @@ def test_client_posts_graphql_to_api_server_using_cloud_backend(patch_post):
         }
     ):
         client = Client()
-    result = client.graphql("{projects{name}}")
-    assert result.data == {"success": True}
-    assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-cloud-graphql.foo"
+        result = client.graphql("{projects{name}}")
+        assert result.data == {"success": True}
+        assert post.called
+        assert post.call_args[0][0] == "http://my-prefect-cloud-graphql.foo"
 
 
 def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
@@ -176,10 +176,10 @@ def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
         }
     ):
         client = Client()
-    result = client.graphql("{projects{name}}")
-    assert result.data == {"success": True}
-    assert post.called
-    assert post.call_args[0][0] == "http://my-prefect-server-graphql.foo:4201/graphql/"
+        result = client.graphql("{projects{name}}")
+        assert result.data == {"success": True}
+        assert post.called
+        assert post.call_args[0][0] == "http://my-prefect-server-graphql.foo:4201/graphql/"
 
 
 # test actual mutation and query handling
