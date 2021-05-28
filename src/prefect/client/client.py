@@ -104,9 +104,7 @@ class Client:
             self.backend_graphql_endpoint = "{}:{}/{}".format(
                 prefect.context.config.server.graphql.get("host"),
                 prefect.context.config.server.graphql.get("port"),
-                prefect.context.config.server.graphql.get("path")
-                .lstrip("/")
-                .rstrip("/"),
+                prefect.context.config.server.graphql.get("path").lstrip("/"),
             )
             self._api_token = prefect.context.config.server.get("auth_token", None)
         else:
