@@ -67,10 +67,10 @@ class MySQLExecute(Task):
         user: str = None,
         password: str = None,
         host: str = None,
-        port: int = 3306,
+        port: int = None,
         query: str = None,
-        commit: bool = False,
-        charset: str = "utf8mb4",
+        commit: bool = None,
+        charset: str = None,
         ssl: dict = None,
     ) -> int:
         """
@@ -201,13 +201,13 @@ class MySQLFetch(Task):
         user: str = None,
         password: str = None,
         host: str = None,
-        port: int = 3306,
-        fetch: str = "one",
-        fetch_count: int = 10,
+        port: int = None,
+        fetch: str = None,
+        fetch_count: int = None,
         query: str = None,
-        commit: bool = False,
-        charset: str = "utf8mb4",
-        cursor_type: Union[str, Callable] = "cursor",
+        commit: bool = None,
+        charset: str = None,
+        cursor_type: Union[str, Callable] = None,
         ssl: dict = None,
     ) -> Any:
         """
