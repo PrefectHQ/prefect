@@ -39,7 +39,9 @@ class TestClientConfig:
             }
         ):
             client = Client()
-            assert client.backend_graphql_endpoint == "http://my-prefect-cloud-graphql.foo"
+            assert (
+                client.backend_graphql_endpoint == "http://my-prefect-cloud-graphql.foo"
+            )
             assert client._api_token == "cloud_secret_token"
 
         with set_temporary_config(
@@ -60,7 +62,10 @@ class TestClientConfig:
             }
         ):
             client = Client()
-            assert client.backend_graphql_endpoint == "http://my-prefect-server-graphql.foo:4200"
+            assert (
+                client.backend_graphql_endpoint
+                == "http://my-prefect-server-graphql.foo:4201/graphql/"
+            )
             assert client._api_token == "server_secret_token"
 
     def test_client_initializes_and_prioritizes_kwargs(self):
