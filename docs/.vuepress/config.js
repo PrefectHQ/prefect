@@ -289,22 +289,14 @@ module.exports = {
           ]
         }
       ],
-      '/start/':[
-        '/start/',
-      //   {
-      //     title: 'Getting Started',
-      //     collapsable: true,
-      //     children: [
-      //       'quick_start',
-      //     ]
-      // }
-    ],
+      
       '/core/': [
         '/core/',
         {
           title: 'Getting Started',
           collapsable: true,
           children: [
+            '/start/',
             'getting_started/installation',
             'getting_started/first-steps',
             'getting_started/next-steps',
