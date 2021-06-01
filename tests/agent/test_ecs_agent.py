@@ -689,3 +689,15 @@ class TestDeployFlow:
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
         assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
         assert "my-task-arn" in res
+
+    def test_deploy_flow_forwards_run_config_settings(self, aws):
+        aws.ecs.register_task_definition.return_value = {
+            "taskDefinition": {"taskDefinitionArn": "my-taskdef-arn"}
+        }
+        aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
+
+        self.deploy_flow(ECSRun(cpu=8, memory=1024))
+
+        aws.ecs.run_task.assert_called_once()
+        assert aws.ecs.run_task.call_args[1]["overrides"]["cpu"] == "8"
+        assert aws.ecs.run_task.call_args[1]["overrides"]["memory"] == "1024"
