@@ -72,12 +72,12 @@ def watch_flow_run(
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
     if flow_run.state.is_finished():
-        time_ago = (pendulum.now() - flow_run.updated_at).as_interval().in_words()
+        time_ago = flow_run.updated_at.diff_for_humans()
         if stream_states:
             yield FlowRunLog(
                 timestamp=pendulum.now(),
                 level=logging.INFO,
-                message=f"Your flow run finished {time_ago} ago",
+                message=f"Your flow run finished {time_ago}",
             )
         return
 
