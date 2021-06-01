@@ -183,7 +183,7 @@ def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
         assert result.data == {"success": True}
         assert post.called
         assert (
-            post.call_args[0][0] == "http://my-prefect-server-graphql.foo:4201/graphql/"
+            post.call_args[0][0] == "http://my-prefect-server-graphql.foo:4201/graphql"
         )
 
 
