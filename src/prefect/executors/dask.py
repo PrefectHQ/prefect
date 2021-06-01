@@ -592,6 +592,8 @@ class LocalDaskExecutor(Executor):
         # import dask here to reduce prefect import times
         import dask
 
+        config = {}  # Extra config options for dask
+
         # dask's multiprocessing scheduler hardcodes task fusion in a way
         # that's not exposed via a `compute` kwarg. Until that's fixed, we
         # disable fusion globally for the multiprocessing scheduler only.
@@ -614,13 +616,23 @@ class LocalDaskExecutor(Executor):
                 finally:
                     dask.multiprocessing.cull = cull
 
-            config = {"optimization.fuse.active": False}
+            config["optimization.fuse.active"] = False
         else:
-            config = {}
 
             @contextmanager
             def patch() -> Iterator[None]:
                 yield
+
+        # Patch around https://github.com/PrefectHQ/prefect/issues/4537
+        # dask >= 2021.04.0 adds task submission batching in the multiprocessing case
+        # to offset performance concerns from switching to a concurrent.Futures based
+        # process pool. Since we are using our own pool to handle cancellation robustly,
+        # we do not gain anything from the batched submission and the default task
+        # submission batch size of 6 makes users think their flows will not run in
+        # parallel. When/if we switch to using the new futures based multiprocessing in
+        # dask, we should remove this to retain performance
+        if self.scheduler == "processes":
+            config["chunksize"] = 1
 
         with patch(), dask.config.set(config):
             return dask.compute(
