@@ -94,11 +94,14 @@ class State:
                 cloudpickle.dumps(self.result)
             except TypeError as exc:
                 if "cannot pickle" in str(exc):
-                    self.result = (
+                    # Update the result in the dict without modifying the local object
+                    data = data.copy()
+                    new_result = data["_result"].copy()
+                    new_result.value = (
                         f"The following exception could not be pickled due to {exc!r}: "
                         + repr(self.result)
                     )
-                    return self.__getstate__()
+                    data["_result"] = new_result
 
         return data
 

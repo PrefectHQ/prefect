@@ -733,9 +733,14 @@ def test_state_pickle_with_unpicklable_exception_converts_to_repr():
     state = State(result=UnpicklableException())
     new_state = cloudpickle.loads(cloudpickle.dumps(state))
 
+    # Cast to a string
+    assert isinstance(new_state.result, str)
     # Includes the repr of our exception result
     assert repr(UnpicklableException()) in new_state.result
     # Includes context for the exception
     assert "The following exception could not be pickled" in new_state.result
     # Includes pickle error
     assert "TypeError(\"cannot pickle '_thread.RLock' object\")" in new_state.result
+
+    # Does not alter the original object
+    assert isinstance(state.result, UnpicklableException)
