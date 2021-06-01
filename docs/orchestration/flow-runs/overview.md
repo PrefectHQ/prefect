@@ -13,6 +13,7 @@ Flow runs can be created with
 - [the Prefect CLI](./creation.md#cli)
 - [the UI](/ui/flow_run.md#creation)
 - [the Prefect library](./creation.md#prefect-library)
+- [a task in another Flow](./creation.md#task)
 - [a schedule](./scheduling.md)
 - [a GraphQL API call](./creation.md#graphql)
 
