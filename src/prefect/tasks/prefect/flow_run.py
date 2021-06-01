@@ -149,12 +149,6 @@ def create_flow_run(
 
 
 @task
-def get_flow_run_state(flow_run_id: str) -> "State":
-    flow_run = FlowRunView.from_flow_run_id(flow_run_id)
-    return flow_run.state
-
-
-@task
 def get_task_run_result(
     flow_run_id: str, task_slug: str, map_index: int = -1, poll_time: int = 5
 ) -> Any:
