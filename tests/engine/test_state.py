@@ -2,6 +2,7 @@ import datetime
 import json
 
 import pendulum
+import cloudpickle
 import pytest
 
 import prefect
@@ -676,3 +677,28 @@ def test_n_map_states():
 def test_init_with_falsey_value():
     state = Success(result={})
     assert state.result == {}
+
+
+def test_state_pickle():
+    state = State(result="foo")
+    assert state == cloudpickle.loads(cloudpickle.dumps(state))
+
+
+def test_state_pickle_with_exception():
+    state = State(result=Exception("foo"))
+    assert state == cloudpickle.loads(cloudpickle.dumps(state))
+
+
+def test_state_pickle_with_unpickable_exception():
+    from threading import RLock
+
+    class UnpicklableException(Exception):
+        def __init__(self, *args) -> None:
+            self.lock = RLock()
+            super().__init__(*args)
+
+    state = State(result=UnpicklableException())
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    state._result = repr(UnpicklableException())
+    assert state == new_state
