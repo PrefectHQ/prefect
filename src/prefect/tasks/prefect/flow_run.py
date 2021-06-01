@@ -211,13 +211,12 @@ def wait_for_flow_run(
 
     Args:
         - flow_run_id: The flow run id to wait for
-        - stream_state: Stream information about the flow run state; if `False` no
-            output will be shown
+        - stream_states: Stream information about the flow run state changes
         - stream_logs: Stream flow run logs; if `stream_state` is `False` this will be
             ignored
 
     Returns:
-        A `FlowRunView` of the final state of the flow run
+        FlowRunView: A view of the flow run after completion
     """
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
