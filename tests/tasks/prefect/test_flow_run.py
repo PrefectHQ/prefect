@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import prefect
 from prefect.run_configs import UniversalRun
 from prefect.backend.flow_run import FlowRunLog
+from prefect.engine.results.local_result import LocalResult
 
 
 from prefect.tasks.prefect import (
@@ -172,6 +173,67 @@ class TestWaitForFlowRun:
         MockFlowRunView.from_flow_run_id().get_latest.return_value = "fake-return-value"
         result = wait_for_flow_run.run("flow-run-id")
         assert result == "fake-return-value"
+
+
+class TestGetTaskRunResult:
+    def test_requires_task_slug(self):
+        with pytest.raises(ValueError, match="`task_slug` is empty"):
+            get_task_run_result.run(flow_run_id="id", task_slug="")
+
+    def test_waits_for_flow_run_to_finish(self, MockFlowRunView, monkeypatch):
+        # Create a fake flow run that is 'Running' then 'Finished'
+        flow_run = MagicMock()
+        flow_run.state = prefect.engine.state.Running()
+
+        def mark_flow_run_as_finished():
+            flow_run.state = prefect.engine.state.Finished()
+            return flow_run
+
+        flow_run.get_latest.side_effect = mark_flow_run_as_finished
+
+        # Return the fake flow run during retrieval
+        MockFlowRunView.from_flow_run_id.return_value = flow_run
+
+        # Mock sleep so the test is not slow
+        mock_sleep = MagicMock()
+        monkeypatch.setattr("prefect.tasks.prefect.flow_run.time.sleep", mock_sleep)
+
+        get_task_run_result.run(flow_run_id="id", task_slug="slug", poll_time=1)
+
+        # Should have slept once for the given poll time
+        mock_sleep.assert_called_once_with(1)
+
+    @pytest.mark.parametrize("kwargs", [{}, {"map_index": 5}])
+    def test_gets_task_run_result(self, MockFlowRunView, monkeypatch, kwargs, caplog):
+        task_run = MagicMock()
+        task_run.get_result.return_value = "fake-result"
+        # Provide a Result class so we can assert it is logged
+        task_run.state._result = LocalResult()
+
+        flow_run = MagicMock()
+        flow_run.state = prefect.engine.state.Finished()
+        flow_run.get_task_run.return_value = task_run
+        MockFlowRunView.from_flow_run_id.return_value = flow_run
+
+        # Ensure we aren't sleeping on already finished runs
+        mock_sleep = MagicMock()
+        monkeypatch.setattr("prefect.tasks.prefect.flow_run.time.sleep", mock_sleep)
+
+        result = get_task_run_result.run(flow_run_id="id", task_slug="slug", **kwargs)
+
+        mock_sleep.assert_not_called()
+
+        # Task pulled from the flow run, map_index passed through if given
+        flow_run.get_task_run.assert_called_once_with(
+            task_slug="slug", map_index=kwargs.get("map_index", -1)
+        )
+
+        # Result loaded from storage
+        task_run.get_result.assert_called_once()
+        assert result == "fake-result"
+
+        # Result type logged
+        assert "Loading task run result from LocalResult..." in caplog.text
 
 
 # Legacy tests -------------------------------------------------------------------------

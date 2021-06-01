@@ -174,6 +174,8 @@ def get_task_run_result(
     logger = prefect.context.logger
 
     if not task_slug:
+        # Catch this explicitly because the user may user `task.slug` which is often
+        # null
         raise ValueError("Required argument `task_slug` is empty")
 
     task_dsp = repr(task_slug) if map_index == -1 else f"'{task_slug}[{map_index}]'"
