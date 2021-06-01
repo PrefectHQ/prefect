@@ -87,7 +87,8 @@ class MySQLExecute(Task):
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset you want to use (defaults to "utf8mb4")
             - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
-                parameters used for establishing encrypted connections using SSL
+                parameters used for establishing encrypted connections using SSL. To connect
+                with SSL, at least `ssl_ca`, `ssl_cert`, and `ssl_key` must be specified.
 
         Returns:
             - executed (int): number of affected rows
@@ -146,7 +147,8 @@ class MySQLFetch(Task):
             Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
             or a full cursor class.
         - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
-                parameters used for establishing encrypted connections using SSL
+                parameters used for establishing encrypted connections using SSL. To connect
+                with SSL, at least `ssl_ca`, `ssl_cert`, and `ssl_key` must be specified.
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
