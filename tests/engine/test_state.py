@@ -1,6 +1,5 @@
 import datetime
 import json
-from dataclasses import dataclass, field
 from threading import RLock
 
 import pendulum
@@ -695,12 +694,8 @@ def test_state_pickle():
 
 
 def test_state_pickle_with_unpicklable_result_raises():
-    @dataclass
-    class UnpickleableData:
-        x: RLock = field(default_factory=lambda: RLock())
-
-    state = State(result=UnpickleableData())
-    with pytest.raises(TypeError, match="cannot pickle"):
+    state = State(result=RLock())  # An unpickable result type
+    with pytest.raises(TypeError, match="pickle"):
         cloudpickle.dumps(state)
 
 
