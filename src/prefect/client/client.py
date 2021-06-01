@@ -119,8 +119,10 @@ class Client:
 
         if not self.backend_graphql_endpoint.endswith("/"):
             # For more info, see https://stackoverflow.com/questions/10893374/python-confusions-with-urljoin
-            warnings.warn("The Client\'s GraphQL base URL does not end in a trailing slash. This may cause unexpected "
-                          "behavior when path concatenation is performed by calling urllib.parse.urljoin.")
+            warnings.warn(
+                "The Client's GraphQL base URL doesn't end in a trailing slash. This may cause unexpected "
+                "behavior when path concatenation is performed using urllib.parse.urljoin."
+            )
 
         # Initialize the tenant and api token if not yet set
         if not self._api_token and prefect.config.backend == "cloud":

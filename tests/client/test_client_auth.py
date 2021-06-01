@@ -68,6 +68,33 @@ class TestClientConfig:
             )
             assert client._api_token == "server_secret_token"
 
+    def test_warning_raised_on_initialization_without_trailing_slash(self):
+        with set_temporary_config(
+            {
+                "backend": "server",
+                # Server config
+                "server.host": "http://my-prefect-server-host.foo",
+                "server.port": "4200",
+                "server.host_port": "4199",
+                "server.graphql.host": "http://my-prefect-server-graphql.foo",
+                "server.graphql.port": "4201",
+                "server.graphql.host_port": "4202",
+                "server.graphql.path": "/graphql",
+                "server.auth_token": "server_secret_token",
+            }
+        ):
+            with pytest.warns(UserWarning) as record:
+                client = Client()
+
+            assert len(record) == 1
+            assert (
+                record[0]
+                .message.args[0]
+                .startswith(
+                    "The Client's GraphQL base URL doesn't end in a trailing slash."
+                )
+            )
+
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(
             {
