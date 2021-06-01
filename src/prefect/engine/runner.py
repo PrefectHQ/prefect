@@ -66,8 +66,6 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
             self.logger.exception(formatted)
             if raise_on_exception:
                 raise exc
-            # TODO: Add some more logs here
-            # TODO: Handle failed
             new_state = Failed(formatted, result=exc)
 
         if new_state is not state:
