@@ -46,6 +46,7 @@ See [optional settings](#optional-settings) for additional information that can 
 Flow runs can be created from within another flow run using the `create_flow_run` task in the Prefect task library:
 
 ```python
+from prefect import Flow
 from prefect.tasks.prefect import create_flow_run, wait_for_flow_run
 
 with Flow("parent-flow") as flow:
