@@ -131,7 +131,7 @@ def create_flow_run(
         flow_id=flow.flow_id,
         parameters=parameters,
         context=context,
-        labels=labels or None,  # If labels is empty list pass `None` for defaults
+        labels=labels,
         run_name=run_name,
         run_config=run_config,
         scheduled_start_time=scheduled_start_time,
