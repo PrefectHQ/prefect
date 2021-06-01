@@ -4,7 +4,7 @@ import uuid
 import sys
 import weakref
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
+from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional, Dict
 
 from prefect import context
 from prefect.executors.base import Executor
@@ -592,7 +592,7 @@ class LocalDaskExecutor(Executor):
         # import dask here to reduce prefect import times
         import dask
 
-        config = {}  # Extra config options for dask
+        config: Dict[str, Any] = {}  # Extra config options for dask
 
         # dask's multiprocessing scheduler hardcodes task fusion in a way
         # that's not exposed via a `compute` kwarg. Until that's fixed, we
