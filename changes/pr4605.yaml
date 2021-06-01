@@ -1,3 +1,0 @@
-
-fix:
-  - "Cleanly handle unpicklable exceptions in tasks - [#4605](https://github.com/PrefectHQ/prefect/pull/4605)"
