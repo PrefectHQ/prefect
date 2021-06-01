@@ -94,7 +94,7 @@ def create_flow_run(
             execution for. If not provided, the flow run will be scheduled to start now
 
     Returns:
-        The created flow run uuid
+        str: The UUID of the created flow run
     """
 
     if flow_id and flow_name:
@@ -168,7 +168,7 @@ def get_task_run_result(
             has finished
 
     Returns:
-        The return value of the task
+        Any: The return value of the task
     """
     logger = prefect.context.logger
 
