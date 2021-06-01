@@ -300,8 +300,14 @@ classes = ["FivetranSyncTask"]
 [pages.tasks.prefect]
 title = "Prefect Tasks"
 module = "prefect.tasks.prefect"
-classes = ["StartFlowRun", "RenameFlowRun", "CancelFlowRun"]
-functions = ["create_flow_run", "get_task_run_result", "wait_for_flow_run"]
+classes = [
+    "StartFlowRun",
+    "RenameFlowRun",
+    "CancelFlowRun",
+    "create_flow_run",
+    "get_task_run_result",
+    "wait_for_flow_run"
+    ]
 
 [pages.tasks.github]
 title = "GitHub Tasks"
