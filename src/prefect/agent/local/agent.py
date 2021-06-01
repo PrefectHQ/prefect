@@ -154,7 +154,6 @@ class LocalAgent(Agent):
         # dictate the lifecycle of the flow run. However, if the user has elected to
         # show flow logs, these log entries will continue to stream to the users terminal
         # until these child processes exit, even if the agent has already exited.
-        print("HERE!")
         p = Popen(
             [sys.executable, "-m", "prefect", "execute", "flow-run"],
             stdout=stdout,
