@@ -1,7 +1,6 @@
 import datetime
 import json
 from threading import RLock
-from dataclasses import dataclass
 
 import pendulum
 import cloudpickle
@@ -682,10 +681,13 @@ def test_init_with_falsey_value():
 
 
 def test_state_pickle():
-    @dataclass
     class Data:
-        bar: str
-        foo: int = 1
+        def __init__(self, foo: int = 1, bar: str = "") -> None:
+            self.foo = foo
+            self.bar = bar
+
+        def __eq__(self, o: object) -> bool:
+            return o.bar == self.bar and o.foo == self.foo
 
     state = State(message="message", result=Data(bar="bar"))
     new_state = cloudpickle.loads(cloudpickle.dumps(state))
