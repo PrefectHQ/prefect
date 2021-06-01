@@ -86,21 +86,19 @@ class State:
     def __getstate__(self) -> dict:
         data = self.__dict__
 
-        try:
-            cloudpickle.dumps(self.result)
-        except TypeError as exc:
-            if "cannot pickle" not in str(exc):
-                # Exit immediately if not a pickle failure, this error will likely occur
-                # downstream when this is pickled
-                return data
-
-            # Exception results will be cast to the repr so we can still fail cleanly
-            if isinstance(self.result, Exception):
-                data["_result"].value = (
-                    f"The following exception could not be pickled due to {exc!r}: "
-                    + repr(self.result)
-                )
-            # All other types will fall through to the downstream pickler
+        # For 'Exception' results, we will check if it can be pickled successfully and
+        # on failure convert the exception to a string instead. This allows the engine
+        # to handle tasks with unpickable exceptions successfully
+        if isinstance(self.result, Exception):
+            try:
+                cloudpickle.dumps(self.result)
+            except TypeError as exc:
+                if "cannot pickle" in str(exc):
+                    self.result = (
+                        f"The following exception could not be pickled due to {exc!r}: "
+                        + repr(self.result)
+                    )
+                    return self.__getstate__()
 
         return data
 
