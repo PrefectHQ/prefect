@@ -96,19 +96,15 @@ class State:
         ):
 
             # Check for an exception during pickling of the 'Exception' type result
-            pickle_exc: Optional[Exception] = None
             try:
                 cloudpickle.dumps(self.result)
             except Exception as exc:
-                pickle_exc = exc
-
-            if pickle_exc:
                 # Update the result in the dict without modifying the local object
                 data = data.copy()
                 new_result = data["_result"].copy()
                 new_result.value = (
-                    f"The following exception could not be pickled due to "
-                    f"{pickle_exc!r}: {self.result!r}"
+                    f"The following exception could not be pickled due to {exc!r}: "
+                    f"{self.result!r}"
                 )
                 data["_result"] = new_result
 
