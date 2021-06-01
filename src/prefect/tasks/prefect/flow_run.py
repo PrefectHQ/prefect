@@ -124,7 +124,10 @@ def create_flow_run(
         if current_run:
             run_name = f"{current_run}-{flow.name}"
 
-    logger.info(f"Creating flow run {run_name!r} for flow {flow.name!r}...")
+    # A run name for logging display; robust to 'run_name' being empty
+    run_name_dsp = run_name or "<generated-name>"
+
+    logger.info(f"Creating flow run {run_name_dsp!r} for flow {flow.name!r}...")
 
     client = Client()
     flow_run_id = client.create_flow_run(
@@ -138,7 +141,7 @@ def create_flow_run(
     )
 
     run_url = client.get_cloud_url("flow-run", flow_run_id)
-    logger.info(f"Created flow run {run_name!r}: {run_url}")
+    logger.info(f"Created flow run {run_name_dsp!r}: {run_url}")
     return flow_run_id
 
 
