@@ -54,7 +54,6 @@ from prefect.artifacts import create_link
 from prefect.backend.flow_run import FlowRunView, FlowView, watch_flow_run
 from prefect.client import Client
 from prefect.engine.signals import signal_from_state
-from prefect.engine.state import State
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
