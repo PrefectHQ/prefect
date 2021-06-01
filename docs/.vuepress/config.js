@@ -112,6 +112,11 @@ module.exports = {
           children: ['triggers']
         },
         {
+          title: 'prefect.backend',
+          collapsable: true,
+          children: getChildren('docs/api/latest', 'backend')
+        },
+        {
           title: 'prefect.client',
           collapsable: true,
           children: getChildren('docs/api/latest', 'client')
@@ -199,6 +204,7 @@ module.exports = {
             'concepts/projects',
             'concepts/flows',
             'concepts/flow_runs',
+            'concepts/kv_store',
             'concepts/secrets',
             'concepts/api_keys',
             'concepts/roles',
