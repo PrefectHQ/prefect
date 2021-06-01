@@ -1,5 +1,7 @@
 import datetime
 import json
+from dataclasses import dataclass, field
+from threading import RLock
 
 import pendulum
 import cloudpickle
@@ -680,18 +682,49 @@ def test_init_with_falsey_value():
 
 
 def test_state_pickle():
-    state = State(result="foo")
-    assert state == cloudpickle.loads(cloudpickle.dumps(state))
+    @dataclass
+    class Data:
+        bar: str
+        foo: int = 1
+
+    state = State(message="message", result=Data(bar="bar"))
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    assert state.message == new_state.message  # message not included in __eq__
+    assert state == new_state
+
+
+def test_state_pickle_with_unpicklable_result_raises():
+    @dataclass
+    class UnpickleableData:
+        x: RLock = field(default_factory=lambda: RLock())
+
+    state = State(result=UnpickleableData())
+    with pytest.raises(TypeError, match="cannot pickle"):
+        cloudpickle.dumps(state)
+
+
+def test_state_pickle_with_unpicklable_result_raises_when_not_from_cloudpickle():
+    # This test covers the case where the exception during pickle does not come from
+    # cloudpickle
+    class AtypicalUnpickableData:
+        def __getstate__(self):
+            raise TypeError("Foo!")
+
+    state = State(result=AtypicalUnpickableData())
+    with pytest.raises(TypeError, match="Foo"):
+        cloudpickle.dumps(state)
 
 
 def test_state_pickle_with_exception():
     state = State(result=Exception("foo"))
-    assert state == cloudpickle.loads(cloudpickle.dumps(state))
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    assert isinstance(new_state.result, Exception)
+    assert new_state.result.args == ("foo",)
 
 
-def test_state_pickle_with_unpickable_exception():
-    from threading import RLock
-
+def test_state_pickle_with_unpicklable_exception_converts_to_repr():
     class UnpicklableException(Exception):
         def __init__(self, *args) -> None:
             self.lock = RLock()
@@ -700,5 +733,9 @@ def test_state_pickle_with_unpickable_exception():
     state = State(result=UnpicklableException())
     new_state = cloudpickle.loads(cloudpickle.dumps(state))
 
-    state._result = repr(UnpicklableException())
-    assert state == new_state
+    # Includes the repr of our exception result
+    assert repr(UnpicklableException()) in new_state.result
+    # Includes context for the exception
+    assert "The following exception could not be pickled" in new_state.result
+    # Includes pickle error
+    assert "TypeError(\"cannot pickle '_thread.RLock' object\")" in new_state.result

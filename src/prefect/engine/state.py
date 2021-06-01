@@ -14,6 +14,7 @@ import datetime
 from typing import Any, Dict, List, Optional, Type, Mapping
 
 import pendulum
+import cloudpickle
 
 import prefect
 from prefect.engine.result import Result, NoResult
@@ -81,6 +82,27 @@ class State:
 
     def __hash__(self) -> int:
         return id(self)
+
+    def __getstate__(self) -> dict:
+        data = self.__dict__
+
+        try:
+            cloudpickle.dumps(self.result)
+        except TypeError as exc:
+            if "cannot pickle" not in str(exc):
+                # Exit immediately if not a pickle failure, this error will likely occur
+                # downstream when this is pickled
+                return data
+
+            # Exception results will be cast to the repr so we can still fail cleanly
+            if isinstance(self.result, Exception):
+                data["_result"].value = (
+                    f"The following exception could not be pickled due to {exc!r}: "
+                    + repr(self.result)
+                )
+            # All other types will fall through to the downstream pickler
+
+        return data
 
     @property
     def result(self) -> Any:
