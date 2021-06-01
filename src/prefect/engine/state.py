@@ -12,7 +12,6 @@ execution. During execution a run will enter a `Running` state. Finally, runs be
 """
 import datetime
 from typing import Any, Dict, List, Optional, Type, Mapping
-from pickle import PicklingError
 
 import pendulum
 import cloudpickle
@@ -100,10 +99,7 @@ class State:
             pickle_exc: Optional[Exception] = None
             try:
                 cloudpickle.dumps(self.result)
-            except TypeError as exc:
-                if "cannot pickle" in str(exc):
-                    pickle_exc = exc
-            except PicklingError as exc:
+            except Exception as exc:
                 pickle_exc = exc
 
             if pickle_exc:
