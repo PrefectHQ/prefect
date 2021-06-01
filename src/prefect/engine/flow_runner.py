@@ -27,6 +27,7 @@ from prefect.engine.state import (
 )
 from prefect.utilities import executors
 from prefect.utilities.collections import flatten_seq
+from memory_profiler import profile
 
 FlowRunnerInitializeResult = NamedTuple(
     "FlowRunnerInitializeResult",
@@ -203,6 +204,7 @@ class FlowRunner(Runner):
             task_contexts=task_contexts,
         )
 
+    @profile
     def run(
         self,
         state: State = None,
@@ -384,6 +386,7 @@ class FlowRunner(Runner):
 
     @executors.run_with_heartbeat
     @call_state_handlers
+    @profile
     def get_flow_run_state(
         self,
         state: State,

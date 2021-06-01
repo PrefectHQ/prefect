@@ -43,6 +43,7 @@ from prefect.utilities.executors import (
 )
 from prefect.utilities.compatibility import nullcontext
 from prefect.utilities.exceptions import TaskTimeoutError
+from memory_profiler import profile
 
 
 TaskRunnerInitializeResult = NamedTuple(

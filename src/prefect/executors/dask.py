@@ -10,6 +10,8 @@ from prefect import context
 from prefect.executors.base import Executor
 from prefect.utilities.importtools import import_object
 
+from memory_profiler import profile
+
 if TYPE_CHECKING:
     import dask
     from distributed import Future, Event
@@ -369,6 +371,7 @@ class DaskExecutor(Executor):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
+    @profile
     def submit(
         self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
     ) -> "Future":
@@ -398,6 +401,7 @@ class DaskExecutor(Executor):
             self._futures.add(fut)
         return fut
 
+    @profile
     def wait(self, futures: Any) -> Any:
         """
         Resolves the Future objects to their values. Blocks until the computation is complete.
