@@ -90,8 +90,8 @@ class State:
         # For 'Exception' results, we will check if it can be pickled successfully and
         # on failure convert the exception to a string instead. This allows the engine
         # to handle tasks with unpickable exceptions successfully. We must explicitly
-        # ignore state signals here or we will recurse forever because they are
-        # exceptions that contain a state with `_result` set to the state signal itself
+        # ignore state signals here or we will get stuck in a recursive loop because
+        # signals are exceptions that contain a state with `_result` set to the signal
         if isinstance(self.result, Exception) and not isinstance(
             self.result, prefect.engine.signals.PrefectStateSignal
         ):
