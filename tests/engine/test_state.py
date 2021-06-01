@@ -1,6 +1,7 @@
 import datetime
 import json
 from threading import RLock
+from dataclasses import dataclass
 
 import pendulum
 import cloudpickle
