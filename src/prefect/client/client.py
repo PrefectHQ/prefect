@@ -1051,7 +1051,7 @@ class Client:
         Args:
             - flow (Flow): a flow to register
             - project_name (str, optional): the project that should contain this flow.
-            - build (bool, optional): if `True`, the flow's environment is built
+            - build (bool, optional): if `True`, the flow's storage is built
                 prior to serialization; defaults to `True`
             - set_schedule_active (bool, optional): if `False`, will set the schedule to
                 inactive in the database to prevent auto-scheduling runs (if the Flow has a
@@ -1129,19 +1129,6 @@ class Client:
             )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
-
-        # Configure environment.metadata (if using environment-based flows)
-        if flow.environment is not None:
-            # Set Docker storage image in environment metadata if provided
-            if isinstance(flow.storage, prefect.storage.Docker):
-                flow.environment.metadata["image"] = flow.storage.name
-                serialized_flow = flow.serialize(build=False)
-
-            # If no image ever set, default metadata to image on current version
-            if not flow.environment.metadata.get("image"):
-                version = prefect.__version__.split("+")[0]
-                flow.environment.metadata["image"] = f"prefecthq/prefect:{version}"
-                serialized_flow = flow.serialize(build=False)
 
         # verify that the serialized flow can be deserialized
         try:
@@ -1265,8 +1252,6 @@ class Client:
             # Extra information to improve visibility
             if flow.run_config is not None:
                 labels = sorted(flow.run_config.labels)
-            elif flow.environment is not None:
-                labels = sorted(flow.environment.labels)
             else:
                 labels = []
             msg = (
