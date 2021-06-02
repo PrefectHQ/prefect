@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.14.21 <Badge text="beta" type="success" />
+
+Released on June 2, 2021.
+
+### Features
+
+- Add interface for backend key-value metadata store - [#4499](https://github.com/PrefectHQ/prefect/pull/4499)
+
+### Enhancements
+
+- Keep intermediate docker layers when using Docker Storage to improve caching - [#4584](https://github.com/PrefectHQ/prefect/pull/4584)
+
+### Fixes
+
+- Fix possible race condition in `LocalResult` directory creation - [#4587](https://github.com/PrefectHQ/prefect/pull/4587)
+- Use absolute paths when registering flows in `prefect register` - [#4593](https://github.com/PrefectHQ/prefect/pull/4593)
+- Propagate storage labels (e.g. hostname label on `Local` storage) when registering flows with `prefect register` - [#4593](https://github.com/PrefectHQ/prefect/pull/4593)
+- Fix small-flow parallelism issues with multiprocess `LocalDaskExecutor` - [#4602](https://github.com/PrefectHQ/prefect/pull/4602)
+- Cleanly handle unpicklable exceptions in tasks - [#4605](https://github.com/PrefectHQ/prefect/pull/4605)
+
+### Contributors
+
+- [Tom Forbes](https://github.com/orf)
+
 ## 0.14.20 <Badge text="beta" type="success" />
 
 Released on May 25, 2021.

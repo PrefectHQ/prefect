@@ -1,5 +1,0 @@
-enhancement:
-  - "Keep intermediate docker layers when using Docker Storage to improve caching - [#4584](https://github.com/PrefectHQ/prefect/pull/4584)"
-
-contributor:
-  - "[Tom Forbes](https://github.com/orf)"
