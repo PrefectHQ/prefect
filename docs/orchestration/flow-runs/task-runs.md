@@ -212,7 +212,7 @@ Example response
 
 ### UI
 
-For monitoring task runs from the UI, see the [UI documentation on task runs](/orchestration/ui/task-runs.md).
+For monitoring task runs from the UI, see the [UI documentation on task runs](/orchestration/ui/task-run.md).
 
 ### CLI
 
