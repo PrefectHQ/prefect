@@ -18,9 +18,14 @@ if TYPE_CHECKING:
 
 def get_flow_image(flow: "Flow") -> str:
     """
+    DEPRECATED
+
     Retrieve the image to use for this flow deployment. Will start by looking for
     an `image` value in the flow's `run_config`. If not found then it will fall
     back to using the `flow.storage`.
+
+    This function was deprecated in 0.15.0 and `prefect.utilities.agent.get_flow_image`
+    should be used instead.
 
     Args:
         - flow (Flow): A flow object
