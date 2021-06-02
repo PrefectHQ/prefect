@@ -75,8 +75,6 @@ class DockerAgent(Agent):
             re-route Flow run logs to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any
             and all created containers.
-        - network (str, optional): Add containers to an existing docker network
-            (deprecated in favor of `networks`).
         - networks (List[str], optional): Add containers to existing Docker networks.
         - reg_allow_list (List[str], optional): Limits Docker Agent to only pull images
             from the listed registries.
@@ -98,7 +96,6 @@ class DockerAgent(Agent):
         no_pull: bool = None,
         volumes: List[str] = None,
         show_flow_logs: bool = False,
-        network: str = None,
         networks: List[str] = None,
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
@@ -144,20 +141,7 @@ class DockerAgent(Agent):
             )
 
         # Add containers to the given Docker networks
-        if networks and network:
-            raise ValueError(
-                "Only provide either `network` or `networks` argument, not both!"
-            )
-        if network:
-            warnings.warn(
-                "DockerAgent `network` argument is deprecated and will be removed from Prefect. "
-                "Use `networks` instead.",
-                UserWarning,
-            )
-        self.network = network
-        self.logger.debug(f"Docker network set to {self.network}")
         self.networks = networks
-        self.logger.debug(f"Docker networks set to {self.networks}")
 
         self.docker_client_timeout = docker_client_timeout or 60
 
@@ -426,11 +410,6 @@ class DockerAgent(Agent):
             networking_config = self.docker_client.create_networking_config(
                 {self.networks[0]: self.docker_client.create_endpoint_config()}
             )
-        # Try fallback on old, deprecated, behaviour.
-        if self.network:
-            networking_config = self.docker_client.create_networking_config(
-                {self.network: self.docker_client.create_endpoint_config()}
-            )
         labels = {
             "io.prefect.flow-name": flow_run.flow.name,
             "io.prefect.flow-id": flow_run.flow.id,
@@ -497,11 +476,6 @@ class DockerAgent(Agent):
                     container.get("Id"), self.networks
                 )
             )
-        if self.network:
-            self.logger.debug(
-                "Adding container to docker network: {}".format(self.network)
-            )
-
         self.docker_client.start(container=container.get("Id"))
 
         if self.show_flow_logs:
