@@ -533,7 +533,6 @@ def start(
     max_polls,
     agent_address,
     hostname_label,
-    storage_labels,
     docker_client_timeout,
 ):
     """
@@ -662,7 +661,6 @@ def start(
                 show_flow_logs=show_flow_logs,
                 no_cloud_logs=no_cloud_logs,
                 hostname_label=hostname_label,
-                storage_labels=storage_labels,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
