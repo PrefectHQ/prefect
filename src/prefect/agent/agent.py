@@ -758,17 +758,17 @@ class Agent:
 
     def _get_run_config(
         self, flow_run: GraphQLResult, run_config_cls: Type[RunConfig]
-    ) -> Optional[RunConfig]:
+    ) -> RunConfig:
         """
-        Get a run_config for the flow, if present.
+        Get a run_config for the flow, if present. The returned run config is always of
+        type `run_config_cls`
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
             - run_config_cls (Callable): The expected run-config class
 
         Returns:
-            - RunConfig: The flow run's run-config. Returns None if an
-                environment-based flow.
+            - RunConfig: The flow run's run-config or an instance of `run_config_cls`
         """
         # If the flow is using a run_config, load it
         if getattr(flow_run, "run_config", None) is not None:
@@ -784,11 +784,9 @@ class Agent:
                 self.logger.error(msg)
                 raise TypeError(msg)
             return run_config
-        elif getattr(flow_run.flow, "environment", None) is None:
-            # No environment, use default run_config
-            return run_config_cls()
 
-        return None
+        # Otherwise, return the default run_config
+        return run_config_cls()
 
     def _safe_write_run_log(
         self, flow_run: GraphQLResult, message: str, level: str
