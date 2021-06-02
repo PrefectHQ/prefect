@@ -20,17 +20,6 @@ from prefect.executors import (
 )
 
 
-@pytest.mark.parametrize(
-    "cls_name", ["LocalExecutor", "LocalDaskExecutor", "DaskExecutor"]
-)
-def test_deprecated_executors(cls_name):
-    old_cls = getattr(prefect.engine.executors, cls_name)
-    new_cls = getattr(prefect.executors, cls_name)
-    with pytest.warns(UserWarning, match="has been moved to"):
-        obj = old_cls()
-    assert isinstance(obj, new_cls)
-
-
 class TestBaseExecutor:
     def test_submit_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
