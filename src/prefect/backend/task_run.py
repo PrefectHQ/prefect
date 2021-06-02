@@ -1,7 +1,7 @@
 from typing import Any, List, Iterator
 
 from prefect import Client
-from prefect.engine.state import State
+from prefect.engine.state import Scheduled, State
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -71,6 +71,10 @@ class TaskRunView:
         Returns:
             Any: The value your task returned
         """
+
+        if not self.state.is_finished():
+            raise ValueError("The task result cannot be loaded if it is not finished.")
+
         if self._result is NotLoaded:
             # Load the result from the result location
             self._result = self._load_result()
@@ -79,27 +83,61 @@ class TaskRunView:
 
     def _load_result(self) -> Any:
         if self.state.is_mapped():
-            # Mapped tasks require the state.map_states field to be manually filled
-            # to load results of all mapped subtasks
-            child_task_runs = [
-                self._from_task_run_data(task_run)
-                for task_run in self._query_for_task_runs(
-                    where={
-                        "task": {"slug": {"_eq": self.task_slug}},
-                        "flow_run_id": {"_eq": self.flow_run_id},
-                        # Ignore the root task since we are the root task
-                        "map_index": {"_neq": -1},
-                    },
-                    # Ensure the returned tasks are ordered matching map indices
-                    order_by={"map_index": EnumValue("asc")},
-                )
-            ]
-
-            self.state.map_states = [task_run.state for task_run in child_task_runs]
+            self._load_child_results()
 
         # Fire the state result hydration
         self.state.load_result()
         return self.state.result
+
+    def _load_child_results(self) -> None:
+        """
+        Mapped tasks require `state.map_states` to be manually filled with the states
+        of child tasks for the result to be hydrated correctly
+
+        If the parent flow run is not `Finished`, we'll run into some interesting
+        problems during this retrieval as the mapped children can be uncreated, have
+        null states, or not be finished yet. We attempt to raise helpful errors in this
+        case, but it's not really a supported paradigm.
+        """
+        if not self.state.is_mapped():
+            raise ValueError("Child results cannot be loaded for an unmapped task.")
+
+        # Load all the child task runs
+        child_task_runs = [
+            self._from_task_run_data(task_run)
+            for task_run in self._query_for_task_runs(
+                where={
+                    "task": {"slug": {"_eq": self.task_slug}},
+                    "flow_run_id": {"_eq": self.flow_run_id},
+                    # Ignore the root task since we are the root task
+                    "map_index": {"_neq": -1},
+                },
+                # Ensure the returned tasks are ordered matching map indices
+                order_by={"map_index": EnumValue("asc")},
+                # Handle errors cleanly below
+                error_on_empty=False,
+            )
+        ]
+
+        # Raise an informative error if none were found
+        if not child_task_runs:
+            raise ValueError(
+                f"No child task runs were found for task {self.task_slug!r} in "
+                f"flow run {self.flow_run_id}. Is the flow run finished?"
+            )
+
+        # Ensure that all the children are finished
+        for task_run in child_task_runs:
+            if not task_run.state.is_finished():
+                raise ValueError(
+                    f"Child task run {task_run.task_slug}[{task_run.map_index}] is "
+                    f"in state {task_run.state}. The result cannot be retrieved. "
+                    "Loading results for mapped tasks in running flows is not "
+                    "supported."
+                )
+
+            # Update state
+            self.state.map_states = [task_run.state for task_run in child_task_runs]
 
     def iter_mapped(self) -> Iterator["TaskRunView"]:
         """
@@ -149,7 +187,10 @@ class TaskRunView:
         task_run = task_run.copy()  # Create a copy to avoid mutation
         task_run_id = task_run.pop("id")
         task_data = task_run.pop("task")
-        serialized_state = task_run.pop("serialized_state")
+
+        # The serialized state _could_ be null if the backend has not
+        # created it yet, this would typically be seen with mapped tasks
+        serialized_state = task_run.pop("serialized_state") or Scheduled().serialize()
 
         return cls(
             task_run_id=task_run_id,

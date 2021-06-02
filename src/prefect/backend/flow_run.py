@@ -1,28 +1,27 @@
 import copy
 import logging
 import time
-from collections import defaultdict
 from contextlib import contextmanager
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterable,
     List,
-    Mapping,
     NamedTuple,
     Optional,
-    Set,
     Any,
     Iterable,
     Type,
     cast,
+    Dict,
+    Tuple,
+    Iterator,
 )
 
 import pendulum
 
 import prefect
-from prefect import Flow, Task
+from prefect import Flow
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
@@ -35,31 +34,52 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
+def stream_flow_run_logs(flow_run_id: str) -> None:
+    """
+    Basic wrapper for `watch_flow_run` to print the logs of the run
+    """
+    for log in watch_flow_run(flow_run_id):
+        level_name = logging.getLevelName(log.level)
+        timestamp = log.timestamp.in_tz(tz="local")
+        # Uses `print` instead of the logger to prevent duplicate timestamps
+        print(
+            f"{timestamp:%H:%M:%S} | {level_name:<7} | {log.message}",
+        )
+
+
 def watch_flow_run(
     flow_run_id: str,
+    stream_states: bool = True,
     stream_logs: bool = True,
-    output_fn: Callable[[int, str], None] = logger.log,
-) -> "FlowRunView":
+) -> Iterator["FlowRunLog"]:
     """
-    Watch execution of a flow run displaying state changes. This function will hang
-    until the flow run enters a 'Finished' state.
+    Watch execution of a flow run displaying state changes. This function will yield
+    `FlowRunLog` objects until the flow run enters a 'Finished' state.
+
+    If both stream_states and stream_logs are `False` then this will just block until
+    the flow run finishes.
 
     Args:
         flow_run_id: The flow run to watch
-        stream_logs: If set, logs will be streamed from the flow run to here
-        output_fn: A callable to use to display output. Must take a log level and
-            message.
+        stream_states: If set, flow run state changes will be streamed as logs
+        stream_logs: If set, logs will be streamed from the flow run
 
-    Returns:
-        FlowRunView: A view of the final state of the flow run
+    Yields:
+        FlowRunLog: Sorted log entries
 
     """
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
     if flow_run.state.is_finished():
-        output_fn(logging.INFO, "Your flow run is already finished!")
-        return flow_run
+        time_ago = flow_run.updated_at.diff_for_humans()
+        if stream_states:
+            yield FlowRunLog(
+                timestamp=pendulum.now(),
+                level=logging.INFO,
+                message=f"Your flow run finished {time_ago}",
+            )
+        return
 
     # The timestamp of the last displayed log so that we can scope each log query
     # to logs that have not been shown yet
@@ -71,7 +91,7 @@ def watch_flow_run(
 
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
-    agent_warning_initial_wait = 5
+    agent_warning_initial_wait = 10
     agent_warning_repeat_interval = 30
     total_time_elapsed = 0
     agent_warning_time_elapsed = agent_warning_repeat_interval  # show first warning
@@ -80,22 +100,35 @@ def watch_flow_run(
     # probably should not need to tweak these.
     poll_min = poll_interval = 2
     poll_max = 10
-    poll_factor = 1.5
+    poll_factor = 1.3
 
     while not flow_run.state.is_finished():
         # Get the latest state
         flow_run = flow_run.get_latest()
 
+        # Get a rounded time elapsed for display purposes
+        total_time_elapsed_rounded = round(total_time_elapsed / 5) * 5
+        # Check for a really long run
+        if total_time_elapsed > 60 * 60 * 12:
+            raise RuntimeError(
+                "`watch_flow_run` timed out after 12 hours of waiting for completion. "
+                "Your flow run is still in state: {flow_run.state}"
+            )
+
         if (
-            total_time_elapsed > agent_warning_initial_wait
+            stream_states  # The agent warning is counted as a state log
+            and total_time_elapsed >= agent_warning_initial_wait
             and agent_warning_time_elapsed > agent_warning_repeat_interval
             and not (flow_run.state.is_running() or flow_run.state.is_finished())
         ):
             agent_msg = check_for_compatible_agents(flow_run.labels)
-            output_fn(
-                logging.WARN,
-                f"It has been {round(total_time_elapsed / 5) * 5} seconds and your "
-                f"flow run has not started. {agent_msg}",
+            yield FlowRunLog(
+                timestamp=pendulum.now(),
+                level=logging.WARN,
+                message=(
+                    f"It has been {total_time_elapsed_rounded} seconds and "
+                    f"your flow run has not started. {agent_msg}"
+                ),
             )
             agent_warning_time_elapsed = 0
 
@@ -104,16 +137,18 @@ def watch_flow_run(
         messages = []
 
         # Add state change messages
-        for state in flow_run.states[seen_states:]:
-            messages.append(
-                # Create some fake run logs
-                FlowRunLog(
-                    timestamp=state.timestamp,  # type: ignore
-                    level=logging.INFO,
-                    message=f"Entered state <{type(state).__name__}>: {state.message}",
+        if stream_states:
+            for state in flow_run.states[seen_states:]:
+                state_name = type(state).__name__
+                messages.append(
+                    # Create some fake run logs with the state transitions
+                    FlowRunLog(
+                        timestamp=state.timestamp,  # type: ignore
+                        level=logging.INFO,
+                        message=f"Entered state <{state_name}>: {state.message}",
+                    )
                 )
-            )
-            seen_states += 1
+                seen_states += 1
 
         if stream_logs:
             # Display logs if asked and the flow is running
@@ -124,12 +159,8 @@ def watch_flow_run(
                 # not seen yet
                 last_log_timestamp = logs[-1].timestamp
 
-        for timestamp, level, message in sorted(messages):
-            level_name = logging.getLevelName(level)
-            output_fn(
-                level,
-                f"{timestamp.in_tz(tz='local'):%H:%M:%S} | {level_name:<7} | {message}",
-            )
+        for flow_run_log in sorted(messages):
+            yield flow_run_log
 
         if not messages:
             # Delay the poll if there are no messages
@@ -142,8 +173,6 @@ def watch_flow_run(
         time.sleep(poll_interval)
         agent_warning_time_elapsed += poll_interval
         total_time_elapsed += poll_interval
-
-    return flow_run
 
 
 def execute_flow_run(
@@ -176,9 +205,7 @@ def execute_flow_run(
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
     # Get a `FlowRunView` object
-    flow_run = FlowRunView.from_flow_run_id(
-        flow_run_id=flow_run_id, load_static_tasks=False
-    )
+    flow_run = FlowRunView.from_flow_run_id(flow_run_id=flow_run_id)
 
     logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
@@ -497,8 +524,8 @@ class FlowRunView:
         # Store a mapping of task run ids to task runs
         self._cached_task_runs: Dict[str, "TaskRunView"] = {}
 
-        # Store a mapping of slugs to task run ids (mapped tasks share a slug)
-        self._task_slug_to_task_run_ids: Mapping[str, Set[str]] = defaultdict(set)
+        # Store a mapping of (slug, map_index) to task run ids
+        self._slug_index_to_cached_id: Dict[Tuple[str, int], str] = {}
 
         if task_runs is not None:
             for task_run in task_runs:
@@ -513,9 +540,9 @@ class FlowRunView:
         """
         if task_run.state.is_finished():
             self._cached_task_runs[task_run.task_run_id] = task_run
-            self._task_slug_to_task_run_ids[task_run.task_slug].add(
-                task_run.task_run_id
-            )
+            self._slug_index_to_cached_id[
+                (task_run.task_slug, task_run.map_index)
+            ] = task_run.task_run_id
 
     def get_latest(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
@@ -660,7 +687,7 @@ class FlowRunView:
     def from_flow_run_id(
         cls,
         flow_run_id: str,
-        load_static_tasks: bool = True,
+        load_static_tasks: bool = False,
         _cached_task_runs: Iterable["TaskRunView"] = None,
     ) -> "FlowRunView":
         """
@@ -742,7 +769,10 @@ class FlowRunView:
         return flow_runs[0]
 
     def get_task_run(
-        self, task_slug: str = None, task_run_id: str = None
+        self,
+        task_slug: str = None,
+        task_run_id: str = None,
+        map_index: int = None,
     ) -> "TaskRunView":
         """
         Get information about a task run from this flow run. Lookup is available by one
@@ -756,6 +786,10 @@ class FlowRunView:
         Args:
             - task_slug: A task slug string to use for the lookup
             - task_run_id: A task run uuid to use for the lookup
+            - map_index: If given a slug of a mapped task, an index may be provided to
+                get the the task run for that child task instead of the parent. This
+                value will only be used for a consistency check if passed with a
+                `task_run_id`
 
         Returns:
             A cached or newly constructed TaskRunView instance
@@ -777,26 +811,30 @@ class FlowRunView:
                     f"`result.task_slug == {result.task_slug!r}`"
                 )
 
+            if map_index is not None and result.map_index != map_index:
+                raise ValueError(
+                    "Both `map_index` and `task_run_id` were provided but the task "
+                    "found using `task_run_id` has a different map index! "
+                    f"`map_index == {map_index}` and "
+                    f"`result.map_index == {result.map_index}`"
+                )
+
             self._cache_task_run_if_finished(result)
             return result
 
         if task_slug is not None:
 
-            if task_slug in self._task_slug_to_task_run_ids:
-                task_run_ids = self._task_slug_to_task_run_ids[task_slug]
+            # Default to loading the parent task
+            if map_index is None:
+                map_index = -1
 
-                # Check for the 'base' task, for unmapped tasks there should always
-                # just be one run id but for mapped tasks there will be multiple
-                for task_run_id in task_run_ids:
-                    result = self._cached_task_runs[task_run_id]
-                    if result.map_index == -1:
-                        return result
-
-                # We did not find the base mapped task in the cache so we'll
-                # drop through to query for it
+            # Check the cache
+            task_run_id = self._slug_index_to_cached_id.get((task_slug, map_index))
+            if task_run_id:
+                return self._cached_task_runs[task_run_id]
 
             result = TaskRunView.from_task_slug(
-                task_slug=task_slug, flow_run_id=self.flow_run_id
+                task_slug=task_slug, flow_run_id=self.flow_run_id, map_index=map_index
             )
             self._cache_task_run_if_finished(result)
             return result

@@ -13,6 +13,7 @@ Flow runs can be created with
 - [the Prefect CLI](./creation.md#cli)
 - [the UI](/ui/flow_run.md#creation)
 - [the Prefect library](./creation.md#prefect-library)
+- [a task in another Flow](./creation.md#task)
 - [a schedule](./scheduling.md)
 - [a GraphQL API call](./creation.md#graphql)
 
@@ -45,6 +46,7 @@ Each flow contains tasks which actually do the _work_ of your flow. The state of
 Similarly to flow runs, task runs can be inspected with various methods
 
 - For programatic inspection of task runs, see the [Prefect library task run documentation](./task-runs.md#prefect-libary).
+- For passing data from one flow to another flow, see the [`get_task_run_result` task documentation](./task-runs.md#task).
 - For customized GraphQL queries for task run data, see [the documentation on query for task runs](./task-runs.md#graphql).
 - For monitoring task runs from the UI, see the [UI documentation on task runs](../ui/task-run.md).
 

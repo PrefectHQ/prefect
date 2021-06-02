@@ -102,6 +102,45 @@ inc_child = TaskRunView.from_task_slug("inc-1", flow_run_id="<id>", map_index=2)
 inc_child.get_result()  # 3
 ```
 
+### Task
+
+For composing flows, the Prefect task library provides a task to retrieve the result of a task run from another flow run. This uses the `TaskRunView.get_result()` method under the hood, it may be helpful to [get familiar with how that works](#task-run-results) first.
+
+
+Given a very simple 'child' flow
+
+```python
+from prefect import Flow, task
+
+
+@task
+def create_some_data():
+    return list(range(5))
+
+
+with Flow("child") as child_flow:
+    data = create_some_data()
+```
+
+We can create a 'parent' flow that runs the 'child' flow and retrieves the results
+
+```python
+from prefect import Flow
+from prefect.tasks.prefect import create_flow_run, get_task_run_result
+
+with Flow("parent") as parent_flow:
+    child_run_id = create_flow_run(flow_name="child")
+
+    child_data = get_task_run_result(child_run_id, "create_some_data-1")
+    # At runtime, `child_data` will be `[0, 1, 2, 3, 4]`
+```
+
+For more details on creating child flow runs, see the [`create_flow_run` task documentation](./creation.md#task)
+
+::: warning Results require completion
+Task run results will not be retrieved until the flow run with the task run is finished. This is because the flow run may make changes to the task run before completion. This means that if your 'create_some_data' task run finishes but the 'child' flow run continues to do some other work, 'get_task_run_result' will block until all the tasks in the 'child' flow run are finished.
+:::
+
 ### GraphQL
 
 #### Querying for task runs in a flow run

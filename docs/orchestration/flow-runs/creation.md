@@ -29,14 +29,37 @@ See `prefect run --help` or [optional settings](#optional-settings) for addition
 
 ## Prefect library
 
+Flow runs can be created using the Prefect `Client` interface in the `prefect` core Python library:
+
 ```python
-from prefect.backend.client import Client
+from prefect import Client
 
 client = Client()
 client.create_flow_run(flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7")
 ```
 
 See [optional settings](#optional-settings) for additional information that can be passed.
+
+
+## Task
+
+Flow runs can be created from within another flow run using the `create_flow_run` task in the Prefect task library:
+
+```python
+from prefect import Flow
+from prefect.tasks.prefect import create_flow_run, wait_for_flow_run
+
+with Flow("parent-flow") as flow:
+  # Create the child flow run, look up the flow by name
+  child_run_id = create_flow_run(flow_name="hello-world")
+
+  # Wait for the flow run to complete before considering this flow run done
+  # This is optional, this flow could exit and leave the other one running
+  wait_for_flow_run(child_run_id)
+```
+
+See [optional settings](#optional-settings) for additional information that can be passed.
+
 
 ## GraphQL  <Badge text="GQL"/>
 
@@ -51,6 +74,7 @@ mutation {
 ```
 
 See [optional settings](#optional-settings) for additional options that can be passed.
+
 
 ## Optional settings
 

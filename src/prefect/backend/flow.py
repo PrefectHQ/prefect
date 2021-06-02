@@ -99,6 +99,37 @@ class FlowView:
         return cls(**flow_args)
 
     @classmethod
+    def from_id(cls, flow_id: str) -> "FlowView":
+        """
+        Get an instance of this class given a `flow_id` or `flow_group_id` to lookup.
+        The `flow_id` will be tried first.
+
+        Args:
+            - flow_id: The uuid of the flow or the flow group
+
+        Returns:
+            A new instance of FlowView
+        """
+
+        try:
+            flow = FlowView.from_flow_id(flow_id)
+        except ValueError:
+            pass
+        else:
+            return flow
+
+        try:
+            flow = FlowView.from_flow_group_id(flow_id)
+        except ValueError:
+            pass
+        else:
+            return flow
+
+        raise ValueError(
+            f"Given id {flow_id!r} is not an existing flow or flow group id."
+        )
+
+    @classmethod
     def from_flow_id(cls, flow_id: str) -> "FlowView":
         """
         Get an instance of this class given a `flow_id` to lookup

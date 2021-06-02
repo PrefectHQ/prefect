@@ -245,6 +245,7 @@ def test_task_run_view_get_result_loads_mapped_result_data(tmpdir):
         },
         # Ensure the returned tasks are ordered matching map indices
         order_by={"map_index": EnumValue("asc")},
+        error_on_empty=False,
     )
 
 
