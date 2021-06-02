@@ -71,9 +71,7 @@ class TestClientConfig:
             assert client._api_token == "server_secret_token"
 
     def test_error_raised_on_initialization_with_incorrect_backend(self):
-        with set_temporary_config({
-            "backend": "other"
-        }):
+        with set_temporary_config({"backend": "other"}):
             with pytest.raises(ValueError):
                 client = Client()
 
@@ -106,7 +104,6 @@ class TestClientConfig:
                 client = Client()
 
             assert len(record) == 0
-
 
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(

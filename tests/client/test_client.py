@@ -63,10 +63,7 @@ def test_client_posts_to_api_using_server_backend(patch_post):
         result = client.post("/foo/bar")
         assert result == {"success": True}
         assert post.called
-        assert (
-            post.call_args[0][0]
-            == "http://my-prefect-server-host.foo:4200/foo/bar"
-        )
+        assert post.call_args[0][0] == "http://my-prefect-server-host.foo:4200/foo/bar"
 
 
 def test_version_header(monkeypatch):
@@ -166,9 +163,7 @@ def test_client_posts_graphql_to_api_server_using_server_backend(patch_post):
         result = client.graphql("{projects{name}}")
         assert result.data == {"success": True}
         assert post.called
-        assert (
-            post.call_args[0][0] == "http://my-prefect-server-host.foo:4200"
-        )
+        assert post.call_args[0][0] == "http://my-prefect-server-host.foo:4200"
 
 
 # test actual mutation and query handling
