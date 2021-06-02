@@ -7,72 +7,78 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class KafkaBatchConsume(Task):
     """
-    Task for consuming a batch of messages from a Kafka topic.
+    Task for consuming a batch of messages from Kafka topics.
 
     Args:
-        - bootstrap_servers (str:, required): comma separated host and port pairs that are the
-            addresses of kafka brokers
-        - group_id (str:, required): name of the consumer group the consumer will belong to
-        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
-            init method
-        - topic (List[str], required): list of topic names to consume messages from
+        - bootstrap_servers (str, optional): comma separated host and port pairs that are the
+            addresses of kafka brokers.
+        - group_id (str, optional): name of the consumer group the consumer will belong to
+        - topics (List[str], required): list of topic names to consume messages from
         - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
         - auto_offset_reset (str, optional): configurable offset reset policy
         - message_consume_limit (int, optional): max number of messages to consume before closing
             the consumer
+        - kafka_configs (dict, optional): a dict of kafka client configuration properties used to
+            construct the consumer.
+        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
+            init method
     """
 
     def __init__(
         self,
         bootstrap_servers: str = None,
         group_id: str = None,
-        topic: List[str] = None,
+        topics: List[str] = None,
         request_timeout: float = 1.0,
         auto_offset_reset: str = "earliest",
         message_consume_limit: int = None,
+        kafka_configs: dict = None,
         **kwargs,
     ):
 
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
-        self.topic = topic
+        self.topics = topics
         self.request_timeout = request_timeout
         self.auto_offset_reset = auto_offset_reset
         self.message_consume_limit = message_consume_limit
+        self.kafka_configs = kafka_configs or {}
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
         "bootstrap_servers",
         "group_id",
-        "topic",
+        "topics",
         "request_timeout",
         "auto_offset_reset",
         "message_consume_limit",
+        "kafka_configs",
     )
     def run(
         self,
         bootstrap_servers: str = None,
         group_id: str = None,
-        topic: List[str] = None,
+        topics: List[str] = None,
         request_timeout: float = 1.0,
         auto_offset_reset: str = "earliest",
         message_consume_limit: int = None,
-        **consumer_options,
+        kafka_configs: dict = None,
+        **kwargs,
     ) -> List[bytes]:
         """
         Run method for this Task. Invoked by calling this Task after initialization within a
         Flow context, or by using `Task.bind`.
         Args:
-        - bootstrap_servers (str:, required): comma separated host and port pairs that are the
+        - bootstrap_servers (str, required): comma separated host and port pairs that are the
             addresses of kafka brokers
-        - group_id (str:, required): name of the consumer group the consumer will belong to
-        - topic (List[str], required): list of topic names to consume messages from
+        - group_id (str, required): name of the consumer group the consumer will belong to
+        - topics (List[str], required): list of topic names to consume messages from
         - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
         - auto_offset_reset (str, optional): configurable offset reset policy
         - message_consume_limit (int, optional): max number of messages to consume before closing
             the consumer
-        - **consumer_options (Any, optional): additional keyword arguments to pass to
-            confluent_kafka's `Consumer` init config
+        - kafka_configs (dict, optional): a dict of kafka client configuration properties used to
+            construct the consumer.
         Returns:
             - List of consumed messages
         """
@@ -81,10 +87,10 @@ class KafkaBatchConsume(Task):
                 "bootstrap.servers": bootstrap_servers,
                 "group.id": group_id,
                 "auto.offset.reset": auto_offset_reset,
-                **consumer_options,
+                **kafka_configs,
             }
         )
-        consumer.subscribe(topic)
+        consumer.subscribe(topics)
 
         messages = []
         message_consume_count = 0
@@ -117,7 +123,7 @@ class KafkaBatchConsume(Task):
                                 break
                 else:
                     self.logger.info(
-                        f"No messages found for topic {topic}; closing consumer..."
+                        f"No messages found for topic {topics}; closing consumer..."
                     )
                     break
 
@@ -132,13 +138,15 @@ class KafkaBatchProduce(Task):
     Task for producing a batch of messages to a Kafka topic.
 
     Args:
-        - bootstrap_servers (str:, required): comma separated host and port pairs that are the
+        - bootstrap_servers (str, required): comma separated host and port pairs that are the
             addresses of kafka brokers
         - topic (str, required): name of topic to produce messages to
         - messages (List[dict], required): list of messages to produce into a topic where
             a single message is a dictionary with a key and a value.
         - flush_threshold (int, optional): threshold of messages produced before flushing
         - callback (Callable, optional): callback assigned to a produce call
+        - kafka_configs (dict, optional): a dict of kafka client configuration properties used to
+            construct the producer.
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
             init method
     """
@@ -150,6 +158,7 @@ class KafkaBatchProduce(Task):
         messages: List[dict] = None,
         flush_threshold: int = None,
         callback: Callable = None,
+        kafka_configs: dict = None,
         **kwargs,
     ):
         self.bootstrap_servers = bootstrap_servers
@@ -157,10 +166,16 @@ class KafkaBatchProduce(Task):
         self.messages = messages
         self.flush_threshold = flush_threshold
         self.callback = callback
+        self.kafka_configs = kafka_configs or {}
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "bootstrap_servers", "topic", "messages", "flush_threshold", "callback"
+        "bootstrap_servers",
+        "topic",
+        "messages",
+        "flush_threshold",
+        "callback",
+        "kafka_configs",
     )
     def run(
         self,
@@ -169,25 +184,25 @@ class KafkaBatchProduce(Task):
         messages: List[dict] = None,
         flush_threshold: int = None,
         callback: Callable = None,
-        **producer_options,
+        kafka_configs: dict = None,
     ):
         """
         Run method for this Task. Invoked by calling this Task after initialization within a
         Flow context, or by using `Task.bind`.
         Args:
-        - bootstrap_servers (str:, required): comma separated host and port pairs that are the
+        - bootstrap_servers (str, required): comma separated host and port pairs that are the
             addresses of kafka brokers
-        - topic (str, required): name of topic to produce messages to
-        - messages (List[dict], required): list of messages to produce into a topic where
+        - topic (str, required): name of topics to produce messages to
+        - messages (List[dict], required): list of messages to produce into topics where
             a single message is a dictionary with a key and a value.
         - flush_threshold (int, optional): threshold of messages produced before flushing
         - callback (Callable, optional): callback assigned to a produce call
-        - **producer_options (any, optional): additional keyword arguments to pass to
-            confluent_kafka's `Producer` init config
+        - kafka_configs (dict, optional): a dict of kafka client configuration properties used to
+            construct the producer.
         """
 
         producer = confluent_kafka.Producer(
-            {"bootstrap.servers": bootstrap_servers, **producer_options}
+            {"bootstrap.servers": bootstrap_servers, **kafka_configs}
         )
         message_produce_count = 0
 
@@ -198,6 +213,7 @@ class KafkaBatchProduce(Task):
                     self.logger.info(
                         f"Producer flushed {flush_threshold} messages to {topic}"
                     )
+                    message_produce_count = 0
 
             key = message.get("key")
             value = message.get("value")
