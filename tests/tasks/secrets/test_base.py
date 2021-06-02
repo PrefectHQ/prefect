@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect.engine.results import SecretResult
-from prefect.tasks.secrets import SecretBase, PrefectSecret, Secret
+from prefect.tasks.secrets import SecretBase, PrefectSecret
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 
