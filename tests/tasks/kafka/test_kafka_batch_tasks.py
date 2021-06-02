@@ -20,7 +20,7 @@ class TestKafkaBatchConsume:
         mock_confluent_kafka.Consumer.return_value = mock_consumer
         mock_consumer.poll.return_value = None
         task = KafkaBatchConsume("localhost:9092", "1")
-        assert task.run(topic=["topic"]) == []
+        assert task.run(topics=["topic"]) == []
 
     @mock.patch("prefect.tasks.kafka.kafka.confluent_kafka")
     def test_consumer_finally_closes(self, mock_confluent_kafka):
@@ -28,7 +28,7 @@ class TestKafkaBatchConsume:
         mock_confluent_kafka.Consumer.return_value = mock_consumer
         mock_consumer.poll.return_value = None
         task = KafkaBatchConsume("localhost:9092", "1")
-        task.run(topic=["topic"])
+        task.run(topics=["topic"])
         assert mock_consumer.close.called
 
     @mock.patch("prefect.tasks.kafka.kafka.confluent_kafka")
@@ -40,7 +40,7 @@ class TestKafkaBatchConsume:
         mock_confluent_kafka.Consumer.return_value = mock_consumer
         mock_consumer.poll.side_effect = [mock_message, mock_message, None]
         task = KafkaBatchConsume("localhost:9092", "1")
-        messages = task.run(topic=["topic"])
+        messages = task.run(topics=["topic"])
         assert len(messages) == 2
         for message in messages:
             assert message == "value"
