@@ -17,8 +17,6 @@ pytest.importorskip("kubernetes")
     "cmd",
     [
         "agent",
-        "agent start",
-        "agent install",
         "agent local",
         "agent local start",
         "agent local install",
@@ -27,8 +25,6 @@ pytest.importorskip("kubernetes")
         "agent kubernetes",
         "agent kubernetes start",
         "agent kubernetes install",
-        "agent fargate",
-        "agent fargate start",
         "agent ecs",
         "agent ecs start",
     ],
@@ -39,7 +35,6 @@ def test_help(cmd):
     assert result.exit_code == 0
 
 
-@pytest.mark.parametrize("deprecated", [False, True])
 @pytest.mark.parametrize(
     "name, import_path, extra_cmd, extra_kwargs",
     [
@@ -92,12 +87,6 @@ def test_help(cmd):
             ),
         ),
         (
-            "fargate",
-            "prefect.agent.fargate.FargateAgent",
-            "--launchType=EC2 --taskRoleArn=my-task-role",
-            {"launchType": "EC2", "taskRoleArn": "my-task-role"},
-        ),
-        (
             "ecs",
             "prefect.agent.ecs.ECSAgent",
             (
@@ -131,13 +120,8 @@ def test_help(cmd):
         ),
     ],
 )
-def test_agent_start(
-    name, import_path, extra_cmd, extra_kwargs, deprecated, monkeypatch
-):
-    if name == "ecs" and deprecated:
-        pytest.skip("No deprecated version for ECS agent")
-
-    command = ["start", name] if deprecated else [name, "start"]
+def test_agent_start(name, import_path, extra_cmd, extra_kwargs, monkeypatch):
+    command = [name, "start"]
     command.extend(
         (
             "--token TEST-TOKEN --api TEST-API --agent-config-id TEST-AGENT-CONFIG-ID "
@@ -145,20 +129,14 @@ def test_agent_start(
             "-e KEY3=VALUE=WITH=EQUALS --max-polls 10 --agent-address 127.0.0.1:8080"
         ).split()
     )
-    if deprecated:
-        command.append("--verbose")
-    else:
-        command.extend(["--log-level", "debug"])
+    command.extend(["--log-level", "debug"])
+
     if not isinstance(extra_cmd, str):
-        extra_cmd = extra_cmd[0] if deprecated else " ".join(extra_cmd)
+        extra_cmd = " ".join(extra_cmd)
     command.extend(extra_cmd.split())
 
     if not isinstance(extra_kwargs, dict):
-        extra_kwargs = (
-            extra_kwargs[0]
-            if deprecated
-            else dict(**extra_kwargs[0], **extra_kwargs[1])
-        )
+        extra_kwargs = dict(**extra_kwargs[0], **extra_kwargs[1])
 
     expected_kwargs = {
         "agent_config_id": "TEST-AGENT-CONFIG-ID",
@@ -167,7 +145,7 @@ def test_agent_start(
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2", "KEY3": "VALUE=WITH=EQUALS"},
         "max_polls": 10,
         "agent_address": "127.0.0.1:8080",
-        "no_cloud_logs": None if not deprecated else False,
+        "no_cloud_logs": None,
         **extra_kwargs,
     }
 
@@ -185,13 +163,6 @@ def test_agent_start(
     monkeypatch.setattr(import_path, agent_cls)
 
     result = CliRunner().invoke(agent, command)
-    if deprecated:
-        if name == "fargate":
-            assert f"Warning: The Fargate agent is deprecated" in result.output
-        else:
-            assert (
-                f"Warning: `prefect agent start {name}` is deprecated" in result.output
-            )
 
     kwargs = agent_cls.call_args[1]
     for k, v in expected_kwargs.items():
@@ -199,21 +170,10 @@ def test_agent_start(
     assert agent_obj.start.called
 
 
-def test_agent_start_fails(monkeypatch, cloud_api):
-    start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
-
-    runner = CliRunner()
-    result = runner.invoke(agent, ["start", "TEST"])
-    assert result.exit_code == 0
-    assert "TEST is not a valid agent" in result.output
-
-
-@pytest.mark.parametrize("deprecated", [False, True])
-def test_agent_local_install(monkeypatch, deprecated):
+def test_agent_local_install(monkeypatch):
     from prefect.agent.local import LocalAgent
 
-    command = ["install", "local"] if deprecated else ["local", "install"]
+    command = ["local", "install"]
     command.extend(
         (
             "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
@@ -236,19 +196,15 @@ def test_agent_local_install(monkeypatch, deprecated):
 
     result = CliRunner().invoke(agent, command)
 
-    if deprecated:
-        assert f"Warning: `prefect agent install local` is deprecated" in result.output
-
     kwargs = generate.call_args[1]
     assert kwargs == expected_kwargs
     assert "supervisord" in result.output
 
 
-@pytest.mark.parametrize("deprecated", [False, True])
-def test_agent_kubernetes_install(monkeypatch, deprecated):
+def test_agent_kubernetes_install(monkeypatch):
     from prefect.agent.kubernetes import KubernetesAgent
 
-    command = ["install", "kubernetes"] if deprecated else ["kubernetes", "install"]
+    command = ["kubernetes", "install"]
     command.extend(
         (
             "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
@@ -285,19 +241,6 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
 
     result = CliRunner().invoke(agent, command)
 
-    if deprecated:
-        assert (
-            f"Warning: `prefect agent install kubernetes` is deprecated"
-            in result.output
-        )
-
     kwargs = generate.call_args[1]
     assert kwargs == expected_kwargs
     assert "apiVersion" in result.output
-
-
-def test_agent_install_fails_non_valid_agent(cloud_api):
-    runner = CliRunner()
-    result = runner.invoke(agent, ["install", "fake_agent"])
-    assert result.exit_code == 0
-    assert "fake_agent is not a supported agent for `install`" in result.output
