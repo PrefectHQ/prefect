@@ -987,6 +987,7 @@ def build(paths, modules, names, labels, output, update):
 )
 def flow(file, name, project, label, skip_if_flow_metadata_unchanged):
     """Register a flow (DEPRECATED)"""
+    # Deprecated in 0.14.13
     click.secho(
         (
             "Warning: `prefect register flow` is deprecated, please transition to "
