@@ -190,18 +190,6 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     return res
 
 
-# DEPRECATED backward-compatible import
-from prefect.utilities.edges import unmapped as _unmapped
-
-
-def unmapped(*args, **kwargs):  # type: ignore
-    warnings.warn(
-        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`",
-        stacklevel=2,
-    )
-    return _unmapped(*args, **kwargs)
-
-
 @contextmanager
 def tags(*tags: str) -> Iterator[None]:
     """
