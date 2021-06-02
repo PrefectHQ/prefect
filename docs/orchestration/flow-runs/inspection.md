@@ -137,31 +137,3 @@ Example response
 ```
 
 Note that the response returns a `list` in the `flow_run` section because your query could return multiple results if the name is not unique.
-
-### Querying for flow run aggregates
-
-Aggregate queries allow you to collect information about many flow runs. Here's a query using the
-
-```graphql
-query {
-  flow_run_aggregate(where: {state: {_eq: "Failed"}}) {
-    aggregate {
-      count
-    }
-  }
-}
-```
-
-
-Example response
-```
-{
-  "data": {
-    "flow_run_aggregate": {
-      "aggregate": {
-        "count": 14
-      }
-    }
-  }
-}
-```

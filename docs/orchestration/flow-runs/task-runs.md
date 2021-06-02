@@ -210,32 +210,6 @@ Example response
 }
 ```
 
-#### Querying for task run aggregates
-
-```graphql
-query {
-  task_run_aggregate(where: {state: {_eq: "Success"}}) {
-    aggregate{
-      count
-    }
-  }
-}
-```
-
-Example response
-
-```json
-{
-  "data": {
-    "task_run_aggregate": {
-      "aggregate": {
-        "count": 258
-      }
-    }
-  }
-}
-```
-
 ### UI
 
 For monitoring task runs from the UI, see the [UI documentation on task runs](/orchestration/ui/task-runs.md).
