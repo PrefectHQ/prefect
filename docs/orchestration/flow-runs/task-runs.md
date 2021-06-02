@@ -91,7 +91,7 @@ with Flow("example-mapped") as flow:
   inc.map([0, 1, 2, 3, 4, 5])
 ```
 
-You can retrieve all of the mapped results or a single result at a time:
+You can retrieve all of the mapped results or a single result:
 ```python
 from prefect.backend import TaskRunView
 
@@ -100,6 +100,21 @@ inc_parent.get_result()  # [1, 2, 3, 4, 5, 6]
 
 inc_child = TaskRunView.from_task_slug("inc-1", flow_run_id="<id>", map_index=2)
 inc_child.get_result()  # 3
+```
+
+If your mapped task has many children, you can iterate through the children one at a time:
+```python
+from prefect.backend import TaskRunView
+
+inc_parent = TaskRunView.from_task_slug("inc-1", flow_run_id="<id>")
+for child_task_run in inc_parent.iter_mapped():
+    print(child_task_run.get_result())
+# 1
+# 2
+# 3
+# 4
+# 5
+# 6
 ```
 
 ### Task
