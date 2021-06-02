@@ -1,5 +1,7 @@
 # Creating flow runs
 
+Creating a flow run indicates to the backend that you'd like your flow to be executed. The backend will then place your flow run into a queue that agents poll. When your flow run is ready to execute, the agent will deploy the flow run to its infrastructure and the flow run will report its status to the backend.
+
 If you're looking for documentation on how to set up a _schedule_ that creates a flow run repeatedly, see the [scheduling documentation](./scheduling.md)
 
 If you're looking for documentation on how to run a flow from the UI, see the [UI documentation](../ui/flow_run.md#creation)
