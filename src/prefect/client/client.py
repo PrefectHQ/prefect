@@ -3,12 +3,11 @@ import json
 import os
 import re
 import time
-import urllib.parse
 import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 # if simplejson is installed, `requests` defaults to using it instead of json
 # this allows the client to gracefully handle either json or simplejson
@@ -116,7 +115,7 @@ class Client:
         if api_token:
             self._api_token = api_token
 
-        parsed_endpoint = urllib.parse.urlparse(self.backend_graphql_endpoint)
+        parsed_endpoint = urlparse(self.backend_graphql_endpoint)
         if parsed_endpoint.path and not parsed_endpoint.path.endswith("/"):
             # For more info, see https://stackoverflow.com/questions/10893374/python-confusions-with-urljoin
             warnings.warn(
