@@ -99,7 +99,7 @@ class DockerAgent(Agent):
         networks: List[str] = None,
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
-        docker_interface: bool = None,
+        docker_interface: bool = None,  # Deprecated in 0.14.18
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
