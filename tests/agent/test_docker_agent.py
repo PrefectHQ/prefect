@@ -6,7 +6,6 @@ import pytest
 import prefect
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
-from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.run_configs import DockerRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
@@ -253,7 +252,6 @@ def test_docker_agent_deploy_flow(core_version, command, api):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": core_version,
                     }
                 ),
@@ -275,38 +273,6 @@ def test_docker_agent_deploy_flow(core_version, command, api):
         "io.prefect.flow-name": "flow-name",
         "io.prefect.flow-run-id": "id",
     }
-    assert api.start.call_args[1]["container"] == "container_id"
-
-
-def test_docker_agent_deploy_flow_uses_environment_metadata(api):
-    agent = DockerAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "repo/name:tag"}
-                        ).serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert api.pull.called
-    assert api.create_container.called
-    assert api.start.called
-
-    assert api.create_host_config.call_args[1]["auto_remove"] is True
-    assert api.create_container.call_args[1]["command"] == "prefect execute flow-run"
-    assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
     assert api.start.call_args[1]["container"] == "container_id"
 
 
@@ -343,9 +309,6 @@ def test_docker_agent_deploy_flow_sets_container_name_with_index(api, collision_
                         "id": "foo",
                         "name": "flow-name",
                         "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "repo/name:tag"}
-                        ).serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -392,9 +355,6 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
                         "id": "foo",
                         "name": "flow-name",
                         "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "repo/name:tag"}
-                        ).serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -495,7 +455,6 @@ def test_docker_agent_deploy_flow_storage_raises(monkeypatch, api):
                             "storage": Local().serialize(),
                             "id": "foo",
                             "name": "flow-name",
-                            "environment": LocalEnvironment().serialize(),
                             "core_version": "0.13.0",
                         }
                     ),
@@ -521,7 +480,6 @@ def test_docker_agent_deploy_flow_no_pull(api):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -576,7 +534,6 @@ def test_docker_agent_deploy_flow_reg_allow_list_allowed(api):
                         "storage": Docker(
                             registry_url="test1", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -605,7 +562,6 @@ def test_docker_agent_deploy_flow_reg_allow_list_not_allowed(api):
                             "storage": Docker(
                                 registry_url="test2", image_name="name", image_tag="tag"
                             ).serialize(),
-                            "environment": LocalEnvironment().serialize(),
                             "core_version": "0.13.0",
                         }
                     ),
@@ -641,7 +597,6 @@ def test_docker_agent_deploy_flow_show_flow_logs(api, monkeypatch):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -692,7 +647,6 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(api):
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -959,7 +913,6 @@ def test_docker_agent_network(api):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -999,7 +952,6 @@ def test_docker_agent_networks(api):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
