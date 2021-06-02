@@ -117,10 +117,10 @@ class Client:
 
         parsed_endpoint = urlparse(self.backend_graphql_endpoint)
         if parsed_endpoint.path and not parsed_endpoint.path.endswith("/"):
-            # For more info, see https://stackoverflow.com/questions/10893374/python-confusions-with-urljoin
+            # For more info: https://stackoverflow.com/questions/10893374/python-confusions-with-urljoin
             warnings.warn(
-                "The Client's GraphQL base URL doesn't end in a trailing slash. This may cause unexpected "
-                "behavior when path concatenation is performed using urllib.parse.urljoin."
+                "The Client's GraphQL base URL doesn't end in a trailing slash. This may cause "
+                "unexpected behavior when path concatenation is performed using urllib.parse.urljoin."
             )
 
         # Initialize the tenant and api token if not yet set
