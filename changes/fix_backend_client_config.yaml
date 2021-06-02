@@ -1,0 +1,6 @@
+fix:
+  - Initialize `Client` with proper configuration values when backend is set to server
+enhancement:
+  - Add `UserWarning` when the URL passed to `Client` is missing a trailing slash
+contributor:
+  - "[Michael Wheeler](https://github.com/mwheeler01)"
