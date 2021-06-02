@@ -1,7 +1,7 @@
 import time
+import warnings
 import datetime
 from datetime import timedelta
-import warnings
 from typing import Any
 from urllib.parse import urlparse
 
@@ -212,13 +212,3 @@ class StartFlowRun(Task):
                     f"{flow_run_id} finished in state {flow_run_state}"
                 )
                 raise exc
-
-
-class FlowRunTask(StartFlowRun):
-    def __new__(cls, *args, **kwargs):  # type: ignore
-        warnings.warn(
-            "`FlowRunTask` has been renamed to `prefect.tasks.prefect.StartFlowRun`,"
-            "please update your code accordingly",
-            stacklevel=2,
-        )
-        return super().__new__(cls)
