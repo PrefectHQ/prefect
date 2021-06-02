@@ -28,16 +28,6 @@ def client(monkeypatch):
     yield cloud_client
 
 
-def test_deprecated_old_name():
-    from prefect.tasks.prefect import FlowRunTask
-
-    with pytest.warns(UserWarning, match="StartFlowRun"):
-        task = FlowRunTask(name="My flow run")
-
-    assert isinstance(task, StartFlowRun)
-    assert task.name == "My flow run"
-
-
 class TestStartFlowRunCloud:
     def test_initialization(self, cloud_api):
         now = pendulum.now()
