@@ -70,6 +70,13 @@ class TestClientConfig:
             )
             assert client._api_token == "server_secret_token"
 
+    def test_error_raised_on_initialization_with_incorrect_backend(self):
+        with set_temporary_config({
+            "backend": "other"
+        }):
+            with pytest.raises(ValueError):
+                client = Client()
+
     def test_warning_raised_on_initialization_without_trailing_slash(self):
         with set_temporary_config(
             {
@@ -78,11 +85,7 @@ class TestClientConfig:
                 "server.host": "http://my-prefect-server-host.foo",
                 "server.port": "4200",
                 "server.host_port": "4199",
-                "server.graphql.host": "http://my-prefect-server-graphql.foo",
-                "server.graphql.port": "4201",
-                "server.graphql.host_port": "4202",
-                "server.graphql.path": "/graphql",
-                "server.auth_token": "server_secret_token",
+                "server.endpoint": "http://my-prefect-server-host.foo:4200",
             }
         ):
             with pytest.warns(UserWarning) as record:
