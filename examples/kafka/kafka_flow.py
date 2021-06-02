@@ -1,6 +1,6 @@
 import time
 from prefect.tasks.kafka.kafka import KafkaBatchConsume, KafkaBatchProduce
-from prefect import task, Flow
+from prefect import task, Flow, Parameter
 
 TOPIC = "example_events"
 BOOTSTRAP_SERVER = "localhost:9092"
@@ -14,43 +14,45 @@ def print_results(x):
     print(f"Total messages: {len(x)}")
 
 
-kafka_consume = KafkaBatchConsume(BOOTSTRAP_SERVER, GROUP_ID)
-kafka_produce = KafkaBatchProduce(BOOTSTRAP_SERVER)
-
-
 with Flow("Kafka Example") as flow:
-
     messages = [{"key": str(i), "value": str(i)} for i in range(30000)]
 
-    kafka_produce.run(
+    produce_20k = KafkaBatchProduce(
+        bootstrap_servers=BOOTSTRAP_SERVER,
         topic=TOPIC,
         messages=messages[0:20000],
         flush_threshold=1000,
     )
 
-    kafka_produce.run(
+    produce_remaining = KafkaBatchProduce(
         bootstrap_servers=BOOTSTRAP_SERVER,
         topic=TOPIC,
         messages=messages[20000:],
         flush_threshold=1000,
     )
 
-    time.sleep(5)
-
-    messages = kafka_consume.run(
-        topic=[TOPIC],
+    consume_10k = KafkaBatchConsume(
+        bootstrap_servers=BOOTSTRAP_SERVER,
+        group_id=GROUP_ID,
+        topics=[TOPIC],
         request_timeout=1.0,
         message_consume_limit=10000,
         auto_offset_reset="latest",
     )
-    print_results(messages)
 
-    remaining_messages = kafka_consume.run(
+    consume_remaining = KafkaBatchConsume(
         bootstrap_servers=BOOTSTRAP_SERVER,
         group_id=GROUP_ID,
-        topic=[TOPIC],
+        topics=[TOPIC],
         request_timeout=1.0,
     )
-    print_results(remaining_messages)
+
+    produce_20k.set_downstream(
+        task=consume_10k.set_downstream(task=print_results, key='x')
+    )
+
+    produce_remaining.set_downstream(
+        task=consume_remaining.set_downstream(task=print_results, key='x')
+    )
 
 flow.run()
