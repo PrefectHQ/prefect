@@ -47,45 +47,6 @@ def inst(sub) -> Storage:
     )
 
 
-@pytest.mark.parametrize(
-    "cls_name, args",
-    [
-        ("Azure", ("container",)),
-        ("Bitbucket", ("project", "repo")),
-        ("CodeCommit", ("repo",)),
-        ("Docker", ()),
-        ("GCS", ("bucket",)),
-        ("GitHub", ("repo", "path")),
-        ("GitLab", ("repo",)),
-        ("Local", ()),
-        ("S3", ("bucket",)),
-        ("Webhook", ({}, "PATCH", {}, "GET")),
-    ],
-)
-def test_deprecated_storage_classes(cls_name, args):
-    import prefect
-    from prefect.serialization.storage import StorageSchema
-
-    cls = getattr(prefect.storage, cls_name)
-    old_cls = getattr(prefect.environments.storage, cls_name)
-    with pytest.warns(UserWarning, match="deprecated"):
-        old_obj = old_cls(*args)
-
-    # Old cls is subclass of new class
-    assert isinstance(old_obj, cls)
-    # Serialization roundtrips to new class
-    new = StorageSchema().load(old_obj.serialize())
-    assert type(new) is cls
-
-
-def test_deprecated_get_default_storage_class():
-    import prefect
-
-    with pytest.warns(UserWarning, match="deprecated"):
-        cls = prefect.environments.storage.get_default_storage_class()
-    assert cls is Local
-
-
 def test_default_storage():
     assert get_default_storage_class() is Local
 
