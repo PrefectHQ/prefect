@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 def get_flow_image(flow: "Flow") -> str:
     """
     Retrieve the image to use for this flow deployment. Will start by looking for
-    an `image` value in the flow's `environment.metadata`. If not found then it will fall
+    an `image` value in the flow's `run_config`. If not found then it will fall
     back to using the `flow.storage`.
 
     Args:
@@ -30,21 +30,17 @@ def get_flow_image(flow: "Flow") -> str:
 
     Raises:
         - ValueError: if deployment attempted on unsupported Storage type and `image` not
-            present in environment metadata
+            present in run_config type
     """
-    environment = flow.environment
-    if (
-        environment is not None
-        and hasattr(environment, "metadata")
-        and environment.metadata.get("image")
-    ):
-        return environment.metadata.get("image", "")
+    run_config = flow.run_config
+    if run_config is not None and hasattr(run_config, "image"):
+        return run_config.image
     else:
         storage = flow.storage
         if not isinstance(storage, prefect.storage.Docker):
             raise ValueError(
                 f"Storage for flow run {flow.name} is not of type Docker and "
-                f"environment has no `image` attribute in the metadata field."
+                f"run_config has no `image` attribute in the metadata field."
             )
 
         return storage.name
