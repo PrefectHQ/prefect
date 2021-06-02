@@ -143,7 +143,7 @@ class CloudHandler(logging.Handler):
             return
 
         # backwards compatibility for `PREFECT__LOGGING__LOG_TO_CLOUD` which is
-        # a deprecated config variable
+        # a deprecated config variable as of 0.14.20
         if not context.config.logging.get("log_to_cloud", True):
             return
 
