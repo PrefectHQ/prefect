@@ -31,6 +31,7 @@ class TestClientConfig:
                 "server.host": "http://my-prefect-server-host.foo",
                 "server.port": "4200",
                 "server.host_port": "4199",
+                "server.endpoint": "http://my-prefect-server-host.foo:4200",
                 "server.graphql.host": "http://my-prefect-server-graphql.foo",
                 "server.graphql.port": "4201",
                 "server.graphql.host_port": "4202",
@@ -54,6 +55,7 @@ class TestClientConfig:
                 "server.host": "http://my-prefect-server-host.foo",
                 "server.port": "4200",
                 "server.host_port": "4199",
+                "server.endpoint": "http://my-prefect-server-host.foo:4200",
                 "server.graphql.host": "http://my-prefect-server-graphql.foo",
                 "server.graphql.port": "4201",
                 "server.graphql.host_port": "4202",
@@ -64,7 +66,7 @@ class TestClientConfig:
             client = Client()
             assert (
                 client.backend_graphql_endpoint
-                == "http://my-prefect-server-graphql.foo:4201/graphql/"
+                == "http://my-prefect-server-host.foo:4200"
             )
             assert client._api_token == "server_secret_token"
 
