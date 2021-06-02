@@ -6,6 +6,4 @@ from prefect.schedules.schedules import (
     Schedule,
     IntervalSchedule,
     CronSchedule,
-    OneTimeSchedule,
-    UnionSchedule,
 )
