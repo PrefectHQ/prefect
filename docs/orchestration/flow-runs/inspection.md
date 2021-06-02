@@ -2,9 +2,9 @@
 
 For monitoring flow runs from the UI, see the [UI documentation on flow runs](../ui/flow-run.md).
 
-## Prefect library
+## Python
 
-The Prefect library provides an object for inspecting flow runs without writing queries at `prefect.backend.FlowRunView`.
+The Prefect Core library provides an object for inspecting flow runs without writing queries at `prefect.backend.FlowRunView`.
 
 ### Creating a `FlowRunView`
 

@@ -25,7 +25,7 @@ The CLI command supports several additional options, see the
 
 
 ::: tip Get started quickly
-Prefect provides a classic Hello World flow to get you started. Just register the flow in the Prefect library.
+Prefect provides a classic Hello World flow to get you started. Just register the flow included in the Prefect Python package.
 ```bash
 $ prefect register --project "my project" --module "prefect.hello_world"
 ```
