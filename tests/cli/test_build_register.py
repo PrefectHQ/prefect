@@ -269,8 +269,19 @@ class TestRegister:
         assert flow_version == exp_version
         assert is_new == is_new_version
 
-    def test_load_flows_from_script(self, tmpdir):
-        path = str(tmpdir.join("test.py"))
+    @pytest.mark.parametrize("relative", [False, True])
+    def test_load_flows_from_script(self, tmpdir, relative):
+        abs_path = str(tmpdir.join("test.py"))
+        if relative:
+            if os.name == "nt":
+                pytest.skip(
+                    "This test can fail on windows if the test file is on a different "
+                    "drive. This should have no effect during actual execution."
+                )
+            path = os.path.relpath(abs_path)
+        else:
+            path = abs_path
+
         source = textwrap.dedent(
             """
             from prefect import Flow
@@ -284,7 +295,7 @@ class TestRegister:
             assert __name__ != "__main__"
             """
         )
-        with open(path, "w") as f:
+        with open(abs_path, "w") as f:
             f.write(source)
 
         tmpdir.join("my_prefect_helper_file.py").write("def helper():\n    pass")
@@ -292,9 +303,9 @@ class TestRegister:
         flows = {f.name: f for f in load_flows_from_script(path)}
         assert len(flows) == 2
         assert isinstance(flows["f1"].storage, S3)
-        assert flows["f1"].storage.local_script_path == path
+        assert flows["f1"].storage.local_script_path == abs_path
         assert isinstance(flows["f2"].storage, Local)
-        assert flows["f2"].storage.path == path
+        assert flows["f2"].storage.path == abs_path
         assert flows["f2"].storage.stored_as_script
 
     def test_load_flows_from_script_error(self, tmpdir, capsys):
@@ -563,12 +574,18 @@ class TestRegister:
         if not names:
             names = ["flow 1", "flow 2"]
 
+        storage_labels = Local().labels
+
         assert register_serialized_flow.call_count == len(names)
         for args, kwargs in register_serialized_flow.call_args_list:
             assert not args
             assert kwargs["project_id"] == "my-project-id"
             assert kwargs["serialized_flow"]["name"] in names
-            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {"a", "b"}
+            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {
+                "a",
+                "b",
+                *storage_labels,
+            }
             assert kwargs["force"] == force
 
         # Bulk of the output is tested elsewhere, only a few smoketests here
@@ -741,7 +758,8 @@ class TestBuild:
         written_names = [f["name"] for f in out["flows"]]
         assert written_names == exp_names
 
-        assert flow2["run_config"]["labels"] == ["a", "b", "new"]
+        storage_labels = Local().labels
+        assert set(flow2["run_config"]["labels"]) == {"a", "b", "new", *storage_labels}
         assert flow2["run_config"]["type"] == "LocalRun"
 
         build_logs = "\n".join(

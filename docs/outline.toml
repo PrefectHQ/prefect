@@ -33,6 +33,10 @@ methods = ["execute_flow_run", "watch_flow_run"]
 title = "Task Run"
 module = "prefect.backend.task_run"
 classes = ["TaskRunView"]
+[pages.backend.kv_store]
+title = "KV Store"
+module = "prefect.backend.kv_store"
+functions = ["set_key_value", "get_key_value", "delete_key", "list_keys"]
 
 [pages.client.client]
 title = "Client"
@@ -83,6 +87,11 @@ commands = ["register"]
 title = "build"
 module = "prefect.cli.build_register"
 commands = ["build"]
+
+[pages.cli.kv_store]
+title = "kv_store"
+module = "prefect.cli.kv_store"
+commands = ["set_command", "get_command", "delete_command", "list_command"]
 
 [pages.cli.run]
 title = "run"
