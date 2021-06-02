@@ -81,11 +81,7 @@ class TestClientConfig:
         with set_temporary_config(
             {
                 "backend": "server",
-                # Server config
-                "server.host": "http://my-prefect-server-host.foo",
-                "server.port": "4200",
-                "server.host_port": "4199",
-                "server.endpoint": "http://my-prefect-server-host.foo:4200",
+                "server.endpoint": "http://my-prefect-server-host.foo:4200/graphql",
             }
         ):
             with pytest.warns(UserWarning) as record:
@@ -99,6 +95,18 @@ class TestClientConfig:
                     "The Client's GraphQL base URL doesn't end in a trailing slash."
                 )
             )
+
+        with set_temporary_config(
+            {
+                "backend": "server",
+                "server.endpoint": "http://my-prefect-server-host.foo:4200",
+            }
+        ):
+            with pytest.warns(None) as record:
+                client = Client()
+
+            assert len(record) == 0
+
 
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(

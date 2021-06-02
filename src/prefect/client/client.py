@@ -3,6 +3,7 @@ import json
 import os
 import re
 import time
+import urllib.parse
 import uuid
 import warnings
 from pathlib import Path
@@ -115,7 +116,8 @@ class Client:
         if api_token:
             self._api_token = api_token
 
-        if not self.backend_graphql_endpoint.endswith("/"):
+        parsed_endpoint = urllib.parse.urlparse(self.backend_graphql_endpoint)
+        if parsed_endpoint.path and not parsed_endpoint.path.endswith("/"):
             # For more info, see https://stackoverflow.com/questions/10893374/python-confusions-with-urljoin
             warnings.warn(
                 "The Client's GraphQL base URL doesn't end in a trailing slash. This may cause unexpected "
