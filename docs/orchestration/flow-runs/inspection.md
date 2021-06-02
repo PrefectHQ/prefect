@@ -17,7 +17,7 @@ flow_run = FlowRunView.from_flow_run_id("4c0101af-c6bb-4b96-8661-63a5bbfb5596")
 ```
 
 :::warning Immutability
-`FlowRunView` objects are views of the backend `Flow Run` at the time of creation. 
+`FlowRunView` objects are views of the backend `Flow Run` at the time of the view's creation.
 They will not retrieve the newest information each time you access their properties.
 To get the newest data for a flow run, use `flow_run = flow_run.get_latest()` which will return a new `FlowRunView` instance.
 :::
