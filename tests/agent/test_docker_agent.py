@@ -551,33 +551,6 @@ def test_docker_agent_deploy_flow_unsupported_run_config(api):
     assert not api.pull.called
 
 
-def test_docker_agent_deploy_flow_storage_raises(monkeypatch, api):
-    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock())
-
-    agent = DockerAgent()
-
-    with pytest.raises(ValueError):
-        agent.deploy_flow(
-            flow_run=GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Local().serialize(),
-                            "id": "foo",
-                            "name": "flow-name",
-                            "core_version": "0.13.0",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                    "version": "version",
-                }
-            )
-        )
-
-    assert not api.pull.called
-
-
 def test_docker_agent_deploy_flow_no_pull(api):
     agent = DockerAgent(no_pull=True)
     agent.deploy_flow(
@@ -589,33 +562,6 @@ def test_docker_agent_deploy_flow_no_pull(api):
                         "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert not api.pull.called
-    assert api.create_container.called
-    assert api.start.called
-
-
-def test_docker_agent_deploy_flow_no_pull_using_environment_metadata(api):
-    agent = DockerAgent(no_pull=True)
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "name:tag"}
                         ).serialize(),
                         "core_version": "0.13.0",
                     }
