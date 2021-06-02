@@ -482,11 +482,6 @@ class FlowRunView:
         - run_config: The `RunConfig` this flow run was configured with
         - states: A sorted list of past states the flow run has been in
         - task_runs: An iterable of task run metadata to cache in this view
-
-    Properties:
-        - flow: Metadata for the flow this run is associated with; lazily retrived on
-            first use
-
     """
 
     def __init__(
@@ -851,7 +846,7 @@ class FlowRunView:
         Returns:
             A list of TaskRunView objects
         """
-        if len(self.task_run_ids) > 1000:
+        if len(self.get_task_run_ids()) > 1000:
             raise ValueError(
                 "Refusing to `get_all_task_runs` for a flow with more than 1000 tasks. "
                 "Please load the tasks you are interested in individually."
@@ -871,8 +866,7 @@ class FlowRunView:
 
         return task_runs + list(self._cached_task_runs.values())
 
-    @property
-    def task_run_ids(self) -> List[str]:
+    def get_task_run_ids(self) -> List[str]:
         """
         Get all task run ids associated with this flow run. Lazily loaded at call time
         then cached for future calls.
