@@ -4,6 +4,5 @@ import prefect.serialization.edge
 
 import prefect.serialization.flow
 import prefect.serialization.state
-import prefect.serialization.environment
 import prefect.serialization.storage
 import prefect.serialization.run_config
