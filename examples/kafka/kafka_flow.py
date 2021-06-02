@@ -48,11 +48,11 @@ with Flow("Kafka Example") as flow:
     )
 
     produce_20k.set_downstream(
-        task=consume_10k.set_downstream(task=print_results, key='x')
+        task=consume_10k.set_downstream(task=print_results, key="x")
     )
 
     produce_remaining.set_downstream(
-        task=consume_remaining.set_downstream(task=print_results, key='x')
+        task=consume_remaining.set_downstream(task=print_results, key="x")
     )
 
 flow.run()
