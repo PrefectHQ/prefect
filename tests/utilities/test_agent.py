@@ -85,7 +85,6 @@ def test_get_flow_run_command(core_version, command):
             "flow": GraphQLResult(
                 {
                     "storage": Local().serialize(),
-                    "environment": LocalEnvironment().serialize(),
                     "id": "id",
                     "core_version": core_version,
                 }
@@ -104,7 +103,6 @@ def test_get_flow_run_command_works_if_core_version_not_on_response():
             "flow": GraphQLResult(
                 {
                     "storage": Local().serialize(),
-                    "environment": LocalEnvironment().serialize(),
                     "id": "id",
                 }
             ),
