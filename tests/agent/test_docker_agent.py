@@ -1010,43 +1010,6 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
         agent._parse_volume_spec([candidate])
 
 
-def test_docker_agent_network(api):
-    api.create_networking_config.return_value = {"test-network": "config"}
-
-    with pytest.warns(UserWarning):
-        agent = DockerAgent(network="test-network")
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Docker(
-                            registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert agent.network == "test-network"
-    assert agent.networks is None
-    args, kwargs = api.create_container.call_args
-    assert kwargs["networking_config"] == {"test-network": "config"}
-
-
-def test_docker_agent_network_network_and_networks(api):
-    with pytest.raises(ValueError):
-        DockerAgent(
-            network="test-network", networks=["test-network-1", "test-network-2"]
-        )
-
-
 def test_docker_agent_networks(api):
     api.create_networking_config.return_value = {
         "test-network-1": "config1",
