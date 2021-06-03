@@ -937,6 +937,7 @@ class FlowRunView:
                     f"flow_run_id={self.flow_run_id!r}",
                     f"name={self.name!r}",
                     f"state={self.state!r}",
+                    f"labels={self.labels!r}",
                     f"cached_task_runs={len(self._cached_task_runs)}",
                 ]
             )
