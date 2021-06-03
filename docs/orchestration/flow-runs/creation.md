@@ -29,7 +29,7 @@ See `prefect run --help` or [optional settings](#optional-settings) for addition
 `prefect run` can be used to execute a local flow as well if you provide a `--path` or a `--module` to load the flow from
 :::
 
-## Prefect library
+## Python client
 
 Flow runs can be created using the Prefect `Client` interface in the `prefect` core Python library:
 
@@ -92,7 +92,7 @@ $ prefect run --id "d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7" --param a=2
 ```
 :::
 
-::: tab Prefect library
+::: tab Python client
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
@@ -128,7 +128,7 @@ $ prefect run --id "d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7" --run-name "docs examp
 ```
 :::
 
-::: tab Prefect library
+::: tab Python client
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
@@ -155,7 +155,7 @@ Flows can be assigned a start time in the future rather than being marked for ex
 
 :::: tabs
 
-::: tab Prefect library
+::: tab Python client
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
@@ -189,7 +189,7 @@ If you provide an `idempotency_key` when creating a flow run, you can safely att
 
 :::: tabs
 
-::: tab Prefect library
+::: tab Python client
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 

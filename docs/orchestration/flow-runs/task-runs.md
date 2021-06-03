@@ -8,7 +8,7 @@ Prefect does not store the _results_ of your task runs. The data that your task 
 
 ## Inspecting task runs
 
-### Prefect library
+### Python
 
 ::: warning Experimental
 <div class="experimental-warning">
@@ -32,8 +32,7 @@ The functionality here is experimental, and may change between versions without 
 </div>
 :::
 
-
-The Prefect library provides an object for inspecting task runs without writing queries at `prefect.backend.TaskRunView`.
+The Prefect Core library provides an object for inspecting task runs without writing queries at `prefect.backend.TaskRunView`.
 
 #### Creating a `TaskRunView`
 

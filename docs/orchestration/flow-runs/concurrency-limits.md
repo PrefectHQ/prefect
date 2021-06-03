@@ -163,7 +163,7 @@ You can edit and remove the concurrency limit of tags at any time. Select the bl
 ![](/orchestration/ui/task-concurrency-limit-icons.png)
 :::
 
-::: tab Prefect library
+::: tab Python client
 
 To update your tag concurrency limits programatically, use the Prefect library client:
 
@@ -216,7 +216,7 @@ You can view your Task tag concurrency limits by navigating to Team Settings -> 
 
 :::
 
-::: tab Prefect library
+::: tab Python client
 
 ```python
 from prefect import Client
