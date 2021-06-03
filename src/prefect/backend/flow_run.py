@@ -37,6 +37,8 @@ logger = get_logger("backend.flow_run")
 def stream_flow_run_logs(flow_run_id: str) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
+
+    EXPERIMENTAL: This interface is experimental and subject to change
     """
     for log in watch_flow_run(flow_run_id):
         level_name = logging.getLevelName(log.level)
@@ -58,6 +60,8 @@ def watch_flow_run(
 
     If both stream_states and stream_logs are `False` then this will just block until
     the flow run finishes.
+
+    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         flow_run_id: The flow run to watch
@@ -185,6 +189,8 @@ def execute_flow_run(
     The primary entry point for executing a flow run. The flow run will be run
     in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
 
+    EXPERIMENTAL: This interface is experimental and subject to change
+
     Args:
         - flow_run_id: The flow run id to execute; this run id must exist in the database
         - flow: A Flow object can be passed to execute a flow without loading t from
@@ -271,7 +277,8 @@ def execute_flow_run(
 def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -> str:
     """
     Checks for agents compatible with a set of labels returning a user-friendly message
-    indicating the status, roughly one of the following cases
+    indicating the status, roughly one of the following cases:
+
     - There is a healthy agent with matching labels
     - There are N healthy agents with matching labels
     - There is an unhealthy agent with matching labels but no healthy agents matching
@@ -279,6 +286,7 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     - There are no healthy agents at all and no unhealthy agents with matching labels
     - There are healthy agents but no healthy or unhealthy agent has matching labels
 
+    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         - labels: A set of labels; typically associated with a flow run
@@ -392,6 +400,7 @@ def fail_flow_run_on_exception(
     the flow run state to 'Cancelled' instead and will not use the message. All errors
     will be re-raised.
 
+
     Args:
         - flow_run_id: The flow run id to update the state of
         - message: The message to include in the state and logs. `{exc}` will be formatted
@@ -425,6 +434,8 @@ def fail_flow_run_on_exception(
 class FlowRunLog(NamedTuple):
     """
     Small wrapper for backend log objects
+
+    EXPERIMENTAL: This interface is experimental and subject to change
     """
 
     timestamp: pendulum.DateTime
@@ -470,6 +481,8 @@ class FlowRunView:
     backend API at the time it is created. However, each time a task run is retrieved
     the latest data for that task will be pulled since they are loaded lazily. Finished
     task runs will be cached in this object to reduce the amount of network IO.
+
+    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         - flow_run_id: The uuid of the flow run
