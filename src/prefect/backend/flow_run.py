@@ -212,7 +212,7 @@ def execute_flow_run(
 
     # Get data about the flow run from the backend
     flow_run = FlowRunView.from_flow_run_id(flow_run_id=flow_run_id)
-    flow_metadata = FlowRunView.get_flow_metadata()
+    flow_metadata = flow_run.get_flow_metadata()
 
     logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
