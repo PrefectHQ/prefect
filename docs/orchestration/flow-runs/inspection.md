@@ -48,10 +48,10 @@ flow_run.state.message
 
 ### Getting flow metadata
 
-Metadata about the flow that the flow run was created for is accessible using the `.flow` property
+Metadata about the flow that the flow run was created for is accessible using `.get_flow_metadata()`
 
 ```python
-flow_run.flow
+flow_run.get_flow_metdata()
 # FlowView(
 #   flow_id='8bdcf5b5-7598-49d1-a885-61612ca550de', 
 #   name='hello-world', 
@@ -64,7 +64,8 @@ This object contains the metadata that the Prefect backend stores about your flo
 
 ::: tip Flow metadata caching
 Flow metadata is lazily loaded by request then _cached_ in the `FlowRunView` for later access.
-This means the first call to `.flow` requires network IO but future calls are instant.
+This means the first call requires network IO but future calls are instant.
+If you want to force the `FlowView` to be reloaded, pass `no_cache=True`.
 :::
 
 ### Getting flow task runs

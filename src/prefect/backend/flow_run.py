@@ -204,16 +204,17 @@ def execute_flow_run(
     #       create a separate config argument for flow runs executed with the backend
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
-    # Get a `FlowRunView` object
+    # Get data about the flow run from the backend
     flow_run = FlowRunView.from_flow_run_id(flow_run_id=flow_run_id)
+    flow_metadata = FlowRunView.get_flow_metadata()
 
     logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
     # Populate global secrets
     secrets = prefect.context.get("secrets", {})
-    if flow_run.flow.storage:
+    if flow_metadata.storage:
         logger.info("Loading secrets...")
-        for secret in flow_run.flow.storage.secrets:
+        for secret in flow_metadata.storage.secrets:
             with fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message=f"Failed to load flow secret {secret!r}: {{exc}}",
@@ -222,13 +223,13 @@ def execute_flow_run(
 
     # Load the flow from storage if not explicitly provided
     if not flow:
-        logger.info(f"Loading flow from {flow_run.flow.storage}...")
+        logger.info(f"Loading flow from {flow_metadata.storage}...")
         with prefect.context(secrets=secrets, loading_flow=True):
             with fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message="Failed to load flow from storage: {exc}",
             ):
-                flow = flow_run.flow.storage.get_flow(flow_run.flow.name)
+                flow = flow_metadata.storage.get_flow(flow_metadata.name)
 
     # Update the run context to include secrets with merging
     run_kwargs = copy.deepcopy(kwargs)
@@ -244,7 +245,7 @@ def execute_flow_run(
 
     # Execute the flow, this call will block until exit
     logger.info(
-        f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
+        f"Beginning execution of flow run {flow_run.name!r} from {flow_metadata.name!r} "
         f"with {runner_cls.__name__!r}"
     )
     with prefect.context(flow_run_id=flow_run_id):
@@ -252,7 +253,7 @@ def execute_flow_run(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
         ):
-            if flow_run.flow.run_config is not None:
+            if flow_metadata.run_config is not None:
                 runner_cls(flow=flow).run(**run_kwargs)
 
             # Support for deprecated `flow.environment` use
@@ -619,16 +620,19 @@ class FlowRunView:
 
         return [FlowRunLog.from_dict(log) for log in logs]
 
-    @property
-    def flow(self) -> "FlowView":
+    def get_flow_metadata(self, no_cache: bool = False) -> "FlowView":
         """
-        Flow metadata for the flow associated with this flow run. Lazily loaded at call
-        time then cached for future calls.
+        Flow metadata for the flow associated with this flow run. Retrieved from the
+        API on first call then cached for future calls.
+
+        Args:
+            - no_cache: If set, the cached `FlowView` will be ignored and the latest
+                data for the flow will be pulled.
 
         Returns:
-            An instance of FlowView
+            FlowView: A view of the Flow metadata for the Flow this run is from
         """
-        if self._flow is None:
+        if self._flow is None or no_cache:
             self._flow = FlowView.from_flow_id(flow_id=self.flow_id)
 
         return self._flow
