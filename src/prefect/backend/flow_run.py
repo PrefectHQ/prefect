@@ -64,9 +64,9 @@ def watch_flow_run(
     EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
-        flow_run_id: The flow run to watch
-        stream_states: If set, flow run state changes will be streamed as logs
-        stream_logs: If set, logs will be streamed from the flow run
+        - flow_run_id: The flow run to watch
+        - stream_states: If set, flow run state changes will be streamed as logs
+        - stream_logs: If set, logs will be streamed from the flow run
 
     Yields:
         FlowRunLog: Sorted log entries
