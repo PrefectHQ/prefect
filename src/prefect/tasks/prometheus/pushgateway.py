@@ -27,7 +27,7 @@ class PushGaugeToGateway(Task):
         - grouping_key (str, optional): List of the key used to calculate the grouping key
         - job_name (str, optional): Name of the job
         - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor    
+            Task constructor
 
     """
 
@@ -85,7 +85,7 @@ class PushGaugeToGateway(Task):
             - None
 
         Raises:
-            - ValueError: if pushgateway_url or counter_name are empty and values and labels list 
+            - ValueError: if pushgateway_url or counter_name are empty and values and labels list
                     doesn't have the same length
         """
         if not pushgateway_url:
