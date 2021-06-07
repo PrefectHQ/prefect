@@ -26,6 +26,8 @@ class PushGaugeToGateway(Task):
         - counter_description (str, optional): description of the counter
         - grouping_key (str, optional): List of the key used to calculate the grouping key
         - job_name (str, optional): Name of the job
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor    
 
     """
 
@@ -68,9 +70,9 @@ class PushGaugeToGateway(Task):
         (ttps://prometheus.io/docs/practices/pushing/).
 
         Args:
-            - values List[float]: List of the values to push
-            - labels List[Dict[str, str]]: List of the labels to push attached to the values
-            - action PushMode: Mode used to send to pushgateway. push or pushadd. Please check
+            - values (List[float]): List of the values to push
+            - labels (List[Dict[str, str]]): List of the labels to push attached to the values
+            - action (PushMode): Mode used to send to pushgateway. push or pushadd. Please check
                         pushgateway [python doc]
                         (https://github.com/prometheus/client_python#exporting-to-a-pushgateways)
             - pushgateway_url (str, optional): Url of the prometheus pushgateway instance
@@ -78,6 +80,13 @@ class PushGaugeToGateway(Task):
             - counter_description (str, optional): description of the counter
             - grouping_key (str, optional): List of the key used to calculate the grouping key
             - job_name (str, optional): Name of the job
+
+        Returns:
+            - None
+
+        Raises:
+            - ValueError: if pushgateway_url or counter_name are empty and values and labels list 
+                    doesn't have the same length
         """
         if not pushgateway_url:
             raise ValueError("You need to provide the pushgateway_url parameter.")
