@@ -71,7 +71,8 @@ class PushGaugeToGateway(Task):
             - values List[float]: List of the values to push
             - labels List[Dict[str, str]]: List of the labels to push attached to the values
             - action PushMode: Mode used to send to pushgateway. push or pushadd. Please check
-                        pushgateway [python doc](https://github.com/prometheus/client_python#exporting-to-a-pushgateways)
+                        pushgateway [python doc]
+                        (https://github.com/prometheus/client_python#exporting-to-a-pushgateways)
             - pushgateway_url (str, optional): Url of the prometheus pushgateway instance
             - counter_name (str, optional): Name of the counter
             - counter_description (str, optional): description of the counter
