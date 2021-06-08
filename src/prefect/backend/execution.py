@@ -58,7 +58,7 @@ def execute_flow_run_in_subprocess(
 
     while not flow_run.state.is_finished():
 
-        wait_for_flow_run_start_time(flow_run_id)
+        _wait_for_flow_run_start_time(flow_run_id)
 
         try:
             # Creating a subprocess allows us to pass environment variables and ensure
@@ -69,14 +69,14 @@ def execute_flow_run_in_subprocess(
                 [sys.executable, "-m", "prefect", "execute", "flow-run"], env=env
             )
         except KeyboardInterrupt:
-            fail_flow_run(
+            _fail_flow_run(
                 flow_run_id=flow_run_id,
                 message="Flow run recieved an interrupt signal.",
             )
             raise  # Reraise interrupts
         except Exception as exc:
             message = "Flow run encountered unexpected exception during execution"
-            fail_flow_run(
+            _fail_flow_run(
                 flow_run_id=flow_run_id,
                 message=f"{message}: {exc!r}",
             )
@@ -95,9 +95,154 @@ def execute_flow_run_in_subprocess(
     return flow_run
 
 
-def wait_for_flow_run_start_time(flow_run_id: str) -> None:
+def execute_flow_run(
+    flow_run_id: str,
+    flow: "Flow" = None,
+    runner_cls: Type["prefect.engine.flow_runner.FlowRunner"] = None,
+    **kwargs: Any,
+) -> "FlowRunView":
+    """ "
+    The primary entry point for executing a flow run. The flow run will be run
+    in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
+
+    This function assumes that the flow run's environment variables have been set
+    already. See `execute_flow_run_in_subprocess` if you neeed the environment to be
+    created.
+
+    Args:
+        - flow_run_id: The flow run id to execute; this run id must exist in the database
+        - flow: A Flow object can be passed to execute a flow without loading t from
+            Storage. If `None`, the flow's Storage metadata will be pulled from the
+            API and used to get a functional instance of the Flow and its tasks.
+        - runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
+        - **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
+
+    Returns:
+        A `FlowRunView` instance with information about the state of the flow run and its
+        task runs
+    """
+    logger.debug(f"Querying for flow run {flow_run_id!r}")
+
+    # Get the `FlowRunner` class type
+    # TODO: Respect a config option for this class so it can be overridden by env var,
+    #       create a separate config argument for flow runs executed with the backend
+    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
+
+    # Get a `FlowRunView` object
+    flow_run = FlowRunView.from_flow_run_id(
+        flow_run_id=flow_run_id, load_static_tasks=False
+    )
+
+    logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
+
+    # Populate global secrets
+    secrets = prefect.context.get("secrets", {})
+    if flow_run.flow.storage:
+        logger.info("Loading secrets...")
+        for secret in flow_run.flow.storage.secrets:
+            with _fail_flow_run_on_exception(
+                flow_run_id=flow_run_id,
+                message=f"Failed to load flow secret {secret!r}: {{exc}}",
+            ):
+                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
+
+    # Load the flow from storage if not explicitly provided
+    if not flow:
+        logger.info(f"Loading flow from {flow_run.flow.storage}...")
+        with prefect.context(secrets=secrets, loading_flow=True):
+            with _fail_flow_run_on_exception(
+                flow_run_id=flow_run_id,
+                message="Failed to load flow from storage: {exc}",
+            ):
+                flow = flow_run.flow.storage.get_flow(flow_run.flow.name)
+
+    # Update the run context to include secrets with merging
+    run_kwargs = copy.deepcopy(kwargs)
+    run_kwargs["context"] = run_kwargs.get("context", {})
+    run_kwargs["context"]["secrets"] = {
+        # User provided secrets will override secrets we pulled from storage and the
+        # current context
+        **secrets,
+        **run_kwargs["context"].get("secrets", {}),
+    }
+    # Update some default run kwargs with flow settings
+    run_kwargs.setdefault("executor", flow.executor)
+
+    # Execute the flow, this call will block until exit
+    logger.info(
+        f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
+        f"with {runner_cls.__name__!r}"
+    )
+    with prefect.context(flow_run_id=flow_run_id):
+        with _fail_flow_run_on_exception(
+            flow_run_id=flow_run_id,
+            message="Failed to execute flow: {exc}",
+        ):
+            if flow_run.flow.run_config is not None:
+                runner_cls(flow=flow).run(**run_kwargs)
+
+            # Support for deprecated `flow.environment` use
+            else:
+                environment = flow.environment
+                environment.setup(flow)
+                environment.execute(flow)
+
+    # Get the final state
+    flow_run = flow_run.get_latest()
+    logger.info(f"Run finished with final state {flow_run.state}")
+    return flow_run
+
+
+def generate_flow_run_environ(
+    flow_run_id: str, flow_id: str, run_config: RunConfig, run_token: str = None
+) -> dict:
+    """
+    Utility to generate the environment variables required for a flow run
+    """
+    # TODO: Create a function to cast select config keys to env vars
+    # TODO: Compare this local agent env to other agent envs to create general func
+    # TODO: Use general func in all agents
+
+    # Local environment
+    env = os.environ.copy()
+
+    # Pass through the current log level before the run config allowing the run config
+    # to override it
+    env.update({"PREFECT__LOGGING__LEVEL": prefect.config.logging.level})
+
+    # Update with run config environment
+    if run_config is not None and run_config.env is not None:
+        env.update(run_config.env)
+
+    # Finally, update with required environment variables
+    env.update(
+        {
+            "PREFECT__BACKEND": prefect.config.backend,
+            "PREFECT__CLOUD__API": prefect.config.cloud.api,
+            "PREFECT__CLOUD__AUTH_TOKEN": run_token or prefect.config.cloud.auth_token,
+            "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run_id,
+            "PREFECT__CONTEXT__FLOW_ID": flow_id,
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(
+                prefect.config.cloud.send_flow_run_logs
+            ),
+            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+        }
+    )
+
+    # Filter out None values
+    return {k: v for k, v in env.items() if v is not None}
+
+
+def _wait_for_flow_run_start_time(flow_run_id: str) -> None:
+    """
+    Utility that sleeps until the correct flow run start time using
+    `_get_flow_run_scheduled_start_time` then `_get_next_task_run_start_time`
+
+    See those two docstrings for details on why this is necessary.
+    """
     logger.debug("Checking for flow run scheduled start time...")
-    flow_run_start = get_flow_run_scheduled_start_time(flow_run_id)
+    flow_run_start = _get_flow_run_scheduled_start_time(flow_run_id)
     if flow_run_start:
         interval = flow_run_start.diff(abs=False).in_seconds() * -1
         message = f"Flow run scheduled to run {flow_run_start.diff_for_humans()}; "
@@ -110,7 +255,7 @@ def wait_for_flow_run_start_time(flow_run_id: str) -> None:
         logger.debug("No scheduled time found; trying to run flow now...")
 
     logger.debug("Checking for retried task runs...")
-    next_task_start = get_next_task_run_start_time(flow_run_id)
+    next_task_start = _get_next_task_run_start_time(flow_run_id)
     if next_task_start:
         interval = next_task_start.diff(abs=False).in_seconds() * -1
         message = f"Found task run scheduled {next_task_start.diff_for_humans()}; "
@@ -125,7 +270,7 @@ def wait_for_flow_run_start_time(flow_run_id: str) -> None:
         logger.debug("No scheduled task runs found; trying to run flow now...")
 
 
-def get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
+def _get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
     """
     Queries task runs associated with a flow run to get the earliest state start time.
     This time _may_ be in the past.
@@ -176,7 +321,7 @@ def get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTime
     return cast(pendulum.DateTime, pendulum.parse(next_start_time))
 
 
-def get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
+def _get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.DateTime]:
     """
     Queries for the current scheduled start time of a flow
 
@@ -251,143 +396,8 @@ def get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.Dat
     return cast(pendulum.DateTime, pendulum.parse(start_time))
 
 
-def generate_flow_run_environ(
-    flow_run_id: str, flow_id: str, run_config: RunConfig, run_token: str = None
-) -> dict:
-    # TODO: Create a function to cast select config keys to env vars
-    # TODO: Compare this local agent env to other agent envs to create general func
-    # TODO: Use general func in all agents
-
-    # 1. Local environment
-    env = os.environ.copy()
-
-    # 2. Logging config
-    env.update({"PREFECT__LOGGING__LEVEL": prefect.config.logging.level})
-
-    # 5. Values set on a LocalRun RunConfig (if present
-    if run_config is not None and run_config.env is not None:
-        env.update(run_config.env)
-
-    # Required variables
-    env.update(
-        {
-            "PREFECT__BACKEND": prefect.config.backend,
-            "PREFECT__CLOUD__API": prefect.config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": run_token or prefect.config.cloud.auth_token,
-            "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run_id,
-            "PREFECT__CONTEXT__FLOW_ID": flow_id,
-            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(
-                prefect.config.cloud.send_flow_run_logs
-            ),
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-        }
-    )
-
-    # Filter out None values
-    return {k: v for k, v in env.items() if v is not None}
-
-
-def execute_flow_run(
-    flow_run_id: str,
-    flow: "Flow" = None,
-    runner_cls: Type["prefect.engine.flow_runner.FlowRunner"] = None,
-    **kwargs: Any,
-) -> "FlowRunView":
-    """ "
-    The primary entry point for executing a flow run. The flow run will be run
-    in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
-
-    This function assumes that the flow run's environment variables have been set
-    already. See `execute_flow_run_in_subprocess` if you neeed the environment to be
-    created.
-
-    Args:
-        - flow_run_id: The flow run id to execute; this run id must exist in the database
-        - flow: A Flow object can be passed to execute a flow without loading t from
-            Storage. If `None`, the flow's Storage metadata will be pulled from the
-            API and used to get a functional instance of the Flow and its tasks.
-        - runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
-        - **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
-
-    Returns:
-        A `FlowRunView` instance with information about the state of the flow run and its
-        task runs
-    """
-    logger.debug(f"Querying for flow run {flow_run_id!r}")
-
-    # Get the `FlowRunner` class type
-    # TODO: Respect a config option for this class so it can be overridden by env var,
-    #       create a separate config argument for flow runs executed with the backend
-    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
-
-    # Get a `FlowRunView` object
-    flow_run = FlowRunView.from_flow_run_id(
-        flow_run_id=flow_run_id, load_static_tasks=False
-    )
-
-    logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
-
-    # Populate global secrets
-    secrets = prefect.context.get("secrets", {})
-    if flow_run.flow.storage:
-        logger.info("Loading secrets...")
-        for secret in flow_run.flow.storage.secrets:
-            with fail_flow_run_on_exception(
-                flow_run_id=flow_run_id,
-                message=f"Failed to load flow secret {secret!r}: {{exc}}",
-            ):
-                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
-
-    # Load the flow from storage if not explicitly provided
-    if not flow:
-        logger.info(f"Loading flow from {flow_run.flow.storage}...")
-        with prefect.context(secrets=secrets, loading_flow=True):
-            with fail_flow_run_on_exception(
-                flow_run_id=flow_run_id,
-                message="Failed to load flow from storage: {exc}",
-            ):
-                flow = flow_run.flow.storage.get_flow(flow_run.flow.name)
-
-    # Update the run context to include secrets with merging
-    run_kwargs = copy.deepcopy(kwargs)
-    run_kwargs["context"] = run_kwargs.get("context", {})
-    run_kwargs["context"]["secrets"] = {
-        # User provided secrets will override secrets we pulled from storage and the
-        # current context
-        **secrets,
-        **run_kwargs["context"].get("secrets", {}),
-    }
-    # Update some default run kwargs with flow settings
-    run_kwargs.setdefault("executor", flow.executor)
-
-    # Execute the flow, this call will block until exit
-    logger.info(
-        f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
-        f"with {runner_cls.__name__!r}"
-    )
-    with prefect.context(flow_run_id=flow_run_id):
-        with fail_flow_run_on_exception(
-            flow_run_id=flow_run_id,
-            message="Failed to execute flow: {exc}",
-        ):
-            if flow_run.flow.run_config is not None:
-                runner_cls(flow=flow).run(**run_kwargs)
-
-            # Support for deprecated `flow.environment` use
-            else:
-                environment = flow.environment
-                environment.setup(flow)
-                environment.execute(flow)
-
-    # Get the final state
-    flow_run = flow_run.get_latest()
-    logger.info(f"Run finished with final state {flow_run.state}")
-    return flow_run
-
-
 @contextmanager
-def fail_flow_run_on_exception(
+def _fail_flow_run_on_exception(
     flow_run_id: str,
     message: str = None,
 ) -> Any:
@@ -411,12 +421,12 @@ def fail_flow_run_on_exception(
     except Exception as exc:
         message = message.format(exc=exc.__repr__())
         if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
-            fail_flow_run(flow_run_id, message)
+            _fail_flow_run(flow_run_id, message)
         logger.error(message, exc_info=True)
         raise
 
 
-def fail_flow_run(flow_run_id: str, message: str) -> None:
+def _fail_flow_run(flow_run_id: str, message: str) -> None:
     """
     Set a flow run to a 'Failed' state and write a a failure message log
     """
@@ -428,7 +438,7 @@ def fail_flow_run(flow_run_id: str, message: str) -> None:
         [
             dict(
                 flow_run_id=flow_run_id,  # type: ignore
-                name="prefect.backend.execution.execute_flow_run",
+                name="prefect.backend.execution._fail_flow_run",
                 message=message,
                 level="ERROR",
             )
