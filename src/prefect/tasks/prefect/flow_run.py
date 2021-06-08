@@ -72,7 +72,7 @@ def create_flow_run(
     scheduled_start_time: Optional[Union[pendulum.DateTime, datetime.datetime]] = None,
 ) -> str:
     """
-    Create a flow run in the Prefect backend.
+    Task to create a flow run in the Prefect backend.
 
     The flow to run must be registered and an agent must be available to deploy the
     flow run.
@@ -152,8 +152,10 @@ def get_task_run_result(
     flow_run_id: str, task_slug: str, map_index: int = -1, poll_time: int = 5
 ) -> Any:
     """
-    Get the result of a task from a flow run. Will wait for the flow run to finish
-    entirely or dynamic task runs will not be properly populated.
+    Task to get the result of a task from a flow run.
+
+    Will wait for the flow run to finish entirely or dynamic task run results will not
+    be properly populated.
 
     Results are loaded from the `Result` location of the task which may not be
     accessible from where this task is executed. You will need to ensure results can
@@ -207,7 +209,7 @@ def wait_for_flow_run(
     flow_run_id: str, stream_states: bool = True, stream_logs: bool = False
 ) -> "FlowRunView":
     """
-    Wait for a flow run to finish executing, streaming state and log information
+    Task to wait for a flow run to finish executing, streaming state and log information
 
     Args:
         - flow_run_id: The flow run id to wait for
