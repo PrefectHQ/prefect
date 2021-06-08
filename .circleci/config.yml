@@ -46,6 +46,10 @@ jobs:
           command: pip install -e .
 
       - run:
+          name: Install mypy type stubs for requirements
+          command: yes | mypy --install-types
+
+      - run:
           name: Run Black
           command: black --check .
 
