@@ -3,6 +3,7 @@ Tests for `TaskRunView`
 """
 import time
 import pytest
+import sys
 import os
 from unittest.mock import MagicMock, call
 
@@ -215,7 +216,9 @@ def test_task_run_view_get_result_errors_on_missing_result_data(tmpdir):
     )
 
     # The result is not loaded
-    with pytest.raises(FileNotFoundError, match=repr(result.location)):
+    with pytest.raises(
+        FileNotFoundError, match=result.location if sys.platform != "win32" else ""
+    ):
         task_run.get_result()
 
     # Still flagged as not loaded
