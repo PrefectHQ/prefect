@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, call
 
 from prefect.backend import TaskRunView
 from prefect.backend.task_run import NotLoaded
+from prefect.engine.result import Result
 from prefect.engine.results import LocalResult
 from prefect.engine.state import Success, Mapped
 from prefect.utilities.graphql import EnumValue
@@ -247,6 +248,29 @@ def test_task_run_view_get_result_loads_mapped_result_data(tmpdir):
         order_by={"map_index": EnumValue("asc")},
         error_on_empty=False,
     )
+
+
+def test_task_run_view_get_result_does_not_allow_custom_result_types(
+    tmpdir,
+):
+    class MyCustomResult(Result):
+        pass
+
+    # Instantiate a very minimal task run view with the custom result
+    task_run = TaskRunView(
+        task_run_id=None,
+        task_id=None,
+        task_slug=None,
+        name=None,
+        # Roundtrip serialize/deserialize to coerce the custom result type to the
+        # type that would happen if it was written to the backend and retrieved
+        state=Success.deserialize(Success(result=MyCustomResult()).serialize()),
+        map_index=-1,
+        flow_run_id=None,
+    )
+
+    with pytest.raises(TypeError, match="Only built-in `Result` types are supported"):
+        assert task_run.get_result()
 
 
 def test_task_run_view_iter_mapped():
