@@ -4,6 +4,8 @@ from tabulate import tabulate
 
 from prefect import Client, config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
+import webbrowser
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 
 def check_override_auth_token():
@@ -54,62 +56,81 @@ def auth():
         ...token output...
     """
     if config.backend == "server":
-        raise click.UsageError("Auth commands with server are not currently supported.")
+        raise click.UsageError(
+            "Auth commands with Server are not currently supported. Run `prefect backend cloud` to switch to Cloud instead."
+        )
 
 
 @auth.command(hidden=True)
 @click.option(
-    "--token", "-t", required=True, help="A Prefect Cloud API token.", hidden=True
+    "--slug",
+    "-s",
+    required=False,
+    help="A Prefect Cloud team slug",
+    hidden=False
+    # "--token", "-t", required=True, help="A Prefect Cloud API token.", hidden=True
 )
-def login(token):
+def login(slug):
     """
-    Log in to Prefect Cloud with an api token to use for Cloud communication.
+    Log in to Prefect Cloud, passing an optional team Slug
 
     \b
     Options:
-        --token, -t         TEXT    A Prefect Cloud api token  [required]
+        --slug, -s         TEXT    A Prefect Cloud team slug  [optional]
     """
-    check_override_auth_token()
+    url = "https://universal.prefect.io"
+    webbrowser.open(url, new=0, autoraise=True)
 
-    client = Client(api_token=token)
+    server = ThreadingHTTPServer("", 8090)
 
-    # Verify login obtained a valid api token
-    try:
-        output = client.graphql(
-            query={"query": {"user": {"default_membership": "tenant_id"}}}
-        )
+    # """
+    # Log in to Prefect Cloud with an api token to use for Cloud communication.
 
-        # Log into default membership
-        success_login = client.login_to_tenant(
-            tenant_id=output.data.user[0].default_membership.tenant_id
-        )
+    # \b
+    # Options:
+    #     --token, -t         TEXT    A Prefect Cloud api token  [required]
+    # """
+    # check_override_auth_token()
 
-        if not success_login:
-            raise AuthorizationError
+    # client = Client(api_token=token)
 
-    except AuthorizationError:
-        click.secho(
-            f"Error attempting to use Prefect API token {token}. "
-            "Please check that you are providing a USER scoped Personal Access Token.\n"
-            "For more information visit the documentation for USER tokens at "
-            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
-            fg="red",
-        )
-        return
-    except ClientError:
-        click.secho(
-            "Error attempting to communicate with Prefect Cloud. "
-            "Please check that you are providing a USER scoped Personal Access Token.\n"
-            "For more information visit the documentation for USER tokens at "
-            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
-            fg="red",
-        )
-        return
+    # # Verify login obtained a valid api token
+    # try:
+    #     output = client.graphql(
+    #         query={"query": {"user": {"default_membership": "tenant_id"}}}
+    #     )
 
-    # save token
-    client.save_api_token()
+    #     # Log into default membership
+    #     success_login = client.login_to_tenant(
+    #         tenant_id=output.data.user[0].default_membership.tenant_id
+    #     )
 
-    click.secho("Login successful!", fg="green")
+    #     if not success_login:
+    #         raise AuthorizationError
+
+    # except AuthorizationError:
+    #     click.secho(
+    #         f"Error attempting to use Prefect API token {token}. "
+    #         "Please check that you are providing a USER scoped Personal Access Token.\n"
+    #         "For more information visit the documentation for USER tokens at "
+    #         "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+    #         fg="red",
+    #     )
+    #     return
+    # except ClientError:
+    #     click.secho(
+    #         "Error attempting to communicate with Prefect Cloud. "
+    #         "Please check that you are providing a USER scoped Personal Access Token.\n"
+    #         "For more information visit the documentation for USER tokens at "
+    #         "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+    #         fg="red",
+    #     )
+    #     return
+
+    # # save token
+    # client.save_api_token()
+
+    # click.secho("Login successful!", fg="green")
 
 
 @auth.command(hidden=True)
