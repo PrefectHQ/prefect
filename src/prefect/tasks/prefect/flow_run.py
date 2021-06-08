@@ -181,6 +181,15 @@ def get_task_run_result(
 
     task_dsp = repr(task_slug) if map_index == -1 else f"'{task_slug}[{map_index}]'"
 
+    if prefect.context.get("flow_run_id") == flow_run_id:
+        # Since we are going to wait for flow run completion, if they pass this flow
+        # run id, we will hang forever.
+        raise ValueError(
+            "Given `flow_run_id` is the same as the currently running flow. The "
+            "`get_task_run_result` task cannot be used to retrieve results from the "
+            "flow run it belongs to."
+        )
+
     # Get the parent flow run state
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 

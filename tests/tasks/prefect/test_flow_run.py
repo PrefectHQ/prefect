@@ -180,6 +180,14 @@ class TestGetTaskRunResult:
         with pytest.raises(ValueError, match="`task_slug` is empty"):
             get_task_run_result.run(flow_run_id="id", task_slug="")
 
+    def test_does_not_allow_current_flow_run(self):
+        with prefect.context(flow_run_id="id"):
+            with pytest.raises(
+                ValueError,
+                match="`flow_run_id` is the same as the currently running flow",
+            ):
+                get_task_run_result.run(flow_run_id="id", task_slug="foo")
+
     def test_waits_for_flow_run_to_finish(self, MockFlowRunView, monkeypatch):
         # Create a fake flow run that is 'Running' then 'Finished'
         flow_run = MagicMock()
