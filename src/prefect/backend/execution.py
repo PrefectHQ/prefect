@@ -13,6 +13,7 @@ from prefect.backend.flow_run import FlowRunView
 from prefect.run_configs import RunConfig
 from prefect.utilities.logging import get_logger
 from prefect.utilities.graphql import with_args
+from prefect.configuration import to_environment_variables
 
 
 logger = get_logger("backend.execution")
@@ -194,43 +195,63 @@ def execute_flow_run(
 
 
 def generate_flow_run_environ(
-    flow_run_id: str, flow_id: str, run_config: RunConfig, run_token: str = None
+    flow_run_id: str,
+    flow_id: str,
+    run_config: RunConfig,
+    run_token: str = None,
 ) -> dict:
     """
     Utility to generate the environment variables required for a flow run
     """
-    # TODO: Create a function to cast select config keys to env vars
     # TODO: Compare this local agent env to other agent envs to create general func
     # TODO: Use general func in all agents
 
     # Local environment
     env = os.environ.copy()
 
-    # Pass through the current log level before the run config allowing the run config
-    # to override it
-    env.update({"PREFECT__LOGGING__LEVEL": prefect.config.logging.level})
+    # Pass through config options that can be overriden by run config
+    env.update(
+        to_environment_variables(
+            prefect.config,
+            include={
+                "prefect.config.logging.level",
+                "prefect.config.cloud.send_flow_run_logs",
+            },
+        )
+    )
 
     # Update with run config environment
     if run_config is not None and run_config.env is not None:
         env.update(run_config.env)
 
-    # Finally, update with required environment variables
+    # Update with config options that cannot be overriden by the run config
+    env.update(
+        to_environment_variables(
+            prefect.config,
+            include={"prefect.config.backend", "prefect.config.cloud.api"},
+        )
+    )
+
+    # Pass authentication through
+    env["PREFECT__CLOUD__AUTH_TOKEN"] = (run_token or prefect.config.cloud.auth_token,)
+
+    # Add context information for the run
     env.update(
         {
-            "PREFECT__BACKEND": prefect.config.backend,
-            "PREFECT__CLOUD__API": prefect.config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": run_token or prefect.config.cloud.auth_token,
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run_id,
             "PREFECT__CONTEXT__FLOW_ID": flow_id,
-            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(
-                prefect.config.cloud.send_flow_run_logs
-            ),
+        }
+    )
+
+    # Update hardcoded execution variables
+    env.update(
+        {
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }
     )
 
-    # Filter out None values
+    # Filter out `None` values
     return {k: v for k, v in env.items() if v is not None}
 
 

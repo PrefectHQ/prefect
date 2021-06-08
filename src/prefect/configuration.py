@@ -3,7 +3,7 @@ import os
 import re
 import warnings
 from ast import literal_eval
-from typing import Optional, Union, cast
+from typing import Optional, Union, cast, Iterable
 
 import toml
 from box import Box
@@ -139,6 +139,21 @@ def process_task_defaults(config: Config) -> Config:
         defaults.timeout = None
 
     return config
+
+
+def to_environment_variables(
+    config: Config, include: Optional[Iterable[str]] = None, prefix="PREFECT"
+) -> dict:
+    # Convert to a flat dict for construction without recursion
+    flat_config = collections.dict_to_flatdict(config)
+
+    # Generate env vars as "PREFIX__SECTION__KEY"
+    return {
+        "__".join([prefix] + list(key)).upper(): value
+        for key, value in flat_config.items()
+        # Only include the specified keys
+        if not include or ".".join(key) in include
+    }
 
 
 # Validation ------------------------------------------------------------------
