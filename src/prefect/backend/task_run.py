@@ -2,6 +2,7 @@ from typing import Any, List, Iterator
 
 from prefect import Client
 from prefect.engine.state import Scheduled, State
+from prefect.engine.result import Result
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -20,6 +21,8 @@ class TaskRunView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created.
 
+    EXPERIMENTAL: This interface is experimental and subject to change
+
     Args:
         - task_run_id: The task run uuid
         - task_id: The uuid of the task associated with this task run
@@ -29,10 +32,6 @@ class TaskRunView:
         - map_index: The map index of the task run. Is -1 if it is not a mapped subtask,
              otherwise it is in the index of the task run in the mapping
         - flow_run_id: The uuid of the flow run associated with this task run
-
-    Properties:
-        - result: The result of this task run loaded from the `Result` location; lazily
-            retrieved on first use
     """
 
     def __init__(
@@ -74,6 +73,8 @@ class TaskRunView:
 
         if not self.state.is_finished():
             raise ValueError("The task result cannot be loaded if it is not finished.")
+
+        self._assert_result_type_is_not_custom()
 
         if self._result is NotLoaded:
             # Load the result from the result location
@@ -136,8 +137,30 @@ class TaskRunView:
                     "supported."
                 )
 
+            # Ensure the mapped children have
+            task_run._assert_result_type_is_not_custom()
+
             # Update state
             self.state.map_states = [task_run.state for task_run in child_task_runs]
+
+    def _assert_result_type_is_not_custom(self):
+        """
+        Since we do not have access to the user's custom Result class, we cannot load
+        the result.
+        """
+        # TODO: Check for custom serializer types as well once they are added to the
+        #       `ResultSchema`
+        # TODO: Add the `result_type` to `TaskRunView` so we can report the qualified
+        #       name of the custom result type used.
+
+        if type(self.state._result) is Result and not self.state.is_mapped():
+            # The `Result` base class is used during deserialization if a custom result
+            # class has been declared unless it's a mapped state in which it will be
+            # an empty `Result` and this assertion will be called on the map children
+            raise TypeError(
+                "The task has a custom `Result` type and its result cannot be loaded. "
+                "Only built-in `Result` types are supported."
+            )
 
     def iter_mapped(self) -> Iterator["TaskRunView"]:
         """

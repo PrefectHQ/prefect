@@ -37,6 +37,8 @@ logger = get_logger("backend.flow_run")
 def stream_flow_run_logs(flow_run_id: str) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
+
+    EXPERIMENTAL: This interface is experimental and subject to change
     """
     for log in watch_flow_run(flow_run_id):
         level_name = logging.getLevelName(log.level)
@@ -59,10 +61,12 @@ def watch_flow_run(
     If both stream_states and stream_logs are `False` then this will just block until
     the flow run finishes.
 
+    EXPERIMENTAL: This interface is experimental and subject to change
+
     Args:
-        flow_run_id: The flow run to watch
-        stream_states: If set, flow run state changes will be streamed as logs
-        stream_logs: If set, logs will be streamed from the flow run
+        - flow_run_id: The flow run to watch
+        - stream_states: If set, flow run state changes will be streamed as logs
+        - stream_logs: If set, logs will be streamed from the flow run
 
     Yields:
         FlowRunLog: Sorted log entries
@@ -185,6 +189,8 @@ def execute_flow_run(
     The primary entry point for executing a flow run. The flow run will be run
     in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
 
+    EXPERIMENTAL: This interface is experimental and subject to change
+
     Args:
         - flow_run_id: The flow run id to execute; this run id must exist in the database
         - flow: A Flow object can be passed to execute a flow without loading t from
@@ -204,16 +210,17 @@ def execute_flow_run(
     #       create a separate config argument for flow runs executed with the backend
     runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
 
-    # Get a `FlowRunView` object
+    # Get data about the flow run from the backend
     flow_run = FlowRunView.from_flow_run_id(flow_run_id=flow_run_id)
+    flow_metadata = flow_run.get_flow_metadata()
 
     logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
 
     # Populate global secrets
     secrets = prefect.context.get("secrets", {})
-    if flow_run.flow.storage:
+    if flow_metadata.storage:
         logger.info("Loading secrets...")
-        for secret in flow_run.flow.storage.secrets:
+        for secret in flow_metadata.storage.secrets:
             with fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message=f"Failed to load flow secret {secret!r}: {{exc}}",
@@ -222,13 +229,13 @@ def execute_flow_run(
 
     # Load the flow from storage if not explicitly provided
     if not flow:
-        logger.info(f"Loading flow from {flow_run.flow.storage}...")
+        logger.info(f"Loading flow from {flow_metadata.storage}...")
         with prefect.context(secrets=secrets, loading_flow=True):
             with fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message="Failed to load flow from storage: {exc}",
             ):
-                flow = flow_run.flow.storage.get_flow(flow_run.flow.name)
+                flow = flow_metadata.storage.get_flow(flow_metadata.name)
 
     # Update the run context to include secrets with merging
     run_kwargs = copy.deepcopy(kwargs)
@@ -244,7 +251,7 @@ def execute_flow_run(
 
     # Execute the flow, this call will block until exit
     logger.info(
-        f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
+        f"Beginning execution of flow run {flow_run.name!r} from {flow_metadata.name!r} "
         f"with {runner_cls.__name__!r}"
     )
     with prefect.context(flow_run_id=flow_run_id):
@@ -252,7 +259,7 @@ def execute_flow_run(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
         ):
-            if flow_run.flow.run_config is not None:
+            if flow_metadata.run_config is not None:
                 runner_cls(flow=flow).run(**run_kwargs)
 
             # Support for deprecated `flow.environment` use
@@ -270,7 +277,8 @@ def execute_flow_run(
 def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -> str:
     """
     Checks for agents compatible with a set of labels returning a user-friendly message
-    indicating the status, roughly one of the following cases
+    indicating the status, roughly one of the following cases:
+
     - There is a healthy agent with matching labels
     - There are N healthy agents with matching labels
     - There is an unhealthy agent with matching labels but no healthy agents matching
@@ -278,6 +286,7 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     - There are no healthy agents at all and no unhealthy agents with matching labels
     - There are healthy agents but no healthy or unhealthy agent has matching labels
 
+    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         - labels: A set of labels; typically associated with a flow run
@@ -391,6 +400,7 @@ def fail_flow_run_on_exception(
     the flow run state to 'Cancelled' instead and will not use the message. All errors
     will be re-raised.
 
+
     Args:
         - flow_run_id: The flow run id to update the state of
         - message: The message to include in the state and logs. `{exc}` will be formatted
@@ -424,6 +434,8 @@ def fail_flow_run_on_exception(
 class FlowRunLog(NamedTuple):
     """
     Small wrapper for backend log objects
+
+    EXPERIMENTAL: This interface is experimental and subject to change
     """
 
     timestamp: pendulum.DateTime
@@ -470,6 +482,8 @@ class FlowRunView:
     the latest data for that task will be pulled since they are loaded lazily. Finished
     task runs will be cached in this object to reduce the amount of network IO.
 
+    EXPERIMENTAL: This interface is experimental and subject to change
+
     Args:
         - flow_run_id: The uuid of the flow run
         - name: The name of the flow run
@@ -482,11 +496,6 @@ class FlowRunView:
         - run_config: The `RunConfig` this flow run was configured with
         - states: A sorted list of past states the flow run has been in
         - task_runs: An iterable of task run metadata to cache in this view
-
-    Properties:
-        - flow: Metadata for the flow this run is associated with; lazily retrived on
-            first use
-
     """
 
     def __init__(
@@ -624,16 +633,19 @@ class FlowRunView:
 
         return [FlowRunLog.from_dict(log) for log in logs]
 
-    @property
-    def flow(self) -> "FlowView":
+    def get_flow_metadata(self, no_cache: bool = False) -> "FlowView":
         """
-        Flow metadata for the flow associated with this flow run. Lazily loaded at call
-        time then cached for future calls.
+        Flow metadata for the flow associated with this flow run. Retrieved from the
+        API on first call then cached for future calls.
+
+        Args:
+            - no_cache: If set, the cached `FlowView` will be ignored and the latest
+                data for the flow will be pulled.
 
         Returns:
-            An instance of FlowView
+            FlowView: A view of the Flow metadata for the Flow this run is from
         """
-        if self._flow is None:
+        if self._flow is None or no_cache:
             self._flow = FlowView.from_flow_id(flow_id=self.flow_id)
 
         return self._flow
@@ -851,7 +863,7 @@ class FlowRunView:
         Returns:
             A list of TaskRunView objects
         """
-        if len(self.task_run_ids) > 1000:
+        if len(self.get_task_run_ids()) > 1000:
             raise ValueError(
                 "Refusing to `get_all_task_runs` for a flow with more than 1000 tasks. "
                 "Please load the tasks you are interested in individually."
@@ -871,8 +883,7 @@ class FlowRunView:
 
         return task_runs + list(self._cached_task_runs.values())
 
-    @property
-    def task_run_ids(self) -> List[str]:
+    def get_task_run_ids(self) -> List[str]:
         """
         Get all task run ids associated with this flow run. Lazily loaded at call time
         then cached for future calls.
@@ -926,6 +937,7 @@ class FlowRunView:
                     f"flow_run_id={self.flow_run_id!r}",
                     f"name={self.name!r}",
                     f"state={self.state!r}",
+                    f"labels={self.labels!r}",
                     f"cached_task_runs={len(self._cached_task_runs)}",
                 ]
             )

@@ -3,12 +3,15 @@ Tests for `TaskRunView`
 """
 import time
 import pytest
+import sys
+import os
 from unittest.mock import MagicMock, call
 
 from prefect.backend import TaskRunView
 from prefect.backend.task_run import NotLoaded
+from prefect.engine.result import Result
 from prefect.engine.results import LocalResult
-from prefect.engine.state import Success, Mapped
+from prefect.engine.state import Success, Mapped, State
 from prefect.utilities.graphql import EnumValue
 
 TASK_RUN_DATA_1 = {
@@ -174,7 +177,8 @@ def test_task_run_view_get_result_loads_result_data(tmpdir, result_value):
         task_id=None,
         task_slug=None,
         name=None,
-        state=Success(result=result),
+        # Roundtrip serialize/deserialize to drop the value from the result
+        state=State.deserialize(Success(result=result).serialize()),
         map_index=-1,
         flow_run_id=None,
     )
@@ -192,6 +196,31 @@ def test_task_run_view_get_result_loads_result_data(tmpdir, result_value):
 
     # Displays in the repr now
     assert f"result={result_value!r}" in repr(task_run)
+
+
+def test_task_run_view_get_result_errors_on_missing_result_data(tmpdir):
+    # Create and delete a result
+    result = LocalResult(dir=tmpdir).write("hello")
+    os.remove(result.location)
+
+    # Instantiate a very minimal task run view
+    task_run = TaskRunView(
+        task_run_id=None,
+        task_id=None,
+        task_slug=None,
+        name=None,
+        # Roundtrip serialize/deserialize to drop the value from the result
+        state=State.deserialize(Success(result=result).serialize()),
+        map_index=-1,
+        flow_run_id=None,
+    )
+
+    # The result is not loaded
+    with pytest.raises(FileNotFoundError):
+        task_run.get_result()
+
+    # Still flagged as not loaded
+    assert task_run._result is NotLoaded
 
 
 def test_task_run_view_get_result_loads_mapped_result_data(tmpdir):
@@ -247,6 +276,29 @@ def test_task_run_view_get_result_loads_mapped_result_data(tmpdir):
         order_by={"map_index": EnumValue("asc")},
         error_on_empty=False,
     )
+
+
+def test_task_run_view_get_result_does_not_allow_custom_result_types(
+    tmpdir,
+):
+    class MyCustomResult(Result):
+        pass
+
+    # Instantiate a very minimal task run view with the custom result
+    task_run = TaskRunView(
+        task_run_id=None,
+        task_id=None,
+        task_slug=None,
+        name=None,
+        # Roundtrip serialize/deserialize to coerce the custom result type to the
+        # type that would happen if it was written to the backend and retrieved
+        state=State.deserialize(Success(result=MyCustomResult()).serialize()),
+        map_index=-1,
+        flow_run_id=None,
+    )
+
+    with pytest.raises(TypeError, match="Only built-in `Result` types are supported"):
+        assert task_run.get_result()
 
 
 def test_task_run_view_iter_mapped():

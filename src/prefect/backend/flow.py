@@ -14,10 +14,12 @@ logger = get_logger("backend.flow")
 
 class FlowView:
     """
-    A view of Flow data stored in the Prefect API.
+    A view of Flow metadata stored in the Prefect API.
 
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created
+
+    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         - flow_id: The uuid of the flow

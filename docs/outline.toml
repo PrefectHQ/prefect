@@ -22,17 +22,21 @@ functions = [
 title = "Flow"
 module = "prefect.backend.flow"
 classes = ["FlowView"]
+experimental = true
 
 [pages.backend.flow_run]
 title = "Flow Run"
 module = "prefect.backend.flow_run"
 classes = ["FlowRunView"]
-methods = ["execute_flow_run", "watch_flow_run"]
+functions = ["watch_flow_run"]
+experimental = true
 
 [pages.backend.task_run]
 title = "Task Run"
 module = "prefect.backend.task_run"
 classes = ["TaskRunView"]
+experimental = true
+
 [pages.backend.kv_store]
 title = "KV Store"
 module = "prefect.backend.kv_store"
