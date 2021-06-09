@@ -379,7 +379,8 @@ class Task(metaclass=TaskMetaclass):
         if isinstance(timeout, timedelta):
             if timeout.microseconds > 0:
                 warnings.warn(
-                    "Sub-seconds of Task timeout will be ignored!",
+                    "Task timeouts do not support a sub-second resolution; "
+                    "smaller units will be ignored!",
                     stacklevel=2,
                 )
             timeout = int(timeout.total_seconds())
