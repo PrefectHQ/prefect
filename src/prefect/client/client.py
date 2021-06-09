@@ -650,6 +650,7 @@ class Client:
     def get_auth_token(self) -> str:
         """
         Returns an auth token:
+            - if there's an API key, return that immediately
             - if no explicit access token is stored, returns the api token
             - if there is an access token:
                 - if there's a refresh token and the access token expires in the next 30 seconds,
@@ -659,6 +660,9 @@ class Client:
         Returns:
             - str: the access token
         """
+        if self.api_key:
+            return self.api_key
+
         if not self._access_token:
             return self._api_token  # type: ignore
 
