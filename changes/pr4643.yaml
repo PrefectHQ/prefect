@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Update `Client` and `prefect auth` CLI to use API keys - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
