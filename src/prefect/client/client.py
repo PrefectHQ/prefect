@@ -126,22 +126,12 @@ class Client:
         # Hard-code the auth filepath location
         self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
 
-        # Load the API key and tenant id with fallbacks
+        # Load the API key
         cached_auth = self._load_auth_from_disk()
         self.api_key = (
             api_key
             or prefect.context.config.cloud.get("api_key")
             or cached_auth.get("api_key")
-        )
-        self._tenant_id = (
-            tenant_id
-            or prefect.context.config.cloud.get("tenant_id")
-            or cached_auth.get("tenant_id")
-            or (
-                self._get_api_key_default_tenant()
-                if prefect.config.backend == "cloud"
-                else None
-            )
         )
 
         # Backwards compatibility for API tokens
@@ -165,6 +155,19 @@ class Client:
                     else ""
                 )
             )
+
+        # Load the tenant id
+        self._tenant_id = (
+            tenant_id
+            or prefect.context.config.cloud.get("tenant_id")
+            or cached_auth.get("tenant_id")
+            # Query for the tenant associated with the API key if not set elsewhere
+            or (
+                self._get_api_key_default_tenant()
+                if prefect.config.backend == "cloud" and self.api_key
+                else None
+            )
+        )
 
     # API key authentication -----------------------------------------------------------
 
@@ -361,9 +364,10 @@ class Client:
             if self._api_token:
                 self._tenant_id = settings.get("active_tenant_id")
 
-            if self._active_tenant_id:
+            # Must refer to private variable since the property calls this function
+            if self._tenant_id:
                 try:
-                    self.login_to_tenant(tenant_id=self._active_tenant_id)
+                    self.login_to_tenant(tenant_id=self._tenant_id)
                 except AuthorizationError:
                     # if an authorization error is raised, then the token is invalid and should
                     # be cleared
@@ -769,7 +773,7 @@ class Client:
         if not self.api_key:
             # save the tenant setting
             settings = self._load_local_settings()
-            settings["active_tenant_id"] = self._active_tenant_id
+            settings["active_tenant_id"] = self.tenant_id
             self._save_local_settings(settings)
 
         return True
