@@ -45,6 +45,12 @@ jobs:
           name: Quick installation of Prefect
           command: pip install -e .
 
+      - restore_cache:
+          keys:
+            - mypy-cache-{{ .Branch }}
+            - mypy-cache-master
+            - mypy-cache-
+
       - run:
           name: Install mypy type stubs for requirements
           command: mypy src || yes | mypy --install-types
@@ -56,6 +62,11 @@ jobs:
       - run:
           name: Run mypy
           command: mypy src/
+
+      - save_cache:
+          key: mypy-cache-{{ .Branch }}
+          paths:
+            - .mypy_cache
 
       - run:
           name: Run flake8
