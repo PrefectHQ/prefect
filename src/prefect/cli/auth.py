@@ -91,8 +91,9 @@ def login(key, token):
             return
     except ClientError:
         click.secho("Error attempting to communicate with Prefect Cloud.", fg="red")
+        return
     else:
-        client.tenant_id = tenant_id
+        client._tenant_id = tenant_id
         client._write_auth_to_disk()
 
     # Backwards compatibility for tokens
@@ -144,22 +145,53 @@ def logout():
     """
     Log out of Prefect Cloud
     """
-    check_override_auth_token()
-
-    click.confirm(
-        "Are you sure you want to log out of Prefect Cloud?", default=False, abort=True
-    )
 
     client = Client()
-    tenant_id = client.active_tenant_id
 
-    if not tenant_id:
-        click.secho("No tenant currently active", fg="red")
-        return
+    if client.api_key:
 
-    client.logout_from_tenant()
+        # Check the source of the API key
+        if config.cloud.get("api_key"):
+            click.secho(
+                "Your authentication has been set in the Prefect config instead of "
+                "using the CLI. To log out, remove the config key "
+                "`prefect.cloud.api_key`",
+                fg="red",
+            )
+            return
 
-    click.secho("Logged out from tenant {}".format(tenant_id), fg="green")
+        click.confirm(
+            "Are you sure you want to log out of Prefect Cloud? "
+            "This will remove your API key from this machine.",
+            default=False,
+            abort=True,
+        )
+
+        # Clear the key and tenant id then write to the cache
+        client.api_key = ""
+        client._tenant_id = ""
+        client._write_auth_to_disk()
+
+        click.secho(f"Logged out of Prefect Cloud", fg="green")
+
+    elif client._api_token:
+
+        check_override_auth_token()
+        tenant_id = client.active_tenant_id
+
+        if not tenant_id:
+            click.secho("No tenant currently active", fg="red")
+            return
+
+        click.confirm(
+            "Are you sure you want to log out of your current Prefect Cloud tenant?",
+            default=False,
+            abort=True,
+        )
+
+        client.logout_from_tenant()
+
+        click.secho("Logged out from tenant {}".format(tenant_id), fg="green")
 
 
 @auth.command(hidden=True)
