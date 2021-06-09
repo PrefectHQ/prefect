@@ -80,16 +80,29 @@ class Client:
     token will only be present in the current context.
 
     Args:
-        - api_server (str, optional): the URL to send all GraphQL requests
-            to; if not provided, will be pulled from `cloud.graphql` config var
+        - api_server (str, optional): the URL to send all GraphQL requests to; if not
+            provided, will be pulled from the current backend's `graphql` config
+            variable
+        - api_key (str, optional): a Prefect Cloud API key. If not provided, loaded
+            from `config.cloud.api_key` or from the on disk cache from the
+            `prefect auth` CLI
+        - tenant_id (str, optional): the Prefect tenant to use. If not provided, loaded
+            from `config.cloud.tenant_id` or the the on disk cache from the
+            `prefect auth` CLI
         - api_token (str, optional): a Prefect Cloud API token, taken from
             `config.cloud.auth_token` if not provided. If this token is USER-scoped, it may
             be used to log in to any tenant that the user is a member of. In that case,
             ephemeral JWTs will be loaded as necessary. Otherwise, the API token itself
-            will be used as authorization.
+            will be used as authorization. DEPRECATED; use `api_key` instead.
     """
 
-    def __init__(self, api_server: str = None, api_token: str = None):
+    def __init__(
+        self,
+        api_server: str = None,
+        api_key: str = None,
+        tenant_id: str = None,
+        api_token: str = None,
+    ):
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
@@ -97,16 +110,84 @@ class Client:
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
-        # store api server
-        self.api_server = api_server or prefect.context.config.cloud.get("graphql")
+        # Load the default api server from the config
+        if prefect.config.backend == "cloud":
+            config_api_server = prefect.context.config.cloud.get("graphql")
+        elif prefect.config.backend == "server":
+            config_api_server = prefect.context.config.server.get("graphql")
+        else:
+            if not api_server:  # Only error if they're relying on the backend setting
+                raise ValueError(
+                    "Invalid backend {prefect.config.backend!r}. "
+                    "Expected 'server' or 'cloud'."
+                )
+        self.api_server = api_server or config_api_server
 
-        self._api_token = api_token or prefect.context.config.cloud.get(
-            "auth_token", None
+        # Hard-code the auth filepath location
+        self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
+
+        # Load the API key and tenant id with fallbacks
+        cached_auth = self._load_auth_from_disk()
+        self.api_key = (
+            api_key
+            or prefect.context.config.cloud.get("api_key")
+            or cached_auth.get("api_key")
+        )
+        self.tenant_id = (
+            tenant_id
+            or prefect.context.config.cloud.get("tenant_id")
+            or cached_auth.get("tenant_id")
         )
 
-        # Initialize the tenant and api token if not yet set
-        if not self._api_token and prefect.config.backend == "cloud":
+        # Backwards compatibility for API tokens
+        self._api_token = api_token or prefect.context.config.cloud.get("auth_token")
+        if (
+            not self.api_key
+            and not self._api_token
+            and prefect.config.backend == "cloud"
+        ):
             self._init_tenant()
+
+    # API key authentication -----------------------------------------------------------
+
+    def _load_auth_from_disk(self) -> dict:
+        """
+        Get the stashed `api_key` and `tenant_id` for the current `api_server` from the
+        disk cache if it exists. If it does not, an empty dict is returned
+        """
+        if not self._auth_file.exists():
+            return {}
+
+        return toml.loads(self._auth_file.read_text()).get(self._slugified_api_server)
+
+    def _write_auth_to_disk(self) -> None:
+        """
+        Write the current auth information to a the disk cache under a header for the
+        current `api_server`
+        """
+        # Load the current contents of the entire file
+        contents = (
+            toml.loads(self._auth_file.read_text()) if self._auth_file.exists() else {}
+        )
+
+        # Update the data for this API server
+        contents[self._slugified_api_server] = {
+            "api_key": self.api_key,
+            "tenant_id": self.tenant_id,
+        }
+
+        # Update the file, including a comment blurb
+        self._auth_file.write_text(
+            "# This file is auto-generated and should not be manually edited\n"
+            "# Update the Prefect config or use the CLI to login instead\n\n"
+            + toml.dumps(contents)
+        )
+
+    @property
+    def _slugified_api_server(self):
+        return slugify(self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
+
+    # ----------------------------------------------------------------------------------
 
     def create_tenant(self, name: str, slug: str = None) -> str:
         """
@@ -507,9 +588,10 @@ class Client:
     # -------------------------------------------------------------------------
 
     @property
-    def _local_settings_path(self) -> Path:
+    def _api_token_settings_path(self) -> Path:
         """
         Returns the local settings directory corresponding to the current API servers
+        when using an API token
         """
         path = "{home}/client/{server}".format(
             home=prefect.context.config.home_dir,
@@ -521,16 +603,16 @@ class Client:
         """
         Writes settings to local storage
         """
-        self._local_settings_path.parent.mkdir(exist_ok=True, parents=True)
-        with self._local_settings_path.open("w+") as f:
+        self._api_token_settings_path.parent.mkdir(exist_ok=True, parents=True)
+        with self._api_token_settings_path.open("w+") as f:
             toml.dump(settings, f)
 
     def _load_local_settings(self) -> dict:
         """
         Loads settings from local storage
         """
-        if self._local_settings_path.exists():
-            with self._local_settings_path.open("r") as f:
+        if self._api_token_settings_path.exists():
+            with self._api_token_settings_path.open("r") as f:
                 return toml.load(f)  # type: ignore
         return {}
 
