@@ -163,6 +163,16 @@ class Client:
 
     # API key authentication -----------------------------------------------------------
 
+    def _get_api_key_default_tenant(self) -> str:
+        response = self.graphql({"query": {"auth_info": "tenant_id"}})
+        tenant_id = response.get("data", {}).get("auth_info", {}).get("tenant_id")
+        if not tenant_id:
+            raise ValueError(
+                f"Received an unexpected response from the API: {response}"
+            )
+
+        return tenant_id
+
     def _load_auth_from_disk(self) -> dict:
         """
         Get the stashed `api_key` and `tenant_id` for the current `api_server` from the

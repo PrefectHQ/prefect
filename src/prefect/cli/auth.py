@@ -59,55 +59,80 @@ def auth():
 
 @auth.command(hidden=True)
 @click.option(
-    "--token", "-t", required=True, help="A Prefect Cloud API token.", hidden=True
+    "--key",
+    "-k",
+    help="A Prefect Cloud API key.",
 )
-def login(token):
+@click.option(
+    "--token",
+    "-t",
+    help="A Prefect Cloud API token. DEPRECATED.",
+)
+def login(key, token):
     """
-    Log in to Prefect Cloud with an api token to use for Cloud communication.
-
-    \b
-    Options:
-        --token, -t         TEXT    A Prefect Cloud api token  [required]
+    Log-in to Prefect Cloud with an API key
     """
-    check_override_auth_token()
+    if not key and not token:
+        raise ValueError("You must supply an API key or token!")
 
-    client = Client(api_token=token)
+    if key and token:
+        raise ValueError("You cannot supply both an API key and token")
 
-    # Verify login obtained a valid api token
+    # Attempt to treat the input like an API key even if it is passed as a token
+    client = Client(api_key=key or token)
+
     try:
-        output = client.graphql(
-            query={"query": {"user": {"default_membership": "tenant_id"}}}
-        )
-
-        # Log into default membership
-        success_login = client.login_to_tenant(
-            tenant_id=output.data.user[0].default_membership.tenant_id
-        )
-
-        if not success_login:
-            raise AuthorizationError
-
+        tenant_id = client._get_api_key_default_tenant()
     except AuthorizationError:
-        click.secho(
-            f"Error attempting to use Prefect API token {token}. "
-            "Please check that you are providing a USER scoped Personal Access Token.\n"
-            "For more information visit the documentation for USER tokens at "
-            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
-            fg="red",
-        )
-        return
+        if key:  # We'll catch an error again later if using a token
+            click.secho("Unauthorized. Invalid Prefect Cloud API key.", fg="red")
+            return
     except ClientError:
-        click.secho(
-            "Error attempting to communicate with Prefect Cloud. "
-            "Please check that you are providing a USER scoped Personal Access Token.\n"
-            "For more information visit the documentation for USER tokens at "
-            "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
-            fg="red",
-        )
-        return
+        click.secho("Error attempting to communicate with Prefect Cloud.", fg="red")
+    else:
+        client.tenant_id = tenant_id
+        client._write_auth_to_disk()
 
-    # save token
-    client.save_api_token()
+    # Backwards compatibility for tokens
+    if token:
+        check_override_auth_token()
+        client = Client(api_token=token)
+
+        # Verify login obtained a valid api token
+        try:
+            output = client.graphql(
+                query={"query": {"user": {"default_membership": "tenant_id"}}}
+            )
+
+            # Log into default membership
+            success_login = client.login_to_tenant(
+                tenant_id=output.data.user[0].default_membership.tenant_id
+            )
+
+            if not success_login:
+                raise AuthorizationError
+
+        except AuthorizationError:
+            click.secho(
+                f"Error attempting to use Prefect API token {token}. "
+                "Please check that you are providing a USER scoped Personal Access Token.\n"
+                "For more information visit the documentation for USER tokens at "
+                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                fg="red",
+            )
+            return
+        except ClientError:
+            click.secho(
+                "Error attempting to communicate with Prefect Cloud. "
+                "Please check that you are providing a USER scoped Personal Access Token.\n"
+                "For more information visit the documentation for USER tokens at "
+                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                fg="red",
+            )
+            return
+
+        # save token
+        client.save_api_token()
 
     click.secho("Login successful!", fg="green")
 
