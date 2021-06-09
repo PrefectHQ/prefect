@@ -148,6 +148,19 @@ class Client:
         ):
             self._init_tenant()
 
+        if self._api_token and self.api_key:
+            warnings.warn(
+                "Found both an API token and an API key. API tokens have been "
+                "deprecated and it will be ignored in favor of the API key."
+                + (
+                    # If they did not pass one explicitly, we can tell them how to fix
+                    # this in the config
+                    " Remove the token from the config at `prefect.config.auth_token`"
+                    if not api_token
+                    else ""
+                )
+            )
+
     # API key authentication -----------------------------------------------------------
 
     def _load_auth_from_disk(self) -> dict:
