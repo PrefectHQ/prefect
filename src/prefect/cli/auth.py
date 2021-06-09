@@ -180,18 +180,38 @@ def logout():
         tenant_id = client.active_tenant_id
 
         if not tenant_id:
-            click.secho("No tenant currently active", fg="red")
-            return
+            click.confirm(
+                "Are you sure you want to log out of Prefect Cloud? "
+                "This will remove your API token from this machine.",
+                default=False,
+                abort=True,
+            )
 
-        click.confirm(
-            "Are you sure you want to log out of your current Prefect Cloud tenant?",
-            default=False,
-            abort=True,
+            # Remove the token from local storage by writing blank settings
+            client._save_local_settings({})
+            click.secho(f"Logged out of Prefect Cloud", fg="green")
+
+        else:
+            # Log out of the current tenant (dropping the access token) while retaining
+            # the API token. This is backwards compatible behavior. Running the logout
+            # command twice will remove the token from storage entirely
+            click.confirm(
+                "Are you sure you want to log out of your current Prefect Cloud tenant?",
+                default=False,
+                abort=True,
+            )
+
+            client.logout_from_tenant()
+
+            click.secho("Logged out from tenant {}".format(tenant_id), fg="green")
+
+    else:
+        click.secho(
+            "You are not logged in to Prefect Cloud. "
+            "Use `prefect auth login` to log in first.",
+            fg="red",
         )
-
-        client.logout_from_tenant()
-
-        click.secho("Logged out from tenant {}".format(tenant_id), fg="green")
+        return
 
 
 @auth.command(hidden=True)
