@@ -216,9 +216,7 @@ def test_task_run_view_get_result_errors_on_missing_result_data(tmpdir):
     )
 
     # The result is not loaded
-    with pytest.raises(
-        FileNotFoundError, match=result.location if sys.platform != "win32" else ""
-    ):
+    with pytest.raises(FileNotFoundError):
         task_run.get_result()
 
     # Still flagged as not loaded
