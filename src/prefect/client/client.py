@@ -630,6 +630,10 @@ class Client:
         )
         return Path(os.path.expanduser(path)) / "settings.toml"
 
+    @property
+    def active_tenant_id(self) -> Optional[str]:
+        return self.tenant_id
+
     def _save_local_settings(self, settings: dict) -> None:
         """
         Writes settings to local storage
@@ -770,7 +774,7 @@ class Client:
 
         self._tenant_id = tenant_id  # type: ignore
 
-        if not self.api_key:
+        if self._api_token:
             # save the tenant setting
             settings = self._load_local_settings()
             settings["active_tenant_id"] = self.tenant_id
