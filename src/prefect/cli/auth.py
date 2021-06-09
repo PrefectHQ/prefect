@@ -71,6 +71,8 @@ def auth():
 def login(key, token):
     """
     Log-in to Prefect Cloud with an API key
+
+    You will be switched to the default tenant associated with the key.
     """
     if not key and not token:
         raise ValueError("You must supply an API key or token!")
