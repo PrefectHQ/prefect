@@ -687,7 +687,7 @@ class Flow:
         return edges
 
     def update(
-        self, flow: "Flow", merge_parameters: bool = False, validate: bool = None
+        self, flow: "Flow", merge_parameters: bool = False, validate: bool = None, merge_reference_tasks: bool = False
     ) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow.
@@ -696,10 +696,12 @@ class Flow:
 
         Args:
             - flow (Flow): A flow which is used to update this flow.
-            - merge_parameters (bool, False): If `True`, duplicate paramaeters are replaced
+            - merge_parameters (bool, False): If `True`, duplicate parameters are replaced
                 with parameters from the provided flow. Defaults to `False`.
                 If `True`, validate will also be set to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
+            - merge_reference_tasks(bool, False): If `True`, add reference tasks from the provided
+                flow to the current flow reference tasks set.
 
         Returns:
             - None
@@ -725,6 +727,9 @@ class Flow:
                     flattened=edge.flattened,
                     validate=validate,
                 )
+
+        if merge_reference_tasks:
+            self.set_reference_tasks(self.reference_tasks().union(flow.reference_tasks()))
 
         self.constants.update(flow.constants or {})
 
