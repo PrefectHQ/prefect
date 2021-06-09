@@ -47,7 +47,7 @@ jobs:
 
       - run:
           name: Install typeshed packages
-          command: pip install -r typeshed-requirements.txt
+          command: python3 -m pip install -r typeshed-requirements.txt
 
       - run:
           name: Run Black
