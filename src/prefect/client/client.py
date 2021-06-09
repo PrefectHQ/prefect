@@ -684,9 +684,11 @@ class Client:
         """
         result = self.graphql(
             {"query": {"tenant(order_by: {slug: asc})": {"id", "slug", "name"}}},
-            # use the API token to see all available tenants
-            token=self._api_token,
-        )  # type: ignore
+            # API keys can see all available tenants
+            # If using an API token, we can't use the access token which is scoped to
+            # a single tenant
+            token=self.api_key or self._api_token,
+        )
         return result.data.tenant  # type: ignore
 
     def login_to_tenant(self, tenant_slug: str = None, tenant_id: str = None) -> bool:
