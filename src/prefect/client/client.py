@@ -106,7 +106,7 @@ class Client:
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
-        self._active_tenant_id = None
+        self._tenant_id = None
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
@@ -133,10 +133,15 @@ class Client:
             or prefect.context.config.cloud.get("api_key")
             or cached_auth.get("api_key")
         )
-        self.tenant_id = (
+        self._tenant_id = (
             tenant_id
             or prefect.context.config.cloud.get("tenant_id")
             or cached_auth.get("tenant_id")
+            or (
+                self._get_api_key_default_tenant()
+                if prefect.config.backend == "cloud"
+                else None
+            )
         )
 
         # Backwards compatibility for API tokens
@@ -209,6 +214,16 @@ class Client:
     @property
     def _slugified_api_server(self):
         return slugify(self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
+
+    @property
+    def tenant_id(self):
+        if self.api_key:
+            return self._tenant_id
+
+        # Backwards compatibility for API tokens
+        if self._tenant_id is None:
+            self._init_tenant()
+        return self._tenant_id
 
     # ----------------------------------------------------------------------------------
 
@@ -328,16 +343,6 @@ class Client:
         else:
             return {}
 
-    @property
-    def active_tenant_id(self) -> Optional[str]:
-        """
-        Return the tenant to contact the server.
-        If your tenant has not been set yet it will be initialized.
-        """
-        if self._active_tenant_id is None:
-            self._init_tenant()
-        return self._active_tenant_id
-
     def _init_tenant(self) -> None:
         """
         Init the tenant to contact the server.
@@ -354,7 +359,7 @@ class Client:
             if not self._api_token:
                 self._api_token = settings.get("api_token")
             if self._api_token:
-                self._active_tenant_id = settings.get("active_tenant_id")
+                self._tenant_id = settings.get("active_tenant_id")
 
             if self._active_tenant_id:
                 try:
@@ -366,7 +371,7 @@ class Client:
         else:
             tenant_info = self.graphql({"query": {"tenant": {"id"}}})
             if tenant_info.data.tenant:
-                self._active_tenant_id = tenant_info.data.tenant[0].id
+                self._tenant_id = tenant_info.data.tenant[0].id
 
     def graphql(
         self,
@@ -606,9 +611,8 @@ class Client:
         """
         self._attached_headers.update(headers)
 
-    # -------------------------------------------------------------------------
-    # Auth
-    # -------------------------------------------------------------------------
+    # API Token Authentication ---------------------------------------------------------
+    # This is all deprecated
 
     @property
     def _api_token_settings_path(self) -> Path:
@@ -684,9 +688,8 @@ class Client:
         """
         result = self.graphql(
             {"query": {"tenant(order_by: {slug: asc})": {"id", "slug", "name"}}},
-            # API keys can see all available tenants
-            # If using an API token, we can't use the access token which is scoped to
-            # a single tenant
+            # API keys can see all available tenants. If not using an API key, we can't
+            # use the access token which is scoped to a single tenant
             token=self.api_key or self._api_token,
         )
         return result.data.tenant  # type: ignore
@@ -695,7 +698,7 @@ class Client:
         """
         Log in to a specific tenant
 
-        NOTE: this should only be called by users who have provided a USER-scoped API token.
+        If using an API token, it must be USER-scoped API token.
 
         Args:
             - tenant_slug (str): the tenant's slug
@@ -728,48 +731,53 @@ class Client:
                 }
             },
             variables=dict(slug=tenant_slug, id=tenant_id),
-            # use the API token to query the tenant
-            token=self._api_token,
-        )  # type: ignore
+            # API keys can see all available tenants. If not using an API key, we can't
+            # use the access token which is scoped to a single tenant
+            token=self.api_key or self._api_token,
+        )
         if not tenant.data.tenant:  # type: ignore
-            raise ValueError("No matching tenants found.")
+            raise ValueError("No matching tenant found.")
 
         tenant_id = tenant.data.tenant[0].id  # type: ignore
 
+        self._tenant_id = tenant_id
+
         if prefect.config.backend == "cloud":
-            payload = self.graphql(
-                {
-                    "mutation($input: switch_tenant_input!)": {
-                        "switch_tenant(input: $input)": {
-                            "access_token",
-                            "expires_at",
-                            "refresh_token",
+            if not self.api_key:
+                payload = self.graphql(
+                    {
+                        "mutation($input: switch_tenant_input!)": {
+                            "switch_tenant(input: $input)": {
+                                "access_token",
+                                "expires_at",
+                                "refresh_token",
+                            }
                         }
-                    }
-                },
-                variables=dict(input=dict(tenant_id=tenant_id)),
-                # Use the API token to switch tenants
-                token=self._api_token,
-            )  # type: ignore
-            self._access_token = payload.data.switch_tenant.access_token  # type: ignore
-            self._access_token_expires_at = pendulum.parse(  # type: ignore
-                payload.data.switch_tenant.expires_at  # type: ignore
-            )  # type: ignore
-            self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
+                    },
+                    variables=dict(input=dict(tenant_id=tenant_id)),
+                    # Use the API token to switch tenants
+                    token=self._api_token,
+                )  # type: ignore
+                self._access_token = payload.data.switch_tenant.access_token  # type: ignore
+                self._access_token_expires_at = pendulum.parse(  # type: ignore
+                    payload.data.switch_tenant.expires_at  # type: ignore
+                )  # type: ignore
+                self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
 
-        self._active_tenant_id = tenant_id  # type: ignore
+        self._tenant_id = tenant_id  # type: ignore
 
-        # save the tenant setting
-        settings = self._load_local_settings()
-        settings["active_tenant_id"] = self._active_tenant_id
-        self._save_local_settings(settings)
+        if not self.api_key:
+            # save the tenant setting
+            settings = self._load_local_settings()
+            settings["active_tenant_id"] = self._active_tenant_id
+            self._save_local_settings(settings)
 
         return True
 
     def logout_from_tenant(self) -> None:
         self._access_token = None
         self._refresh_token = None
-        self._active_tenant_id = None
+        self._tenant_id = None
 
         # remove the tenant setting
         settings = self._load_local_settings()
@@ -1085,7 +1093,7 @@ class Client:
                     input=dict(
                         name=project_name,
                         description=project_description,
-                        tenant_id=self.active_tenant_id,
+                        tenant_id=self.tenant_id,
                     )
                 ),
             )  # type: Any
@@ -1810,7 +1818,7 @@ class Client:
                     type=agent_type,
                     name=name,
                     labels=labels or [],
-                    tenant_id=self.active_tenant_id,
+                    tenant_id=self.tenant_id,
                     agent_config_id=agent_config_id,
                 )
             ),

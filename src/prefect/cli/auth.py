@@ -170,12 +170,11 @@ def list_tenants():
     client = Client()
 
     tenants = client.get_available_tenants()
-    active_tenant_id = client.active_tenant_id
 
     output = []
     for item in tenants:
         active = None
-        if item.id == active_tenant_id:
+        if item.id == client.tenant_id:
             active = "*"
         output.append([item.name, item.slug, item.id, active])
 
@@ -214,6 +213,8 @@ def switch_tenants(id, slug):
     if not login_success:
         click.secho("Unable to switch tenant", fg="red")
         return
+    else:
+        client._write_auth_to_disk()
 
     click.secho("Tenant switched", fg="green")
 
