@@ -171,8 +171,12 @@ class Client:
 
     def _get_api_key_default_tenant(self) -> str:
         response = self.graphql({"query": {"auth_info": "tenant_id"}})
-        tenant_id = response.get("data", {}).get("auth_info", {}).get("tenant_id")
-        if not tenant_id:
+        tenant_id = response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
+
+        # If the backend returns a `None` value tenant id, it indicates that an API
+        # token was passed in as an API key
+
+        if tenant_id == "":
             raise ValueError(
                 f"Received an unexpected response from the API: {response}"
             )
