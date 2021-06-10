@@ -1,5 +1,6 @@
 import click
 import warnings
+import pendulum
 from click.exceptions import Abort
 from tabulate import tabulate
 
@@ -403,3 +404,154 @@ def revoke_token(id):
         return
 
     click.secho("Token successfully revoked", fg="green")
+
+
+@auth.command(hidden=True)
+@click.option("--name", "-n", required=True, help="A name to associated with the key")
+@click.option(
+    "--expire",
+    "-e",
+    help=(
+        "A optional dateutil parsable time to at. "
+        "If not given, the key will never expire."
+    ),
+    default=None,
+)
+@click.option(
+    "--quiet",
+    "-q",
+    help="If set, only display the created key.",
+    is_flag=True,
+)
+@handle_terminal_error
+def create_key(name, expire, quiet):
+    """
+    Create a Prefect Cloud API key for authentication with your current user
+    """
+    # TODO: Add service account associated key creation eventually
+
+    # Parse the input expiration
+    if expire is not None:
+        try:
+            expires_at = pendulum.parse(expire, strict=False)
+        except pendulum.parsing.exceptions.ParserError as exc:
+            raise TerminalError(
+                f"Failed to parse expiration time. {exc}\n"
+                "Please pass a date in a dateutil parsable format."
+            )
+
+        if expires_at.diff(abs=False).in_seconds() > 0:
+            raise TerminalError(
+                f"Given expiration time {expire!r} is a time in the past: {expires_at}"
+            )
+        expire_msg = f" that will expire {expires_at.diff_for_humans()}"
+    else:
+        expires_at = None
+        expire_msg = ""
+
+    client = Client()
+
+    # We must retrieve our own user id first since you could be creating a key for a SA
+    if not quiet:
+        click.echo("Retrieving user information...")
+
+    response = client.graphql({"query": {"auth_info": {"user_id"}}})
+    user_id = response.get("data", {}).get("auth_info", {}).get("user_id")
+    if not user_id:
+        raise TerminalError("Failed to retrieve the current user id from Prefect Cloud")
+
+    # Actually create the key
+    if not quiet:
+        click.echo(f"Creating key{expire_msg}...")
+    response = client.graphql(
+        query={
+            "mutation($input: create_api_key_input!)": {
+                "create_api_key(input: $input)": {"key"}
+            }
+        },
+        variables=dict(
+            input=dict(
+                name=name,
+                user_id=user_id,
+                expires_at=expires_at.in_tz("utc").isoformat() if expires_at else None,
+            )
+        ),
+    )
+
+    key = response.get("data", {}).get("create_api_key", {}).get("key")
+    if key is None:
+        raise TerminalError(f"Unexpected response from Prefect Cloud: {response}")
+
+    if quiet:
+        click.echo(key)
+    else:
+        click.echo(
+            "This is the only time this key will be displayed! Store it somewhere safe."
+        )
+        click.secho(f"Successfully created key: {key}", fg="green")
+
+
+@auth.command(hidden=True)
+def list_keys():
+    """
+    List available Prefect Cloud API keys.
+    """
+    client = Client()
+
+    response = client.graphql(
+        query={
+            "query": {
+                "auth_api_key": {
+                    "id": True,
+                    "name": True,
+                    "expires_at": True,
+                }
+            }
+        }
+    )
+    keys = response.get("data", {}).get("auth_api_key")
+    if keys is None:
+        raise TerminalError(f"Unexpected response from Prefect Cloud: {response}")
+
+    if not keys:
+        click.secho("You have not created any API keys", fg="yellow")
+
+    else:
+        click.echo(
+            tabulate(
+                [(key.name, key.id, key.expires_at or "NEVER") for key in keys],
+                headers=["NAME", "ID", "EXPIRES AT"],
+                tablefmt="plain",
+                numalign="left",
+                stralign="left",
+            )
+        )
+
+
+@auth.command(hidden=True)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    help="The UUID for the API key to delete.",
+)
+@handle_terminal_error
+def revoke_key(id):
+    """
+    Revoke a Prefect Cloud API key.
+    """
+    client = Client()
+
+    output = client.graphql(
+        query={
+            "mutation($input: delete_api_key_input!)": {
+                "delete_api_key(input: $input)": {"success"}
+            }
+        },
+        variables=dict(input=dict(key_id=id)),
+    )
+
+    if not output.get("data", None) or not output.data.delete_api_key.success:
+        raise TerminalError(f"Unable to revoke key {id!r}")
+
+    click.secho("Key successfully revoked!", fg="green")
