@@ -219,7 +219,7 @@ class Client:
             return self._tenant_id
 
         # Backwards compatibility for API tokens
-        if self._tenant_id is None and self._api_token:
+        if not self._tenant_id and self._api_token:
             self._init_tenant()
         return self._tenant_id
 
