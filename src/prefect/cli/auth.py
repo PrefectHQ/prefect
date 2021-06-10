@@ -1,5 +1,4 @@
 import click
-import warnings
 import pendulum
 from click.exceptions import Abort
 from tabulate import tabulate
@@ -132,7 +131,7 @@ def login(key, token):
 
         except AuthorizationError:
             click.secho(
-                f"Error attempting to use the given API token. "
+                "Error attempting to use the given API token. "
                 "Please check that you are providing a USER scoped Personal Access Token.\n"
                 "For more information visit the documentation for USER tokens at "
                 "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
@@ -183,7 +182,7 @@ def logout():
         client._tenant_id = ""
         client._write_auth_to_disk()
 
-        click.secho(f"Logged out of Prefect Cloud", fg="green")
+        click.secho("Logged out of Prefect Cloud", fg="green")
 
     elif client._api_token:
 
@@ -200,7 +199,7 @@ def logout():
 
             # Remove the token from local storage by writing blank settings
             client._save_local_settings({})
-            click.secho(f"Logged out of Prefect Cloud", fg="green")
+            click.secho("Logged out of Prefect Cloud", fg="green")
 
         else:
             # Log out of the current tenant (dropping the access token) while retaining
