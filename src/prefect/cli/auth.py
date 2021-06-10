@@ -1,4 +1,5 @@
 import click
+import warnings
 from click.exceptions import Abort
 from tabulate import tabulate
 
@@ -9,6 +10,18 @@ from prefect.utilities.exceptions import AuthorizationError, ClientError
 def check_override_auth_token():
     if config.cloud.get("auth_token"):
         click.secho("Auth token already present in config.", fg="red")
+        raise Abort
+
+
+def abort_on_config_api_key(message: str = None):
+    if config.cloud.get("api_key"):
+        # Add a leading space if not null
+        message = (" " + message) if message else ""
+        click.secho(
+            "Your API key is set in the Prefect config instead of with the CLI."
+            + message,
+            fg="red",
+        )
         raise Abort
 
 
@@ -27,7 +40,9 @@ def auth():
         logout          Log out of Prefect Cloud
         list-tenants    List your available tenants
         switch-tenants  Switch to a different tenant
-        create-token    Create an API token
+        create-token    Create an API token (DEPRECATED)
+        list-tokens     List the names and ids of existing API tokens (DEPRECATED)
+        revoke-token    Remove an API token from the backend (DEPRECATED)
 
     \b
     Examples:
@@ -79,6 +94,10 @@ def login(key, token):
 
     if key and token:
         raise ValueError("You cannot supply both an API key and token")
+
+    abort_on_config_api_key(
+        "To log in with the CLI, remove the config key `prefect.cloud.api_key`"
+    )
 
     # Attempt to treat the input like an API key even if it is passed as a token
     client = Client(api_key=key or token)
@@ -151,14 +170,9 @@ def logout():
     if client.api_key:
 
         # Check the source of the API key
-        if config.cloud.get("api_key"):
-            click.secho(
-                "Your authentication has been set in the Prefect config instead of "
-                "using the CLI. To log out, remove the config key "
-                "`prefect.cloud.api_key`",
-                fg="red",
-            )
-            return
+        abort_on_config_api_key(
+            "To log out, remove the config key `prefect.cloud.api_key`"
+        )
 
         click.confirm(
             "Are you sure you want to log out of Prefect Cloud? "
@@ -259,6 +273,18 @@ def switch_tenants(id, slug):
         --id, -i    TEXT    A Prefect Cloud tenant id
         --slug, -s  TEXT    A Prefect Cloud tenant slug
     """
+
+    # If the config specifies a tenant explicitly, it is used before this mechanism
+    if config.cloud.get("tenant_id"):
+        click.secho(
+            "Your tenant id has been set in the Prefect config instead of with the "
+            "CLI.  To switch tenants with the CLI, remove the config key "
+            " `prefect.cloud.tenant_id`",
+            fg="red",
+        )
+        return
+
+    # Deprecated API token check
     check_override_auth_token()
 
     client = Client()
@@ -270,7 +296,7 @@ def switch_tenants(id, slug):
     else:
         client._write_auth_to_disk()
 
-    click.secho("Tenant switched", fg="green")
+    click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
 
 
 @auth.command(hidden=True)
@@ -278,6 +304,8 @@ def switch_tenants(id, slug):
 @click.option("--scope", "-s", required=True, help="A token scopre.", hidden=True)
 def create_token(name, scope):
     """
+    DEPRECATED. Please use API keys instead.
+
     Create a Prefect Cloud API token.
 
     For more info on API tokens visit https://docs.prefect.io/orchestration/concepts/api.html
@@ -287,7 +315,12 @@ def create_token(name, scope):
         --name, -n      TEXT    A name to give the generated token
         --scope, -s     TEXT    A scope for the token
     """
-    check_override_auth_token()
+    click.secho(
+        "WARNING: API tokens are deprecated. Please use `prefect auth create-key` to "
+        "create an API key instead.",
+        fg="yellow",
+        err=True,  # Write to stderr in case the user is piping
+    )
 
     client = Client()
 
@@ -310,9 +343,16 @@ def create_token(name, scope):
 @auth.command(hidden=True)
 def list_tokens():
     """
+    DEPRECATED. Please use API keys instead.
+
     List your available Prefect Cloud API tokens.
     """
-    check_override_auth_token()
+    click.secho(
+        "WARNING: API tokens are deprecated. Please consider removing your remaining "
+        "tokens and using API keys instead.",
+        fg="yellow",
+        err=True,  # Write to stderr in case the user is piping
+    )
 
     client = Client()
 
@@ -341,6 +381,8 @@ def list_tokens():
 @click.option("--id", "-i", required=True, help="A token ID.", hidden=True)
 def revoke_token(id):
     """
+    DEPRECATED. Please use API keys instead.
+
     Revote a Prefect Cloud API token
 
     \b
