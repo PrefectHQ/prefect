@@ -187,7 +187,9 @@ class Client:
         if not self._auth_file.exists():
             return {}
 
-        return toml.loads(self._auth_file.read_text()).get(self._slugified_api_server)
+        return toml.loads(self._auth_file.read_text()).get(
+            self._slugified_api_server, {}
+        )
 
     def _write_auth_to_disk(self) -> None:
         """
@@ -213,11 +215,11 @@ class Client:
         )
 
     @property
-    def _slugified_api_server(self):
+    def _slugified_api_server(self) -> str:
         return slugify(self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
 
     @property
-    def tenant_id(self):
+    def tenant_id(self) -> Optional[str]:
         if self.api_key:
             return self._tenant_id
 
