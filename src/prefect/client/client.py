@@ -6,7 +6,7 @@ import time
 import uuid
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
 from urllib.parse import urljoin
 
 # if simplejson is installed, `requests` defaults to using it instead of json
@@ -725,11 +725,15 @@ class Client:
             - ValueError: if no matching tenants are found
 
         """
+
+        # Validate the given tenant id -------------------------------------------------
+
         if tenant_slug is None and tenant_id is None:
             raise ValueError(
                 "At least one of `tenant_slug` or `tenant_id` must be provided."
             )
         elif tenant_id:
+            # TODO: Consider removing this check. This would be caught by GraphQL
             try:
                 uuid.UUID(tenant_id)
             except ValueError as exc:
@@ -746,38 +750,40 @@ class Client:
             # use the access token which is scoped to a single tenant
             token=self.api_key or self._api_token,
         )
-        if not tenant.data.tenant:  # type: ignore
+        if not tenant.data.tenant:
             raise ValueError("No matching tenant found.")
 
-        tenant_id = tenant.data.tenant[0].id  # type: ignore
+        # We may have been given just the slug so set the id
+        tenant_id = tenant.data.tenant[0].id
 
+        # Update the tenant the client is using ----------------------------------------
         self._tenant_id = tenant_id
 
-        if prefect.config.backend == "cloud":
-            if not self.api_key:
-                payload = self.graphql(
-                    {
-                        "mutation($input: switch_tenant_input!)": {
-                            "switch_tenant(input: $input)": {
-                                "access_token",
-                                "expires_at",
-                                "refresh_token",
-                            }
+        # Backwards compatibility for API tokens ---------------------------------------
+        # - Get a new access token for the tenant
+        # - Save it to disk
+
+        if not self.api_key and self._api_token and prefect.config.backend == "cloud":
+            payload = self.graphql(
+                {
+                    "mutation($input: switch_tenant_input!)": {
+                        "switch_tenant(input: $input)": {
+                            "access_token",
+                            "expires_at",
+                            "refresh_token",
                         }
-                    },
-                    variables=dict(input=dict(tenant_id=tenant_id)),
-                    # Use the API token to switch tenants
-                    token=self._api_token,
-                )  # type: ignore
-                self._access_token = payload.data.switch_tenant.access_token  # type: ignore
-                self._access_token_expires_at = pendulum.parse(  # type: ignore
-                    payload.data.switch_tenant.expires_at  # type: ignore
-                )  # type: ignore
-                self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
+                    }
+                },
+                variables=dict(input=dict(tenant_id=tenant_id)),
+                # Use the API token to switch tenants
+                token=self._api_token,
+            )
+            self._access_token = payload.data.switch_tenant.access_token
+            self._access_token_expires_at = cast(
+                pendulum.DateTime, pendulum.parse(payload.data.switch_tenant.expires_at)
+            )
+            self._refresh_token = payload.data.switch_tenant.refresh_token
 
-        self._tenant_id = tenant_id  # type: ignore
-
-        if self._api_token:
             # save the tenant setting
             settings = self._load_local_settings()
             settings["active_tenant_id"] = self.tenant_id
