@@ -240,9 +240,9 @@ class Task(metaclass=TaskMetaclass):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
-        - timeout (int, optional): The amount of time (in seconds) to wait while
+        - timeout (Union[int, timedelta], optional): The amount of time (in seconds) to wait while
             running this task before a timeout occurs; note that sub-second
-            resolution is not supported
+            resolution is not supported, even when passing in a timedelta.
         - trigger (callable, optional): a function that determines whether the
             task should run, based on the states of any upstream tasks.
         - skip_on_upstream_skip (bool, optional): if `True`, if any immediately
@@ -315,7 +315,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
-        timeout: int = None,
+        timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
@@ -373,7 +373,17 @@ class Task(metaclass=TaskMetaclass):
             raise ValueError(
                 "A `max_retries` argument greater than 0 must be provided if specifying "
                 "a retry delay."
+                "a retry delay."
             )
+        # Make sure timeout is an integer in seconds
+        if isinstance(timeout, timedelta):
+            if timeout.microseconds > 0:
+                warnings.warn(
+                    "Task timeouts do not support a sub-second resolution; "
+                    "smaller units will be ignored!",
+                    stacklevel=2,
+                )
+            timeout = int(timeout.total_seconds())
         if timeout is not None and not isinstance(timeout, int):
             raise TypeError(
                 "Only integer timeouts (representing seconds) are supported."
