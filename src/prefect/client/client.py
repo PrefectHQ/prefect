@@ -556,7 +556,9 @@ class Client:
         if token:
             headers["Authorization"] = "Bearer {}".format(token)
 
-        if self.tenant_id:
+        if self.tenant_id and self.api_key:
+            # Attach a tenant id to the headers if using an API key since it can be
+            # used accross tenants. API tokens cannot and do not need this header.
             headers["X-PREFECT-TENANT-ID"] = self.tenant_id
 
         headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
@@ -710,7 +712,11 @@ class Client:
         """
         Log in to a specific tenant
 
-        If using an API token, it must be USER-scoped API token.
+        If using an API key, the client tenant will be updated but will not be saved to
+        disk without an explicit call.
+
+        If using an API token, it must be USER-scoped API token. The client tenant will
+        be updated and the new tenant will be saved to disk for future clients.
 
         Args:
             - tenant_slug (str): the tenant's slug
@@ -763,7 +769,7 @@ class Client:
         # - Get a new access token for the tenant
         # - Save it to disk
 
-        if not self.api_key and self._api_token and prefect.config.backend == "cloud":
+        if not self.api_key and prefect.config.backend == "cloud":
             payload = self.graphql(
                 {
                     "mutation($input: switch_tenant_input!)": {
@@ -784,7 +790,7 @@ class Client:
             )
             self._refresh_token = payload.data.switch_tenant.refresh_token
 
-            # save the tenant setting
+            # Save the tenant setting to disk
             settings = self._load_local_settings()
             settings["active_tenant_id"] = self.tenant_id
             self._save_local_settings(settings)
