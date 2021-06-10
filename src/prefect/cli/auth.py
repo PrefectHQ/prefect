@@ -131,7 +131,7 @@ def login(key, token):
 
         except AuthorizationError:
             click.secho(
-                f"Error attempting to use Prefect API token {token}. "
+                f"Error attempting to use the given API token. "
                 "Please check that you are providing a USER scoped Personal Access Token.\n"
                 "For more information visit the documentation for USER tokens at "
                 "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
