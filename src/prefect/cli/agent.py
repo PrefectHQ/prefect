@@ -10,9 +10,14 @@ COMMON_START_OPTIONS = [
         "--token",
         "-t",
         required=False,
-        help="A Prefect Cloud API token with RUNNER scope.",
+        help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
     ),
-    click.option("--api", "-a", required=False, help="A Prefect API URL."),
+    click.option(
+        "--api",
+        "-a",
+        required=False,
+        help="A Prefect API URL. If not set, the value in the config is used.",
+    ),
     click.option(
         "--agent-config-id",
         help="An agent ID to link this agent instance with",
