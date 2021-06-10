@@ -258,6 +258,7 @@ def list_tenants():
 @click.option(
     "--slug", "-s", required=False, help="A Prefect Cloud tenant slug.", hidden=True
 )
+@handle_terminal_error
 def switch_tenants(id, slug):
     """
     Switch active tenant
@@ -270,24 +271,25 @@ def switch_tenants(id, slug):
 
     # If the config specifies a tenant explicitly, it is used before this mechanism
     if config.cloud.get("tenant_id"):
-        click.secho(
+        raise TerminalError(
             "Your tenant id has been set in the Prefect config instead of with the "
-            "CLI.  To switch tenants with the CLI, remove the config key "
-            " `prefect.cloud.tenant_id`",
-            fg="red",
+            "CLI. To switch tenants with the CLI, remove the config key "
+            " `prefect.cloud.tenant_id`"
         )
-        return
-
-    # Deprecated API token check
-    check_override_auth_token()
 
     client = Client()
 
+    # Deprecated API token check
+    if not client.api_key:
+        check_override_auth_token()
+
     login_success = client.login_to_tenant(tenant_slug=slug, tenant_id=id)
     if not login_success:
-        click.secho("Unable to switch tenant", fg="red")
-        return
-    else:
+        raise TerminalError("Unable to switch tenant!")
+
+    # `login_to_tenant` will write to disk if using an API token, if using an API key
+    # we will write to disk manually here
+    if client.api_key:
         client._write_auth_to_disk()
 
     click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
