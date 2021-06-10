@@ -34,41 +34,41 @@ def auth():
         $ prefect auth [COMMAND]
 
     \b
-    Arguments:
+    Commands:
         login           Log in to Prefect Cloud
         logout          Log out of Prefect Cloud
         list-tenants    List your available tenants
         switch-tenants  Switch to a different tenant
+        create-key      Create an API key
+        list-keys       List details of existing API keys
+        revoke-key      Delete an API key from the backend
         create-token    Create an API token (DEPRECATED)
         list-tokens     List the names and ids of existing API tokens (DEPRECATED)
-        revoke-token    Remove an API token from the backend (DEPRECATED)
+        revoke-token    Delete an API token from the backend (DEPRECATED)
 
-    \b
-    Examples:
-        $ prefect auth login --token MY_TOKEN
-        Login successful!
+    \bExamples:
 
-    \b
-        $ prefect auth logout
-        Logged out from tenant TENANT_ID
+    \b  Log in using an existing key
 
-    \b
-        $ prefect auth list-tenants
-        NAME                        SLUG                        ID
-        Test Person                 test-person                 816sghf2-4d51-4338-a333-1771gns7614d
-        test@prefect.io's Account   test-prefect-io-s-account   \
-1971hs9f-e8ha-4a33-8c33-64512gds86g1  *
+    \b    $ prefect auth login --key MY_KEY
 
-    \b
-        $ prefect auth switch-tenants --slug test-person
-        Tenant switched
+    \b  Log out, removing your current key or token
 
-    \b
-        $ prefect auth create-token -n MyToken -s RUNNER
-        ...token output...
+    \b    $ prefect auth logout
+
+    \b  Switch to another tenant by slug
+
+    \b    $ prefect auth switch-tenants --slug test-person
+
+    \b  Create a new API key that expires at the start of the next year
+
+    \b    $ prefect auth create-key -n marvin --expire 2022-1-1
     """
     if config.backend == "server":
-        raise click.UsageError("Auth commands with server are not currently supported.")
+        raise click.UsageError(
+            "Prefect Server does not have authentication. Change your backend to "
+            "Prefect Cloud with `prefect backend cloud` to log in."
+        )
 
 
 @auth.command(hidden=True)
