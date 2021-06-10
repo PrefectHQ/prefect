@@ -5,6 +5,7 @@ from tabulate import tabulate
 
 from prefect import Client, config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.cli.build_register import handle_terminal_error, TerminalError
 
 
 def check_override_auth_token():
@@ -17,12 +18,10 @@ def abort_on_config_api_key(message: str = None):
     if config.cloud.get("api_key"):
         # Add a leading space if not null
         message = (" " + message) if message else ""
-        click.secho(
+        raise TerminalError(
             "Your API key is set in the Prefect config instead of with the CLI."
-            + message,
-            fg="red",
+            + message
         )
-        raise Abort
 
 
 @click.group(hidden=True)
@@ -83,6 +82,7 @@ def auth():
     "-t",
     help="A Prefect Cloud API token. DEPRECATED.",
 )
+@handle_terminal_error
 def login(key, token):
     """
     Log-in to Prefect Cloud with an API key
@@ -90,10 +90,10 @@ def login(key, token):
     You will be switched to the default tenant associated with the key.
     """
     if not key and not token:
-        raise ValueError("You must supply an API key or token!")
+        raise TerminalError("You must supply an API key or token!")
 
     if key and token:
-        raise ValueError("You cannot supply both an API key and token")
+        raise TerminalError("You cannot supply both an API key and token")
 
     abort_on_config_api_key(
         "To log in with the CLI, remove the config key `prefect.cloud.api_key`"
@@ -104,11 +104,9 @@ def login(key, token):
         client = Client(api_key=key or token)
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
-            click.secho("Unauthorized. Invalid Prefect Cloud API key.", fg="red")
-            return
+            raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
     except ClientError:
-        click.secho("Error attempting to communicate with Prefect Cloud.", fg="red")
-        return
+        raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
         client._write_auth_to_disk()
 
@@ -157,6 +155,7 @@ def login(key, token):
 
 
 @auth.command(hidden=True)
+@handle_terminal_error
 def logout():
     """
     Log out of Prefect Cloud
@@ -217,12 +216,10 @@ def logout():
             click.secho("Logged out from tenant {}".format(tenant_id), fg="green")
 
     else:
-        click.secho(
+        raise TerminalError(
             "You are not logged in to Prefect Cloud. "
-            "Use `prefect auth login` to log in first.",
-            fg="red",
+            "Use `prefect auth login` to log in first."
         )
-        return
 
 
 @auth.command(hidden=True)
