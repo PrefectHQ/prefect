@@ -98,7 +98,6 @@ def login(key, token):
     abort_on_config_api_key(
         "To log in with the CLI, remove the config key `prefect.cloud.api_key`"
     )
-
     try:
         # Attempt to treat the input like an API key even if it is passed as a token
         client = Client(api_key=key or token)
@@ -108,12 +107,41 @@ def login(key, token):
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
-        client._write_auth_to_disk()
+        if not client._tenant_id and key:
+            raise TerminalError(
+                "Failed to find a tenant associated with the given API key!"
+            )
+
+        elif client._tenant_id:  # Successful login
+            if token:
+                click.secho(
+                    "WARNING: You logged in with an API key using the `--token` flag "
+                    "which is deprecated. Please use `--key` instead.",
+                    fg="yellow",
+                )
+            client._write_auth_to_disk()
+            click.secho("Login successful!", fg="green")
+            return
+
+        # If there's not a tenant id, we've been given an actual token, fallthrough to
+        # the backwards compatibility token auth
 
     # Backwards compatibility for tokens
     if token:
         check_override_auth_token()
         client = Client(api_token=token)
+
+        # Verify they're not also using an API key
+        if client.api_key:
+            raise TerminalError(
+                "You have already logged in with an API key and cannot use a token."
+            )
+
+        click.secho(
+            "WARNING: API tokens are deprecated. Please create an API key and use "
+            "`prefect auth login --key <KEY>` to login instead.",
+            fg="yellow",
+        )
 
         # Verify login obtained a valid api token
         try:
@@ -151,7 +179,7 @@ def login(key, token):
         # save token
         client.save_api_token()
 
-    click.secho("Login successful!", fg="green")
+        click.secho("Login successful!", fg="green")
 
 
 @auth.command(hidden=True)
