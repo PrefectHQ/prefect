@@ -884,7 +884,8 @@ class Agent:
             RuntimeError: On failed test query
         """
 
-        if config.backend == "cloud":
+        # Verify API tokens -- API keys do not need a type-check
+        if config.backend == "cloud" and not self.client.api_key:
             self.logger.debug("Verifying authentication with Prefect Cloud...")
             try:
                 self._verify_token(self.client.get_auth_token())

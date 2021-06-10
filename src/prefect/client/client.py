@@ -110,18 +110,9 @@ class Client:
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
-        # Load the default api server from the config
-        if prefect.config.backend == "cloud":
-            config_api_server = prefect.context.config.cloud.get("graphql")
-        elif prefect.config.backend == "server":
-            config_api_server = prefect.context.config.server.get("graphql")
-        else:
-            if not api_server:  # Only error if they're relying on the backend setting
-                raise ValueError(
-                    "Invalid backend {prefect.config.backend!r}. "
-                    "Expected 'server' or 'cloud'."
-                )
-        self.api_server = api_server or config_api_server
+        # Note the default is `cloud.api` which is `cloud.endpoint` or `server.endpoint`
+        # depending on the value of the `backend` key
+        self.api_server = api_server or prefect.context.config.cloud.api
 
         # Hard-code the auth filepath location
         self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
