@@ -1,4 +1,5 @@
 import uuid
+import pendulum
 from unittest.mock import MagicMock
 
 import click
@@ -109,12 +110,56 @@ def test_auth_logout_api_token_removes_api_token(patch_post, cloud_api):
     client = prefect.Client()
     assert "api_token" not in client._load_local_settings()
 
-    patch_post(dict(data=dict(tenant="id")))
+
+def test_auth_logout_api_token_with_tenant_removes_tenant_id(patch_posts, cloud_api):
+    patch_posts(
+        [
+            # Login to tenant call during setup
+            dict(data=dict(tenant=[dict(id=str(uuid.uuid4()))])),
+            # Access token retrieval call during setup
+            dict(
+                data=dict(
+                    switch_tenant=dict(
+                        access_token="access-token",
+                        expires_at=pendulum.now().isoformat(),
+                        refresh_token="refresh-token",
+                    )
+                )
+            ),
+            # Login to tenant call during logout
+            dict(data=dict(tenant=[dict(id=str(uuid.uuid4()))])),
+            # Access token retrieval call during logout
+            dict(
+                data=dict(
+                    switch_tenant=dict(
+                        access_token="access-token",
+                        expires_at=pendulum.now().isoformat(),
+                        refresh_token="refresh-token",
+                    )
+                )
+            ),
+        ]
+    )
+
+    client = prefect.Client()
+    client._save_local_settings(
+        {"api_token": "token", "active_tenant_id": str(uuid.uuid4())}
+    )
 
     runner = CliRunner()
     result = runner.invoke(auth, ["logout"], input="Y")
+
     assert result.exit_code == 0
-    assert "No tenant currently active" in result.output
+
+    settings = client._load_local_settings()
+
+    # Does not remove the API token
+    assert "This will remove your API token" not in result.output
+    assert "api_token" in settings
+
+    # Removes the tenant id
+    assert "Logged out from tenant" in result.output
+    assert "active_tenant_id" not in settings
 
 
 def test_list_tenants(patch_post, cloud_api):

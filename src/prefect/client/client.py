@@ -161,13 +161,11 @@ class Client:
             tenant_id
             or prefect.context.config.cloud.get("tenant_id")
             or cached_auth.get("tenant_id")
-            # Query for the tenant associated with the API key if not set elsewhere
-            or (
-                self._get_api_key_default_tenant()
-                if prefect.config.backend == "cloud" and self.api_key
-                else None
-            )
         )
+
+        # If using an API key, query for the associated tenant if not set yet
+        if prefect.config.backend == "cloud" and self.api_key and not self._tenant_id:
+            self._tenant_id = self._get_api_key_default_tenant()
 
     # API key authentication -----------------------------------------------------------
 
@@ -224,7 +222,7 @@ class Client:
             return self._tenant_id
 
         # Backwards compatibility for API tokens
-        if self._tenant_id is None:
+        if self._tenant_id is None and self._api_token:
             self._init_tenant()
         return self._tenant_id
 
@@ -721,7 +719,6 @@ class Client:
             - ValueError: if no matching tenants are found
 
         """
-
         if tenant_slug is None and tenant_id is None:
             raise ValueError(
                 "At least one of `tenant_slug` or `tenant_id` must be provided."
