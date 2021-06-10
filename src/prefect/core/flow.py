@@ -687,7 +687,11 @@ class Flow:
         return edges
 
     def update(
-        self, flow: "Flow", merge_parameters: bool = False, validate: bool = None, merge_reference_tasks: bool = False
+        self,
+        flow: "Flow",
+        merge_parameters: bool = False,
+        validate: bool = None,
+        merge_reference_tasks: bool = False,
     ) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow.
@@ -729,7 +733,9 @@ class Flow:
                 )
 
         if merge_reference_tasks:
-            self.set_reference_tasks(self.reference_tasks().union(flow.reference_tasks()))
+            self.set_reference_tasks(
+                self.reference_tasks().union(flow.reference_tasks())
+            )
 
         self.constants.update(flow.constants or {})
 

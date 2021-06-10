@@ -1037,7 +1037,8 @@ def test_update_with_parameter_merge():
     assert add_res == 3
     assert sub_res == 0
 
-@pytest.mark.parametrize("merge, expected", [(True,3), (False,2)])
+
+@pytest.mark.parametrize("merge, expected", [(True, 3), (False, 2)])
 def test_update_with_reference_task_merge(merge, expected):
     @task
     def add_one(a_number: int):
