@@ -91,7 +91,7 @@ def test_auth_logout_not_logged_in(patch_post, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(auth, ["logout"], input="Y")
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "not logged in to Prefect Cloud" in result.output
 
 
