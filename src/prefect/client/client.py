@@ -555,6 +555,10 @@ class Client:
         headers = headers or {}
         if token:
             headers["Authorization"] = "Bearer {}".format(token)
+
+        if self.tenant_id:
+            headers["X-PREFECT-TENANT-ID"] = self.tenant_id
+
         headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
         if self._attached_headers:
