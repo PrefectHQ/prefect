@@ -155,15 +155,22 @@ def login(key, token):
 
 
 @auth.command(hidden=True)
+@click.option(
+    "--token",
+    "-t",
+    help="Log out from the API token based authentication, ignoring API keys",
+    is_flag=True,
+)
 @handle_terminal_error
-def logout():
+def logout(token):
     """
     Log out of Prefect Cloud
     """
 
     client = Client()
 
-    if client.api_key:
+    # Log out of API keys unless given the token flag
+    if client.api_key and not token:
 
         # Check the source of the API key
         abort_on_config_api_key(
@@ -213,7 +220,11 @@ def logout():
 
             client.logout_from_tenant()
 
-            click.secho("Logged out from tenant {}".format(tenant_id), fg="green")
+            click.secho(
+                f"Logged out from tenant {tenant_id}. Run `prefect auth logout` again "
+                "to delete your API token.",
+                fg="green",
+            )
 
     else:
         raise TerminalError(
