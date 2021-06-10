@@ -200,7 +200,7 @@ def test_switch_tenants_failed(monkeypatch, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(auth, ["switch-tenants", "--slug", "slug"])
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "Unable to switch tenant" in result.output
 
 
