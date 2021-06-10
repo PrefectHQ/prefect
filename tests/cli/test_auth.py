@@ -48,7 +48,7 @@ def test_auth_login_client_error(patch_post, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(auth, ["login", "--token", "test"])
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "Error attempting to communicate with Prefect Cloud" in result.output
 
 
