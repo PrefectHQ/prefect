@@ -127,12 +127,19 @@ class Client:
 
         # Backwards compatibility for API tokens
         self._api_token = api_token or prefect.context.config.cloud.get("auth_token")
+
         if (
             not self.api_key
             and not self._api_token
             and prefect.config.backend == "cloud"
         ):
             self._init_tenant()
+
+        if self._api_token and not self.api_key:
+            warnings.warn(
+                "Client was created with an API token configured for authentication. "
+                "API tokens are deprecated, please use API keys instead."
+            )
 
         if self._api_token and self.api_key:
             warnings.warn(
