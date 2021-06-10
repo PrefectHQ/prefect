@@ -76,14 +76,39 @@ def test_auth_logout_after_login(patch_post, monkeypatch, cloud_api):
 
 
 def test_auth_logout_not_confirm(patch_post, cloud_api):
-    patch_post(dict(data=dict(tenant="id")))
+    patch_post(dict(data=dict(auth_info=dict(tenant_id="id"))))
+
+    client = prefect.Client(api_key="foo")
+    client._write_auth_to_disk()
 
     runner = CliRunner()
     result = runner.invoke(auth, ["logout"], input="N")
     assert result.exit_code == 1
 
 
-def test_auth_logout_no_active_tenant(patch_post, cloud_api):
+def test_auth_logout_not_logged_in(patch_post, cloud_api):
+    patch_post(dict(data=dict(tenant="id")))
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["logout"], input="Y")
+    assert result.exit_code == 0
+    assert "not logged in to Prefect Cloud" in result.output
+
+
+def test_auth_logout_api_token_removes_api_token(patch_post, cloud_api):
+    patch_post(dict(data=dict(tenant="id")))
+
+    client = prefect.Client(api_token="foo")
+    client._save_local_settings({"api_token": client._api_token})
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["logout"], input="Y")
+    assert result.exit_code == 0
+    assert "This will remove your API token" in result.output
+
+    client = prefect.Client()
+    assert "api_token" not in client._load_local_settings()
+
     patch_post(dict(data=dict(tenant="id")))
 
     runner = CliRunner()
