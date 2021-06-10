@@ -99,11 +99,9 @@ def login(key, token):
         "To log in with the CLI, remove the config key `prefect.cloud.api_key`"
     )
 
-    # Attempt to treat the input like an API key even if it is passed as a token
-    client = Client(api_key=key or token)
-
     try:
-        tenant_id = client._get_api_key_default_tenant()
+        # Attempt to treat the input like an API key even if it is passed as a token
+        client = Client(api_key=key or token)
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
             click.secho("Unauthorized. Invalid Prefect Cloud API key.", fg="red")
@@ -112,7 +110,6 @@ def login(key, token):
         click.secho("Error attempting to communicate with Prefect Cloud.", fg="red")
         return
     else:
-        client._tenant_id = tenant_id
         client._write_auth_to_disk()
 
     # Backwards compatibility for tokens
