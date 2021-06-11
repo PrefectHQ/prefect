@@ -121,9 +121,7 @@ def flow_information(flow: "prefect.Flow") -> dict:
         return True
 
     # Check presence of environment attributes
-    # These removed in 0.15.0 but we will include them in a diagnostics check until
-    # 0.16.0 for debugging purposes
-    if hasattr(flow, "environment"):
+    if flow.environment:
         environment = {
             "type": type(flow.environment).__name__,  # type: ignore
             **_replace_values(flow.environment.__dict__),  # type: ignore
