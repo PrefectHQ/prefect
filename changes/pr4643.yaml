@@ -1,13 +1,14 @@
 
 enhancement:
   - "Update `Client` to support API keys - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
-  - "Add API key support to `prefect auth login/logout/switch-tenant` - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
+  - "Add API key support to `prefect auth login/logout/switch-tenants` - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
   - "API keys can be configured in the Prefect config - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
 
 feature:
   - "Add `prefect auth create-key` to create API keys - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
   - "Add `prefect auth list-keys` to list API key metadata - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
   - "Add `prefect auth revoke-key` to revoke an API key - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
+  - "Add `prefect auth status` command to see the state of your authentication - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
 
 deprecation:
   - "Deprecate `prefect auth create-token` - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
