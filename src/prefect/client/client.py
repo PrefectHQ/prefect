@@ -174,7 +174,15 @@ class Client:
     # API key authentication -----------------------------------------------------------
 
     def get_default_tenant(self) -> Optional[str]:
+
         if prefect.config.backend == "cloud":
+
+            # This route will just return the current tenant id if we've set a tenant id
+            # explicitly. If you want to return to the default tenant for an API key,
+            # just set the `tenant_id` to null.
+            if self._tenant_id:
+                return self._tenant_id
+
             response = self.graphql({"query": {"auth_info": "tenant_id"}})
             tenant_id = (
                 response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
