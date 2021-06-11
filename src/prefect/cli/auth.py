@@ -278,7 +278,7 @@ def list_tenants():
     output = []
     for item in tenants:
         active = None
-        if item.id == client.tenant_id:
+        if item.id == (client.tenant_id or client.get_default_tenant()):
             active = "*"
         output.append([item.name, item.slug, item.id, active])
 
