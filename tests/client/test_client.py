@@ -7,6 +7,7 @@ import marshmallow
 import pendulum
 import pytest
 import requests
+import toml
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
@@ -18,6 +19,119 @@ from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import ClientError
 from prefect.utilities.graphql import decompress
+
+
+class TestClientAuthentication:
+    """
+    These tests cover Client handling of API key based authentication
+    """
+
+    def test_client_determines_api_key_in_expected_order(self):
+        # 1. Directly passed
+        # 2. From the config
+        # 3. From the disk
+
+        # No key should be present yet
+        client = Client()
+        assert client.api_key is None
+
+        # Save to disk
+        client = Client(api_key="DISK_KEY")
+        client.save_auth_to_disk()
+
+        # Set in config
+        with set_temporary_config({"cloud.api_key": "CONFIG_KEY"}):
+
+            # Should ignore config/disk
+            client = Client(api_key="DIRECT_KEY")
+            assert client.api_key == "DIRECT_KEY"
+
+            # Should load from config
+            client = Client()
+            assert client.api_key == "CONFIG_KEY"
+
+        # Should load from disk
+        client = Client()
+        assert client.api_key == "DISK_KEY"
+
+    def test_client_determines_tenant_id_in_expected_order(self):
+        # 1. Directly passed
+        # 2. From the config
+        # 3. From the disk
+
+        # No key should be present yet
+        client = Client()
+        assert client.tenant_id is None
+
+        # Save to disk (and set an API key so we don't enter API token logic)
+        client = Client(api_key="KEY", tenant_id="DISK_TENANT")
+        client.save_auth_to_disk()
+
+        # Set in config
+        with set_temporary_config({"cloud.tenant_id": "CONFIG_TENANT"}):
+
+            # Should ignore config/disk
+            client = Client(tenant_id="DIRECT_TENANT")
+            assert client.tenant_id == "DIRECT_TENANT"
+
+            # Should load from config
+            client = Client()
+            assert client.tenant_id == "CONFIG_TENANT"
+
+        # Should load from disk
+        client = Client()
+        assert client.tenant_id == "DISK_TENANT"
+
+    def test_client_save_auth_to_disk(self):
+        client = Client(api_key="KEY", tenant_id="ID")
+        client.save_auth_to_disk()
+
+        data = toml.loads(client._auth_file.read_text())
+        assert set(data.keys()) == {client._slugified_api_server}
+        assert data[client._slugified_api_server] == dict(api_key="KEY", tenant_id="ID")
+
+        old_key = client._slugified_api_server
+        client.api_server = "foo"
+        client.api_key = "NEW_KEY"
+        client.tenant_id = "NEW_ID"
+        client.save_auth_to_disk()
+
+        data = toml.loads(client._auth_file.read_text())
+        assert set(data.keys()) == {client._slugified_api_server, old_key}
+        assert data[client._slugified_api_server] == dict(
+            api_key="NEW_KEY", tenant_id="NEW_ID"
+        )
+
+        # Old data is unchanged
+        assert data[old_key] == dict(api_key="KEY", tenant_id="ID")
+
+    def test_client_load_auth_from_disk(self):
+        client = Client(api_key="KEY", tenant_id="ID")
+        client.save_auth_to_disk()
+
+        client = Client()
+
+        assert client.api_key == "KEY"
+        assert client.tenant_id == "ID"
+
+        client._auth_file.write_text(
+            toml.dumps(
+                {
+                    client._slugified_api_server: {
+                        "api_key": "NEW_KEY",
+                        "tenant_id": "NEW_ID",
+                    }
+                }
+            )
+        )
+        data = client.load_auth_from_disk()
+
+        # Does not mutate the client!
+        assert client.api_key == "KEY"
+        assert client.tenant_id == "ID"
+
+        assert data["api_key"] == "NEW_KEY"
+        assert data["tenant_id"] == "NEW_ID"
 
 
 def test_client_posts_to_api_server(patch_post):
