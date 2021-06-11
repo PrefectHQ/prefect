@@ -173,7 +173,7 @@ class Client:
 
     # API key authentication -----------------------------------------------------------
 
-    def get_default_tenant(self) -> str:
+    def get_default_tenant(self) -> Optional[str]:
         if prefect.config.backend == "cloud":
             response = self.graphql({"query": {"auth_info": "tenant_id"}})
             tenant_id = (
@@ -203,6 +203,9 @@ class Client:
                 return None
 
             return tenants[0].id
+
+        else:
+            raise ValueError(f"Unknown backend {prefect.config.backend!r}")
 
     def _load_auth_from_disk(self) -> dict:
         """
