@@ -265,6 +265,10 @@ class Client:
 
         return self._tenant_id
 
+    @tenant_id.setter
+    def tenant_id(self, tenant_id: str) -> None:
+        self._tenant_id = tenant_id
+
     # ----------------------------------------------------------------------------------
 
     def create_tenant(self, name: str, slug: str = None) -> str:
