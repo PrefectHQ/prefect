@@ -31,6 +31,7 @@ class DropboxDownload(Task):
         Args:
             - path (str, optional): the path to the file to download
             - access_token (str): a Dropbox access token, provided with a Prefect secret.
+
         Raises:
             - ValueError: if the `path` is `None`
 
