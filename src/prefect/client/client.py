@@ -663,13 +663,17 @@ class Client:
         self._attached_headers.update(headers)
 
     # API Token Authentication ---------------------------------------------------------
-    # This is all deprecated
+    # This is all deprecated and slated for removal in 0.16.0 when API token support is
+    # dropped
 
     @property
     def _api_token_settings_path(self) -> Path:
         """
         Returns the local settings directory corresponding to the current API servers
         when using an API token
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `_auth_file`.
         """
         path = "{home}/client/{server}".format(
             home=prefect.context.config.home_dir,
@@ -679,11 +683,18 @@ class Client:
 
     @property
     def active_tenant_id(self) -> Optional[str]:
+        """
+        DEPRECATED: This retains an old property used by API tokens. `tenant_id` is the
+                    new implementation.
+        """
         return self.tenant_id
 
     def _save_local_settings(self, settings: dict) -> None:
         """
         Writes settings to local storage
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `save_auth_to_disk`
         """
         self._api_token_settings_path.parent.mkdir(exist_ok=True, parents=True)
         with self._api_token_settings_path.open("w+") as f:
@@ -692,6 +703,9 @@ class Client:
     def _load_local_settings(self) -> dict:
         """
         Loads settings from local storage
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `load_auth_from_disk`
         """
         if self._api_token_settings_path.exists():
             with self._api_token_settings_path.open("r") as f:
@@ -701,6 +715,9 @@ class Client:
     def save_api_token(self) -> None:
         """
         Saves the API token in local storage.
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `save_auth_to_disk`
         """
         settings = self._load_local_settings()
         settings["api_token"] = self._api_token
@@ -715,6 +732,10 @@ class Client:
                 - if there's a refresh token and the access token expires in the next 30 seconds,
                   then we refresh the access token and store the result
                 - return the access token
+
+
+        DEPRECATED: API keys have replaced API tokens. We no longer need this refresh
+                    logic for API keys.
 
         Returns:
             - str: the access token
@@ -840,8 +861,9 @@ class Client:
 
     def logout_from_tenant(self) -> None:
         """
-        DEPRECATED: API keys have replaced API tokens. Logout can be accomplished for
-        API keys with:
+        DEPRECATED: API keys have replaced API tokens.
+
+        Logout can be accomplished for API keys with:
             ```
             client = Client()
             client.api_key = ""
