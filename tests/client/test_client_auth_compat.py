@@ -1,3 +1,8 @@
+"""
+This file tests Client auth handling with API tokens which have been deprecated in
+favor of API keys. All of these tests are for backwards compatibility and can be removed
+in 0.16.0 when API tokens are dropped.
+"""
 import json
 import os
 import tempfile
