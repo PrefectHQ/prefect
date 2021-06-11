@@ -134,10 +134,6 @@ class Client:
             or cached_auth.get("tenant_id")
         )
 
-        # If using an API key, query for the associated tenant if not set yet
-        if prefect.config.backend == "cloud" and self.api_key and not self._tenant_id:
-            self._tenant_id = self._get_api_key_default_tenant()
-
         # Backwards compatibility for API tokens ---------------------------------------
 
         self._api_token = api_token or prefect.context.config.cloud.get("auth_token")
@@ -177,19 +173,36 @@ class Client:
 
     # API key authentication -----------------------------------------------------------
 
-    def _get_api_key_default_tenant(self) -> str:
-        response = self.graphql({"query": {"auth_info": "tenant_id"}})
-        tenant_id = response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
-
-        # If the backend returns a `None` value tenant id, it indicates that an API
-        # token was passed in as an API key
-
-        if tenant_id == "":
-            raise ValueError(
-                f"Received an unexpected response from the API: {response}"
+    def get_default_tenant(self) -> str:
+        if prefect.config.backend == "cloud":
+            response = self.graphql({"query": {"auth_info": "tenant_id"}})
+            tenant_id = (
+                response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
             )
 
-        return tenant_id
+            # If the backend returns a `None` value tenant id, it indicates that an API
+            # token was passed in as an API key
+
+            if tenant_id == "":
+                raise ValueError(
+                    "Unexpected response from the API while querying for the default "
+                    f"tenant: {response}"
+                )
+
+            return tenant_id
+
+        elif prefect.config.backend == "server":
+            response = self.graphql({"query": {"tenant": {"id"}}})
+            tenants = response.get("data", {}).get("tenant", None)
+            if tenants is None:
+                raise ValueError(
+                    f"Unexpected response from the API while querying for tenants: {response}"
+                )
+
+            if not tenants:  # The user has not created a tenant yet
+                return None
+
+            return tenants[0].id
 
     def _load_auth_from_disk(self) -> dict:
         """
@@ -232,14 +245,18 @@ class Client:
 
     @property
     def tenant_id(self) -> Optional[str]:
-        if self.api_key:
-            return self._tenant_id
+        if self.api_key and prefect.config.backend == "cloud":
+            # Either the tenant id has been set or the default will be used by the
+            # backend for us
+            pass
+        elif prefect.config.backend == "server":
+            if not self._tenant_id:
+                self._tenant_id = self.get_default_tenant()
+        else:
+            # Backwards compatibility for API tokens
+            if not self._tenant_id and self._api_token:
+                self._init_tenant()
 
-        # Backwards compatibility for API tokens
-        if not self._tenant_id and (
-            self._api_token or prefect.config.backend == "server"
-        ):
-            self._init_tenant()
         return self._tenant_id
 
     # ----------------------------------------------------------------------------------
@@ -368,6 +385,10 @@ class Client:
 
         For the server backend it will try to retrieve the default tenant. If the server is
         protected with auth like BasicAuth do not forget to `attach_headers` before any call.
+
+        DEPRECATED.
+        - API keys no longer need to log in and out of a tenant
+        - The tenant is now set at __init__ or in the `tenant_id` property
         """
         if prefect.config.backend == "cloud":
             # if no api token was passed, attempt to load state from local storage
@@ -386,6 +407,9 @@ class Client:
                     # if an authorization error is raised, then the token is invalid and should
                     # be cleared
                     self.logout_from_tenant()
+
+        # This code should now be superceded by the `tenant_id` property but will remain
+        # here for backwards compat until API tokens are removed entirely
         else:
             tenant_info = self.graphql({"query": {"tenant": {"id"}}})
             if tenant_info.data.tenant:

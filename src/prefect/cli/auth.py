@@ -98,21 +98,24 @@ def login(key, token):
     abort_on_config_api_key(
         "To log in with the CLI, remove the config key `prefect.cloud.api_key`"
     )
+
+    # Attempt to treat the input like an API key even if it is passed as a token
+    client = Client(api_key=key or token)
+
     try:
-        # Attempt to treat the input like an API key even if it is passed as a token
-        client = Client(api_key=key or token)
+        default_tenant = client.get_default_tenant()
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
             raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
-        if not client._tenant_id and key:
+        if not default_tenant and key:
             raise TerminalError(
                 "Failed to find a tenant associated with the given API key!"
             )
 
-        elif client._tenant_id:  # Successful login
+        elif default_tenant:  # Successful login
             if token:
                 click.secho(
                     "WARNING: You logged in with an API key using the `--token` flag "
@@ -390,7 +393,6 @@ def list_tokens():
     )
 
     client = Client()
-
     output = client.graphql(query={"query": {"api_token": {"id", "name"}}})
 
     if not output.get("data", None):
