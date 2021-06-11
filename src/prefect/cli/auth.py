@@ -624,27 +624,28 @@ def status():
     """
     Get the current Prefect authentication status
     """
-    if config.backend == "server":
-        click.echo("You are using the 'server' backend which does not use auth.")
-        return
-
     client = Client()
+    click.echo(f"You are connecting to {client.api_server}")
 
     if client.api_key:
         click.echo("You are authenticating with an API key")
-        click.echo(
-            f"You are logged in to tenant {client.tenant_id or client.get_default_tenant()}"
-        )
+
+        try:
+            click.echo(f"You are logged in to tenant {client.get_default_tenant()}")
+        except Exception as exc:
+            click.echo(f"Your authentication is not working: {exc}")
 
     if client._api_token:
-        click.echo(
-            "You are logged in with an API token."
+        click.secho(
+            "You are logged in with an API token. These have been deprecated in favor "
+            "of API keys."
             + (
-                " Since you are using an API key as well, this will be ignored."
+                " Since you have set an API key as well, this will be ignored."
                 if client.api_key
                 else ""
-            )
+            ),
+            fg="yellow",
         )
 
     if not client._api_token and not client.api_key:
-        click.echo("You are not logged in")
+        click.secho("You are not logged in!", fg="yellow")
