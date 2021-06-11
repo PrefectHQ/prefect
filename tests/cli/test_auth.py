@@ -80,7 +80,7 @@ def test_auth_logout_not_confirm(patch_post, cloud_api):
     patch_post(dict(data=dict(auth_info=dict(tenant_id="id"))))
 
     client = prefect.Client(api_key="foo")
-    client._write_auth_to_disk()
+    client.save_auth_to_disk()
 
     runner = CliRunner()
     result = runner.invoke(auth, ["logout"], input="N")

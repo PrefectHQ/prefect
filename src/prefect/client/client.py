@@ -115,12 +115,12 @@ class Client:
 
         # Note the default is `cloud.api` which is `cloud.endpoint` or `server.endpoint`
         # depending on the value of the `backend` key
-        # This must be set before `_load_auth_from_disk()` can be called but if no API
+        # This must be set before `load_auth_from_disk()` can be called but if no API
         # key is found this will default to a different value for backwards compat
         self.api_server = api_server or prefect.context.config.cloud.api
 
         # Load the API key
-        cached_auth = self._load_auth_from_disk()
+        cached_auth = self.load_auth_from_disk()
         self.api_key = (
             api_key
             or prefect.context.config.cloud.get("api_key")
@@ -207,7 +207,7 @@ class Client:
         else:
             raise ValueError(f"Unknown backend {prefect.config.backend!r}")
 
-    def _load_auth_from_disk(self) -> dict:
+    def load_auth_from_disk(self) -> dict:
         """
         Get the stashed `api_key` and `tenant_id` for the current `api_server` from the
         disk cache if it exists. If it does not, an empty dict is returned
@@ -219,7 +219,7 @@ class Client:
             self._slugified_api_server, {}
         )
 
-    def _write_auth_to_disk(self) -> None:
+    def save_auth_to_disk(self) -> None:
         """
         Write the current auth information to a the disk cache under a header for the
         current `api_server`
