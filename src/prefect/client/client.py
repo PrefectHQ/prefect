@@ -210,7 +210,10 @@ class Client:
     def load_auth_from_disk(self) -> dict:
         """
         Get the stashed `api_key` and `tenant_id` for the current `api_server` from the
-        disk cache if it exists. If it does not, an empty dict is returned
+        disk cache if it exists. If it does not, an empty dict is returned.
+
+        WARNING: This will not mutate the `Client`, you must use the returned dict
+                 to set `api_key` and `tenant_id`
         """
         if not self._auth_file.exists():
             return {}
