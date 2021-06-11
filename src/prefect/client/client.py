@@ -81,7 +81,7 @@ class Client:
 
     Args:
         - api_server (str, optional): the URL to send all GraphQL requests to; if not
-            provided, will be pulled from the current backend's `graphql` config
+            provided, will be pulled from the current backend's `api` config
             variable
         - api_key (str, optional): a Prefect Cloud API key. If not provided, loaded
             from `config.cloud.api_key` or from the on disk cache from the
