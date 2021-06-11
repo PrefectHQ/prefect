@@ -1,5 +1,3 @@
-import warnings
-
 from prefect.client.secrets import Secret as _Secret
 from prefect.core.task import Task
 from prefect.engine.results import SecretResult

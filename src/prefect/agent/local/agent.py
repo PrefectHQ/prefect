@@ -3,7 +3,6 @@ import socket
 import sys
 from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
-import warnings
 
 from prefect import config
 from prefect.agent import Agent

@@ -1,5 +1,4 @@
 import itertools
-import warnings
 from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import timedelta
