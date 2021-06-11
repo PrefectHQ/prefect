@@ -616,3 +616,35 @@ def revoke_key(id):
         raise TerminalError(f"Unable to revoke key {id!r}")
 
     click.secho("Key successfully revoked!", fg="green")
+
+
+@auth.command(hidden=True)
+@handle_terminal_error
+def status():
+    """
+    Get the current Prefect authentication status
+    """
+    if config.backend == "server":
+        click.echo("You are using the 'server' backend which does not use auth.")
+        return
+
+    client = Client()
+
+    if client.api_key:
+        click.echo("You are authenticating with an API key")
+        click.echo(
+            f"You are logged in to tenant {client.tenant_id or client.get_default_tenant()}"
+        )
+
+    if client._api_token:
+        click.echo(
+            "You are logged in with an API token."
+            + (
+                " Since you are using an API key as well, this will be ignored."
+                if client.api_key
+                else ""
+            )
+        )
+
+    if not client._api_token and not client.api_key:
+        click.echo("You are not logged in")
