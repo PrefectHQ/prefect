@@ -236,7 +236,9 @@ class Client:
             return self._tenant_id
 
         # Backwards compatibility for API tokens
-        if not self._tenant_id and self._api_token:
+        if not self._tenant_id and (
+            self._api_token or prefect.config.backend == "server"
+        ):
             self._init_tenant()
         return self._tenant_id
 
@@ -568,7 +570,7 @@ class Client:
         if token:
             headers["Authorization"] = "Bearer {}".format(token)
 
-        if self.tenant_id and self.api_key:
+        if self.api_key and self.tenant_id:
             # Attach a tenant id to the headers if using an API key since it can be
             # used accross tenants. API tokens cannot and do not need this header.
             headers["X-PREFECT-TENANT-ID"] = self.tenant_id
