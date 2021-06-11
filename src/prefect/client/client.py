@@ -110,10 +110,6 @@ class Client:
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
-        # Note the default is `cloud.api` which is `cloud.endpoint` or `server.endpoint`
-        # depending on the value of the `backend` key
-        self.api_server = api_server or prefect.context.config.cloud.api
-
         # Hard-code the auth filepath location
         self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
 
@@ -123,6 +119,16 @@ class Client:
             api_key
             or prefect.context.config.cloud.get("api_key")
             or cached_auth.get("api_key")
+        )
+
+        # Set the api server with a backwards compatible default for API tokens
+        # Note the default (when using an API key) is `cloud.api` which is
+        # `cloud.endpoint` or `server.endpoint` depending on the value of the
+        # `backend` key
+        self.api_server = api_server or (
+            prefect.context.config.cloud.api
+            if self.api_key
+            else prefect.context.config.cloud.graphql
         )
 
         # Backwards compatibility for API tokens
