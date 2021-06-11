@@ -87,7 +87,7 @@ class Client:
             from `config.cloud.api_key` or from the on disk cache from the
             `prefect auth` CLI
         - tenant_id (str, optional): the Prefect tenant to use. If not provided, loaded
-            from `config.cloud.tenant_id` or the the on disk cache from the
+            from `config.cloud.tenant_id` or the on disk cache from the
             `prefect auth` CLI
         - api_token (str, optional): a Prefect Cloud API token, taken from
             `config.cloud.auth_token` if not provided. If this token is USER-scoped, it may

@@ -447,7 +447,7 @@ def revoke_token(id):
 
 
 @auth.command(hidden=True)
-@click.option("--name", "-n", required=True, help="A name to associated with the key")
+@click.option("--name", "-n", required=True, help="A name to associate with the key")
 @click.option(
     "--expire",
     "-e",
