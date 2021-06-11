@@ -152,6 +152,8 @@ class Client:
             and not self._api_token
             and prefect.config.backend == "cloud"
         ):
+            # If not using an API key and a token has not been passed or set in the
+            # config, attempt to load an API token from disk
             self._init_tenant()
 
         if self._api_token and not self.api_key:
