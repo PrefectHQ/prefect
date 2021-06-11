@@ -14,9 +14,8 @@ class DropboxDownload(Task):
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
-    def __init__(self, path: str = None, access_token_secret: str = None, **kwargs):
+    def __init__(self, path: str = None, **kwargs):
         self.path = path
-        self.access_token_secret = access_token_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("path", "access_token_secret")
