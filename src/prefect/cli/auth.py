@@ -342,7 +342,9 @@ def switch_tenants(id, slug, default):
             client.tenant_id = None
             client.save_auth_to_disk()
             click.secho(
-                f"Tenant restored to the default tenant for your API key", fg="green"
+                "Tenant restored to the default tenant for your API key: "
+                f"{client.get_default_tenant()}",
+                fg="green",
             )
             return
 
