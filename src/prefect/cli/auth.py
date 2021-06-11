@@ -300,8 +300,14 @@ def list_tenants():
 @click.option(
     "--slug", "-s", required=False, help="A Prefect Cloud tenant slug.", hidden=True
 )
+@click.option(
+    "--default",
+    "-d",
+    is_flag=True,
+    help="Switch to the default tenant for your API key",
+)
 @handle_terminal_error
-def switch_tenants(id, slug):
+def switch_tenants(id, slug, default):
     """
     Switch active tenant
 
@@ -324,6 +330,21 @@ def switch_tenants(id, slug):
     # Deprecated API token check
     if not client.api_key:
         check_override_auth_token()
+
+        if default:
+            raise TerminalError(
+                "The default tenant flag can only be used with API keys."
+            )
+
+    else:  # Using an API key
+        if default:
+            # Clear the set tenant on disk
+            client.tenant_id = None
+            client.save_auth_to_disk()
+            click.secho(
+                f"Tenant restored to the default tenant for your API key", fg="green"
+            )
+            return
 
     login_success = client.login_to_tenant(tenant_slug=slug, tenant_id=id)
     if not login_success:
