@@ -113,6 +113,12 @@ class Client:
         # Hard-code the auth filepath location
         self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
 
+        # Note the default is `cloud.api` which is `cloud.endpoint` or `server.endpoint`
+        # depending on the value of the `backend` key
+        # This must be set before `_load_auth_from_disk()` can be called but if no API
+        # key is found this will default to a different value for backwards compat
+        self.api_server = api_server or prefect.context.config.cloud.api
+
         # Load the API key
         cached_auth = self._load_auth_from_disk()
         self.api_key = (
@@ -121,18 +127,25 @@ class Client:
             or cached_auth.get("api_key")
         )
 
-        # Set the api server with a backwards compatible default for API tokens
-        # Note the default (when using an API key) is `cloud.api` which is
-        # `cloud.endpoint` or `server.endpoint` depending on the value of the
-        # `backend` key
-        self.api_server = api_server or (
-            prefect.context.config.cloud.api
-            if self.api_key
-            else prefect.context.config.cloud.graphql
+        # Load the tenant id
+        self._tenant_id = (
+            tenant_id
+            or prefect.context.config.cloud.get("tenant_id")
+            or cached_auth.get("tenant_id")
         )
 
-        # Backwards compatibility for API tokens
+        # If using an API key, query for the associated tenant if not set yet
+        if prefect.config.backend == "cloud" and self.api_key and not self._tenant_id:
+            self._tenant_id = self._get_api_key_default_tenant()
+
+        # Backwards compatibility for API tokens ---------------------------------------
+
         self._api_token = api_token or prefect.context.config.cloud.get("auth_token")
+
+        if not self.api_key and not api_server:
+            # The default value for the `api_server` changed for API keys but we want
+            # to load API tokens from the correct backwards-compatible location on disk
+            self.api_server = prefect.config.cloud.graphql
 
         if (
             not self.api_key
@@ -159,17 +172,6 @@ class Client:
                     else ""
                 )
             )
-
-        # Load the tenant id
-        self._tenant_id = (
-            tenant_id
-            or prefect.context.config.cloud.get("tenant_id")
-            or cached_auth.get("tenant_id")
-        )
-
-        # If using an API key, query for the associated tenant if not set yet
-        if prefect.config.backend == "cloud" and self.api_key and not self._tenant_id:
-            self._tenant_id = self._get_api_key_default_tenant()
 
     # API key authentication -----------------------------------------------------------
 
