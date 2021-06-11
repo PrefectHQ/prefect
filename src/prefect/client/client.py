@@ -839,6 +839,16 @@ class Client:
         return True
 
     def logout_from_tenant(self) -> None:
+        """
+        DEPRECATED: API keys have replaced API tokens. Logout can be accomplished for
+        API keys with:
+            ```
+            client = Client()
+            client.api_key = ""
+            client._tenant_id = ""
+            client.save_auth_to_disk()
+            ```
+        """
         self._access_token = None
         self._refresh_token = None
         self._tenant_id = None
@@ -853,6 +863,8 @@ class Client:
         Refresh the client's JWT access token.
 
         NOTE: this should only be called by users who have provided a USER-scoped API token.
+
+        DEPRECATED: API keys have replaced API tokens
 
         Returns:
             - bool: True if the refresh succeeds

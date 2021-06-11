@@ -122,7 +122,7 @@ def login(key, token):
                     "which is deprecated. Please use `--key` instead.",
                     fg="yellow",
                 )
-            client._write_auth_to_disk()
+            client.save_auth_to_disk()
             click.secho("Login successful!", fg="green")
             return
 
@@ -218,7 +218,7 @@ def logout(token):
         # Clear the key and tenant id then write to the cache
         client.api_key = ""
         client._tenant_id = ""
-        client._write_auth_to_disk()
+        client.save_auth_to_disk()
 
         click.secho("Logged out of Prefect Cloud", fg="green")
 
@@ -332,7 +332,7 @@ def switch_tenants(id, slug):
     # `login_to_tenant` will write to disk if using an API token, if using an API key
     # we will write to disk manually here
     if client.api_key:
-        client._write_auth_to_disk()
+        client.save_auth_to_disk()
 
     click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
 
