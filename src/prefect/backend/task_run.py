@@ -143,7 +143,7 @@ class TaskRunView:
             # Update state
             self.state.map_states = [task_run.state for task_run in child_task_runs]
 
-    def _assert_result_type_is_not_custom(self):
+    def _assert_result_type_is_not_custom(self) -> None:
         """
         Since we do not have access to the user's custom Result class, we cannot load
         the result.
