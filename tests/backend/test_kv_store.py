@@ -11,8 +11,11 @@ class TestSetKeyValue:
         with pytest.raises(ClientError):
             set_key_value(key="foo", value="bar")
 
+    @pytest.mark.parametrize(
+        ("value"), ["bar", 2, 2.1, False, {"foo": "bar"}, [1, 2, 3], None]
+    )
     def test_set_key_value_calls_client_mutation_correctly(
-        self, monkeypatch, cloud_api
+        self, monkeypatch, cloud_api, value
     ):
         Client = MagicMock()
         Client().graphql.return_value = GraphQLResult(
@@ -22,16 +25,27 @@ class TestSetKeyValue:
         )
         monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
-        key_value_id = set_key_value(key="foo", value="bar")
+        key_value_id = set_key_value(key="foo", value=value)
         Client.return_value.graphql.assert_called_with(
             query={
                 "mutation($input: set_key_value_input!)": {
                     "set_key_value(input: $input)": {"id"}
                 }
             },
-            variables={"input": {"key": "foo", "value": "bar"}},
+            variables={"input": {"key": "foo", "value": value}},
         )
         assert key_value_id == "123"
+
+    def test_set_key_value_raises_if_value_too_large(self, monkeypatch, cloud_api):
+        Client = MagicMock()
+        monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
+
+        # value over the 10 KB limit
+        large_value = "1" * 10001
+
+        with pytest.raises(ValueError, match="Value payload exceedes 10 KB limit."):
+            set_key_value(key="foo", value=large_value)
+        Client.assert_not_called()
 
 
 class TestGetKeyValue:
