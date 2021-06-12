@@ -26,6 +26,7 @@ def set_key_value(key: str, value: Any) -> str:
 
     Raises:
         - ClientError: if using Prefect Server instead of Cloud
+        - ValueError: if `value` exceeds 10 KB limit
     """
     if prefect.config.backend != "cloud":
         raise ClientError(NON_CLOUD_BACKEND_ERROR_MESSAGE)
