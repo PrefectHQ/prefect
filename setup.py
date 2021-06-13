@@ -81,6 +81,7 @@ extras = {
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
     "test": test_requires,
+    "vault": ["hvac >= 0.10"],
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
     "dremio": ["pyarrow>=0.15.1"],
