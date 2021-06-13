@@ -4,10 +4,7 @@ import json
 import os
 
 import prefect
-from prefect.tasks.secrets import (
-    SecretBase,
-    PrefectSecret
-)
+from prefect.tasks.secrets import SecretBase, PrefectSecret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -54,27 +51,28 @@ class VaultSecret(SecretBase):
         self.logger.debug(f"looking up vault path: {name}")
         client = hvac.Client()
         # get vault address url
-        vault_url = os.getenv('VAULT_ADDR', default=None)
+        vault_url = os.getenv("VAULT_ADDR", default=None)
         if vault_url is None:
-            vault_url = os.getenv('vault_addr', default=None)
+            vault_url = os.getenv("vault_addr", default=None)
             if vault_url is None:
                 raise KeyError(
-                    'VAULT_ADDR url var not found. '
+                    "VAULT_ADDR url var not found. "
                     'Either "VAULT_ADDR" or "vault_addr" env var required.'
                 )
         client.url = vault_url
         self.logger.debug(f"vault addr set to: {client.url}")
 
         # get vault auth credentials from the indicated secret
-        sk_vault_creds = prefect.context.parameters['vault.credentials']
+        sk_vault_creds = prefect.context.parameters["vault.credentials"]
         vault_creds = PrefectSecret(sk_vault_creds).run()
-        if 'VAULT_TOKEN' in vault_creds.keys():
-            client.token = vault_creds['VAULT_TOKEN']
-        elif ('VAULT_ROLE_ID' in vault_creds.keys() and
-              'VAULT_SECRET_ID' in vault_creds.keys()):
+        if "VAULT_TOKEN" in vault_creds.keys():
+            client.token = vault_creds["VAULT_TOKEN"]
+        elif (
+            "VAULT_ROLE_ID" in vault_creds.keys()
+            and "VAULT_SECRET_ID" in vault_creds.keys()
+        ):
             client.auth_approle(
-                vault_creds['VAULT_ROLE_ID'],
-                vault_creds['VAULT_SECRET_ID']
+                vault_creds["VAULT_ROLE_ID"], vault_creds["VAULT_SECRET_ID"]
             )
         else:
             raise PermissionError(
@@ -85,9 +83,9 @@ class VaultSecret(SecretBase):
             raise PermissionError(
                 "Unable to autheticate with vault using supplied credentials"
             )
-        self.logger.debug('passed vault authentication check')
+        self.logger.debug("passed vault authentication check")
         # regex to parse path into 2 named parts: <mount_point>/<path>
-        secret_path_re = r'^(?P<mount_point>[^/]+)/(?P<path>.+)$'
+        secret_path_re = r"^(?P<mount_point>[^/]+)/(?P<path>.+)$"
         m = re.fullmatch(secret_path_re, name)
         if m is None:
             raise KeyError(
@@ -98,10 +96,9 @@ class VaultSecret(SecretBase):
         value = ""
         try:
             vault_secret = client.secrets.kv.v2.read_secret_version(
-                path=vault_path['path'],
-                mount_point=vault_path['mount_point']
+                path=vault_path["path"], mount_point=vault_path["mount_point"]
             )
-            value = vault_secret['data']['data']
+            value = vault_secret["data"]["data"]
         except KeyError as exc:
             raise KeyError(f"Secret not found: {vault_path['path']}") from exc
         except hvac.exceptions.Forbidden:
@@ -117,8 +114,8 @@ class VaultSecret(SecretBase):
         or `False`.
 
         Args:
-            - name (str, optional): The secret name defined by the Vault secret path "<mount-point>/<path>"
-                Defaults to the name provided at initialization.
+            - name (str, optional): The secret name defined by the Vault secret
+                path "<mount-point>/<path>".  Defaults to the name provided at initialization.
 
         Returns:
             - Any: the underlying value of the Vault Secret
@@ -129,7 +126,7 @@ class VaultSecret(SecretBase):
                 "not while building a Flow."
             )
 
-        secrets = prefect.context.get('secrets', {})
+        secrets = prefect.context.get("secrets", {})
         value = None
         try:
             value = secrets[name]
@@ -138,7 +135,7 @@ class VaultSecret(SecretBase):
                 # lookup the secret value in Vault
                 value = self._get_vault_secret(name)
             else:
-                raise ValueError(f"Local secret \"{name}\" not found.") from None
+                raise ValueError(f'Local secret "{name}" not found.') from None
 
         try:
             return json.loads(value)
