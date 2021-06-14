@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import click
 import pytest
+import json
 from click.testing import CliRunner
 
 import prefect
@@ -271,3 +272,106 @@ def test_override_functions_on_commands(cloud_api):
         runner = CliRunner()
         result = runner.invoke(auth, ["revoke-token", "--id", "id"])
         assert result.exit_code == 1
+
+
+@pytest.mark.parametrize(
+    "expires",
+    [None, pendulum.now().add(minutes=5).isoformat(), "2021-12-05"],
+)
+@pytest.mark.parametrize("quiet", [True, False])
+def test_create_key(patch_post, cloud_api, quiet, expires):
+    post = patch_post(
+        dict(
+            data=dict(
+                create_api_key={"key": "this-key"}, auth_info={"user_id": "this-id"}
+            )
+        )
+    )
+
+    runner = CliRunner()
+    args = []
+    if quiet:
+        args.append("--quiet")
+    if expires:
+        args += ["--expire", expires]
+
+    result = runner.invoke(auth, ["create-key", "-n", "this-name"] + args)
+    assert result.exit_code == 0
+    assert "this-key" in result.output if not quiet else "this-key\n" == result.output
+
+    # Check for the correct API call
+    inputs = json.loads(post.call_args[1]["json"]["variables"])["input"]
+    assert inputs["name"] == "this-name"
+    assert inputs["user_id"] == "this-id"
+    assert inputs["expires_at"] == (
+        pendulum.parse(expires, strict=False).in_tz("utc").isoformat()
+        if expires
+        else None
+    )
+
+
+def test_create_key_fails_on_user_retrieval(patch_post, cloud_api):
+    patch_post(dict())
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["create-key", "-n", "name"])
+    assert result.exit_code == 1
+    assert "Failed to retrieve the current user id from Prefect Cloud" in result.output
+
+
+def test_create_key_fails_on_key_creation(patch_posts, cloud_api):
+    patch_posts([dict(data=dict(auth_info={"user_id": "this-id"})), dict()])
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["create-key", "-n", "name"])
+    assert result.exit_code == 1
+    assert "Unexpected response from Prefect Cloud" in result.output
+
+
+def test_list_keys(patch_post, cloud_api):
+    patch_post(
+        dict(data=dict(auth_api_key=[{"id": "id", "name": "name", "expires_at": None}]))
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["list-keys"])
+    assert result.exit_code == 0
+    assert "id" in result.output
+    assert "name" in result.output
+    assert "NEVER" in result.output
+
+
+def test_list_keys_fails_with_unexpected_response(patch_post, cloud_api):
+    patch_post(dict(data={}))
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["list-keys"])
+    assert result.exit_code == 1
+    assert "Unexpected response from Prefect Cloud" in result.output
+
+
+def test_list_keys_fails_with_no_keys(patch_post, cloud_api):
+    patch_post(dict(data=dict(auth_api_key=[])))
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["list-keys"])
+    assert result.exit_code == 0
+    assert "You have not created any API keys" in result.output
+
+
+def test_revoke_key(patch_post, cloud_api):
+    patch_post(dict(data=dict(delete_api_key={"success": True})))
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["revoke-key", "--id", "id"])
+    assert result.exit_code == 0
+    assert "Key successfully revoked" in result.output
+
+
+def test_revoke_key_fails(patch_post, cloud_api):
+    patch_post(dict())
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["revoke-key", "--id", "id"])
+    assert result.exit_code == 1
+    assert "Unable to revoke key 'id'" in result.output

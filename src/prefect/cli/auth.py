@@ -210,6 +210,8 @@ def login(key, token):
 def logout(token):
     """
     Log out of Prefect Cloud
+
+    This will remove your cached authentication from disk.
     """
 
     client = Client()
@@ -569,6 +571,7 @@ def create_key(name, expire, quiet):
 
 
 @auth.command(hidden=True)
+@handle_terminal_error
 def list_keys():
     """
     List available Prefect Cloud API keys.
