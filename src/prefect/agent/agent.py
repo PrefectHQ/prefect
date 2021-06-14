@@ -810,6 +810,9 @@ class Agent:
     def _verify_token(self, token: str) -> None:
         """
         Checks whether a token with a `RUNNER` scope was provided
+
+        DEPRECATED: API Keys do not have different scope
+
         Args:
             - token (str): The provided agent token to verify
         Raises:
