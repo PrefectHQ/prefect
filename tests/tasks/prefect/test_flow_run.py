@@ -228,7 +228,11 @@ class TestGetTaskRunResult:
         MockFlowRunView.from_flow_run_id.return_value = flow_run
 
         # Ensure we aren't sleeping on already finished runs
-        mock_sleep = MagicMock()
+        mock_sleep = MagicMock(
+            side_effect=RuntimeError(
+                "Sleep should not be called for a fnished flow run."
+            )
+        )
         monkeypatch.setattr("prefect.tasks.prefect.flow_run.time.sleep", mock_sleep)
 
         result = get_task_run_result.run(flow_run_id="id", task_slug="slug", **kwargs)
