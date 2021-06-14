@@ -25,7 +25,7 @@ class TestInitialization:
 
 
 class TestCredentials:
-    def uses_access_token(self, monkeypatch):
+    def test_uses_access_token(self, monkeypatch):
         task = DropboxDownload(path="test")
 
         dbx = MagicMock()
