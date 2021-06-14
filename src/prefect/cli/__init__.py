@@ -17,6 +17,7 @@ from .run import run as _run
 from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
 from .build_register import register as _register, build as _build
+from .kv_store import kv as _kv
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -73,6 +74,7 @@ cli.add_command(_server)
 cli.add_command(_heartbeat)
 cli.add_command(_register)
 cli.add_command(_build)
+cli.add_command(_kv)
 
 
 # Miscellaneous Commands

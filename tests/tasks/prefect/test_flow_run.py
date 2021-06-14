@@ -1,8 +1,12 @@
+from datetime import timedelta
 import pendulum
 import pytest
 from unittest.mock import MagicMock
 
 import prefect
+from prefect.client.client import FlowRunInfoResult, ProjectInfo
+from prefect.engine import signals, state
+
 from prefect.run_configs import UniversalRun
 from prefect.tasks.prefect.flow_run import StartFlowRun
 
@@ -18,6 +22,20 @@ def client(monkeypatch):
         create_flow_run=MagicMock(return_value="xyz890"),
         get_cloud_url=MagicMock(return_value="https://api.prefect.io/flow/run/url"),
         create_task_run_artifact=MagicMock(return_value="id"),
+        get_flow_run_info=MagicMock(
+            return_value=FlowRunInfoResult(
+                id="my-flow-run-id",
+                name="test-run",
+                flow_id="xyz890",
+                version=1,
+                task_runs=[],
+                state=state.Success(),
+                scheduled_start_time=None,
+                project=ProjectInfo(id="my-project-id", name="Test Project"),
+                parameters={"test": "ing"},
+                context={},
+            )
+        ),
     )
     monkeypatch.setattr(
         "prefect.tasks.prefect.flow_run.Client", MagicMock(return_value=cloud_client)
@@ -208,6 +226,49 @@ class TestStartFlowRunServer:
             scheduled_start_time=None,
             run_config=None,
         )
+
+    def test_flow_run_task_with_wait(self, client, server_api):
+        # verify that create_flow_run was called
+        task = StartFlowRun(
+            flow_name="Test Flow",
+            project_name="Demo",
+            parameters={"test": "ing"},
+            run_name="test-run",
+            wait=True,
+            poll_interval=timedelta(seconds=3),
+        )
+        assert task.poll_interval == timedelta(seconds=3)
+        # Run flow, and assert that signals a success
+        with pytest.raises(signals.SUCCESS) as exc_info:
+            task.run()
+        flow_state_signal = exc_info.value
+        assert isinstance(flow_state_signal.state, state.Success)
+        # Check flow ID
+        assert str(flow_state_signal).split(" ")[0] == "xyz890"
+        # verify the GraphQL query was called with the correct arguments
+        query_args = list(client.graphql.call_args_list[0][0][0]["query"].keys())[0]
+        assert "Test Flow" in query_args
+        # verify create_flow_run was called with the correct arguments
+        client.create_flow_run.assert_called_once_with(
+            flow_id="abc123",
+            parameters={"test": "ing"},
+            idempotency_key=None,
+            context=None,
+            run_name="test-run",
+            scheduled_start_time=None,
+            run_config=None,
+        )
+
+    def test_flow_run_task_poll_interval_too_short(self):
+        with pytest.raises(ValueError):
+            task = StartFlowRun(
+                flow_name="Test Flow",
+                project_name="Demo",
+                parameters={"test": "ing"},
+                run_name="test-run",
+                wait=True,
+                poll_interval=timedelta(seconds=2),
+            )
 
     def test_flow_run_task_without_flow_name(self, server_api):
         # verify that a ValueError is raised without a flow name

@@ -182,6 +182,16 @@ DockerAgent(env_vars={"KEY": "VALUE", "KEY2": "VALUE2"})
 :::
 ::::
 
+### Agent Automations <Badge text="Cloud"/>
+
+Users on Standard or Enterprise licenses in Cloud can create an agent [automation](orchestration/concepts/automations.html) to notify them if all agents from a configuration group (agent config ids can be added to multiple agents) have not queried for work in a certain time frame.   To do so go to the [automations tab of the dashboard](https://cloud.prefect.io/automations=) in the UI and set up an agent configuration then copy the agent config id that is provided once your automation is created.  You can then provide the agent configuration to your agent using the --agent-config-id flag:
+
+```bash
+prefect agent <AGENT TYPE> start --agent-config-id <AGENT CONFIG ID>
+```
+
+Note - Agent automations can only be added as a flag when starting an agent at present.  They can not be added at install. 
+
 ### Health Checks
 
 Agents can optionally run a private HTTP server for use as a health check.

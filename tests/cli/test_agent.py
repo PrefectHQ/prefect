@@ -167,7 +167,7 @@ def test_agent_start(
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2", "KEY3": "VALUE=WITH=EQUALS"},
         "max_polls": 10,
         "agent_address": "127.0.0.1:8080",
-        "no_cloud_logs": False,
+        "no_cloud_logs": None if not deprecated else False,
         **extra_kwargs,
     }
 

@@ -35,7 +35,7 @@ def default_task_definition():
 @pytest.fixture(autouse=True)
 def mock_cloud_config(cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
     ):
         yield
 
@@ -559,6 +559,7 @@ class TestGetRunTaskKwargs:
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": "flow-id",
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
@@ -688,3 +689,15 @@ class TestDeployFlow:
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
         assert aws.ecs.run_task.call_args[1]["enableECSManagedTags"] is True
         assert "my-task-arn" in res
+
+    def test_deploy_flow_forwards_run_config_settings(self, aws):
+        aws.ecs.register_task_definition.return_value = {
+            "taskDefinition": {"taskDefinitionArn": "my-taskdef-arn"}
+        }
+        aws.ecs.run_task.return_value = {"tasks": [{"taskArn": "my-task-arn"}]}
+
+        self.deploy_flow(ECSRun(cpu=8, memory=1024))
+
+        aws.ecs.run_task.assert_called_once()
+        assert aws.ecs.run_task.call_args[1]["overrides"]["cpu"] == "8"
+        assert aws.ecs.run_task.call_args[1]["overrides"]["memory"] == "1024"
