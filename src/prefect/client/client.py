@@ -7,7 +7,7 @@ import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 # if simplejson is installed, `requests` defaults to using it instead of json
 # this allows the client to gracefully handle either json or simplejson
@@ -221,18 +221,16 @@ class Client:
         disk cache if it exists. If it does not, an empty dict is returned.
 
         WARNING: This will not mutate the `Client`, you must use the returned dict
-                 to set `api_key` and `tenant_id`
+                 to set `api_key` and `tenant_id`. This is
         """
         if not self._auth_file.exists():
             return {}
 
-        return toml.loads(self._auth_file.read_text()).get(
-            self._slugified_api_server, {}
-        )
+        return toml.loads(self._auth_file.read_text()).get(self._api_server_slug, {})
 
     def save_auth_to_disk(self) -> None:
         """
-        Write the current auth information to a the disk cache under a header for the
+        Write the current auth information to the disk cache under a header for the
         current `api_server`
         """
         # Load the current contents of the entire file
@@ -241,7 +239,7 @@ class Client:
         )
 
         # Update the data for this API server
-        contents[self._slugified_api_server] = {
+        contents[self._api_server_slug] = {
             "api_key": self.api_key,
             "tenant_id": self.tenant_id,
         }
@@ -254,8 +252,21 @@ class Client:
         )
 
     @property
-    def _slugified_api_server(self) -> str:
-        return slugify(self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
+    def _api_server_slug(self) -> str:
+        """
+        A slugified version of the API server's network location, used for loading
+        and saving settings for different API servers.
+
+        This should only be relevant for the 'cloud' backend since the 'server' backend
+        does not save authentication.
+
+        This should remain stable or users will not be able to load credentials
+        """
+        # Parse the server to drop the protocol
+        netloc = urlparse(self.api_server).netloc
+        # Then return the slugified contents, falling back to the full server if it
+        # could not be parsed into a net location
+        return slugify(netloc or self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
 
     @property
     def tenant_id(self) -> Optional[str]:
