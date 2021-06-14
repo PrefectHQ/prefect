@@ -88,9 +88,6 @@ class Agent:
     Flow on the given platform. It is built in this way to keep Prefect API logic standard
     but allows for platform specific customizability.
 
-    In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
-    environment variable or in your user configuration file.
-
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
             configuration based on an agent from a backend API. If set, all configuration values will be
@@ -131,8 +128,9 @@ class Agent:
         agent_address: str = None,
         no_cloud_logs: bool = None,
     ) -> None:
-        # Load token and initialize client
+        # Load token for backwards compatibility
         token = config.cloud.agent.get("auth_token")
+        # Auth with an API key will be loaded from the config or disk by the Client
         self.client = Client(api_server=config.cloud.api, api_token=token)
 
         self.agent_config_id = agent_config_id
