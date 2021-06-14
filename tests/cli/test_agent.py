@@ -193,6 +193,8 @@ def test_agent_start(
                 f"Warning: `prefect agent start {name}` is deprecated" in result.output
             )
 
+    assert result.exit_code == 0
+
     agent_cls.assert_called_once()
     kwargs = agent_cls.call_args[1]
     for k, v in expected_kwargs.items():
