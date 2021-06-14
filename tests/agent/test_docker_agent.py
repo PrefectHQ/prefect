@@ -163,7 +163,9 @@ def test_environment_has_agent_token_from_config(api, config_with_token):
 
 @pytest.mark.parametrize("tenant_id", ["ID", None])
 def test_environment_has_api_key_from_config(api, tenant_id):
-    with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
+    with set_temporary_config(
+        {"cloud.api_key": "TEST_KEY", "cloud.tenant_id": tenant_id}
+    ):
         agent = DockerAgent()
 
         env_vars = agent.populate_env_vars(
@@ -176,7 +178,7 @@ def test_environment_has_api_key_from_config(api, tenant_id):
 
 
 @pytest.mark.parametrize("tenant_id", ["ID", None])
-def test_environment_has_api_key_from_disk(self, api, monkeypatch, tenant_id):
+def test_environment_has_api_key_from_disk(api, monkeypatch, tenant_id):
     """Check that the API key is passed through from the on disk cache"""
     monkeypatch.setattr(
         "prefect.Client.load_auth_from_disk",
