@@ -869,14 +869,6 @@ class TaskRunner(Runner):
                     logger=self.logger,
                 )
 
-        except Exception as exc:  # Handle exceptions in the task
-            if prefect.context.get("raise_on_exception"):
-                raise exc
-            top_level_msg = f"Error during execution of task: {exc!r}"
-            self.logger.exception(top_level_msg, exc_info=True)
-            state = Failed(top_level_msg, result=exc)
-            return state
-
         except TaskTimeoutError as exc:  # Convert timeouts to a `TimedOut` state
             if prefect.context.get("raise_on_exception"):
                 raise exc
@@ -890,6 +882,20 @@ class TaskRunner(Runner):
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
+
+        except signals.PrefectStateSignal:
+            # Other state signals will be handled by the `call_state_handlers`
+            # decorator. Once Prefect signal exceptions are modified to inherit
+            # from `BaseException` instead of `Exception`, this can be removed
+            raise
+
+        except Exception as exc:  # Handle exceptions in the task
+            if prefect.context.get("raise_on_exception"):
+                raise exc
+            top_level_msg = f"Error during execution of task: {exc!r}"
+            self.logger.exception(top_level_msg, exc_info=True)
+            state = Failed(top_level_msg, result=exc)
+            return state
 
         # checkpoint tasks if a result is present, except for when the user has opted out by
         # disabling checkpointing
