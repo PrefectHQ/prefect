@@ -561,7 +561,7 @@ class TestGetRunTaskKwargs:
             "CUSTOM4": "VALUE4",
         }
 
-    def test_environment_sets_agent_token_from_config(self):
+    def test_environment_has_agent_token_from_config(self):
         with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
             env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
                 "containerOverrides"
@@ -570,7 +570,7 @@ class TestGetRunTaskKwargs:
 
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
 
-    def test_environment_sets_api_key_from_config(self):
+    def test_environment_has_api_key_from_config(self):
         with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
             env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
                 "containerOverrides"

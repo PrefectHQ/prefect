@@ -126,7 +126,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag):
     assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
 
 
-def test_environment_sets_agent_token_from_config():
+def test_environment_has_agent_token_from_config():
     """Check that the API token is passed through from the config via environ"""
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
@@ -138,7 +138,7 @@ def test_environment_sets_agent_token_from_config():
     assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
 
 
-def test_environment_sets_api_key_from_config():
+def test_environment_has_api_key_from_config():
     """Check that the API key is passed through from the config via environ"""
 
     with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
@@ -146,6 +146,21 @@ def test_environment_sets_api_key_from_config():
         env = agent.populate_env_vars(
             GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
         )
+
+    assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+
+
+def test_environment_has_api_key_from_disk(monkeypatch):
+    """Check that the API key is passed through from the config via environ"""
+    monkeypatch.setattr(
+        "prefect.Client.load_auth_from_disk",
+        MagicMock(return_value={"api_key": "TEST_KEY"}),
+    )
+
+    agent = LocalAgent()
+    env = agent.populate_env_vars(
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+    )
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
 

@@ -1338,7 +1338,7 @@ class TestK8sAgentRunConfig:
             "CUSTOM4": "VALUE4",
         }
 
-    def test_environment_sets_agent_token_from_config(self):
+    def test_environment_has_agent_token_from_config(self):
         """Check that the API token is passed through from the config via environ"""
         flow_run = self.build_flow_run(KubernetesRun())
 
@@ -1350,7 +1350,7 @@ class TestK8sAgentRunConfig:
 
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
 
-    def test_environment_sets_api_key_from_config(self):
+    def test_environment_has_api_key_from_config(self):
         """Check that the API key is passed through from the config via environ"""
         flow_run = self.build_flow_run(KubernetesRun())
 
