@@ -869,14 +869,21 @@ class TaskRunner(Runner):
                     logger=self.logger,
                 )
 
-        # inform user of timeout
-        except TaskTimeoutError as exc:
+        except Exception as exc:  # Handle exceptions in the task
+            if prefect.context.get("raise_on_exception"):
+                raise exc
+            top_level_msg = f"Error during execution of task: {exc!r}"
+            self.logger.exception(top_level_msg, exc_info=True)
+            state = Failed(top_level_msg, result=exc)
+            return state
+
+        except TaskTimeoutError as exc:  # Convert timeouts to a `TimedOut` state
             if prefect.context.get("raise_on_exception"):
                 raise exc
             state = TimedOut("Task timed out during execution.", result=exc)
             return state
 
-        except signals.LOOP as exc:
+        except signals.LOOP as exc:  # Convert loop signals to a `Looped` state
             new_state = exc.state
             assert isinstance(new_state, Looped)
             value = new_state.result
