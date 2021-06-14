@@ -888,6 +888,9 @@ class TaskRunner(Runner):
             # decorator. Once Prefect signal exceptions are modified to inherit
             # from `BaseException` instead of `Exception`, this can be removed
             raise
+        except signals.ENDRUN:
+            # As above, the `ENDRUN` is a special exception
+            raise
 
         except Exception as exc:  # Handle exceptions in the task
             if prefect.context.get("raise_on_exception"):
