@@ -515,7 +515,8 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
     assert env[5]["value"] == "['foo', 'bar']"
 
 
-def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
+@pytest.mark.parametrize("use_token", [True, False])
+def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api, use_token):
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
         "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
@@ -524,7 +525,9 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
+        token="test_token" if use_token else None,
+        key="test-key" if not use_token else None,
+        tenant_id="test-tenant" if not use_token else None,
         api="test_api",
         namespace="test_namespace",
         backend="backend-test",
@@ -534,10 +537,18 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[0]["value"] == "test_token"
+    assert agent_env[0]["value"] == ("test_token" if use_token else "")
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
     assert agent_env[11]["value"] == "backend-test"
+    assert agent_env[13] == {
+        "name": "PREFECT__CLOUD__API_KEY",
+        "value": "test-key" if not use_token else "",
+    }
+    assert agent_env[14] == {
+        "name": "PREFECT__CLOUD__TENANT_ID",
+        "value": "test-tenant" if not use_token else "",
+    }
 
 
 def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
@@ -555,8 +566,8 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[13]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS"
-    assert agent_env[13]["value"] == json.dumps(env_vars)
+    assert agent_env[-1]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS"
+    assert agent_env[-1]["value"] == json.dumps(env_vars)
 
 
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):

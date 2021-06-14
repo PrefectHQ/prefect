@@ -736,6 +736,8 @@ class KubernetesAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         backend: str = None,
+        key: str = None,
+        tenant_id: str = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -766,6 +768,10 @@ class KubernetesAgent(Agent):
                 jobs created by this agent and to set in the agent's own environment
             - backend (str, optional): toggle which backend to use for this agent.
                 Defaults to backend currently set in config.
+            - key (str, optional): An API key for the agent to use for authentication
+                with Prefect Cloud
+            - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
+                set, the default tenant associated with the API key will be used.
 
         Returns:
             - str: A string representation of the generated YAML
@@ -773,6 +779,8 @@ class KubernetesAgent(Agent):
 
         # Use defaults if not provided
         token = token or ""
+        key = key or ""
+        tenant_id = tenant_id or ""
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
         labels = labels or []
@@ -803,6 +811,8 @@ class KubernetesAgent(Agent):
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
         agent_env[11]["value"] = backend
+        agent_env[13]["value"] = key
+        agent_env[14]["value"] = tenant_id
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request
