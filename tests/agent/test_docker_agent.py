@@ -176,7 +176,7 @@ def test_environment_has_api_key_from_config(api, tenant_id):
 
 
 @pytest.mark.parametrize("tenant_id", ["ID", None])
-def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
+def test_environment_has_api_key_from_disk(self, api, monkeypatch, tenant_id):
     """Check that the API key is passed through from the on disk cache"""
     monkeypatch.setattr(
         "prefect.Client.load_auth_from_disk",
