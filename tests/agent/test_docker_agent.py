@@ -150,7 +150,7 @@ def test_populate_env_vars(api, backend):
     assert env_vars == expected_vars
 
 
-def test_environment_has_agent_token_from_config(config_with_token):
+def test_environment_has_agent_token_from_config(api, config_with_token):
     agent = DockerAgent()
 
     env_vars = agent.populate_env_vars(
@@ -160,7 +160,7 @@ def test_environment_has_agent_token_from_config(config_with_token):
     assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
 
 
-def test_environment_has_api_key_from_config():
+def test_environment_has_api_key_from_config(api):
     with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
         agent = DockerAgent()
 
