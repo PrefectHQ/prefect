@@ -834,12 +834,12 @@ class TaskRunner(Runner):
             - signals.PAUSE: if the task raises PAUSE
             - ENDRUN: if the task is not ready to run
         """
+        task_name = prefect.context.get("task_full_name", self.task.name)
+
         if not state.is_running():
             self.logger.debug(
-                "Task '{name}': Can't run task because it's not in a "
-                "Running state; ending run.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
+                f"Task {task_name!r}: Can't run task because it's not in a Running "
+                "state; ending run."
             )
 
             raise ENDRUN(state)
@@ -848,11 +848,7 @@ class TaskRunner(Runner):
         raw_inputs = {k: r.value for k, r in inputs.items()}
         new_state = None
         try:
-            self.logger.debug(
-                "Task '{name}': Calling task.run() method...".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
-            )
+            self.logger.debug(f"Task {task_name!r}: Calling task.run() method...")
 
             # Create a stdout redirect if the task has log_stdout enabled
             log_context = (
@@ -894,10 +890,12 @@ class TaskRunner(Runner):
 
         except Exception as exc:  # Handle exceptions in the task
             if prefect.context.get("raise_on_exception"):
-                raise exc
-            top_level_msg = f"Error during execution of task: {exc!r}"
-            self.logger.exception(top_level_msg, exc_info=True)
-            state = Failed(top_level_msg, result=exc)
+                raise
+            self.logger.error(
+                f"Task {task_name!r}: Encountered exception during task execution!",
+                exc_info=True,
+            )
+            state = Failed(f"Error during execution of task: {exc!r}", result=exc)
             return state
 
         # checkpoint tasks if a result is present, except for when the user has opted out by

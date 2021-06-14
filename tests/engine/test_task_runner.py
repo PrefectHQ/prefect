@@ -143,6 +143,10 @@ def test_task_with_error_has_good_messages(caplog):
     )
     assert "ValueError: custom-error-message" in caplog.text
     assert "Traceback" in caplog.text  # Traceback should be included
+    assert (
+        "Task 'ErrorTask': Encountered exception during task execution!"
+        in caplog.text
+    )
 
 
 def test_task_that_raises_fail_is_marked_fail():
