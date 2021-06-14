@@ -85,9 +85,23 @@ def auth():
 @handle_terminal_error
 def login(key, token):
     """
-    Log-in to Prefect Cloud with an API key
+    Login to Prefect Cloud
 
-    You will be switched to the default tenant associated with the key.
+    Create an API key in the UI then login with it here:
+
+        $ prefect auth login -k YOUR-KEY
+
+    You will be switched to the default tenant associated with the key. After login,
+    your available tenants can be seen with `prefect auth list-tenants` and you can
+    change the default tenant on this machine using `prefect auth switch-tenants`.
+
+    The given key will be stored on disk for later access. Prefect will default to using
+    this key for all interaction with the API but frequently overrides can be passed to
+    individual commands or functions. To remove your key from disk, see
+    `prefect auth logout`.
+
+    This command has backwards compatibility support for API tokens, which are a
+    deprecated form of authentication with Prefect Cloud
     """
     if not key and not token:
         raise TerminalError("You must supply an API key or token!")

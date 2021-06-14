@@ -653,7 +653,7 @@ class Client:
             if prefect.config.backend == "cloud" and "Authorization" not in headers:
                 raise ClientError(
                     "Malformed response received from Cloud - please ensure that you "
-                    "have an API token properly configured."
+                    "are authenticated. See `prefect auth login --help`."
                 ) from exc
             else:
                 raise ClientError("Malformed response received from API.") from exc
