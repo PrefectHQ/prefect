@@ -217,6 +217,7 @@ class LocalAgent(Agent):
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
+                "PREFECT__CLOUD__API_KEY": self.client.api_key or "",
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore

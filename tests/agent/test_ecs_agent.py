@@ -33,14 +33,6 @@ def default_task_definition():
 
 
 @pytest.fixture(autouse=True)
-def mock_cloud_config(cloud_api):
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
-    ):
-        yield
-
-
-@pytest.fixture(autouse=True)
 def aws(monkeypatch):
     ec2 = MagicMock()
     ec2.describe_vpcs.return_value = {"Vpcs": [{"VpcId": "test-vpc-id"}]}
@@ -555,7 +547,8 @@ class TestGetRunTaskKwargs:
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             "PREFECT__BACKEND": backend,
             "PREFECT__CLOUD__API": prefect.config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
+            "PREFECT__CLOUD__AUTH_TOKEN": "",
+            "PREFECT__CLOUD__API_KEY": "",
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": "flow-id",
@@ -567,6 +560,24 @@ class TestGetRunTaskKwargs:
             "CUSTOM3": "OVERRIDE3",  # run-config envs override agent
             "CUSTOM4": "VALUE4",
         }
+
+    def test_environment_sets_agent_token_from_config(self):
+        with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+            env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
+                "containerOverrides"
+            ][0]["environment"]
+            env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
+
+    def test_environment_sets_api_key_from_config(self):
+        with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
+            env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
+                "containerOverrides"
+            ][0]["environment"]
+            env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
 
     @pytest.mark.parametrize(
         "config, agent_env_vars, run_config_env_vars, expected_logging_level",
