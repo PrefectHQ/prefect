@@ -252,7 +252,7 @@ the proper Google Application Credentials configuration.
 [Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
 stored in a git repository as `.py` files.
 
-This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages
+This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages.
 
 ```python
 from prefect import Flow
@@ -284,10 +284,10 @@ You can find more information about configuring Deploy Keys for common providers
 - [GitLab](https://docs.gitlab.com/ee/user/project/deploy_keys/)
 - [BitBucket](https://bitbucket.org/blog/deployment-keys)
 
-For Deploy Keys to work correctly, the flow execution environment must be configured to clone a repository using ssh.
-This configuration is not Prefect specific and varies across configurations.
+For Deploy Keys to work correctly, the flow execution environment must be configured to clone a repository using SSH.
+This configuration is not Prefect specific and varies across infrastructure.
 
-When using the `prefecthq/prefect` Docker image, ssh keys should be mounted to the `/root.ssh` directory.
+For more information and examples, see [configuring SSH + Git storage](/orchestration/flow_config/storage.html#ssh-git-storage).
 :::
 
 :::tip GitLab Deploy Tokens
@@ -520,3 +520,77 @@ Template strings in `${}` are used to reference sensitive information. Given
 secrets](/core/concepts/secrets.md) `SOME_TOKEN`. Because this resolution is
 at runtime, this storage option never has your sensitive information stored in
 it and that sensitive information is never sent to Prefect Cloud.
+
+
+## SSH + Git Storage
+
+To use SSH with `Git` storage, you'll need to ensure your repository can be cloned using SSH from where your flow is being run.
+
+For this to work correctly, the environment must have 
+1. An SSH client available
+2. Required SSH keys configured
+
+
+### Adding SSH client to Docker images
+
+When using Docker images, please note the Prefect image does not include an SSH client by default. You will need to build a custom image that includes an SSH client. 
+
+The easiest way to do accomplish this is to add `openssh-client` to a Prefect image.
+
+```dockerfile
+FROM prefecthq/prefect:latest
+RUN apt update && apt install -y openssh-client
+```
+
+You can configure your flow to use the new image via the `image` field in your flow's [run config](/orchestration/flow_config/run_configs.html).
+
+### Configuring SSH keys
+
+SSH keys should be mounted to the `/root/.ssh` directory. If using a custom image not based on `prefecthq/prefect:latest`, this may change.
+
+*Please note management of SSH keys presents significant security challenges. The following examples may not represent industry best practice.*
+
+#### Docker agent - mounting SSH keys as volumes
+
+When using a [Docker agent](/orchestration/agents/docker.html#docker-agent), SSH keys can be mounted as volumes at run time using the `--volume` flag.
+
+```bash
+prefect agent docker start --volume /path/to/ssh_directory:/root/.ssh
+```
+
+#### Kubernetes agent - mounting SSH keys as Kubernetes Secrets
+
+When using a [Kubernetes agent](/orchestration/agents/kubernetes.html#kubernetes-agent), SSH keys can be mounted as secret volumes.
+
+First, create a [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) containing our SSH key and known hosts file.
+
+```bash
+kubectl create secret generic my-ssh-key --from-file=<ssh-key-name>=/path/to/<ssh-key-name> --from-file=known_hosts=/path/to/known_hosts
+```
+
+Next, create a custom job template to mount the secret volume to `/root/.ssh`.
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+spec:
+  template:
+    spec:
+      containers:
+        - name: flow
+          volumeMounts:
+            - name: ssh-key
+              readOnly: true
+              mountPath: "/root/.ssh"
+      volumes:
+        - name: ssh-key
+          secret:
+            secretName: my-ssh-key
+            optional: false
+            defaultMode: 0600
+```
+
+Finally, [configure the agent or flow to use the custom job template](https://docs.prefect.io/orchestration/agents/kubernetes.html#custom-job-template). 
+
+
+Creating a [Kubernetes service account](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/) to permission the Secret properly is recommended. Once configured in Kubernetes, service account can be set either [on agent start or on the run config](https://docs.prefect.io/orchestration/agents/kubernetes.html#service-account).
