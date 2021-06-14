@@ -549,6 +549,7 @@ class TestGetRunTaskKwargs:
             "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": "",
             "PREFECT__CLOUD__API_KEY": "",
+            "PREFECT__CLOUD__TENANT_ID": "",
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": "flow-id",
@@ -570,14 +571,34 @@ class TestGetRunTaskKwargs:
 
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
 
-    def test_environment_has_api_key_from_config(self):
-        with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
+    @pytest.mark.parametrize("tenant_id", ["ID", None])
+    def test_environment_has_api_key_from_config(self, tenant_id):
+        with set_temporary_config(
+            {"cloud.api_key": "TEST_KEY", "cloud.tenant_id": tenant_id}
+        ):
             env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
                 "containerOverrides"
             ][0]["environment"]
             env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+
+    @pytest.mark.parametrize("tenant_id", ["ID", None])
+    def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
+        """Check that the API key is passed through from the on disk cache"""
+        monkeypatch.setattr(
+            "prefect.Client.load_auth_from_disk",
+            MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
+        )
+
+        env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
+            "containerOverrides"
+        ][0]["environment"]
+        env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
     @pytest.mark.parametrize(
         "config, agent_env_vars, run_config_env_vars, expected_logging_level",

@@ -126,12 +126,10 @@ def start_agent(agent_cls, token, api, label, env, log_level, key, tenant_id, **
     labels = sorted(set(label))
     env_vars = dict(e.split("=", 1) for e in env)
 
-    client = Client()
-
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
         "cloud.api_key": key or client.api_key,
-        "cloud.tenant_id": tenant_id or client.tenant_id,
+        "cloud.tenant_id": tenant_id,
         "cloud.agent.level": log_level or config.cloud.agent.level,
         "cloud.api": api or config.cloud.api,
     }

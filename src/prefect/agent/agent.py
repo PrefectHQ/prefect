@@ -168,6 +168,15 @@ class Agent:
         self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
         self.logger.debug(f"Prefect backend: {config.backend}")
 
+    @property
+    def flow_run_api_key(self):
+        """
+        Get the API key that the flow run should use to authenticate with Cloud.
+
+        Currently just returns the key that the agent is using to query for flow runs
+        """
+        return self.client.api_key
+
     def start(self) -> None:
         """
         The main entrypoint to the agent process. Sets up the agent then continuously
@@ -568,7 +577,7 @@ class Agent:
                 "input": {
                     "before": now.add(seconds=prefetch_seconds).isoformat(),
                     "labels": list(self.labels),
-                    "tenant_id": self.client.active_tenant_id,
+                    "tenant_id": self.client.tenant_id,
                 }
             },
         )

@@ -135,6 +135,7 @@ def test_populate_env_vars(api, backend):
         "PREFECT__CLOUD__API": cloud_api,
         "PREFECT__CLOUD__AUTH_TOKEN": "",
         "PREFECT__CLOUD__API_KEY": "",
+        "PREFECT__CLOUD__TENANT_ID": "",
         "PREFECT__CLOUD__AGENT__LABELS": "[]",
         "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
         "PREFECT__CONTEXT__FLOW_ID": "foo",
@@ -160,7 +161,8 @@ def test_environment_has_agent_token_from_config(api, config_with_token):
     assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
 
 
-def test_environment_has_api_key_from_config(api):
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_config(api, tenant_id):
     with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
         agent = DockerAgent()
 
@@ -170,6 +172,25 @@ def test_environment_has_api_key_from_config(api):
         )
 
     assert env_vars["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+
+
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
+    """Check that the API key is passed through from the on disk cache"""
+    monkeypatch.setattr(
+        "prefect.Client.load_auth_from_disk",
+        MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
+    )
+
+    agent = DockerAgent()
+    env = agent.populate_env_vars(
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
+        "test-image",
+    )
+
+    assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
 
 def test_populate_env_vars_includes_agent_labels(api):
