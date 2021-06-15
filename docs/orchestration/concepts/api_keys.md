@@ -58,7 +58,7 @@ You may also provide your key with an environment variable or the config. This i
 
 :::: tabs
 
-::: Environment
+::: tab Environment
 
 ```bash
 export PREFECT__CLOUD__API_KEY="<YOUR-KEY>"
@@ -67,7 +67,7 @@ export PREFECT__CLOUD__TENANT_ID="<TENANT-ID>"
 ```
 :::
 
-::: Prefect Config
+::: tab Prefect Config
 
 Modify `~/.prefect/config.toml`
 
