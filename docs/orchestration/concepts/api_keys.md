@@ -46,6 +46,57 @@ mutation {
 ```
 :::
 
+
+## Using API keys
+
+To authenticate with an API key, we recommend using the CLI.
+
+```bash
+$ prefect auth login --key <YOUR-KEY>
+```
+
+This will store your key on disk and load it each time you use Prefect locally. Once you've logged in, you can easily view the tenants you belong to and switch between tenants.
+
+You may also provide your key with an environment variable or the config. This is often preferable for CI jobs. If you want to use a tenant other than the default tenant associated with the key, you'll need to set that as well.
+
+:::: tabs
+
+::: Environment
+
+```bash
+export PREFECT__CLOUD__API_KEY="<YOUR-KEY>"
+# Optional
+export PREFECT__CLOUD__TENANT_ID="<TENANT-ID>"
+```
+:::
+
+::: Prefect Config
+
+Modify `~/.prefect/config.toml`
+
+```toml
+
+[cloud]
+
+api_key = "<YOUR-KEY>"
+
+# Optional
+tenant_id = "<TENANT-ID>"
+```
+
+:::
+
+::::
+
+
+::: tip Specifying a key for agents
+Agents will load keys from these default locations as described above, but you can also pass an override directly to the agent when you start it. For example:
+
+```bash
+prefect agent local start --key "<YOUR-KEY>"
+```
+:::
+
 ## Querying for API key metadata
 
 Your API key metadata can be viewed in serveral ways. Note that we _do not store_ your API keys and you will not be able to view the value of the key after creation. When querying for keys, you will only be able to see metadata for keys created by your user or, if the you are a tenant admin, metadata for the all service account API keys in the tenant. 
@@ -151,32 +202,22 @@ mutation {
 
 ::::
 
+## Using API keys with older versions of Prefect
 
-## Use and Persistence of service account Keys in Agents
+The `prefect auth login` command will not work with API keys and the  `PREFECT__CLOUD__API_KEY` setting will be ignored before version 0.15.0. In older versions, there were authentication tokens. Keys can be used in-place in older versions by setting them in the config or the environment in the `PREFECT__CLOUD__AUTH_TOKEN` setting.
 
-Prefect Agents and Flows use service account API Keys to authenticate with Prefect Cloud.  A service account API Key is provided to an agent at start, and each agent provides its API Key to flows that it starts.  Therefore, when a service account API Key is revoked (or the associated service account is removed), all agents and flows relying upon it will fail to authenticate with Prefect Cloud, and will need to be started with a new key.  
-
-There are a few ways in which you can give a service account key to an agent. Each method has an extra level of persistence.
-
-- Provide the service account key when the agent is started via the CLI. This method means the key will need to be provided each time the agent is started.
-
-```
-$ prefect agent <AGENT TYPE> start -t SERVICE_ACCOUNT_API_KEY
-```
-
-- Specify the service account API key as an environment variable. This method means the key will only be available in the active shell and its subshells.
-
+Using an API key as a token for registering flows
 ```bash
-$ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY
+export PREFECT__CLOUD__AUTH_TOKEN="<YOUR-KEY>"
 ```
 
-- Manually save your service account key in `$HOME/.prefect/config.toml`. This method ensures that the key will be available at all times if it is not overridden.
-
-```toml
-[cloud.agent]
-auth_token = SERVICE_ACCOUNT_API_KEY
+Using an API key as a token for starting an agent by CLI
+```bash
+$ prefect agent local start -t SERVICE_ACCOUNT_API_KEY
 ```
 
-::: warning Deprecation of User Access Tokens and API Tokens
-API keys replace the deprecated User Access Tokens and API Tokens, which used a different authentication paradigm. In effect, User API keys can be used in place of Personal Access Tokens, and service account API keys should replace API Tokens.
-:::
+Using an API key as a token for starting an agent by environment
+```bash
+$ export PREFECT__CLOUD__AGENT__AUTH_TOKEN="<YOUR-KEY>"
+$ prefect agent local start
+```
