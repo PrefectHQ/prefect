@@ -18,7 +18,7 @@ class DropboxDownload(Task):
         self.path = path
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("path", "access_token_secret")
+    @defaults_from_attrs("path")
     def run(
         self,
         path: str = None,
