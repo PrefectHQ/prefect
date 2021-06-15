@@ -1594,7 +1594,8 @@ class Flow:
                 re-route Flow run logs to stdout; defaults to `False`
             - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should
                 be sent to Prefect Cloud; defaults to `None` which uses the config value
-            - api_key (str, optional): A Prefect Cloud API key to authenticate
+            - api_key (str, optional): A Prefect Cloud API key to authenticate with.
+                If not set, the default will be pulled from the `Client`
         """
         temp_config = {
             "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
