@@ -1577,7 +1577,11 @@ class Flow:
         return str(fpath)
 
     def run_agent(
-        self, token: str = None, show_flow_logs: bool = False, log_to_cloud: bool = None
+        self,
+        token: str = None,
+        show_flow_logs: bool = False,
+        log_to_cloud: bool = None,
+        api_key: str = None,
     ) -> None:
         """
         Runs a Cloud agent for this Flow in-process.
@@ -1585,13 +1589,16 @@ class Flow:
         Args:
             - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
                 will default to the token found in `config.cloud.agent.auth_token`
+                DEPRECATED.
             - show_flow_logs (bool, optional): a boolean specifying whether the agent should
                 re-route Flow run logs to stdout; defaults to `False`
             - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should
                 be sent to Prefect Cloud; defaults to `None` which uses the config value
+            - api_key (str, optional): A Prefect Cloud API key to authenticate
         """
         temp_config = {
             "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
+            "cloud.api_key": api_key or prefect.config.cloud.get("api_key"),
             "cloud.send_flow_run_logs": (
                 log_to_cloud
                 if log_to_cloud is not None

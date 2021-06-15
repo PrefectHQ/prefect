@@ -14,7 +14,7 @@ Users can generate API keys to interact with the API with their personal permiss
 
 To generate an API key for your User, navigate to User > API Keys within the UI and click "Create an API Key".
 
-::: tip Key best practice
+::: tip Security best practice
 When you need to create a long-lived token for CI, a Prefect Agent, or any use beyond local development, create an API key for a service account instead of for your user. Actions performed in an automated setting should not be linked to your user identity and should not require the permissions of a full user.
 :::
 
