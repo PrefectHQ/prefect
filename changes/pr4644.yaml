@@ -1,5 +1,0 @@
-enhancement:
-  - "Optionally retain reference tasks when updating two flows - [#4644](https://github.com/PrefectHQ/prefect/pull/4644)"
-
-contributor:
-  - "[Pawel Janowski, Recursion](https://github.com/pjanowski)"

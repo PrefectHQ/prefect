@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.14.22 <Badge text="beta" type="success" />
+
+Released on June 15, 2021.
+
+### Enhancements
+
+- Use `functools.update_wrapper` for `FunctionTask` - [#4608](https://github.com/PrefectHQ/prefect/pull/4608)
+- Optionally retain reference tasks when updating two flows - [#4644](https://github.com/PrefectHQ/prefect/pull/4644)
+- Add client side check for key value size - [#4655](https://github.com/PrefectHQ/prefect/pull/4655)
+- Ensure stack traces are included in logs during task run exceptions - [#4657](https://github.com/PrefectHQ/prefect/pull/4657)
+- Add `poll_interval` parameter to `StartFlowRun` to define the polling interval when waiting for the flow run to finish - [#4641](https://github.com/PrefectHQ/prefect/pull/4641)
+- Task timeout can be timedelta as well as integer in seconds - [#4619](https://github.com/PrefectHQ/prefect/pull/4619)
+
+### Fixes
+
+- Add ssh documentation - [#4539](https://github.com/PrefectHQ/prefect/pull/4539)
+
+### Contributors
+
+- [Pawel Janowski, Recursion](https://github.com/pjanowski)
+- [Peter Roelants](https://github.com/peterroelants)
+
 ## 0.14.21 <Badge text="beta" type="success" />
 
 Released on June 2, 2021.

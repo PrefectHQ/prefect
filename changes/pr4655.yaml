@@ -1,2 +1,0 @@
-enhancement:
-  - "Add client side check for key value size - [#4655](https://github.com/PrefectHQ/prefect/pull/4655)"
