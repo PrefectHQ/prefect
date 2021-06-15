@@ -32,10 +32,7 @@ Note that service accounts can only be created by tenant admins.
 :::
 
 ::: tip GraphQL API
-Every action you see in the UI can always be replicated via Prefect's GraphQL API.
-
-To create an API key using GraphQL execute the `create_api_key` mutation against `https://api.prefect.io`. For more information on how to use the GraphQL API go [here](api.html).
-For user_id, supply either a user or a service account id.
+To create an API key using GraphQL use the `create_api_key` mutation. For more information on how to use the GraphQL API go [here](api.html). For a user_id, supply either your user id or a service account id.
 
 ```graphql
 mutation {
