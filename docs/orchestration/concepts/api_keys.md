@@ -221,3 +221,17 @@ Using an API key as a token for starting an agent by environment
 $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN="<YOUR-KEY>"
 $ prefect agent local start
 ```
+
+## Removing API tokens
+
+If you've used `prefect auth login` with an API token or have set an API token in your config or environment, you will receieve warnings starting with version 0.15.0 that tokens have been deprecated. API keys are more secure and simpler to use, we urge you to switch over. 
+
+If you logged in with `prefect auth login`, you can remove your token with `prefect auth logout` or `rm -r ~/.prefect/client`.
+
+If you set your token in the environment, you can unset it with `unset PREFECT__CLOUD__AUTH_TOKEN`.
+
+If you set your token in the config, you will have to modify `~/.prefect/config.toml` to remove it.
+
+::: warning 
+If you have logged in with an API key but a token still exists on your machine, the API key will be used and the token will be ignored.
+:::
