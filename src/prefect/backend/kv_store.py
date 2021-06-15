@@ -1,3 +1,5 @@
+import sys
+import json
 from typing import Any, List
 
 import prefect
@@ -24,9 +26,16 @@ def set_key_value(key: str, value: Any) -> str:
 
     Raises:
         - ClientError: if using Prefect Server instead of Cloud
+        - ValueError: if `value` exceeds 10 KB limit
     """
     if prefect.config.backend != "cloud":
         raise ClientError(NON_CLOUD_BACKEND_ERROR_MESSAGE)
+
+    # check value is under size limit
+    # note this will be enforced by the API
+    value_size = sys.getsizeof(json.dumps(value))
+    if value_size > 10000:  # 10 KB max
+        raise ValueError("Value payload exceedes 10 KB limit.")
 
     mutation = {
         "mutation($input: set_key_value_input!)": {
