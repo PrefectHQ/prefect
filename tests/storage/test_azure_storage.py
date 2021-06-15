@@ -166,13 +166,10 @@ def test_get_flow_azure(monkeypatch):
 
     storage = Azure(container="container")
 
-    with pytest.raises(ValueError):
-        storage.get_flow()
-
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    assert storage.get_flow(flow_location)
+    assert storage.get_flow(f.name)
     assert client.download_blob.called
     assert f.name in storage
 
@@ -191,7 +188,7 @@ def test_get_flow_azure_bucket_key(monkeypatch):
     assert f.name not in storage
     flow_location = storage.add_flow(f)
 
-    assert storage.get_flow(flow_location)
+    assert storage.get_flow(f.name)
     assert service.get_blob_client.call_args[1]["container"] == "container"
     assert service.get_blob_client.call_args[1]["blob"] == flow_location
 
@@ -208,9 +205,9 @@ def test_get_flow_azure_runs(monkeypatch):
     storage = Azure(container="container")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
     assert client.download_blob.called
     assert f.name in storage
 
@@ -229,19 +226,19 @@ def test_get_flow_from_file_azure_runs(monkeypatch):
 
     f = Flow("test")
 
+    extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
-        "prefect.storage.azure.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.azure.extract_flow_from_file", extract_flow_from_file
     )
 
     storage = Azure(container="container", stored_as_script=True)
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
     assert client.download_blob.called
-    assert f.name in storage
+    assert extract_flow_from_file.call_args[1]["flow_name"] == f.name
 
     assert isinstance(new_flow, Flow)
     assert new_flow.name == "test"

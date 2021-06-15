@@ -35,12 +35,21 @@ def run():
 
 @run.command(hidden=True)
 @click.option(
-    "--name", "-n", required=True, help="The name of a flow to run.", hidden=True
+    "--id", "-i", required=False, help="The id of a flow to run.", hidden=True
+)
+@click.option(
+    "--version-group-id",
+    required=False,
+    help="The id of a flow version group to run.",
+    hidden=True,
+)
+@click.option(
+    "--name", "-n", required=False, help="The name of a flow to run.", hidden=True
 )
 @click.option(
     "--project",
     "-p",
-    required=True,
+    required=False,
     help="The project that contains the flow.",
     hidden=True,
 )
@@ -65,6 +74,13 @@ def run():
     hidden=True,
 )
 @click.option(
+    "--label",
+    "labels",
+    help="A list of labels to apply to the flow run",
+    hidden=True,
+    multiple=True,
+)
+@click.option(
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
 @click.option(
@@ -74,6 +90,8 @@ def run():
     hidden=True,
 )
 def flow(
+    id,
+    version_group_id,
     name,
     project,
     version,
@@ -82,6 +100,7 @@ def flow(
     run_name,
     context,
     watch,
+    labels,
     logs,
     no_url,
 ):
@@ -90,9 +109,10 @@ def flow(
 
     \b
     Options:
-        --name, -n                  TEXT        The name of a flow to run [required]
-        --project, -p               TEXT        The name of a project that contains
-                                                the flow [required]
+        --id, -i                    TEXT        The ID of a flow to run
+        --version-group-id          TEXT        The ID of a flow version group to run
+        --name, -n                  TEXT        The name of a flow to run
+        --project, -p               TEXT        The name of a project that contains the flow
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing
                                                 parameters
@@ -105,10 +125,15 @@ def flow(
                                                 to include the full payload within single quotes)
         --watch, -w                             Watch current state of the flow run, stream
                                                 output to stdout
+        --label                     TEXT        Set labels on the flow run; use multiple times to set
+                                                multiple labels.
         --logs, -l                              Get logs of the flow run, stream output to
                                                 stdout
         --no-url                                Only output the flow run id instead of a
                                                 link
+
+    \b
+    Either `id`, `version-group-id`, or both `name` and `project` must be provided to run a flow.
 
     \b
     If both `--parameters-file` and `--parameters-string` are provided then the values
@@ -125,46 +150,65 @@ def flow(
         $ prefect run flow -n "Test-Flow" -p "My Project" -ps '{"my_param": 42}'
         Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
     """
+    if not id and not (name and project) and not version_group_id:
+        click.secho(
+            "A flow ID, version group ID, or a combination of flow name and project must be provided.",
+            fg="red",
+        )
+        return
+
+    if sum(map(bool, (id, version_group_id, name))) != 1:
+        click.secho(
+            "Only one of flow ID, version group ID, or a name/project combination can be provided.",
+            fg="red",
+        )
+        return
+
     if watch and logs:
         click.secho(
             "Streaming state and logs not currently supported together.", fg="red"
         )
         return
 
-    where_clause = {
-        "_and": {
-            "name": {"_eq": name},
-            "version": {"_eq": version},
-            "project": {"name": {"_eq": project}},
-        }
-    }
-
-    query = {
-        "query": {
-            with_args(
-                "flow",
-                {
-                    "where": where_clause,
-                    "order_by": {
-                        "name": EnumValue("asc"),
-                        "version": EnumValue("desc"),
-                    },
-                    "distinct_on": EnumValue("name"),
-                },
-            ): {"id": True}
-        }
-    }
+    if labels == ():
+        labels = None
 
     client = Client()
-    result = client.graphql(query)
+    flow_id = id
+    if not flow_id and not version_group_id:
+        where_clause = {
+            "_and": {
+                "name": {"_eq": name},
+                "version": {"_eq": version},
+                "project": {"name": {"_eq": project}},
+            }
+        }
 
-    flow_data = result.data.flow
+        query = {
+            "query": {
+                with_args(
+                    "flow",
+                    {
+                        "where": where_clause,
+                        "order_by": {
+                            "name": EnumValue("asc"),
+                            "version": EnumValue("desc"),
+                        },
+                        "distinct_on": EnumValue("name"),
+                    },
+                ): {"id": True}
+            }
+        }
 
-    if flow_data:
-        flow_id = flow_data[0].id
-    else:
-        click.secho("{} not found".format(name), fg="red")
-        return
+        result = client.graphql(query)
+
+        flow_data = result.data.flow
+
+        if flow_data:
+            flow_id = flow_data[0].id
+        else:
+            click.secho("{} not found".format(name), fg="red")
+            return
 
     # Load parameters from file if provided
     file_params = {}
@@ -181,7 +225,9 @@ def flow(
         context = json.loads(context)
     flow_run_id = client.create_flow_run(
         flow_id=flow_id,
+        version_group_id=version_group_id,
         context=context,
+        labels=labels,
         parameters={**file_params, **string_params},
         run_name=run_name,
     )

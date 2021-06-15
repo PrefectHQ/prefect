@@ -1,14 +1,18 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict
+from contextlib import closing
+from typing import TYPE_CHECKING, Any
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
 import prefect
 from prefect.engine.results import S3Result
 from prefect.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_from_bytes_pickle,
+    flow_to_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -23,9 +27,6 @@ class S3(Storage):
     when stored in S3. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
 
-     **Note**: Flows registered with this Storage option will automatically be
-     labeled with `s3-flow-storage`.
-
     Args:
         - bucket (str): the name of the S3 Bucket to store Flows
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
@@ -37,6 +38,8 @@ class S3(Storage):
             used. If neither are set then script will not be uploaded and users should manually place the
             script file in the desired `key` location in an S3 bucket.
         - client_options (dict, optional): Additional options for the `boto3` client.
+        - upload_options (dict, optional): Additional options s3 client upload_file()
+            and upload_fileobj() functions 'ExtraArgs' argument.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -47,72 +50,61 @@ class S3(Storage):
         stored_as_script: bool = False,
         local_script_path: str = None,
         client_options: dict = None,
+        upload_options: dict = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
+        self.upload_options = upload_options
         self.local_script_path = local_script_path or prefect.context.get(
             "local_script_path", None
         )
 
         self.client_options = client_options
 
-        result = S3Result(bucket=bucket)
+        result = S3Result(bucket=bucket, boto3_kwargs=client_options)
         super().__init__(
             result=result,
             stored_as_script=stored_as_script,
             **kwargs,
         )
 
-    def get_flow(self, flow_location: str = None) -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a flow_location within this Storage object or S3, returns the underlying Flow
-        (if possible).
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage; in this case
-                an S3 object key where a Flow has been serialized to. Will use `key` if not provided.
+            - flow_name (str): the name of the flow to return.
 
         Returns:
-            - Flow: the requested Flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
-            - botocore.ClientError: if there is an issue downloading the Flow from S3
+            - Flow: the requested flow
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.key:
-            flow_location = self.key
-        else:
-            raise ValueError("No flow location provided")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        key = self.flows[flow_name]
 
-        stream = io.BytesIO()
-
-        self.logger.info("Downloading {} from {}".format(flow_location, self.bucket))
-
-        # Download stream from S3
-        from botocore.exceptions import ClientError
+        self.logger.info(f"Downloading flow from s3://{self.bucket}/{key}")
 
         try:
-            self._boto3_client.download_fileobj(
-                Bucket=self.bucket, Key=flow_location, Fileobj=stream
-            )
-        except ClientError as err:
+            obj = self._boto3_client.get_object(Bucket=self.bucket, Key=key)
+            body = obj["Body"]
+            with closing(body):
+                output = body.read()
+        except Exception as err:
             self.logger.error("Error downloading Flow from S3: {}".format(err))
-            raise err
+            raise
 
-        # prepare data and return
-        stream.seek(0)
-        output = stream.read()
+        self.logger.info(
+            "Flow successfully downloaded. ETag: %s, LastModified: %s, VersionId: %s",
+            obj["ETag"],
+            obj["LastModified"].isoformat(),
+            obj.get("VersionId"),
+        )
 
         if self.stored_as_script:
-            return extract_flow_from_file(file_contents=output)  # type: ignore
+            return extract_flow_from_file(file_contents=output, flow_name=flow_name)  # type: ignore
 
-        return cloudpickle.loads(output)
+        return flow_from_bytes_pickle(output)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -175,7 +167,10 @@ class S3(Storage):
 
                     try:
                         self._boto3_client.upload_file(
-                            self.local_script_path, self.bucket, self.flows[flow_name]
+                            self.local_script_path,
+                            self.bucket,
+                            self.flows[flow_name],
+                            ExtraArgs=self.upload_options,
                         )
                     except ClientError as err:
                         self.logger.error(
@@ -195,13 +190,10 @@ class S3(Storage):
 
         for flow_name, flow in self._flows.items():
             # Pickle Flow
-            data = cloudpickle.dumps(flow)
+            data = flow_to_bytes_pickle(flow)
 
             # Write pickled Flow to stream
-            try:
-                stream = io.BytesIO(data)
-            except TypeError:
-                stream = io.BytesIO(data.encode())
+            stream = io.BytesIO(data)
 
             self.logger.info(
                 "Uploading {} to {}".format(self.flows[flow_name], self.bucket)
@@ -209,7 +201,10 @@ class S3(Storage):
 
             try:
                 self._boto3_client.upload_fileobj(
-                    stream, Bucket=self.bucket, Key=self.flows[flow_name]
+                    stream,
+                    Bucket=self.bucket,
+                    Key=self.flows[flow_name],
+                    ExtraArgs=self.upload_options,
                 )
             except ClientError as err:
                 self.logger.error(
@@ -219,19 +214,9 @@ class S3(Storage):
 
         return self
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
     @property
     def _boto3_client(self):  # type: ignore
         from prefect.utilities.aws import get_boto_client
 
         kwargs = self.client_options or {}
-        return get_boto_client(
-            resource="s3", credentials=None, use_session=False, **kwargs
-        )
+        return get_boto_client(resource="s3", credentials=None, **kwargs)

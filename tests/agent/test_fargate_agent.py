@@ -2,17 +2,24 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.agent.fargate import FargateAgent
-from prefect.environments import LocalEnvironment
-from prefect.storage import Docker, Local
-from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.graphql import GraphQLResult
-
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
 pytestmark = pytest.mark.filterwarnings("ignore:`FargateAgent` is deprecated")
 
 from botocore.exceptions import ClientError
+
+import prefect
+from prefect.agent.fargate import FargateAgent
+from prefect.environments import LocalEnvironment
+from prefect.storage import Docker, Local
+from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.aws import _CLIENT_CACHE
+
+
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CLIENT_CACHE.clear()
 
 
 def test_fargate_agent_init(monkeypatch, cloud_api):
@@ -931,7 +938,10 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     ],
 )
 def test_deploy_flow_register_task_definition_all_args(
-    core_version, command, monkeypatch, cloud_api
+    core_version,
+    command,
+    monkeypatch,
+    backend,
 ):
     boto3_client = MagicMock()
 
@@ -1002,14 +1012,13 @@ def test_deploy_flow_register_task_definition_all_args(
         ],
     }
 
-    with set_temporary_config({"logging.log_to_cloud": True}):
-        agent = FargateAgent(
-            aws_access_key_id="id",
-            aws_secret_access_key="secret",
-            aws_session_token="token",
-            region_name="region",
-            **kwarg_dict
-        )
+    agent = FargateAgent(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        **kwarg_dict
+    )
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -1042,10 +1051,11 @@ def test_deploy_flow_register_task_definition_all_args(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", command],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__BACKEND", "value": backend},
+                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                 {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1055,6 +1065,8 @@ def test_deploy_flow_register_task_definition_all_args(
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {"name": "TEST_ENV", "value": "Success!"},
             ],
             "essential": True,
@@ -1177,14 +1189,15 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", "prefect execute flow-run"],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__BACKEND", "value": "cloud"},
+                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                 {
                     "name": "PREFECT__CLOUD__AGENT__LABELS",
                     "value": "['aws', 'staging']",
                 },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {
-                    "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                    "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
                     "value": str(not flag).lower(),
                 },
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
@@ -1195,6 +1208,10 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                 {
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
+                },
+                {
+                    "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                    "value": str(not flag).lower(),
                 },
             ],
             "essential": True,
@@ -1281,10 +1298,11 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute flow-run"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                    {"name": "PREFECT__BACKEND", "value": "cloud"},
+                    {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1294,6 +1312,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, cloud_api):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 ],
                 "essential": True,
             }
@@ -1659,13 +1678,14 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute flow-run"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                    {"name": "PREFECT__BACKEND", "value": "cloud"},
+                    {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
                     {
                         "name": "PREFECT__CLOUD__AGENT__LABELS",
                         "value": "['aws', 'staging']",
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "INFO"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1675,6 +1695,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
                 ],
                 "essential": True,
             }
@@ -1934,83 +1955,6 @@ def test_deploy_flows_launch_type_none(monkeypatch, cloud_api):
         tags=[{"key": "test", "value": "test"}],
     )
     assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
-
-
-def test_fargate_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
-    boto3_client = MagicMock()
-    monkeypatch.setattr("boto3.client", boto3_client)
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
-
-    agent = FargateAgent(max_polls=1)
-    agent.start()
-
-    assert agent_process.called
-    assert heartbeat.called
-
-
-def test_fargate_agent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
-    boto3_client = MagicMock()
-    monkeypatch.setattr("boto3.client", boto3_client)
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
-
-    agent = FargateAgent(max_polls=2)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 2
-    assert heartbeat.call_count == 1
-
-
-def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
-    boto3_client = MagicMock()
-    monkeypatch.setattr("boto3.client", boto3_client)
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
-
-    agent = FargateAgent(max_polls=0)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 0
-    assert heartbeat.call_count == 1
 
 
 def test_agent_configuration_utility(monkeypatch, cloud_api):

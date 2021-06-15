@@ -8,6 +8,7 @@ from marshmallow.exceptions import ValidationError
 from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
+import prefect
 from prefect.agent.local import LocalAgent
 from prefect.storage import (
     Docker,
@@ -32,7 +33,7 @@ DEFAULT_AGENT_LABELS = [
 @pytest.fixture(autouse=True)
 def mock_cloud_config(cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
     ):
         yield
 
@@ -81,7 +82,7 @@ def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch):
     assert "IP" in agent.labels
 
 
-def test_populate_env_vars(monkeypatch):
+def test_populate_env_vars(monkeypatch, backend):
     agent = LocalAgent()
 
     # The python path may be a single item and we want to ensure the correct separator
@@ -97,13 +98,14 @@ def test_populate_env_vars(monkeypatch):
     expected.update(
         {
             "PYTHONPATH": os.getcwd() + os.pathsep + expected.get("PYTHONPATH", ""),
-            "PREFECT__CLOUD__API": "https://api.prefect.io",
+            "PREFECT__BACKEND": backend,
+            "PREFECT__CLOUD__API": prefect.config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
             "PREFECT__CLOUD__AGENT__LABELS": str(DEFAULT_AGENT_LABELS),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
             "PREFECT__LOGGING__LEVEL": "INFO",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
@@ -120,7 +122,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag):
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
     )
-    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
+    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
 
 
 def test_populate_env_vars_from_agent_config():
@@ -208,6 +210,39 @@ def test_populate_env_vars_from_run_config(tmpdir):
     assert env_vars["KEY2"] == "OVERRIDE"
     assert env_vars["PREFECT__LOGGING__LEVEL"] == "TEST"
     assert working_dir in env_vars["PYTHONPATH"]
+
+
+@pytest.mark.parametrize(
+    "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+    [
+        ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+        ({"logging.level": "DEBUG"}, {"PREFECT__LOGGING__LEVEL": "TEST2"}, {}, "TEST2"),
+        (
+            {"logging.level": "DEBUG"},
+            {"PREFECT__LOGGING__LEVEL": "TEST2"},
+            {"PREFECT__LOGGING__LEVEL": "TEST"},
+            "TEST",
+        ),
+    ],
+)
+def test_prefect_logging_level_override_logic(
+    config, agent_env_vars, run_config_env_vars, expected_logging_level, tmpdir
+):
+    with set_temporary_config(config):
+        agent = LocalAgent(env_vars=agent_env_vars)
+        run = LocalRun(working_dir=str(tmpdir), env=run_config_env_vars)
+        env_vars = agent.populate_env_vars(
+            GraphQLResult(
+                {
+                    "id": "id",
+                    "name": "name",
+                    "flow": {"id": "foo"},
+                    "run_config": run.serialize(),
+                }
+            ),
+            run,
+        )
+        assert env_vars["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
 
 @pytest.mark.parametrize(
@@ -499,26 +534,3 @@ def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
     # the heartbeat should stop tracking upon exit
     compare(process.returncode, returncode)
     assert len(agent.processes) == 0
-
-
-@pytest.mark.parametrize("max_polls", [0, 1, 2])
-def test_local_agent_start_max_polls(max_polls, monkeypatch, runner_token):
-    on_shutdown = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
-
-    agent = LocalAgent(max_polls=max_polls)
-    agent.start()
-
-    assert agent_connect.call_count == 1
-    assert agent_process.call_count == max_polls
-    assert heartbeat.call_count == 1
-    assert on_shutdown.call_count == 1

@@ -244,6 +244,39 @@ def test_run_flow_param_file(monkeypatch, cloud_api):
         assert create_flow_run_mock.call_args[1]["parameters"] == {"test": 42}
 
 
+def test_run_flow_no_labels_provided(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    create_flow_run_mock = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+            "--name",
+            "flow",
+            "--project",
+            "project",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Flow Run" in result.output
+    assert create_flow_run_mock.called
+    assert create_flow_run_mock.call_args[1]["labels"] is None
+
+
 def test_run_flow_param_string(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
@@ -468,3 +501,125 @@ def test_run_flow_flow_run_id_no_link(monkeypatch, cloud_api):
     )
     assert result.exit_code == 0
     assert "Flow Run ID" in result.output
+
+
+def test_run_flow_using_id(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    create_flow_run_mock = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        ["flow", "--id", "id"],
+    )
+    assert result.exit_code == 0
+    assert "Flow Run" in result.output
+    assert create_flow_run_mock.called
+
+
+def test_run_flow_labels(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    create_flow_run_mock = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+            "--name",
+            "flow",
+            "--project",
+            "project",
+            "--label",
+            "label1",
+            "--label",
+            "label2",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Flow Run" in result.output
+    assert create_flow_run_mock.called
+
+
+def test_run_flow_using_version_group_id(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    create_flow_run_mock = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.client.Client.create_flow_run", create_flow_run_mock)
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        ["flow", "--version-group-id", "v_id"],
+    )
+    assert result.exit_code == 0
+    assert "Flow Run" in result.output
+    assert create_flow_run_mock.called
+
+
+def test_run_flow_no_id_or_name_and_project():
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+        ],
+    )
+    assert (
+        "A flow ID, version group ID, or a combination of flow name and project must be provided."
+        in result.output
+    )
+
+
+def test_run_flow_no_id_or_name_and_project():
+    runner = CliRunner()
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+            "--id",
+            "id",
+            "--name",
+            "flow",
+            "--project",
+            "project",
+        ],
+    )
+    assert (
+        "Only one of flow ID, version group ID, or a name/project combination can be provided."
+        in result.output
+    )

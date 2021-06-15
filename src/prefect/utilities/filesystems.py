@@ -19,6 +19,9 @@ def parse_path(path: str) -> ParsedPath:
     `urllib.parse.urlparse`. The main difference is that windows paths with
     `\\` and optional drive designators are supported.
 
+    WARNING: If you pass a Windows path, you must provide a drive and must not provide
+             a scheme or the returned `ParsedPath` will have an empty path
+
     Args:
         - path (str): The path to parse.
 
@@ -58,6 +61,10 @@ def read_bytes_from_path(path: str) -> bytes:
     if not parsed.scheme or parsed.scheme in ("file", "agent"):
         with open(parsed.path, "rb") as f:
             return f.read()
+    elif parsed.scheme in {"https", "http"}:
+        import requests
+
+        return requests.get(path).content
     elif parsed.scheme == "gcs":
         from prefect.utilities.gcp import get_storage_client
 

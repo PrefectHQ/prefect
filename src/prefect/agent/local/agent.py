@@ -71,7 +71,7 @@ class LocalAgent(Agent):
         hostname_label: bool = True,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         storage_labels: bool = None,
     ) -> None:
         self.processes = set()
@@ -129,8 +129,6 @@ class LocalAgent(Agent):
         Raises:
             - ValueError: if deployment attempted on unsupported Storage type
         """
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         storage = StorageSchema().load(flow_run.flow.storage)
         if isinstance(storage, Docker):
             self.logger.error(
@@ -216,13 +214,14 @@ class LocalAgent(Agent):
         # 6. Non-overrideable required env vars
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             }

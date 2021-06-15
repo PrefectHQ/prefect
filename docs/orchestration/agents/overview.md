@@ -36,8 +36,7 @@ See their respective documentation for more information on each type.
 
 ## Usage
 
-Prefect agents can be started via the CLI, using `prefect agent <AGENT TYPE>
-start`. For example, to start a local agent:
+Prefect agents can be started via the CLI, using `prefect agent <AGENT TYPE> start`. For example, to start a local agent:
 
 ```
 prefect agent local start
@@ -50,38 +49,44 @@ from prefect.agent.local import LocalAgent
 
 LocalAgent().start()
 ```
+
 ## Common Configuration Options
 
 The following configuration options are shared for all agents.
 
-### Tokens <Badge text="Cloud"/>
+### API Keys <Badge text="Cloud"/>
 
-Prefect agents rely on the use of a `RUNNER` token from Prefect Cloud. For
-information on tokens and how they are used visit the
-[Tokens](../concepts/tokens.html) page.
+Prefect agents rely on the use of a service account API key from Prefect Cloud. For
+information on API keys and how they are used visit the
+[API keys](../concepts/tokens.html) page.
 
-When starting an Agent with Prefect Cloud, you'll need to provide the `RUNNER`
-token. There are a few different ways to do this:
+When starting an Agent with Prefect Cloud, you'll need to provide the API key. There are a few different ways to do this:
 
 :::: tabs
 ::: tab CLI
+
 ```bash
-prefect agent <AGENT TYPE> start --token <RUNNER TOKEN>
+prefect agent <AGENT TYPE> start --token <SERVICE_ACCOUNT_API_KEY>
 ```
+
 :::
 
 ::: tab "Prefect Config"
+
 ```toml
 # ~/.prefect/config.toml
 [cloud.agent]
-auth_token = "<RUNNER TOKEN>"
+auth_token = "<SERVICE_ACCOUNT_API_KEY>"
 ```
+
 :::
 
 ::: tab "Environment Variable"
+
 ```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<RUNNER TOKEN>
+export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
 ```
+
 :::
 ::::
 
@@ -113,31 +118,39 @@ through a few methods:
 
 :::: tabs
 ::: tab CLI
+
 ```bash
 prefect agent <AGENT TYPE> start --label dev --label staging
 ```
+
 :::
 
 ::: tab "Python API"
+
 ```python
 from prefect.agent.docker import DockerAgent
 
 DockerAgent(labels=["dev", "staging"]).start()
 ```
+
 :::
 
 ::: tab "Prefect Config"
+
 ```toml
 # ~/.prefect/config.toml
 [cloud.agent]
 labels = ["dev", "staging"]
 ```
+
 :::
 
 ::: tab "Environment Variable"
+
 ```bash
 export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
 ```
+
 :::
 ::::
 
@@ -145,25 +158,39 @@ export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
 
 All agents have a `--env` flag for configuring environment variables to set on
 all flow runs managed by that agent. This can be useful for things you want
-applied to *all* flow runs, whereas the `env` option in a flow's
+applied to _all_ flow runs, whereas the `env` option in a flow's
 [RunConfig](/orchestration/flow_config/run_configs.md) only applies to runs of a
 specific flow.
 
 :::: tabs
 ::: tab CLI
+
 ```bash
 prefect agent <AGENT TYPE> start --env KEY=VALUE --env KEY2=VALUE2
 ```
+
 :::
 
 ::: tab "Python API"
+
 ```python
 from prefect.agent.docker import DockerAgent
 
 DockerAgent(env_vars={"KEY": "VALUE", "KEY2": "VALUE2"})
 ```
+
 :::
 ::::
+
+### Agent Automations <Badge text="Cloud"/>
+
+Users on Standard or Enterprise licenses in Cloud can create an agent [automation](orchestration/concepts/automations.html) to notify them if all agents from a configuration group (agent config ids can be added to multiple agents) have not queried for work in a certain time frame.   To do so go to the [automations tab of the dashboard](https://cloud.prefect.io/automations=) in the UI and set up an agent configuration then copy the agent config id that is provided once your automation is created.  You can then provide the agent configuration to your agent using the --agent-config-id flag:
+
+```bash
+prefect agent <AGENT TYPE> start --agent-config-id <AGENT CONFIG ID>
+```
+
+Note - Agent automations can only be added as a flag when starting an agent at present.  They can not be added at install. 
 
 ### Health Checks
 
@@ -176,31 +203,39 @@ A few ways to configure:
 
 :::: tabs
 ::: tab CLI
+
 ```bash
 prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
 ```
+
 :::
 
 ::: tab "Python API"
+
 ```python
 from prefect.agent.docker import DockerAgent
 
 DockerAgent(agent_address="http://localhost:8080").start()
 ```
+
 :::
 
 ::: tab "Prefect Config"
+
 ```toml
 # ~/.prefect/config.toml
 [cloud.agent]
 agent_address = "http://localhost:8080"
 ```
+
 :::
 
 ::: tab "Environment Variable"
+
 ```bash
 $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
 ```
+
 :::
 ::::
 

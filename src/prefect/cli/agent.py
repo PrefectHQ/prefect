@@ -3,6 +3,7 @@ import click
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
+from prefect.utilities.cli import add_options
 
 COMMON_START_OPTIONS = [
     click.option(
@@ -49,7 +50,11 @@ COMMON_START_OPTIONS = [
     click.option(
         "--no-cloud-logs",
         is_flag=True,
-        help="Turn off logging for all flows run through this agent.",
+        help=(
+            "Turn off logging for all flows run through this agent. If not set, the "
+            "Prefect config value will be used."
+        ),
+        default=None,
     ),
     click.option(
         "--log-level",
@@ -84,20 +89,9 @@ COMMON_INSTALL_OPTIONS = [
 ]
 
 
-def add_options(options):
-    """A decorator for adding a list of options to a click command"""
-
-    def decorator(func):
-        for opt in reversed(options):
-            func = opt(func)
-        return func
-
-    return decorator
-
-
 def start_agent(agent_cls, token, api, label, env, log_level, **kwargs):
     labels = sorted(set(label))
-    env_vars = dict(e.split("=", 2) for e in env)
+    env_vars = dict(e.split("=", 1) for e in env)
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
@@ -177,7 +171,7 @@ def install(label, env, import_paths, **kwargs):
 
     conf = LocalAgent.generate_supervisor_conf(
         labels=sorted(set(label)),
-        env_vars=dict(e.split("=", 2) for e in env),
+        env_vars=dict(e.split("=", 1) for e in env),
         import_paths=list(import_paths),
         **kwargs,
     )
@@ -216,16 +210,30 @@ def docker():
 )
 @click.option(
     "--network",
-    help="Add containers to an existing docker network",
+    "networks",
+    multiple=True,
+    help=(
+        "Add containers to existing Docker networks. "
+        "Can be provided multiple times to pass multiple networks "
+        "(e.g. `--network network1 --network network2`)"
+    ),
 )
 @click.option(
     "--no-docker-interface",
+    default=None,
     is_flag=True,
     help=(
         "Disable the check of a Docker interface on this machine. "
         "Note: This is mostly relevant for some Docker-in-Docker "
-        "setups that users may be running their agent with."
+        "setups that users may be running their agent with. "
+        "DEPRECATED."
     ),
+)
+@click.option(
+    "--docker-client-timeout",
+    default=None,
+    type=int,
+    help="The timeout to use for docker API calls, defaults to 60 seconds.",
 )
 def start(volumes, no_docker_interface, **kwargs):
     """Start a docker agent"""
@@ -234,7 +242,9 @@ def start(volumes, no_docker_interface, **kwargs):
     start_agent(
         DockerAgent,
         volumes=list(volumes),
-        docker_interface=not no_docker_interface,
+        docker_interface=(
+            not no_docker_interface if no_docker_interface is not None else None
+        ),
         **kwargs,
     )
 
@@ -272,6 +282,13 @@ def kubernetes():
     "values can be provided as a comma-separated list "
     "(e.g. `--image-pull-secrets VAL1,VAL2`)",
 )
+@click.option(
+    "--disable-job-deletion",
+    "delete_finished_jobs",
+    help="Turn off automatic deletion of finished jobs in the namespace.",
+    is_flag=True,
+    default=True,  # Defaults to `True` because setting this flag sets `delete_finished_jobs` to `False`
+)
 def start(image_pull_secrets=None, **kwargs):
     """Start a Kubernetes agent"""
     from prefect.agent.kubernetes import KubernetesAgent
@@ -307,7 +324,7 @@ def install(label, env, **kwargs):
     from prefect.agent.kubernetes import KubernetesAgent
 
     deployment = KubernetesAgent.generate_deployment_yaml(
-        labels=sorted(set(label)), env_vars=dict(e.split("=", 2) for e in env), **kwargs
+        labels=sorted(set(label)), env_vars=dict(e.split("=", 1) for e in env), **kwargs
     )
     click.echo(deployment)
 
@@ -348,7 +365,7 @@ def start(ctx, **kwargs):
     warn_fargate_deprecated()
 
     for item in ctx.args:
-        k, v = item.replace("--", "").split("=", 2)
+        k, v = item.replace("--", "").split("=", 1)
         kwargs[k] = v
 
     start_agent(FargateAgent, _called_from_cli=True, **kwargs)
@@ -378,6 +395,10 @@ def ecs():
 @click.option(
     "--task-role-arn",
     help="The default task role ARN to use for ECS tasks started by this agent.",
+)
+@click.option(
+    "--execution-role-arn",
+    help="The default execution role ARN to use for ECS tasks started by this agent.",
 )
 @click.option(
     "--task-definition",
@@ -514,13 +535,20 @@ _agents = {
 )
 @click.option(
     "--network",
-    help="Add containers to an existing docker network",
+    multiple=True,
+    help="Add containers to existing Docker networks.",
     hidden=True,
 )
 @click.option(
     "--no-docker-interface",
     is_flag=True,
     help="Disable presence of a Docker interface.",
+    hidden=True,
+)
+@click.option(
+    "--docker-client-timeout",
+    default=None,
+    type=int,
     hidden=True,
 )
 @click.pass_context
@@ -548,6 +576,7 @@ def start(
     agent_address,
     hostname_label,
     storage_labels,
+    docker_client_timeout,
 ):
     """
     Start an agent.
@@ -604,10 +633,13 @@ def start(
         --volume            TEXT    Host paths for Docker bind mount volumes attached to
                                     each Flow runtime container. Multiple values supported.
                                         e.g. `--volume /some/path`
-        --network           TEXT    Add containers to an existing docker network
+        --network           TEXT    Add containers to existing Docker networks.
+                                    Multiple values supported.
+                                        e.g. `--network network1 --network network2`
         --no-docker-interface       Disable the check of a Docker interface on this machine.
                                     Note: This is mostly relevant for some Docker-in-Docker
                                     setups that users may be running their agent with.
+        --docker-client-timeout     Timeout for docker api requests
 
     \b
     Kubernetes Agent:
@@ -624,7 +656,7 @@ def start(
     kwargs = dict()
     for item in ctx.args:
         item = item.replace("--", "")
-        kwargs.update([item.split("=")])
+        kwargs.update([item.split("=", 1)])
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
@@ -655,7 +687,7 @@ def start(
 
         env_vars = dict()
         for env_var in env:
-            k, v = env_var.split("=")
+            k, v = env_var.split("=", 1)
             env_vars[k] = v
 
         labels = sorted(set(label))
@@ -687,8 +719,9 @@ def start(
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
                 volumes=list(volume),
-                network=network,
+                networks=tuple(network),
                 docker_interface=not no_docker_interface,
+                docker_client_timeout=docker_client_timeout,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
@@ -908,7 +941,7 @@ def install(
 
     env_vars = dict()
     for env_var in env:
-        k, v = env_var.split("=")
+        k, v = env_var.split("=", 1)
         env_vars[k] = v
 
     labels = sorted(set(label))

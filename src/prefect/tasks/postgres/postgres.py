@@ -249,6 +249,7 @@ class PostgresFetch(Task):
         data: tuple = None,
         commit: bool = False,
         password: str = None,
+        col_names: bool = False,
     ):
         """
         Task run method. Executes a query against Postgres database and fetches results.
@@ -263,6 +264,7 @@ class PostgresFetch(Task):
                 placeholder is query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
+            - col_names (bool, optional): set to True to add column names to records, defaults to False
 
         Returns:
             - records (tuple or list of tuples): records from provided query
@@ -305,6 +307,13 @@ class PostgresFetch(Task):
 
                 if commit:
                     conn.commit()
+
+                if col_names:
+                    names_list = [
+                        col_description[0] for col_description in cursor.description
+                    ]
+                    header = [tuple(col_name for col_name in names_list)]
+                    records = header + records
 
             return records
 

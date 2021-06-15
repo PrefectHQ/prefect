@@ -108,6 +108,13 @@ class TestCreateTask:
             t4 = Task()
             assert t4.timeout == 3
 
+        t4 = Task(timeout=timedelta(seconds=2))
+        assert t4.timeout == 2
+
+        with pytest.warns(UserWarning):
+            t5 = Task(timeout=timedelta(seconds=3, milliseconds=1, microseconds=1))
+        assert t5.timeout == 3
+
     def test_create_task_with_trigger(self):
         t1 = Task()
         assert t1.trigger is prefect.triggers.all_successful
@@ -247,7 +254,7 @@ class TestCreateTask:
 
     def test_task_signature_generation(self):
         class Test(Task):
-            def run(self, x: int, y: bool, z: int = 1):
+            def run(self, x: int, y: bool, z: int = 1, **kwargs):
                 pass
 
         t = Test()
@@ -717,6 +724,15 @@ class TestTaskNout:
         assert res.result[a].result == 2
         assert res.result[b].result == 0
 
+    def test_nout_not_set_on_mapped_tasks(self):
+        @task(nout=2)
+        def test(a):
+            return a + 1, a - 1
+
+        with Flow("test"):
+            with pytest.raises(TypeError, match="Task is not iterable"):
+                a, b = test.map(range(10))
+
 
 @pytest.mark.skip("Result handlers not yet deprecated")
 def test_cache_options_show_deprecation():
@@ -743,7 +759,7 @@ def test_passing_task_to_task_constructor_raises_helpful_warning():
             self.b = b
             super().__init__(**kwargs)
 
-    with Flow("test") as flow:
+    with Flow("test"):
         a = Task()()
         with pytest.warns(
             UserWarning, match="A Task was passed as an argument to MyTask"
@@ -752,3 +768,45 @@ def test_passing_task_to_task_constructor_raises_helpful_warning():
         # Warning doesn't stop normal operation
         assert t.a == 1
         assert t.b == a
+
+
+def test_task_init_uses_reserved_attribute_raises_helpful_warning():
+    class MyTask(Task):
+        def __init__(self, **kwargs):
+            self.a = 1
+            self.target = "oh no!"
+            super().__init__(**kwargs)
+
+    with Flow("test"):
+        with pytest.warns(UserWarning, match="`MyTask` sets a `target` attribute"):
+            MyTask()
+
+
+@pytest.mark.parametrize("use_function_task", [True, False])
+def test_task_called_outside_flow_context_raises_helpful_error(use_function_task):
+
+    if use_function_task:
+
+        @prefect.task
+        def fn(x):
+            return x
+
+    else:
+
+        class Fn(Task):
+            def run(self, x):
+                return x
+
+        fn = Fn()
+
+    with pytest.raises(
+        ValueError,
+        match=f"Could not infer an active Flow context while creating edge to {fn}",
+    ) as exc_info:
+        fn(1)
+
+    run_call = "`fn.run(...)`" if use_function_task else "`Fn(...).run(...)`"
+    assert (
+        "If you're trying to run this task outside of a Flow context, "
+        f"you need to call {run_call}" in str(exc_info)
+    )

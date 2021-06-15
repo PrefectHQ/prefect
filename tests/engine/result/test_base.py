@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect.engine.result import Result, NoResultType
+from prefect.engine.result.base import ResultNotImplementedError
 
 
 class TestInitialization:
@@ -31,12 +32,12 @@ class TestInitialization:
 def test_has_abstract_interfaces(abstract_interface: str):
     """
     Tests to make sure that calling the abstract interfaces directly
-    on the base `Result` class results in `NotImplementedError`s.
+    on the base `Result` class results in `ResultNotImplementedError`s.
     """
     r = Result(value=3)
 
     func = getattr(r, abstract_interface)
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ResultNotImplementedError):
         func(None)
 
 

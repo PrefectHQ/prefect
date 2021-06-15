@@ -15,6 +15,7 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
+from prefect.utilities.exceptions import ClientError
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
 
@@ -73,6 +74,9 @@ class KubernetesAgent(Agent):
         - volumes (list, optional): A list of volumes to make available to be mounted when a
             job is run. The volumes in the list should be specified as nested dicts.
             i.e `[{"name": "my-vol", "csi": {"driver": "secrets-store.csi.k8s.io"}}]`
+        - delete_finished_jobs (bool, optional): A boolean to toggle if finished Prefect jobs
+            in the agent's namespace should be deleted. Defaults to the environment variable
+            `DELETE_FINISHED_JOBS` or `True`.
     """
 
     def __init__(
@@ -87,9 +91,10 @@ class KubernetesAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         volume_mounts: List[dict] = None,
         volumes: List[dict] = None,
+        delete_finished_jobs: bool = True,
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -116,6 +121,9 @@ class KubernetesAgent(Agent):
         self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
         self.volumes = volumes
+        self.delete_finished_jobs = delete_finished_jobs and (
+            os.getenv("DELETE_FINISHED_JOBS", "True") == "True"
+        )
 
         from kubernetes import client, config
 
@@ -189,14 +197,21 @@ class KubernetesAgent(Agent):
                                         self.logger.debug(
                                             f"Failing flow run {flow_run_id} due to pod {waiting.reason}"
                                         )
-                                        self.client.set_flow_run_state(
-                                            flow_run_id=flow_run_id,
-                                            state=Failed(
-                                                message="Kubernetes Error: {}".format(
-                                                    container_status.state.waiting.message
-                                                )
-                                            ),
-                                        )
+                                        try:
+                                            self.client.set_flow_run_state(
+                                                flow_run_id=flow_run_id,
+                                                state=Failed(
+                                                    message="Kubernetes Error: {}".format(
+                                                        container_status.state.waiting.message
+                                                    )
+                                                ),
+                                            )
+                                        except ClientError as exc:
+                                            self.logger.error(
+                                                "Error attempting to set flow run state for "
+                                                f"{flow_run_id}: "
+                                                f"{exc}"
+                                            )
 
                                         delete_job = True
                                         break
@@ -214,9 +229,10 @@ class KubernetesAgent(Agent):
                                 for event in sorted(
                                     pod_events.items, key=lambda x: x.last_timestamp
                                 ):
-                                    # Skip old events
+                                    # Skip old events or events without timestamps
                                     if (
-                                        event.last_timestamp
+                                        not event.last_timestamp
+                                        or event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
                                             pod_name
                                         ]
@@ -262,36 +278,41 @@ class KubernetesAgent(Agent):
                             # Format pod failure error message
                             failed_pods.append(pod.metadata.name)
                             pod_status_logs = [f"Pod {pod.metadata.name} failed."]
-                            for status in pod.status.container_statuses:
-                                state = (
-                                    "running"
-                                    if status.state.running
-                                    else "waiting"
-                                    if status.state.waiting
-                                    else "terminated"
-                                    if status.state.terminated
-                                    else "Not Found"
-                                )
+                            if not pod.status.container_statuses:
                                 pod_status_logs.append(
-                                    f"\tContainer '{status.name}' state: {state}"
+                                    "\tNo container statuses found for pod"
                                 )
-
-                                if status.state.terminated:
-                                    pod_status_logs.append(
-                                        f"\t\tExit Code:: {status.state.terminated.exit_code}"
+                            else:
+                                for status in pod.status.container_statuses:
+                                    state = (
+                                        "running"
+                                        if status.state.running
+                                        else "waiting"
+                                        if status.state.waiting
+                                        else "terminated"
+                                        if status.state.terminated
+                                        else "Not Found"
                                     )
-                                    if status.state.terminated.message:
+                                    pod_status_logs.append(
+                                        f"\tContainer '{status.name}' state: {state}"
+                                    )
+
+                                    if status.state.terminated:
                                         pod_status_logs.append(
-                                            f"\t\tMessage: {status.state.terminated.message}"
+                                            f"\t\tExit Code:: {status.state.terminated.exit_code}"
                                         )
-                                    if status.state.terminated.reason:
-                                        pod_status_logs.append(
-                                            f"\t\tReason: {status.state.terminated.reason}"
-                                        )
-                                    if status.state.terminated.signal:
-                                        pod_status_logs.append(
-                                            f"\t\tSignal: {status.state.terminated.signal}"
-                                        )
+                                        if status.state.terminated.message:
+                                            pod_status_logs.append(
+                                                f"\t\tMessage: {status.state.terminated.message}"
+                                            )
+                                        if status.state.terminated.reason:
+                                            pod_status_logs.append(
+                                                f"\t\tReason: {status.state.terminated.reason}"
+                                            )
+                                        if status.state.terminated.signal:
+                                            pod_status_logs.append(
+                                                f"\t\tSignal: {status.state.terminated.signal}"
+                                            )
 
                             # Send pod failure information to flow run logs
                             self.client.write_run_logs(
@@ -315,17 +336,23 @@ class KubernetesAgent(Agent):
                             self.logger.debug(
                                 f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
                             )
-                            self.client.set_flow_run_state(
-                                flow_run_id=flow_run_id,
-                                state=Failed(
-                                    message="Kubernetes Error: pods {} failed for this job".format(
-                                        failed_pods
-                                    )
-                                ),
-                            )
+                            try:
+                                self.client.set_flow_run_state(
+                                    flow_run_id=flow_run_id,
+                                    state=Failed(
+                                        message="Kubernetes Error: pods {} failed for this job".format(
+                                            failed_pods
+                                        )
+                                    ),
+                                )
+                            except ClientError as exc:
+                                self.logger.error(
+                                    f"Error attempting to set flow run state for {flow_run_id}: "
+                                    f"{exc}"
+                                )
 
                     # Delete job if it is successful or failed
-                    if delete_job:
+                    if delete_job and self.delete_finished_jobs:
                         self.logger.debug(f"Deleting job {job_name}")
                         try:
                             self.job_pod_event_timestamps.pop(job_name, None)
@@ -370,8 +397,6 @@ class KubernetesAgent(Agent):
             - str: Information about the deployment
         """
         import urllib3.exceptions
-
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
 
         job_spec = self.generate_job_spec(flow_run=flow_run)
         job_name = job_spec["metadata"]["name"]
@@ -497,7 +522,9 @@ class KubernetesAgent(Agent):
         env[4]["value"] = self.namespace
         env[5]["value"] = str(self.labels)
         env[6]["value"] = str(self.log_to_cloud).lower()
-        env[7]["value"] = config.logging.level
+        env[7]["value"] = self.env_vars.get(
+            "PREFECT__LOGGING__LEVEL", config.logging.level
+        )
 
         # append all user provided values
         for key, value in self.env_vars.items():
@@ -632,7 +659,13 @@ class KubernetesAgent(Agent):
         container = containers[0]
 
         # Set container image
-        container["image"] = image = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(
+            flow_run, default=container.get("image")
+        )
+
+        # set the the kubernetes imagePullPolicy, if image_pull_policy was specified
+        if run_config.image_pull_policy is not None:
+            container["imagePullPolicy"] = run_config.image_pull_policy
 
         # Set flow run command
         container["args"] = get_flow_run_command(flow_run).split()
@@ -643,20 +676,25 @@ class KubernetesAgent(Agent):
         # - Values set on the KubernetesRun object
         # - Values set using the `--env` CLI flag on the agent
         # - Values in the job template
-        env = self.env_vars.copy()
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(
             {
+                "PREFECT__BACKEND": config.backend,
+                "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
                 "PREFECT__CONTEXT__IMAGE": image,
-                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]

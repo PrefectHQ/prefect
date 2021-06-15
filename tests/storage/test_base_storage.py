@@ -55,7 +55,7 @@ def inst(sub) -> Storage:
         ("CodeCommit", ("repo",)),
         ("Docker", ()),
         ("GCS", ("bucket",)),
-        ("GitHub", ("repo",)),
+        ("GitHub", ("repo", "path")),
         ("GitLab", ("repo",)),
         ("Local", ()),
         ("S3", ("bucket",)),

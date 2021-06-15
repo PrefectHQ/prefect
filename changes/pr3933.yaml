@@ -1,2 +1,0 @@
-fix:
-  - "Fix `prefect server start` failure when given a custom graphql host port - [#3933](https://github.com/PrefectHQ/prefect/pull/3933)"

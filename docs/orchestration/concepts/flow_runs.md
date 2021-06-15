@@ -26,16 +26,10 @@ For flows which update regularly, you can instead provide a `version_group_id` t
 
 ### Core CLI
 
-You can also create flow runs via the Prefect CLI by providing a flow name and its corresponding project name if using Cloud:
+You can also create flow runs via the Prefect CLI by providing a flow name and its corresponding project name.
 
 ```bash
-# Using Prefect Core's server
-prefect run server --name "My Flow Name"
-```
-
-```bash
-# Using Prefect Cloud
-prefect run cloud --name "My Flow Name" --project "Hello, World!"
+prefect run flow --name "My Flow Name" --project "Hello, World!"
 ```
 
 Similarly to the Client call, you can optionally provide parameters here as well.

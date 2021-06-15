@@ -84,7 +84,8 @@ def test_get_flow_image_run_config_docker_storage(run_config):
 
 @pytest.mark.parametrize("run_config", [KubernetesRun(), LocalRun(), None])
 @pytest.mark.parametrize("version", ["0.13.0", "0.10.0+182.g385a32514.dirty", None])
-def test_get_flow_image_run_config_default_value_from_core_version(run_config, version):
+@pytest.mark.parametrize("default", [None, "default-value"])
+def test_get_flow_image_run_config_default(run_config, version, default):
     flow_run = GraphQLResult(
         {
             "flow": GraphQLResult(
@@ -98,9 +99,14 @@ def test_get_flow_image_run_config_default_value_from_core_version(run_config, v
             "id": "id",
         }
     )
-    image = get_flow_image(flow_run)
-    expected_version = version.split("+")[0] if version else "latest"
-    assert image == f"prefecthq/prefect:{expected_version}"
+    if default is None:
+        expected_version = version.split("+")[0] if version else "latest"
+        expected = f"prefecthq/prefect:{expected_version}"
+    else:
+        expected = default
+
+    image = get_flow_image(flow_run, default=default)
+    assert image == expected
 
 
 def test_get_flow_image_run_config_image_on_RunConfig():

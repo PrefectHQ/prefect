@@ -1,5 +1,6 @@
 import time
 import datetime
+from datetime import timedelta
 import warnings
 from typing import Any
 from urllib.parse import urlparse
@@ -35,6 +36,8 @@ class StartFlowRun(Task):
         - run_name (str, optional): name to be set for the flow run
         - scheduled_start_time (datetime, optional): the time to schedule the execution
             for; if not provided, defaults to now
+        - poll_interval (timedelta): the time to wait between each check if the flow is finished.
+                Has to be >= 3 seconds. Used only if `wait=True`. Defaults to 10 seconds.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -48,16 +51,35 @@ class StartFlowRun(Task):
         new_flow_context: dict = None,
         run_name: str = None,
         scheduled_start_time: datetime.datetime = None,
+        poll_interval: timedelta = timedelta(seconds=10),
         **kwargs: Any,
     ):
         self.flow_name = flow_name
         self.project_name = project_name
+        # Check that users haven't passed tasks to `parameters`
+        if parameters is not None:
+            for v in parameters.values():
+                if isinstance(v, Task):
+                    raise TypeError(
+                        "An instance of `Task` was passed to the `StartFlowRun` constructor via the "
+                        "`parameters` kwarg. You'll want to pass these parameters when calling the "
+                        "task instead. For example:\n\n"
+                        "  start_flow_run = StartFlowRun(...)  # static (non-Task) args go here\n"
+                        "  res = start_flow_run(parameters=...)  # dynamic (Task) args go here\n\n"
+                        "see https://docs.prefect.io/core/concepts/flows.html#apis for more info."
+                    )
         self.parameters = parameters
         self.run_config = run_config
         self.new_flow_context = new_flow_context
         self.run_name = run_name
         self.wait = wait
         self.scheduled_start_time = scheduled_start_time
+        if poll_interval.total_seconds() < 3:
+            raise ValueError(
+                "`poll_interval` needs to be at least 3 seconds to avoid spamming the Prefect server. "
+                f"(poll_interval == {poll_interval.total_seconds()} seconds)!"
+            )
+        self.poll_interval = poll_interval
         if flow_name:
             kwargs.setdefault("name", f"Flow {flow_name}")
         super().__init__(**kwargs)
@@ -177,12 +199,13 @@ class StartFlowRun(Task):
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
         run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
         create_link(urlparse(run_link).path)
+        self.logger.info(f"Flow Run: {run_link}")
 
         if not self.wait:
             return flow_run_id
 
         while True:
-            time.sleep(10)
+            time.sleep(self.poll_interval.total_seconds())
             flow_run_state = client.get_flow_run_info(flow_run_id).state
             if flow_run_state.is_finished():
                 exc = signal_from_state(flow_run_state)(

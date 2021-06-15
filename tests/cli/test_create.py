@@ -68,3 +68,14 @@ def test_create_project_that_already_exists(patch_posts):
     result = runner.invoke(create, ["project", "test"])
     assert result.exit_code == 0
     assert "test created" in result.output
+
+
+def test_skip_if_exists(patch_post, cloud_api):
+    patch_post(dict(data=dict(project=[dict(id="id")])))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        create, ["project", "test", "-d", "description", "--skip-if-exists"]
+    )
+    assert result.exit_code == 0
+    assert "test already exists" in result.output

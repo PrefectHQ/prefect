@@ -39,7 +39,7 @@ For more information on the different `Storage` types, see the
 a Local Agent, `DockerRun` pairs with a Docker Agent, ...). The options
 available on a `RunConfig` depend on the type, but generally include options
 for setting environment variables, configuring resources (CPU/memory), or
-selecting a docker image to use (if not using `Docker` storage). 
+selecting a [docker image](./docker.md) to use (if not using `Docker` storage). 
 
 For example, to configure a flow to run on Kubernetes:
 

@@ -29,6 +29,12 @@ from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
 
 
+# Subclass of `NotImplementedError` to make it easier to distinguish this error
+# in consuming code
+class ResultNotImplementedError(NotImplementedError):
+    """Indicates a Result feature isn't implemented"""
+
+
 class Result:
     """
     A representation of the result of a Prefect task; this class contains
@@ -182,7 +188,7 @@ class Result:
         Returns:
             - bool: whether or not the target result exists.
         """
-        raise NotImplementedError(
+        raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
             "see https://docs.prefect.io/core/concepts/results.html"
@@ -198,7 +204,7 @@ class Result:
         Returns:
             - Any: The value saved to the result.
         """
-        raise NotImplementedError(
+        raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
             "see https://docs.prefect.io/core/concepts/results.html"
@@ -217,7 +223,7 @@ class Result:
         Returns:
             - Result: a new result object with the appropriately formatted location destination
         """
-        raise NotImplementedError(
+        raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
             "see https://docs.prefect.io/core/concepts/results.html"

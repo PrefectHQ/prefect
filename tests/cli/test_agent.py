@@ -58,15 +58,17 @@ def test_help(cmd):
             "prefect.agent.docker.DockerAgent",
             (
                 "--base-url testurl --no-pull --show-flow-logs --volume volume1 "
-                "--volume volume2 --network testnetwork --no-docker-interface"
+                "--volume volume2 --network testnetwork1 --network testnetwork2 "
+                "--no-docker-interface --docker-client-timeout 123"
             ),
             {
                 "base_url": "testurl",
                 "volumes": ["volume1", "volume2"],
-                "network": "testnetwork",
+                "networks": ("testnetwork1", "testnetwork2"),
                 "no_pull": True,
                 "show_flow_logs": True,
                 "docker_interface": False,
+                "docker_client_timeout": 123,
             },
         ),
         (
@@ -75,6 +77,7 @@ def test_help(cmd):
             (
                 "--namespace TESTNAMESPACE --job-template testtemplate.yaml",
                 "--service-account-name TESTACCT --image-pull-secrets VAL1,VAL2",
+                "--disable-job-deletion",
             ),
             (
                 {
@@ -85,6 +88,7 @@ def test_help(cmd):
                     "service_account_name": "TESTACCT",
                     "image_pull_secrets": ["VAL1", "VAL2"],
                 },
+                {"delete_finished_job": False},
             ),
         ),
         (
@@ -109,6 +113,22 @@ def test_help(cmd):
                 "run_task_kwargs_path": "run-task-kwargs-path.yaml",
             },
         ),
+        (
+            "ecs",
+            "prefect.agent.ecs.ECSAgent",
+            (
+                "--cluster TEST-CLUSTER --launch-type FARGATE --execution-role-arn TEST-EXECUTION-ROLE-ARN "
+                "--task-definition task-definition-path.yaml --run-task-kwargs "
+                "run-task-kwargs-path.yaml"
+            ),
+            {
+                "cluster": "TEST-CLUSTER",
+                "launch_type": "FARGATE",
+                "execution_role_arn": "TEST-EXECUTION-ROLE-ARN",
+                "task_definition_path": "task-definition-path.yaml",
+                "run_task_kwargs_path": "run-task-kwargs-path.yaml",
+            },
+        ),
     ],
 )
 def test_agent_start(
@@ -122,7 +142,7 @@ def test_agent_start(
         (
             "--token TEST-TOKEN --api TEST-API --agent-config-id TEST-AGENT-CONFIG-ID "
             "--name TEST-NAME -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
-            "--max-polls 10 --agent-address 127.0.0.1:8080"
+            "-e KEY3=VALUE=WITH=EQUALS --max-polls 10 --agent-address 127.0.0.1:8080"
         ).split()
     )
     if deprecated:
@@ -144,10 +164,10 @@ def test_agent_start(
         "agent_config_id": "TEST-AGENT-CONFIG-ID",
         "name": "TEST-NAME",
         "labels": ["label1", "label2"],
-        "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
+        "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2", "KEY3": "VALUE=WITH=EQUALS"},
         "max_polls": 10,
         "agent_address": "127.0.0.1:8080",
-        "no_cloud_logs": False,
+        "no_cloud_logs": None if not deprecated else False,
         **extra_kwargs,
     }
 

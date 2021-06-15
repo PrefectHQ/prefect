@@ -1,5 +1,4 @@
-import os
-
+import sys
 import pytest
 import yaml
 
@@ -16,6 +15,7 @@ def test_no_args():
     assert config.cpu is None
     assert config.memory is None
     assert config.task_role_arn is None
+    assert config.execution_role_arn is None
     assert config.run_task_kwargs is None
     assert config.labels == set()
 
@@ -28,6 +28,7 @@ def test_all_args():
         cpu=1024,
         memory=2048,
         task_role_arn="my-task-role",
+        execution_role_arn="execution-role",
         run_task_kwargs={"overrides": {"taskRoleArn": "example"}},
         labels=["a", "b"],
     )
@@ -37,6 +38,7 @@ def test_all_args():
     assert config.cpu == "1024"
     assert config.memory == "2048"
     assert config.task_role_arn == "my-task-role"
+    assert config.execution_role_arn == "execution-role"
     assert config.run_task_kwargs == {"overrides": {"taskRoleArn": "example"}}
     assert config.labels == {"a", "b"}
 
@@ -82,10 +84,9 @@ def test_local_task_definition_path(tmpdir, scheme):
     if scheme is None:
         task_definition_path = path
     else:
-        # With a scheme, unix-style slashes are required
-        task_definition_path = f"{scheme}://" + os.path.splitdrive(path)[1].replace(
-            "\\", "/"
-        )
+        if sys.platform == "win32":
+            pytest.skip("Schemes are not supported on win32")
+        task_definition_path = f"{scheme}://" + path
 
     with open(path, "w") as f:
         yaml.safe_dump(task_definition, f)
@@ -102,6 +103,10 @@ def test_task_definition_arn():
     assert config.task_definition_arn == "my-task-definition"
     assert config.task_definition is None
     assert config.task_definition_path is None
+
+    # Can't mix `image` and `task_definition_arn`
+    with pytest.raises(ValueError, match="task_definition_arn"):
+        ECSRun(task_definition_arn="my-task-definition", image="my-image")
 
 
 def test_task_definition():
