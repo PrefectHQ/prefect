@@ -892,7 +892,7 @@ class TaskRunner(Runner):
             if prefect.context.get("raise_on_exception"):
                 raise
             self.logger.error(
-                f"Task {task_name!r}: Encountered exception during task execution!",
+                f"Task {task_name!r}: Exception encountered during task execution!",
                 exc_info=True,
             )
             state = Failed(f"Error during execution of task: {exc!r}", result=exc)
