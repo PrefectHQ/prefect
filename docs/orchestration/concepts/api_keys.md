@@ -103,7 +103,7 @@ Your API key metadata can be viewed in serveral ways. Note that we _do not store
 
 :::: tabs
 
-::: CLI
+::: tab CLI
 
 To see keys from the CLI, use the `prefect auth list-keys` command
 
@@ -118,7 +118,7 @@ their_key     01c0e2ea-8bfe-49e3-8c63-c477cf2ec024  2021-06-15T09:42:07.802718
 
 :::
 
-::: GraphQL
+::: tab GraphQL
 
 To query for information about API keys with GraphQL, use the `auth_api_key` query.
 
@@ -168,7 +168,7 @@ Example response:
 
 :::: tabs
 
-::: UI
+::: tab UI
 
 To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
 
@@ -176,7 +176,7 @@ To revoke an API key in the UI navigate to Team Settings > Service Accounts or U
 
 :::
 
-::: CLI
+::: tab CLI
 
 To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` command. You will likely need to retrieve the ID of they key with `prefect auth list-keys` first.
 
@@ -186,7 +186,7 @@ prefect auth revoke-key --id API_KEY_ID
 
 :::
 
-::: GraphQL
+::: tab GraphQL
 
 To revoke an API key using GraphQL execute the `delete_api_key` mutation. For information on how to find an API key's ID, see [Querying for API key metadata]](api_keys.html#querying-for-api-key-metadata).
 
