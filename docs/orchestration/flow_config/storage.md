@@ -128,8 +128,11 @@ After registration, the flow will be stored at
 :::tip Automatic Labels
 Flows registered with this storage option will automatically be labeled with
 the hostname of the machine from which it was registered; this prevents agents
-not running on the same machine from attempting to run this flow. This behavior
-can be overridden by passing `add_default_labels=False` to the object:
+not running on the same machine from attempting to run this flow. This default
+prevents the common issue where an agent cannot find a flow that is stored on a
+different machine. You can override this behavior by passing `add_default_labels=False`
+to the object, but then you must make sure that the flow file is available on
+the local file system of other agents.
 ```python
 flow = Flow("local-flow", storage=Local(add_default_labels=False))
 ```
@@ -246,6 +249,11 @@ GCS Storage uses Google Cloud credentials the same way as the standard
 library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python)
 which means both upload (build) and download (local agent) times need to have
 the proper Google Application Credentials configuration.
+:::
+
+:::tip Extra dependency
+You need to install `google` PIP extra (`pip install prefect[google]`) to use
+GCS Storage.
 :::
 
 ### Git
