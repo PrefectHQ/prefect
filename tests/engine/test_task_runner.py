@@ -133,7 +133,7 @@ def test_task_that_has_an_error_is_marked_fail():
     assert isinstance(task_runner.run(), Failed)
 
 
-def test_task_with_error_has_good_messages(caplog):
+def test_task_with_error_has_helpful_messages(caplog):
     task_runner = TaskRunner(task=ErrorTask())
     state = task_runner.run()
     assert state.is_failed()
