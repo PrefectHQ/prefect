@@ -84,16 +84,30 @@ mutation {
 
 ::::
 
-## Querying for Key Information
+## Querying for API keys
 
-To query for information about API key with GraphQL, execute the following query against `https://api.prefect.io`. This will never return the value of the key.
-The response will include metadata about the authenticated user's API key.  If the User has an Administrator role, it will also include the metadata for all
-service account API keys in the tenant. 
+Your API key metadata can be viewed in serveral ways. Note that we _do not store_ your API keys and you will not be able to view the value of the key after creation. When querying for keys, you will only be able to see metadata for keys created by your user or, if the you are a tenant admin, metadata for the all service account API keys in the tenant. 
 
-::: tip Using service accounts to Query for API keys
-Because all service accounts have the Administrator role by default, when using a service account API key, metadata is returned for all the tenant's service account API key.
+:::: tabs
+
+::: CLI
+
+To see keys from the CLI, use the `prefect auth list-keys` command
+
+
+```
+$ prefect auth list-keys
+NAME          ID                                    EXPIRES AT
+test          9714235e-46ac-4fb8-9bb0-d615d5318fb9  NEVER
+my_key        5441f413-4b9d-4630-8b1c-0103aa38736e  NEVER
+their_key     01c0e2ea-8bfe-49e3-8c63-c477cf2ec024  2021-06-15T09:42:07.802718
+```
 
 :::
+
+::: GraphQL
+
+To query for information about API keys with GraphQL, use the `auth_api_key` query.
 
 ```graphql
 query {
@@ -105,6 +119,37 @@ query {
   }
 }
 ```
+
+Example response:
+
+```json
+  "data": {
+    "auth_api_key": [
+      {
+        "id": "9714235e-46ac-4fb8-9bb0-d615d5318fb9",
+        "name": "test",
+        "expires_at": null,
+        "user_id": "84ac3f7e-78b3-458c-93cf-81bd920669b8"
+      },
+      {
+        "id": "5441f413-4b9d-4630-8b1c-0103aa38736e",
+        "name": "my_key",
+        "expires_at": null,
+        "user_id": "b5810ca3-f90b-4698-8c22-ae958aabc992"
+      },
+      {
+        "id": "01c0e2ea-8bfe-49e3-8c63-c477cf2ec024",
+        "name": "their_key",
+        "expires_at": "2021-06-15T09:42:07.802718",
+        "user_id": "b5810ca3-f90b-4698-8c22-ae958aabc992"
+      },
+    ]
+  }
+```
+
+:::
+
+::::
 
 ## Use and Persistence of service account Keys in Agents
 
