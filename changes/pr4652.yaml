@@ -1,5 +1,4 @@
 breaking:
-  - "Remove deprecated `prefect.engine.executors` module"
   - "Remove deprecated `prefect.environment.storage` module"
   - "Remove deprecated `DockerAgent` kwarg `network`"
   - "Remove deprecated `kubernetes.ResourceManager` class"
