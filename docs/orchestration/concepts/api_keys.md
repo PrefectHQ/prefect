@@ -8,10 +8,9 @@ See our [API documentation](api.html) more information on how to use these keys 
 
 Users can generate API Keys to interact with the API with their personal permissions.  When creating an API key, you can configure the following attributes:
 
-- **API Key Name**: The name of this key
-- **API Key Expiration**: An optional expiration date for the key - if no expiration is provided, the key will never expire
-- **Tenant**: The tenant to associate with the API Key - clients using this key can interact with this tenant only.  This key's 
-permissions are the user's in that tenant.
+- **API Key Name**: A memorable name for the key
+- **API Key Expiration**: An optional expiration date for the key. If no expiration is provided, the key will never expire
+- **Default Tenant**: The tenant to associate with the API Key. Clients using this key will default to performing actions in this tenant, but they can also provide another tenant to perform actions in.
 
 To generate an API key for your User, navigate to User > API Keys within the UI and click "Create an API Key".
 
@@ -115,6 +114,5 @@ auth_token = SERVICE_ACCOUNT_API_KEY
 ```
 
 ::: warning Deprecation of User Access Tokens and API Tokens
-
 API Keys replace the deprecated User Access Tokens and API Tokens, which used a different authentication paradigm. In effect, User API Keys can be used in place of Personal Access Tokens, and Service Account API Keys should replace API Tokens.
 :::
