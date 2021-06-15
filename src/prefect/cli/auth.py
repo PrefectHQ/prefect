@@ -10,7 +10,11 @@ from prefect.cli.build_register import handle_terminal_error, TerminalError
 
 def check_override_auth_token():
     if config.cloud.get("auth_token"):
-        click.secho("Auth token already present in config.", fg="red")
+        click.secho(
+            "Auth token has been set in the config. The CLI cannot be used to manage "
+            "your auth.",
+            fg="red",
+        )
         raise Abort
 
 
@@ -285,8 +289,6 @@ def list_tenants():
     """
     List available tenants
     """
-    check_override_auth_token()
-
     client = Client()
 
     tenants = client.get_available_tenants()
