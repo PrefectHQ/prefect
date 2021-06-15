@@ -291,7 +291,7 @@ An [`Amazon ECS service`](https://docs.aws.amazon.com/AmazonECS/latest/developer
 
 For running agent as ECS service, you need to provide service definition parameters such as task definition, cluster name, service name, etc. You can create a service and provide those parameters using AWS console, or any Infrastructure as Code tools (Terraform, Pulumi, etc), or AWS CLI.
 
-Let's see an example of creating a Fargate service type for Prefect Agent using AWS CLI. Assuming you have already created an ECS cluster in your VPC (you can use default cluster and VPC created by AWS), and got a runner token for Prefect agent, let's create a task definition for ECS Prefect agent using AWS CLI. Save the following task definition in `prefect-agent-td.json` file. Note, some values should be substituted with your token and AWS account id.
+Let's see an example of creating a Fargate service type for Prefect Agent using AWS CLI. Assuming you have already created an ECS cluster in your VPC (you can use default cluster and VPC created by AWS), and have an API token for your Prefect agent, let's create a task definition for ECS Prefect agent using AWS CLI. Save the following task definition in `prefect-agent-td.json` file. Note, some values should be substituted with your API key and AWS account id.
 
 ```json
 {
@@ -310,8 +310,8 @@ Let's see an example of creating a Fargate service type for Prefect Agent using 
             "command": ["prefect","agent","ecs","start"],
             "environment": [
                 {
-                    "name": "PREFECT__CLOUD__AGENT__AUTH_TOKEN",
-                    "value": "<agent_runner_token>"
+                    "name": "PREFECT__CLOUD__API_KEY",
+                    "value": "<your-key>"
                 },
                 {
                     "name": "PREFECT__CLOUD__AGENT__LABELS",
