@@ -169,7 +169,7 @@ class Agent:
         self.logger.debug(f"Prefect backend: {config.backend}")
 
     @property
-    def flow_run_api_key(self):
+    def flow_run_api_key(self) -> Optional[str]:
         """
         Get the API key that the flow run should use to authenticate with Cloud.
 
