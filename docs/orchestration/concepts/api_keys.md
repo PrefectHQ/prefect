@@ -48,14 +48,17 @@ mutation {
 
 ## Revoking Keys
 
-### UI
+:::: tabs
+
+::: UI
 
 To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
 
 ![token delete](/token_delete.png)
 
+:::
 
-### CLI
+::: CLI
 
 To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` command. You will likely need to retrieve the ID of they key with `prefect auth list-keys` first.
 
@@ -63,9 +66,11 @@ To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` com
 prefect auth revoke-key --id API_KEY_ID
 ```
 
-### GraphQL
+:::
 
-To revoke an API key using GraphQL execute the `delete_api_key` mutation against `https://api.prefect.io`. For information on how to find an API key's ID look under [Querying for Key Information](api_keys.html#querying-for-key-information).
+::: GraphQL
+
+To revoke an API key using GraphQL execute the `delete_api_key` mutation. For information on how to find an API key's ID look under [Querying for Key Information](api_keys.html#querying-for-key-information).
 
 ```graphql
 mutation {
@@ -75,6 +80,9 @@ mutation {
 }
 ```
 
+:::
+
+::::
 
 ## Querying for Key Information
 
