@@ -95,7 +95,7 @@ def watch_flow_run(
 
     # Some times (in seconds) to track displaying a warning about the flow not starting
     # on time
-    agent_warning_initial_wait = 10
+    agent_warning_initial_wait = 15
     agent_warning_repeat_interval = 30
     total_time_elapsed = 0
     agent_warning_time_elapsed = agent_warning_repeat_interval  # show first warning
