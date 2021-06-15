@@ -76,7 +76,7 @@ extras = {
     "rss": ["feedparser >= 5.0.1, < 6.0"],
     "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.5"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
-    "templates": ["jinja2 >= 2.0, < 3.0"],
+    "templates": ["jinja2 >= 2.0, < 4.0"],
     "test": test_requires,
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
