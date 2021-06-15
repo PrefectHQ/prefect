@@ -46,45 +46,7 @@ mutation {
 ```
 :::
 
-## Revoking Keys
-
-:::: tabs
-
-::: UI
-
-To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
-
-![token delete](/token_delete.png)
-
-:::
-
-::: CLI
-
-To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` command. You will likely need to retrieve the ID of they key with `prefect auth list-keys` first.
-
-```bash
-prefect auth revoke-key --id API_KEY_ID
-```
-
-:::
-
-::: GraphQL
-
-To revoke an API key using GraphQL execute the `delete_api_key` mutation. For information on how to find an API key's ID look under [Querying for Key Information](api_keys.html#querying-for-key-information).
-
-```graphql
-mutation {
-  delete_api_key(input: { key_id: "API_KEY_ID" }) {
-    success
-  }
-}
-```
-
-:::
-
-::::
-
-## Querying for API keys
+## Querying for API key metadata
 
 Your API key metadata can be viewed in serveral ways. Note that we _do not store_ your API keys and you will not be able to view the value of the key after creation. When querying for keys, you will only be able to see metadata for keys created by your user or, if the you are a tenant admin, metadata for the all service account API keys in the tenant. 
 
@@ -150,6 +112,45 @@ Example response:
 :::
 
 ::::
+
+## Revoking Keys
+
+:::: tabs
+
+::: UI
+
+To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
+
+![token delete](/token_delete.png)
+
+:::
+
+::: CLI
+
+To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` command. You will likely need to retrieve the ID of they key with `prefect auth list-keys` first.
+
+```bash
+prefect auth revoke-key --id API_KEY_ID
+```
+
+:::
+
+::: GraphQL
+
+To revoke an API key using GraphQL execute the `delete_api_key` mutation. For information on how to find an API key's ID, see [Querying for API key metadata]](api_keys.html#querying-for-api-key-metadata).
+
+```graphql
+mutation {
+  delete_api_key(input: { key_id: "API_KEY_ID" }) {
+    success
+  }
+}
+```
+
+:::
+
+::::
+
 
 ## Use and Persistence of service account Keys in Agents
 
