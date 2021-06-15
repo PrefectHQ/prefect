@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Ensure stack traces are included in logs during task run exceptions - [#4657](https://github.com/PrefectHQ/prefect/pull/4657)"

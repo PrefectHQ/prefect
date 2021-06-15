@@ -407,7 +407,7 @@ class Agent:
                 return
 
             self.logger.error(
-                f"Encountered exception while deploying flow run {flow_run.id}",
+                f"Exception encountered while deploying flow run {flow_run.id}",
                 exc_info=True,
             )
 
