@@ -174,7 +174,7 @@ def test_environment_has_api_key_from_config(api, tenant_id):
         )
 
     assert env_vars["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
-    assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+    assert env_vars.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
 
 @pytest.mark.parametrize("tenant_id", ["ID", None])
