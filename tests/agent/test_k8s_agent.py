@@ -14,7 +14,7 @@ from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.run_configs import KubernetesRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 from prefect.utilities.graphql import GraphQLResult
 
 

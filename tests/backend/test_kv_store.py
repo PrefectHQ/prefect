@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock, call
 
 from prefect.backend.kv_store import set_key_value, get_key_value, delete_key, list_keys
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 from prefect.utilities.graphql import GraphQLResult
 
 

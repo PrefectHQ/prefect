@@ -3,7 +3,7 @@ from click.exceptions import Abort
 from tabulate import tabulate
 
 from prefect import Client, config
-from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.exceptions import AuthorizationError, ClientError
 
 
 def check_override_auth_token():

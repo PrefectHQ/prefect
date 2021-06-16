@@ -5,7 +5,7 @@ from typing import Any, List
 import prefect
 from prefect.utilities.graphql import with_args
 from prefect.client import Client
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 
 
 NON_CLOUD_BACKEND_ERROR_MESSAGE = (
