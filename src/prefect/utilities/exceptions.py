@@ -7,6 +7,8 @@ Users should not be using these directly but we leave these for a version in cas
 are being used in try/except clauses
 """
 
+import warnings
+
 # Import new exceptions for compat inheritance
 from prefect.exceptions import (
     PrefectException,
@@ -19,36 +21,96 @@ from prefect.exceptions import (
 
 
 class PrefectError(PrefectException):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.PrefectError` has been moved to "
+            "`prefect.exceptions.PrefectException` and will be removed in a future "
+            "release. Please update your imports.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class TaskTimeoutError(PrefectError, TaskTimeoutSignal):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.PrefectError` has been moved to "
+            "`prefect.exceptions.PrefectException` and will be removed in a future "
+            "release. Please update your imports.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class ContextError(KeyError, PrefectError):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.PrefectWarning` has been deprecated "
+            "and will be removed in a future release.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class SerializationError(PrefectError):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.PrefectWarning` has been deprecated "
+            "and will be removed in a future release.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class PrefectWarning(UserWarning):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.PrefectWarning` has been deprecated "
+            "and will be removed in a future release.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class ClientError(PrefectError, ClientError_):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.ClientError` has been moved to "
+            "`prefect.exceptions.ClientError` and will be removed in a future "
+            "release. Please update your imports.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class VersionLockError(PrefectError, VersionLockMismatchSignal):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.VersionLockError` has been moved to "
+            "`prefect.exceptions.VersionLockMismatchSignal` and will be removed in a "
+            "future release. Please update your imports.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class AuthorizationError(ClientError, AuthorizationError_):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.AuthorizationError` has been moved to "
+            "`prefect.exceptions.AuthorizationError` and will be removed in a future "
+            "release. Please update your imports.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
 
 
 class StorageError(PrefectError, FlowStorageError):
-    pass
+    def __init__(self, *args: object) -> None:
+        warnings.warn(
+            "`prefect.utilities.exceptions.StorageError` has been moved to "
+            "`prefect.exceptions.FlowStorageError` and will be removed in a future "
+            "release. Please update your imports.",
+            stacklevel=2,
+        )
+        super().__init__(*args)
