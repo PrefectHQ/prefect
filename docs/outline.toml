@@ -262,6 +262,15 @@ classes = [
     "AuthorizationError",
     "FlowStorageError"
 ]
+skip_validation_classes = [
+    "PrefectSignal", 
+    "VersionLockMismatchSignal", 
+    "TaskTimeoutSignal",
+    "PrefectException",
+    "ClientError",
+    "AuthorizationError",
+    "FlowStorageError"
+]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"

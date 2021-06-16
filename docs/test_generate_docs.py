@@ -372,7 +372,17 @@ def test_consistency_of_function_docs(fn):
 
 
 @pytest.mark.parametrize(
-    "obj", [obj for page in OUTLINE for obj, _ in page.get("classes", [])]
+    "obj",
+    [
+        obj
+        for page in OUTLINE
+        for obj, _ in page.get("classes", [])
+        if obj.__name__
+        not in [
+            skip_validation
+            for skip_validation in page.get("skip_validation_classes", [])
+        ]
+    ],
 )
 def test_consistency_of_class_docs(obj):
     consistency_check(obj, f"{obj.__module__}.{obj.__name__}")

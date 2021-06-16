@@ -91,6 +91,7 @@ def load_outline(
 
             # extract documented classes
             classes = data.get("classes", [])
+            page["skip_validation_classes"] = data.get("skip_validation_classes", [])
             if isinstance(classes, dict):
                 page["classes"] = [
                     (import_object(f"{module_name}.{cls}"), methods)
