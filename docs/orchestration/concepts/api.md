@@ -39,7 +39,7 @@ import prefect
 client = prefect.Client()
 
 client.graphql(
-    {`
+    {
         'query': {
             'flow': {
                 'id'
