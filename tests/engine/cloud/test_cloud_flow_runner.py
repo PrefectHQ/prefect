@@ -32,7 +32,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 
 
 @pytest.fixture(autouse=True)
@@ -612,7 +612,7 @@ def test_flowrunner_handles_version_lock_error(monkeypatch):
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
-    client.set_flow_run_state.side_effect = VersionLockError()
+    client.set_flow_run_state.side_effect = VersionLockMismatchSignal()
 
     flow = prefect.Flow(name="test")
     runner = CloudFlowRunner(flow=flow)

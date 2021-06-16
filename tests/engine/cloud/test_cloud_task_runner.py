@@ -34,7 +34,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 
 
 @pytest.fixture(autouse=True)
@@ -79,7 +79,7 @@ def vclient(monkeypatch):
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_task_run_state=MagicMock(
-            side_effect=VersionLockError(),
+            side_effect=VersionLockMismatchSignal(),
             return_value=Running()
             # side_effect=lambda task_run_id, version, state, cache_for: state
         ),
@@ -1004,7 +1004,7 @@ def test_task_runner_handles_version_lock_error(monkeypatch):
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
     )
-    client.set_task_run_state.side_effect = VersionLockError()
+    client.set_task_run_state.side_effect = VersionLockMismatchSignal()
 
     task = Task(name="test")
     runner = CloudTaskRunner(task=task)

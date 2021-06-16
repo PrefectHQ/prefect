@@ -22,10 +22,10 @@ from slugify import slugify
 
 import prefect
 from prefect.run_configs import RunConfig
-from prefect.utilities.exceptions import (
+from prefect.exceptions import (
     AuthorizationError,
     ClientError,
-    VersionLockError,
+    VersionLockMismatchSignal,
 )
 from prefect.utilities.graphql import (
     EnumValue,
@@ -315,7 +315,7 @@ class Client:
                 result["errors"][0].get("extensions", {}).get("code")
                 == "VERSION_LOCKING_ERROR"
             ):
-                raise VersionLockError(result["errors"])
+                raise VersionLockMismatchSignal(result["errors"])
             raise ClientError(result["errors"])
         else:
             return GraphQLResult(result)  # type: ignore

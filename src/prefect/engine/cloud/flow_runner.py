@@ -15,7 +15,7 @@ from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, Queued, State, Cancelling, Cancelled
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 from prefect.utilities.graphql import with_args
 
 
@@ -136,7 +136,7 @@ class CloudFlowRunner(FlowRunner):
                 version=version if cloud_state.is_running() else None,
                 state=cloud_state,
             )
-        except VersionLockError as exc:
+        except VersionLockMismatchSignal as exc:
             state = self.client.get_flow_run_state(flow_run_id=flow_run_id)
 
             if state.is_running():
