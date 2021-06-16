@@ -41,7 +41,7 @@ commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
 [pages.cli.auth]
 title = "auth"
 module = "prefect.cli.auth"
-commands = ["login", "logout", "list_tenants", "switch_tenants", "create_token", "list_tokens", "revoke_token", "create_key", "list_keys", "revoke_key", "status"]
+commands = ["login", "logout", "list_tenants", "switch_tenants", "create_key", "list_keys", "revoke_key", "status", "create_token", "list_tokens", "revoke_token"]
 
 [pages.cli.create]
 title = "create"
