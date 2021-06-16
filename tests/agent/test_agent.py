@@ -9,7 +9,7 @@ import pytest
 from prefect.agent import Agent
 from prefect.engine.state import Scheduled, Failed, Submitted
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError
+from prefect.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, EnumValue, with_args
 from prefect.utilities.compatibility import nullcontext
 
