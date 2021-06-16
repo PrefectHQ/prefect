@@ -123,8 +123,8 @@ def flow_information(flow: "prefect.Flow") -> dict:
     # Check presence of environment attributes
     if flow.environment:
         environment = {
-            "type": type(flow.environment).__name__,
-            **_replace_values(flow.environment.__dict__),
+            "type": type(flow.environment).__name__,  # type: ignore
+            **_replace_values(flow.environment.__dict__),  # type: ignore
         }
     else:
         environment = False  # type: ignore

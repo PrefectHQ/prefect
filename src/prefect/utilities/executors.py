@@ -54,8 +54,12 @@ def run_with_heartbeat(
                     #   submit tasks to run within daemonic subprocesses
                     current_env = dict(os.environ).copy()
                     auth_token = prefect.context.config.cloud.get("auth_token")
+                    api_key = prefect.context.config.cloud.get("api_key")
+                    tenant_id = prefect.context.config.cloud.get("tenant_id")
                     api_url = prefect.context.config.cloud.get("api")
                     current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
+                    current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
+                    current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
                     current_env.setdefault("PREFECT__CLOUD__API", api_url)
                     clean_env = {k: v for k, v in current_env.items() if v is not None}
                     p = subprocess.Popen(

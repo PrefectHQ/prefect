@@ -685,7 +685,14 @@ class KubernetesAgent(Agent):
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.get("auth_token", ""),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else ""
+                ),
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
@@ -735,6 +742,8 @@ class KubernetesAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         backend: str = None,
+        key: str = None,
+        tenant_id: str = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -765,6 +774,10 @@ class KubernetesAgent(Agent):
                 jobs created by this agent and to set in the agent's own environment
             - backend (str, optional): toggle which backend to use for this agent.
                 Defaults to backend currently set in config.
+            - key (str, optional): An API key for the agent to use for authentication
+                with Prefect Cloud
+            - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
+                set, the default tenant associated with the API key will be used.
 
         Returns:
             - str: A string representation of the generated YAML
@@ -772,6 +785,8 @@ class KubernetesAgent(Agent):
 
         # Use defaults if not provided
         token = token or ""
+        key = key or ""
+        tenant_id = tenant_id or ""
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
         labels = labels or []
@@ -802,6 +817,8 @@ class KubernetesAgent(Agent):
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
         agent_env[11]["value"] = backend
+        agent_env[13]["value"] = key
+        agent_env[14]["value"] = tenant_id
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request

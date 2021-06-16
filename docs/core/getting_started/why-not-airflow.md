@@ -335,7 +335,7 @@ The Prefect UI supports:
 - agent management
 - projects for organizing flows
 - team management and permissions
-- API token generation
+- API key generation
 - secret management
 - global concurrency limits
 - timezones (this one's for you, Airflow users!)

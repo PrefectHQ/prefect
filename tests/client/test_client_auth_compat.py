@@ -1,3 +1,8 @@
+"""
+This file tests Client auth handling with API tokens which have been deprecated in
+favor of API keys. All of these tests are for backwards compatibility and can be removed
+in 0.16.0 when API tokens are dropped.
+"""
 import json
 import os
 import tempfile
@@ -45,14 +50,14 @@ class TestClientConfig:
         assert client._api_token == "token"
 
     def test_client_settings_path_is_path_object(self, cloud_api):
-        assert isinstance(Client()._local_settings_path, Path)
+        assert isinstance(Client()._api_token_settings_path, Path)
 
     def test_client_settings_path_depends_on_api_server(
         self, prefect_home_dir, cloud_api
     ):
         path = Client(
             api_server="https://a-test-api.prefect.test/subdomain"
-        )._local_settings_path
+        )._api_token_settings_path
         expected = os.path.join(
             prefect_home_dir,
             "client",
@@ -63,7 +68,7 @@ class TestClientConfig:
 
     def test_client_settings_path_depends_on_home_dir(self, cloud_api):
         with set_temporary_config(dict(home_dir="abc/def")):
-            path = Client(api_server="xyz")._local_settings_path
+            path = Client(api_server="xyz")._api_token_settings_path
             expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
             assert str(path) == os.path.expanduser(expected)
 
@@ -256,7 +261,7 @@ class TestTenantAuth:
         )
 
         client = Client(api_token="abc")
-        assert client._active_tenant_id is None
+        assert client.tenant_id is None
         client.login_to_tenant(tenant_id=tenant_id)
         client.save_api_token()
         assert client.active_tenant_id == tenant_id
@@ -285,12 +290,12 @@ class TestTenantAuth:
         )
 
         client = Client(api_token="abc")
-        assert client._active_tenant_id is None
+        assert client.tenant_id is None
         client.login_to_tenant(tenant_id=tenant_id)
-        assert client._active_tenant_id == tenant_id
+        assert client.tenant_id == tenant_id
 
         # new client doesn't load the active tenant because there's no api token loaded
-        assert Client()._active_tenant_id is None
+        assert Client().tenant_id is None
 
     def test_logout_clears_access_token_and_tenant(self, patch_post, cloud_api):
         tenant_id = str(uuid.uuid4())
@@ -311,16 +316,16 @@ class TestTenantAuth:
 
         assert client._access_token is not None
         assert client._refresh_token is not None
-        assert client._active_tenant_id is not None
+        assert client.tenant_id is not None
 
         client.logout_from_tenant()
 
         assert client._access_token is None
         assert client._refresh_token is None
-        assert client._active_tenant_id is None
+        assert client.tenant_id is None
 
         # new client doesn't load the active tenant
-        assert Client()._active_tenant_id is None
+        assert Client().tenant_id is None
 
     def test_refresh_token_sets_attributes(self, patch_post, cloud_api):
         patch_post(

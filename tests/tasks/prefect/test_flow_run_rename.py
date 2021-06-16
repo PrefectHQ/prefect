@@ -5,16 +5,6 @@ import prefect
 from prefect.tasks.prefect.flow_run_rename import RenameFlowRun
 
 
-def test_deprecated_old_name():
-    from prefect.tasks.prefect import RenameFlowRunTask
-
-    with pytest.warns(UserWarning, match="`prefect.tasks.prefect.RenameFlowRun`"):
-        task = RenameFlowRunTask(flow_run_id="id123")
-
-    assert isinstance(task, RenameFlowRun)
-    assert task.flow_run_id == "id123"
-
-
 def test_flow_run_rename_task(monkeypatch):
     client = MagicMock()
     client.set_flow_run_name = MagicMock(return_value=True)

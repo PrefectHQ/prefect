@@ -7,9 +7,11 @@ import marshmallow
 import pendulum
 import pytest
 import requests
+import toml
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
+from prefect.utilities.graphql import GraphQLResult
 from prefect.engine.result import Result
 from prefect.engine.state import Pending, Running, State
 from prefect.environments.execution import LocalEnvironment
@@ -18,6 +20,197 @@ from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.exceptions import ClientError
 from prefect.utilities.graphql import decompress
+
+
+class TestClientAuthentication:
+    """
+    These tests cover Client handling of API key based authentication
+    """
+
+    def test_client_determines_api_key_in_expected_order(self):
+        # 1. Directly passed
+        # 2. From the config
+        # 3. From the disk
+
+        # No key should be present yet
+        client = Client()
+        assert client.api_key is None
+
+        # Save to disk
+        client = Client(api_key="DISK_KEY")
+        client.save_auth_to_disk()
+
+        # Set in config
+        with set_temporary_config({"cloud.api_key": "CONFIG_KEY"}):
+
+            # Should ignore config/disk
+            client = Client(api_key="DIRECT_KEY")
+            assert client.api_key == "DIRECT_KEY"
+
+            # Should load from config
+            client = Client()
+            assert client.api_key == "CONFIG_KEY"
+
+        # Should load from disk
+        client = Client()
+        assert client.api_key == "DISK_KEY"
+
+    def test_client_determines_tenant_id_in_expected_order(self):
+        # 1. Directly passed
+        # 2. From the config
+        # 3. From the disk
+
+        # No key should be present yet
+        client = Client()
+        assert client.tenant_id is None
+
+        # Save to disk (and set an API key so we don't enter API token logic)
+        client = Client(api_key="KEY", tenant_id="DISK_TENANT")
+        client.save_auth_to_disk()
+
+        # Set in config
+        with set_temporary_config({"cloud.tenant_id": "CONFIG_TENANT"}):
+
+            # Should ignore config/disk
+            client = Client(tenant_id="DIRECT_TENANT")
+            assert client.tenant_id == "DIRECT_TENANT"
+
+            # Should load from config
+            client = Client()
+            assert client.tenant_id == "CONFIG_TENANT"
+
+        # Should load from disk
+        client = Client()
+        assert client.tenant_id == "DISK_TENANT"
+
+    def test_client_save_auth_to_disk(self):
+        client = Client(api_key="KEY", tenant_id="ID")
+        client.save_auth_to_disk()
+
+        data = toml.loads(client._auth_file.read_text())
+        assert set(data.keys()) == {client._api_server_slug}
+        assert data[client._api_server_slug] == dict(api_key="KEY", tenant_id="ID")
+
+        old_key = client._api_server_slug
+        client.api_server = "foo"
+        client.api_key = "NEW_KEY"
+        client.tenant_id = "NEW_ID"
+        client.save_auth_to_disk()
+
+        data = toml.loads(client._auth_file.read_text())
+        assert set(data.keys()) == {client._api_server_slug, old_key}
+        assert data[client._api_server_slug] == dict(
+            api_key="NEW_KEY", tenant_id="NEW_ID"
+        )
+
+        # Old data is unchanged
+        assert data[old_key] == dict(api_key="KEY", tenant_id="ID")
+
+    def test_client_load_auth_from_disk(self):
+        client = Client(api_key="KEY", tenant_id="ID")
+        client.save_auth_to_disk()
+
+        client = Client()
+
+        assert client.api_key == "KEY"
+        assert client.tenant_id == "ID"
+
+        client._auth_file.write_text(
+            toml.dumps(
+                {
+                    client._api_server_slug: {
+                        "api_key": "NEW_KEY",
+                        "tenant_id": "NEW_ID",
+                    }
+                }
+            )
+        )
+        data = client.load_auth_from_disk()
+
+        # Does not mutate the client!
+        assert client.api_key == "KEY"
+        assert client.tenant_id == "ID"
+
+        assert data["api_key"] == "NEW_KEY"
+        assert data["tenant_id"] == "NEW_ID"
+
+    def test_client_sets_api_key_in_header(self, monkeypatch):
+        Session = MagicMock()
+        monkeypatch.setattr("requests.Session", Session)
+        client = Client(api_key="foo")
+
+        client.get("path")
+
+        headers = Session().get.call_args[1]["headers"]
+        assert "Authorization" in headers
+        assert headers["Authorization"] == "Bearer foo"
+
+        # Tenant id is _not_ included by default
+        assert "X-PREFECT-TENANT-ID" not in headers
+
+    def test_client_sets_tenant_id_in_header(self, monkeypatch):
+        Session = MagicMock()
+        monkeypatch.setattr("requests.Session", Session)
+
+        client = Client(api_key="foo", tenant_id="bar")
+        client.get("path")
+
+        headers = Session().get.call_args[1]["headers"]
+        assert "Authorization" in headers
+        assert headers["Authorization"] == "Bearer foo"
+        assert "X-PREFECT-TENANT-ID" in headers
+        assert headers["X-PREFECT-TENANT-ID"] == "bar"
+
+    def test_client_does_not_set_tenant_id_in_header_when_using_api_token(
+        self, monkeypatch
+    ):
+        Session = MagicMock()
+        monkeypatch.setattr("requests.Session", Session)
+
+        client = Client(api_token="foo", tenant_id="bar")
+        client.get("path")
+
+        headers = Session().get.call_args[1]["headers"]
+        assert "X-PREFECT-TENANT-ID" not in headers
+
+    @pytest.mark.parametrize("tenant_id", [None, "id"])
+    def test_client_tenant_id_returns_none_or_set_with_api_key(self, tenant_id):
+        client = Client(api_key="foo", tenant_id=tenant_id)
+        assert client.tenant_id == tenant_id
+
+    def test_client_tenant_id_backwards_compat_for_api_tokens(self, monkeypatch):
+        client = Client(api_token="foo")
+        client._init_tenant = MagicMock()
+        client.tenant_id
+        client._init_tenant.assert_called_once()
+
+    def test_client_tenant_id_gets_default_tenant_for_server(self):
+        with set_temporary_config({"backend": "server"}):
+            client = Client()
+            client.get_default_tenant = MagicMock(return_value="foo")
+            assert client.tenant_id == "foo"
+            client.get_default_tenant.assert_called_once()
+
+    def test_get_default_tenant_queries_for_auth_info(self):
+        client = Client()
+        client.graphql = MagicMock(
+            return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": "id"}}})
+        )
+
+        assert client.get_default_tenant() == "id"
+        client.graphql.assert_called_once_with({"query": {"auth_info": "tenant_id"}})
+
+    def test_get_default_tenant_with_server_gets_first_tenant(self):
+        with set_temporary_config({"backend": "server"}):
+            client = Client()
+            client.graphql = MagicMock(
+                return_value=GraphQLResult(
+                    {"data": {"tenant": [{"id": "id1"}, {"id": "id2"}]}}
+                )
+            )
+
+            assert client.get_default_tenant() == "id1"
+            client.graphql.assert_called_once_with({"query": {"tenant": {"id"}}})
 
 
 def test_client_posts_to_api_server(patch_post):
