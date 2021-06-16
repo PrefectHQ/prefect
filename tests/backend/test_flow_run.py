@@ -440,14 +440,14 @@ def test_watch_flow_run(monkeypatch):
         # Assert that we get the agent warning a couple times then update the state
         if i == 0:
             assert log.message == (
-                "It has been 10 seconds and your flow run has not started. "
+                "It has been 15 seconds and your flow run has not started. "
                 "Helpful agent message."
             )
             assert log.level == logging.WARNING
 
         elif i == 1:
             assert log.message == (
-                "It has been 40 seconds and your flow run has not started. "
+                "It has been 50 seconds and your flow run has not started. "
                 "Helpful agent message."
             )
 
