@@ -168,10 +168,11 @@ class FlowView:
             )
 
         return cls._from_flow_data(
-            cls._query_for_flow(
+            # Get the most recently created flow in the group
+            cls._query_for_flows(
                 where={"flow_group_id": {"_eq": flow_group_id}},
                 order_by={"created": EnumValue("desc")},
-            )
+            )[0]
         )
 
     @classmethod
