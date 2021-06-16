@@ -409,9 +409,7 @@ classes = [
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
-classes = [
-        "RunGreatExpectationsValidation", "RunGreatExpectationsCheckpoint",
-        ]
+classes = ["RunGreatExpectationsValidation"]
 
 [pages.tasks.gsheets]
 title = "Google Sheets Tasks"
