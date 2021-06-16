@@ -88,9 +88,6 @@ class Agent:
     Flow on the given platform. It is built in this way to keep Prefect API logic standard
     but allows for platform specific customizability.
 
-    In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
-    environment variable or in your user configuration file.
-
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
             configuration based on an agent from a backend API. If set, all configuration values will be
@@ -131,8 +128,9 @@ class Agent:
         agent_address: str = None,
         no_cloud_logs: bool = None,
     ) -> None:
-        # Load token and initialize client
+        # Load token for backwards compatibility
         token = config.cloud.agent.get("auth_token")
+        # Auth with an API key will be loaded from the config or disk by the Client
         self.client = Client(api_server=config.cloud.api, api_token=token)
 
         self.agent_config_id = agent_config_id
@@ -169,6 +167,15 @@ class Agent:
         self.logger.debug(f"Agent address: {self.agent_address}")
         self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
         self.logger.debug(f"Prefect backend: {config.backend}")
+
+    @property
+    def flow_run_api_key(self) -> Optional[str]:
+        """
+        Get the API key that the flow run should use to authenticate with Cloud.
+
+        Currently just returns the key that the agent is using to query for flow runs
+        """
+        return self.client.api_key
 
     def start(self) -> None:
         """
@@ -570,7 +577,7 @@ class Agent:
                 "input": {
                     "before": now.add(seconds=prefetch_seconds).isoformat(),
                     "labels": list(self.labels),
-                    "tenant_id": self.client.active_tenant_id,
+                    "tenant_id": self.client.tenant_id,
                 }
             },
         )
@@ -812,6 +819,9 @@ class Agent:
     def _verify_token(self, token: str) -> None:
         """
         Checks whether a token with a `RUNNER` scope was provided
+
+        DEPRECATED: API Keys do not have different scope
+
         Args:
             - token (str): The provided agent token to verify
         Raises:
@@ -884,7 +894,8 @@ class Agent:
             RuntimeError: On failed test query
         """
 
-        if config.backend == "cloud":
+        # Verify API tokens -- API keys do not need a type-check
+        if config.backend == "cloud" and not self.client.api_key:
             self.logger.debug("Verifying authentication with Prefect Cloud...")
             try:
                 self._verify_token(self.client.get_auth_token())

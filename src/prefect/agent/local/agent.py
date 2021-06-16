@@ -217,6 +217,13 @@ class LocalAgent(Agent):
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key,
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else None
+                ),
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
@@ -237,12 +244,15 @@ class LocalAgent(Agent):
         env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
+        key: str = None,
+        tenant_id: str = None,
     ) -> str:
         """
         Generate and output an installable supervisorctl configuration file for the agent.
 
         Args:
-            - token (str, optional): A `RUNNER` token to give the agent
+            - token (str, optional): A `RUNNER` token to give the agent. DEPRECATED. Use
+                `key` instead.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): a dictionary of environment variables and values that
@@ -252,16 +262,25 @@ class LocalAgent(Agent):
                 scripts or packages
             - show_flow_logs (bool, optional): a boolean specifying whether the agent should
                 re-route Flow run logs to stdout; defaults to `False`
+            - key (str, optional): An API key for the agent to use for authentication
+                with Prefect Cloud
+            - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
+                set, the default tenant associated with the API key will be used.
 
         Returns:
             - str: A string representation of the generated configuration file
         """
 
         # Use defaults if not provided
-        token = token or ""
         labels = labels or []
         env_vars = env_vars or {}
         import_paths = import_paths or []
+
+        if token and key:
+            raise ValueError(
+                "Given both a API token and API key. Only one authentication method "
+                "may be provided."
+            )
 
         with open(
             os.path.join(os.path.dirname(__file__), "supervisord.conf"), "r"
@@ -269,13 +288,23 @@ class LocalAgent(Agent):
             conf = conf_file.read()
 
         add_opts = ""
-        add_opts += "-t {token} ".format(token=token) if token else ""
         add_opts += "-f " if show_flow_logs else ""
         add_opts += " ".join("-l {label} ".format(label=label) for label in labels)
         add_opts += " ".join(
             "-e {k}={v} ".format(k=k, v=v) for k, v in env_vars.items()
         )
         add_opts += " ".join("-p {path}".format(path=path) for path in import_paths)
+
+        if key:
+            add_opts += f"-k {key} "
+        if tenant_id:
+            add_opts += f"--tenant-id {tenant_id} "
+
+        # Tokens are deprecated
+        if token:
+            warnings.warn("API tokens are deprecated. Please switch to using API keys.")
+            add_opts += f"-t {token} "
+
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf
 

@@ -122,7 +122,7 @@ All other aspects of your `containerDefinitions` will remain untouched. In some 
 During the execute step of your Environment the following container overrides will be set for boto3's `run_task`:
 
 ```
-PREFECT__CLOUD__AUTH_TOKEN
+PREFECT__CLOUD__API_KEY
 PREFECT__CONTEXT__FLOW_RUN_ID
 PREFECT__CONTEXT__IMAGE
 PREFECT__CONTEXT__FLOW_FILE_PATH

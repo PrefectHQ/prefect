@@ -193,6 +193,9 @@ def test_agent_start(
                 f"Warning: `prefect agent start {name}` is deprecated" in result.output
             )
 
+    assert result.exit_code == 0
+
+    agent_cls.assert_called_once()
     kwargs = agent_cls.call_args[1]
     for k, v in expected_kwargs.items():
         assert kwargs[k] == v
@@ -209,25 +212,47 @@ def test_agent_start_fails(monkeypatch, cloud_api):
     assert "TEST is not a valid agent" in result.output
 
 
+@pytest.mark.parametrize("use_token", [False, True])
 @pytest.mark.parametrize("deprecated", [False, True])
-def test_agent_local_install(monkeypatch, deprecated):
+def test_agent_local_install(monkeypatch, use_token, deprecated):
+    if not use_token and deprecated:
+        pytest.skip("The deprecated agent CLI does not support API keys")
+
     from prefect.agent.local import LocalAgent
 
     command = ["install", "local"] if deprecated else ["local", "install"]
+
     command.extend(
         (
-            "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
+            "--token TEST-TOKEN" if use_token else "--key TEST-KEY --tenant-id TENANT"
+        ).split()
+    )
+    command.extend(
+        (
+            "-l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
             "-p path1 -p path2 --show-flow-logs"
         ).split()
     )
 
     expected_kwargs = {
-        "token": "TEST-TOKEN",
+        "token": None,  # These will be set below, toggled on 'use_token'
+        "key": None,
+        "tenant_id": None,
         "labels": ["label1", "label2"],
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
         "import_paths": ["path1", "path2"],
         "show_flow_logs": True,
     }
+
+    if use_token:
+        expected_kwargs["token"] = "TEST-TOKEN"
+    else:
+        expected_kwargs["key"] = "TEST-KEY"
+        expected_kwargs["tenant_id"] = "TENANT"
+
+    if deprecated:
+        expected_kwargs.pop("key")
+        expected_kwargs.pop("tenant_id")
 
     generate = MagicMock(wraps=LocalAgent.generate_supervisor_conf)
     monkeypatch.setattr(
@@ -244,14 +269,23 @@ def test_agent_local_install(monkeypatch, deprecated):
     assert "supervisord" in result.output
 
 
+@pytest.mark.parametrize("use_token", [False, True])
 @pytest.mark.parametrize("deprecated", [False, True])
-def test_agent_kubernetes_install(monkeypatch, deprecated):
+def test_agent_kubernetes_install(monkeypatch, deprecated, use_token):
     from prefect.agent.kubernetes import KubernetesAgent
+
+    if not use_token and deprecated:
+        pytest.skip("The deprecated agent CLI does not support API keys")
 
     command = ["install", "kubernetes"] if deprecated else ["kubernetes", "install"]
     command.extend(
         (
-            "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
+            "--token TEST-TOKEN" if use_token else "--key TEST-KEY --tenant-id TENANT"
+        ).split()
+    )
+    command.extend(
+        (
+            "-l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
             "--api TEST_API --namespace TEST_NAMESPACE --rbac "
             "--latest --image-pull-secrets secret-test --mem-request mem_req "
             "--mem-limit mem_lim --cpu-request cpu_req --cpu-limit cpu_lim "
@@ -261,7 +295,9 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
     )
 
     expected_kwargs = {
-        "token": "TEST-TOKEN",
+        "token": None,  # These will be set below, toggled on 'use_token'
+        "key": None,
+        "tenant_id": None,
         "labels": ["label1", "label2"],
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
         "api": "TEST_API",
@@ -277,6 +313,16 @@ def test_agent_kubernetes_install(monkeypatch, deprecated):
         "service_account_name": "svc_name",
         "backend": "backend-test",
     }
+
+    if use_token:
+        expected_kwargs["token"] = "TEST-TOKEN"
+    else:
+        expected_kwargs["key"] = "TEST-KEY"
+        expected_kwargs["tenant_id"] = "TENANT"
+
+    if deprecated:
+        expected_kwargs.pop("key")
+        expected_kwargs.pop("tenant_id")
 
     generate = MagicMock(wraps=KubernetesAgent.generate_deployment_yaml)
     monkeypatch.setattr(

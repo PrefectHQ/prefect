@@ -7,12 +7,27 @@ from prefect.utilities.cli import add_options
 
 COMMON_START_OPTIONS = [
     click.option(
-        "--token",
-        "-t",
-        required=False,
-        help="A Prefect Cloud API token with RUNNER scope.",
+        "--key",
+        "-k",
+        help=(
+            "A Prefect Cloud API key. If not set, the value will be inferred from the "
+            "local machine."
+        ),
     ),
-    click.option("--api", "-a", required=False, help="A Prefect API URL."),
+    click.option(
+        "--tenant-id",
+        help=(
+            "The ID of the tenant to connect the agent to. If not set, the value will "
+            "be inferred from the local machine and fallback to the default associated "
+            "with the API key."
+        ),
+    ),
+    click.option(
+        "--api",
+        "-a",
+        required=False,
+        help="A Prefect API URL. If not set, the value in the config is used.",
+    ),
     click.option(
         "--agent-config-id",
         help="An agent ID to link this agent instance with",
@@ -65,14 +80,27 @@ COMMON_START_OPTIONS = [
             "environment."
         ),
     ),
+    click.option(
+        "--token",
+        "-t",
+        required=False,
+        help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
+    ),
 ]
 
 
 COMMON_INSTALL_OPTIONS = [
     click.option(
-        "--token",
-        "-t",
-        help="A Prefect Cloud API token with RUNNER scope.",
+        "--key",
+        "-k",
+        help="A Prefect Cloud API key",
+    ),
+    click.option(
+        "--tenant-id",
+        help=(
+            "The ID of the tenant to connect the agent to. If not set, the default "
+            "tenant associated with the API key."
+        ),
     ),
     click.option(
         "--label",
@@ -86,15 +114,21 @@ COMMON_INSTALL_OPTIONS = [
         multiple=True,
         help="Environment variables to set on each submitted flow run.",
     ),
+    click.option(
+        "--token",
+        "-t",
+        help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
+    ),
 ]
 
 
-def start_agent(agent_cls, token, api, label, env, log_level, **kwargs):
+def start_agent(agent_cls, token, api, label, env, log_level, key, tenant_id, **kwargs):
     labels = sorted(set(label))
     env_vars = dict(e.split("=", 1) for e in env)
-
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+        "cloud.api_key": key,  # The agent client will load the default API key if null
+        "cloud.tenant_id": tenant_id,
         "cloud.agent.level": log_level or config.cloud.agent.level,
         "cloud.api": api or config.cloud.api,
     }
