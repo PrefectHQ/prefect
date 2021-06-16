@@ -30,7 +30,7 @@ from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
-from prefect.engine.signals import PrefectError, FAIL, LOOP
+from prefect.engine.signals import FAIL, LOOP
 from prefect.engine.state import (
     Cancelled,
     Failed,
