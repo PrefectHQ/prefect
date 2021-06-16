@@ -209,7 +209,7 @@ def get_flow_view(
         try:
             flow_view = FlowView.from_flow_group_id(flow_or_group_id)
         except ValueError:
-            pass
+            raise  # DEBUG: Raise error for more informative debug
         else:
             return flow_view
 
