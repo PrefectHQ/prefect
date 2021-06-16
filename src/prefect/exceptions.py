@@ -2,6 +2,9 @@ class PrefectSignal(BaseException):
     """
     Signals inherit from `BaseException` and will not be caught by normal error
     handling. This allows us to bypass typical error handling by raising signals.
+
+    See `prefect.engine.signals` for additional subclasses used for raising state
+    transitions.
     """
 
     pass
