@@ -164,30 +164,47 @@ def test_agent_start(name, import_path, extra_cmd, extra_kwargs, monkeypatch):
 
     result = CliRunner().invoke(agent, command)
 
+    assert result.exit_code == 0
+
+    agent_cls.assert_called_once()
     kwargs = agent_cls.call_args[1]
     for k, v in expected_kwargs.items():
         assert kwargs[k] == v
     assert agent_obj.start.called
 
 
-def test_agent_local_install(monkeypatch):
+@pytest.mark.parametrize("use_token", [False, True])
+def test_agent_local_install(monkeypatch, use_token):
     from prefect.agent.local import LocalAgent
 
     command = ["local", "install"]
     command.extend(
         (
-            "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
+            "--token TEST-TOKEN" if use_token else "--key TEST-KEY --tenant-id TENANT"
+        ).split()
+    )
+    command.extend(
+        (
+            "-l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
             "-p path1 -p path2 --show-flow-logs"
         ).split()
     )
 
     expected_kwargs = {
-        "token": "TEST-TOKEN",
+        "token": None,  # These will be set below, toggled on 'use_token'
+        "key": None,
+        "tenant_id": None,
         "labels": ["label1", "label2"],
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
         "import_paths": ["path1", "path2"],
         "show_flow_logs": True,
     }
+
+    if use_token:
+        expected_kwargs["token"] = "TEST-TOKEN"
+    else:
+        expected_kwargs["key"] = "TEST-KEY"
+        expected_kwargs["tenant_id"] = "TENANT"
 
     generate = MagicMock(wraps=LocalAgent.generate_supervisor_conf)
     monkeypatch.setattr(
@@ -201,13 +218,19 @@ def test_agent_local_install(monkeypatch):
     assert "supervisord" in result.output
 
 
-def test_agent_kubernetes_install(monkeypatch):
+@pytest.mark.parametrize("use_token", [False, True])
+def test_agent_kubernetes_install(monkeypatch, use_token):
     from prefect.agent.kubernetes import KubernetesAgent
 
     command = ["kubernetes", "install"]
     command.extend(
         (
-            "--token TEST-TOKEN -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
+            "--token TEST-TOKEN" if use_token else "--key TEST-KEY --tenant-id TENANT"
+        ).split()
+    )
+    command.extend(
+        (
+            "-l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
             "--api TEST_API --namespace TEST_NAMESPACE --rbac "
             "--latest --image-pull-secrets secret-test --mem-request mem_req "
             "--mem-limit mem_lim --cpu-request cpu_req --cpu-limit cpu_lim "
@@ -217,7 +240,9 @@ def test_agent_kubernetes_install(monkeypatch):
     )
 
     expected_kwargs = {
-        "token": "TEST-TOKEN",
+        "token": None,  # These will be set below, toggled on 'use_token'
+        "key": None,
+        "tenant_id": None,
         "labels": ["label1", "label2"],
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
         "api": "TEST_API",
@@ -233,6 +258,12 @@ def test_agent_kubernetes_install(monkeypatch):
         "service_account_name": "svc_name",
         "backend": "backend-test",
     }
+
+    if use_token:
+        expected_kwargs["token"] = "TEST-TOKEN"
+    else:
+        expected_kwargs["key"] = "TEST-KEY"
+        expected_kwargs["tenant_id"] = "TENANT"
 
     generate = MagicMock(wraps=KubernetesAgent.generate_deployment_yaml)
     monkeypatch.setattr(

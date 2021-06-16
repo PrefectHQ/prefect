@@ -133,6 +133,24 @@ def test_task_that_has_an_error_is_marked_fail():
     assert isinstance(task_runner.run(), Failed)
 
 
+def test_task_with_error_has_helpful_messages(caplog):
+    task_runner = TaskRunner(task=ErrorTask())
+    state = task_runner.run()
+    assert state.is_failed()
+    exc_repr = (
+        # Support py3.6 exception reprs
+        "ValueError('custom-error-message',)"
+        if sys.version_info < (3, 7)
+        else "ValueError('custom-error-message')"
+    )
+    assert state.message == f"Error during execution of task: {exc_repr}"
+    assert "ValueError: custom-error-message" in caplog.text
+    assert "Traceback" in caplog.text  # Traceback should be included
+    assert (
+        "Task 'ErrorTask': Exception encountered during task execution!" in caplog.text
+    )
+
+
 def test_task_that_raises_fail_is_marked_fail():
     task_runner = TaskRunner(task=RaiseFailTask())
     assert isinstance(task_runner.run(), Failed)

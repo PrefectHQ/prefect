@@ -514,7 +514,7 @@ def test_deploy_flow_run_logs_flow_run_exceptions(monkeypatch, caplog, cloud_api
     client.write_run_logs.assert_called_with(
         [dict(flow_run_id="id", level="ERROR", message="Error Here", name="agent")]
     )
-    assert "Encountered exception while deploying flow run id" in caplog.text
+    assert "Exception encountered while deploying flow run id" in caplog.text
 
 
 def test_submit_deploy_flow_run_jobs_raises_exception_and_logs(monkeypatch, cloud_api):
