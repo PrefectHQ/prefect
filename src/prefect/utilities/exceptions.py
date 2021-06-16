@@ -34,7 +34,7 @@ class TaskTimeoutError(PrefectError):
 class ContextError(KeyError, PrefectError):
     def __init__(self, *args: object) -> None:
         warnings.warn(
-            "`prefect.utilities.exceptions.PrefectWarning` has been deprecated "
+            "`prefect.utilities.exceptions.ContextError` has been deprecated "
             "and will be removed in a future release.",
             stacklevel=2,
         )
@@ -44,7 +44,7 @@ class ContextError(KeyError, PrefectError):
 class SerializationError(PrefectError):
     def __init__(self, *args: object) -> None:
         warnings.warn(
-            "`prefect.utilities.exceptions.PrefectWarning` has been deprecated "
+            "`prefect.utilities.exceptions.SerializationError` has been deprecated "
             "and will be removed in a future release.",
             stacklevel=2,
         )
