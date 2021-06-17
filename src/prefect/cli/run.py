@@ -697,8 +697,6 @@ def run(
             quiet_echo("Keyboard interrupt detected! Aborting...", fg="yellow")
             pass
 
-        result = FlowRunView.from_flow_run_id(flow_run_id)
-
     elif watch:
         try:
             quiet_echo("Watching flow run execution...")
@@ -729,20 +727,23 @@ def run(
             quiet_echo("Exiting without cancelling flow run!", fg="yellow")
             raise  # Re-raise the interrupt
 
+    # Get the final flow run state
+    flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+
     # Wait for the flow run to be done up to 3 seconds
     elapsed_time = 0
-    while not result.state.is_finished() and elapsed_time < 3:
+    while not flow_run.state.is_finished() and elapsed_time < 3:
         time.sleep(1)
         elapsed_time += 1
-        result = result.get_latest()
+        flow_run = flow_run.get_latest()
 
     # Display the final state
-    if result.state.is_failed():
+    if flow_run.state.is_failed():
         quiet_echo("Flow run failed!", fg="red")
-    elif result.state.is_successful():
+    elif flow_run.state.is_successful():
         quiet_echo("Flow run succeeded!", fg="green")
     else:
-        quiet_echo(f"Flow run is in unexpected state: {result.state}", fg="yellow")
+        quiet_echo(f"Flow run is in unexpected state: {flow_run.state}", fg="yellow")
 
 
 # DEPRECATED: prefect run flow ---------------------------------------------------------
