@@ -133,7 +133,7 @@ class Client:
 
         # Load the API key
         cached_auth = self.load_auth_from_disk()
-        self.api_key: str = (
+        self.api_key: Optional[str] = (
             api_key
             or prefect.context.config.cloud.get("api_key")
             or cached_auth.get("api_key")
