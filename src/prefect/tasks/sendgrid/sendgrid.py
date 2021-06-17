@@ -117,7 +117,7 @@ class SendEmail(Task):
             from_email=from_email,
             to_emails=to_emails,
             subject=subject,
-            html_content=html_content,
+            html_content=html_content or "\n",
         )
 
         if category:
