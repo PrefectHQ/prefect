@@ -8,7 +8,7 @@ import uuid
 import time
 from contextlib import contextmanager
 from types import ModuleType
-from typing import Callable, Dict, List, Union, Any, Optional
+from typing import Callable, Dict, List, Union, Any
 
 import click
 from click import ClickException

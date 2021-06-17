@@ -393,7 +393,7 @@ def _get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.Da
             # We cannot query for states directly and must go through the `flow_run`
             # object
             "query": {
-                with_args("flow_run", {"where": {"id": {"_eq": flow_run_id},}},): {
+                with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
                     with_args("states", {"where": {"state": {"_eq": "Scheduled"}}}): {
                         "start_time",
                         "created",

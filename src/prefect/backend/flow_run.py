@@ -1,27 +1,10 @@
-import copy
 import logging
 import time
-from contextlib import contextmanager
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Any,
-    Iterable,
-    Type,
-    cast,
-    Dict,
-    Tuple,
-    Iterator,
-)
+from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
 
 import pendulum
 
 import prefect
-from prefect import Flow
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
@@ -268,7 +251,6 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     if len(matching_unhealthy) == 1:
         # Display that there is a single matching unhealthy agent
         name_blurb = f" ({agent.name})" if agent.name else ""
-        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
         return (
             f"Agent {agent.id}{name_blurb} has matching labels and last queried "
             f"{agent.last_queried.diff_for_humans()}. Since it hasn't queried recently, it looks "
