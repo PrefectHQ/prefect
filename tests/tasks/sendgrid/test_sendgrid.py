@@ -22,7 +22,7 @@ class TestInitialization:
             "subject",
             "html_content",
             "attachment_file_path",
-            "sendgrid_secret",
+            "sendgrid_api_key",
         ],
     )
     def test_initializes_attr_from_kwargs(self, attr):
