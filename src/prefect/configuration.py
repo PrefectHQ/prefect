@@ -142,7 +142,7 @@ def process_task_defaults(config: Config) -> Config:
 
 
 def to_environment_variables(
-    config: Config, include: Optional[Iterable[str]] = None, prefix="PREFECT"
+    config: Config, include: Optional[Iterable[str]] = None, prefix: str = "PREFECT"
 ) -> dict:
     """
     Convert a configuration object to environment variables
@@ -153,6 +153,7 @@ def to_environment_variables(
         - config: The configuration object to parse
         - include: An optional set of keys to include. Each key to include should be
             formatted as 'section.key' or 'section.section.key'
+        - prefix: The prefix for the environment variables. Defaults to "PREFECT".
 
     Returns:
         - A dictionary mapping key to values e.g.

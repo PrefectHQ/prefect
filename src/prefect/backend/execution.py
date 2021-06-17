@@ -147,9 +147,10 @@ def execute_flow_run(
 
     # Populate global secrets
     secrets = prefect.context.get("secrets", {})
-    if flow_run.flow.storage:
+    flow_metadata = flow_run.get_flow_metadata()
+    if flow_metadata.storage:
         logger.info("Loading secrets...")
-        for secret in flow_run.flow.storage.secrets:
+        for secret in flow_metadata.storage.secrets:
             with _fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message=f"Failed to load flow secret {secret!r}: {{exc}}",
@@ -158,13 +159,13 @@ def execute_flow_run(
 
     # Load the flow from storage if not explicitly provided
     if not flow:
-        logger.info(f"Loading flow from {flow_run.flow.storage}...")
+        logger.info(f"Loading flow from {flow_metadata.storage}...")
         with prefect.context(secrets=secrets, loading_flow=True):
             with _fail_flow_run_on_exception(
                 flow_run_id=flow_run_id,
                 message="Failed to load flow from storage: {exc}",
             ):
-                flow = flow_run.flow.storage.get_flow(flow_run.flow.name)
+                flow = flow_metadata.storage.get_flow(flow_metadata.name)
 
     # Update the run context to include secrets with merging
     run_kwargs = copy.deepcopy(kwargs)
@@ -180,7 +181,7 @@ def execute_flow_run(
 
     # Execute the flow, this call will block until exit
     logger.info(
-        f"Beginning execution of flow run {flow_run.name!r} from {flow_run.flow.name!r} "
+        f"Beginning execution of flow run {flow_run.name!r} from {flow_metadata.name!r} "
         f"with {runner_cls.__name__!r}"
     )
     with prefect.context(flow_run_id=flow_run_id):
@@ -188,7 +189,7 @@ def execute_flow_run(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
         ):
-            if flow_run.flow.run_config is not None:
+            if flow_metadata.run_config is not None:
                 runner_cls(flow=flow).run(**run_kwargs)
 
             # Support for deprecated `flow.environment` use

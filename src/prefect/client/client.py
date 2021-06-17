@@ -133,11 +133,12 @@ class Client:
 
         # Load the API key
         cached_auth = self.load_auth_from_disk()
-        self.api_key = (
+        self.api_key: str = (
             api_key
             or prefect.context.config.cloud.get("api_key")
             or cached_auth.get("api_key")
         )
+        
 
         # Load the tenant id
         self._tenant_id = (
@@ -227,7 +228,7 @@ class Client:
         else:
             raise ValueError(f"Unknown backend {prefect.config.backend!r}")
 
-    def load_auth_from_disk(self) -> dict:
+    def load_auth_from_disk(self) -> Dict[str, str]:
         """
         Get the stashed `api_key` and `tenant_id` for the current `api_server` from the
         disk cache if it exists. If it does not, an empty dict is returned.
