@@ -138,7 +138,6 @@ class Client:
             or prefect.context.config.cloud.get("api_key")
             or cached_auth.get("api_key")
         )
-        
 
         # Load the tenant id
         self._tenant_id = (
