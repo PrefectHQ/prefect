@@ -11,7 +11,7 @@ import pendulum
 import os
 import time
 from contextlib import contextmanager
-from typing import Any, Type, Optional, cast
+from typing import Any, Type, Optional, cast, Dict
 
 import prefect
 from prefect import Flow
@@ -209,7 +209,7 @@ def generate_flow_run_environ(
     flow_id: str,
     run_config: RunConfig,
     run_api_key: str = None,
-) -> dict:
+) -> Dict[str, str]:
     """
     Utility to generate the environment variables required for a flow run
     """
@@ -217,7 +217,7 @@ def generate_flow_run_environ(
     # TODO: Use general func in all agents
 
     # Local environment
-    env = os.environ.copy()
+    env = cast(Dict[str, Optional[str]], os.environ.copy())
 
     # Pass through config options that can be overriden by run config
     env.update(
@@ -246,7 +246,7 @@ def generate_flow_run_environ(
 
     # Pass authentication through
     client = prefect.Client()  # Instantiate a client to get the current API key
-    env["PREFECT__CLOUD__API_KEY"] = run_api_key or client.api_key
+    env["PREFECT__CLOUD__API_KEY"] = run_api_key or client.api_key or ""
     # Backwards compat for auth tokens
     env["PREFECT__CLOUD__AUTH_TOKEN"] = (
         run_api_key
