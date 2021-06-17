@@ -687,3 +687,46 @@ def test_run_cloud_displays_flow_run_data(cloud_mocks):
         )
         in result.output
     )
+
+
+def test_run_cloud_execute_calls_subprocess(cloud_mocks):
+    cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+    result = CliRunner().invoke(run, ["--id", "flow-id", "--execute"])
+
+    assert not result.exit_code
+    assert "Executing flow run..." in result.output
+
+    cloud_mocks.execute_flow_run_in_subprocess.assert_called_once_with("fake-run-id")
+
+
+def test_run_cloud_execute_respects_quiet(cloud_mocks):
+    cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+
+    def show_a_log(*args, **kwargs):
+        from prefect.utilities.logging import get_logger
+
+        get_logger().error("LOG MESSAGE!")
+
+    cloud_mocks.execute_flow_run_in_subprocess.side_effect = show_a_log
+
+    result = CliRunner().invoke(run, ["--id", "flow-id", "--quiet", "--execute"])
+
+    assert not result.exit_code
+    assert result.output == "fake-run-id\n"
+
+
+def test_run_cloud_execute_respects_no_logs(cloud_mocks):
+    def show_a_log(*args, **kwargs):
+        from prefect.utilities.logging import get_logger
+
+        get_logger().error("LOG MESSAGE!")
+
+    cloud_mocks.execute_flow_run_in_subprocess.side_effect = show_a_log
+
+    result = CliRunner().invoke(run, ["--id", "flow-id", "--no-logs", "--execute"])
+
+    assert not result.exit_code
+    # CLI messages display
+    assert "Executing flow run..." in result.output
+    # Run logs do not
+    assert "LOG MESSAGE" not in result.output
