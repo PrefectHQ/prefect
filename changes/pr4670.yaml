@@ -1,0 +1,2 @@
+fix:
+  - "Add SendGrid to Readme and Task Library overview - [#4670](https://github.com/PrefectHQ/prefect/pull/4670)"
