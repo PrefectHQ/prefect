@@ -43,11 +43,10 @@ Example:
 
 import datetime
 import time
-import warnings
 import pendulum
 from typing import Any, Iterable, Optional, Union
-from urllib.parse import urlparse
 from datetime import timedelta
+from urllib.parse import urlparse
 
 import prefect
 from prefect import Client, Task, task
@@ -444,13 +443,3 @@ class StartFlowRun(Task):
                     f"{flow_run_id} finished in state {flow_run_state}"
                 )
                 raise exc
-
-
-class FlowRunTask(StartFlowRun):
-    def __new__(cls, *args, **kwargs):  # type: ignore
-        warnings.warn(
-            "`FlowRunTask` has been renamed to `prefect.tasks.prefect.StartFlowRun`,"
-            "please update your code accordingly",
-            stacklevel=2,
-        )
-        return super().__new__(cls)

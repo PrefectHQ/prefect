@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Use `functools.update_wrapper` for `FunctionTask` - [#4608](https://github.com/PrefectHQ/prefect/pull/4608)"

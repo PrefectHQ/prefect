@@ -322,6 +322,7 @@ def load_configuration(
 
 
 def warn_on_deprecated_config_keys(config: Config) -> None:
+    # logging.log_to_cloud: Deprecated in 0.14.20
     # Only warn if they've tried to disable logging using this key
     if "log_to_cloud" in config.logging and config.logging.log_to_cloud is False:
         warnings.warn(

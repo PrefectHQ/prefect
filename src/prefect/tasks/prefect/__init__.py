@@ -7,6 +7,6 @@ from prefect.tasks.prefect.flow_run import (
     wait_for_flow_run,
     get_task_run_result,
 )
-from prefect.tasks.prefect.flow_run import FlowRunTask, StartFlowRun
-from prefect.tasks.prefect.flow_run_rename import RenameFlowRunTask, RenameFlowRun
-from prefect.tasks.prefect.flow_run_cancel import CancelFlowRunTask, CancelFlowRun
+from prefect.tasks.prefect.flow_run import StartFlowRun
+from prefect.tasks.prefect.flow_run_rename import RenameFlowRun
+from prefect.tasks.prefect.flow_run_cancel import CancelFlowRun

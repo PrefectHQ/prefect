@@ -60,7 +60,7 @@ commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
 [pages.cli.auth]
 title = "auth"
 module = "prefect.cli.auth"
-commands = ["login", "logout", "list_tenants", "switch_tenants", "create_token", "list_tokens", "revoke_token"]
+commands = ["login", "logout", "list_tenants", "switch_tenants", "create_key", "list_keys", "revoke_key", "status", "create_token", "list_tokens", "revoke_token"]
 
 [pages.cli.create]
 title = "create"
@@ -435,9 +435,7 @@ classes = [
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
-classes = [
-        "RunGreatExpectationsValidation", "RunGreatExpectationsCheckpoint",
-        ]
+classes = ["RunGreatExpectationsValidation"]
 
 [pages.tasks.gsheets]
 title = "Google Sheets Tasks"

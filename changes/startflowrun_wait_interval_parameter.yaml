@@ -1,5 +1,0 @@
-enhancement:
-  - "Add `poll_interval` parameter to `StartFlowRun` to define the polling interval when waiting for the flow run to finish - [#4641](https://github.com/PrefectHQ/prefect/pull/4641)"
-
-contributor:
-  - "[Peter Roelants](https://github.com/peterroelants)"

@@ -1,5 +1,0 @@
-enhancement:
-  - "Task timeout can be timedelta as well as integer in seconds - [#4619](https://github.com/PrefectHQ/prefect/pull/4619)"
-
-contributor:
-  - "[Peter Roelants](https://github.com/peterroelants)"
