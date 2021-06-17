@@ -10,6 +10,18 @@ import warnings
 
 class PrefectError(Exception):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         if type(self) == PrefectError:
             warnings.warn(
                 "`prefect.utilities.exceptions.PrefectError` has been moved to "
@@ -22,6 +34,12 @@ class PrefectError(Exception):
 
 class TaskTimeoutError(PrefectError):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         warnings.warn(
             "`prefect.utilities.exceptions.TaskTimeoutError` has been moved to "
             "`prefect.exceptions.TaskTimeoutSignal` and will be removed in a future "
@@ -33,6 +51,12 @@ class TaskTimeoutError(PrefectError):
 
 class ContextError(KeyError, PrefectError):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         warnings.warn(
             "`prefect.utilities.exceptions.ContextError` has been deprecated "
             "and will be removed in a future release.",
@@ -43,6 +67,12 @@ class ContextError(KeyError, PrefectError):
 
 class SerializationError(PrefectError):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         warnings.warn(
             "`prefect.utilities.exceptions.SerializationError` has been deprecated "
             "and will be removed in a future release.",
@@ -53,6 +83,12 @@ class SerializationError(PrefectError):
 
 class PrefectWarning(UserWarning):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         if type(self) == PrefectWarning:
             warnings.warn(
                 "`prefect.utilities.exceptions.PrefectWarning` has been deprecated "
@@ -64,6 +100,12 @@ class PrefectWarning(UserWarning):
 
 class ClientError(PrefectError):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         if type(self) == ClientError:
             warnings.warn(
                 "`prefect.utilities.exceptions.ClientError` has been moved to "
@@ -76,6 +118,12 @@ class ClientError(PrefectError):
 
 class VersionLockError(PrefectError):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         warnings.warn(
             "`prefect.utilities.exceptions.VersionLockError` has been moved to "
             "`prefect.exceptions.VersionLockMismatchSignal` and will be removed in a "
@@ -87,6 +135,12 @@ class VersionLockError(PrefectError):
 
 class AuthorizationError(ClientError):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         if type(self) == AuthorizationError:
             warnings.warn(
                 "`prefect.utilities.exceptions.AuthorizationError` has been moved to "
@@ -99,6 +153,12 @@ class AuthorizationError(ClientError):
 
 class StorageError(PrefectError):
     def __init__(self, *args: object) -> None:
+        """
+        This init checks if this is a deprecated instance
+
+        Args:
+            - *args: Passed through to the parent class
+        """
         if type(self) == StorageError:
             warnings.warn(
                 "`prefect.utilities.exceptions.StorageError` has been moved to "
