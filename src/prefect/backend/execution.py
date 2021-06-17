@@ -97,6 +97,9 @@ def execute_flow_run_in_subprocess(
             # Wrap this error to provide a clearer one
             raise RuntimeError("The flow run process failed.") from exc
 
+        # Wait half a second before getting the latest data to reduce the chance of
+        # starting another subprocess that exits immediately
+        time.sleep(0.5)
         flow_run = flow_run.get_latest()
 
     return flow_run
