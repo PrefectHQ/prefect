@@ -331,15 +331,23 @@ def warn_on_deprecated_config_keys(config: Config) -> None:
         )
 
 
-# load prefect configuration
-config = load_configuration(
-    path=DEFAULT_CONFIG,
-    user_config_path=USER_CONFIG,
-    backend_config_path=BACKEND_CONFIG,
-    env_var_prefix=ENV_VAR_PREFIX,
-)
+def load_default_config() -> "Config":
+    # load prefect configuration
+    config = load_configuration(
+        path=DEFAULT_CONFIG,
+        user_config_path=USER_CONFIG,
+        backend_config_path=BACKEND_CONFIG,
+        env_var_prefix=ENV_VAR_PREFIX,
+    )
 
-# add task defaults
-config = process_task_defaults(config)
+    # add task defaults
+    config = process_task_defaults(config)
 
-warn_on_deprecated_config_keys(config)
+    # handle deprecations
+    warn_on_deprecated_config_keys(config)
+
+    return config
+
+
+# Define `prefect.config` object
+config: "Config" = load_default_config()

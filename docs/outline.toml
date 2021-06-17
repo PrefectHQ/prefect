@@ -18,6 +18,25 @@ functions = [
     "some_successful",
 ]
 
+[pages.backend.flow]
+title = "Flow"
+module = "prefect.backend.flow"
+classes = ["FlowView"]
+experimental = true
+
+[pages.backend.flow_run]
+title = "Flow Run"
+module = "prefect.backend.flow_run"
+classes = ["FlowRunView"]
+functions = ["watch_flow_run"]
+experimental = true
+
+[pages.backend.task_run]
+title = "Task Run"
+module = "prefect.backend.task_run"
+classes = ["TaskRunView"]
+experimental = true
+
 [pages.backend.kv_store]
 title = "KV Store"
 module = "prefect.backend.kv_store"
@@ -81,7 +100,7 @@ commands = ["set_command", "get_command", "delete_command", "list_command"]
 [pages.cli.run]
 title = "run"
 module = "prefect.cli.run"
-commands = ["flow"]
+commands = ["run", "run_flow"]
 
 [pages.cli.server]
 title = "server"
@@ -307,7 +326,14 @@ classes = ["FivetranSyncTask"]
 [pages.tasks.prefect]
 title = "Prefect Tasks"
 module = "prefect.tasks.prefect"
-classes = ["StartFlowRun", "RenameFlowRun", "CancelFlowRun"]
+classes = [
+    "StartFlowRun",
+    "RenameFlowRun",
+    "CancelFlowRun",
+    "create_flow_run",
+    "get_task_run_result",
+    "wait_for_flow_run"
+    ]
 
 [pages.tasks.github]
 title = "GitHub Tasks"

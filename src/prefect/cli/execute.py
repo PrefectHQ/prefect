@@ -30,6 +30,10 @@ def execute():
 def flow_run():
     """
     Execute a flow run in the context of a backend API.
+
+    TODO: Either deprecate this and replace with a new CLI command that calls
+          `prefect.backend.execute_flow_run` or update this to call that command
+          with the flow_run_id pulled from context
     """
     flow_run_id = prefect.context.get("flow_run_id")
     if not flow_run_id:
