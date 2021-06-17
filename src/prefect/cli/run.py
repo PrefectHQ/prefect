@@ -699,16 +699,20 @@ def run(
     elif watch:
         try:
             quiet_echo("Watching flow run execution...")
-            result = watch_flow_run(
+            for log in watch_flow_run(
                 flow_run_id=flow_run_id,
                 stream_logs=not no_logs,
-                output_fn=partial(echo_with_log_color, prefix="└── "),  # type: ignore
-            )
+            ):
+                level_name = logging.getLevelName(log.level)
+                timestamp = log.timestamp.in_tz(tz="local")
+                echo_with_log_color(
+                    log.level,
+                    f"└── {timestamp:%H:%M:%S} | {level_name:<7} | {log.message}",
+                )
+
         except KeyboardInterrupt:
             quiet_echo("Keyboard interrupt detected!", fg="yellow")
             try:
-                # TODO: Improve and clarify this messaging, consider having this
-                #       apply from flow run creation -> now
                 cancel = click.confirm(
                     "On exit, we can leave your flow run executing or cancel it.\n"
                     "Do you want to cancel this flow run?",
