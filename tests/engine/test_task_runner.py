@@ -46,7 +46,7 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.tasks import pause_task
 
 
@@ -362,7 +362,7 @@ def test_timeout_actually_stops_execution():
 
     assert state.is_failed()
     assert isinstance(state, TimedOut)
-    assert isinstance(state.result, TaskTimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_can_handle_timeouts_by_default():
@@ -373,7 +373,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
-    assert isinstance(state.result, TaskTimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_handles_secrets():

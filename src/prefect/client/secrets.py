@@ -65,7 +65,7 @@ from typing import Any, Optional
 
 import prefect
 from prefect.client.client import Client
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 
 
 class Secret:

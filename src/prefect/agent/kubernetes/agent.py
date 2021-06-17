@@ -15,7 +15,7 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
 

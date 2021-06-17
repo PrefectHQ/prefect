@@ -7,7 +7,7 @@ import prefect
 from prefect.engine.results import SecretResult
 from prefect.tasks.secrets import SecretBase, PrefectSecret
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.exceptions import AuthorizationError, ClientError
 
 
 def test_secret_base_has_no_logic():

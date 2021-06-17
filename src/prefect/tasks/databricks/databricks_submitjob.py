@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.utilities.exceptions import PrefectError
+from prefect.exceptions import PrefectException
 
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
 
@@ -65,7 +65,7 @@ def _handle_databricks_task_execution(task, hook, log):
                 error_message = "{t} failed with terminal state: {s}".format(
                     t=task.name, s=run_state
                 )
-                raise PrefectError(error_message)
+                raise PrefectException(error_message)
         else:
             log.info("%s in run state: %s", task.name, run_state)
             log.info("View run status, Spark UI, and logs at %s", run_page_url)

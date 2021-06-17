@@ -18,7 +18,7 @@ from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 from prefect.utilities.graphql import decompress
 
 

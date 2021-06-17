@@ -4,7 +4,7 @@ from click.exceptions import Abort
 from tabulate import tabulate
 
 from prefect import Client, config
-from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.exceptions import AuthorizationError, ClientError
 from prefect.cli.build_register import handle_terminal_error, TerminalError
 
 
