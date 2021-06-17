@@ -19,7 +19,7 @@ class PrefectSignal(BaseException):
         - message: A message with additional information about the error
     """
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "") -> None:
         super().__init__(message)
 
 
@@ -34,7 +34,7 @@ class VersionLockMismatchSignal(PrefectSignal):
         - message: A message with additional information about the error
     """
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "") -> None:
         super().__init__(message)
 
 
@@ -48,7 +48,7 @@ class TaskTimeoutSignal(PrefectSignal):
         - message: A message with additional information about the error
     """
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "") -> None:
         super().__init__(message)
 
 
@@ -62,7 +62,7 @@ class PrefectException(PrefectError):
 
     # NOTE: Should be updated to inherit from `Exception` when `PrefectError` is removed
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "") -> None:
         super().__init__(message)
 
 
@@ -74,7 +74,7 @@ class ClientError(PrefectException, ClientError_):
         - message: A message with additional information about the error
     """
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "") -> None:
         super().__init__(message)
 
 
@@ -86,7 +86,7 @@ class AuthorizationError(ClientError, AuthorizationError_):
         - message: A message with additional information about the error
     """
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "") -> None:
         super().__init__(message)
 
 
@@ -98,5 +98,5 @@ class FlowStorageError(PrefectException, StorageError):
         - message: A message with additional information about the error
     """
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "") -> None:
         super().__init__(message)
