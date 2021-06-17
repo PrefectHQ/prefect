@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Any, List, Tuple, Union
 
-from prefect.client import Secret
 from prefect.core import Task
 from prefect.utilities.tasks import defaults_from_attrs
 from python_http_client.client import Response
