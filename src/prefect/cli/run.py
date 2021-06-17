@@ -680,15 +680,12 @@ def run(
             quiet_echo("Aborted.")
         return
 
-    # Create placeholder for final flow run state
-    result: Optional["FlowRunView"] = None
-
     # Handle agentless execution
     if execute:
         quiet_echo("Executing flow run...")
         try:
             with temporary_logger_config(
-                level=log_level,
+                level=100 if no_logs else log_level,  # Disable logging if asked
                 stream_fmt="└── %(asctime)s | %(levelname)-7s | %(message)s",
                 stream_datefmt="%H:%M:%S",
             ):
