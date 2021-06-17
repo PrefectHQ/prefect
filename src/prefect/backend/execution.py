@@ -1,3 +1,9 @@
+"""
+Utility functions for actually executing flow runs once they've been deployed to an
+execution environment
+
+These are not intended to be user-facing.
+"""
 import copy
 import subprocess
 import sys
@@ -20,7 +26,7 @@ logger = get_logger("backend.execution")
 
 
 def execute_flow_run_in_subprocess(
-    flow_run_id: str, run_token: str = None
+    flow_run_id: str, run_api_key: str = None
 ) -> FlowRunView:
     """
     Execute a flow run in a subprocess.
@@ -35,7 +41,7 @@ def execute_flow_run_in_subprocess(
 
     Args:
         - flow_run_id: The flow run to execute
-        - run_token: The authentication token to provide to the flow run for
+        - run_api_key: The authentication key to provide to the flow run for
             communicating with the Prefect Cloud API. If not set, it will be inferred
             from the current config.
 
@@ -48,7 +54,7 @@ def execute_flow_run_in_subprocess(
     env = generate_flow_run_environ(
         flow_run_id=flow_run_id,
         flow_id=flow_run.flow_id,
-        run_token=run_token,
+        run_api_key=run_api_key,
         run_config=flow_run.run_config,
     )
 
@@ -198,7 +204,7 @@ def generate_flow_run_environ(
     flow_run_id: str,
     flow_id: str,
     run_config: RunConfig,
-    run_token: str = None,
+    run_api_key: str = None,
 ) -> dict:
     """
     Utility to generate the environment variables required for a flow run
@@ -214,8 +220,8 @@ def generate_flow_run_environ(
         to_environment_variables(
             prefect.config,
             include={
-                "prefect.config.logging.level",
-                "prefect.config.cloud.send_flow_run_logs",
+                "logging.level",
+                "cloud.send_flow_run_logs",
             },
         )
     )
@@ -228,12 +234,14 @@ def generate_flow_run_environ(
     env.update(
         to_environment_variables(
             prefect.config,
-            include={"prefect.config.backend", "prefect.config.cloud.api"},
+            include={"backend", "cloud.api", "cloud.tenant_id"},
         )
     )
 
     # Pass authentication through
-    env["PREFECT__CLOUD__AUTH_TOKEN"] = (run_token or prefect.config.cloud.auth_token,)
+    client = prefect.Client()  # Instantiate a client to get the current API key
+    env["PREFECT__CLOUD__AUTH_TOKEN"] = run_api_key or prefect.config.cloud.auth_token
+    env["PREFECT__CLOUD__API_KEY"] = run_api_key or client.api_key
 
     # Add context information for the run
     env.update(

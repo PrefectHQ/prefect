@@ -144,12 +144,26 @@ def process_task_defaults(config: Config) -> Config:
 def to_environment_variables(
     config: Config, include: Optional[Iterable[str]] = None, prefix="PREFECT"
 ) -> dict:
+    """
+    Convert a configuration object to environment variables
+
+    Values will be cast to strings using 'str'
+
+    Args:
+        - config: The configuration object to parse
+        - include: An optional set of keys to include. Each key to include should be
+            formatted as 'section.key' or 'section.section.key'
+
+    Returns:
+        - A dictionary mapping key to values e.g.
+            PREFECT__SECTION__KEY: VALUE
+    """
     # Convert to a flat dict for construction without recursion
     flat_config = collections.dict_to_flatdict(config)
 
     # Generate env vars as "PREFIX__SECTION__KEY"
     return {
-        "__".join([prefix] + list(key)).upper(): value
+        "__".join([prefix] + list(key)).upper(): str(value)
         for key, value in flat_config.items()
         # Only include the specified keys
         if not include or ".".join(key) in include
