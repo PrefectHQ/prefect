@@ -224,6 +224,8 @@ def generate_flow_run_environ(
             prefect.config,
             include={
                 "logging.level",
+                "logging.format",
+                "logging.datefmt",
                 "cloud.send_flow_run_logs",
             },
         )
