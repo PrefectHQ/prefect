@@ -328,7 +328,8 @@ def test_run_local_log_level(tmpdir, caplog, log_level):
 def test_run_local_respects_quiet(caplog):
     result = CliRunner().invoke(run, ["--module", "prefect.hello_world", "--quiet"])
     assert not result.exit_code
-    assert result.output == ""
+    # CLI output is not there
+    assert "Running flow locally..." not in result.output
     # Flow run logs are still happening for local runs
     assert "Hello World" in caplog.text
 

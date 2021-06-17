@@ -15,7 +15,7 @@ import threading
 import time
 import warnings
 from queue import Empty, Queue
-from typing import Any, List, Optional, Generator
+from typing import Any, List, Optional, Generator, Union
 from contextlib import contextmanager
 
 import pendulum
@@ -300,7 +300,7 @@ def get_logger(name: str = None) -> logging.Logger:
 
 @contextmanager
 def temporary_logger_config(
-    level: int = None,
+    level: Union[int, str] = None,
     stream_fmt: str = None,
     stream_datefmt: str = None,
 ) -> Generator[logging.Logger, None, None]:
@@ -325,7 +325,7 @@ def temporary_logger_config(
     previous_log_level = logger.level
 
     overrides = {
-        "logging.level": logging.getLevelName(level) if level else None,
+        "logging.level": level if level else None,
         "logging.format": stream_fmt,
         "logging.datefmt": stream_datefmt,
     }
