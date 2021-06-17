@@ -14,9 +14,13 @@ class PrefectSignal(BaseException):
 
     See `prefect.engine.signals` for additional subclasses used for raising state
     transitions.
+
+    Args:
+        - message: A message with additional information about the error
     """
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 class VersionLockMismatchSignal(PrefectSignal):
@@ -25,9 +29,13 @@ class VersionLockMismatchSignal(PrefectSignal):
     does not match the version expected by the server.
 
     This is not backwards compatible with `prefect.utilities.exceptions.VersionLockError`
+
+    Args:
+        - message: A message with additional information about the error
     """
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 class TaskTimeoutSignal(PrefectSignal):
@@ -35,40 +43,60 @@ class TaskTimeoutSignal(PrefectSignal):
     Raised when a task reaches a timeout limit
 
     This is not backwards compatible with `prefect.utilities.exceptions.TaskTimeoutError`
+
+    Args:
+        - message: A message with additional information about the error
     """
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 class PrefectException(PrefectError):
     """
     The base exception type for all Prefect related exceptions
+
+    Args:
+        - message: A message with additional information about the error
     """
 
     # NOTE: Should be updated to inherit from `Exception` when `PrefectError` is removed
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 class ClientError(PrefectException, ClientError_):
     """
     Raised when there is error in Prefect Client <-> Server communication
+
+    Args:
+        - message: A message with additional information about the error
     """
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 class AuthorizationError(ClientError, AuthorizationError_):
     """
     Raised when there is an issue authorizing with Prefect Cloud
+
+    Args:
+        - message: A message with additional information about the error
     """
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 class FlowStorageError(PrefectException, StorageError):
     """
     Raised when there is an error loading a flow from storage
+
+    Args:
+        - message: A message with additional information about the error
     """
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
