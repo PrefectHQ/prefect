@@ -22,7 +22,7 @@ class SendEmail(Task):
         - attachment_file_path (Union[str, Path], optional): The file path of the email attachment;
             can also be provided at runtime
         - sendgrid_api_key (str): The SendGrid API key used for authentication;
-            can also be provided at runtime (it is preferred, actually!)
+            can also be provided at runtime, which is preferred since a secret can be used
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
