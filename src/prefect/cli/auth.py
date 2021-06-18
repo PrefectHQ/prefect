@@ -189,18 +189,16 @@ def login(key, token):
         except AuthorizationError:
             click.secho(
                 "Error attempting to use the given API token. "
-                "Please check that you are providing a USER scoped Personal Access Token.\n"
-                "For more information visit the documentation for USER tokens at "
-                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                "Please check that you are providing a USER scoped Personal Access Token "
+                "and consider switching API key.",
                 fg="red",
             )
             return
         except ClientError:
             click.secho(
                 "Error attempting to communicate with Prefect Cloud. "
-                "Please check that you are providing a USER scoped Personal Access Token.\n"
-                "For more information visit the documentation for USER tokens at "
-                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                "Please check that you are providing a USER scoped Personal Access Token "
+                "and consider switching API key.",
                 fg="red",
             )
             return
@@ -284,7 +282,6 @@ def logout(token):
                 "to delete your API token.",
                 fg="green",
             )
-
     else:
         raise TerminalError(
             "You are not logged in to Prefect Cloud. "
@@ -584,7 +581,10 @@ def create_key(name, expire, quiet):
 @handle_terminal_error
 def list_keys():
     """
-    List available Prefect Cloud API keys.
+    List Prefect Cloud API keys
+
+    If you are a tenant admin, this should list all service account keys as well as keys
+    you have created.
     """
     client = Client()
 
