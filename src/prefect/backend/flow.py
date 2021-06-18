@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+from dataclasses import dataclass
 
 import prefect
 from prefect.run_configs.base import RunConfig
@@ -12,6 +13,7 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow")
 
 
+@dataclass(frozen=True)
 class FlowView:
     """
     A view of Flow metadata stored in the Prefect API.
@@ -36,31 +38,17 @@ class FlowView:
         - flow_group_labels: Labels that are assigned to the parent flow group
     """
 
-    def __init__(
-        self,
-        flow_id: str,
-        flow: "prefect.Flow",
-        settings: dict,
-        run_config: RunConfig,
-        serialized_flow: dict,
-        archived: bool,
-        project_name: str,
-        core_version: str,
-        storage: prefect.storage.Storage,
-        name: str,
-        flow_group_labels: List[str],
-    ):
-        self.flow_id = flow_id
-        self.flow = flow
-        self.settings = settings
-        self.run_config = run_config
-        self.serialized_flow = serialized_flow
-        self.archived = archived
-        self.project_name = project_name
-        self.core_version = core_version
-        self.storage = storage
-        self.name = name
-        self.flow_group_labels = flow_group_labels
+    flow_id: str
+    flow: "prefect.Flow"
+    settings: dict
+    run_config: RunConfig
+    serialized_flow: dict
+    archived: bool
+    project_name: str
+    core_version: str
+    storage: prefect.storage.Storage
+    name: str
+    flow_group_labels: List[str]
 
     @classmethod
     def _from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
