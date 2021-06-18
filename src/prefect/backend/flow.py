@@ -235,7 +235,6 @@ class FlowView:
         where: dict,
         order_by: dict = None,
         error_on_empty: bool = True,
-        jsonb_variables: Dict[str, dict] = None,
     ) -> List[dict]:
         """
         Query for flow data necessary to initialize `Flow` instances with
@@ -247,14 +246,6 @@ class FlowView:
                  results by
             - error_on_empty (optional): If `True` and no flows are found, a
                 `ValueError` will be raised
-            - jsonb_variables (optional): Dict-typed variables to inject into the query
-                as jsonb GraphQL types. Keys must be consumed in the query i.e.
-                in the passed `where` clause as `EnumValue("$key")`
-
-
-        Only `jsonb` variables are exposed because GraphQL queries will fail with where
-        clauses containing jsonb directly but succeed when they are a sent as query
-        variables because they are unescaped.
 
         Returns:
             A list of dicts of flow information
@@ -265,24 +256,8 @@ class FlowView:
         if order_by is not None:
             query_args["order_by"] = order_by
 
-        jsonb_variables = jsonb_variables or {}
-        variable_declarations = ""
-        if jsonb_variables:
-            # Validate the variable types
-            for key, val in jsonb_variables.items():
-                if not isinstance(val, dict):
-                    raise ValueError(
-                        f"Passed variable {key!r} is of type {type(val).__name__}, "
-                        "expected 'dict'. Other types are not supported."
-                    )
-            # Generate a list of variable declarations
-            variable_types = ", ".join(
-                [f"${key}: jsonb" for key in jsonb_variables.keys()]
-            )
-            variable_declarations = f"({variable_types})"
-
         flow_query = {
-            f"query{variable_declarations}": {
+            "query": {
                 with_args("flow", query_args): {
                     "id": True,
                     "settings": True,
@@ -298,7 +273,7 @@ class FlowView:
             }
         }
 
-        result = client.graphql(flow_query, variables=jsonb_variables)
+        result = client.graphql(flow_query)
         flows = result.get("data", {}).get("flow", None)
 
         if flows is None:
@@ -318,6 +293,7 @@ class FlowView:
         return flows
 
     def __repr__(self) -> str:
+        # Implement a shorter repr than dataclass would give us
         return (
             f"{type(self).__name__}"
             "("
