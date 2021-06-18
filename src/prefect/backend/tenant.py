@@ -7,6 +7,20 @@ from prefect.utilities.graphql import with_args
 
 @dataclass(frozen=True)
 class TenantView:
+    """
+    A view of tenant data stored in the Prefect API.
+
+    This object is designed to be an immutable view of the data stored in the Prefect
+    backend API at the time it is created
+
+    EXPERIMENTAL: This interface is experimental and subject to change
+
+    Args:
+        - tenant_id: The uuid of the tenant
+        - name: The name of the tenant
+        - slug: A machine compatible unique identifier for the tenant
+    """
+
     tenant_id: str
     name: str
     slug: str
@@ -101,11 +115,28 @@ class TenantView:
 
     @classmethod
     def from_tenant_id(cls, tenant_id: str) -> "TenantView":
+        """
+        Get an instance of this class filled with information by querying for the given
+        tenant id
+
+        Args:
+            - tenant_id: the tenant to lookup
+
+        Returns:
+            A populated `TenantView` instance
+        """
         return cls._from_tenant_data(
             cls._query_for_tenant(where={"id": {"_eq": tenant_id}})
         )
 
     @classmethod
     def from_current_tenant(cls) -> "TenantView":
+        """
+        Get an instance of this class filled with information by querying for the
+        tenant id set in the Prefect Client
+
+        Returns:
+            A populated `TenantView` instance
+        """
         client = Client()
         return cls.from_tenant_id(client.tenant_id or client.get_auth_tenant())

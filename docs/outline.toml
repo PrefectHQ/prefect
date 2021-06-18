@@ -37,6 +37,12 @@ module = "prefect.backend.task_run"
 classes = ["TaskRunView"]
 experimental = true
 
+[pages.backend.task_run]
+title = "Tenant"
+module = "prefect.backend.tenant"
+classes = ["TenantView"]
+experimental = true
+
 [pages.backend.kv_store]
 title = "KV Store"
 module = "prefect.backend.kv_store"
