@@ -189,18 +189,16 @@ def login(key, token):
         except AuthorizationError:
             click.secho(
                 "Error attempting to use the given API token. "
-                "Please check that you are providing a USER scoped Personal Access Token.\n"
-                "For more information visit the documentation for USER tokens at "
-                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                "Please check that you are providing a USER scoped Personal Access Token "
+                "and consider switching API key.",
                 fg="red",
             )
             return
         except ClientError:
             click.secho(
                 "Error attempting to communicate with Prefect Cloud. "
-                "Please check that you are providing a USER scoped Personal Access Token.\n"
-                "For more information visit the documentation for USER tokens at "
-                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                "Please check that you are providing a USER scoped Personal Access Token "
+                "and consider switching API key.",
                 fg="red",
             )
             return
@@ -284,7 +282,6 @@ def logout(token):
                 "to delete your API token.",
                 fg="green",
             )
-
     else:
         raise TerminalError(
             "You are not logged in to Prefect Cloud. "
