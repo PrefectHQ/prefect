@@ -185,16 +185,13 @@ class Client:
 
     # API key authentication -----------------------------------------------------------
 
-    def get_default_tenant(self) -> Optional[str]:
-
+    def get_auth_tenant(self) -> str:
+        """
+        Get the current tenant associated with the API key being used. If the client has
+        a specific tenant id set, this will verify that the given tenant id is
+        compatible with the API key.
+        """
         if prefect.config.backend == "cloud":
-
-            # This route will just return the current tenant id if we've set a tenant id
-            # explicitly. If you want to return to the default tenant for an API key,
-            # just set the `tenant_id` to null.
-            if self._tenant_id:
-                return self._tenant_id
-
             response = self.graphql({"query": {"auth_info": "tenant_id"}})
             tenant_id = (
                 response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
@@ -210,8 +207,14 @@ class Client:
                 )
 
             return tenant_id
+        else:
+            raise ValueError(
+                "Authentication is only supported for Prefect Cloud. "
+                "Your backend is set to {prefect.config.backend!r}"
+            )
 
-        elif prefect.config.backend == "server":
+    def get_default_server_tenant(self) -> Optional[str]:
+        if prefect.config.backend == "server":
             response = self.graphql({"query": {"tenant": {"id"}}})
             tenants = response.get("data", {}).get("tenant", None)
             if tenants is None:
@@ -224,8 +227,13 @@ class Client:
 
             return tenants[0].id
 
+        elif prefect.config.backend == "cloud":
+            raise ValueError(
+                "Default tenants are determined by authentication in Prefect Cloud. "
+                "See `get_auth_tenant` instead."
+            )
         else:
-            raise ValueError(f"Unknown backend {prefect.config.backend!r}")
+            raise ValueError("Unknown backend {prefect.config.backend!r}")
 
     def load_auth_from_disk(self) -> dict:
         """
@@ -288,7 +296,7 @@ class Client:
             pass
         elif prefect.config.backend == "server":
             if not self._tenant_id:
-                self._tenant_id = self.get_default_tenant()
+                self._tenant_id = self.get_default_server_tenant()
         else:
             # Backwards compatibility for API tokens
             if not self._tenant_id and self._api_token:

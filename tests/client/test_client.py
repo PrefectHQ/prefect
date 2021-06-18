@@ -187,20 +187,20 @@ class TestClientAuthentication:
     def test_client_tenant_id_gets_default_tenant_for_server(self):
         with set_temporary_config({"backend": "server"}):
             client = Client()
-            client.get_default_tenant = MagicMock(return_value="foo")
+            client.get_default_server_tenant = MagicMock(return_value="foo")
             assert client.tenant_id == "foo"
-            client.get_default_tenant.assert_called_once()
+            client.get_default_server_tenant.assert_called_once()
 
-    def test_get_default_tenant_queries_for_auth_info(self):
+    def test_get_auth_tenant_queries_for_auth_info(self):
         client = Client()
         client.graphql = MagicMock(
             return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": "id"}}})
         )
 
-        assert client.get_default_tenant() == "id"
+        assert client.get_auth_tenant() == "id"
         client.graphql.assert_called_once_with({"query": {"auth_info": "tenant_id"}})
 
-    def test_get_default_tenant_with_server_gets_first_tenant(self):
+    def test_get_default_server_tenant_gets_first_tenant(self):
         with set_temporary_config({"backend": "server"}):
             client = Client()
             client.graphql = MagicMock(
@@ -209,7 +209,7 @@ class TestClientAuthentication:
                 )
             )
 
-            assert client.get_default_tenant() == "id1"
+            assert client.get_default_server_tenant() == "id1"
             client.graphql.assert_called_once_with({"query": {"tenant": {"id"}}})
 
 
