@@ -250,14 +250,14 @@ class FlowView:
         jsonb_variables: Dict[str, dict] = None,
     ) -> List[dict]:
         """
-        Query for task run data necessary to initialize `Flow` instances
-        with `Flow.from_flow_data`.
+        Query for flow data necessary to initialize `Flow` instances with
+        `_Flow.from_flow_data`.
 
         Args:
             - where (required): The Hasura `where` clause to filter by
             - order_by (optional): An optional Hasura `order_by` clause to order
                  results by
-            - error_on_empty (optional): If `True` and no tasks are found, a
+            - error_on_empty (optional): If `True` and no flows are found, a
                 `ValueError` will be raised
             - jsonb_variables (optional): Dict-typed variables to inject into the query
                 as jsonb GraphQL types. Keys must be consumed in the query i.e.
@@ -269,7 +269,7 @@ class FlowView:
         variables because they are unescaped.
 
         Returns:
-            A dict of task run information (or a list of dicts if `many` is `True`)
+            A list of dicts of flow information
         """
         client = prefect.Client()
 
