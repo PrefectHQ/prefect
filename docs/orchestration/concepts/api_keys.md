@@ -210,7 +210,7 @@ export PREFECT__CLOUD__AUTH_TOKEN="<YOUR-KEY>"
 
 Using an API key as a token for starting an agent by CLI
 ```bash
-$ prefect agent local start -t SERVICE_ACCOUNT_API_KEY
+$ prefect agent local start -t "<SERVICE_ACCOUNT_API_KEY>"
 ```
 
 Using an API key as a token for starting an agent by environment
