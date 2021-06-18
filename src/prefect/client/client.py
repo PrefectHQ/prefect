@@ -671,7 +671,7 @@ class Client:
             json_resp = response.json()
         except JSONDecodeError as exc:
             if prefect.config.backend == "cloud" and "Authorization" not in headers:
-                raise ClientError(
+                raise AuthorizationError(
                     "Malformed response received from Cloud - please ensure that you "
                     "are authenticated. See `prefect auth login --help`."
                 ) from exc

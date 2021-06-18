@@ -298,13 +298,19 @@ def logout(token):
 
 
 @auth.command(hidden=True)
+@handle_terminal_error
 def list_tenants():
     """
     List available tenants
     """
     client = Client()
 
-    tenants = client.get_available_tenants()
+    try:
+        tenants = client.get_available_tenants()
+    except AuthorizationError:
+        raise TerminalError(
+            "You are not authenticated. Use `prefect auth login` first."
+        )
 
     output = []
     for item in tenants:
