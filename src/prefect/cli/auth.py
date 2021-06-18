@@ -1,4 +1,5 @@
 import click
+import os
 import pendulum
 from click.exceptions import Abort
 from tabulate import tabulate
@@ -11,11 +12,18 @@ from prefect.backend import TenantView
 
 def check_override_auth_token():
     if config.cloud.get("auth_token"):
-        click.secho(
-            "Auth token has been set in the config. The CLI cannot be used to manage "
-            "your auth.",
-            fg="red",
-        )
+        if os.environ.get("PREFECT__CLOUD__AUTH_TOKEN"):
+            click.secho(
+                "Auth token has been set in the environment. The CLI cannot be used to "
+                "manage your auth. Unset the key with `unset PREFECT__CLOUD__AUTH_TOKEN`",
+                fg="red",
+            )
+        else:
+            click.secho(
+                "Auth token has been set in the config. The CLI cannot be used to "
+                "manage your auth. Remove the key from your configuration file.",
+                fg="red",
+            )
         raise Abort
 
 
