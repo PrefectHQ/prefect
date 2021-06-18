@@ -584,7 +584,10 @@ def create_key(name, expire, quiet):
 @handle_terminal_error
 def list_keys():
     """
-    List available Prefect Cloud API keys.
+    List Prefect Cloud API keys
+
+    If you are a tenant admin, this should list all service account keys as well as keys
+    you have created.
     """
     client = Client()
 
