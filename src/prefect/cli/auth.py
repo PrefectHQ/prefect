@@ -118,7 +118,8 @@ def login(key, token):
     )
 
     # Attempt to treat the input like an API key even if it is passed as a token
-    client = Client(api_key=key or token)
+    # Ignore any tenant id that has been previously set via login
+    client = Client(api_key=key or token, tenant_id=None)
 
     try:
         default_tenant = client.get_default_tenant()
