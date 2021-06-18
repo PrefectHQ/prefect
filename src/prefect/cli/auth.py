@@ -6,6 +6,7 @@ from tabulate import tabulate
 from prefect import Client, config
 from prefect.exceptions import AuthorizationError, ClientError
 from prefect.cli.build_register import handle_terminal_error, TerminalError
+from prefect.backend import TenantView
 
 
 def check_override_auth_token():
@@ -125,16 +126,18 @@ def login(key, token):
         tenant_id = client.get_auth_tenant()
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
-            raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
+            raise TerminalError(f"Unauthorized. Invalid Prefect Cloud API key.")
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
-        if not default_tenant and key:
+        if not tenant_id and key:
+            # This would be a weird case to encounter, Cloud would have to authorize the
+            # key without returning a tenant
             raise TerminalError(
                 "Failed to find a tenant associated with the given API key!"
             )
 
-        elif default_tenant:  # Successful login
+        elif tenant_id:  # Successful login
             if token:
                 click.secho(
                     "WARNING: You logged in with an API key using the `--token` flag "
@@ -142,7 +145,11 @@ def login(key, token):
                     fg="yellow",
                 )
             client.save_auth_to_disk()
-            click.secho("Login successful!", fg="green")
+            tenant = TenantView.from_tenant_id(tenant_id)
+            click.secho(
+                f"Logged in to Prefect Cloud tenant {tenant.name!r} ({tenant.slug})",
+                fg="green",
+            )
             return
 
         # If there's not a tenant id, we've been given an actual token, fallthrough to
