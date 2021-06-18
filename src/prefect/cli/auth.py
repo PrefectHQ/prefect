@@ -126,7 +126,7 @@ def login(key, token):
         tenant_id = client.get_auth_tenant()
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
-            raise TerminalError(f"Unauthorized. Invalid Prefect Cloud API key.")
+            raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
