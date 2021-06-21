@@ -72,7 +72,7 @@ client = prefect.Client(api_key="API_KEY", tenant_id="<id>")
 If you do not pass a tenant, it will be left as `None` which means the default tenant associated with the API key will be used for requests. In that case, you can get the default tenant associated with the key from the client:
 
 ```python
-client.get_default_tenant()
+client.get_auth_tenant()
 ```
 
 The tenant id can be changed on an existing client, but requests will fail if the API key is not valid for that tenant:

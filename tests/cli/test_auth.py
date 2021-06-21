@@ -8,8 +8,10 @@ import json
 from click.testing import CliRunner
 
 import prefect
+import prefect.backend
 from prefect.cli.auth import auth
 from prefect.utilities.configuration import set_temporary_config
+from prefect.exceptions import AuthorizationError
 
 
 def test_auth_init():
@@ -26,7 +28,7 @@ def test_auth_help():
     assert "Handle Prefect Cloud authorization." in result.output
 
 
-def test_auth_login(patch_post, monkeypatch, cloud_api):
+def test_auth_login_with_token(patch_post, monkeypatch, cloud_api):
     patch_post(
         dict(
             data=dict(
@@ -36,13 +38,36 @@ def test_auth_login(patch_post, monkeypatch, cloud_api):
         )
     )
 
-    client = MagicMock()
-    client.return_value.login_to_tenant = MagicMock(return_value=True)
-    monkeypatch.setattr("prefect.cli.auth.Client", client)
+    Client = MagicMock()
+
+    # Raise an error during treating token as a key to get to token compat code
+    Client().get_auth_tenant = MagicMock(side_effect=AuthorizationError)
+    Client().api_key = None
+
+    Client().login_to_tenant = MagicMock(return_value=True)
+    monkeypatch.setattr("prefect.cli.auth.Client", Client)
 
     runner = CliRunner()
     result = runner.invoke(auth, ["login", "--token", "test"])
     assert result.exit_code == 0
+    assert "Login successful" in result.output
+
+
+def test_auth_login_with_token_key_is_not_allowed(patch_post, monkeypatch, cloud_api):
+    Client = MagicMock()
+
+    # Raise an error during treating token as a key to get to token compat code
+    Client().get_auth_tenant = MagicMock(side_effect=AuthorizationError)
+    Client().api_key = "foo"
+    monkeypatch.setattr("prefect.cli.auth.Client", Client)
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["login", "--token", "test"])
+    assert result.exit_code == 1
+    assert (
+        "You have already logged in with an API key and cannot use a token"
+        in result.output
+    )
 
 
 def test_auth_login_client_error(patch_post, cloud_api):
@@ -52,6 +77,43 @@ def test_auth_login_client_error(patch_post, cloud_api):
     result = runner.invoke(auth, ["login", "--token", "test"])
     assert result.exit_code == 1
     assert "Error attempting to communicate with Prefect Cloud" in result.output
+
+
+@pytest.mark.parametrize("as_token", [True, False])
+def test_auth_login_with_api_key(patch_post, monkeypatch, cloud_api, as_token):
+    Client = MagicMock()
+    Client().get_auth_tenant = MagicMock(return_value="tenant-id")
+    TenantView = MagicMock()
+    TenantView.from_tenant_id.return_value = prefect.backend.TenantView(
+        tenant_id="id", name="Name", slug="tenant-slug"
+    )
+    monkeypatch.setattr("prefect.cli.auth.TenantView", TenantView)
+    monkeypatch.setattr("prefect.cli.auth.Client", Client)
+
+    runner = CliRunner()
+    # All `--token` args are treated as keys first for easier transition
+    arg = "--token" if as_token else "--key"
+    result = runner.invoke(auth, ["login", arg, "test"])
+    assert result.exit_code == 0
+    assert "Logged in to Prefect Cloud tenant 'Name' (tenant-slug)" in result.output
+
+
+def test_auth_login_with_api_key_client_error(patch_post, cloud_api):
+    patch_post(dict(errors=[dict(error={})]))
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["login", "--key", "test"])
+    assert result.exit_code == 1
+    assert "Error attempting to communicate with Prefect Cloud" in result.output
+
+
+def test_auth_login_with_api_key_unauthorized(patch_post, cloud_api):
+    patch_post(dict(errors=[dict(error={"UNAUTHENTICATED"})]))
+
+    runner = CliRunner()
+    result = runner.invoke(auth, ["login", "--key", "test"])
+    assert result.exit_code == 1
+    assert "Unauthorized. Invalid Prefect Cloud API key." in result.output
 
 
 def test_auth_logout_after_login(patch_post, monkeypatch, cloud_api):
@@ -64,9 +126,12 @@ def test_auth_logout_after_login(patch_post, monkeypatch, cloud_api):
         )
     )
 
-    client = MagicMock()
-    client.return_value.login_to_tenant = MagicMock(return_value=True)
-    monkeypatch.setattr("prefect.cli.auth.Client", client)
+    Client = MagicMock()
+    # Raise an error during treating token as a key to get to token compat code
+    Client().get_auth_tenant = MagicMock(side_effect=AuthorizationError)
+    Client().api_key = None
+    Client().login_to_tenant = MagicMock(return_value=True)
+    monkeypatch.setattr("prefect.cli.auth.Client", Client)
 
     runner = CliRunner()
 

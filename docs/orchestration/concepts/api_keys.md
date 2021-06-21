@@ -167,9 +167,9 @@ Example response:
 
 ::: tab UI
 
-To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to delete it. A confirmation box should appear asking if you are sure you want to delete the key.
+To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to revoke it. A confirmation box should appear asking if you are sure you want to revoke the key.
 
-![token delete](/token_delete.png)
+![api key revoke](/api_key_revoke.png)
 
 :::
 
@@ -210,7 +210,7 @@ export PREFECT__CLOUD__AUTH_TOKEN="<YOUR-KEY>"
 
 Using an API key as a token for starting an agent by CLI
 ```bash
-$ prefect agent local start -t SERVICE_ACCOUNT_API_KEY
+$ prefect agent local start -t "<SERVICE_ACCOUNT_API_KEY>"
 ```
 
 Using an API key as a token for starting an agent by environment

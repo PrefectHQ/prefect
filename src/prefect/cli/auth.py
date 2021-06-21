@@ -1,4 +1,5 @@
 import click
+import os
 import pendulum
 from click.exceptions import Abort
 from tabulate import tabulate
@@ -6,15 +7,23 @@ from tabulate import tabulate
 from prefect import Client, config
 from prefect.exceptions import AuthorizationError, ClientError
 from prefect.cli.build_register import handle_terminal_error, TerminalError
+from prefect.backend import TenantView
 
 
 def check_override_auth_token():
     if config.cloud.get("auth_token"):
-        click.secho(
-            "Auth token has been set in the config. The CLI cannot be used to manage "
-            "your auth.",
-            fg="red",
-        )
+        if os.environ.get("PREFECT__CLOUD__AUTH_TOKEN"):
+            click.secho(
+                "Auth token has been set in the environment. The CLI cannot be used to "
+                "manage your auth. Unset the key with `unset PREFECT__CLOUD__AUTH_TOKEN`",
+                fg="red",
+            )
+        else:
+            click.secho(
+                "Auth token has been set in the config. The CLI cannot be used to "
+                "manage your auth. Remove the key from your configuration file.",
+                fg="red",
+            )
         raise Abort
 
 
@@ -118,22 +127,25 @@ def login(key, token):
     )
 
     # Attempt to treat the input like an API key even if it is passed as a token
-    client = Client(api_key=key or token)
+    # Ignore any tenant id that has been previously set via login
+    client = Client(api_key=key or token, tenant_id=None)
 
     try:
-        default_tenant = client.get_default_tenant()
+        tenant_id = client.get_auth_tenant()
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
             raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
-        if not default_tenant and key:
+        if not tenant_id and key:
+            # This would be a weird case to encounter, Cloud would have to authorize the
+            # key without returning a tenant
             raise TerminalError(
                 "Failed to find a tenant associated with the given API key!"
             )
 
-        elif default_tenant:  # Successful login
+        elif tenant_id:  # Successful login
             if token:
                 click.secho(
                     "WARNING: You logged in with an API key using the `--token` flag "
@@ -141,7 +153,11 @@ def login(key, token):
                     fg="yellow",
                 )
             client.save_auth_to_disk()
-            click.secho("Login successful!", fg="green")
+            tenant = TenantView.from_tenant_id(tenant_id)
+            click.secho(
+                f"Logged in to Prefect Cloud tenant {tenant.name!r} ({tenant.slug})",
+                fg="green",
+            )
             return
 
         # If there's not a tenant id, we've been given an actual token, fallthrough to
@@ -181,18 +197,16 @@ def login(key, token):
         except AuthorizationError:
             click.secho(
                 "Error attempting to use the given API token. "
-                "Please check that you are providing a USER scoped Personal Access Token.\n"
-                "For more information visit the documentation for USER tokens at "
-                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                "Please check that you are providing a USER scoped Personal Access Token "
+                "and consider switching API key.",
                 fg="red",
             )
             return
         except ClientError:
             click.secho(
                 "Error attempting to communicate with Prefect Cloud. "
-                "Please check that you are providing a USER scoped Personal Access Token.\n"
-                "For more information visit the documentation for USER tokens at "
-                "https://docs.prefect.io/orchestration/concepts/tokens.html#user",
+                "Please check that you are providing a USER scoped Personal Access Token "
+                "and consider switching API key.",
                 fg="red",
             )
             return
@@ -276,7 +290,6 @@ def logout(token):
                 "to delete your API token.",
                 fg="green",
             )
-
     else:
         raise TerminalError(
             "You are not logged in to Prefect Cloud. "
@@ -285,18 +298,24 @@ def logout(token):
 
 
 @auth.command(hidden=True)
+@handle_terminal_error
 def list_tenants():
     """
     List available tenants
     """
     client = Client()
 
-    tenants = client.get_available_tenants()
+    try:
+        tenants = client.get_available_tenants()
+    except AuthorizationError:
+        raise TerminalError(
+            "You are not authenticated. Use `prefect auth login` first."
+        )
 
     output = []
     for item in tenants:
         active = None
-        if item.id == (client.tenant_id or client.get_default_tenant()):
+        if item.id == (client.tenant_id or client.get_auth_tenant()):
             active = "*"
         output.append([item.name, item.slug, item.id, active])
 
@@ -361,7 +380,7 @@ def switch_tenants(id, slug, default):
             client.save_auth_to_disk()
             click.secho(
                 "Tenant restored to the default tenant for your API key: "
-                f"{client.get_default_tenant()}",
+                f"{client.get_auth_tenant()}",
                 fg="green",
             )
             return
@@ -576,7 +595,10 @@ def create_key(name, expire, quiet):
 @handle_terminal_error
 def list_keys():
     """
-    List available Prefect Cloud API keys.
+    List Prefect Cloud API keys
+
+    If you are a tenant admin, this should list all service account keys as well as keys
+    you have created.
     """
     client = Client()
 
@@ -652,7 +674,9 @@ def status():
         click.echo("You are authenticating with an API key")
 
         try:
-            click.echo(f"You are logged in to tenant {client.get_default_tenant()}")
+            click.echo(
+                f"You are logged in to tenant {client.tenant_id or client.get_auth_tenant()}"
+            )
         except Exception as exc:
             click.echo(f"Your authentication is not working: {exc}")
 
