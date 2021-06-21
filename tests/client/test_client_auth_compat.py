@@ -295,7 +295,10 @@ class TestTenantAuth:
         assert client.tenant_id == tenant_id
 
         # new client doesn't load the active tenant because there's no api token loaded
-        assert Client().tenant_id is None
+        client = Client()
+        client._init_tenant()
+        assert client._tenant_id is None
+        # Note: Using `.tenant_id` here would active api_key logic
 
     def test_logout_clears_access_token_and_tenant(self, patch_post, cloud_api):
         tenant_id = str(uuid.uuid4())
@@ -311,7 +314,7 @@ class TestTenantAuth:
                 }
             }
         )
-        client = Client()
+        client = Client(api_token="TOKEN")
         client.login_to_tenant(tenant_id=tenant_id)
 
         assert client._access_token is not None
@@ -325,7 +328,7 @@ class TestTenantAuth:
         assert client.tenant_id is None
 
         # new client doesn't load the active tenant
-        assert Client().tenant_id is None
+        assert Client(api_token="TOKEN").tenant_id is None
 
     def test_refresh_token_sets_attributes(self, patch_post, cloud_api):
         patch_post(

@@ -62,7 +62,7 @@ class TestClientAuthentication:
 
         # No key should be present yet
         client = Client()
-        assert client.tenant_id is None
+        assert client._tenant_id is None
 
         # Save to disk (and set an API key so we don't enter API token logic)
         client = Client(api_key="KEY", tenant_id="DISK_TENANT")
@@ -73,15 +73,15 @@ class TestClientAuthentication:
 
             # Should ignore config/disk
             client = Client(tenant_id="DIRECT_TENANT")
-            assert client.tenant_id == "DIRECT_TENANT"
+            assert client._tenant_id == "DIRECT_TENANT"
 
             # Should load from config
             client = Client()
-            assert client.tenant_id == "CONFIG_TENANT"
+            assert client._tenant_id == "CONFIG_TENANT"
 
         # Should load from disk
         client = Client()
-        assert client.tenant_id == "DISK_TENANT"
+        assert client._tenant_id == "DISK_TENANT"
 
     def test_client_save_auth_to_disk(self):
         client = Client(api_key="KEY", tenant_id="ID")
