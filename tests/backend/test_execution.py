@@ -8,9 +8,12 @@ from prefect.backend.execution import (
     _fail_flow_run_on_exception,
     _get_flow_run_scheduled_start_time,
     _get_next_task_run_start_time,
+    generate_flow_run_environ,
 )
+from prefect.run_configs import UniversalRun
 from prefect.engine.state import Failed, Scheduled
 from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.configuration import set_temporary_config
 
 
 @pytest.fixture()
@@ -24,6 +27,62 @@ def cloud_mocks(monkeypatch):
     monkeypatch.setattr("prefect.Client", mocks.Client)
 
     return mocks
+
+
+def test_generate_flow_run_environ():
+    with set_temporary_config(
+        {
+            "cloud.send_flow_run_logs": "CONFIG_SEND_RUN_LOGS",
+            "backend": "CONFIG_BACKEND",
+            "cloud.api": "CONFIG_API",
+            "cloud.tenant_id": "CONFIG_TENANT_ID",
+            # Deprecated tokens are included if available but overriden by `run_api_key`
+            "cloud.agent.auth_token": "CONFIG_AUTH_TOKEN",
+            "cloud.auth_token": None,
+        }
+    ):
+        result = generate_flow_run_environ(
+            flow_run_id="flow-run-id",
+            flow_id="flow-id",
+            run_config=UniversalRun(
+                env={
+                    # Run config should take precendence
+                    "A": "RUN_CONFIG",
+                    "B": "RUN_CONFIG",
+                    "C": None,  # Null values are excluded
+                    # Should not be overridable using a run config
+                    "PREFECT__CONTEXT__FLOW_RUN_ID": "RUN_CONFIG",
+                    "PREFECT__CONTEXT__FLOW_ID": "RUN_CONFIG",
+                    "PREFECT__CLOUD__API_KEY": "RUN_CONFIG",
+                    "PREFECT__CLOUD__TENANT_ID": "RUN_CONFIG",
+                    "PREFECT__CLOUD__API": "RUN_CONFIG",
+                    "PREFECT__BACKEND": "RUN_CONFIG",
+                }
+            ),
+            run_api_key="api-key",
+        )
+
+    assert result == {
+        # Passed via kwargs directly
+        "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
+        "PREFECT__CONTEXT__FLOW_ID": "flow-id",
+        "PREFECT__CLOUD__API_KEY": "api-key",
+        "PREFECT__CLOUD__AUTH_TOKEN": "api-key",  # Backwards compatibility for tokens
+        # Set from prefect config
+        "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
+        "PREFECT__LOGGING__FORMAT": prefect.config.logging.format,
+        "PREFECT__LOGGING__DATEFMT": prefect.config.logging.datefmt,
+        "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "CONFIG_SEND_RUN_LOGS",
+        "PREFECT__BACKEND": "CONFIG_BACKEND",
+        "PREFECT__CLOUD__API": "CONFIG_API",
+        "PREFECT__CLOUD__TENANT_ID": "CONFIG_TENANT_ID",
+        # Overridden by run config
+        "A": "RUN_CONFIG",
+        "B": "RUN_CONFIG",
+        # Hard-coded
+        "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+        "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+    }
 
 
 def test_get_next_task_run_start_time_query_is_correct(cloud_mocks):
