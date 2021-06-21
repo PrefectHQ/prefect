@@ -209,15 +209,27 @@ def generate_flow_run_environ(
     flow_id: str,
     run_config: RunConfig,
     run_api_key: str = None,
+    include_local_env: bool = False,
 ) -> Dict[str, str]:
     """
     Utility to generate the environment variables required for a flow run
+
+    Args:
+        - flow_run_id: The id for the flow run that will be executed
+        - flow_id: The id for the flow of the flow run that will be executed
+        - run_config: The run config for the flow run, contributes environment variables
+        - run_api_key: An optional API key to pass to the flow run for authenticating
+            with the backend. If not set, it will be pulled from the Client
+        - include_local_env: If `True`, the currently available environment variables
+            will be passed through to the flow run. Defaults to `False`
+
+    Returns:
+        - A dictionary of environment variables
     """
-    # TODO: Compare this local agent env to other agent envs to create general func
-    # TODO: Use general func in all agents
+    # TODO: Generalize this and use it for all agents
 
     # Local environment
-    env = cast(Dict[str, Optional[str]], os.environ.copy())
+    env = cast(Dict[str, Optional[str]], os.environ.copy() if include_local_env else {})
 
     # Pass through config options that can be overriden by run config
     env.update(
