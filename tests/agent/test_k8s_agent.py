@@ -1370,7 +1370,11 @@ class TestK8sAgentRunConfig:
         flow_run = self.build_flow_run(KubernetesRun())
 
         with set_temporary_config(
-            {"cloud.api_key": "TEST_KEY", "cloud.tenant_id": tenant_id}
+            {
+                "cloud.api_key": "TEST_KEY",
+                "cloud.tenant_id": tenant_id,
+                "cloud.agent.auth_token": None,
+            }
         ):
             job = KubernetesAgent(
                 namespace="testing",
@@ -1380,6 +1384,7 @@ class TestK8sAgentRunConfig:
         env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
         assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
     @pytest.mark.parametrize("tenant_id", ["ID", None])
@@ -1399,6 +1404,7 @@ class TestK8sAgentRunConfig:
         env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
         assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
     @pytest.mark.parametrize(

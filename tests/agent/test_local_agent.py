@@ -140,12 +140,17 @@ def test_environment_has_api_key_from_config(tenant_id):
     """Check that the API key is passed through from the config via environ"""
 
     with set_temporary_config(
-        {"cloud.api_key": "TEST_KEY", "cloud.tenant_id": tenant_id}
+        {
+            "cloud.api_key": "TEST_KEY",
+            "cloud.tenant_id": tenant_id,
+            "cloud.agent.auth_token": None,
+        }
     ):
         agent = LocalAgent()
         env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
     assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
 
@@ -157,10 +162,12 @@ def test_environment_has_api_key_from_disk(monkeypatch, tenant_id):
         MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
     )
 
-    agent = LocalAgent()
-    env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+    with set_temporary_config({"cloud.agent.auth_token": None}):
+        agent = LocalAgent()
+        env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
     assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
 
