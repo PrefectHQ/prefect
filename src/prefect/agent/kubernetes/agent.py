@@ -516,7 +516,12 @@ class KubernetesAgent(Agent):
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
-        env[1]["value"] = config.cloud.agent.auth_token
+        env[1]["value"] = (
+            # Pull an auth token if it exists but fall back to an API key so
+            # flows in pre-0.15.0 containers still authenticate correctly
+            config.cloud.agent.get("auth_token")
+            or self.flow_run_api_key
+        )
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = flow_run.flow.id  # type: ignore
         env[4]["value"] = self.namespace
@@ -685,7 +690,13 @@ class KubernetesAgent(Agent):
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.get("auth_token", ""),
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    config.cloud.agent.get("auth_token")
+                    or self.flow_run_api_key
+                    or ""
+                ),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
                 "PREFECT__CLOUD__TENANT_ID": (
                     # Providing a tenant id is only necessary for API keys (not tokens)

@@ -164,7 +164,11 @@ def test_environment_has_agent_token_from_config(api, config_with_token):
 @pytest.mark.parametrize("tenant_id", ["ID", None])
 def test_environment_has_api_key_from_config(api, tenant_id):
     with set_temporary_config(
-        {"cloud.api_key": "TEST_KEY", "cloud.tenant_id": tenant_id}
+        {
+            "cloud.api_key": "TEST_KEY",
+            "cloud.tenant_id": tenant_id,
+            "cloud.agent.auth_token": None,
+        }
     ):
         agent = DockerAgent()
 
@@ -174,6 +178,7 @@ def test_environment_has_api_key_from_config(api, tenant_id):
         )
 
     assert env_vars["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
     assert env_vars.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
 
@@ -186,12 +191,15 @@ def test_environment_has_api_key_from_disk(api, monkeypatch, tenant_id):
     )
 
     agent = DockerAgent()
-    env = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
-        "test-image",
-    )
+
+    with set_temporary_config({"cloud.agent.auth_token": None}):
+        env = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
+            "test-image",
+        )
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
     assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
 
