@@ -1,9 +1,15 @@
+import pendulum
 import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.backend.execution import _fail_flow_run, _fail_flow_run_on_exception
-from prefect.engine.state import Failed
+from prefect.backend.execution import (
+    _fail_flow_run,
+    _fail_flow_run_on_exception,
+    _get_flow_run_scheduled_start_time,
+)
+from prefect.engine.state import Failed, Scheduled
+from prefect.utilities.graphql import GraphQLResult
 
 
 @pytest.fixture()
@@ -17,6 +23,94 @@ def cloud_mocks(monkeypatch):
     monkeypatch.setattr("prefect.Client", mocks.Client)
 
     return mocks
+
+
+def test_get_flow_run_scheduled_start_time_from_state_time(cloud_mocks):
+    start_time = pendulum.now("utc")
+    states = [
+        Scheduled(start_time=start_time.add(seconds=10)).serialize(),
+        Scheduled(start_time=start_time).serialize(),
+        Scheduled().serialize(),
+    ]
+
+    # Attach db "created" times to the states, the second one is the newest
+    states[0]["created"] = pendulum.now().subtract(seconds=10).isoformat()
+    states[1]["created"] = pendulum.now().isoformat()
+
+    # The last state will have an empty start time and no created time to test handling
+    # of malformed data
+    states[2]["start_time"] = None
+
+    cloud_mocks.Client().graphql.return_value = GraphQLResult(
+        {
+            "data": {
+                "flow_run": [
+                    {
+                        "scheduled_start_time": (
+                            start_time.subtract(seconds=10).isoformat()
+                        ),
+                        "states": states,
+                    }
+                ]
+            }
+        }
+    )
+
+    result = _get_flow_run_scheduled_start_time("flow-run-id")
+    assert result == start_time
+
+
+@pytest.mark.parametrize("with_states", [True, False])
+def test_get_flow_run_scheduled_start_time_from_flow_run_scheduled_time(
+    cloud_mocks, with_states
+):
+    # This occurs when there are no states available or when the states have no start
+    # time on them
+    states = []
+    if with_states:
+        states = [Failed().serialize()]
+        states[0]["created"] = pendulum.now()
+
+    start_time = pendulum.now("utc")
+
+    cloud_mocks.Client().graphql.return_value = GraphQLResult(
+        {
+            "data": {
+                "flow_run": [
+                    {
+                        "scheduled_start_time": start_time.isoformat(),
+                        "states": states,
+                    }
+                ]
+            }
+        }
+    )
+
+    result = _get_flow_run_scheduled_start_time("flow-run-id")
+    assert result == start_time
+
+
+def test_get_flow_run_scheduled_start_time_query_is_correct(cloud_mocks):
+
+    # Just return nothing to simplify the test / cover malformed response
+    cloud_mocks.Client().graphql.return_value = {}
+
+    with pytest.raises(ValueError, match="Unexpected result"):
+        _get_flow_run_scheduled_start_time("flow-run-id")
+
+    cloud_mocks.Client().graphql.assert_called_once_with(
+        {
+            "query": {
+                'flow_run(where: { id: { _eq: "flow-run-id" } })': {
+                    'states(where: { state: { _eq: "Scheduled" } })': {
+                        "created",
+                        "start_time",
+                    },
+                    "scheduled_start_time": True,
+                }
+            }
+        }
+    )
 
 
 @pytest.mark.parametrize("is_finished", [True, False])

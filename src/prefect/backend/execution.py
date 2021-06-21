@@ -431,14 +431,16 @@ def _get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.Da
     flow_run = flow_runs[0]
 
     # Get the most recently created state
-    states = sorted(flow_run.states, key=lambda state: state.created)
+    states = sorted(
+        flow_run.states, key=lambda state: state.get("created", ""), reverse=True
+    )
     state = states[0] if states else None
 
     # Return the most recently created state start time; default to the flow run
     # scheduled start time in case there are no state times
     start_time = (
         state.start_time
-        if state and state.start_time
+        if state and state.get("start_time")
         else flow_run.scheduled_start_time
     )
 
