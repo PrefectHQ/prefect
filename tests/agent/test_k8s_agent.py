@@ -1386,7 +1386,7 @@ class TestK8sAgentRunConfig:
     def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
         """Check that the API key is passed through from the on disk cache"""
         monkeypatch.setattr(
-            "prefect.Client.load_auth_from_disk",
+            "prefect.client.client.load_auth_from_disk",
             MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
         )
 

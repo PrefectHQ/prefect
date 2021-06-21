@@ -5,6 +5,7 @@ from click.exceptions import Abort
 from tabulate import tabulate
 
 from prefect import Client, config
+from prefect.client.client import save_auth_to_disk
 from prefect.exceptions import AuthorizationError, ClientError
 from prefect.cli.build_register import handle_terminal_error, TerminalError
 from prefect.backend import TenantView
@@ -152,7 +153,7 @@ def login(key, token):
                     "which is deprecated. Please use `--key` instead.",
                     fg="yellow",
                 )
-            client.save_auth_to_disk()
+            client.save_auth()
             tenant = TenantView.from_tenant_id(tenant_id)
             click.secho(
                 f"Logged in to Prefect Cloud tenant {tenant.name!r} ({tenant.slug})",
@@ -250,10 +251,7 @@ def logout(token):
         )
 
         # Clear the key and tenant id then write to the cache
-        client.api_key = ""
-        client._tenant_id = ""
-        client.save_auth_to_disk()
-
+        save_auth_to_disk(client.api_server, api_key=None, tenant_id=None)
         click.secho("Logged out of Prefect Cloud", fg="green")
 
     elif client._api_token:
@@ -377,7 +375,7 @@ def switch_tenants(id, slug, default):
         if default:
             # Clear the set tenant on disk
             client.tenant_id = None
-            client.save_auth_to_disk()
+            client.save_auth()
             click.secho(
                 "Tenant restored to the default tenant for your API key: "
                 f"{client.get_auth_tenant()}",
@@ -392,7 +390,7 @@ def switch_tenants(id, slug, default):
     # `login_to_tenant` will write to disk if using an API token, if using an API key
     # we will write to disk manually here
     if client.api_key:
-        client.save_auth_to_disk()
+        client.save_auth()
 
     click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
 

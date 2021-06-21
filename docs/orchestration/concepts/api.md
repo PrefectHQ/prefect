@@ -84,14 +84,15 @@ client.tenant_id = "<new-id>"
 Authentication can be saved to disk. This will save the current API key and tenant id to `~/.prefect/auth.toml` and future clients instantiated without an API key or tenant id will load these values as defaults.
 
 ```python
-client.save_auth_to_disk()
+client.save_auth()
 ```
 
 
-To inspect the auth stored on disk, you may also use the client method `load_auth_from_disk()`:
+To inspect the auth stored on disk, you may also use the function `load_auth_from_disk`:
 
 ```python
-disk_auth = client.load_auth_from_disk()
+from prefect.client import load_auth_from_disk
+disk_auth = load_auth_from_disk(client.api_server)
 # {"api_key": "API_KEY", "tenant_id": "ID"}
 ```
 

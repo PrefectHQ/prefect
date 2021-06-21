@@ -83,6 +83,70 @@ class FlowRunInfoResult(NamedTuple):
     task_runs: List[TaskRunInfoResult]
 
 
+def load_auth_from_disk(api_server: str) -> dict:
+    """
+    Get the stashed `api_key` and `tenant_id` for the given `api_server` from the
+    disk cache if it exists. If it does not, an empty dict is returned.
+    """
+    auth_file = _get_auth_file_path()
+
+    if not auth_file.exists():
+        return {}
+
+    return toml.loads(auth_file.read_text()).get(_api_server_slug(api_server), {})
+
+
+def save_auth_to_disk(
+    api_server: str, api_key: str = None, tenant_id: str = None
+) -> None:
+    """
+    Write the current auth information to the disk cache under a header for the given
+    `api_server`
+    """
+    auth_file = _get_auth_file_path()
+
+    # Load the current contents of the entire file
+    contents = toml.loads(auth_file.read_text()) if auth_file.exists() else {}
+
+    # Update the data for this API server
+    contents[_api_server_slug(api_server)] = {
+        "api_key": api_key,
+        "tenant_id": tenant_id,
+    }
+
+    # Update the file, including a comment blurb
+    auth_file.write_text(
+        "# This file is auto-generated and should not be manually edited\n"
+        "# Update the Prefect config or use the CLI to login instead\n\n"
+        + toml.dumps(contents)
+    )
+
+
+def _get_auth_file_path() -> Path:
+    """
+    This is a hard-coded path but is dynamically generated for tests where the
+    config home_dir is set to a tmpdir
+    """
+    return Path(prefect.context.config.home_dir).absolute() / "auth.toml"
+
+
+def _api_server_slug(api_server: str) -> str:
+    """
+    A slugified version of the API server's network location, used for loading
+    and saving settings for different API servers.
+
+    This should only be relevant for the 'cloud' backend since the 'server' backend
+    does not save authentication.
+
+    This should remain stable or users will not be able to load credentials
+    """
+    # Parse the server to drop the protocol
+    netloc = urlparse(api_server).netloc
+    # Then return the slugified contents, falling back to the full server if it
+    # could not be parsed into a net location
+    return slugify(netloc or api_server, regex_pattern=r"[^-\.a-z0-9]+")
+
+
 class Client:
     """
     Client for communication with Prefect Cloud
@@ -122,17 +186,12 @@ class Client:
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
-        # Hard-code the auth filepath location
-        self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
-
         # Note the default is `cloud.api` which is `cloud.endpoint` or `server.endpoint`
         # depending on the value of the `backend` key
-        # This must be set before `load_auth_from_disk()` can be called but if no API
-        # key is found this will default to a different value for backwards compat
         self.api_server = api_server or prefect.context.config.cloud.api
 
         # Load the API key
-        cached_auth = self.load_auth_from_disk()
+        cached_auth = load_auth_from_disk(self.api_server)
         self.api_key = (
             api_key
             or prefect.context.config.cloud.get("api_key")
@@ -185,6 +244,15 @@ class Client:
 
     # API key authentication -----------------------------------------------------------
 
+    def save_auth(self) -> None:
+        """
+        Save authentication information currently stored in the Client to disk.
+        Existing keys will be overriden.
+        """
+        save_auth_to_disk(
+            self.api_server, api_key=self.api_key, tenant_id=self.tenant_id
+        )
+
     def get_auth_tenant(self) -> str:
         """
         Get the current tenant associated with the API key being used. If the client has
@@ -234,59 +302,6 @@ class Client:
             )
         else:
             raise ValueError("Unknown backend {prefect.config.backend!r}")
-
-    def load_auth_from_disk(self) -> dict:
-        """
-        Get the stashed `api_key` and `tenant_id` for the current `api_server` from the
-        disk cache if it exists. If it does not, an empty dict is returned.
-
-        WARNING: This will not mutate the `Client`, you must use the returned dict
-                 to set `api_key` and `tenant_id`. This is
-        """
-        if not self._auth_file.exists():
-            return {}
-
-        return toml.loads(self._auth_file.read_text()).get(self._api_server_slug, {})
-
-    def save_auth_to_disk(self) -> None:
-        """
-        Write the current auth information to the disk cache under a header for the
-        current `api_server`
-        """
-        # Load the current contents of the entire file
-        contents = (
-            toml.loads(self._auth_file.read_text()) if self._auth_file.exists() else {}
-        )
-
-        # Update the data for this API server
-        contents[self._api_server_slug] = {
-            "api_key": self.api_key,
-            "tenant_id": self.tenant_id,
-        }
-
-        # Update the file, including a comment blurb
-        self._auth_file.write_text(
-            "# This file is auto-generated and should not be manually edited\n"
-            "# Update the Prefect config or use the CLI to login instead\n\n"
-            + toml.dumps(contents)
-        )
-
-    @property
-    def _api_server_slug(self) -> str:
-        """
-        A slugified version of the API server's network location, used for loading
-        and saving settings for different API servers.
-
-        This should only be relevant for the 'cloud' backend since the 'server' backend
-        does not save authentication.
-
-        This should remain stable or users will not be able to load credentials
-        """
-        # Parse the server to drop the protocol
-        netloc = urlparse(self.api_server).netloc
-        # Then return the slugified contents, falling back to the full server if it
-        # could not be parsed into a net location
-        return slugify(netloc or self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
 
     @property
     def tenant_id(self) -> Optional[str]:
@@ -719,7 +734,7 @@ class Client:
         when using an API token
 
         DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
-                    location. See `_auth_file`.
+                    location. See `load_auth_from_disk`.
         """
         path = "{home}/client/{server}".format(
             home=prefect.context.config.home_dir,
@@ -740,7 +755,7 @@ class Client:
         Writes settings to local storage
 
         DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
-                    location. See `save_auth_to_disk`
+                    location. See `Client.save_auth`
         """
         self._api_token_settings_path.parent.mkdir(exist_ok=True, parents=True)
         with self._api_token_settings_path.open("w+") as f:
@@ -763,7 +778,7 @@ class Client:
         Saves the API token in local storage.
 
         DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
-                    location. See `save_auth_to_disk`
+                    location. See `Client.save_auth`
         """
         settings = self._load_local_settings()
         settings["api_token"] = self._api_token
@@ -911,10 +926,9 @@ class Client:
 
         Logout can be accomplished for API keys with:
             ```
+            from prefect.client import Client
             client = Client()
-            client.api_key = ""
-            client._tenant_id = ""
-            client.save_auth_to_disk()
+            client.save_auth()
             ```
         """
         self._access_token = None

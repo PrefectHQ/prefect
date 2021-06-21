@@ -10,7 +10,15 @@ import requests
 import toml
 
 import prefect
-from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
+from prefect.client.client import (
+    Client,
+    FlowRunInfoResult,
+    TaskRunInfoResult,
+    save_auth_to_disk,
+    load_auth_from_disk,
+    _get_auth_file_path,
+    _api_server_slug,
+)
 from prefect.utilities.graphql import GraphQLResult
 from prefect.engine.result import Result
 from prefect.engine.state import Pending, Running, State
@@ -37,8 +45,7 @@ class TestClientAuthentication:
         assert client.api_key is None
 
         # Save to disk
-        client = Client(api_key="DISK_KEY")
-        client.save_auth_to_disk()
+        save_auth_to_disk(client.api_server, api_key="DISK_KEY")
 
         # Set in config
         with set_temporary_config({"cloud.api_key": "CONFIG_KEY"}):
@@ -65,8 +72,7 @@ class TestClientAuthentication:
         assert client.tenant_id is None
 
         # Save to disk (and set an API key so we don't enter API token logic)
-        client = Client(api_key="KEY", tenant_id="DISK_TENANT")
-        client.save_auth_to_disk()
+        save_auth_to_disk(client.api_server, api_key="KEY", tenant_id="DISK_TENANT")
 
         # Set in config
         with set_temporary_config({"cloud.tenant_id": "CONFIG_TENANT"}):
@@ -83,23 +89,25 @@ class TestClientAuthentication:
         client = Client()
         assert client.tenant_id == "DISK_TENANT"
 
-    def test_client_save_auth_to_disk(self):
+    def test_client_save_auth(self):
         client = Client(api_key="KEY", tenant_id="ID")
-        client.save_auth_to_disk()
+        client.save_auth()
 
-        data = toml.loads(client._auth_file.read_text())
-        assert set(data.keys()) == {client._api_server_slug}
-        assert data[client._api_server_slug] == dict(api_key="KEY", tenant_id="ID")
+        data = toml.loads(_get_auth_file_path().read_text())
+        assert set(data.keys()) == {_api_server_slug(client.api_server)}
+        assert data[_api_server_slug(client.api_server)] == dict(
+            api_key="KEY", tenant_id="ID"
+        )
 
-        old_key = client._api_server_slug
+        old_key = _api_server_slug(client.api_server)
         client.api_server = "foo"
         client.api_key = "NEW_KEY"
         client.tenant_id = "NEW_ID"
-        client.save_auth_to_disk()
+        client.save_auth()
 
-        data = toml.loads(client._auth_file.read_text())
-        assert set(data.keys()) == {client._api_server_slug, old_key}
-        assert data[client._api_server_slug] == dict(
+        data = toml.loads(_get_auth_file_path().read_text())
+        assert set(data.keys()) == {_api_server_slug(client.api_server), old_key}
+        assert data[_api_server_slug(client.api_server)] == dict(
             api_key="NEW_KEY", tenant_id="NEW_ID"
         )
 
@@ -108,24 +116,24 @@ class TestClientAuthentication:
 
     def test_client_load_auth_from_disk(self):
         client = Client(api_key="KEY", tenant_id="ID")
-        client.save_auth_to_disk()
+        client.save_auth()
 
         client = Client()
 
         assert client.api_key == "KEY"
         assert client.tenant_id == "ID"
 
-        client._auth_file.write_text(
+        _get_auth_file_path().write_text(
             toml.dumps(
                 {
-                    client._api_server_slug: {
+                    _api_server_slug(client.api_server): {
                         "api_key": "NEW_KEY",
                         "tenant_id": "NEW_ID",
                     }
                 }
             )
         )
-        data = client.load_auth_from_disk()
+        data = load_auth_from_disk(client.api_server)
 
         # Does not mutate the client!
         assert client.api_key == "KEY"
