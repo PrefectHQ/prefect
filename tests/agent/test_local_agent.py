@@ -147,11 +147,12 @@ def test_environment_has_api_key_from_config(tenant_id):
         }
     ):
         agent = LocalAgent()
+        agent.client._get_auth_tenant = MagicMock(return_value="ID")
         env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
     assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-    assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
 
 @pytest.mark.parametrize("tenant_id", ["ID", None])
@@ -161,14 +162,14 @@ def test_environment_has_api_key_from_disk(monkeypatch, tenant_id):
         "prefect.Client.load_auth_from_disk",
         MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
     )
-
     with set_temporary_config({"cloud.agent.auth_token": None}):
         agent = LocalAgent()
-        env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+    agent.client._get_auth_tenant = MagicMock(return_value="ID")
+    env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
     assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-    assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
 
 def test_populate_env_vars_from_agent_config():

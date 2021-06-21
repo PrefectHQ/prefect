@@ -1376,16 +1376,18 @@ class TestK8sAgentRunConfig:
                 "cloud.agent.auth_token": None,
             }
         ):
-            job = KubernetesAgent(
+            agent = KubernetesAgent(
                 namespace="testing",
-            ).generate_job_spec(flow_run)
+            )
+            agent.client._get_auth_tenant = MagicMock(return_value="ID")
+            job = agent.generate_job_spec(flow_run)
 
         env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
         env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
     @pytest.mark.parametrize("tenant_id", ["ID", None])
     def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
@@ -1396,16 +1398,18 @@ class TestK8sAgentRunConfig:
         )
 
         flow_run = self.build_flow_run(KubernetesRun())
-        job = KubernetesAgent(
+        agent = KubernetesAgent(
             namespace="testing",
-        ).generate_job_spec(flow_run)
+        )
+        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+        job = agent.generate_job_spec(flow_run)
 
         env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
         env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
     @pytest.mark.parametrize(
         "config, agent_env_vars, run_config_env_vars, expected_logging_level",
