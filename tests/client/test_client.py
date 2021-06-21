@@ -200,13 +200,19 @@ class TestClientAuthentication:
             client._get_default_server_tenant.assert_called_once()
 
     def test_get_auth_tenant_queries_for_auth_info(self):
-        client = Client()
+        client = Client(api_key="foo")
         client.graphql = MagicMock(
             return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": "id"}}})
         )
 
         assert client._get_auth_tenant() == "id"
         client.graphql.assert_called_once_with({"query": {"auth_info": "tenant_id"}})
+
+    def test_get_auth_tenant_errors_without_auth_set(self):
+        client = Client()
+
+        with pytest.raises(ValueError, match="have not set an API key"):
+            assert client._get_auth_tenant() == "id"
 
     def test_get_default_server_tenant_gets_first_tenant(self):
         with set_temporary_config({"backend": "server"}):
