@@ -368,7 +368,9 @@ def _get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTim
     elif not task_runs:
         return None  # No scheduled task runs
 
-    task_runs = sorted(task_runs, key=lambda task_run: task_run.state_start_time)
+    task_runs = sorted(
+        task_runs, key=lambda task_run: task_run.state_start_time, reverse=True
+    )
     next_start_time = task_runs[0].state_start_time
     return cast(pendulum.DateTime, pendulum.parse(next_start_time))
 

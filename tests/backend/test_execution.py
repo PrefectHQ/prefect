@@ -7,6 +7,7 @@ from prefect.backend.execution import (
     _fail_flow_run,
     _fail_flow_run_on_exception,
     _get_flow_run_scheduled_start_time,
+    _get_next_task_run_start_time,
 )
 from prefect.engine.state import Failed, Scheduled
 from prefect.utilities.graphql import GraphQLResult
@@ -23,6 +24,53 @@ def cloud_mocks(monkeypatch):
     monkeypatch.setattr("prefect.Client", mocks.Client)
 
     return mocks
+
+
+def test_get_next_task_run_start_time_query_is_correct(cloud_mocks):
+    # Just return nothing to simplify the test / cover malformed response
+    cloud_mocks.Client().graphql.return_value = {}
+
+    with pytest.raises(ValueError, match="Unexpected result"):
+        _get_next_task_run_start_time("flow-run-id")
+
+    cloud_mocks.Client().graphql.assert_called_once_with(
+        {
+            "query": {
+                'task_run(where: { state_start_time: { _is_null: false }, flow_run_id: { _eq: "flow-run-id" }, flow_run: { state: { _eq: "Running" } } })': {
+                    "state_start_time"
+                }
+            }
+        }
+    )
+
+
+def test_get_next_task_run_start_time(cloud_mocks):
+    start_time = pendulum.now("utc")
+    cloud_mocks.Client().graphql.return_value = GraphQLResult(
+        {
+            "data": {
+                "task_run": [
+                    {"state_start_time": start_time.subtract(seconds=10).isoformat()},
+                    {"state_start_time": start_time.isoformat()},
+                    {"state_start_time": start_time.subtract(seconds=20).isoformat()},
+                ]
+            }
+        }
+    )
+
+    result = _get_next_task_run_start_time("flow-run-id")
+    assert result == start_time
+
+
+def test_get_next_task_run_start_time_returns_null_when_no_task_runs(cloud_mocks):
+    # WHen no task runs match the 'where' clause, `None` is returned
+
+    cloud_mocks.Client().graphql.return_value = GraphQLResult(
+        {"data": {"task_run": []}}
+    )
+
+    result = _get_next_task_run_start_time("flow-run-id")
+    assert result is None
 
 
 def test_get_flow_run_scheduled_start_time_from_state_time(cloud_mocks):
@@ -111,6 +159,20 @@ def test_get_flow_run_scheduled_start_time_query_is_correct(cloud_mocks):
             }
         }
     )
+
+
+def test_get_flow_run_scheduled_start_time_raises_on_no_flow_runs(cloud_mocks):
+    cloud_mocks.Client().graphql.return_value = {"data": {"flow_run": []}}
+
+    with pytest.raises(ValueError, match="No flow run exists"):
+        _get_flow_run_scheduled_start_time("flow-run-id")
+
+
+def test_get_flow_run_scheduled_start_time_raises_on_multiple_flow_runs(cloud_mocks):
+    cloud_mocks.Client().graphql.return_value = {"data": {"flow_run": [True, True]}}
+
+    with pytest.raises(ValueError, match="Found more than one flow"):
+        _get_flow_run_scheduled_start_time("flow-run-id")
 
 
 @pytest.mark.parametrize("is_finished", [True, False])
