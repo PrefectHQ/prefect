@@ -473,7 +473,7 @@ def _fail_flow_run_on_exception(
     except Exception as exc:
         message = message.format(exc=exc.__repr__())
         if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
-            _fail_flow_run(flow_run_id, message)
+            _fail_flow_run(flow_run_id, message=message)
         logger.error(message, exc_info=True)
         raise
 
@@ -490,7 +490,7 @@ def _fail_flow_run(flow_run_id: str, message: str) -> None:
         [
             dict(
                 flow_run_id=flow_run_id,  # type: ignore
-                name="prefect.backend.execution._fail_flow_run",
+                name="prefect.backend.execution",
                 message=message,
                 level="ERROR",
             )
