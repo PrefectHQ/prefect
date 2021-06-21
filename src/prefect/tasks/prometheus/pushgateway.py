@@ -1,4 +1,4 @@
-from enum import Enum
+import abc
 from prometheus_client import (
     CollectorRegistry,
     Gauge,
@@ -10,26 +10,10 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class PushMode(Enum):
-    Push = 1
-    PushAdd = 2
-
-
-class PushGaugeToGateway(Task):
-    """
-    Task that allow you to push a Gauge to prometheus [PushGateway]
-    (ttps://prometheus.io/docs/practices/pushing/).
-
-    Args:
-        - pushgateway_url (str, optional): Url of the prometheus pushgateway instance
-        - counter_name (str, optional): Name of the counter
-        - counter_description (str, optional): description of the counter
-        - grouping_key (str, optional): List of the key used to calculate the grouping key
-        - job_name (str, optional): Name of the job
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
-
-    """
+class _GaugeToGatewayBase(Task):
+    @abc.abstractmethod
+    def _push(self, **push_args):
+        pass
 
     def __init__(
         self,
@@ -56,9 +40,8 @@ class PushGaugeToGateway(Task):
     )
     def run(
         self,
-        values: List[float] = [],
-        labels: List[Dict[str, str]] = [],
-        action: PushMode = PushMode.Push,
+        values: List[float],
+        labels: List[Dict[str, str]],
         pushgateway_url: str = None,
         counter_name: str = None,
         counter_description: str = None,
@@ -66,15 +49,13 @@ class PushGaugeToGateway(Task):
         job_name: str = None,
     ) -> None:
         """
-        Task that allow you to push a Gauge to prometheus [PushGateway]
-        (ttps://prometheus.io/docs/practices/pushing/).
+        Push a Gauge to prometheus [PushGateway](ttps://prometheus.io/docs/practices/pushing/).
+        This will unpack the values and labels to create all the a collector that will be pushed
+        to pushgateway.
 
         Args:
             - values (List[float]): List of the values to push
             - labels (List[Dict[str, str]]): List of the labels to push attached to the values
-            - action (PushMode): Mode used to send to pushgateway. push or pushadd. Please check
-                        pushgateway [python doc]
-                        (https://github.com/prometheus/client_python#exporting-to-a-pushgateways)
             - pushgateway_url (str, optional): Url of the prometheus pushgateway instance
             - counter_name (str, optional): Name of the counter
             - counter_description (str, optional): description of the counter
@@ -121,17 +102,102 @@ class PushGaugeToGateway(Task):
         for k, v in zip(labels, values):
             g.labels(**k).set(v)
 
-        if action == PushMode.Push:
-            push_to_gateway(
-                pushgateway_url,
-                job=job_name,
-                grouping_key=grouping_key_values,
-                registry=registry,
-            )
-        else:
-            pushadd_to_gateway(
-                pushgateway_url,
-                job=job_name,
-                grouping_key=grouping_key_values,
-                registry=registry,
-            )
+        self._push(
+            gateway=pushgateway_url,
+            job=job_name,
+            grouping_key=grouping_key_values,
+            registry=registry,
+        )
+
+
+class PushGaugeToGateway(_GaugeToGatewayBase):
+    """
+    Task that allow you to push a Gauge to prometheus [PushGateway]
+    (https://prometheus.io/docs/practices/pushing/).This method is using the
+    [prometheus_client](https://github.com/prometheus/client_python#exporting-to-a-pushgateway).
+
+    This is a push mode task that it will remove all previous items that match the grouping key.
+
+    Some of the main usage of that task is to allow to push inside of your workflow to prometheus like
+    number of rows, quality of the values or anything you want to monitor.
+
+    Args:
+        - pushgateway_url (str, optional): Url of the prometheus pushgateway instance
+        - counter_name (str, optional): Name of the counter
+        - counter_description (str, optional): description of the counter
+        - grouping_key (str, optional): List of the key used to calculate the grouping key
+        - job_name (str, optional): Name of the job
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+
+    """
+
+    def __init__(
+        self,
+        pushgateway_url: str = None,
+        counter_name: str = None,
+        counter_description: str = None,
+        grouping_key: List[str] = None,
+        job_name: str = None,
+        **kwargs,
+    ):
+        super().__init__(
+            pushgateway_url=pushgateway_url,
+            counter_name=counter_name,
+            counter_description=counter_description,
+            job_name=job_name,
+            grouping_key=grouping_key,
+            **kwargs,
+        )
+
+    def _push(self, **push_args):
+        push_to_gateway(**push_args)
+
+
+class PushAddGaugeToGateway(_GaugeToGatewayBase):
+    """
+    Task that allow you to push add a Gauge to prometheus [PushGateway]
+    (https://prometheus.io/docs/practices/pushing/). This method is using the
+    [prometheus_client](https://github.com/prometheus/client_python#exporting-to-a-pushgateway).
+
+    This is a push add mode task that will add value into the same grouping key.
+
+    Some of the main usage of that task is to allow to push inside of your workflow to prometheus like
+    number of rows, quality of the values or anything you want to monitor.
+
+    Args:
+        - pushgateway_url (str, optional): Url of the prometheus pushgateway instance
+        - counter_name (str, optional): Name of the counter
+        - counter_description (str, optional): description of the counter
+        - grouping_key (str, optional): List of the key used to calculate the grouping key
+        - job_name (str, optional): Name of the job
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+
+    """
+
+    def __init__(
+        self,
+        pushgateway_url: str = None,
+        counter_name: str = None,
+        counter_description: str = None,
+        grouping_key: List[str] = None,
+        job_name: str = None,
+        **kwargs,
+    ):
+        super().__init__(
+            pushgateway_url=pushgateway_url,
+            counter_name=counter_name,
+            counter_description=counter_description,
+            job_name=job_name,
+            grouping_key=grouping_key,
+            **kwargs,
+        )
+
+    def _push(self, **push_args):
+        pushadd_to_gateway(**push_args)
+
+
+# class PushAddGaugeToGateway(_GaugeToGatewayBase):
+#     def _push(self, **push_args):
+#         pushadd_to_gateway(**push_args)

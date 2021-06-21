@@ -1,3 +1,3 @@
 import pytest
 
-pytest.importorskip("prometheus")
+pytest.importorskip("prometheus_client")
