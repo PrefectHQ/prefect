@@ -131,7 +131,7 @@ def login(key, token):
     client = Client(api_key=key or token, tenant_id=None)
 
     try:
-        tenant_id = client.get_auth_tenant()
+        tenant_id = client._get_auth_tenant()
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
             raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
@@ -315,7 +315,7 @@ def list_tenants():
     output = []
     for item in tenants:
         active = None
-        if item.id == (client.tenant_id or client.get_auth_tenant()):
+        if item.id == client.tenant_id:
             active = "*"
         output.append([item.name, item.slug, item.id, active])
 
@@ -380,7 +380,7 @@ def switch_tenants(id, slug, default):
             client.save_auth_to_disk()
             click.secho(
                 "Tenant restored to the default tenant for your API key: "
-                f"{client.get_auth_tenant()}",
+                f"{client._get_auth_tenant()}",
                 fg="green",
             )
             return
@@ -674,9 +674,7 @@ def status():
         click.echo("You are authenticating with an API key")
 
         try:
-            click.echo(
-                f"You are logged in to tenant {client.tenant_id or client.get_auth_tenant()}"
-            )
+            click.echo(f"You are logged in to tenant {client.tenant_id}")
         except Exception as exc:
             click.echo(f"Your authentication is not working: {exc}")
 

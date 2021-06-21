@@ -145,6 +145,8 @@ class Client:
             or prefect.context.config.cloud.get("tenant_id")
             or cached_auth.get("tenant_id")
         )
+        # If not set at this point, when `Client.tenant_id` is accessed the default
+        # tenant will be loaded and used for future requests.
 
         # Backwards compatibility for API tokens ---------------------------------------
 
@@ -188,7 +190,7 @@ class Client:
 
     # API key authentication -----------------------------------------------------------
 
-    def get_auth_tenant(self) -> str:
+    def _get_auth_tenant(self) -> str:
         """
         Get the current tenant associated with the API key being used. If the client has
         a specific tenant id set, this will verify that the given tenant id is
@@ -216,7 +218,7 @@ class Client:
                 "Your backend is set to {prefect.config.backend!r}"
             )
 
-    def get_default_server_tenant(self) -> Optional[str]:
+    def _get_default_server_tenant(self) -> Optional[str]:
         if prefect.config.backend == "server":
             response = self.graphql({"query": {"tenant": {"id"}}})
             tenants = response.get("data", {}).get("tenant", None)
@@ -233,7 +235,7 @@ class Client:
         elif prefect.config.backend == "cloud":
             raise ValueError(
                 "Default tenants are determined by authentication in Prefect Cloud. "
-                "See `get_auth_tenant` instead."
+                "See `_get_auth_tenant` instead."
             )
         else:
             raise ValueError("Unknown backend {prefect.config.backend!r}")
@@ -264,7 +266,7 @@ class Client:
         # Update the data for this API server
         contents[self._api_server_slug] = {
             "api_key": self.api_key,
-            "tenant_id": self.tenant_id,
+            "tenant_id": self._tenant_id,
         }
 
         # Update the file, including a comment blurb
@@ -292,14 +294,18 @@ class Client:
         return slugify(netloc or self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
 
     @property
-    def tenant_id(self) -> Optional[str]:
+    def tenant_id(self) -> str:
+        """
+        Retrieve the current tenant id the client is interacting with.
+
+        If it is has not been explicitly set, the default tenant id will be retrieved
+        """
         if self.api_key and prefect.config.backend == "cloud":
-            # Either the tenant id has been set or the default will be used by the
-            # backend for us
-            pass
+            if not self._tenant_id:
+                self._tenant_id = self._get_auth_tenant()
         elif prefect.config.backend == "server":
             if not self._tenant_id:
-                self._tenant_id = self.get_default_server_tenant()
+                self._tenant_id = self._get_default_server_tenant()
         else:
             # Backwards compatibility for API tokens
             if not self._tenant_id and self._api_token:
@@ -646,10 +652,10 @@ class Client:
         if token:
             headers["Authorization"] = "Bearer {}".format(token)
 
-        if self.api_key and self.tenant_id:
+        if self.api_key and self._tenant_id:
             # Attach a tenant id to the headers if using an API key since it can be
             # used accross tenants. API tokens cannot and do not need this header.
-            headers["X-PREFECT-TENANT-ID"] = self.tenant_id
+            headers["X-PREFECT-TENANT-ID"] = self._tenant_id
 
         headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
@@ -1965,7 +1971,7 @@ class Client:
                     type=agent_type,
                     name=name,
                     labels=labels or [],
-                    tenant_id=self.tenant_id,
+                    tenant_id=self._get_auth_tenant(),
                     agent_config_id=agent_config_id,
                 )
             ),

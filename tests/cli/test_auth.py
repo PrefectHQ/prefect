@@ -41,7 +41,7 @@ def test_auth_login_with_token(patch_post, monkeypatch, cloud_api):
     Client = MagicMock()
 
     # Raise an error during treating token as a key to get to token compat code
-    Client().get_auth_tenant = MagicMock(side_effect=AuthorizationError)
+    Client()._get_auth_tenant = MagicMock(side_effect=AuthorizationError)
     Client().api_key = None
 
     Client().login_to_tenant = MagicMock(return_value=True)
@@ -57,7 +57,7 @@ def test_auth_login_with_token_key_is_not_allowed(patch_post, monkeypatch, cloud
     Client = MagicMock()
 
     # Raise an error during treating token as a key to get to token compat code
-    Client().get_auth_tenant = MagicMock(side_effect=AuthorizationError)
+    Client()._get_auth_tenant = MagicMock(side_effect=AuthorizationError)
     Client().api_key = "foo"
     monkeypatch.setattr("prefect.cli.auth.Client", Client)
 
@@ -82,7 +82,7 @@ def test_auth_login_client_error(patch_post, cloud_api):
 @pytest.mark.parametrize("as_token", [True, False])
 def test_auth_login_with_api_key(patch_post, monkeypatch, cloud_api, as_token):
     Client = MagicMock()
-    Client().get_auth_tenant = MagicMock(return_value="tenant-id")
+    Client()._get_auth_tenant = MagicMock(return_value="tenant-id")
     TenantView = MagicMock()
     TenantView.from_tenant_id.return_value = prefect.backend.TenantView(
         tenant_id="id", name="Name", slug="tenant-slug"
@@ -128,7 +128,7 @@ def test_auth_logout_after_login(patch_post, monkeypatch, cloud_api):
 
     Client = MagicMock()
     # Raise an error during treating token as a key to get to token compat code
-    Client().get_auth_tenant = MagicMock(side_effect=AuthorizationError)
+    Client()._get_auth_tenant = MagicMock(side_effect=AuthorizationError)
     Client().api_key = None
     Client().login_to_tenant = MagicMock(return_value=True)
     monkeypatch.setattr("prefect.cli.auth.Client", Client)

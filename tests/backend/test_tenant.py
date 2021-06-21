@@ -95,7 +95,7 @@ def test_tenant_view_from_returns_instance(patch_post, from_method, monkeypatch)
         tenant = TenantView.from_tenant_id("fake-id")
     elif from_method == "current_tenant":
         monkeypatch.setattr(
-            "prefect.client.client.Client.get_auth_tenant",
+            "prefect.client.client.Client._get_auth_tenant",
             MagicMock(return_value="fake-id"),
         )
         tenant = TenantView.from_current_tenant()

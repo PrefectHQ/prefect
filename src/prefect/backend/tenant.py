@@ -139,4 +139,4 @@ class TenantView:
             A populated `TenantView` instance
         """
         client = Client()
-        return cls.from_tenant_id(client.tenant_id or client.get_auth_tenant())
+        return cls.from_tenant_id(client.tenant_id)
