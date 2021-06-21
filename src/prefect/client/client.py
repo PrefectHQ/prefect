@@ -1971,7 +1971,7 @@ class Client:
                     type=agent_type,
                     name=name,
                     labels=labels or [],
-                    tenant_id=self._get_auth_tenant(),
+                    tenant_id=self.tenant_id,
                     agent_config_id=agent_config_id,
                 )
             ),
