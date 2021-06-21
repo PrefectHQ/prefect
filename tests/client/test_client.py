@@ -199,7 +199,7 @@ class TestClientAuthentication:
             assert client.tenant_id == "foo"
             client._get_default_server_tenant.assert_called_once()
 
-    def test__get_auth_tenant_queries_for_auth_info(self):
+    def test_get_auth_tenant_queries_for_auth_info(self):
         client = Client()
         client.graphql = MagicMock(
             return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": "id"}}})
@@ -208,7 +208,7 @@ class TestClientAuthentication:
         assert client._get_auth_tenant() == "id"
         client.graphql.assert_called_once_with({"query": {"auth_info": "tenant_id"}})
 
-    def test__get_default_server_tenant_gets_first_tenant(self):
+    def test_get_default_server_tenant_gets_first_tenant(self):
         with set_temporary_config({"backend": "server"}):
             client = Client()
             client.graphql = MagicMock(
@@ -219,6 +219,16 @@ class TestClientAuthentication:
 
             assert client._get_default_server_tenant() == "id1"
             client.graphql.assert_called_once_with({"query": {"tenant": {"id"}}})
+
+    def test_get_default_server_tenant_raises_on_no_tenants(self):
+        with set_temporary_config({"backend": "server"}):
+            client = Client()
+            client.graphql = MagicMock(
+                return_value=GraphQLResult({"data": {"tenant": []}})
+            )
+
+            with pytest.raises(ValueError, match="no tenant"):
+                client._get_default_server_tenant()
 
 
 def test_client_posts_to_api_server(patch_post):
@@ -1708,8 +1718,8 @@ def test_get_cloud_url_different_regex(patch_post, cloud_api):
 
 
 def test_register_agent(cloud_api):
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
-        client = Client()
+    with set_temporary_config({"backend": "cloud"}):
+        client = Client(api_key="foo")
         client.graphql = MagicMock(
             return_value=GraphQLResult(
                 {

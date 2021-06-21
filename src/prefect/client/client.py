@@ -218,7 +218,7 @@ class Client:
                 "Your backend is set to {prefect.config.backend!r}"
             )
 
-    def _get_default_server_tenant(self) -> Optional[str]:
+    def _get_default_server_tenant(self) -> str:
         if prefect.config.backend == "server":
             response = self.graphql({"query": {"tenant": {"id"}}})
             tenants = response.get("data", {}).get("tenant", None)
@@ -228,7 +228,10 @@ class Client:
                 )
 
             if not tenants:  # The user has not created a tenant yet
-                return None
+                raise ValueError(
+                    "Your Prefect Server instance has no tenants. "
+                    "Create a tenant with `prefect server create-tenant`"
+                )
 
             return tenants[0].id
 
@@ -310,6 +313,12 @@ class Client:
             # Backwards compatibility for API tokens
             if not self._tenant_id and self._api_token:
                 self._init_tenant()
+
+        if not self._tenant_id:
+            raise ValueError(
+                "A tenant could not be determined. Please use `prefect auth status` "
+                "to get information about your authentication and file an issue."
+            )
 
         return self._tenant_id
 
