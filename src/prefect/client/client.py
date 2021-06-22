@@ -210,7 +210,7 @@ class Client:
         tenant_id = response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
 
         if tenant_id == "":
-            raise ValueError(
+            raise ClientError(
                 "Unexpected response from the API while querying for the default "
                 f"tenant: {response}"
             )
@@ -218,7 +218,7 @@ class Client:
         elif tenant_id is None:
             # If the backend returns a `None` value tenant id, it indicates that an API
             # token was passed in as an API key
-            raise ValueError(
+            raise AuthorizationError(
                 "An API token was used as an API key. There is no tenant associated "
                 "with API tokens. Use an API key for authentication."
             )
@@ -230,12 +230,12 @@ class Client:
             response = self.graphql({"query": {"tenant": {"id"}}})
             tenants = response.get("data", {}).get("tenant", None)
             if tenants is None:
-                raise ValueError(
+                raise ClientError(
                     f"Unexpected response from the API while querying for tenants: {response}"
                 )
 
             if not tenants:  # The user has not created a tenant yet
-                raise ValueError(
+                raise ClientError(
                     "Your Prefect Server instance has no tenants. "
                     "Create a tenant with `prefect server create-tenant`"
                 )
@@ -327,7 +327,7 @@ class Client:
                 self._tenant_id = self._get_default_server_tenant()
 
         if not self._tenant_id:
-            raise ValueError(
+            raise ClientError(
                 "A tenant could not be determined. Please use `prefect auth status` "
                 "to get information about your authentication and file an issue."
             )

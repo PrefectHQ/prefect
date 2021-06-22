@@ -18,7 +18,7 @@ from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.exceptions import ClientError
+from prefect.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import decompress
 
 
@@ -214,7 +214,9 @@ class TestClientAuthentication:
             return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": None}}})
         )
 
-        with pytest.raises(ValueError, match="API token was used as an API key"):
+        with pytest.raises(
+            AuthorizationError, match="API token was used as an API key"
+        ):
             client._get_auth_tenant()
 
     def test_get_auth_tenant_errors_without_auth_set(self):
@@ -242,7 +244,7 @@ class TestClientAuthentication:
                 return_value=GraphQLResult({"data": {"tenant": []}})
             )
 
-            with pytest.raises(ValueError, match="no tenant"):
+            with pytest.raises(ClientError, match="no tenant"):
                 client._get_default_server_tenant()
 
 
