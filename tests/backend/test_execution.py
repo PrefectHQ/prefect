@@ -1,5 +1,6 @@
 import pendulum
 import pytest
+import sys
 from unittest.mock import MagicMock
 
 import prefect
@@ -9,9 +10,11 @@ from prefect.backend.execution import (
     _get_flow_run_scheduled_start_time,
     _get_next_task_run_start_time,
     generate_flow_run_environ,
+    execute_flow_run_in_subprocess,
 )
+from prefect.backend import FlowRunView as FlowRunView
 from prefect.run_configs import UniversalRun
-from prefect.engine.state import Failed, Scheduled
+from prefect.engine.state import Failed, Scheduled, Success, Running, Submitted
 from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.configuration import set_temporary_config
 
@@ -27,6 +30,81 @@ def cloud_mocks(monkeypatch):
     monkeypatch.setattr("prefect.Client", mocks.Client)
 
     return mocks
+
+
+def test_execute_flow_run_in_subprocess(cloud_mocks, monkeypatch):
+    # Returned a scheduled flow run to start
+    cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
+    # Return a finished flow run after the first iteration
+    cloud_mocks.FlowRunView().get_latest().state = Success()
+
+    subprocess = MagicMock()
+    monkeypatch.setattr("prefect.backend.execution.subprocess", subprocess)
+    monkeypatch.setattr(
+        "prefect.backend.execution._wait_for_flow_run_start_time", MagicMock()
+    )
+
+    execute_flow_run_in_subprocess("flow-run-id")
+
+    # Should pass the correct flow run id to wait for
+    prefect.backend.execution._wait_for_flow_run_start_time.assert_called_once_with(
+        "flow-run-id"
+    )
+
+    # Calls the correct command w/ environment variables
+    subprocess.run.assert_called_once_with(
+        [sys.executable, "-m", "prefect", "execute", "flow-run"],
+        env={
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "True",
+            "PREFECT__LOGGING__LEVEL": "INFO",
+            "PREFECT__LOGGING__FORMAT": "[%(asctime)s] %(levelname)s - %(name)s | %(message)s",
+            "PREFECT__LOGGING__DATEFMT": "%Y-%m-%d %H:%M:%S%z",
+            "PREFECT__BACKEND": "cloud",
+            "PREFECT__CLOUD__API": "https://api.prefect.io",
+            "PREFECT__CLOUD__TENANT_ID": "",
+            "PREFECT__CLOUD__API_KEY": cloud_mocks.Client().api_key,
+            "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
+            "PREFECT__CONTEXT__FLOW_ID": cloud_mocks.FlowRunView.from_flow_run_id().flow_id,
+            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+        },
+    )
+
+    subprocess.run().check_returncode.assert_called_once()
+
+
+@pytest.mark.parametrize("start_state", [Submitted(), Running()])
+def test_execute_flow_run_in_subprocess_fails_if_flow_run_is_being_executed_elsewhere(
+    cloud_mocks, start_state
+):
+    cloud_mocks.FlowRunView.from_flow_run_id().state = start_state
+    with pytest.raises(RuntimeError, match="already in state"):
+        execute_flow_run_in_subprocess("flow-run-id")
+
+
+def test_execute_flow_run_in_subprocess_handles_interrupt(cloud_mocks, monkeypatch):
+    cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
+
+    subprocess = MagicMock()
+    monkeypatch.setattr("prefect.backend.execution.subprocess", subprocess)
+    monkeypatch.setattr(
+        "prefect.backend.execution._wait_for_flow_run_start_time", MagicMock()
+    )
+    monkeypatch.setattr("prefect.backend.execution._fail_flow_run", MagicMock())
+
+    subprocess.run.side_effect = KeyboardInterrupt()
+
+    # Keyboard interrupt should be re-raised
+    with pytest.raises(KeyboardInterrupt):
+        execute_flow_run_in_subprocess("flow-run-id")
+
+    # Only tried to run once
+    subprocess.run.assert_called_once()
+
+    # Flow run is failed with the proper message
+    prefect.backend.execution._fail_flow_run.assert_called_once_with(
+        flow_run_id="flow-run-id", messages="Flow run received an interrupt signal."
+    )
 
 
 def test_generate_flow_run_environ():
@@ -46,7 +124,7 @@ def test_generate_flow_run_environ():
             flow_id="flow-id",
             run_config=UniversalRun(
                 env={
-                    # Run config should take precendence
+                    # Run config should take precendence for these values
                     "A": "RUN_CONFIG",
                     "B": "RUN_CONFIG",
                     "C": None,  # Null values are excluded

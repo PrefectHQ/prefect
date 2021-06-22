@@ -75,10 +75,11 @@ def execute_flow_run_in_subprocess(
             result = subprocess.run(
                 [sys.executable, "-m", "prefect", "execute", "flow-run"], env=env
             )
+            breakpoint()
         except KeyboardInterrupt:
             _fail_flow_run(
                 flow_run_id=flow_run_id,
-                message="Flow run recieved an interrupt signal.",
+                message="Flow run received an interrupt signal.",
             )
             raise  # Reraise interrupts
         except Exception as exc:
