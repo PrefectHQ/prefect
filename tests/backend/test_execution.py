@@ -2,6 +2,7 @@ import pendulum
 import pytest
 import sys
 from unittest.mock import MagicMock
+from subprocess import CalledProcessError
 
 import prefect
 from prefect.backend.execution import (
@@ -105,6 +106,64 @@ def test_execute_flow_run_in_subprocess_handles_interrupt(cloud_mocks, monkeypat
     prefect.backend.execution._fail_flow_run.assert_called_once_with(
         flow_run_id="flow-run-id", messages="Flow run received an interrupt signal."
     )
+
+
+def test_execute_flow_run_in_subprocess_handles_unexpected_exception(
+    cloud_mocks, monkeypatch
+):
+    cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
+
+    subprocess = MagicMock()
+    monkeypatch.setattr("prefect.backend.execution.subprocess", subprocess)
+    monkeypatch.setattr(
+        "prefect.backend.execution._wait_for_flow_run_start_time", MagicMock()
+    )
+    monkeypatch.setattr("prefect.backend.execution._fail_flow_run", MagicMock())
+
+    subprocess.run.side_effect = Exception("Foobar")
+
+    # Re-raised as `RuntmeError`
+    with pytest.raises(
+        RuntimeError, match="encountered unexpected exception during execution"
+    ):
+        execute_flow_run_in_subprocess("flow-run-id")
+
+    # Only tried to run once
+    subprocess.run.assert_called_once()
+
+    # Flow run is failed with the proper message
+    prefect.backend.execution._fail_flow_run.assert_called_once_with(
+        flow_run_id="flow-run-id",
+        message="Flow run encountered unexpected exception during execution: Exception('Foobar')",
+    )
+
+
+def test_execute_flow_run_in_subprocess_handles_bad_subprocess_result(
+    cloud_mocks, monkeypatch
+):
+    cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
+
+    subprocess = MagicMock()
+    monkeypatch.setattr("prefect.backend.execution.subprocess", subprocess)
+    monkeypatch.setattr(
+        "prefect.backend.execution._wait_for_flow_run_start_time", MagicMock()
+    )
+    monkeypatch.setattr("prefect.backend.execution._fail_flow_run", MagicMock())
+
+    subprocess.CalledProcessError = CalledProcessError
+    subprocess.run.return_value.check_returncode.side_effect = CalledProcessError(
+        cmd="foo", returncode=1
+    )
+
+    # Re-raised as `RuntmeError`
+    with pytest.raises(RuntimeError, match="flow run process failed"):
+        execute_flow_run_in_subprocess("flow-run-id")
+
+    # Only tried to run once
+    subprocess.run.assert_called_once()
+
+    # Flow run is not failed at this time -- left to the FlowRunner
+    prefect.backend.execution._fail_flow_run.assert_not_called()
 
 
 def test_generate_flow_run_environ():
