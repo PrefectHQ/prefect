@@ -244,7 +244,8 @@ def test_list_tenants(patch_post, cloud_api):
     )
 
     runner = CliRunner()
-    result = runner.invoke(auth, ["list-tenants"])
+    with set_temporary_config({"cloud.api_key": "foo"}):
+        result = runner.invoke(auth, ["list-tenants"])
     assert result.exit_code == 0
     assert "id" in result.output
     assert "slug" in result.output
