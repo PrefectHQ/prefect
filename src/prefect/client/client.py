@@ -305,14 +305,14 @@ class Client:
 
         If it is has not been explicitly set, the default tenant id will be retrieved
         """
-        if self._api_token and prefect.config.backend == "cloud":
-            # Backwards compatibility for API tokens
-            if not self._tenant_id and self._api_token:
-                self._init_tenant()
+        if prefect.config.backend == "cloud":
+            if self._api_token and not self.api_key:
+                # Backwards compatibility for API tokens
+                if not self._tenant_id and self._api_token:
+                    self._init_tenant()
 
-            return self._tenant_id
+                return self._tenant_id
 
-        elif prefect.config.backend == "cloud":
             if not self._tenant_id:
                 self._tenant_id = self._get_auth_tenant()
 
