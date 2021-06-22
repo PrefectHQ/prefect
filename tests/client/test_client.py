@@ -208,6 +208,15 @@ class TestClientAuthentication:
         assert client._get_auth_tenant() == "id"
         client.graphql.assert_called_once_with({"query": {"auth_info": "tenant_id"}})
 
+    def test_get_auth_tenant_errors_with_api_token_as_keye(self):
+        client = Client(api_key="pretend-this-is-a-token")
+        client.graphql = MagicMock(
+            return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": None}}})
+        )
+
+        with pytest.raises(ValueError, match="API token was used as an API key"):
+            client._get_auth_tenant()
+
     def test_get_auth_tenant_errors_without_auth_set(self):
         client = Client()
 

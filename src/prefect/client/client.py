@@ -194,7 +194,7 @@ class Client:
         """
         Get the current tenant associated with the API key being used. If the client has
         a specific tenant id set, this will verify that the given tenant id is
-        compatible with the API key.
+        compatible with the API key because the tenant will be attached to the request.
         """
         if not prefect.config.backend == "cloud":
 
@@ -209,13 +209,18 @@ class Client:
         response = self.graphql({"query": {"auth_info": "tenant_id"}})
         tenant_id = response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
 
-        # If the backend returns a `None` value tenant id, it indicates that an API
-        # token was passed in as an API key
-
         if tenant_id == "":
             raise ValueError(
                 "Unexpected response from the API while querying for the default "
                 f"tenant: {response}"
+            )
+
+        elif tenant_id is None:
+            # If the backend returns a `None` value tenant id, it indicates that an API
+            # token was passed in as an API key
+            raise ValueError(
+                "An API token was used as an API key. There is no tenant associated "
+                "with API tokens. Use an API key for authentication."
             )
 
         return tenant_id
