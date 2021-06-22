@@ -166,6 +166,27 @@ def test_execute_flow_run_in_subprocess_handles_bad_subprocess_result(
     prefect.backend.execution._fail_flow_run.assert_not_called()
 
 
+def test_execute_flow_run_in_subprocess_loops_until_finished(cloud_mocks, monkeypatch):
+    cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
+    cloud_mocks.FlowRunView.from_flow_run_id().get_latest.side_effect = [
+        MagicMock(state=Running()),
+        MagicMock(state=Running()),
+        MagicMock(state=Success()),
+    ]
+
+    subprocess = MagicMock()
+    monkeypatch.setattr("prefect.backend.execution.subprocess", subprocess)
+    monkeypatch.setattr(
+        "prefect.backend.execution._wait_for_flow_run_start_time", MagicMock()
+    )
+    execute_flow_run_in_subprocess("flow-run-id")
+
+    # Ran the subprocess twice
+    assert subprocess.run.call_count == 2
+    # Waited each time
+    assert prefect.backend.execution._wait_for_flow_run_start_time.call_count == 2
+
+
 def test_generate_flow_run_environ():
     with set_temporary_config(
         {
