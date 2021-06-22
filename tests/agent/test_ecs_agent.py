@@ -574,7 +574,11 @@ class TestGetRunTaskKwargs:
     @pytest.mark.parametrize("tenant_id", ["ID", None])
     def test_environment_has_api_key_from_config(self, tenant_id):
         with set_temporary_config(
-            {"cloud.api_key": "TEST_KEY", "cloud.tenant_id": tenant_id}
+            {
+                "cloud.api_key": "TEST_KEY",
+                "cloud.tenant_id": tenant_id,
+                "cloud.agent.auth_token": None,
+            }
         ):
             env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
                 "containerOverrides"
@@ -582,6 +586,7 @@ class TestGetRunTaskKwargs:
             env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
         assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
     @pytest.mark.parametrize("tenant_id", ["ID", None])
@@ -598,6 +603,7 @@ class TestGetRunTaskKwargs:
         env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
         assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
 
     @pytest.mark.parametrize(

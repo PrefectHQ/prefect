@@ -170,7 +170,10 @@ class Client:
                 "API tokens are deprecated, please use API keys instead."
             )
 
-        if self._api_token and self.api_key:
+        # Warn if using both a token and API key, but only if they have different values
+        # because we pass the api key as an api token in some places for backwards
+        # compatibility
+        if self._api_token and self.api_key and self._api_token != self.api_key:
             warnings.warn(
                 "Found both an API token and an API key. API tokens have been "
                 "deprecated and it will be ignored in favor of the API key."
