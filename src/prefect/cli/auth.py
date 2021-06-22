@@ -131,34 +131,27 @@ def login(key, token):
     client = Client(api_key=key or token, tenant_id=None)
 
     try:
-        tenant_id = client.get_auth_tenant()
+        tenant_id = client._get_auth_tenant()
     except AuthorizationError:
         if key:  # We'll catch an error again later if using a token
             raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
-        if not tenant_id and key:
-            # This would be a weird case to encounter, Cloud would have to authorize the
-            # key without returning a tenant
-            raise TerminalError(
-                "Failed to find a tenant associated with the given API key!"
-            )
-
-        elif tenant_id:  # Successful login
-            if token:
-                click.secho(
-                    "WARNING: You logged in with an API key using the `--token` flag "
-                    "which is deprecated. Please use `--key` instead.",
-                    fg="yellow",
-                )
-            client.save_auth_to_disk()
-            tenant = TenantView.from_tenant_id(tenant_id)
+        if token:
             click.secho(
-                f"Logged in to Prefect Cloud tenant {tenant.name!r} ({tenant.slug})",
-                fg="green",
+                "WARNING: You logged in with an API key using the `--token` flag "
+                "which is deprecated. Please use `--key` instead.",
+                fg="yellow",
             )
-            return
+        client.tenant_id = tenant_id
+        client.save_auth_to_disk()
+        tenant = TenantView.from_tenant_id(tenant_id)
+        click.secho(
+            f"Logged in to Prefect Cloud tenant {tenant.name!r} ({tenant.slug})",
+            fg="green",
+        )
+        return
 
         # If there's not a tenant id, we've been given an actual token, fallthrough to
         # the backwards compatibility token auth
@@ -315,7 +308,7 @@ def list_tenants():
     output = []
     for item in tenants:
         active = None
-        if item.id == (client.tenant_id or client.get_auth_tenant()):
+        if item.id == client.tenant_id:
             active = "*"
         output.append([item.name, item.slug, item.id, active])
 
@@ -380,7 +373,7 @@ def switch_tenants(id, slug, default):
             client.save_auth_to_disk()
             click.secho(
                 "Tenant restored to the default tenant for your API key: "
-                f"{client.get_auth_tenant()}",
+                f"{client._get_auth_tenant()}",
                 fg="green",
             )
             return
@@ -674,9 +667,7 @@ def status():
         click.echo("You are authenticating with an API key")
 
         try:
-            click.echo(
-                f"You are logged in to tenant {client.tenant_id or client.get_auth_tenant()}"
-            )
+            click.echo(f"You are logged in to tenant {client.tenant_id}")
         except Exception as exc:
             click.echo(f"Your authentication is not working: {exc}")
 

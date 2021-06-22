@@ -18,7 +18,7 @@ from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.exceptions import ClientError
+from prefect.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import decompress
 
 
@@ -62,7 +62,7 @@ class TestClientAuthentication:
 
         # No key should be present yet
         client = Client()
-        assert client.tenant_id is None
+        assert client._tenant_id is None
 
         # Save to disk (and set an API key so we don't enter API token logic)
         client = Client(api_key="KEY", tenant_id="DISK_TENANT")
@@ -73,15 +73,15 @@ class TestClientAuthentication:
 
             # Should ignore config/disk
             client = Client(tenant_id="DIRECT_TENANT")
-            assert client.tenant_id == "DIRECT_TENANT"
+            assert client._tenant_id == "DIRECT_TENANT"
 
             # Should load from config
             client = Client()
-            assert client.tenant_id == "CONFIG_TENANT"
+            assert client._tenant_id == "CONFIG_TENANT"
 
         # Should load from disk
         client = Client()
-        assert client.tenant_id == "DISK_TENANT"
+        assert client._tenant_id == "DISK_TENANT"
 
     def test_client_save_auth_to_disk(self):
         client = Client(api_key="KEY", tenant_id="ID")
@@ -174,9 +174,17 @@ class TestClientAuthentication:
         assert "X-PREFECT-TENANT-ID" not in headers
 
     @pytest.mark.parametrize("tenant_id", [None, "id"])
-    def test_client_tenant_id_returns_none_or_set_with_api_key(self, tenant_id):
+    def test_client_tenant_id_returns_set_tenant_or_queries(self, tenant_id):
+
         client = Client(api_key="foo", tenant_id=tenant_id)
-        assert client.tenant_id == tenant_id
+        client._get_auth_tenant = MagicMock(return_value="id")
+
+        assert client.tenant_id == "id"
+
+        if not tenant_id:
+            client._get_auth_tenant.assert_called_once()
+        else:
+            client._get_auth_tenant.assert_not_called()
 
     def test_client_tenant_id_backwards_compat_for_api_tokens(self, monkeypatch):
         client = Client(api_token="foo")
@@ -187,18 +195,35 @@ class TestClientAuthentication:
     def test_client_tenant_id_gets_default_tenant_for_server(self):
         with set_temporary_config({"backend": "server"}):
             client = Client()
-            client.get_default_server_tenant = MagicMock(return_value="foo")
+            client._get_default_server_tenant = MagicMock(return_value="foo")
             assert client.tenant_id == "foo"
-            client.get_default_server_tenant.assert_called_once()
+            client._get_default_server_tenant.assert_called_once()
 
     def test_get_auth_tenant_queries_for_auth_info(self):
-        client = Client()
+        client = Client(api_key="foo")
         client.graphql = MagicMock(
             return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": "id"}}})
         )
 
-        assert client.get_auth_tenant() == "id"
+        assert client._get_auth_tenant() == "id"
         client.graphql.assert_called_once_with({"query": {"auth_info": "tenant_id"}})
+
+    def test_get_auth_tenant_errors_with_api_token_as_keye(self):
+        client = Client(api_key="pretend-this-is-a-token")
+        client.graphql = MagicMock(
+            return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": None}}})
+        )
+
+        with pytest.raises(
+            AuthorizationError, match="API token was used as an API key"
+        ):
+            client._get_auth_tenant()
+
+    def test_get_auth_tenant_errors_without_auth_set(self):
+        client = Client()
+
+        with pytest.raises(ValueError, match="have not set an API key"):
+            assert client._get_auth_tenant() == "id"
 
     def test_get_default_server_tenant_gets_first_tenant(self):
         with set_temporary_config({"backend": "server"}):
@@ -209,8 +234,18 @@ class TestClientAuthentication:
                 )
             )
 
-            assert client.get_default_server_tenant() == "id1"
+            assert client._get_default_server_tenant() == "id1"
             client.graphql.assert_called_once_with({"query": {"tenant": {"id"}}})
+
+    def test_get_default_server_tenant_raises_on_no_tenants(self):
+        with set_temporary_config({"backend": "server"}):
+            client = Client()
+            client.graphql = MagicMock(
+                return_value=GraphQLResult({"data": {"tenant": []}})
+            )
+
+            with pytest.raises(ClientError, match="no tenant"):
+                client._get_default_server_tenant()
 
 
 def test_client_posts_to_api_server(patch_post):
@@ -1699,18 +1734,41 @@ def test_get_cloud_url_different_regex(patch_post, cloud_api):
         assert url == "http://hello.prefect.io/tslug/flow-run/id2"
 
 
-def test_register_agent(patch_post, cloud_api):
-    response = {"data": {"register_agent": {"id": "ID"}}}
-
-    patch_post(response)
-
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
-        client = Client()
+def test_register_agent(cloud_api):
+    with set_temporary_config({"backend": "cloud"}):
+        client = Client(api_key="foo")
+        client.graphql = MagicMock(
+            return_value=GraphQLResult(
+                {
+                    "data": {
+                        "register_agent": {"id": "AGENT-ID"},
+                        "auth_info": {"tenant_id": "TENANT-ID"},
+                    }
+                }
+            )
+        )
 
         agent_id = client.register_agent(
             agent_type="type", name="name", labels=["1", "2"], agent_config_id="asdf"
         )
-        assert agent_id == "ID"
+
+    client.graphql.assert_called_with(
+        {
+            "mutation($input: register_agent_input!)": {
+                "register_agent(input: $input)": {"id"}
+            }
+        },
+        variables={
+            "input": {
+                "type": "type",
+                "name": "name",
+                "labels": ["1", "2"],
+                "tenant_id": "TENANT-ID",
+                "agent_config_id": "asdf",
+            }
+        },
+    )
+    assert agent_id == "AGENT-ID"
 
 
 def test_register_agent_raises_error(patch_post, cloud_api):

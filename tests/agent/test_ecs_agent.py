@@ -424,6 +424,7 @@ class TestGenerateTaskDefinition:
 class TestGetRunTaskKwargs:
     def get_run_task_kwargs(self, run_config, **kwargs):
         agent = ECSAgent(**kwargs)
+        agent.client._get_auth_tenant = MagicMock(return_value="ID")
         flow_run = GraphQLResult(
             {
                 "flow": GraphQLResult(
@@ -587,7 +588,7 @@ class TestGetRunTaskKwargs:
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
     @pytest.mark.parametrize("tenant_id", ["ID", None])
     def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
@@ -604,7 +605,7 @@ class TestGetRunTaskKwargs:
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env.get("PREFECT__CLOUD__TENANT_ID") == tenant_id
+        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
     @pytest.mark.parametrize(
         "config, agent_env_vars, run_config_env_vars, expected_logging_level",
