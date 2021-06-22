@@ -150,7 +150,7 @@ def test_execute_flow_run_in_subprocess_handles_bad_subprocess_result(
     )
     monkeypatch.setattr("prefect.backend.execution._fail_flow_run", MagicMock())
 
-    subprocess.CalledProcessError = CalledProcessError
+    subprocess.CalledProcessError = CalledProcessError  # Since we mocked the module
     subprocess.run.return_value.check_returncode.side_effect = CalledProcessError(
         cmd="foo", returncode=1
     )
