@@ -118,7 +118,6 @@ class Client:
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
-        self._tenant_id = None
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
@@ -133,18 +132,19 @@ class Client:
 
         # Load the API key
         cached_auth = self.load_auth_from_disk()
-        self.api_key = (
+        self.api_key: Optional[str] = (
             api_key
             or prefect.context.config.cloud.get("api_key")
             or cached_auth.get("api_key")
         )
 
         # Load the tenant id
-        self._tenant_id = (
+        self._tenant_id: Optional[str] = (
             tenant_id
             or prefect.context.config.cloud.get("tenant_id")
             or cached_auth.get("tenant_id")
         )
+
         # If not set at this point, when `Client.tenant_id` is accessed the default
         # tenant will be loaded and used for future requests.
 
@@ -311,7 +311,8 @@ class Client:
                 if not self._tenant_id and self._api_token:
                     self._init_tenant()
 
-                return self._tenant_id
+                # Should be set by `_init_tenant()` but we will not guarantee it
+                return self._tenant_id  # type: ignore
 
             if not self._tenant_id:
                 self._tenant_id = self._get_auth_tenant()
