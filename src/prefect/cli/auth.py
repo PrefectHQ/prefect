@@ -138,28 +138,20 @@ def login(key, token):
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
-        if not tenant_id and key:
-            # This would be a weird case to encounter, Cloud would have to authorize the
-            # key without returning a tenant
-            raise TerminalError(
-                "Failed to find a tenant associated with the given API key!"
-            )
-
-        elif tenant_id:  # Successful login
-            if token:
-                click.secho(
-                    "WARNING: You logged in with an API key using the `--token` flag "
-                    "which is deprecated. Please use `--key` instead.",
-                    fg="yellow",
-                )
-            client.tenant_id = tenant_id
-            client.save_auth_to_disk()
-            tenant = TenantView.from_tenant_id(tenant_id)
+        if token:
             click.secho(
-                f"Logged in to Prefect Cloud tenant {tenant.name!r} ({tenant.slug})",
-                fg="green",
+                "WARNING: You logged in with an API key using the `--token` flag "
+                "which is deprecated. Please use `--key` instead.",
+                fg="yellow",
             )
-            return
+        client.tenant_id = tenant_id
+        client.save_auth_to_disk()
+        tenant = TenantView.from_tenant_id(tenant_id)
+        click.secho(
+            f"Logged in to Prefect Cloud tenant {tenant.name!r} ({tenant.slug})",
+            fg="green",
+        )
+        return
 
         # If there's not a tenant id, we've been given an actual token, fallthrough to
         # the backwards compatibility token auth
