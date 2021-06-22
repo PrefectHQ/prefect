@@ -152,6 +152,7 @@ def login(key, token):
                     "which is deprecated. Please use `--key` instead.",
                     fg="yellow",
                 )
+            client.tenant_id = tenant_id
             client.save_auth_to_disk()
             tenant = TenantView.from_tenant_id(tenant_id)
             click.secho(

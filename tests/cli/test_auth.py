@@ -94,8 +94,17 @@ def test_auth_login_with_api_key(patch_post, monkeypatch, cloud_api, as_token):
     # All `--token` args are treated as keys first for easier transition
     arg = "--token" if as_token else "--key"
     result = runner.invoke(auth, ["login", arg, "test"])
+
     assert result.exit_code == 0
     assert "Logged in to Prefect Cloud tenant 'Name' (tenant-slug)" in result.output
+
+    # Client is instantiated with the correct key and null tenant
+    Client.assert_called_once_with(api_key="test", tenant_id=None)
+    # Auth tenant is retrieved to verify key
+    Client()._get_auth_tenant.assert_called_once()
+    # Auth tenant is set on Client and saved to disk
+    assert Client().tenant_id == "tenant-id"
+    Client().save_auth_to_disk.assert_called_once()
 
 
 def test_auth_login_with_api_key_client_error(patch_post, cloud_api):
