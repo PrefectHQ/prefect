@@ -38,6 +38,7 @@ See `prefect run --help` or [optional settings](#optional-settings) for addition
 - The flow run will be given a special label to indicate that it should not be picked up by an agent.
 - If the process executing the flow run fails, the flow run will be marked as failed.
 - If the flow run has a task with a long retry, the process will sleep. With agents, it would exit fully and be re-deployed when ready.
+- `breakpoint()` can be used in tasks to enter a debugging session with local executors
 
 :::
 
