@@ -324,6 +324,10 @@ RUN_EPILOG = """
 \b  Run registered flow and pipe flow run id to another program
 
 \b    $ prefect run -n "hello-world" --quiet | post_run.sh
+
+\b  Run registered flow and execute locally without an agent
+
+\b    $ prefect run -n "hello-world" --execute
 """
 
 FLOW_LOOKUP_MSG = """
@@ -426,10 +430,9 @@ See `prefect run --help` for more details on the options.
 )
 @click.option(
     "--execute",
-    "-e",
     help=(
-        "Execute the flow run in this process without an agent. If this process exits, "
-        "the flow run will be marked as 'Failed'."
+        "Execute the flow run in-process without an agent. If this process exits, the "
+        "flow run will be marked as 'Failed'."
     ),
     is_flag=True,
 )
