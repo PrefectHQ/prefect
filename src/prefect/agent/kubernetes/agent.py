@@ -227,7 +227,8 @@ class KubernetesAgent(Agent):
                                 )
 
                                 for event in sorted(
-                                    pod_events.items, key=lambda x: x.last_timestamp
+                                    pod_events.items,
+                                    key=lambda e: getattr(e, "last_timestamp", None),
                                 ):
                                     # Skip old events or events without timestamps
                                     if (
