@@ -129,14 +129,13 @@ class TestExecuteFlowRunInSubprocess:
         mocks.subprocess.run.assert_called_once()
 
         # Flow run is failed with the proper message
-        # py3.6 formats exceptions differently
-        if sys.version_info >= (3, 7):
-            mocks.fail_flow_run.assert_called_once_with(
-                flow_run_id="flow-run-id",
-                message="Flow run encountered unexpected exception during execution: Exception('Foobar')",
-            )
-        else:
-            mocks.fail_flow_run.assert_called_once()
+        mocks.fail_flow_run.assert_called_once_with(
+            flow_run_id="flow-run-id",
+            message=(
+                "Flow run encountered unexpected exception during execution: "
+                f"{Exception('Foobar')!r}"
+            ),
+        )
 
     def test_handles_bad_subprocess_result(self, cloud_mocks, mocks):
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
@@ -487,17 +486,13 @@ def test_fail_flow_run_on_exception(monkeypatch, cloud_mocks, is_finished, caplo
     if is_finished:
         prefect.backend.execution._fail_flow_run.assert_not_called()
     else:
-        # py3.6 formats exceptions differently
-        if sys.version_info >= (3, 7):
-            prefect.backend.execution._fail_flow_run.assert_called_once_with(
-                "flow-run-id",
-                message="fail message: ValueError('Exception message')",
-            )
-        else:
-            prefect.backend.execution._fail_flow_run.assert_called_once()
+        prefect.backend.execution._fail_flow_run.assert_called_once_with(
+            "flow-run-id",
+            message=f"fail message: {ValueError('Exception message')!r}",
+        )
 
     # Logs locally
-    assert "fail message: ValueError('Exception message')" in caplog.text
+    assert f"fail message: {ValueError('Exception message')!r}" in caplog.text
     assert "Traceback" in caplog.text
 
 
