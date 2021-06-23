@@ -19,14 +19,16 @@ class DockerLoggingTestingUtilityMixin:
     def assert_logs_twice_on_success(task, caplog):
 
         with caplog.at_level(logging.DEBUG, logger=task.logger.name):
-            task.run()
-            assert len(caplog.records) == 2
+            # Silence error logs from asyncio/tornado
+            with caplog.at_level(logging.CRITICAL, logger="asyncio"):
+                task.run()
+                assert len(caplog.records) == 2
 
-            initial = caplog.records[0]
-            final = caplog.records[1]
+                initial = caplog.records[0]
+                final = caplog.records[1]
 
-            assert any(image in initial.msg for image in ["image", "Image"])
-            assert any(image in initial.msg for image in ["image", "Image"])
+                assert any(image in initial.msg for image in ["image", "Image"])
+                assert any(image in initial.msg for image in ["image", "Image"])
 
     @staticmethod
     def assert_logs_once_on_docker_api_failure(task, caplog):
