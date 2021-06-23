@@ -18,9 +18,9 @@ class DockerLoggingTestingUtilityMixin:
     @staticmethod
     def assert_logs_twice_on_success(task, caplog):
 
-        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
-            # Silence error logs from asyncio/tornado
-            with caplog.at_level(logging.CRITICAL, logger="asyncio"):
+        # Silence error logs from asyncio/tornado
+        with caplog.at_level(logging.CRITICAL, logger="asyncio"):
+            with caplog.at_level(logging.DEBUG, logger=task.logger.name):
                 task.run()
                 assert len(caplog.records) == 2
 
