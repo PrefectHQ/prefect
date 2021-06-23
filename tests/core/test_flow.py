@@ -3343,6 +3343,14 @@ class TestTerminalStateHandler:
         assert flow_state.is_successful()
         assert flow_state.message == "Custom message here"
 
+    def test_terminal_state_handler_check_is_backwards_compatible(self):
+        with Flow("test") as flow:
+            pass
+
+        flow.__dict__.pop("terminal_state_handler")
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+
     def test_flow_state_used_if_terminal_state_handler_does_not_return_a_new_state(
         self,
     ):
