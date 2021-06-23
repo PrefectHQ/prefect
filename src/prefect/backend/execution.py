@@ -306,9 +306,9 @@ def _wait_for_flow_run_start_time(flow_run_id: str) -> None:
             logger.info(message + "sleeping before trying to run flow...")
             time.sleep(interval)
         else:  # is scheduled in the past
-            logger.debug(message + "trying to run flow now...")
+            logger.debug(message + "moving to next check...")
     else:
-        logger.debug("No scheduled time found; trying to run flow now...")
+        logger.debug("No scheduled time found; moving to next check...")
 
     logger.debug("Checking for retried task runs...")
     next_task_start = _get_next_task_run_start_time(flow_run_id)
