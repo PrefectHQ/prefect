@@ -104,7 +104,7 @@ def test_execute_flow_run_in_subprocess_handles_interrupt(cloud_mocks, monkeypat
 
     # Flow run is failed with the proper message
     prefect.backend.execution._fail_flow_run.assert_called_once_with(
-        flow_run_id="flow-run-id", messages="Flow run received an interrupt signal."
+        flow_run_id="flow-run-id", message="Flow run received an interrupt signal."
     )
 
 
