@@ -1,7 +1,7 @@
 import pendulum
 import pytest
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from subprocess import CalledProcessError
 
 import prefect
@@ -223,6 +223,101 @@ def test_generate_flow_run_environ():
         "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
         "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
     }
+
+
+class TestWaitForFlowRunStartTime:
+    @pytest.fixture()
+    def timing_mocks(self, monkeypatch):
+        class Mocks:
+            get_flow_run_scheduled_start_time = MagicMock()
+            get_next_task_run_start_time = MagicMock()
+            sleep = MagicMock()
+            now = MagicMock(return_value=pendulum.now())
+
+        mocks = Mocks()
+        monkeypatch.setattr(
+            "prefect.backend.execution._get_flow_run_scheduled_start_time",
+            mocks.get_flow_run_scheduled_start_time,
+        )
+        monkeypatch.setattr(
+            "prefect.backend.execution._get_next_task_run_start_time",
+            mocks.get_next_task_run_start_time,
+        )
+        monkeypatch.setattr("prefect.backend.execution.time.sleep", mocks.sleep)
+        monkeypatch.setattr("prefect.backend.execution.pendulum.now", mocks.now)
+        return mocks
+
+    def test_flow_run_is_ready_immediately(self, timing_mocks):
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = None
+        timing_mocks.get_next_task_run_start_time.return_value = None
+
+        _wait_for_flow_run_start_time("flow-run-id")
+
+        # Called timing functions
+        timing_mocks.get_flow_run_scheduled_start_time.assert_called_once_with(
+            "flow-run-id"
+        )
+        timing_mocks.get_next_task_run_start_time.assert_called_once_with("flow-run-id")
+
+        # Returned without sleeping
+        timing_mocks.sleep.assert_not_called()
+
+    def test_flow_run_is_scheduled_in_the_future(self, timing_mocks):
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = (
+            timing_mocks.now().add(seconds=10)
+        )
+        timing_mocks.get_next_task_run_start_time.return_value = None
+
+        _wait_for_flow_run_start_time("flow-run-id")
+
+        # Slept for the correct interval
+        timing_mocks.sleep.assert_called_once_with(10)
+
+    def test_task_run_is_scheduled_in_the_future(self, timing_mocks):
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = None
+        timing_mocks.get_next_task_run_start_time.return_value = timing_mocks.now().add(
+            seconds=10
+        )
+
+        _wait_for_flow_run_start_time("flow-run-id")
+
+        # Slept for the correct interval
+        timing_mocks.sleep.assert_called_once_with(10)
+
+    def test_flow_and_task_run_are_scheduled_in_the_future(self, timing_mocks):
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = (
+            timing_mocks.now().add(seconds=10)
+        )
+        timing_mocks.get_next_task_run_start_time.return_value = timing_mocks.now().add(
+            seconds=20
+        )
+
+        _wait_for_flow_run_start_time("flow-run-id")
+
+        # Slept for the correct interval in order
+        timing_mocks.sleep.assert_has_calls([call(10), call(20)])
+
+    def test_flow_run_is_scheduled_in_the_past(self, timing_mocks):
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = (
+            timing_mocks.now().subtract(seconds=10)
+        )
+        timing_mocks.get_next_task_run_start_time.return_value = None
+
+        _wait_for_flow_run_start_time("flow-run-id")
+
+        # Did not sleep
+        timing_mocks.sleep.assert_not_called()
+
+    def test_task_run_is_scheduled_in_the_past(self, timing_mocks):
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = None
+        timing_mocks.get_next_task_run_start_time.return_value = (
+            timing_mocks.now().subtract(seconds=10)
+        )
+
+        _wait_for_flow_run_start_time("flow-run-id")
+
+        # Did not sleep
+        timing_mocks.sleep.assert_not_called()
 
 
 def test_get_next_task_run_start_time_query_is_correct(cloud_mocks):
