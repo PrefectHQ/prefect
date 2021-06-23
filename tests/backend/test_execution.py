@@ -50,7 +50,7 @@ class TestExecuteFlowRunInSubprocess:
         )
         monkeypatch.setattr("prefect.backend.execution._fail_flow_run", MagicMock())
 
-    def test_execute_flow_run_in_subprocess(self, cloud_mocks, subprocess):
+    def test_creates_subprocess_correctly(self, cloud_mocks, subprocess):
         # Returned a scheduled flow run to start
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
         # Return a finished flow run after the first iteration
@@ -85,16 +85,14 @@ class TestExecuteFlowRunInSubprocess:
         subprocess.run().check_returncode.assert_called_once()
 
     @pytest.mark.parametrize("start_state", [Submitted(), Running()])
-    def test_execute_flow_run_in_subprocess_fails_if_flow_run_is_being_executed_elsewhere(
+    def test_fails_immediately_if_flow_run_is_being_executed_elsewhere(
         self, cloud_mocks, start_state
     ):
         cloud_mocks.FlowRunView.from_flow_run_id().state = start_state
         with pytest.raises(RuntimeError, match="already in state"):
             execute_flow_run_in_subprocess("flow-run-id")
 
-    def test_execute_flow_run_in_subprocess_handles_interrupt(
-        self, cloud_mocks, subprocess
-    ):
+    def test_handles_signal_interrupt(self, cloud_mocks, subprocess):
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
 
         subprocess.run.side_effect = KeyboardInterrupt()
@@ -111,9 +109,7 @@ class TestExecuteFlowRunInSubprocess:
             flow_run_id="flow-run-id", message="Flow run received an interrupt signal."
         )
 
-    def test_execute_flow_run_in_subprocess_handles_unexpected_exception(
-        self, cloud_mocks, subprocess
-    ):
+    def test_handles_unexpected_exception(self, cloud_mocks, subprocess):
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
 
         subprocess.run.side_effect = Exception("Foobar")
@@ -133,9 +129,7 @@ class TestExecuteFlowRunInSubprocess:
             message="Flow run encountered unexpected exception during execution: Exception('Foobar')",
         )
 
-    def test_execute_flow_run_in_subprocess_handles_bad_subprocess_result(
-        self, cloud_mocks, subprocess
-    ):
+    def test_handles_bad_subprocess_result(self, cloud_mocks, subprocess):
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
         subprocess.run.return_value.check_returncode.side_effect = CalledProcessError(
             cmd="foo", returncode=1
@@ -151,9 +145,7 @@ class TestExecuteFlowRunInSubprocess:
         # Flow run is not failed at this time -- left to the FlowRunner
         prefect.backend.execution._fail_flow_run.assert_not_called()
 
-    def test_execute_flow_run_in_subprocess_loops_until_finished(
-        self, cloud_mocks, subprocess
-    ):
+    def test_loops_until_flow_run_is_finished(self, cloud_mocks, subprocess):
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
         cloud_mocks.FlowRunView.from_flow_run_id().get_latest.side_effect = [
             MagicMock(state=Running()),
