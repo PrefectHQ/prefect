@@ -29,6 +29,18 @@ See `prefect run --help` or [optional settings](#optional-settings) for addition
 `prefect run` can be used to execute a local flow as well if you provide a `--path` or a `--module` to load the flow from
 :::
 
+
+::: tip Agentless flow run execution
+
+`prefect run` can be used to create an execute a flow run in the current environment, without requiring an agent. Just provide the `--execute` flag. This allows you to take owernship of your flows execution environment or run flows locally while retaining the benefits of the backend API. There are a few different behaviors from typical flow runs:
+
+- Other than environment variables, your `RunConfig` will be ignored; by using this, you are taking ownership of your flow's environment.
+- The flow run will be given a special label to indicate that it should not be picked up by an agent.
+- If the process executing the flow run fails, the flow run will be marked as failed.
+- If the flow run has a task with a long retry, the process will sleep. With agents, it would exit fully and be re-deployed when ready.
+
+:::
+
 ## Python client
 
 Flow runs can be created using the Prefect `Client` interface in the `prefect` core Python library:
