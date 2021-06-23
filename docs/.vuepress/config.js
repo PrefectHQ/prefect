@@ -200,13 +200,12 @@ module.exports = {
           collapsable: true,
           children: [
             'concepts/api',
+            'concepts/api_keys',
             'concepts/cli',
-            'concepts/projects',
             'concepts/flows',
+            'concepts/projects',
             'concepts/kv_store',
             'concepts/secrets',
-            'concepts/api_keys',
-            'concepts/roles',
             'concepts/automations',
             'concepts/cloud_hooks',
             'concepts/services'
@@ -259,6 +258,13 @@ module.exports = {
             'ui/task-run',
             'ui/interactive-api',
             'ui/team-settings'
+          ]
+        },
+        {
+          title: 'RBAC',
+          collapsable: true,
+          children: [
+            'rbac/overview'
           ]
         },
         {

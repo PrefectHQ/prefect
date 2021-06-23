@@ -58,7 +58,7 @@ Because of [Prefect's innovative Hybrid Model](https://medium.com/the-prefect-bl
 
 Prefect Cloud supports users as a first-class concept, which allows for:
 - Permissioned access to the UI through [Auth0](https://auth0.com/)
-- Different user types, including Admin and Read-only
+- [Customizable access controls](/orchestration/rbac/overview.html)
 - An authenticated GraphQL API that can only be accessed via special authorization tokens
 - A full team management experience
 
