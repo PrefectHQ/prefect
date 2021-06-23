@@ -230,10 +230,17 @@ class KubernetesAgent(Agent):
                                     pod_events.items,
                                     key=lambda e: getattr(e, "last_timestamp", None),
                                 ):
-                                    # Skip old events or events without timestamps
+                                    # Skip events without timestamps
+                                    if not getattr(event, "last_timestamp", None):
+                                        self.logger.debug(
+                                            f"Encountered K8s event on pod {pod_name!r}"
+                                            " with no timestamp: {event!r}"
+                                        )
+                                        continue
+
+                                    # Skip old events
                                     if (
-                                        not event.last_timestamp
-                                        or event.last_timestamp
+                                        event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
                                             pod_name
                                         ]
