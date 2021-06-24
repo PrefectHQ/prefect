@@ -125,7 +125,7 @@ def execute_flow_run(
 
     Args:
         - flow_run_id: The flow run id to execute; this run id must exist in the database
-        - flow: A Flow object can be passed to execute a flow without loading t from
+        - flow: A Flow object can be passed to execute a flow without loading it from
             Storage. If `None`, the flow's Storage metadata will be pulled from the
             API and used to get a functional instance of the Flow and its tasks.
         - runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
