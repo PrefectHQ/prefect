@@ -7,6 +7,7 @@ import uuid
 from typing import Optional, Iterable, List, Any
 
 import json
+import pendulum
 import yaml
 
 import prefect
@@ -228,8 +229,15 @@ class KubernetesAgent(Agent):
 
                                 for event in sorted(
                                     pod_events.items,
-                                    key=lambda e: getattr(e, "last_timestamp", None),
+                                    key=lambda e: (
+                                        # Some events are missing timestamp attrs and
+                                        # `None` is not sortable vs datetimes so we
+                                        # default to 'now'
+                                        getattr(e, "last_timestamp", None)
+                                        or pendulum.now()
+                                    ),
                                 ):
+
                                     # Skip events without timestamps
                                     if not getattr(event, "last_timestamp", None):
                                         self.logger.debug(

@@ -1,8 +1,11 @@
 import json
 from unittest.mock import MagicMock
-
+from dataclasses import dataclass
+import datetime
 import pendulum
+import logging
 import pytest
+import re
 
 pytest.importorskip("kubernetes")
 
@@ -1130,6 +1133,63 @@ def test_k8s_agent_manage_pending_pods(monkeypatch, cloud_api):
     agent.manage_jobs()
 
     assert agent.job_pod_event_timestamps["my_job"]["pod_name"] == dt
+
+
+def test_k8s_agent_manage_jobs_event_logging_handles_bad_timestamps(
+    monkeypatch, cloud_api, caplog
+):
+
+    agent = KubernetesAgent()
+
+    agent.client = MagicMock()
+
+    agent.batch_client = MagicMock()
+    # Only run once
+    agent.batch_client.list_namespaced_job().metadata._continue = 0
+    # List a job
+    job = MagicMock()
+    # Only incomplete job logs are displayed
+    job.status.failed = job.status.succeeded = False
+    agent.batch_client.list_namespaced_job().items = [job]
+
+    agent.core_client = MagicMock()
+    # List a pod
+    pod = MagicMock()
+    pod.status.phase = "Pending"  # Logs are displayed for 'Pending' pods
+    agent.core_client.list_namespaced_pod().items = [pod, MagicMock()]
+
+    @dataclass
+    class Event:
+        last_timestamp: datetime.datetime = None
+        reason: str = "reason"
+        message: str = "message"
+
+    event_without_timestamp = Event(message="no timestamp attr")
+    event_without_timestamp.__dict__.pop("last_timestamp")
+
+    agent.core_client.list_namespaced_event.return_value.items = [
+        Event(last_timestamp=pendulum.now(), message="working log"),
+        Event(message="null timestamp"),
+        event_without_timestamp,
+    ]
+
+    agent.logger = MagicMock()
+
+    agent.manage_jobs()
+
+    # One event log was streamed
+    agent.client.write_run_logs.assert_called_once()
+    assert "working log" in agent.client.write_run_logs.call_args[0][0][0]["message"]
+
+    debug_logs = [call[0][0] for call in agent.logger.debug.call_args_list]
+    assert any(
+        re.match("Encountered K8s event .* with no timestamp: .*null timestamp", l)
+        for l in debug_logs
+    )
+    assert any(
+        re.match("Encountered K8s event .* with no timestamp: .*no timestamp attr", l)
+        for l in debug_logs
+    )
 
 
 class TestK8sAgentRunConfig:
