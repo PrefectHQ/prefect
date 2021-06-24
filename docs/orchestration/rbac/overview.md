@@ -12,7 +12,7 @@ Prefect Cloud contains three default roles
 
 - Administrator
 - User
-- Restricted User
+- Read Only User
 
 Default roles cannot be modified.
 
@@ -24,7 +24,7 @@ Administrators have all permissions given to users, but are also able to activel
 
 Users have permission to perform all actions required for daily use of Prefect Cloud; this includes registering new flows, kicking off flow runs, etc. They do not have permission to perform actions that impact other members of the team, meaning they cannot change the roles of their teammates, invite others to their tenant, etc.
 
-#### Restricted Users
+#### Read Only Users
 
 Restricted users are able to view all pages as a normal user would, but are unable to take any actions in Prefect Cloud. For example, they cannot create projects, kick off flow runs, etc. In essence, restricted users are read-only members of a team.
 
