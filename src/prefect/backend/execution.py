@@ -335,7 +335,7 @@ def _get_next_task_run_start_time(flow_run_id: str) -> Optional[pendulum.DateTim
     'Running' state and attaching a start time to the task runs that need to be retried.
     This function checks for a long retry by querying for task runs that have a start
     time set. This allows us to wait until this run time is reached before starting
-    flow run execution. If we starterd execution, the runner would just walk the DAG and
+    flow run execution. If we started execution, the runner would just walk the DAG and
     exit since the task run is not ready to begin yet.
 
     Args:
