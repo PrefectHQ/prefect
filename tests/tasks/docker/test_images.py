@@ -17,13 +17,15 @@ from prefect.tasks.docker import (
 class DockerLoggingTestingUtilityMixin:
     @staticmethod
     def assert_logs_twice_on_success(task, caplog):
-
-        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+        with caplog.at_level(logging.DEBUG):
             task.run()
-            assert len(caplog.records) == 2
+            # Reduce to relevant records
+            records = [r for r in caplog.records if r.name == task.logger.name]
 
-            initial = caplog.records[0]
-            final = caplog.records[1]
+            assert len(records) == 2
+
+            initial = records[0]
+            final = records[1]
 
             assert any(image in initial.msg for image in ["image", "Image"])
             assert any(image in initial.msg for image in ["image", "Image"])
