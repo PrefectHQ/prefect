@@ -12,8 +12,10 @@ class KafkaBatchConsume(Task):
     Args:
         - bootstrap_servers (str, optional): comma separated host and port pairs that are the
             addresses of kafka brokers.
-        - group_id (str, optional): name of the consumer group the consumer will belong to
-        - topics (List[str], required): list of topic names to consume messages from
+        - group_id (str, required): name of the consumer group the consumer will belong to.
+            Must be specified either at init or runtime.
+        - topics (List[str], required): list of topic names to consume messages from. Must
+            be specified either at init or runtime.
         - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
         - auto_offset_reset (str, optional): configurable offset reset policy
         - message_consume_limit (int, optional): max number of messages to consume before closing
@@ -69,16 +71,16 @@ class KafkaBatchConsume(Task):
         Run method for this Task. Invoked by calling this Task after initialization within a
         Flow context, or by using `Task.bind`.
         Args:
-        - bootstrap_servers (str, required): comma separated host and port pairs that are the
-            addresses of kafka brokers
-        - group_id (str, required): name of the consumer group the consumer will belong to
-        - topics (List[str], required): list of topic names to consume messages from
-        - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
-        - auto_offset_reset (str, optional): configurable offset reset policy
-        - message_consume_limit (int, optional): max number of messages to consume before closing
-            the consumer
-        - kafka_configs (dict, optional): a dict of kafka client configuration properties used to
-            construct the consumer.
+            - bootstrap_servers (str, required): comma separated host and port pairs that are the
+                addresses of kafka brokers
+            - group_id (str, required): name of the consumer group the consumer will belong to
+            - topics (List[str], required): list of topic names to consume messages from
+            - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
+            - auto_offset_reset (str, optional): configurable offset reset policy
+            - message_consume_limit (int, optional): max number of messages to consume before closing
+                the consumer
+            - kafka_configs (dict, optional): a dict of kafka client configuration properties used to
+                construct the consumer.
         Returns:
             - List of consumed messages
         """
@@ -140,7 +142,8 @@ class KafkaBatchProduce(Task):
     Args:
         - bootstrap_servers (str, required): comma separated host and port pairs that are the
             addresses of kafka brokers
-        - topic (str, required): name of topic to produce messages to
+        - topic (str, required): name of topic to produce messages to. Must be specified
+            either at init or runtime.
         - messages (List[dict], required): list of messages to produce into a topic where
             a single message is a dictionary with a key and a value.
         - flush_threshold (int, optional): threshold of messages produced before flushing
