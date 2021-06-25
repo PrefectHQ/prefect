@@ -26,10 +26,10 @@ class MySQLExecute(Task):
 
     def __init__(
         self,
-        db_name: str,
-        user: str,
-        password: str,
-        host: str,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
         port: int = 3306,
         query: str = None,
         commit: bool = False,
@@ -46,32 +46,58 @@ class MySQLExecute(Task):
         self.charset = charset
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "commit", "charset")
-    def run(self, query: str, commit: bool = False, charset: str = "utf8mb4") -> int:
+    @defaults_from_attrs(
+        "db_name", "user", "password", "host", "port", "query", "commit", "charset"
+    )
+    def run(
+        self,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
+        port: int = None,
+        query: str = None,
+        commit: bool = None,
+        charset: str = None,
+    ) -> int:
         """
         Task run method. Executes a query against MySQL database.
 
         Args:
+            - db_name (str): name of MySQL database
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to MySQL database, defaults to 3307
+                if not provided
             - query (str, optional): query to execute against database
-            - commit (bool, optional): set to True to commit transaction, defaults to False
-            - charset (str, optional): charset of the query, defaults to "utf8mb4"
+            - commit (bool, optional): set to True to commit transaction, defaults to false
+            - charset (str, optional): charset you want to use (defaults to utf8mb4)
 
         Returns:
             - executed (int): number of affected rows
 
         Raises:
-            - pymysql.MySQLError
+            - pymysql.MySQLError: if exception occurs when executing the query
         """
+        if not db_name:
+            raise ValueError("A db_name must be provided")
+        if not user:
+            raise ValueError("A user must be provided")
+        if not password:
+            raise ValueError("A password must be provided")
+        if not host:
+            raise ValueError("A host must be provided")
         if not query:
             raise ValueError("A query string must be provided")
 
         conn = pymysql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.password,
-            db=self.db_name,
-            charset=self.charset,
-            port=self.port,
+            host=(host or self.host),
+            user=(user or self.user),
+            password=(password or self.password),
+            db=(db_name or self.db_name),
+            charset=(charset or self.charset),
+            port=(port or self.port),
         )
 
         try:
@@ -117,10 +143,10 @@ class MySQLFetch(Task):
 
     def __init__(
         self,
-        db_name: str,
-        user: str,
-        password: str,
-        host: str,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
         port: int = 3306,
         fetch: str = "one",
         fetch_count: int = 10,
@@ -144,13 +170,27 @@ class MySQLFetch(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "fetch", "fetch_count", "query", "commit", "charset", "cursor_type"
+        "db_name",
+        "user",
+        "password",
+        "host",
+        "fetch",
+        "fetch_count",
+        "query",
+        "commit",
+        "charset",
+        "cursor_type",
     )
     def run(
         self,
-        query: str,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
+        port: int = None,
         fetch: str = "one",
         fetch_count: int = 10,
+        query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
         cursor_type: Union[str, Callable] = "cursor",
@@ -159,6 +199,12 @@ class MySQLFetch(Task):
         Task run method. Executes a query against MySQL database and fetches results.
 
         Args:
+            - db_name (str): name of MySQL database
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not
+                provided
             - fetch (str, optional): one of "one" "many" or "all", used to determine how many
                 results to fetch from executed query
             - fetch_count (int, optional): if fetch = 'many', determines the number of results
@@ -176,9 +222,16 @@ class MySQLFetch(Task):
         Raises:
             - pymysql.MySQLError
         """
+        if not db_name:
+            raise ValueError("An db_name must be provided")
+        if not user:
+            raise ValueError("A user must be provided")
+        if not password:
+            raise ValueError("A password must be provided")
+        if not host:
+            raise ValueError("A host must be provided")
         if not query:
             raise ValueError("A query string must be provided")
-
         if fetch not in {"one", "many", "all"}:
             raise ValueError(
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'all')"
@@ -205,12 +258,12 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.password,
-            db=self.db_name,
-            charset=self.charset,
-            port=self.port,
+            host=(host or self.host),
+            user=(user or self.user),
+            password=(password or self.password),
+            db=(db_name or self.db_name),
+            charset=(charset or self.charset),
+            port=(port or self.port),
             cursorclass=cursor_class,
         )
 

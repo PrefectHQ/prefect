@@ -109,9 +109,13 @@ class SnowflakeQuery(Task):
             - List[List]: output of cursor.fetchall()
 
         Raises:
-            - ValueError: if query parameter is None or a blank string
+            - ValueError: if a required is not supplied
             - DatabaseError: if exception occurs when executing the query
         """
+        if not account:
+            raise ValueError("An account must be provided")
+        if not user:
+            raise ValueError("A user must be provided")
         if not query:
             raise ValueError("A query string must be provided")
 
@@ -255,6 +259,10 @@ class SnowflakeQueriesFromFile(Task):
             - DatabaseError: if exception occurs when executing the query
             - FileNotFoundError: if File does not exist
         """
+        if not account:
+            raise ValueError("An account must be provided")
+        if not user:
+            raise ValueError("A user must be provided")
         if not file_path:
             raise ValueError("A file path must be provided")
 

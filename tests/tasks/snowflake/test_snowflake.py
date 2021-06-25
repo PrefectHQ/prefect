@@ -47,6 +47,17 @@ class TestSnowflakeQuery:
 
         assert output == ["TESTDB"]
 
+    def test_required_parameters(self):
+        # missing account
+        with pytest.raises(ValueError):
+            SnowflakeQuery().run(user="test", password="test")
+        # missing user
+        with pytest.raises(ValueError):
+            SnowflakeQuery().run(account="test", password="test")
+        # missing query
+        with pytest.raises(ValueError):
+            SnowflakeQuery().run(account="test", user="test", password="test")
+
     def test_query_string_must_be_provided(self):
         task = SnowflakeQuery(
             account="test", user="test", password="test", warehouse="test"
@@ -133,6 +144,17 @@ class TestSnowflakeQueriesFromFile:
 
         # The result is a list because multiple queries are executed
         assert output == ["TESTDB"]
+
+    def test_required_parameters(self):
+        # missing account
+        with pytest.raises(ValueError):
+            SnowflakeQuery().run(user="test", password="test")
+        # missing user
+        with pytest.raises(ValueError):
+            SnowflakeQuery().run(account="test", password="test")
+        # missing file
+        with pytest.raises(ValueError):
+            SnowflakeQuery().run(account="test", user="test", password="test")
 
     def test_file_path_must_be_provided(self):
         task = SnowflakeQueriesFromFile(

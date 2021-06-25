@@ -9,10 +9,28 @@ class TestMySQLExecute:
         task = MySQLExecute(db_name="test", user="test", password="test", host="test")
         assert (task.commit is False) and (task.charset == "utf8mb4")
 
-    def test_query_string_must_be_provided(self):
-        task = MySQLExecute(db_name="test", user="test", password="test", host="test")
+    def test_required_parameters(self):
+        # missing db_name
+        with pytest.raises(ValueError, match="A db_name must be provided"):
+            MySQLExecute().run(user="test", password="test", host="test", query="test")
+        # missing user
+        with pytest.raises(ValueError, match="A user must be provided"):
+            MySQLExecute().run(
+                db_name="test", password="test", host="test", query="test"
+            )
+        # missing password
+        with pytest.raises(ValueError, match="A password must be provided"):
+            MySQLExecute().run(db_name="test", user="test", host="test", query="test")
+        # missing host
+        with pytest.raises(ValueError, match="A host must be provided"):
+            MySQLExecute().run(
+                db_name="test", user="test", password="test", query="test"
+            )
+        # missing query
         with pytest.raises(ValueError, match="A query string must be provided"):
-            task.run()
+            MySQLExecute().run(
+                db_name="test", user="test", password="test", host="test"
+            )
 
 
 class TestMySQLFetch:
@@ -20,10 +38,28 @@ class TestMySQLFetch:
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
         assert task.fetch == "one"
 
-    def test_query_string_must_be_provided(self):
-        task = MySQLFetch(db_name="test", user="test", password="test", host="test")
+    def test_required_parameters(self):
+        # missing db_name
+        with pytest.raises(ValueError, match="A db_name must be provided"):
+            MySQLExecute().run(user="test", password="test", host="test", query="test")
+        # missing user
+        with pytest.raises(ValueError, match="A user must be provided"):
+            MySQLExecute().run(
+                db_name="test", password="test", host="test", query="test"
+            )
+        # missing password
+        with pytest.raises(ValueError, match="A password must be provided"):
+            MySQLExecute().run(db_name="test", user="test", host="test", query="test")
+        # missing host
+        with pytest.raises(ValueError, match="A host must be provided"):
+            MySQLExecute().run(
+                db_name="test", user="test", password="test", query="test"
+            )
+        # missing query
         with pytest.raises(ValueError, match="A query string must be provided"):
-            task.run()
+            MySQLExecute().run(
+                db_name="test", user="test", password="test", host="test"
+            )
 
     def test_bad_fetch_param_raises(self):
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
