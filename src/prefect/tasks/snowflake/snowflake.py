@@ -293,7 +293,6 @@ class SnowflakeQueriesFromFile(Task):
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
-
             # load query from file
             query = Path(file_path).read_text()
 
