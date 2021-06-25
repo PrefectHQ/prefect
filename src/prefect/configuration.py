@@ -237,10 +237,9 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
 
                 # place the env var in the flat config as a compound key
                 if env_var_option.upper().startswith("CONTEXT__SECRETS"):
+                    # Lowercase `context__secrets` but retain case of the secret keys
+                    env_var_option.replace("CONTEXT__SECRETS", "context__secrets")
                     formatted_option = env_var_option.split("__")
-                    formatted_option[:-1] = [
-                        val.lower() for val in formatted_option[:-1]
-                    ]
                     config_option = collections.CompoundKey(formatted_option)
                 else:
                     config_option = collections.CompoundKey(
