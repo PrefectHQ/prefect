@@ -185,7 +185,7 @@ def execute_flow_run(
 
     # Execute the flow, this call will block until exit
     logger.info(
-        f"Beginning execution of flow run {flow_run.name!r} from {flow_metadata.name!r} "
+        f"Beginning execution of flow run {flow_run.name!r} from flow {flow_metadata.name!r} "
         f"with {runner_cls.__name__!r}"
     )
     with prefect.context(flow_run_id=flow_run_id):
