@@ -106,13 +106,13 @@ class MySQLExecute(Task):
             raise ValueError("A query string must be provided")
 
         conn = pymysql.connect(
-            host=(host or self.host),
-            user=(user or self.user),
-            password=(password or self.password),
-            db=(db_name or self.db_name),
-            charset=(charset or self.charset),
-            port=(port or self.port),
-            ssl=(ssl or self.ssl),
+            host=host,
+            user=user,
+            password=password,
+            db=db_name,
+            charset=charset,
+            port=port,
+            ssl=ssl,
         )
 
         try:
@@ -241,7 +241,7 @@ class MySQLFetch(Task):
 
         Returns:
             - results (tuple or list of tuples): records from provided query
-            
+
         Raises:
             - pymysql.MySQLError
         """
@@ -282,13 +282,13 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(
-            host=(host or self.host),
-            user=(user or self.user),
-            password=(password or self.password),
-            db=(db_name or self.db_name),
-            charset=(charset or self.charset),
-            port=(port or self.port),
-            ssl=(ssl or self.ssl),
+            host=host,
+            user=user,
+            password=password,
+            db=db_name,
+            charset=charset,
+            port=port,
+            ssl=ssl,
             cursorclass=cursor_class,
         )
 

@@ -122,15 +122,15 @@ class SnowflakeQuery(Task):
         # build the connection parameter dictionary
         # we will remove `None` values next
         connect_params = {
-            "account": (account or self.account),
-            "user": (user or self.user),
-            "password": (password or self.password),
-            "private_key": (private_key or self.private_key),
-            "database": (database or self.database),
-            "schema": (schema or self.schema),
-            "role": (role or self.role),
-            "warehouse": (warehouse or self.warehouse),
-            "autocommit": (autocommit or self.autocommit),
+            "account": account,
+            "user": user,
+            "password": password,
+            "private_key": private_key,
+            "database": database,
+            "schema": schema,
+            "role": role,
+            "warehouse": warehouse,
+            "autocommit": autocommit,
         }
 
         # filter out unset values
@@ -269,15 +269,15 @@ class SnowflakeQueriesFromFile(Task):
         # build the connection parameter dictionary
         # we will remove `None` values next
         connect_params = {
-            "account": (account or self.account),
-            "user": (user or self.user),
-            "password": (password or self.password),
-            "private_key": (private_key or self.private_key),
-            "database": (database or self.database),
-            "schema": (schema or self.schema),
-            "role": (role or self.role),
-            "warehouse": (warehouse or self.warehouse),
-            "autocommit": (autocommit or self.autocommit),
+            "account": account,
+            "user": user,
+            "password": password,
+            "private_key": private_key,
+            "database": database,
+            "schema": schema,
+            "role": role,
+            "warehouse": warehouse,
+            "autocommit": autocommit,
         }
 
         # filter out unset values
