@@ -344,9 +344,9 @@ def test_get_next_task_run_start_time(cloud_mocks):
         {
             "data": {
                 "task_run": [
-                    {"state_start_time": start_time.subtract(seconds=10).isoformat()},
+                    {"state_start_time": start_time.add(seconds=10).isoformat()},
                     {"state_start_time": start_time.isoformat()},
-                    {"state_start_time": start_time.subtract(seconds=20).isoformat()},
+                    {"state_start_time": start_time.add(seconds=20).isoformat()},
                 ]
             }
         }
