@@ -109,7 +109,7 @@ class SnowflakeQuery(Task):
             - List[List]: output of cursor.fetchall()
 
         Raises:
-            - ValueError: if a required is not supplied
+            - ValueError: if a required parameter is not supplied
             - DatabaseError: if exception occurs when executing the query
         """
         if not account:
