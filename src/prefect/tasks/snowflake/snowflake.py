@@ -32,8 +32,8 @@ class SnowflakeQuery(Task):
 
     def __init__(
         self,
-        account: str,
-        user: str,
+        account: str = None,
+        user: str = None,
         password: str = None,
         private_key: bytes = None,
         database: str = None,
@@ -104,8 +104,9 @@ class SnowflakeQuery(Task):
                 in query string
             - autocommit (bool, optional): set to True to autocommit, defaults to None, which
                 takes snowflake AUTOCOMMIT parameter
+
         Returns:
-            - None
+            - List[List]: output of cursor.fetchall()
 
         Raises:
             - ValueError: if query parameter is None or a blank string
@@ -178,8 +179,8 @@ class SnowflakeQueriesFromFile(Task):
 
     def __init__(
         self,
-        account: str,
-        user: str,
+        account: str = None,
+        user: str = None,
         password: str = None,
         private_key: bytes = None,
         database: str = None,
@@ -245,8 +246,9 @@ class SnowflakeQueriesFromFile(Task):
             - file_path (str, optional): file path to load query from
             - autocommit (bool, optional): set to True to autocommit, defaults to None, which
                 takes snowflake AUTOCOMMIT parameter
+
         Returns:
-            - None
+            - List[List]: containing the results of the different queries executed
 
         Raises:
             - ValueError: if query parameter is None or a blank string
@@ -289,6 +291,7 @@ class SnowflakeQueriesFromFile(Task):
             with conn:
                 result = []
                 cursor_list = conn.execute_string(query)
+
                 for cursor in cursor_list:
                     result.append(cursor.fetchall())
                     # return fetch for each cursor
