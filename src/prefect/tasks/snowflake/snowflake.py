@@ -290,12 +290,13 @@ class SnowflakeQueriesFromFile(Task):
         # connect to database, open cursor
         conn = sf.connect(**connect_params)
 
-        # load query from file
-        query = Path(file_path).read_text()
-
         # try to execute query
         # context manager automatically rolls back failed transactions
         try:
+
+            # load query from file
+            query = Path(file_path).read_text()
+
             with conn:
                 result = []
                 cursor_list = conn.execute_string(query)

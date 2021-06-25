@@ -148,13 +148,13 @@ class TestSnowflakeQueriesFromFile:
     def test_required_parameters(self):
         # missing account
         with pytest.raises(ValueError):
-            SnowflakeQuery().run(user="test", password="test")
+            SnowflakeQueriesFromFile().run(user="test", password="test")
         # missing user
         with pytest.raises(ValueError):
-            SnowflakeQuery().run(account="test", password="test")
+            SnowflakeQueriesFromFile().run(account="test", password="test")
         # missing file
         with pytest.raises(ValueError):
-            SnowflakeQuery().run(account="test", user="test", password="test")
+            SnowflakeQueriesFromFile().run(account="test", user="test", password="test")
 
     def test_file_path_must_be_provided(self):
         task = SnowflakeQueriesFromFile(
