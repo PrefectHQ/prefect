@@ -8,19 +8,13 @@ from click.testing import CliRunner
 from unittest.mock import MagicMock
 
 from prefect import Flow
-from prefect.engine.state import Scheduled
+from prefect.engine.state import Scheduled, Success
 from prefect.run_configs import UniversalRun
 from prefect.storage import Local as LocalStorage
 from prefect.backend import FlowRunView, FlowView
 
 from prefect.cli.run import load_json_key_values, run
 
-
-SUCCESSFUL_LOCAL_STDOUT = """
-Retrieving local flow... Done
-Running flow locally...
-Flow run succeeded!
-""".lstrip()
 
 FAILURE_LOCAL_STDOUT = """
 Retrieving local flow... Done
@@ -52,6 +46,21 @@ TEST_FLOW_RUN_VIEW = FlowRunView(
     labels=["label"],
     updated_at=pendulum.now(),
     run_config=UniversalRun(),
+)
+# On `get_latest` return the same flow run data but in a 'Success' state
+TEST_FLOW_RUN_VIEW.get_latest = MagicMock(
+    return_value=FlowRunView(
+        flow_run_id="flow-run-id",
+        name="flow-run-name",
+        flow_id="flow-id",
+        state=Success(message="state-1"),
+        states=[],
+        parameters={"param": "value"},
+        context={"foo": "bar"},
+        labels=["label"],
+        updated_at=pendulum.now(),
+        run_config=UniversalRun(),
+    )
 )
 
 
@@ -151,12 +160,17 @@ def cloud_mocks(monkeypatch):
         FlowRunView = MagicMock()
         Client = MagicMock()
         watch_flow_run = MagicMock()
+        execute_flow_run_in_subprocess = MagicMock()
 
     mocks = CloudMocks()
     monkeypatch.setattr("prefect.cli.run.FlowView", mocks.FlowView)
     monkeypatch.setattr("prefect.cli.run.FlowRunView", mocks.FlowRunView)
     monkeypatch.setattr("prefect.cli.run.Client", mocks.Client)
     monkeypatch.setattr("prefect.cli.run.watch_flow_run", mocks.watch_flow_run)
+    monkeypatch.setattr(
+        "prefect.cli.run.execute_flow_run_in_subprocess",
+        mocks.execute_flow_run_in_subprocess,
+    )
 
     return mocks
 
@@ -257,7 +271,8 @@ def test_run_local(tmpdir, kind, caplog, hello_world_flow_file):
 
     result = CliRunner().invoke(run, [f"--{kind}", location])
     assert not result.exit_code
-    assert result.output == SUCCESSFUL_LOCAL_STDOUT
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
     # FlowRunner logs are displayed
     assert "Hello World" in caplog.text
 
@@ -272,7 +287,8 @@ def test_run_local_allows_selection_from_multiple_flows(
 
     result = CliRunner().invoke(run, [f"--{kind}", location, "--name", "b"])
     assert not result.exit_code
-    assert result.output == SUCCESSFUL_LOCAL_STDOUT
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
 
 
 @pytest.mark.parametrize("kind", ["path", "module"])
@@ -302,7 +318,8 @@ def test_run_local_log_level(tmpdir, caplog, log_level):
         run, ["--module", "prefect.hello_world", "--log-level", log_level]
     )
     assert not result.exit_code
-    assert result.output == SUCCESSFUL_LOCAL_STDOUT
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
     # Hello World is _not_ an error level log and should not be displayed then
     if log_level == "ERROR":
         assert "Hello World" not in caplog.text
@@ -316,7 +333,8 @@ def test_run_local_log_level(tmpdir, caplog, log_level):
 def test_run_local_respects_quiet(caplog):
     result = CliRunner().invoke(run, ["--module", "prefect.hello_world", "--quiet"])
     assert not result.exit_code
-    assert result.output == ""
+    # CLI output is not there
+    assert "Running flow locally..." not in result.output
     # Flow run logs are still happening for local runs
     assert "Hello World" in caplog.text
 
@@ -325,7 +343,8 @@ def test_run_local_respects_no_logs(caplog):
     result = CliRunner().invoke(run, ["--module", "prefect.hello_world", "--no-logs"])
     assert not result.exit_code
     # Run output still occurs
-    assert result.output == SUCCESSFUL_LOCAL_STDOUT
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
     # Flow run logs are silenced
     assert caplog.text == ""
 
@@ -335,9 +354,9 @@ def test_run_local_passes_parameters(caplog):
         run, ["--module", "prefect.hello_world", "--param", 'name="foo"']
     )
     assert not result.exit_code
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
     # A configured section will apppear now that a parameter is set
-    for line in SUCCESSFUL_LOCAL_STDOUT:
-        assert line in result.output
     assert "Configured local flow run\n└── Parameters: {'name': 'foo'}" in result.output
     # Parameter was used by the flow
     assert "Hello Foo" in caplog.text
@@ -350,9 +369,9 @@ def test_run_local_passes_parameters_from_file(caplog, tmpdir):
         run, ["--module", "prefect.hello_world", "--param-file", str(params_file)]
     )
     assert not result.exit_code
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
     # A configured section will apppear now that a parameter is set
-    for line in SUCCESSFUL_LOCAL_STDOUT:
-        assert line in result.output
     assert "Configured local flow run\n└── Parameters: {'name': 'foo'}" in result.output
     # Parameter was used by the flow
     assert "Hello Foo" in caplog.text
@@ -363,9 +382,9 @@ def test_run_local_passes_context(caplog, context_flow_file):
         run, ["--path", context_flow_file, "--context", 'x="custom-context-val"']
     )
     assert not result.exit_code
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
     # A configured section will apppear now that the context is set
-    for line in SUCCESSFUL_LOCAL_STDOUT:
-        assert line in result.output
     assert (
         "Configured local flow run\n└── Context: {'x': 'custom-context-val'}"
         in result.output
@@ -379,9 +398,9 @@ def test_run_passes_context(caplog, context_flow_file):
         run, ["--path", context_flow_file, "--context", 'x="custom-context-val"']
     )
     assert not result.exit_code
+    assert "Running flow locally..." in result.output
+    assert "Flow run succeeded" in result.output
     # A configured section will apppear now that the context is set
-    for line in SUCCESSFUL_LOCAL_STDOUT:
-        assert line in result.output
     assert (
         "Configured local flow run\n└── Context: {'x': 'custom-context-val'}"
         in result.output
@@ -393,7 +412,8 @@ def test_run_passes_context(caplog, context_flow_file):
 def test_run_local_handles_flow_run_failure(caplog, runtime_failing_flow):
     result = CliRunner().invoke(run, ["--path", runtime_failing_flow])
     assert not result.exit_code
-    assert result.output == FAILURE_LOCAL_STDOUT
+    assert "Running flow locally..." in result.output
+    assert "Flow run failed" in result.output
     # Flow runner logged exception
     assert "ValueError: Some error" in caplog.text
 
@@ -419,7 +439,6 @@ def test_run_local_handles_flow_load_failure_with_missing_file(tmpdir):
 
 
 def test_run_local_handles_flow_load_failure_with_missing_module(tmpdir):
-    missing_file = str(tmpdir.join("file"))
     result = CliRunner().invoke(run, ["--module", "my_very_unique_module_name"])
     assert result.exit_code
     assert "Retrieving local flow... Error" in result.output
@@ -429,7 +448,6 @@ def test_run_local_handles_flow_load_failure_with_missing_module(tmpdir):
 
 
 def test_run_local_handles_flow_load_failure_with_missing_module_attr(tmpdir):
-    missing_file = str(tmpdir.join("file"))
     result = CliRunner().invoke(run, ["--module", "prefect.foobar"])
     assert result.exit_code
     assert "Retrieving local flow... Error" in result.output
@@ -438,6 +456,7 @@ def test_run_local_handles_flow_load_failure_with_missing_module_attr(tmpdir):
     assert "Module 'prefect' has no attribute 'foobar'" in result.output
 
 
+@pytest.mark.parametrize("execute_flag", (["--execute"], []))
 @pytest.mark.parametrize(
     "cli_args,cloud_kwargs",
     [
@@ -468,18 +487,31 @@ def test_run_local_handles_flow_load_failure_with_missing_module_attr(tmpdir):
         ),
     ],
 )
-def test_run_cloud_creates_flow_run(cloud_mocks, cli_args, cloud_kwargs):
+def test_run_cloud_creates_flow_run(
+    cloud_mocks, cli_args, cloud_kwargs, execute_flag, monkeypatch
+):
     cloud_mocks.FlowView.from_flow_id.return_value = TEST_FLOW_VIEW
 
-    result = CliRunner().invoke(run, ["--id", "flow-id"] + cli_args)
+    if execute_flag:
+        # Create a preset unique id for the agentless run label for easy determinism
+        monkeypatch.setattr(
+            "prefect.cli.run.uuid.uuid4", MagicMock(return_value="0" * 36)
+        )
+
+    result = CliRunner().invoke(run, ["--id", "flow-id"] + cli_args + execute_flag)
 
     assert not result.exit_code
 
+    cloud_kwargs = cloud_kwargs.copy()  # Copy before mutating the pytest param dicts
     cloud_kwargs.setdefault("parameters", {})
     cloud_kwargs.setdefault("context", {})
     cloud_kwargs.setdefault("labels", None)
     cloud_kwargs.setdefault("run_name", None)
     cloud_kwargs.setdefault("run_config", None)
+
+    if execute_flag:
+        labels = cloud_kwargs["labels"] or []
+        cloud_kwargs["labels"] = labels + ["agentless-run-00000000"]
 
     cloud_mocks.Client().create_flow_run.assert_called_once_with(
         flow_id=TEST_FLOW_VIEW.flow_id,
@@ -655,3 +687,46 @@ def test_run_cloud_displays_flow_run_data(cloud_mocks):
         )
         in result.output
     )
+
+
+def test_run_cloud_execute_calls_subprocess(cloud_mocks):
+    cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+    result = CliRunner().invoke(run, ["--id", "flow-id", "--execute"])
+
+    assert not result.exit_code
+    assert "Executing flow run..." in result.output
+
+    cloud_mocks.execute_flow_run_in_subprocess.assert_called_once_with("fake-run-id")
+
+
+def test_run_cloud_execute_respects_quiet(cloud_mocks):
+    cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+
+    def show_a_log(*args, **kwargs):
+        from prefect.utilities.logging import get_logger
+
+        get_logger().error("LOG MESSAGE!")
+
+    cloud_mocks.execute_flow_run_in_subprocess.side_effect = show_a_log
+
+    result = CliRunner().invoke(run, ["--id", "flow-id", "--quiet", "--execute"])
+
+    assert not result.exit_code
+    assert result.output == "fake-run-id\n"
+
+
+def test_run_cloud_execute_respects_no_logs(cloud_mocks):
+    def show_a_log(*args, **kwargs):
+        from prefect.utilities.logging import get_logger
+
+        get_logger().error("LOG MESSAGE!")
+
+    cloud_mocks.execute_flow_run_in_subprocess.side_effect = show_a_log
+
+    result = CliRunner().invoke(run, ["--id", "flow-id", "--no-logs", "--execute"])
+
+    assert not result.exit_code
+    # CLI messages display
+    assert "Executing flow run..." in result.output
+    # Run logs do not
+    assert "LOG MESSAGE" not in result.output

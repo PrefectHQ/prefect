@@ -4,6 +4,7 @@ import os
 import runpy
 import sys
 import textwrap
+import uuid
 import time
 from contextlib import contextmanager
 from types import ModuleType
@@ -16,6 +17,7 @@ from tabulate import tabulate
 import prefect
 from prefect.backend.flow import FlowView
 from prefect.backend.flow_run import FlowRunView, watch_flow_run
+from prefect.backend.execution import execute_flow_run_in_subprocess
 from prefect.cli.build_register import (
     TerminalError,
     handle_terminal_error,
@@ -24,6 +26,7 @@ from prefect.cli.build_register import (
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.importtools import import_object
+from prefect.utilities.logging import temporary_logger_config
 
 
 @contextmanager
@@ -321,6 +324,10 @@ RUN_EPILOG = """
 \b  Run registered flow and pipe flow run id to another program
 
 \b    $ prefect run -n "hello-world" --quiet | post_run.sh
+
+\b  Run registered flow and execute locally without an agent
+
+\b    $ prefect run -n "hello-world" --execute
 """
 
 FLOW_LOOKUP_MSG = """
@@ -421,6 +428,14 @@ See `prefect run --help` for more details on the options.
     ),
     default=None,
 )
+@click.option(
+    "--execute",
+    help=(
+        "Execute the flow run in-process without an agent. If this process exits, the "
+        "flow run will be marked as 'Failed'."
+    ),
+    is_flag=True,
+)
 # Display settings ---------------------------------------------------------------------
 @click.option(
     "--quiet",
@@ -455,6 +470,7 @@ def run(
     labels,
     context_vars,
     params,
+    execute,
     log_level,
     param_file,
     run_name,
@@ -562,8 +578,6 @@ def run(
             quiet_echo(run_info, nl=False)
 
         quiet_echo("Running flow locally...")
-        from prefect.utilities.logging import temporary_logger_config
-
         with temporary_logger_config(
             level=log_level,
             stream_fmt="└── %(asctime)s | %(levelname)-7s | %(message)s",
@@ -604,6 +618,10 @@ def run(
         run_config.env["PREFECT__LOGGING__LEVEL"] = log_level
     else:
         run_config = None
+
+    if execute:
+        # Add a random label to prevent an agent from picking up this run
+        labels.append(f"agentless-run-{str(uuid.uuid4())[:8]}")
 
     try:  # Handle keyboard interrupts during creation
         flow_run_id = None
@@ -665,48 +683,73 @@ def run(
             quiet_echo("Aborted.")
         return
 
-    # Exit now if we're not waiting for execution to finish
-    if not watch:
-        return
-
-    try:
-        quiet_echo("Watching flow run execution...")
-        for log in watch_flow_run(
-            flow_run_id=flow_run_id,
-            stream_logs=not no_logs,
-        ):
-            level_name = logging.getLevelName(log.level)
-            timestamp = log.timestamp.in_tz(tz="local")
-            echo_with_log_color(
-                log.level, f"└── {timestamp:%H:%M:%S} | {level_name:<7} | {log.message}"
-            )
-
-    except KeyboardInterrupt:
-        quiet_echo("Keyboard interrupt detected!", fg="yellow")
+    # Handle agentless execution
+    if execute:
+        quiet_echo("Executing flow run...")
         try:
-            cancel = click.confirm(
-                "On exit, we can leave your flow run executing or cancel it.\n"
-                "Do you want to cancel this flow run?",
-                default=True,
-            )
-        except click.Abort:
-            # A second keyboard interrupt will exit without cancellation
+            with temporary_logger_config(
+                level=(
+                    100 if no_logs or quiet else log_level
+                ),  # Disable logging if asked
+                stream_fmt="└── %(asctime)s | %(levelname)-7s | %(message)s",
+                stream_datefmt="%H:%M:%S",
+            ):
+                execute_flow_run_in_subprocess(flow_run_id)
+        except KeyboardInterrupt:
+            quiet_echo("Keyboard interrupt detected! Aborting...", fg="yellow")
             pass
-        else:
-            if cancel:
-                client.cancel_flow_run(flow_run_id=flow_run_id)
-                quiet_echo("Cancelled flow run.", fg="green")
-                return
 
-        quiet_echo("Exiting without cancelling flow run!", fg="yellow")
-        raise  # Re-raise the interrupt
+    elif watch:
+        try:
+            quiet_echo("Watching flow run execution...")
+            for log in watch_flow_run(
+                flow_run_id=flow_run_id,
+                stream_logs=not no_logs,
+            ):
+                level_name = logging.getLevelName(log.level)
+                timestamp = log.timestamp.in_tz(tz="local")
+                echo_with_log_color(
+                    log.level,
+                    f"└── {timestamp:%H:%M:%S} | {level_name:<7} | {log.message}",
+                )
 
-    # Check on the final state
+        except KeyboardInterrupt:
+            quiet_echo("Keyboard interrupt detected!", fg="yellow")
+            try:
+                cancel = click.confirm(
+                    "On exit, we can leave your flow run executing or cancel it.\n"
+                    "Do you want to cancel this flow run?",
+                    default=True,
+                )
+            except click.Abort:
+                # A second keyboard interrupt will exit without cancellation
+                pass
+            else:
+                if cancel:
+                    client.cancel_flow_run(flow_run_id=flow_run_id)
+                    quiet_echo("Cancelled flow run.", fg="green")
+                    return
+
+            quiet_echo("Exiting without cancelling flow run!", fg="yellow")
+            raise  # Re-raise the interrupt
+
+    # Get the final flow run state
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
+
+    # Wait for the flow run to be done up to 3 seconds
+    elapsed_time = 0
+    while not flow_run.state.is_finished() and elapsed_time < 3:
+        time.sleep(1)
+        elapsed_time += 1
+        flow_run = flow_run.get_latest()
+
+    # Display the final state
     if flow_run.state.is_failed():
         quiet_echo("Flow run failed!", fg="red")
-    else:
+    elif flow_run.state.is_successful():
         quiet_echo("Flow run succeeded!", fg="green")
+    else:
+        quiet_echo(f"Flow run is in unexpected state: {flow_run.state}", fg="yellow")
 
 
 # DEPRECATED: prefect run flow ---------------------------------------------------------

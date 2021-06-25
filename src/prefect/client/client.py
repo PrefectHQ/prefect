@@ -250,7 +250,7 @@ class Client:
         else:
             raise ValueError("Unknown backend {prefect.config.backend!r}")
 
-    def load_auth_from_disk(self) -> dict:
+    def load_auth_from_disk(self) -> Dict[str, str]:
         """
         Get the stashed `api_key` and `tenant_id` for the current `api_server` from the
         disk cache if it exists. If it does not, an empty dict is returned.

@@ -1,27 +1,10 @@
-import copy
 import logging
 import time
-from contextlib import contextmanager
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Any,
-    Iterable,
-    Type,
-    cast,
-    Dict,
-    Tuple,
-    Iterator,
-)
+from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
 
 import pendulum
 
 import prefect
-from prefect import Flow
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
 from prefect.engine.state import State
@@ -179,101 +162,6 @@ def watch_flow_run(
         total_time_elapsed += poll_interval
 
 
-def execute_flow_run(
-    flow_run_id: str,
-    flow: "Flow" = None,
-    runner_cls: Type["prefect.engine.flow_runner.FlowRunner"] = None,
-    **kwargs: Any,
-) -> "FlowRunView":
-    """ "
-    The primary entry point for executing a flow run. The flow run will be run
-    in-process using the given `runner_cls` which defaults to the `CloudFlowRunner`.
-
-    EXPERIMENTAL: This interface is experimental and subject to change
-
-    Args:
-        - flow_run_id: The flow run id to execute; this run id must exist in the database
-        - flow: A Flow object can be passed to execute a flow without loading t from
-            Storage. If `None`, the flow's Storage metadata will be pulled from the
-            API and used to get a functional instance of the Flow and its tasks.
-        - runner_cls: An optional `FlowRunner` to override the default `CloudFlowRunner`
-        - **kwargs: Additional kwargs will be passed to the `FlowRunner.run` method
-
-    Returns:
-        A `FlowRunView` instance with information about the state of the flow run and its
-        task runs
-    """
-    logger.debug(f"Querying for flow run {flow_run_id!r}")
-
-    # Get the `FlowRunner` class type
-    # TODO: Respect a config option for this class so it can be overridden by env var,
-    #       create a separate config argument for flow runs executed with the backend
-    runner_cls = runner_cls or prefect.engine.cloud.flow_runner.CloudFlowRunner
-
-    # Get data about the flow run from the backend
-    flow_run = FlowRunView.from_flow_run_id(flow_run_id=flow_run_id)
-    flow_metadata = flow_run.get_flow_metadata()
-
-    logger.info(f"Constructing execution environment for flow run {flow_run_id!r}")
-
-    # Populate global secrets
-    secrets = prefect.context.get("secrets", {})
-    if flow_metadata.storage:
-        logger.info("Loading secrets...")
-        for secret in flow_metadata.storage.secrets:
-            with fail_flow_run_on_exception(
-                flow_run_id=flow_run_id,
-                message=f"Failed to load flow secret {secret!r}: {{exc}}",
-            ):
-                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
-
-    # Load the flow from storage if not explicitly provided
-    if not flow:
-        logger.info(f"Loading flow from {flow_metadata.storage}...")
-        with prefect.context(secrets=secrets, loading_flow=True):
-            with fail_flow_run_on_exception(
-                flow_run_id=flow_run_id,
-                message="Failed to load flow from storage: {exc}",
-            ):
-                flow = flow_metadata.storage.get_flow(flow_metadata.name)
-
-    # Update the run context to include secrets with merging
-    run_kwargs = copy.deepcopy(kwargs)
-    run_kwargs["context"] = run_kwargs.get("context", {})
-    run_kwargs["context"]["secrets"] = {
-        # User provided secrets will override secrets we pulled from storage and the
-        # current context
-        **secrets,
-        **run_kwargs["context"].get("secrets", {}),
-    }
-    # Update some default run kwargs with flow settings
-    run_kwargs.setdefault("executor", flow.executor)
-
-    # Execute the flow, this call will block until exit
-    logger.info(
-        f"Beginning execution of flow run {flow_run.name!r} from {flow_metadata.name!r} "
-        f"with {runner_cls.__name__!r}"
-    )
-    with prefect.context(flow_run_id=flow_run_id):
-        with fail_flow_run_on_exception(
-            flow_run_id=flow_run_id,
-            message="Failed to execute flow: {exc}",
-        ):
-            if flow_metadata.run_config is not None:
-                runner_cls(flow=flow).run(**run_kwargs)
-
-            # Support for deprecated `flow.environment` use
-            else:
-                environment = flow.environment
-                environment.setup(flow)
-                environment.execute(flow)
-
-    # Get the final state
-    flow_run = flow_run.get_latest()
-    logger.info(f"Run finished with final state {flow_run.state}")
-    return flow_run
-
-
 def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -> str:
     """
     Checks for agents compatible with a set of labels returning a user-friendly message
@@ -338,10 +226,9 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     if len(matching_healthy) == 1:
         # Display the single matching agent
         name_blurb = f" ({agent.name})" if agent.name else ""
-        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
         return (
             f"Agent {agent.id}{name_blurb} has matching labels and last queried "
-            f"{last_queried} ago. It should deploy your flow run."
+            f"{agent.last_queried.diff_for_humans()}. It should deploy your flow run."
         )
 
     if len(matching_healthy) > 1:
@@ -364,10 +251,9 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     if len(matching_unhealthy) == 1:
         # Display that there is a single matching unhealthy agent
         name_blurb = f" ({agent.name})" if agent.name else ""
-        last_queried = (pendulum.now() - agent.last_queried).as_interval().in_words()
         return (
             f"Agent {agent.id}{name_blurb} has matching labels and last queried "
-            f"{last_queried} ago. Since it hasn't queried recently, it looks "
+            f"{agent.last_queried.diff_for_humans()}. Since it hasn't queried recently, it looks "
             f"unhealthy. Restart it or start a new agent with {labels_blurb} to deploy "
             f"your flow run."
         )
@@ -386,49 +272,6 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
         f"an agent with {labels_blurb}. Start an agent with matching labels to deploy "
         "your flow run."
     )
-
-
-@contextmanager
-def fail_flow_run_on_exception(
-    flow_run_id: str,
-    message: str = None,
-) -> Any:
-    """
-    A utility context manager to set the state of the given flow run to 'Failed' if
-    an exception occurs. A custom message can be provided for more details and will
-    be attached to the state and added to the run logs. KeyboardInterrupts will set
-    the flow run state to 'Cancelled' instead and will not use the message. All errors
-    will be re-raised.
-
-
-    Args:
-        - flow_run_id: The flow run id to update the state of
-        - message: The message to include in the state and logs. `{exc}` will be formatted
-            with the exception details.
-    """
-    message = message or "Flow run failed with {exc}"
-    client = prefect.Client()
-
-    try:
-        yield
-    except Exception as exc:
-        if not FlowRunView.from_flow_run_id(flow_run_id).state.is_finished():
-            message = message.format(exc=exc.__repr__())
-            client.set_flow_run_state(
-                flow_run_id=flow_run_id, state=prefect.engine.state.Failed(message)
-            )
-            client.write_run_logs(
-                [
-                    dict(
-                        flow_run_id=flow_run_id,  # type: ignore
-                        name="prefect.backend.api.flow_run.execute_flow_run",
-                        message=message,
-                        level="ERROR",
-                    )
-                ]
-            )
-        logger.error(message, exc_info=True)
-        raise
 
 
 class FlowRunLog(NamedTuple):
