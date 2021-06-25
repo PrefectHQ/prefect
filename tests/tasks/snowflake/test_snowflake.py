@@ -21,12 +21,11 @@ class TestSnowflakeQuery:
             task.run()
 
     def test_execute_error_must_pass_through(self, monkeypatch):
-        snowflake_module_connect_method = MagicMock()
         connection = MagicMock(spec=sf.SnowflakeConnection)
+        snowflake_module_connect_method = MagicMock(return_value=connection)
         cursor = MagicMock(spec=sf.DictCursor)
 
         # link all the mocks together appropriately
-        snowflake_module_connect_method.return_value = connection
         connection.cursor = cursor
 
         # database cursors can be ugly to mock given  the use of __enter__
@@ -52,12 +51,11 @@ class TestSnowflakeQuery:
         cursor. This is to prevent future code edits from returning the cursor
         object because that cursors are not pickleable.
         """
-        snowflake_module_connect_method = MagicMock()
         connection = MagicMock(spec=sf.SnowflakeConnection)
+        snowflake_module_connect_method = MagicMock(return_value=connection)
         cursor = MagicMock(spec=sf.DictCursor)
 
         # link all the mocks together appropriately
-        snowflake_module_connect_method.return_value = connection
         connection.cursor = cursor
 
         # setting fetchall return

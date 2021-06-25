@@ -48,6 +48,7 @@ class SnowflakeQuery(Task):
         self.account = account
         self.user = user
         self.password = password
+        self.private_key = private_key
         self.database = database
         self.schema = schema
         self.role = role
@@ -55,21 +56,54 @@ class SnowflakeQuery(Task):
         self.query = query
         self.data = data
         self.autocommit = autocommit
-        self.private_key = private_key
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "data", "autocommit")
-    def run(self, query: str = None, data: tuple = None, autocommit: bool = None):
+    @defaults_from_attrs(
+        "account",
+        "user",
+        "password",
+        "private_key",
+        "database",
+        "schema",
+        "role",
+        "query",
+        "data",
+        "autocommit",
+    )
+    def run(
+        self,
+        account: str = None,
+        user: str = None,
+        password: str = None,
+        private_key: bytes = None,
+        database: str = None,
+        schema: str = None,
+        role: str = None,
+        warehouse: str = None,
+        query: str = None,
+        data: tuple = None,
+        autocommit: bool = None,
+    ):
         """
         Task run method. Executes a query against snowflake database.
 
         Args:
+            - account (str, optional): snowflake account name, see snowflake connector
+                package documentation for details
+            - user (str, optional): user name used to authenticate
+            - password (str, optional): password used to authenticate.
+                password or private_lkey must be present
+            - private_key (bytes, optional): pem to authenticate.
+                password or private_key must be present
+            - database (str, optional): name of the default database to use
+            - schema (int, optional): name of the default schema to use
+            - role (str, optional): name of the default role to use
+            - warehouse (str, optional): name of the default warehouse to use
             - query (str, optional): query to execute against database
-            - data (tuple, optional): values to use in query, must be specified using
-                placeholder in query string
-            - autocommit (bool, optional): set to True to autocommit, defaults to None
-                which takes the snowflake AUTOCOMMIT parameter
-
+            - data (tuple, optional): values to use in query, must be specified using placeholder
+                in query string
+            - autocommit (bool, optional): set to True to autocommit, defaults to None, which
+                takes snowflake AUTOCOMMIT parameter
         Returns:
             - None
 
@@ -83,16 +117,17 @@ class SnowflakeQuery(Task):
         # build the connection parameter dictionary
         # we will remove `None` values next
         connect_params = {
-            "account": self.account,
-            "user": self.user,
-            "password": self.password,
-            "private_key": self.private_key,
-            "database": self.database,
-            "schema": self.schema,
-            "role": self.role,
-            "warehouse": self.warehouse,
-            "autocommit": self.autocommit,
+            "account": (account or self.account),
+            "user": (user or self.user),
+            "password": (password or self.password),
+            "private_key": (private_key or self.private_key),
+            "database": (database or self.database),
+            "schema": (schema or self.schema),
+            "role": (role or self.role),
+            "warehouse": (warehouse or self.warehouse),
+            "autocommit": (autocommit or self.autocommit),
         }
+
         # filter out unset values
         connect_params = {
             param: value
@@ -123,9 +158,9 @@ class SnowflakeQueriesFromFile(Task):
     Return a list containings the results of the queries.
 
     Args:
-        - account (str): snowflake account name, see snowflake connector
+        - account (str, optional): snowflake account name, see snowflake connector
              package documentation for details
-        - user (str): user name used to authenticate
+        - user (str, optional): user name used to authenticate
         - password (str, optional): password used to authenticate.
             password or private_lkey must be present
         - private_key (bytes, optional): pem to authenticate.
@@ -167,22 +202,56 @@ class SnowflakeQueriesFromFile(Task):
         self.private_key = private_key
         super().__init__(**kwargs)
 
+    @defaults_from_attrs(
+        "account",
+        "user",
+        "password",
+        "private_key",
+        "database",
+        "schema",
+        "role",
+        "file_path",
+        "autocommit",
+    )
     @defaults_from_attrs("file_path", "autocommit")
-    def run(self, file_path: str = None, autocommit: bool = None):
+    def run(
+        self,
+        account: str,
+        user: str,
+        password: str = None,
+        private_key: bytes = None,
+        database: str = None,
+        schema: str = None,
+        role: str = None,
+        warehouse: str = None,
+        file_path: str = None,
+        autocommit: bool = None,
+    ):
         """
         Task run method. Executes a query against snowflake database.
 
         Args:
+            - account (str): snowflake account name, see snowflake connector
+                package documentation for details
+            - user (str): user name used to authenticate
+            - password (str, optional): password used to authenticate.
+                password or private_lkey must be present
+            - private_key (bytes, optional): pem to authenticate.
+                password or private_key must be present
+            - database (str, optional): name of the default database to use
+            - schema (int, optional): name of the default schema to use
+            - role (str, optional): name of the default role to use
+            - warehouse (str, optional): name of the default warehouse to use
             - file_path (str, optional): file path to load query from
-            - autocommit (bool, optional): set to True to autocommit, defaults to None
-                which takes the snowflake AUTOCOMMIT parameter
-
+            - autocommit (bool, optional): set to True to autocommit, defaults to None, which
+                takes snowflake AUTOCOMMIT parameter
         Returns:
             - None
 
         Raises:
             - ValueError: if query parameter is None or a blank string
             - DatabaseError: if exception occurs when executing the query
+            - FileNotFoundError: if File does not exist
         """
         if not file_path:
             raise ValueError("A file path must be provided")
@@ -190,16 +259,17 @@ class SnowflakeQueriesFromFile(Task):
         # build the connection parameter dictionary
         # we will remove `None` values next
         connect_params = {
-            "account": self.account,
-            "user": self.user,
-            "password": self.password,
-            "private_key": self.private_key,
-            "database": self.database,
-            "schema": self.schema,
-            "role": self.role,
-            "warehouse": self.warehouse,
-            "autocommit": self.autocommit,
+            "account": (account or self.account),
+            "user": (user or self.user),
+            "password": (password or self.password),
+            "private_key": (private_key or self.private_key),
+            "database": (database or self.database),
+            "schema": (schema or self.schema),
+            "role": (role or self.role),
+            "warehouse": (warehouse or self.warehouse),
+            "autocommit": (autocommit or self.autocommit),
         }
+
         # filter out unset values
         connect_params = {
             param: value
