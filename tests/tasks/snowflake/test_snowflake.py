@@ -184,7 +184,7 @@ class TestSnowflakeQueriesFromFile:
 
     def test_execute_fetchall(self, monkeypatch, tmpdir, sql_file):
         """
-        Tests that the SnowflakeQueryFromTime Task calls the fetchall method on the
+        Tests that the SnowflakeQueriesFromFile Task calls the fetchall method on the
         cursor. This is to prevent future code edits from returning the cursor
         object because cursors are not pickleable.
         """
