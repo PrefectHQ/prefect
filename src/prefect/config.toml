@@ -60,10 +60,19 @@ check_cancellation_interval = 15.0
 diagnostics = false
 request_timeout = 15
 
+# If set, logs for flow runs reporting to the API will be sent to the backend
+send_flow_run_logs = true
+
 # rate at which to batch upload logs
 logging_heartbeat = 5
 
 queue_interval = 30.0
+
+# The API key to use for authentication. Generally, we recommend using `prefect auth login` instead
+api_key = ""
+
+# The tenant id to perform actions in when sending requests. Generally, we recommend using `prefect auth switch-tenants` instead
+tenant_id = ""
 
     [cloud.agent]
     name = "agent"
@@ -72,7 +81,7 @@ queue_interval = 30.0
     # Set to `DEBUG` for verbose logging
     level = "INFO"
 
-    # Agents require different API tokens
+    # This configuration field is deprecated, use `cloud.api_key` instead.
     auth_token = ""
 
     # Internal address for agent health checks, etc...
@@ -96,9 +105,6 @@ log_attributes = "[]"
 
 # the timestamp format
 datefmt = "%Y-%m-%d %H:%M:%S%z"
-
-# Send logs to Prefect Cloud
-log_to_cloud = false
 
 # Extra loggers for Prefect log configuration
 extra_loggers = "[]"

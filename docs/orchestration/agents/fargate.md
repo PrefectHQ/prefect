@@ -40,13 +40,14 @@ $ prefect agent fargate start
 
 The Fargate Agent can be started either through the Prefect CLI or by importing the `FargateAgent` class from the core library. Starting the agent from the CLI will require that the required AWS configuration arguments are set at the environment level while importing the agent class in a Python process will allow you to specify them at initialization.
 
-::: tip Tokens <Badge text="Cloud"/>
-There are a few ways in which you can specify a `RUNNER` API token:
+::: tip API Keys <Badge text="Cloud"/>
+You can specify a service account API key via the CLI with
 
-- command argument `prefect agent fargate start -t MY_TOKEN`
-- environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
-- token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
+```bash
+$ prefect agent fargate start -k SERVICE_ACCOUNT_API_KEY
+```
 
+For additional methods of specifying API keys, see the [API key documentation](../concepts/api_keys.md).
 :::
 
 ### Installation
@@ -113,14 +114,14 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
   When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
   task definition revision. Each revision will be registered with a tag called `PrefectFlowId`
   and `PrefectFlowVersion` to enable proper lookup for existing revisions. Flow name is reformatted
-  to support task definition naming rules by converting all non-alphanumeric characters to '*'.
+  to support task definition naming rules by converting all non-alphanumeric characters to '\*'.
   Defaults to False.
 - use_external_kwargs (bool, optional): When enabled, the agent will check for the existence of an
   external json file containing kwargs to pass into the run_flow process.
   Defaults to False.
 - external_kwargs_s3_bucket (str, optional): S3 bucket containing external kwargs.
 - external_kwargs_s3_key (str, optional): S3 key prefix for the location of `<slugified_flow_name>/<flow_id[:8]>.json`.
-- **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
+- \*\*kwargs (dict, optional): additional keyword arguments to pass to boto3 for
   `register_task_definition` and `run_task`
 
 While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
@@ -228,6 +229,7 @@ agent.start()
 ```
 
 You can also pass these in using environment variables with the format of `containerDefinitions_<key>`, for example:
+
 ```
 containerDefinitions_environment
 containerDefinitions_secrets

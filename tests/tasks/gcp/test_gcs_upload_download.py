@@ -20,7 +20,6 @@ class TestInitialization:
         task = klass(bucket="")
         assert task.bucket == ""
         assert task.blob is None
-        assert task.encryption_key_secret is None
         assert task.project is None
         assert task.create_bucket is False
         assert task.request_timeout == 60
@@ -140,6 +139,6 @@ class TestRuntimeValidation:
         monkeypatch.setattr("prefect.tasks.gcp.storage.get_storage_client", client)
 
         with pytest.raises(
-            TypeError, match="data must be str or bytes: got .* instead"
+            TypeError, match="data must be str, bytes or BytesIO: got .* instead"
         ):
             task.run([1, 2, 3])

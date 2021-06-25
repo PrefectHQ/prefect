@@ -139,7 +139,9 @@ def test_get_flow(github_client, ref, caplog):
 
 
 def test_get_flow_missing_repo(github_client, caplog):
-    github_client.get_repo.side_effect = github.UnknownObjectException(404, {})
+    github_client.get_repo.side_effect = github.UnknownObjectException(
+        status=404, data={}, headers={}
+    )
 
     storage = GitHub(repo="test/repo", path="flow.py")
     storage.add_flow(Flow("test"))
@@ -153,7 +155,9 @@ def test_get_flow_missing_repo(github_client, caplog):
 @pytest.mark.parametrize("ref", [None, "myref"])
 def test_get_flow_missing_ref(github_client, ref, caplog):
     repo = github_client.get_repo.return_value
-    repo.get_commit.side_effect = github.UnknownObjectException(404, {})
+    repo.get_commit.side_effect = github.UnknownObjectException(
+        status=404, data={}, headers={}
+    )
 
     storage = GitHub(repo="test/repo", path="flow.py", ref=ref)
     storage.add_flow(Flow("test"))
@@ -169,7 +173,9 @@ def test_get_flow_missing_ref(github_client, ref, caplog):
 @pytest.mark.parametrize("ref", [None, "myref"])
 def test_get_flow_missing_file(github_client, ref, caplog):
     repo = github_client.get_repo.return_value
-    repo.get_contents.side_effect = github.UnknownObjectException(404, {})
+    repo.get_contents.side_effect = github.UnknownObjectException(
+        status=404, data={}, headers={}
+    )
 
     storage = GitHub(repo="test/repo", path="flow.py", ref=ref)
     storage.add_flow(Flow("test"))

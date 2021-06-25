@@ -16,10 +16,11 @@ class SecretResult(Result):
     """
 
     def __init__(
-        self, secret_task: "prefect.tasks.secrets.Secret", **kwargs: Any
+        self, secret_task: "prefect.tasks.secrets.SecretBase", **kwargs: Any
     ) -> None:
         if "serializer" in kwargs:
             raise ValueError("Can't pass a serializer to a SecretResult.")
+
         self.secret_task = secret_task
         kwargs.setdefault("location", secret_task.name)
         super().__init__(**kwargs)
@@ -35,7 +36,7 @@ class SecretResult(Result):
             - Result: a new result instance with the data represented by the location
         """
         new = self.copy()
-        new.value = self.secret_task.run(name=location)
+        new.value = self.secret_task.run(name=location)  # type: ignore
         new.location = location
         return new
 

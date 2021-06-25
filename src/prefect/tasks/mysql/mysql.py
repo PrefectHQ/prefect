@@ -87,8 +87,10 @@ class MySQLExecute(Task):
             - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
                 parameters used for establishing encrypted connections using SSL. To connect
                 with SSL, at least `ssl_ca`, `ssl_cert`, and `ssl_key` must be specified.
+
         Returns:
             - executed (int): number of affected rows
+
         Raises:
             - pymysql.MySQLError
         """
@@ -236,8 +238,10 @@ class MySQLFetch(Task):
                 or a full cursor class.
             - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
                     parameters used for establishing encrypted connections using SSL
+
         Returns:
             - results (tuple or list of tuples): records from provided query
+            
         Raises:
             - pymysql.MySQLError
         """

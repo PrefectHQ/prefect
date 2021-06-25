@@ -49,6 +49,10 @@ spec:
               value: "cloud"
             - name: PREFECT__CLOUD__AGENT__AGENT_ADDRESS
               value: "http://:8080"
+            - name: PREFECT__CLOUD__API_KEY
+              value: ""
+            - name: PREFECT__CLOUD__TENANT_ID
+              value: ""
           livenessProbe:
             httpGet:
               path: /api/health

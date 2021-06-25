@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 from collections import Counter, defaultdict
+from types import ModuleType
 from typing import Union, NamedTuple, List, Dict, Iterator, Tuple
 
 import marshmallow
@@ -20,6 +21,7 @@ import prefect
 from prefect.utilities.storage import extract_flow_from_file
 from prefect.utilities.filesystems import read_bytes_from_path, parse_path
 from prefect.utilities.graphql import with_args, EnumValue, compress
+from prefect.utilities.importtools import import_object
 from prefect.storage import Local, Module
 from prefect.run_configs import UniversalRun
 
@@ -114,14 +116,17 @@ def expand_paths(paths: List[str]) -> List[str]:
 
 def load_flows_from_script(path: str) -> "List[prefect.Flow]":
     """Given a file path, load all flows found in the file"""
+    # We use abs_path for everything but logging (logging the original
+    # user-specified path provides a clearer message).
+    abs_path = os.path.abspath(path)
     # Temporarily add the flow's local directory to `sys.path` so that local
     # imports work. This ensures that `sys.path` is the same as it would be if
     # the flow script was run directly (i.e. `python path/to/flow.py`).
     orig_sys_path = sys.path.copy()
-    sys.path.insert(0, os.path.dirname(os.path.abspath(path)))
+    sys.path.insert(0, os.path.dirname(abs_path))
     try:
-        with prefect.context({"loading_flow": True, "local_script_path": path}):
-            namespace = runpy.run_path(path, run_name="<flow>")
+        with prefect.context({"loading_flow": True, "local_script_path": abs_path}):
+            namespace = runpy.run_path(abs_path, run_name="<flow>")
     except Exception as exc:
         click.secho(f"Error loading {path!r}:", fg="red")
         log_exception(exc, 2)
@@ -133,15 +138,18 @@ def load_flows_from_script(path: str) -> "List[prefect.Flow]":
     if flows:
         for f in flows:
             if f.storage is None:
-                f.storage = Local(path=path, stored_as_script=True)
+                f.storage = Local(path=abs_path, stored_as_script=True)
     return flows
 
 
 def load_flows_from_module(name: str) -> "List[prefect.Flow]":
-    """Given a module name, load all flows found in the module"""
+    """
+    Given a module name (or full import path to a flow), load all flows found in the
+    module
+    """
     try:
         with prefect.context({"loading_flow": True}):
-            mod = importlib.import_module(name)
+            mod_or_obj = import_object(name)
     except Exception as exc:
         # If the requested module (or any parent module) isn't found, log
         # without a traceback, otherwise log a general message with the
@@ -151,12 +159,26 @@ def load_flows_from_module(name: str) -> "List[prefect.Flow]":
             or (name.startswith(exc.name) and name[len(exc.name)] == ".")
         ):
             raise TerminalError(str(exc))
+        elif isinstance(exc, AttributeError):
+            raise TerminalError(str(exc))
         else:
             click.secho(f"Error loading {name!r}:", fg="red")
             log_exception(exc, 2)
             raise TerminalError
 
-    flows = [f for f in vars(mod).values() if isinstance(f, prefect.Flow)]
+    if isinstance(mod_or_obj, ModuleType):
+        flows = [f for f in vars(mod_or_obj).values() if isinstance(f, prefect.Flow)]
+    elif isinstance(mod_or_obj, prefect.Flow):
+        flows = [mod_or_obj]
+        # Get a valid module name for f.storage
+        name, _ = name.rsplit(".", 1)
+    else:
+        click.secho(
+            f"Invalid object of type {type(mod_or_obj).__name__!r} found at {name!r}. "
+            f"Expected Module or Flow."
+        )
+        raise TerminalError
+
     if flows:
         for f in flows:
             if f.storage is None:
@@ -281,14 +303,13 @@ def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
                 flow.result = flow.storage.result
 
             # Add a `run_config` if not configured explicitly
-            # Also add any extra labels to the flow
-            if flow.run_config is None:
-                if flow.environment is not None:
-                    flow.environment.labels.update(labels)
-                else:
-                    flow.run_config = UniversalRun(labels=labels)
-            else:
-                flow.run_config.labels.update(labels)
+            if flow.run_config is None and flow.environment is None:
+                flow.run_config = UniversalRun()
+            # Add any extra labels to the flow (either specified via the CLI,
+            # or from the storage object).
+            obj = flow.run_config or flow.environment
+            obj.labels.update(labels)
+            obj.labels.update(flow.storage.labels)
 
             # Add the flow to storage
             flow.storage.add_flow(flow)
@@ -462,7 +483,7 @@ def build_and_register(
                     click.echo(f"  └── Version: {flow_version}")
                     stats["registered"] += 1
                 else:
-                    click.secho(" Skipped", fg="yellow")
+                    click.secho(" Skipped (metadata unchanged)", fg="yellow")
                     stats["skipped"] += 1
     return stats
 
@@ -617,6 +638,10 @@ REGISTER_EPILOG = """
 
 \b    $ prefect register --project my-project -m "myproject.flows"
 
+\b  Register a flow in variable `flow_x` in a module `myproject.flows`.
+
+\b    $ prefect register --project my-project -m "myproject.flows.flow_x"
+
 \b  Register all pre-built flows from a remote JSON file.
 
 \b    $ prefect register --project my-project --json https://some-url/flows.json
@@ -648,8 +673,9 @@ REGISTER_EPILOG = """
     "-m",
     "modules",
     help=(
-        "A python module name containing the flow(s) to register. May be "
-        "passed multiple times to specify multiple modules."
+        "A python module name containing the flow(s) to register. May be the full "
+        "import path to a flow. May be passed multiple times to specify multiple "
+        "modules. "
     ),
     multiple=True,
 )
@@ -705,7 +731,11 @@ REGISTER_EPILOG = """
 @click.pass_context
 @handle_terminal_error
 def register(ctx, project, paths, modules, json_paths, names, labels, force, watch):
-    """Register one or more flows into a project."""
+    """Register one or more flows into a project.
+
+    Flows with unchanged metadata will be skipped as registering again will only
+    change the version number.
+    """
     # Since the old command was a subcommand of this, we have to do some
     # mucking to smoothly deprecate it. Can be removed with `prefect register
     # flow` is removed.
@@ -957,6 +987,7 @@ def build(paths, modules, names, labels, output, update):
 )
 def flow(file, name, project, label, skip_if_flow_metadata_unchanged):
     """Register a flow (DEPRECATED)"""
+    # Deprecated in 0.14.13
     click.secho(
         (
             "Warning: `prefect register flow` is deprecated, please transition to "

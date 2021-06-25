@@ -379,16 +379,25 @@ class BigQueryLoadGoogleCloudStorage(Task):
         job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
         if schema:
             job_config.schema = schema
+
+        load_job = None
         try:
             load_job = client.load_table_from_uri(
                 uri,
                 table_ref,
                 location=location,
                 job_config=job_config,
-            ).result()  # block until job is finished
+            )
+
+            # Start the job and wait for it to complete and get the result
+            load_job.result()
         except Exception as exception:
-            for error in load_job.errors:
-                self.logger(error)
+            self.logger.error(exception)
+
+            if load_job is not None and load_job.errors is not None:
+                for error in load_job.errors:
+                    self.logger.error(error)
+
             raise FAIL(exception) from exception
         # remove unpickleable attributes
         load_job._client = None

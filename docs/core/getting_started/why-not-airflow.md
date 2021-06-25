@@ -335,13 +335,15 @@ The Prefect UI supports:
 - agent management
 - projects for organizing flows
 - team management and permissions
-- API token generation
+- API key generation
 - secret management
 - global concurrency limits
 - timezones (this one's for you, Airflow users!)
 - ...and quite a bit more
 
-The UI is part of Prefect Cloud because it is backed by the same infrastructure that allows us to deliver production-grade workflow management to our customers. However, we are committed to making it increasingly available to users of our open-source products, beginning with its inclusion in Cloud's [free tier](https://prefect.io/download). We are working on other ways of delivering elements from the UI to our open-source users.
+Get started with the UI [on GitHub](https://github.com/PrefectHQ/ui) today. The code is source available, released under the Prefect Community License.
+
+Want to see the UI in action without hosting it yourself? Check [Prefect Cloud](https://www.prefect.io/cloud/), our production-grade workflow management product.
 
 ## Conclusions
 

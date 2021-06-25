@@ -446,6 +446,20 @@ def test_bitbucket_full_serialize(access_token_secret):
     assert serialized["access_token_secret"] == access_token_secret
 
 
+def test_bitbucket_incorrect_secret():
+    with pytest.raises(ValueError):
+        storage.Bitbucket(
+            project="PROJECT",
+            repo="test-repo",
+            workspace="test-workspace",
+            path="test-flow.py",
+            host="http://localhost:7990",
+            ref="develop",
+            secrets=["token"],
+            access_token_secret="secret",
+        )
+
+
 def test_module_serialize():
     module = storage.Module("test")
     serialized = module.serialize()

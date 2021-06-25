@@ -1,4 +1,5 @@
 import os
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -40,6 +41,9 @@ class Test_parse_path:
 class Test_read_bytes_from_path:
     @pytest.mark.parametrize("scheme", ["agent", None])
     def test_read_local_file(self, tmpdir, scheme):
+        if scheme and sys.platform == "win32":
+            pytest.skip("Scheme not supported for Windows file paths")
+
         path = str(tmpdir.join("test.yaml"))
         with open(path, "wb") as f:
             f.write(b"hello")
