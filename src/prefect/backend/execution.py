@@ -58,9 +58,10 @@ def execute_flow_run_in_subprocess(
         run_config=flow_run.run_config,
     )
 
-    if flow_run.state.is_running() or flow_run.state.is_submitted():
+    if not flow_run.state.is_scheduled():
         raise RuntimeError(
-            f"Flow run is already in state {flow_run.state!r}! Cannot execute flow run."
+            f"Flow run is already in state {flow_run.state!r}! Cannot execute flow run "
+            "unless it is in a 'Scheduled' state"
         )
 
     while not flow_run.state.is_finished():
