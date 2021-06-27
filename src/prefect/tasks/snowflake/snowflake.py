@@ -66,6 +66,7 @@ class SnowflakeQuery(Task):
         "database",
         "schema",
         "role",
+        "warehouse",
         "query",
         "data",
         "autocommit",
@@ -198,13 +199,13 @@ class SnowflakeQueriesFromFile(Task):
         self.account = account
         self.user = user
         self.password = password
+        self.private_key = private_key
         self.database = database
         self.schema = schema
         self.role = role
         self.warehouse = warehouse
         self.file_path = file_path
         self.autocommit = autocommit
-        self.private_key = private_key
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -215,6 +216,7 @@ class SnowflakeQueriesFromFile(Task):
         "database",
         "schema",
         "role",
+        "warehouse",
         "file_path",
         "autocommit",
     )
