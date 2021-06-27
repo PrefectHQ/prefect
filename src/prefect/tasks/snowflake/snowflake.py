@@ -218,7 +218,6 @@ class SnowflakeQueriesFromFile(Task):
         "file_path",
         "autocommit",
     )
-    @defaults_from_attrs("file_path", "autocommit")
     def run(
         self,
         account: str,
