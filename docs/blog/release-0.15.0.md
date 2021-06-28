@@ -105,7 +105,7 @@ When the `--watch` flag is used, we can help answer this question. If the flow r
 
 ### Agentless execution
 
-Agents add a layer to Prefect in which we help you manage the infrastructure your flow is going to be deployed on. However, when debugging or in some deployment stories, you may want to own that part of your flow's execution. Currently, the only recourse is to use local flow runs; but with local runs you lose some features that are only supported when backed by the API and you can't inspect your runs in the UI.
+Agents add a layer to Prefect in which we help you manage the infrastructure your flow is going to be deployed on. However, you may want to own that part of your flow's execution when debugging or doing a complex deployment. Currently, the only recourse is to use local flow runs; but with local runs you lose some features that are only supported when backed by the API and you can't inspect your runs in the UI.
 
 In 0.15.0, we've introduced a new concept of "agentless flow run execution". Here, you take full ownership of the infrastructure your flow runs on. If you want the flow to run in a container, you must set up the container yourself then call this command. This also prevents Prefect from managing the scheduling of the flow run since we cannot spin up the infrastructure on demand with an agent. However, this does allow you to do local runs of flows while still interacting with the full backend API feature set. 
 
