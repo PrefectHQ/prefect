@@ -28,7 +28,7 @@ To transition this flow from local to Cloud, we can register it with an interfac
 $ prefect register -p my_flow_file.py --project example
 ```
 
-We've added a "Hello World" flow to Prefect to make getting started with these commands really easy. 
+Before we continue, let's switch to a real flow. We've added a "Hello World" flow to Prefect to make getting started really easy. 
 
 First, try running the flow locally:
 ```
