@@ -138,7 +138,8 @@ class TaskRunView:
                     "supported."
                 )
 
-            # Ensure the mapped children have
+            # Ensure the mapped children have valid result types
+            task_run._assert_result_type_is_not_null()
             task_run._assert_result_type_is_not_custom()
 
             # Update state
