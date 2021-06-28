@@ -75,12 +75,13 @@ class KafkaBatchConsume(Task):
                 addresses of kafka brokers
             - group_id (str, required): name of the consumer group the consumer will belong to
             - topics (List[str], required): list of topic names to consume messages from
-            - request_timeout (float, optional): Maximum time to block waiting for message, event or callback
+            - request_timeout (float, optional): Maximum time to block waiting for message, event
+                or callback
             - auto_offset_reset (str, optional): configurable offset reset policy
-            - message_consume_limit (int, optional): max number of messages to consume before closing
-                the consumer
-            - kafka_configs (dict, optional): a dict of kafka client configuration properties used to
-                construct the consumer.
+            - message_consume_limit (int, optional): max number of messages to consume before
+                closing the consumer
+            - kafka_configs (dict, optional): a dict of kafka client configuration properties used
+                to construct the consumer.
         Returns:
             - List of consumed messages
         """
