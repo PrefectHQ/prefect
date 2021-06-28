@@ -14,7 +14,7 @@ The core of Prefect is orchestrating the execution of your workflows. When using
 
 We created a new CLI for running flows: `prefect run`. The old command, `prefect run flow` will stick around for compatbility. Creating a new command let us change behavior and arguments without worrying about backwards compatibility. This naming matches the `prefect register` command (which replaced `prefect register flow`).
 
-We want the transition from developing a flow locally to running flows in production to be seamless. A minor pain point is that you need to define your flow then call `flow.run()` at the bottom while developing. To test the flow, you call `python my_flow_file.py`. Then, when the flow is ready to be pushed to Cloud, you change your `flow.run()` call to `flow.register("project")` and go to the UI to start a flow run. We want you to be able to limit the flow file to contain just the code for your workflow.
+A minor pain point is that, when developing, you need to define your flow then call `flow.run()` at the bottom. To test the flow, you run `python my_flow_file.py`. Then, when the flow is ready to be pushed to Cloud, you change your `flow.run()` call to `flow.register("project")` and go to the UI to start a flow run. We want the transition from developing a flow locally to running flows in production to be seamless, so we've aimed at alleviating this friction. We want you to be able to limit the flow file to contain just the code for your workflow.
 
 `prefect run` will take an import or file path to run a flow locally; this replaces the `flow.run()` and `python my_flow_file.py` pattern. For example, the following will run the file and extract the flow object then call `flow.run()`:
 
