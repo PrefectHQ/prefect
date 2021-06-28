@@ -273,7 +273,7 @@ Flow run succeeded!
 
 ## In conclusion
 
-We've rehauled the API for running and inspecting flow runs and exposed some powerful new patterns. In the process, we rewrote most of the flow run documentation. Check out [the new documentation](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview) for more details on everything covered in this post.
+We've rehauled the Prefect Core Python API for running and inspecting flow runs and exposed some powerful new patterns. In the process, we rewrote most of the flow run documentation. Check out [the new documentation](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview) for more details on everything covered in this post.
 
 We're excited to see what you can do with these new features and we're always looking for more feedback so we can continue to make the best orchestration tool around!
 
