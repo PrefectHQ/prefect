@@ -64,7 +64,7 @@ Processing 'prefect.hello_world':
 ======================== 1 registered ========================
 ```
 
-Now, a flow run can be created by visiting the UI _or_ the `prefect run` CLI can be used:
+Now, a flow run can be created using the `prefect run` CLI:
 ```
 $ prefect run --name "hello-world" --watch
 ```
