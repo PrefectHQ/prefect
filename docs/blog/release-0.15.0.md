@@ -99,7 +99,7 @@ When used with a backend, `prefect run` will typically exit immediately after cr
 
 ### Agent warnings
 
-A common user question is: Why is my flow run stuck in a 'Scheduled' state? Why hasn't my flow run started?
+A common question is: Why is my flow run stuck in a 'Scheduled' state; why hasn't it started?
 
 When the `--watch` flag is used, we can help answer this question. If the flow run does not enter a 'Running' state after 15 seconds, we will investigate. Flow runs are matched with agents by "labels". The labels on an agent must include all of the labels on the flow run for the agent to pick up the flow run. We pull all of the agents from Cloud and compare your labels to the flow run's labels to determine if there are any matching agents. If not, we'll tell you to start an agent with the required set of labels. If there are matching agent labels, we'll check the last time the agent contacted Cloud to see if it's healthy and warn you if it is not.
 
