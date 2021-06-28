@@ -1,6 +1,6 @@
 # Prefect 0.15.0: Improve flow run creation and inspection
 
-We’re excited to announce the release of Prefect 0.15.0! This release is the result of months of work to improve the interface for creating and inspecting flow runs. 0.15.0 contains a new command line interface for creating flow runs as well a suite of objects for inspecting flow runs without writing GrapHQL queries.
+We’re excited to announce the release of Prefect 0.15.0! This release is the result of months of work to improve the interface for creating and inspecting flow runs. 0.15.0 contains a new command line interface for creating flow runs as well a suite of objects for inspecting flow runs without writing GraphQL queries.
 
 For the full list of enhancements and features, check out the [release changelog](...).
 
