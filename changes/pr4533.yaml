@@ -1,0 +1,6 @@
+
+task:
+  - "Adds new tasks `KafkaBatchConsume` and `KafkaBatchProduce` to the prefect tasks library - [#4533](https://github.com/PrefectHQ/prefect/pull/4533)"
+
+contributor:
+  - "[Tenzin Choedak](https://github.com/tchoedak)"
