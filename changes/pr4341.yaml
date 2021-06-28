@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Refactor `Agent` base class for readability - [#4341](https://github.com/PrefectHQ/prefect/pull/4341)"

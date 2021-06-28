@@ -11,7 +11,7 @@ from prefect.engine.result import Result
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import Cached, ClientFailed, Failed, Queued, Retrying, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 from prefect.utilities.executors import tail_recursive
 
 
@@ -94,7 +94,7 @@ class CloudTaskRunner(TaskRunner):
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
-        except VersionLockError as exc:
+        except VersionLockMismatchSignal as exc:
             state = self.client.get_task_run_state(task_run_id=task_run_id)
 
             if state.is_running():

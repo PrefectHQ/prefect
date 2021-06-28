@@ -42,7 +42,7 @@
     "vue-server-renderer": "^2.6.12",
     "vuepress": "<=1.4.0",
     "vuepress-plugin-code-copy": "^1.0.6",
-    "vuepress-plugin-element-tabs": "^0.1.8",
+    "vuepress-plugin-element-tabs": "^0.2.8",
     "vuepress-plugin-selected-text-popup": "^1.0.0",
     "watchpack": "^1.6.1"
   },

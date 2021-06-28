@@ -46,7 +46,7 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.tasks import pause_task
 
 
@@ -131,6 +131,24 @@ def test_task_that_raises_success_is_marked_success():
 def test_task_that_has_an_error_is_marked_fail():
     task_runner = TaskRunner(task=ErrorTask())
     assert isinstance(task_runner.run(), Failed)
+
+
+def test_task_with_error_has_helpful_messages(caplog):
+    task_runner = TaskRunner(task=ErrorTask())
+    state = task_runner.run()
+    assert state.is_failed()
+    exc_repr = (
+        # Support py3.6 exception reprs
+        "ValueError('custom-error-message',)"
+        if sys.version_info < (3, 7)
+        else "ValueError('custom-error-message')"
+    )
+    assert state.message == f"Error during execution of task: {exc_repr}"
+    assert "ValueError: custom-error-message" in caplog.text
+    assert "Traceback" in caplog.text  # Traceback should be included
+    assert (
+        "Task 'ErrorTask': Exception encountered during task execution!" in caplog.text
+    )
 
 
 def test_task_that_raises_fail_is_marked_fail():
@@ -344,7 +362,7 @@ def test_timeout_actually_stops_execution():
 
     assert state.is_failed()
     assert isinstance(state, TimedOut)
-    assert isinstance(state.result, TaskTimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_can_handle_timeouts_by_default():
@@ -355,7 +373,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
-    assert isinstance(state.result, TaskTimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_handles_secrets():

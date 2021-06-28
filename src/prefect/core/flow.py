@@ -687,7 +687,11 @@ class Flow:
         return edges
 
     def update(
-        self, flow: "Flow", merge_parameters: bool = False, validate: bool = None
+        self,
+        flow: "Flow",
+        merge_parameters: bool = False,
+        validate: bool = None,
+        merge_reference_tasks: bool = False,
     ) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow.
@@ -696,10 +700,12 @@ class Flow:
 
         Args:
             - flow (Flow): A flow which is used to update this flow.
-            - merge_parameters (bool, False): If `True`, duplicate paramaeters are replaced
+            - merge_parameters (bool, False): If `True`, duplicate parameters are replaced
                 with parameters from the provided flow. Defaults to `False`.
                 If `True`, validate will also be set to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
+            - merge_reference_tasks(bool, False): If `True`, add reference tasks from the provided
+                flow to the current flow reference tasks set.
 
         Returns:
             - None
@@ -725,6 +731,11 @@ class Flow:
                     flattened=edge.flattened,
                     validate=validate,
                 )
+
+        if merge_reference_tasks:
+            self.set_reference_tasks(
+                self.reference_tasks().union(flow.reference_tasks())
+            )
 
         self.constants.update(flow.constants or {})
 
@@ -1577,7 +1588,11 @@ class Flow:
         return str(fpath)
 
     def run_agent(
-        self, token: str = None, show_flow_logs: bool = False, log_to_cloud: bool = True
+        self,
+        token: str = None,
+        show_flow_logs: bool = False,
+        log_to_cloud: bool = None,
+        api_key: str = None,
     ) -> None:
         """
         Runs a Cloud agent for this Flow in-process.
@@ -1585,14 +1600,22 @@ class Flow:
         Args:
             - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
                 will default to the token found in `config.cloud.agent.auth_token`
+                DEPRECATED.
             - show_flow_logs (bool, optional): a boolean specifying whether the agent should
                 re-route Flow run logs to stdout; defaults to `False`
             - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should
-                be sent to Prefect Cloud; defaults to `True`
+                be sent to Prefect Cloud; defaults to `None` which uses the config value
+            - api_key (str, optional): A Prefect Cloud API key to authenticate with.
+                If not set, the default will be pulled from the `Client`
         """
         temp_config = {
             "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
-            "logging.log_to_cloud": log_to_cloud,
+            "cloud.api_key": api_key or prefect.config.cloud.get("api_key"),
+            "cloud.send_flow_run_logs": (
+                log_to_cloud
+                if log_to_cloud is not None
+                else prefect.config.cloud.send_flow_run_logs
+            ),
         }
         with set_temporary_config(temp_config):
             if self.run_config is not None:

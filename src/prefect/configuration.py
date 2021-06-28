@@ -1,8 +1,9 @@
 import datetime
 import os
 import re
+import warnings
 from ast import literal_eval
-from typing import Optional, Union, cast
+from typing import Optional, Union, cast, Iterable
 
 import toml
 from box import Box
@@ -140,6 +141,36 @@ def process_task_defaults(config: Config) -> Config:
     return config
 
 
+def to_environment_variables(
+    config: Config, include: Optional[Iterable[str]] = None, prefix: str = "PREFECT"
+) -> dict:
+    """
+    Convert a configuration object to environment variables
+
+    Values will be cast to strings using 'str'
+
+    Args:
+        - config: The configuration object to parse
+        - include: An optional set of keys to include. Each key to include should be
+            formatted as 'section.key' or 'section.section.key'
+        - prefix: The prefix for the environment variables. Defaults to "PREFECT".
+
+    Returns:
+        - A dictionary mapping key to values e.g.
+            PREFECT__SECTION__KEY: VALUE
+    """
+    # Convert to a flat dict for construction without recursion
+    flat_config = collections.dict_to_flatdict(config)
+
+    # Generate env vars as "PREFIX__SECTION__KEY"
+    return {
+        "__".join([prefix] + list(key)).upper(): str(value)
+        for key, value in flat_config.items()
+        # Only include the specified keys
+        if not include or ".".join(key) in include
+    }
+
+
 # Validation ------------------------------------------------------------------
 
 
@@ -206,10 +237,10 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
 
                 # place the env var in the flat config as a compound key
                 if env_var_option.upper().startswith("CONTEXT__SECRETS"):
-                    formatted_option = env_var_option.split("__")
-                    formatted_option[:-1] = [
-                        val.lower() for val in formatted_option[:-1]
-                    ]
+                    # Lowercase `context__secrets` but retain case of the secret keys
+                    formatted_option = env_var_option.replace(
+                        "CONTEXT__SECRETS", "context__secrets"
+                    ).split("__")
                     config_option = collections.CompoundKey(formatted_option)
                 else:
                     config_option = collections.CompoundKey(
@@ -320,13 +351,33 @@ def load_configuration(
     return config
 
 
-# load prefect configuration
-config = load_configuration(
-    path=DEFAULT_CONFIG,
-    user_config_path=USER_CONFIG,
-    backend_config_path=BACKEND_CONFIG,
-    env_var_prefix=ENV_VAR_PREFIX,
-)
+def warn_on_deprecated_config_keys(config: Config) -> None:
+    # logging.log_to_cloud: Deprecated in 0.14.20
+    # Only warn if they've tried to disable logging using this key
+    if "log_to_cloud" in config.logging and config.logging.log_to_cloud is False:
+        warnings.warn(
+            "`prefect.logging.log_to_cloud` is deprecated. "
+            "Please use `prefect.cloud.send_flow_run_logs` instead."
+        )
 
-# add task defaults
-config = process_task_defaults(config)
+
+def load_default_config() -> "Config":
+    # load prefect configuration
+    config = load_configuration(
+        path=DEFAULT_CONFIG,
+        user_config_path=USER_CONFIG,
+        backend_config_path=BACKEND_CONFIG,
+        env_var_prefix=ENV_VAR_PREFIX,
+    )
+
+    # add task defaults
+    config = process_task_defaults(config)
+
+    # handle deprecations
+    warn_on_deprecated_config_keys(config)
+
+    return config
+
+
+# Define `prefect.config` object
+config: "Config" = load_default_config()

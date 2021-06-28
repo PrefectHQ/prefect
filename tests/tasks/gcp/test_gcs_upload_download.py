@@ -20,7 +20,6 @@ class TestInitialization:
         task = klass(bucket="")
         assert task.bucket == ""
         assert task.blob is None
-        assert task.encryption_key_secret is None
         assert task.project is None
         assert task.create_bucket is False
         assert task.request_timeout == 60

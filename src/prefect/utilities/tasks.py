@@ -1,5 +1,4 @@
 import itertools
-import warnings
 from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import timedelta
@@ -188,18 +187,6 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
                         upstream_task=arg_task, downstream_task=task, mapped=is_mapped
                     )
     return res
-
-
-# DEPRECATED backward-compatible import
-from prefect.utilities.edges import unmapped as _unmapped
-
-
-def unmapped(*args, **kwargs):  # type: ignore
-    warnings.warn(
-        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`",
-        stacklevel=2,
-    )
-    return _unmapped(*args, **kwargs)
 
 
 @contextmanager

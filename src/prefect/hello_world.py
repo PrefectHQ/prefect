@@ -18,6 +18,11 @@ Examples:
     ------------------------------------------
     $ prefect create project 'default'
     $ prefect register --project default -m prefect.hello_world
+
+
+    Run this flow with the Prefect backend and agent
+    ------------------------------------------
+    $ prefect run --name "hello-world" --watch
 """
 
 from prefect import task, Flow, Parameter

@@ -24,8 +24,10 @@ def test_create_help():
     )
 
 
-def test_create_project(patch_post, cloud_api):
-    patch_post(dict(data=dict(create_project=dict(id="id"))))
+def test_create_project(patch_post, server_api):
+    patch_post(
+        dict(data=dict(create_project=dict(id="id"), tenant=[dict(id="tenant")]))
+    )
 
     runner = CliRunner()
     result = runner.invoke(create, ["project", "test"])
@@ -33,7 +35,7 @@ def test_create_project(patch_post, cloud_api):
     assert "test created" in result.output
 
 
-def test_create_project_error(patch_post):
+def test_create_project_error(patch_post, server_api):
     patch_post(dict(errors=[dict(error={})]))
 
     runner = CliRunner()
@@ -42,8 +44,10 @@ def test_create_project_error(patch_post):
     assert "Error creating project" in result.output
 
 
-def test_create_project_description(patch_post, cloud_api):
-    patch_post(dict(data=dict(create_project=dict(id="id"))))
+def test_create_project_description(patch_post, server_api):
+    patch_post(
+        dict(data=dict(create_project=dict(id="id"), tenant=[dict(id="tenant")]))
+    )
 
     runner = CliRunner()
     result = runner.invoke(create, ["project", "test", "-d", "description"])
@@ -51,7 +55,7 @@ def test_create_project_description(patch_post, cloud_api):
     assert "test created" in result.output
 
 
-def test_create_project_that_already_exists(patch_posts):
+def test_create_project_that_already_exists(patch_posts, server_api):
     patch_posts(
         [
             {
@@ -60,7 +64,7 @@ def test_create_project_that_already_exists(patch_posts):
                 ],
                 "data": {"create_project": None},
             },
-            {"data": {"project": [{"id": "proj-id"}]}},
+            {"data": {"project": [{"id": "proj-id"}]}, "tenant": [{"id": "tenant"}]},
         ]
     )
 

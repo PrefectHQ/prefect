@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Any, List, Tuple, Union
 
-from prefect.client import Secret
 from prefect.core import Task
 from prefect.utilities.tasks import defaults_from_attrs
 from python_http_client.client import Response
@@ -9,9 +8,7 @@ from python_http_client.client import Response
 
 class SendEmail(Task):
     """
-    A task for sending an email via Twilio SendGrid. For this task to
-    function properly, you must have a Prefect Secret set which stores
-    your SendGrid API Key (defaults to `"SENDGRID_API_KEY"`).
+    A task for sending an email via Twilio SendGrid.
 
     Args:
         - from_email (str): The email address of the sender; defaults to notifications@prefect.io
@@ -24,8 +21,8 @@ class SendEmail(Task):
             can also be provided at runtime
         - attachment_file_path (Union[str, Path], optional): The file path of the email attachment;
             can also be provided at runtime
-        - sendgrid_secret (str, optional): the name of the Prefect Secret which stores your
-            SendGrid API key; defaults to `"SENDGRID_API_KEY"`
+        - sendgrid_api_key (str): The SendGrid API key used for authentication;
+            can also be provided at runtime, which is preferred since a secret can be used
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -37,7 +34,7 @@ class SendEmail(Task):
         html_content: str = None,
         category: Union[str, List[str]] = None,
         attachment_file_path: Union[str, Path] = None,
-        sendgrid_secret: str = "SENDGRID_API_KEY",
+        sendgrid_api_key: str = None,
         **kwargs: Any
     ):
         self.from_email = from_email
@@ -46,7 +43,7 @@ class SendEmail(Task):
         self.html_content = html_content
         self.category = category
         self.attachment_file_path = attachment_file_path
-        self.sendgrid_secret = sendgrid_secret
+        self.sendgrid_api_key = sendgrid_api_key
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -56,7 +53,7 @@ class SendEmail(Task):
         "html_content",
         "category",
         "attachment_file_path",
-        "sendgrid_secret",
+        "sendgrid_api_key",
     )
     def run(
         self,
@@ -66,7 +63,7 @@ class SendEmail(Task):
         html_content: str = None,
         category: Union[str, List[str]] = None,
         attachment_file_path: Union[str, Path] = None,
-        sendgrid_secret: str = None,
+        sendgrid_api_key: str = None,
     ) -> Response:
         """
         Run message which sends an email via SendGrid.
@@ -85,9 +82,11 @@ class SendEmail(Task):
                 defaults to those provided at initialization
             - attachment_file_path (Union[str, Path], optional): The file path of the email attachment;
                 defaults to the one provided at initialization
-            - sendgrid_secret (str, optional): the name of the Prefect Secret which stores your
-                SendGrid API key; defaults to `"SENDGRID_API_KEY"`; if not provided here,
-                will use the value provided at initialization
+            - sendgrid_api_key (str, optional): The SendGrid API key used for authentication;
+                if not provided here, will use the value provided at initialization
+
+        Raises:
+            - ValueError: if no API key is provided
 
         Returns:
             - python_http_client.client.Response:
@@ -98,7 +97,8 @@ class SendEmail(Task):
         # Based on the SendGrid example use-case code here:
         # https://github.com/sendgrid/sendgrid-python/blob/aa39f715a061f0de993811faea0adb8223657d01/use_cases/attachment.md
 
-        sendgrid_api_key = Secret(sendgrid_secret).get()
+        if not sendgrid_api_key:
+            raise ValueError("A SendGrid API key must be provided.")
 
         import base64
         import mimetypes
@@ -117,7 +117,7 @@ class SendEmail(Task):
             from_email=from_email,
             to_emails=to_emails,
             subject=subject,
-            html_content=html_content,
+            html_content=html_content or "\n",
         )
 
         if category:

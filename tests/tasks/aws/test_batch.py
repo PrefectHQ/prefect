@@ -33,7 +33,7 @@ class TestBatchSubmit:
             task.run()
 
     def test_submission_fail(self, batch_client):
-        batch_client.submit_job = MagicMock(side_effect=FAIL())
+        batch_client.submit_job = MagicMock(side_effect=RuntimeError("AWS issue"))
 
         task = BatchSubmit(
             job_definition="job_def", job_name="job_name", job_queue="queue123"
