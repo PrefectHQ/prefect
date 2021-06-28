@@ -200,7 +200,7 @@ The most powerful feature of the `TaskRunView` is its ability to pull results fr
 
 The backend objects discussed above provided a stepping stone to a much requested feature: the ability to pass task results between flows. Since most of the work of retrieving results is abstracted into the view objects, it was straightforward to define some new built-in tasks that retrieve results from a task run in another flow run.
 
-The existing task to create sub-flows, `StartFlowRun`, provides a `wait` flag. This flag changes its return value, which made it hard to rely on it providing a flow run id. A much simpler `create_flow_run` task was introduced to create a child flow run. This task always returns a flow run id immediately after creation. We then added a `get_task_run_result(flow_run_id: str, task_slug: str)` task which will retrieve the result from the task in the given flow run.
+The existing task to create sub-flows, `StartFlowRun`, provides a `wait` flag. This flag changes its return value from a flow run id to a state, which made it hard to compose with other tasks. A much simpler `create_flow_run` task was introduced to create a child flow run. This task always returns a flow run id immediately after creation. We then added a `get_task_run_result(flow_run_id: str, task_slug: str)` task which will retrieve the result from the task in the given flow run.
 
 For example, we can pull a result from a child flow into a parent flow then act on that data:
 
