@@ -352,18 +352,3 @@ def test_interval_schedule_requires_interval_even_though_none_default():
     """
     with pytest.raises(TypeError):
         schedules.IntervalSchedule()
-
-
-class TestDeprecated:
-    def test_one_time_schedule(self):
-        with pytest.warns(UserWarning, match="deprecated"):
-            schedules.OneTimeSchedule(pendulum.now())
-
-    def test_union_schedule(self):
-        with pytest.warns(UserWarning, match="deprecated"):
-            schedules.UnionSchedule(
-                [
-                    schedules.CronSchedule("0 0 * * *"),
-                    schedules.OneTimeSchedule(pendulum.now()),
-                ]
-            )

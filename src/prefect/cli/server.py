@@ -1,4 +1,6 @@
+import click
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import tempfile
@@ -6,7 +8,6 @@ import time
 import warnings
 from pathlib import Path
 
-import click
 import yaml
 
 import prefect
@@ -173,13 +174,14 @@ def setup_compose_file(
     no_ui_port=False,
     no_server_port=False,
     use_volume=True,
+    temp_dir: str = None,
 ) -> str:
     # Defaults should be set in the `click` command option, these defaults are to
     # simplify testing
 
     base_compose_path = Path(__file__).parents[0].joinpath("docker-compose.yml")
 
-    temp_dir = tempfile.gettempdir()
+    temp_dir = temp_dir or tempfile.gettempdir()
     temp_path = os.path.join(temp_dir, "docker-compose.yml")
 
     # Copy the docker-compose file to the temp location

@@ -9,7 +9,7 @@ import prefect
 from prefect import Flow, Task
 from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
-from prefect.utilities.exceptions import StorageError
+from prefect.exceptions import FlowStorageError
 from prefect.utilities.storage import (
     get_flow_image,
     extract_flow_from_file,
@@ -232,7 +232,7 @@ class TestFlowToFromBytesPickle:
             monkeypatch.setattr(cloudpickle, "__version__", "0.0.2")
 
         with pytest.raises(
-            StorageError, match="An error occurred while unpickling"
+            FlowStorageError, match="An error occurred while unpickling"
         ) as exc:
             flow_from_bytes_pickle(s)
 

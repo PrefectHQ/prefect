@@ -108,6 +108,13 @@ class TestCreateTask:
             t4 = Task()
             assert t4.timeout == 3
 
+        t4 = Task(timeout=timedelta(seconds=2))
+        assert t4.timeout == 2
+
+        with pytest.warns(UserWarning):
+            t5 = Task(timeout=timedelta(seconds=3, milliseconds=1, microseconds=1))
+        assert t5.timeout == 3
+
     def test_create_task_with_trigger(self):
         t1 = Task()
         assert t1.trigger is prefect.triggers.all_successful

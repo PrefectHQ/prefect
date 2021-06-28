@@ -1,0 +1,5 @@
+enhancement:
+  - "Change SendGrid SendEmail task to use secret value - [#4669](https://github.com/PrefectHQ/prefect/pull/4669)"
+
+contributor:
+  - "[Stéphan Taljaard](https://github.com/taljaards)"

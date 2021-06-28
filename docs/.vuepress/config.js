@@ -84,7 +84,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.17)', link: '/api/latest/' },
+          { text: 'Latest (0.14.21)', link: '/api/latest/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
           { text: '0.11.5', link: '/api/0.11.5/' },
@@ -114,6 +114,11 @@ module.exports = {
           title: 'prefect',
           collapsable: true,
           children: ['triggers']
+        },
+        {
+          title: 'prefect.backend',
+          collapsable: true,
+          children: getChildren('docs/api/latest', 'backend')
         },
         {
           title: 'prefect.client',
@@ -199,21 +204,19 @@ module.exports = {
           collapsable: true,
           children: [
             'concepts/api',
-            'concepts/cli',
-            'concepts/projects',
-            'concepts/flows',
-            'concepts/flow_runs',
-            'concepts/cloud_hooks',
-            'concepts/automations',
-            'concepts/secrets',
-            'concepts/services',
             'concepts/api_keys',
-            'concepts/roles',
-            'concepts/task-concurrency-limiting'
+            'concepts/cli',
+            'concepts/flows',
+            'concepts/projects',
+            'concepts/kv_store',
+            'concepts/secrets',
+            'concepts/automations',
+            'concepts/cloud_hooks',
+            'concepts/services'
           ]
         },
         {
-          title: 'Flow Run Configuration',
+          title: 'Flow Configuration',
           collapsable: true,
           children: [
             'flow_config/overview',
@@ -222,6 +225,19 @@ module.exports = {
             'flow_config/executors',
             'flow_config/docker',
             'flow_config/upgrade'
+          ]
+        },
+        {
+          title: 'Flow Runs',
+          collapsable: true,
+          children: [
+            'flow-runs/overview',
+            'flow-runs/creation',
+            'flow-runs/inspection',
+            'flow-runs/task-runs',
+            'flow-runs/scheduling',
+            'flow-runs/setting-states',
+            'flow-runs/concurrency-limits'
           ]
         },
         {
@@ -246,6 +262,13 @@ module.exports = {
             'ui/task-run',
             'ui/interactive-api',
             'ui/team-settings'
+          ]
+        },
+        {
+          title: 'RBAC',
+          collapsable: true,
+          children: [
+            'rbac/overview'
           ]
         },
         {

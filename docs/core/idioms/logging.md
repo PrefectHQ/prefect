@@ -21,11 +21,13 @@ log_attributes = "[]"
 # the timestamp format
 datefmt = "%Y-%m-%d %H:%M:%S"
 
-# Send logs to Prefect Cloud
-log_to_cloud = false
-
 # Extra loggers for Prefect log configuration
 extra_loggers = "[]"
+
+[cloud]
+
+# Send flow run logs to Prefect Cloud/Server
+send_flow_run_logs = false
 ```
 
 ### Logging from within tasks
@@ -87,6 +89,16 @@ flow.add_task(my_task)
 
 ### Logging with a backend
 
-If you are deploying your flows with the use of a backend such as Prefect Core's server or Prefect Cloud then there are a couple subtle configuration changes that you might happening on each run. First, the configuration option `log_to_cloud` will be set to `True`. This means that the logs from your flow will be sent to the backend where they can be digested and managed. Second, the logging level will always be set to `DEBUG`. This is to ensure that the maximal amount of information is provided in case something goes wrong. The debug logs can always be filtered out after via the UI or API.
+If you are deploying your flows with the use of a backend such as Prefect Core's server or Prefect Cloud then the above logging options apply but may not propagate to your runs.
+For example a flow run could have an environment variable `PREFECT__LOGGING__LEVEL=DEBUG` that changes the logging config for just that run.
 
-Logging can _also_ be disabled for backend runs when providing the `--no-cloud-logs` flag when starting a Prefect agent from the CLI.
+An agent will respect the config on the machine it is started on when determining if logs should be sent to cloud. This allows you to disable sending logs to cloud per machine.
+
+```toml
+[cloud]
+
+# Send flow run logs to Prefect Cloud/Server
+send_flow_run_logs = false
+```
+
+Logging can _also_ be disabled for flow runs by providing the `--no-cloud-logs` flag when starting a Prefect agent from the CLI. This will ignore the value set in the config.

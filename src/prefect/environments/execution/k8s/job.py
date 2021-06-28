@@ -36,7 +36,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
-    - `PREFECT__LOGGING__LOG_TO_CLOUD`
+    - `PREFECT__CLOUD__SEND_FLOW_RUN_LOGS`
     - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Additionally, the following command will be applied to the first container:
@@ -303,7 +303,7 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
                 "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                 "value": "prefect.engine.cloud.CloudTaskRunner",
             },
-            {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+            {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
             {
                 "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                 "value": str(prefect.config.logging.extra_loggers),

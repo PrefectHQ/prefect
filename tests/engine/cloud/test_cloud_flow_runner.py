@@ -32,7 +32,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 
 
 @pytest.fixture(autouse=True)
@@ -454,7 +454,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     def my_run_task(*args, **kwargs):
         with prefect.utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False, "cloud.auth_token": ""}
+            {"cloud.send_flow_run_logs": False, "cloud.auth_token": ""}
         ):
             return run_task(*args, **kwargs)
 
@@ -491,14 +491,17 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     with prefect.utilities.configuration.set_temporary_config(
         {
-            "logging.log_to_cloud": True,
+            "cloud.send_flow_run_logs": True,
             "special_key": 42,
             "cloud.auth_token": "original",
         }
     ):
         # captures config at init
         flow = prefect.Flow("test", tasks=[log_stuff])
-        flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
+
+        # Pretend that this is a 'backend' flow run so logs are emitted to cloud
+        with prefect.context(running_with_backend=True):
+            flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
@@ -609,7 +612,7 @@ def test_flowrunner_handles_version_lock_error(monkeypatch):
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
-    client.set_flow_run_state.side_effect = VersionLockError()
+    client.set_flow_run_state.side_effect = VersionLockMismatchSignal()
 
     flow = prefect.Flow(name="test")
     runner = CloudFlowRunner(flow=flow)
@@ -722,7 +725,7 @@ class TestCloudFlowRunnerCancellation:
         with set_temporary_config(
             {
                 "cloud.check_cancellation_interval": 0.1,
-                "logging.log_to_cloud": True,
+                "cloud.send_flow_run_logs": True,
                 "special_key": 42,
             }
         ):

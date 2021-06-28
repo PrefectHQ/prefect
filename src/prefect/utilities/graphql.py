@@ -1,12 +1,12 @@
-import base64
 import gzip
+
+import base64
 import json
 import textwrap
 import uuid
+from box import Box
 from collections.abc import KeysView, ValuesView
 from typing import Any, TYPE_CHECKING
-
-from box import Box
 
 if TYPE_CHECKING:
     import requests
@@ -51,6 +51,23 @@ class EnumValue:
 
     def __str__(self) -> str:
         return self.value
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.value!r})"
+
+    def __hash__(self) -> int:
+        """
+        Ensure this class is hashable so it can be used as a dict key
+        """
+        # Use a tuple of type(self), self.value to generate the hash so it does not
+        # collide with plain strings equal to self.value
+        return hash((type(self), self.value))
+
+    def __eq__(self, other: Any) -> Any:
+        if not isinstance(other, EnumValue):
+            return NotImplemented
+
+        return self.value == other.value
 
 
 def LiteralSetValue(value: list) -> str:

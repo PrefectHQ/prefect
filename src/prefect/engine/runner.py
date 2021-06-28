@@ -63,7 +63,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
         except Exception as exc:
             formatted = "Unexpected error: {}".format(repr(exc))
-            self.logger.exception(formatted)
+            self.logger.exception(formatted, exc_info=True)
             if raise_on_exception:
                 raise exc
             new_state = Failed(formatted, result=exc)

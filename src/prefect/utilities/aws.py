@@ -49,6 +49,7 @@ def get_boto_client(
     """
 
     if kwargs.pop("use_session", None) is not None:
+        # Deprecated in 0.14.9
         warnings.warn(
             "The `use_session` kwarg has been deprecated, prefect now infers "
             "whether a new boto session should be used automatically."

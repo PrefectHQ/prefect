@@ -54,7 +54,7 @@ db.add_live_aircraft_data(live_aircraft_data)
 db.update_reference_data(ref_data)
 ```
 
-The advantages of the above code is that it is simple to read. However, it's simplicity is matched only by the number of disadvantages. First and foremost, the workflow is strictly linear:
+The advantages of the above code is that it is simple to read. However, its simplicity is matched only by the number of disadvantages. First and foremost, the workflow is strictly linear:
 
 ![Linear ETL](/prefect-tutorial-etl-linear.png)
 

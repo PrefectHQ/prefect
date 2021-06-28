@@ -1,7 +1,11 @@
+import os
 import ssl
 import smtplib
-from email.message import EmailMessage
-from typing import Any, cast
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, cast, List
 
 from prefect import Task
 from prefect.client import Secret
@@ -34,6 +38,8 @@ class EmailTask(Task):
             can also be provided at runtime
         - email_to_bcc (str, optional): additional email address to send the message to as bcc;
             can also be provided at runtime
+        - attachments (List[str], optional): names of files that should be sent as attachment; can
+            also be provided at runtime
         - **kwargs (Any, optional): additional keyword arguments to pass to the base Task
             initialization
     """
@@ -50,6 +56,7 @@ class EmailTask(Task):
         msg_plain: str = None,
         email_to_cc: str = None,
         email_to_bcc: str = None,
+        attachments: List[str] = None,
         **kwargs: Any,
     ):
         self.subject = subject
@@ -62,6 +69,7 @@ class EmailTask(Task):
         self.msg_plain = msg_plain
         self.email_to_cc = email_to_cc
         self.email_to_bcc = email_to_bcc
+        self.attachments = attachments or []
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -75,6 +83,7 @@ class EmailTask(Task):
         "msg_plain",
         "email_to_cc",
         "email_to_bcc",
+        "attachments",
     )
     def run(
         self,
@@ -88,6 +97,7 @@ class EmailTask(Task):
         msg_plain: str = None,
         email_to_cc: str = None,
         email_to_bcc: str = None,
+        attachments: List[str] = None,
     ) -> None:
         """
         Run method which sends an email.
@@ -113,6 +123,8 @@ class EmailTask(Task):
                 defaults to the one provided at initialization
             - email_to_bcc (str, optional): additional email address to send the message to as bcc;
                 defaults to the one provided at initialization
+            - attachments (List[str], optional): names of files that should be sent as attachment;
+                defaults to the one provided at initialization
 
         Returns:
             - None
@@ -121,7 +133,7 @@ class EmailTask(Task):
         username = cast(str, Secret("EMAIL_USERNAME").get())
         password = cast(str, Secret("EMAIL_PASSWORD").get())
 
-        message = EmailMessage()
+        message = MIMEMultipart()
         message["Subject"] = subject
         message["From"] = email_from
         message["To"] = email_to
@@ -130,14 +142,25 @@ class EmailTask(Task):
         if email_to_bcc:
             message["Bcc"] = email_to_bcc
 
-        # https://docs.python.org/3/library/email.examples.html
-        # If present, first set the plain content of the email. After which the html version is
-        # added. This converts the message into a multipart/alternative container, with the
-        # original text message as the first part and the new html message as the second part.
+        # First add the message in plain text, then the HTML version. Email clients try to render
+        # the last part first
         if msg_plain:
-            message.set_content(msg_plain, subtype="plain")
+            message.attach(MIMEText(msg_plain, "plain"))
         if msg:
-            message.add_alternative(msg, subtype="html")
+            message.attach(MIMEText(msg, "html"))
+
+        for filepath in attachments:
+            with open(filepath, "rb") as attachment:
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(attachment.read())
+
+            encoders.encode_base64(part)
+            filename = os.path.basename(filepath)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename= {filename}",
+            )
+            message.attach(part)
 
         context = ssl.create_default_context()
         if smtp_type == "SSL":
