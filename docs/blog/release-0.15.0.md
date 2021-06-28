@@ -196,8 +196,6 @@ task_run.get_result()  # "foobar!"
 
 The most powerful feature of the `TaskRunView` is its ability to pull results from their location on your infrastructure. This object does the heavy lifting of looking up the location of the result and pulling the data from it. It also handles mapped tasks which require the result to be pulled from _many_ locations.
 
-See [the docs](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview) for more details.
-
 ## Sub-flow result passing
 
 The backend objects discussed above provided a stepping stone to a much requested feature: the ability to pass task results between flows. Since most of the work of retrieving results is abstracted into the view objects, it was straightforward to define some new built-in tasks that retrieve results from a task run in another flow run.
@@ -272,3 +270,26 @@ Executing flow run...
 └── 13:19:25 | INFO    | Flow run SUCCESS: all reference tasks succeeded
 Flow run succeeded!
 ```
+
+## In conclusion
+
+We've rehauled the API for running and inspecting flow runs and exposed some powerful new patterns. In the process, we rewrote most of the flow run documentation. Check out [the new documentation](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview) for more details on everything covered in this post.
+
+We're excited to see what you can do with these new features and we're always looking for more feedback so we can continue to make the best orchestration tool around!
+
+...
+
+Please continue reaching out to us with your questions and feedback — we appreciate the opportunity to work with all of you!
+
+    join our Slack community for ad-hoc questions
+    follow us on Twitter for updates
+    attend our meetup events for contributors, focused on the internals of Prefect
+    visit us on GitHub to open issues and pull requests
+
+Happy Engineering!
+
+
+— The Prefect Team
+
+
+
