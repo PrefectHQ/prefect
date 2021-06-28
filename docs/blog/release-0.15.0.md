@@ -95,7 +95,7 @@ Watching flow run execution...
 Flow run succeeded!
 ```
 
-When used with a backend, `prefect run` will typically exit immediately after creating a flow run since the execution of the flow run is managed by an agent. Above, we opted to `--watch` the flow run which will stream logs and state changes from the flow run to you's machine.
+When used with a backend, `prefect run` will typically exit immediately after creating a flow run since the execution of the flow run is managed by an agent. Above, we opted to `--watch` the flow run which will stream logs and state changes from the flow run to your machine. This provides some instant feedback about how the flow run is going. Of course, we display a link to monitor the flow run from the UI and you can see all of the logs there as well.
 
 ### Agent warnings
 
