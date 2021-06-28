@@ -119,7 +119,7 @@ $ prefect run --name "hello-world" --execute
 - The subprocess pulls the flow from storage
 - The flow is executed with reporting to the backend
 
-**Note**: Since your flow run isn't being deployed by an agent, you can put breakpoints in your tasks and debug your flow run! The context will have all of the information that it would in a real production flow run.
+**Note:** Since your flow run isn't being deployed by an agent, you can put breakpoints in your tasks and debug your flow run! The context will have all of the information that it would in a real production flow run.
 
 ## Inspection of flow runs
 
