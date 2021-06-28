@@ -74,6 +74,7 @@ class TaskRunView:
         if not self.state.is_finished():
             raise ValueError("The task result cannot be loaded if it is not finished.")
 
+        self._assert_result_type_is_not_null()
         self._assert_result_type_is_not_custom()
 
         if self._result is NotLoaded:
@@ -160,6 +161,20 @@ class TaskRunView:
             raise TypeError(
                 "The task has a custom `Result` type and its result cannot be loaded. "
                 "Only built-in `Result` types are supported."
+            )
+
+    def _assert_result_type_is_not_null(self) -> None:
+        """
+        If the task does not have a Result class set, we cannot load the result as it
+        was not persisted anywhere
+        """
+        if not self.state._result or (
+            self.state._result and not self.state._result.location
+        ):
+            raise TypeError(
+                "The task has a no `Result` type or location so the result cannot be "
+                "loaded. Set a `Result` type on your tasks so return values are "
+                "persisted."
             )
 
     def iter_mapped(self) -> Iterator["TaskRunView"]:
