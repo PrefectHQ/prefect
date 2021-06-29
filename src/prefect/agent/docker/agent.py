@@ -395,7 +395,11 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(image))
 
-        host_config = {"auto_remove": True}  # type: dict
+        host_config = {
+            "auto_remove": True,
+            # Compatibility for linux -- https://github.com/docker/cli/issues/2290
+            "extra_hosts": {"host.docker.internal": "host-gateway"},
+        }  # type: dict
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
