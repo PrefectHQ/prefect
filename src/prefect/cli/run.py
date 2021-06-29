@@ -733,6 +733,10 @@ def run(
             quiet_echo("Exiting without cancelling flow run!", fg="yellow")
             raise  # Re-raise the interrupt
 
+    else:
+        # If not watching or executing, exit without checking state
+        return
+
     # Get the final flow run state
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
