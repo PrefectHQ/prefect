@@ -978,13 +978,16 @@ class TestCheckTaskCached:
         # have to have a state worth checking to trigger the validator
         with prefect.context(caches={"Task": [State()]}, checkpointing=False):
             task = Task(
-                cache_for=timedelta(seconds=10), cache_validator=custom_validator
+                cache_for=timedelta(seconds=10),
+                cache_validator=custom_validator,
+                task_run_name="TaskRun",
             )
             state = TaskRunner(task).run()
 
         expected_subset = dict(
             map_index=None,
             task_full_name="Task",
+            task_run_name="TaskRun",
             task_run_count=1,
             task_name="Task",
             task_tags=set(),
