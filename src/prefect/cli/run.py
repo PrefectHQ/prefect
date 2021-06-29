@@ -593,6 +593,7 @@ def run(
 
         if result_state.is_failed():
             quiet_echo("Flow run failed!", fg="red")
+            sys.exit(1)
         else:
             quiet_echo("Flow run succeeded!", fg="green")
 

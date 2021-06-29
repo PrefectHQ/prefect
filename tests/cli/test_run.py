@@ -451,7 +451,7 @@ def test_run_passes_context(caplog, context_flow_file):
 
 def test_run_local_handles_flow_run_failure(caplog, runtime_failing_flow):
     result = CliRunner().invoke(run, ["--path", runtime_failing_flow])
-    assert not result.exit_code
+    assert result.exit_code == 1
     assert "Running flow locally..." in result.output
     assert "Flow run failed" in result.output
     # Flow runner logged exception
