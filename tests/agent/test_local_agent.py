@@ -541,9 +541,13 @@ def test_generate_supervisor_conf_with_token_and_key():
         (
             1,
             False,
-            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code 1!"),),
         ),
-        (1, True, (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),)),
+        (
+            2,
+            True,
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code 2!"),),
+        ),
     ),
 )
 def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):

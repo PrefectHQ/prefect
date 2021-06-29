@@ -102,7 +102,8 @@ class LocalAgent(Agent):
                 self.processes.remove(process)
                 if process.returncode:
                     self.logger.info(
-                        "Process PID {} returned non-zero exit code".format(process.pid)
+                        f"Process PID {process.pid} returned non-zero exit code "
+                        f"{process.returncode}!"
                     )
         super().heartbeat()
 
