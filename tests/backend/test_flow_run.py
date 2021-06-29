@@ -253,7 +253,7 @@ def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
 
 def test_check_for_compatible_agents_no_agents_returned(patch_post):
     patch_post(
-        {"data": {"agents": []}},
+        {"data": {"agent": []}},
     )
 
     result = check_for_compatible_agents([])
@@ -264,7 +264,7 @@ def test_check_for_compatible_agents_healthy_without_matching_labels(patch_post)
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -285,7 +285,7 @@ def test_check_for_compatible_agents_no_healthy_no_matching_unhealthy(patch_post
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -306,7 +306,7 @@ def test_check_for_compatible_agents_matching_labels_in_single_unhealthy(patch_p
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -329,7 +329,7 @@ def test_check_for_compatible_agents_matching_labels_in_multiple_unhealthy(patch
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -356,7 +356,7 @@ def test_check_for_compatible_agents_matching_labels_in_single_healthy(patch_pos
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -379,7 +379,7 @@ def test_check_for_compatible_agents_matching_labels_in_multiple_unhealthy(patch
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -440,14 +440,14 @@ def test_watch_flow_run(monkeypatch):
         # Assert that we get the agent warning a couple times then update the state
         if i == 0:
             assert log.message == (
-                "It has been 15 seconds and your flow run has not started. "
+                "It has been 15 seconds and your flow run has not been submitted by an agent. "
                 "Helpful agent message."
             )
             assert log.level == logging.WARNING
 
         elif i == 1:
             assert log.message == (
-                "It has been 50 seconds and your flow run has not started. "
+                "It has been 50 seconds and your flow run has not been submitted by an agent. "
                 "Helpful agent message."
             )
 
