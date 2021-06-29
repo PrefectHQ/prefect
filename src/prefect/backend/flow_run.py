@@ -106,7 +106,11 @@ def watch_flow_run(
             stream_states  # The agent warning is counted as a state log
             and total_time_elapsed >= agent_warning_initial_wait
             and agent_warning_time_elapsed > agent_warning_repeat_interval
-            and not (flow_run.state.is_running() or flow_run.state.is_finished())
+            and not (
+                flow_run.state.is_submitted()
+                or flow_run.state.is_running()
+                or flow_run.state.is_finished()
+            )
         ):
             agent_msg = check_for_compatible_agents(flow_run.labels)
             yield FlowRunLog(
@@ -114,7 +118,7 @@ def watch_flow_run(
                 level=logging.WARN,
                 message=(
                     f"It has been {total_time_elapsed_rounded} seconds and "
-                    f"your flow run has not started. {agent_msg}"
+                    f"your flow run has not been submitted by an agent. {agent_msg}"
                 ),
             )
             agent_warning_time_elapsed = 0
