@@ -593,6 +593,7 @@ def run(
 
         if result_state.is_failed():
             quiet_echo("Flow run failed!", fg="red")
+            sys.exit(1)
         else:
             quiet_echo("Flow run succeeded!", fg="green")
 
@@ -750,10 +751,12 @@ def run(
     # Display the final state
     if flow_run.state.is_failed():
         quiet_echo("Flow run failed!", fg="red")
+        sys.exit(1)
     elif flow_run.state.is_successful():
         quiet_echo("Flow run succeeded!", fg="green")
     else:
         quiet_echo(f"Flow run is in unexpected state: {flow_run.state}", fg="yellow")
+        sys.exit(1)
 
 
 # DEPRECATED: prefect run flow ---------------------------------------------------------
