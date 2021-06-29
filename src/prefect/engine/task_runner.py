@@ -166,6 +166,7 @@ class TaskRunner(Runner):
         context.update(
             task_run_count=run_count,
             task_name=self.task.name,
+            task_run_name=self.task.task_run_name,
             task_tags=self.task.tags,
         )
         # Use the config stored in context if possible (should always be present)
