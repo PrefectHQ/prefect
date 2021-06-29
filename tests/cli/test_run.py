@@ -518,6 +518,13 @@ def test_run_cloud_creates_flow_run(
         **cloud_kwargs,
     )
 
+    if not execute_flag:
+        # Called once to retrieve information
+        cloud_mocks.FlowRunView.from_flow_run_id.assert_called_once()
+    else:
+        # Called again later to check final state
+        assert cloud_mocks.FlowRunView.from_flow_run_id.call_count == 2
+
 
 def test_run_cloud_handles_create_flow_run_failure(cloud_mocks):
     cloud_mocks.FlowView.from_flow_id.return_value = TEST_FLOW_VIEW
