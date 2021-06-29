@@ -190,12 +190,12 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     labels_blurb = f"labels {labels!r}" if labels else "empty labels"
 
     result = client.graphql(
-        {"query": {"agents": {"last_queried", "labels", "name", "id"}}}
+        {"query": {"agent": {"last_queried", "labels", "name", "id"}}}
     )
 
-    agents = result.get("data", {}).get("agents")
+    agents = result.get("data", {}).get("agent")
     if agents is None:
-        raise ValueError(f"Recieved bad result while querying for agents: {result}")
+        raise ValueError(f"Received bad result while querying for agents: {result}")
 
     # Parse last query times
     for agent in agents:
