@@ -88,6 +88,15 @@ will bring you to the [flow](/orchestration/ui/flow.md) page.
 
 Your flow has been successfully registered!
 
+***Labels**
+
+You may have noticed that both your registered flow and your local agent have labels associated with them. Specifically, your may have noticed that your flow had a single label set to the hostname of your local machine (e.g. "Janes-MacBook.local"). 
+
+This hostname label ensures that only local agents started on this machine can execute your registered flow. Without labels, your flow might get picked up by other agents running in your infrastructure, or your locally running agent would attempt to execute other flows - potentially even flows that it can't access!
+
+Labels are a powerful feature of Prefect Cloud and Server, providing fine control over exactly what flows your agents can execute. 
+
+
 ## Start an Agent
 
 You're almost ready to start scheduling flow runs using the Prefect Backend.
