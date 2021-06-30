@@ -272,9 +272,35 @@ Executing flow run...
 Flow run succeeded!
 ```
 
+## API keys
+
+The authentication paradigm in Prefect used to be pretty complicated. You had to generate tokens with the proper scope then use one token to register your flows and another to run your flows. Behind the scenes, the token you provided was generating short-lived tokens that were _actually_ used for authentication, leading to a complex dance in the Prefect `Client` object. API keys solve all of these problems. An API key is tied directly to an account and has all of the permissions of that account. It can be used for both registering and running flows. It does not require additional token generation. We've added a whole new suite of CLI commands for managing authentication with API keys while retaining backwards compatibility with tokens.
+
+### Getting started with an API key
+
+If you've never used a token, getting going with an API key is simple. Head to the [UI API key page](https://cloud.prefect.io/user/keys) and create a new key. Then open up a terminal and run `prefect auth login --key "<YOUR-KEY>"`
+
+Congrats! You're logged in. Your key has now been saved to `~/.prefect/auth.toml` and will be used for all future operations. If your user belongs to multiple tenants, you can view them with `prefect auth list-tenants` and switch tenants with `prefect auth switch-tenants`. When you switch tenants, the `auth.toml` file will be updated so all future Cloud interactions use the new tenant.
+
+If you want to remove your key from your machine, run `prefect auth logout`.
+### Transitioning from a token to an API key
+
+If you're using a token right now, we encourage you to switch over! Run `prefect auth logout` to remove your 'short-lived' token then run `prefect auth logout` again to remove your API token from your machine entirely. We care a lot about backwards compatibility and didn't want to break the old behavior of the logout command for tokens, which is why it takes two goes to remove it entirely.
+
+You may get some warnings that your API token has been set elsewhere when you try using the CLI to logout. This means you've set your auth token in the `config.toml` at `prefect.cloud.auth_token` or as an environment variable `PREFECT__CLOUD__AUTH_TOKEN`. Just remove that config setting and you're logged out.
+
+Since API keys can be used to run agents, you can also remove `prefect.cloud.agent.auth_token` or `PREFECT__CLOUD__AGENT__AUTH_TOKEN` as well. You won't be needing them anymore.
+
+Now that you've purged your token, you can login with an API key as described above.
+
+### Service accounts
+
+When running agents in production or registering flows in CI, it doesn't make sense to tie API interactions to your specific user account. For this, we've introduced service accounts which are scoped to a single tenant. You can create service accounts and an associated API key from [the UI](https://cloud.prefect.io/team/service-accounts). 
+
+Then, in your CI job you can set an environment variable `PREFECT__CLOUD__API_KEY="<API-KEY>"` or use the login CLI as described above.
 ## In conclusion
 
-We've rehauled the Prefect Core Python API for running and inspecting flow runs and exposed some powerful new patterns. In the process, we rewrote most of the flow run documentation. Check out [the new documentation](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview) for more details on everything covered in this post.
+We've rehauled the Prefect Core Python API for running and inspecting flow runs and exposed some powerful new patterns. In the process, we rewrote most of [the flow run documentation](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview).
 
 We're excited to see what you can do with these new features and we're always looking for more feedback so we can continue to make the best orchestration tool around!
 
