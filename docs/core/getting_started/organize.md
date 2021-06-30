@@ -7,8 +7,8 @@ Getting Started
  - Thinking Prefectly 
  - Why Prefect
  - Why Not Airflow
- - More Resources (Include Tutorials and Cloud Getting Started)
  - Next Steps 
+ - More Resources (Include Tutorials and Cloud Getting Started)
 
 Cloud
 
@@ -20,7 +20,9 @@ Getting Started
     - Set up Cloud
     - Set up Server
     - Registering & Running a Flow
-    - 
+    - Next Steps
+        - Parameters
+        - Run Configs
 - More Resources (Include links to Tutorials, Thinking Prefectly, Why Not Airflow & Next Steps)
 
 

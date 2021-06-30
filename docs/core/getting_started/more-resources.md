@@ -1,5 +1,5 @@
 
-The Quick Start guide has covered: 
+The Core Quick Start guide has covered: 
 - Installing prefect
 - Writing a flow
 
