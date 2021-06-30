@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Exit with non-zero status on flow run failure when watched - [#4709](https://github.com/PrefectHQ/prefect/pull/4709)"

@@ -1,3 +1,0 @@
-
-feature:
-  - "Rehaul `prefect run` CLI for executing flows locally and with agents - [#4463](https://github.com/PrefectHQ/prefect/pull/4463)"
