@@ -14,7 +14,7 @@ Cloud
 
 Getting Started
 - Quick Start
-    - Installation
+    - Core Installation
     - Basic Core Flow
     - Cloud or Server?
     - Set up Cloud
