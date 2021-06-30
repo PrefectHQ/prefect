@@ -4,7 +4,7 @@ This section of our quick-start guide is aimed at [Prefect
 ## Create (or log into) your Prefect Cloud account
 To use Prefect Cloud you'll need to go to our Prefect Cloud web app and set up (or join) an account.  
 
-## Make sure your backend is set to Cloud
+## Set backend 
 
 Once you have an account set up, make sure your backend is set to use Prefect Cloud by running 
 
