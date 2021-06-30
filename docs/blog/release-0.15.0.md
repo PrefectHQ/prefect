@@ -102,6 +102,7 @@ When used with a backend, `prefect run` will typically exit immediately after cr
 A common question is: Why is my flow run stuck in a 'Scheduled' state; why hasn't it started?
 
 When `prefect run --watch` is used, we can help answer this question. If the flow run does not enter a 'Running' state 15 seconds after being created, we will investigate. Flow runs are matched with agents by "labels". The labels on an agent must include all of the labels on the flow run for the agent to pick up the flow run. We pull all of your agents from the backend and compare your labels to the flow run's labels to determine if there are any matching agents. If not, we'll tell you to start an agent with the required set of labels. If there is an agent with matching labels, we'll check the last time the agent contacted the backend to see if it's healthy and warn you if it is not. Combined with the new agent screens in the UI, we're improving communication where things can go wrong so you can quickly identify a solution and focus on your engineering tasks at hand.
+
 ### Agentless execution
 
 Agents add a layer to Prefect in which we help you manage the infrastructure your flow is going to be deployed on. However, you may want to own that part of your flow's execution when debugging or doing a complex deployment. Currently, the only recourse is to use local flow runs; but with local runs you lose some features that are only supported when backed by the API and you can't inspect your runs in the UI.
@@ -118,14 +119,15 @@ $ prefect run --name "hello-world" --execute
 - The subprocess pulls the flow from storage
 - The flow is executed with reporting to the backend
 
-**Note:** Since your flow run isn't being deployed by an agent, you can put breakpoints in your tasks and debug your flow run! The context will have all of the information that it would in a real production flow run.
+**Note:** Since your flow run isn't being deployed by an agent, you can put breakpoints in your tasks and debug your flow run! The context will have all of the information that it would in a real, production flow run.
+
+Check out the [new `prefect run` CLI documentation](https://60da3b4c329bb300073bb79e--prefect-docs.netlify.app/orchestration/flow-runs/creation.html#cli) for more information.
 
 ## Inspection of flow runs
 
 The UI provides a wonderful view into your flow runs with minimal effort, but if you want to inspect a flow run programatically, you'll have to write some GraphQL queries yourself. GraphQL is a powerful view into the Prefect backend, allowing you to retrieve _exactly_ the data you want from nested objects. Sometimes, though, you just want a Python object.
 
 0.15.0 creates a `prefect.backend` module with Python objects that provide views of the backend without requiring you to write any GraphQL. At the center of these objects is the `FlowRunView`, so we'll talk about that first.
-
 
 The `FlowRunView` lets you pull the most recent information about a flow run from the backend. For example:
 
@@ -193,7 +195,7 @@ task_run.map_index  # -1  (not mapped)
 task_run.get_result()  # "foobar!"
 ```
 
-The most powerful feature of the `TaskRunView` is its ability to pull results from their location on your infrastructure. This object does the heavy lifting of looking up the location of the result and pulling the data from it. It also handles mapped tasks which require the result to be pulled from _many_ locations.
+The most powerful feature of the `TaskRunView` is its ability to pull results from their location on your infrastructure. This object does the heavy lifting of looking up the location of the result and pulling the data from it. It also handles mapped tasks which require the result to be pulled from _many_ locations. Check out the [task run view documentation](https://docs.prefect.io/orchestration/flow-runs/task-runs.html#task-run-results) for more details.
 
 ## Sub-flow result passing
 
@@ -276,7 +278,7 @@ We've rehauled the Prefect Core Python API for running and inspecting flow runs 
 
 We're excited to see what you can do with these new features and we're always looking for more feedback so we can continue to make the best orchestration tool around!
 
-...
+. . .
 
 Please continue reaching out to us with your questions and feedback — we appreciate the opportunity to work with all of you!
 
