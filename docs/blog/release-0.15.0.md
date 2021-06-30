@@ -2,7 +2,7 @@
 
 We’re excited to announce the release of Prefect 0.15.0! This release is the result of months of work to improve the interface for creating and inspecting flow runs. 0.15.0 contains a new command line interface for creating flow runs as well a suite of objects for inspecting flow runs without writing GraphQL queries.
 
-For the full list of enhancements and features, check out the [release changelog](...).
+For the full list of enhancements and features, check out the [release changelog](https://github.com/PrefectHQ/prefect/blob/master/CHANGELOG.md#0150-).
 
 
 . . .
@@ -280,7 +280,9 @@ The authentication paradigm in Prefect used to be pretty complicated. You had to
 
 If you've never used a token, getting going with an API key is simple. Head to the [UI API key page](https://cloud.prefect.io/user/keys) and create a new key. Then open up a terminal and run `prefect auth login --key "<YOUR-KEY>"`
 
-Congrats! You're logged in. Your key has now been saved to `~/.prefect/auth.toml` and will be used for all future operations. If your user belongs to multiple tenants, you can view them with `prefect auth list-tenants` and switch tenants with `prefect auth switch-tenants`. When you switch tenants, the `auth.toml` file will be updated so all future Cloud interactions use the new tenant.
+Congrats! You're logged in. Your key has now been saved to `~/.prefect/auth.toml` and will be used for all future operations. Try starting an agent with `prefect agent local start`.
+
+If your user belongs to multiple tenants, you can view them with `prefect auth list-tenants` and switch tenants with `prefect auth switch-tenants`. When you switch tenants, the `auth.toml` file will be updated so all future Cloud interactions use the new tenant.
 
 If you want to remove your key from your machine, run `prefect auth logout`.
 ### Transitioning from a token to an API key
@@ -300,13 +302,13 @@ When running agents in production or registering flows in CI, it doesn't make se
 Then, in your CI job you can set an environment variable `PREFECT__CLOUD__API_KEY="<API-KEY>"` or use the login CLI as described above.
 ## In conclusion
 
-We've rehauled the Prefect Core Python API for running and inspecting flow runs and exposed some powerful new patterns. In the process, we rewrote most of [the flow run documentation](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview).
-
-We're excited to see what you can do with these new features and we're always looking for more feedback so we can continue to make the best orchestration tool around!
+We've rehauled the Prefect Core Python API for running and inspecting flow runs and exposed some powerful new patterns. In the process, we rewrote most of [the flow run documentation](https://docs.prefect.io/orchestration/flow-runs/overview.html#overview). We've also simplified authentication while providing more powerful access control. We can't fit everything in a blog post, so be sure to  check out the [release changelog](https://github.com/PrefectHQ/prefect/blob/master/CHANGELOG.md#0150-) to see everything else.
 
 . . .
 
-Please continue reaching out to us with your questions and feedback — we appreciate the opportunity to work with all of you!
+We're excited to see what you can do with these new features and we're always looking for more feedback so we can continue to make the best orchestration tool around!
+
+Please continue reaching out to us — we appreciate the opportunity to work with all of you!
 
     join our Slack community for ad-hoc questions
     follow us on Twitter for updates
