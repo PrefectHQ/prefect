@@ -315,21 +315,23 @@ module.exports = {
       '/core/': [
         '/core/',
         {
-          title: 'Quick Start',
-          collapsable: true,
-          children: [
-            'start/local-environment',
-            'start/run-with-core',
-            'start/run-with-cloud-or-server',
-            'start/more-resources'
-          ]
-        },
-        {
           title: 'About Prefect',
           collapsable: true,
           children: [
             'getting_started/why-prefect',
-            'getting_started/why-not-airflow'
+            'getting_started/why-not-airflow',
+            'getting_started/thinking-prefectly',
+            'getting_started/next-steps'
+          ]
+        },
+        {
+          title: 'Getting Started',
+          collapsable: true,
+          children: [
+            'getting_started/quick-start',
+            'getting_started/install',
+            'getting_started/basic-core-flow',
+            'getting_started/more-resources'
           ]
         },
         {

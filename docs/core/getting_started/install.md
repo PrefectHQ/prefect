@@ -1,4 +1,4 @@
-## Installation
+### Basic Installation
 
 Prefect requires Python 3.6+. If you're new to Python, we recommend installing the [Anaconda distribution](https://www.anaconda.com/distribution/).
 
