@@ -74,7 +74,7 @@ def clear_context_cache():
 
 
 class TestCreateFlow:
-    """ Test various Flow constructors """
+    """Test various Flow constructors"""
 
     def test_create_flow_with_no_args(self):
         # name is required
