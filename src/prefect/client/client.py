@@ -1200,7 +1200,7 @@ class Client:
         using_cloud_api = ".prefect.io" in prefect.config.cloud.api
         # Only use the "old" `as_user` logic if using an api token
         tenant_slug = self.get_default_tenant_slug(
-            as_user=as_user and using_cloud_api and self._api_token
+            as_user=(as_user and using_cloud_api and self._api_token is not None)
         )
 
         # For various API versions parse out `api-` for direct UI link
