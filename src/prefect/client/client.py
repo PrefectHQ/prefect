@@ -1198,7 +1198,7 @@ class Client:
 
         # Search for matching cloud API because we can't guarantee that the backend config is set
         using_cloud_api = ".prefect.io" in prefect.config.cloud.api
-        tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
+        tenant_slug = self.get_default_tenant_slug()
 
         # For various API versions parse out `api-` for direct UI link
         base_url = (
@@ -1213,31 +1213,17 @@ class Client:
 
         return "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
 
-    def get_default_tenant_slug(self, as_user: bool = True) -> str:
+    def get_default_tenant_slug(self) -> str:
         """
         Get the default tenant slug for the currently authenticated user
-
-        Args:
-            - as_user (bool, optional): whether this query is being made from a USER scoped token;
-                defaults to `True`. Only used internally for queries made from RUNNERs
 
         Returns:
             - str: the slug of the current default tenant for this user
         """
-        if as_user:
-            query = {
-                "query": {"user": {"default_membership": {"tenant": "slug"}}}
-            }  # type: dict
-        else:
-            query = {"query": {"tenant": {"slug"}}}
+        reult = self.graphql({"query": {"tenant": {"slug"}}})
 
-        res = self.graphql(query)
+        slug = reult.get("data").tenant[0].slug
 
-        if as_user:
-            user = res.get("data").user[0]
-            slug = user.default_membership.tenant.slug
-        else:
-            slug = res.get("data").tenant[0].slug
         return slug
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
