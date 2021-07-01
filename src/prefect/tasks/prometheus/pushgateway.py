@@ -49,7 +49,7 @@ class _GaugeToGatewayBase(Task):
         job_name: str = None,
     ) -> None:
         """
-        Push a Gauge to prometheus [PushGateway](ttps://prometheus.io/docs/practices/pushing/).
+        Push a Gauge to prometheus [PushGateway](https://prometheus.io/docs/practices/pushing/).
         This will unpack the values and labels to create all the a collector that will be pushed
         to pushgateway.
 
