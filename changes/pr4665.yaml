@@ -1,2 +1,0 @@
-fix:
-  - "Fix cleanup issue with `Git` storage on Windows - [#4665](https://github.com/PrefectHQ/prefect/pull/4665)"

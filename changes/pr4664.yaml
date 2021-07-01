@@ -1,8 +1,0 @@
-
-deprecation:
-  - "`prefect.utilities.exceptions` has been deprecated in favor of `prefect.exceptions` - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)"
-
-breaking:
-  - "Prefect state signals now inherit from `BaseException` to prevent accidental capture - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)"
-  - "`TaskTimeoutError` has been replaced with `TaskTimeoutSignal` - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)"
-  - "`VersionLockError` has been replaced with `VersionLockMismatchSignal` - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)"

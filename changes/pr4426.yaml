@@ -1,3 +1,0 @@
-
-feature:
-  - "Add objects for inspecting flows, flow runs, and task runs without writing queries - [#4426](https://github.com/PrefectHQ/prefect/pull/4426)"
