@@ -106,10 +106,6 @@ module.exports = {
         },
         'changelog',
         {
-          title: 'Test Coverage',
-          path: 'https://codecov.io/gh/PrefectHQ/prefect'
-        },
-        {
           title: 'prefect',
           collapsable: true,
           children: ['triggers']
