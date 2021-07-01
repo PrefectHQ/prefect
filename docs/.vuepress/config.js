@@ -95,7 +95,7 @@ module.exports = {
     sidebar: {
       '/api/0.12.6/': sidebar126.sidebar,
       '/api/0.13.19/': sidebar1319.sidebar,
-      '/api/0.14.22': sidebar1422.sidebar,
+      '/api/0.14.22/': sidebar1422.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
