@@ -2,7 +2,7 @@
 
 ## 0.15.0 <Badge text="beta" type="success" />
 
-Released on June 30, 2021.
+Released on July 1, 2021.
 
 ### Features
 
