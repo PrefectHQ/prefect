@@ -20,7 +20,7 @@ When running your flows that are registered with a private container registry, y
 
 It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files should be modeled after the job.yaml and worker_pod.yaml found [here](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask). The main aspects to be aware of are the `command` and `args` on the container. The following environment variables, required for cloud, do not need to be included––they are automatically added and populated during execution:
 
-- `PREFECT__CLOUD__GRAPHQL` - `PREFECT__CLOUD__AUTH_TOKEN` - `PREFECT__CONTEXT__FLOW_RUN_ID` - `PREFECT__CONTEXT__NAMESPACE` - `PREFECT__CONTEXT__IMAGE` - `PREFECT__CLOUD__USE_LOCAL_SECRETS` - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS` - `PREFECT__LOGGING__LEVEL` - `PREFECT__LOGGING__LOG_TO_CLOUD` - `PREFECT__LOGGING__EXTRA_LOGGERS`
+- `PREFECT__CLOUD__GRAPHQL` - `PREFECT__CLOUD__AUTH_TOKEN` - `PREFECT__CONTEXT__FLOW_RUN_ID` - `PREFECT__CONTEXT__NAMESPACE` - `PREFECT__CONTEXT__IMAGE` - `PREFECT__CLOUD__USE_LOCAL_SECRETS` - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS` - `PREFECT__LOGGING__LEVEL` - `PREFECT__CLOUD__SEND_FLOW_RUN_LOGS` - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
 Note: the logging attributes are only populated if they are not already provided.
 
@@ -74,7 +74,7 @@ This environment requires AWS credentials and extra boto3 kwargs which are used 
 
 The following environment variables, required for cloud, do not need to be included––they are automatically added and populated during execution:
 
-- `PREFECT__CLOUD__GRAPHQL` - `PREFECT__CLOUD__AUTH_TOKEN` - `PREFECT__CONTEXT__FLOW_RUN_ID` - `PREFECT__CONTEXT__IMAGE` - `PREFECT__CLOUD__USE_LOCAL_SECRETS` - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS` - `PREFECT__LOGGING__LOG_TO_CLOUD` - `PREFECT__LOGGING__EXTRA_LOGGERS`
+- `PREFECT__CLOUD__GRAPHQL` - `PREFECT__CLOUD__AUTH_TOKEN` - `PREFECT__CONTEXT__FLOW_RUN_ID` - `PREFECT__CONTEXT__IMAGE` - `PREFECT__CLOUD__USE_LOCAL_SECRETS` - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS` - `PREFECT__CLOUD__SEND_FLOW_RUN_LOGS` - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
 Additionally, the following command will be applied to the first container:
 
@@ -113,7 +113,7 @@ When providing a custom YAML job spec the first container in the spec must be th
 
 The following environment variables, required for cloud, do not need to be included––they are automatically added and populated during execution:
 
-- `PREFECT__CLOUD__GRAPHQL` - `PREFECT__CLOUD__AUTH_TOKEN` - `PREFECT__CONTEXT__FLOW_RUN_ID` - `PREFECT__CONTEXT__NAMESPACE` - `PREFECT__CONTEXT__IMAGE` - `PREFECT__CLOUD__USE_LOCAL_SECRETS` - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS` - `PREFECT__LOGGING__LOG_TO_CLOUD` - `PREFECT__LOGGING__EXTRA_LOGGERS`
+- `PREFECT__CLOUD__GRAPHQL` - `PREFECT__CLOUD__AUTH_TOKEN` - `PREFECT__CONTEXT__FLOW_RUN_ID` - `PREFECT__CONTEXT__NAMESPACE` - `PREFECT__CONTEXT__IMAGE` - `PREFECT__CLOUD__USE_LOCAL_SECRETS` - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS` - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS` - `PREFECT__CLOUD__SEND_FLOW_RUN_LOGS` - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
 Additionally, the following command will be applied to the first container: `$ /bin/sh -c "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"`
 
@@ -145,4 +145,4 @@ DEPRECATED: Environment based configuration is deprecated, please transition to 
 <br>
 
 
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

@@ -43,4 +43,4 @@ The functionality here is experimental, and may change between versions without 
  | <div class='method-sig' id='prefect-artifacts-delete-artifact'><p class="prefect-class">prefect.artifacts.delete_artifact</p>(task_run_artifact_id)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/artifacts.py#L106">[source]</a></span></div>
 <p class="methods">Delete an existing artifact<br><br>**Args**:     <ul class="args"><li class="args">`task_run_artifact_id (str)`: the ID of an existing task run artifact</li></ul></p>|
 
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

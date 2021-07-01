@@ -20,7 +20,8 @@ Options:
                      multiple paths.
 
   -m, --module TEXT  A python module name containing the flow(s) to register.
-                     May be passed multiple times to specify multiple modules.
+                     May be the full import path to a flow. May be passed
+                     multiple times to specify multiple modules.
 
   -j, --json TEXT    A path or URL to a JSON file created by `prefect build`
                      containing the flow(s) to register. May be passed
@@ -59,6 +60,10 @@ Options:
 
       $ prefect register --project my-project -m "myproject.flows"
 
+    Register a flow in variable `flow_x` in a module `myproject.flows`.
+
+      $ prefect register --project my-project -m "myproject.flows.flow_x"
+
     Register all pre-built flows from a remote JSON file.
 
       $ prefect register --project my-project --json https://some-
@@ -77,4 +82,4 @@ Register a flow (DEPRECATED)
 Options:
   --help  Show this message and exit.
 ```
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

@@ -30,4 +30,4 @@ When parsing GraphQL arguments, strings can be wrapped in this class to be rende
  | <div class='method-sig' id='prefect-utilities-graphql-decompress'><p class="prefect-class">prefect.utilities.graphql.decompress</p>(string)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/utilities/graphql.py#L369">[source]</a></span></div>
 <p class="methods">Convenience function for decompressing a string that's been compressed. Base64 decodes the string, decodes it, decompresses it, and loads.<br><br>**Args**:     <ul class="args"><li class="args">`string (str)`: the string to decompress</li></ul> **Returns**:     <ul class="args"><li class="args">`Any`: The object resulting from the decompression</li></ul></p>|
 
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

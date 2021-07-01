@@ -31,4 +31,4 @@ Filters have the signature `Callable[[datetime], bool]`.
  | <div class='method-sig' id='prefect-schedules-filters-is-month-start'><p class="prefect-class">prefect.schedules.filters.is_month_start</p>(dt)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/schedules/filters.py#L205">[source]</a></span></div>
 <p class="methods">Filter that only matches on the first day of the month<br><br>**Args**:     <ul class="args"><li class="args">`dt (datetime)`: the candidate datetime</li></ul> **Returns**:     <ul class="args"><li class="args">`bool`: True if date is the first day of the month, False otherwise</li></ul></p>|
 
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

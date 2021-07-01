@@ -56,7 +56,8 @@ Options:
                                   Defaults to no server.
 
   --no-cloud-logs                 Turn off logging for all flows run through
-                                  this agent.
+                                  this agent. If not set, the Prefect config
+                                  value will be used.
 
   --log-level [DEBUG|INFO|WARNING|ERROR]
                                   The agent log level to use. Defaults to the
@@ -111,7 +112,8 @@ Options:
                                   Defaults to no server.
 
   --no-cloud-logs                 Turn off logging for all flows run through
-                                  this agent.
+                                  this agent. If not set, the Prefect config
+                                  value will be used.
 
   --log-level [DEBUG|INFO|WARNING|ERROR]
                                   The agent log level to use. Defaults to the
@@ -136,7 +138,7 @@ Options:
   --no-docker-interface           Disable the check of a Docker interface on
                                   this machine. Note: This is mostly relevant
                                   for some Docker-in-Docker setups that users
-                                  may be running their agent with.
+                                  may be running their agent with. DEPRECATED.
 
   --docker-client-timeout INTEGER
                                   The timeout to use for docker API calls,
@@ -209,7 +211,8 @@ Options:
                                   Defaults to no server.
 
   --no-cloud-logs                 Turn off logging for all flows run through
-                                  this agent.
+                                  this agent. If not set, the Prefect config
+                                  value will be used.
 
   --log-level [DEBUG|INFO|WARNING|ERROR]
                                   The agent log level to use. Defaults to the
@@ -269,7 +272,8 @@ Options:
                                   Defaults to no server.
 
   --no-cloud-logs                 Turn off logging for all flows run through
-                                  this agent.
+                                  this agent. If not set, the Prefect config
+                                  value will be used.
 
   --log-level [DEBUG|INFO|WARNING|ERROR]
                                   The agent log level to use. Defaults to the
@@ -336,7 +340,8 @@ Options:
                                   Defaults to no server.
 
   --no-cloud-logs                 Turn off logging for all flows run through
-                                  this agent.
+                                  this agent. If not set, the Prefect config
+                                  value will be used.
 
   --log-level [DEBUG|INFO|WARNING|ERROR]
                                   The agent log level to use. Defaults to the
@@ -344,4 +349,4 @@ Options:
 
   --help                          Show this message and exit.
 ```
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

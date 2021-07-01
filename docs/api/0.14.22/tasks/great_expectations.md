@@ -7,7 +7,7 @@ editLink: false
 A collection of tasks for interacting with Great Expectations deployments and APIs.
 
 Note that all tasks currently require being executed in an environment where the great expectations configuration directory can be found; 
-learn more about how to initialize a great expectation deployment [on their Getting Started docs](https://docs.greatexpectations.io/en/latest/tutorials/getting_started.html).
+learn more about how to initialize a great expectation deployment [on their Getting Started docs](https://docs.greatexpectations.io/en/latest/intro.html#how-do-i-get-started).
  ## RunGreatExpectationsValidation
  <div class='class-sig' id='prefect-tasks-great-expectations-checkpoints-rungreatexpectationsvalidation'><p class="prefect-sig">class </p><p class="prefect-class">prefect.tasks.great_expectations.checkpoints.RunGreatExpectationsValidation</p>(checkpoint_name=None, context=None, assets_to_validate=None, batch_kwargs=None, expectation_suite_name=None, context_root_dir=None, runtime_environment=None, run_name=None, run_info_at_end=True, disable_markdown_artifact=False, validation_operator=&quot;action_list_operator&quot;, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/great_expectations/checkpoints.py#L24">[source]</a></span></div>
 
@@ -86,4 +86,4 @@ Task for running a Great Expectations checkpoint. For this task to run properly,
 <br>
 
 
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

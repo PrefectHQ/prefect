@@ -258,13 +258,13 @@ flow.storage = Module(__name__)
 <br>
 
  ## S3
- <div class='class-sig' id='prefect-storage-s3-s3'><p class="prefect-sig">class </p><p class="prefect-class">prefect.storage.s3.S3</p>(bucket, key=None, stored_as_script=False, local_script_path=None, client_options=None, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/storage/s3.py#L21">[source]</a></span></div>
+ <div class='class-sig' id='prefect-storage-s3-s3'><p class="prefect-sig">class </p><p class="prefect-class">prefect.storage.s3.S3</p>(bucket, key=None, stored_as_script=False, local_script_path=None, client_options=None, upload_options=None, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/storage/s3.py#L21">[source]</a></span></div>
 
 S3 storage class.  This class represents the Storage interface for Flows stored as bytes in an S3 bucket.
 
 This storage class optionally takes a `key` which will be the name of the Flow object when stored in S3. If this key is not provided the Flow upload name will take the form `slugified-flow-name/slugified-current-timestamp`.
 
-**Args**:     <ul class="args"><li class="args">`bucket (str)`: the name of the S3 Bucket to store Flows     </li><li class="args">`key (str, optional)`: a unique key to use for uploading a Flow to S3. This         is only useful when storing a single Flow using this storage object.     </li><li class="args">`stored_as_script (bool, optional)`: boolean for specifying if the flow has been stored         as a `.py` file. Defaults to `False`     </li><li class="args">`local_script_path (str, optional)`: the path to a local script to upload when `stored_as_script`         is set to `True`. If not set then the value of `local_script_path` from `prefect.context` is         used. If neither are set then script will not be uploaded and users should manually place the         script file in the desired `key` location in an S3 bucket.     </li><li class="args">`client_options (dict, optional)`: Additional options for the `boto3` client.     </li><li class="args">`**kwargs (Any, optional)`: any additional `Storage` initialization options</li></ul>
+**Args**:     <ul class="args"><li class="args">`bucket (str)`: the name of the S3 Bucket to store Flows     </li><li class="args">`key (str, optional)`: a unique key to use for uploading a Flow to S3. This         is only useful when storing a single Flow using this storage object.     </li><li class="args">`stored_as_script (bool, optional)`: boolean for specifying if the flow has been stored         as a `.py` file. Defaults to `False`     </li><li class="args">`local_script_path (str, optional)`: the path to a local script to upload when `stored_as_script`         is set to `True`. If not set then the value of `local_script_path` from `prefect.context` is         used. If neither are set then script will not be uploaded and users should manually place the         script file in the desired `key` location in an S3 bucket.     </li><li class="args">`client_options (dict, optional)`: Additional options for the `boto3` client.     </li><li class="args">`upload_options (dict, optional)`: Additional options s3 client upload_file()         and upload_fileobj() functions 'ExtraArgs' argument.     </li><li class="args">`**kwargs (Any, optional)`: any additional `Storage` initialization options</li></ul>
 
 
 ---
@@ -328,4 +328,4 @@ storage = Webhook(
 <br>
 
 
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

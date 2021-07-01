@@ -16,4 +16,4 @@ Adjustments have the signature `Callable[[datetime], datetime]`.
  | <div class='method-sig' id='prefect-schedules-adjustments-next-weekday'><p class="prefect-class">prefect.schedules.adjustments.next_weekday</p>(dt)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/schedules/adjustments.py#L31">[source]</a></span></div>
 <p class="methods">Adjustment that advances a date to the next weekday. If the date is already a weekday, it is returned unadjusted.<br><br>**Args**:     <ul class="args"><li class="args">`dt (datetime)`: the datetime to adjust</li></ul> **Returns**:     <ul class="args"><li class="args">`datetime`: the adjusted datetime</li></ul></p>|
 
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on May 8, 2021 at 16:06 UTC</p>
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>
