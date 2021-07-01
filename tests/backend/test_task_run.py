@@ -278,9 +278,45 @@ def test_task_run_view_get_result_loads_mapped_result_data(tmpdir):
     )
 
 
-def test_task_run_view_get_result_does_not_allow_custom_result_types(
-    tmpdir,
-):
+def test_task_run_view_get_result_does_not_allow_null_result_types():
+
+    # Instantiate a very minimal task run view with the custom result
+    task_run = TaskRunView(
+        task_run_id=None,
+        task_id=None,
+        task_slug=None,
+        name=None,
+        # Roundtrip serialize/deserialize to coerce the custom result type to the
+        # type that would happen if it was written to the backend and retrieved
+        state=State.deserialize(Success(result=None).serialize()),
+        map_index=-1,
+        flow_run_id=None,
+    )
+
+    with pytest.raises(TypeError, match="no `Result` type"):
+        assert task_run.get_result()
+
+
+def test_task_run_view_get_result_does_not_allow_missing_result_location():
+
+    # Instantiate a very minimal task run view with the custom result
+    task_run = TaskRunView(
+        task_run_id=None,
+        task_id=None,
+        task_slug=None,
+        name=None,
+        # Roundtrip serialize/deserialize to coerce the custom result type to the
+        # type that would happen if it was written to the backend and retrieved
+        state=State.deserialize(Success(result=Result(location=None)).serialize()),
+        map_index=-1,
+        flow_run_id=None,
+    )
+
+    with pytest.raises(ValueError, match="result has no `location`"):
+        assert task_run.get_result()
+
+
+def test_task_run_view_get_result_does_not_allow_custom_result_types():
     class MyCustomResult(Result):
         pass
 
@@ -292,7 +328,9 @@ def test_task_run_view_get_result_does_not_allow_custom_result_types(
         name=None,
         # Roundtrip serialize/deserialize to coerce the custom result type to the
         # type that would happen if it was written to the backend and retrieved
-        state=State.deserialize(Success(result=MyCustomResult()).serialize()),
+        state=State.deserialize(
+            Success(result=MyCustomResult(location="foo")).serialize()
+        ),
         map_index=-1,
         flow_run_id=None,
     )

@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Display return code on local agent flow process failure - [#4715](https://github.com/PrefectHQ/prefect/pull/4715)"

@@ -593,6 +593,7 @@ def run(
 
         if result_state.is_failed():
             quiet_echo("Flow run failed!", fg="red")
+            sys.exit(1)
         else:
             quiet_echo("Flow run succeeded!", fg="green")
 
@@ -733,6 +734,10 @@ def run(
             quiet_echo("Exiting without cancelling flow run!", fg="yellow")
             raise  # Re-raise the interrupt
 
+    else:
+        # If not watching or executing, exit without checking state
+        return
+
     # Get the final flow run state
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
@@ -746,10 +751,12 @@ def run(
     # Display the final state
     if flow_run.state.is_failed():
         quiet_echo("Flow run failed!", fg="red")
+        sys.exit(1)
     elif flow_run.state.is_successful():
         quiet_echo("Flow run succeeded!", fg="green")
     else:
         quiet_echo(f"Flow run is in unexpected state: {flow_run.state}", fg="yellow")
+        sys.exit(1)
 
 
 # DEPRECATED: prefect run flow ---------------------------------------------------------

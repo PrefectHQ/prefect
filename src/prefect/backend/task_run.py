@@ -2,7 +2,7 @@ from typing import Any, List, Iterator
 
 from prefect import Client
 from prefect.engine.state import Scheduled, State
-from prefect.engine.result import Result
+from prefect.engine.result import Result, NoResultType
 from prefect.utilities.graphql import with_args, EnumValue
 from prefect.utilities.logging import get_logger
 
@@ -74,7 +74,7 @@ class TaskRunView:
         if not self.state.is_finished():
             raise ValueError("The task result cannot be loaded if it is not finished.")
 
-        self._assert_result_type_is_not_custom()
+        self._assert_result_type_is_okay()
 
         if self._result is NotLoaded:
             # Load the result from the result location
@@ -137,23 +137,41 @@ class TaskRunView:
                     "supported."
                 )
 
-            # Ensure the mapped children have
-            task_run._assert_result_type_is_not_custom()
+            # Ensure the mapped children have valid result types
+            task_run._assert_result_type_is_okay()
 
             # Update state
             self.state.map_states = [task_run.state for task_run in child_task_runs]
 
-    def _assert_result_type_is_not_custom(self) -> None:
+    def _assert_result_type_is_okay(self) -> None:
         """
         Since we do not have access to the user's custom Result class, we cannot load
         the result.
         """
+        # Mapped parents do not have result types
+        if self.state.is_mapped():
+            return
+
+        # If there is no result type, we cannot load it. Mapped parents don't apply
+        if not self.state._result or type(self.state._result) is NoResultType:
+            raise TypeError(
+                "The task has a no `Result` type so the result cannot be loaded."
+                "Set a `Result` type on your tasks so return values are persisted."
+            )
+
+        # Must have a location to be loaded
+        if not self.state._result.location:
+            raise ValueError(
+                "The task result has no `location` so the result cannot be loaded. "
+                "This often means that your task result has not been configured or has "
+                "been configured incorrectly."
+            )
+
         # TODO: Check for custom serializer types as well once they are added to the
         #       `ResultSchema`
         # TODO: Add the `result_type` to `TaskRunView` so we can report the qualified
         #       name of the custom result type used.
-
-        if type(self.state._result) is Result and not self.state.is_mapped():
+        if type(self.state._result) is Result:
             # The `Result` base class is used during deserialization if a custom result
             # class has been declared unless it's a mapped state in which it will be
             # an empty `Result` and this assertion will be called on the map children

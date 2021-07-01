@@ -8,7 +8,7 @@ from click.testing import CliRunner
 from unittest.mock import MagicMock
 
 from prefect import Flow
-from prefect.engine.state import Scheduled, Success
+from prefect.engine.state import Scheduled, Success, Failed, Submitted
 from prefect.run_configs import UniversalRun
 from prefect.storage import Local as LocalStorage
 from prefect.backend import FlowRunView, FlowView
@@ -35,6 +35,55 @@ TEST_FLOW_VIEW = FlowView(
     core_version="0.0.0",
     storage=LocalStorage(stored_as_script=True, path="fake-path.py"),
 )
+
+SUCCESS_FLOW_RUN_VIEW = FlowRunView(
+    flow_run_id="flow-run-id",
+    name="flow-run-name",
+    flow_id="flow-id",
+    state=Success(message="state-1"),
+    states=[],
+    parameters={"param": "value"},
+    context={"foo": "bar"},
+    labels=["label"],
+    updated_at=pendulum.now(),
+    run_config=UniversalRun(),
+)
+# On `get_latest` return the same flow run view
+SUCCESS_FLOW_RUN_VIEW.get_latest = MagicMock(return_value=SUCCESS_FLOW_RUN_VIEW)
+
+
+FAILED_FLOW_RUN_VIEW = FlowRunView(
+    flow_run_id="flow-run-id",
+    name="flow-run-name",
+    flow_id="flow-id",
+    state=Failed(message="state-1"),
+    states=[],
+    parameters={"param": "value"},
+    context={"foo": "bar"},
+    labels=["label"],
+    updated_at=pendulum.now(),
+    run_config=UniversalRun(),
+)
+# On `get_latest` return the same flow run view
+FAILED_FLOW_RUN_VIEW.get_latest = MagicMock(return_value=FAILED_FLOW_RUN_VIEW)
+
+
+SUBMITTED_FLOW_RUN_VIEW = FlowRunView(
+    flow_run_id="flow-run-id",
+    name="flow-run-name",
+    flow_id="flow-id",
+    state=Submitted(message="state-1"),
+    states=[],
+    parameters={"param": "value"},
+    context={"foo": "bar"},
+    labels=["label"],
+    updated_at=pendulum.now(),
+    run_config=UniversalRun(),
+)
+# On `get_latest` return the same flow run view
+SUBMITTED_FLOW_RUN_VIEW.get_latest = MagicMock(return_value=SUBMITTED_FLOW_RUN_VIEW)
+
+
 TEST_FLOW_RUN_VIEW = FlowRunView(
     flow_run_id="flow-run-id",
     name="flow-run-name",
@@ -47,21 +96,8 @@ TEST_FLOW_RUN_VIEW = FlowRunView(
     updated_at=pendulum.now(),
     run_config=UniversalRun(),
 )
-# On `get_latest` return the same flow run data but in a 'Success' state
-TEST_FLOW_RUN_VIEW.get_latest = MagicMock(
-    return_value=FlowRunView(
-        flow_run_id="flow-run-id",
-        name="flow-run-name",
-        flow_id="flow-id",
-        state=Success(message="state-1"),
-        states=[],
-        parameters={"param": "value"},
-        context={"foo": "bar"},
-        labels=["label"],
-        updated_at=pendulum.now(),
-        run_config=UniversalRun(),
-    )
-)
+# On `get_latest` return the success flow run view
+TEST_FLOW_RUN_VIEW.get_latest = MagicMock(return_value=SUCCESS_FLOW_RUN_VIEW)
 
 
 @pytest.fixture()
@@ -161,6 +197,7 @@ def cloud_mocks(monkeypatch):
         Client = MagicMock()
         watch_flow_run = MagicMock()
         execute_flow_run_in_subprocess = MagicMock()
+        sleep = MagicMock()
 
     mocks = CloudMocks()
     monkeypatch.setattr("prefect.cli.run.FlowView", mocks.FlowView)
@@ -171,6 +208,9 @@ def cloud_mocks(monkeypatch):
         "prefect.cli.run.execute_flow_run_in_subprocess",
         mocks.execute_flow_run_in_subprocess,
     )
+
+    # Mock sleep for faster testing
+    monkeypatch.setattr("prefect.cli.run.time.sleep", mocks.sleep)
 
     return mocks
 
@@ -411,7 +451,7 @@ def test_run_passes_context(caplog, context_flow_file):
 
 def test_run_local_handles_flow_run_failure(caplog, runtime_failing_flow):
     result = CliRunner().invoke(run, ["--path", runtime_failing_flow])
-    assert not result.exit_code
+    assert result.exit_code == 1
     assert "Running flow locally..." in result.output
     assert "Flow run failed" in result.output
     # Flow runner logged exception
@@ -491,6 +531,7 @@ def test_run_cloud_creates_flow_run(
     cloud_mocks, cli_args, cloud_kwargs, execute_flag, monkeypatch
 ):
     cloud_mocks.FlowView.from_flow_id.return_value = TEST_FLOW_VIEW
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
 
     if execute_flag:
         # Create a preset unique id for the agentless run label for easy determinism
@@ -517,6 +558,13 @@ def test_run_cloud_creates_flow_run(
         flow_id=TEST_FLOW_VIEW.flow_id,
         **cloud_kwargs,
     )
+
+    if not execute_flag:
+        # Called once to retrieve information
+        cloud_mocks.FlowRunView.from_flow_run_id.assert_called_once()
+    else:
+        # Called again later to check final state
+        assert cloud_mocks.FlowRunView.from_flow_run_id.call_count == 2
 
 
 def test_run_cloud_handles_create_flow_run_failure(cloud_mocks):
@@ -563,6 +611,7 @@ def test_run_cloud_handles_keyboard_interrupt_during_flow_run_info(cloud_mocks):
 
 
 def test_run_cloud_respects_quiet(cloud_mocks):
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
     cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
 
     result = CliRunner().invoke(run, ["--id", "flow-id", "--quiet"])
@@ -573,6 +622,7 @@ def test_run_cloud_respects_quiet(cloud_mocks):
 
 @pytest.mark.parametrize("watch", [True, False])
 def test_run_cloud_watch(cloud_mocks, watch):
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
     cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
 
     result = CliRunner().invoke(
@@ -589,6 +639,8 @@ def test_run_cloud_watch(cloud_mocks, watch):
 
 
 def test_run_cloud_watch_respects_no_logs(cloud_mocks):
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
+
     result = CliRunner().invoke(run, ["--id", "flow-id", "--watch", "--no-logs"])
 
     assert not result.exit_code
@@ -597,6 +649,7 @@ def test_run_cloud_watch_respects_no_logs(cloud_mocks):
 
 
 def test_run_cloud_lookup_by_flow_id(cloud_mocks):
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
     result = CliRunner().invoke(run, ["--id", "flow-id"])
 
     assert not result.exit_code
@@ -608,6 +661,7 @@ def test_run_cloud_lookup_by_flow_id(cloud_mocks):
 def test_run_cloud_lookup_by_flow_group_id(cloud_mocks):
     cloud_mocks.FlowView.from_flow_id.side_effect = ValueError()  # flow id is not found
     cloud_mocks.FlowView.from_flow_group_id.return_value = TEST_FLOW_VIEW
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
 
     result = CliRunner().invoke(run, ["--id", "flow-id"])
     assert not result.exit_code
@@ -618,6 +672,8 @@ def test_run_cloud_lookup_by_flow_group_id(cloud_mocks):
 
 @pytest.mark.parametrize("with_project", [True, False])
 def test_run_cloud_lookup_by_name(cloud_mocks, with_project):
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
+
     result = CliRunner().invoke(
         run,
         ["--name", "flow-name"]
@@ -689,8 +745,26 @@ def test_run_cloud_displays_flow_run_data(cloud_mocks):
     )
 
 
+@pytest.mark.parametrize(
+    "run_result", [FAILED_FLOW_RUN_VIEW, SUCCESS_FLOW_RUN_VIEW, SUBMITTED_FLOW_RUN_VIEW]
+)
+@pytest.mark.parametrize("flag", ["--execute", "--watch"])
+def test_run_cloud_exit_code_reflects_final_run_state_when_watched_or_executed(
+    cloud_mocks, flag, run_result
+):
+    cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = run_result
+    result = CliRunner().invoke(run, ["--id", "flow-id"] + [flag])
+
+    if run_result != SUCCESS_FLOW_RUN_VIEW:
+        assert result.exit_code == 1
+    else:
+        assert not result.exit_code
+
+
 def test_run_cloud_execute_calls_subprocess(cloud_mocks):
     cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
     result = CliRunner().invoke(run, ["--id", "flow-id", "--execute"])
 
     assert not result.exit_code
@@ -700,6 +774,7 @@ def test_run_cloud_execute_calls_subprocess(cloud_mocks):
 
 
 def test_run_cloud_execute_respects_quiet(cloud_mocks):
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
     cloud_mocks.Client().create_flow_run.return_value = "fake-run-id"
 
     def show_a_log(*args, **kwargs):
@@ -716,6 +791,8 @@ def test_run_cloud_execute_respects_quiet(cloud_mocks):
 
 
 def test_run_cloud_execute_respects_no_logs(cloud_mocks):
+    cloud_mocks.FlowRunView.from_flow_run_id.return_value = TEST_FLOW_RUN_VIEW
+
     def show_a_log(*args, **kwargs):
         from prefect.utilities.logging import get_logger
 
