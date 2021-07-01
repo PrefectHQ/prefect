@@ -80,8 +80,8 @@ class _GaugeToGatewayBase(Task):
 
         if len(values) != len(labels):
             raise ValueError(
-                f"Values and labels need to have the same lenght. Values lenght is {len(values)}, "
-                f"labels lenght is {len(labels)}."
+                f"Values and labels need to have the same length. Values length is {len(values)}, "
+                f"labels length is {len(labels)}."
             )
 
         if len(values) == 0 or len(labels) == 0:
