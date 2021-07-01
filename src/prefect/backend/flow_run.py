@@ -228,6 +228,7 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
                 matching_unhealthy.append(agent)
 
     if len(matching_healthy) == 1:
+        agent = matching_healthy[0]
         # Display the single matching agent
         name_blurb = f" ({agent.name})" if agent.name else ""
         return (
@@ -253,6 +254,7 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
         )
 
     if len(matching_unhealthy) == 1:
+        agent = matching_unhealthy[0]
         # Display that there is a single matching unhealthy agent
         name_blurb = f" ({agent.name})" if agent.name else ""
         return (
