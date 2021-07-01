@@ -1644,13 +1644,20 @@ def test_get_default_tenant_slug_as_user(patch_post):
         }
     ):
         client = Client()
-        slug = client.get_default_tenant_slug()
+        slug = client.get_default_tenant_slug(as_user=True)
 
         assert slug == "tslug"
 
 
 def test_get_default_tenant_slug_not_as_user(patch_post):
-    response = {"data": {"tenant": [{"slug": "tslug"}]}}
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
 
     patch_post(response)
 
@@ -1658,6 +1665,7 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         {
             "cloud.api": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
+            "cloud.tenant_id": "tenant-id",
             "backend": "cloud",
         }
     ):
@@ -1683,26 +1691,33 @@ def test_get_cloud_url_as_user(patch_post, cloud_api):
     ):
         client = Client()
 
-        url = client.get_cloud_url(subdirectory="flow", id="id")
+        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=True)
         assert url == "http://cloud.prefect.io/tslug/flow/id"
 
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2")
+        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=True)
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
 def test_get_cloud_url_not_as_user(patch_post, cloud_api):
-    response = {"data": {"tenant": [{"slug": "tslug"}]}}
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
 
     patch_post(response)
 
     with set_temporary_config(
         {
             "cloud.api": "http://api.prefect.io",
-            "cloud.auth_token": "secret_token",
             "backend": "cloud",
         }
     ):
         client = Client()
+        client._tenant_id = "tenant-id"
 
         url = client.get_cloud_url(subdirectory="flow", id="id", as_user=False)
         assert url == "http://cloud.prefect.io/tslug/flow/id"
