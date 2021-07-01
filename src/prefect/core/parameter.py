@@ -132,7 +132,7 @@ class DateTimeParameter(Parameter):
     def __init__(
         self,
         name: str,
-        default:JSONSerializableParameterValue = no_default,
+        default: JSONSerializableParameterValue = no_default,
         required: bool = True,
         tags: Iterable[str] = None,
     ) -> None:
