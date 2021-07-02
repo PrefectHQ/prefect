@@ -4,6 +4,7 @@ import click
 
 from prefect import config
 from prefect.client import Client
+from prefect.utilities.logging import get_logger
 
 
 @click.group(hidden=True)
@@ -89,10 +90,16 @@ def flow_run(id, num):
     """
 
     client = Client()
+    logger = get_logger("prefect.heartbeat")
     iter_count = 0
 
     while iter_count < (num or 1):
-        client.update_flow_run_heartbeat(id)  # type: ignore
+        try:
+            client.update_flow_run_heartbeat(id)  # type: ignore
+        except Exception as exc:
+            logger.error(
+                f"Failed to send heartbeat with exception: {exc}", exc_info=True
+            )
         if num:
             iter_count += 1
         time.sleep(config.cloud.heartbeat_interval)
