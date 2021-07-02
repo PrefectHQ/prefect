@@ -98,10 +98,11 @@ def flow_run(id, num):
         while iter_count < (num or 1):
 
             try:  # Ignore (but log) client exceptions
+                logger.debug(f"Sending hearbeat for flow run {id!r}")
                 client.update_flow_run_heartbeat(id)
             except Exception as exc:
                 logger.error(
-                    f"Failed to send heartbeat with exception: {exc}", exc_info=True
+                    f"Failed to send heartbeat with exception: {exc!r}", exc_info=True
                 )
 
             if num:
@@ -110,6 +111,6 @@ def flow_run(id, num):
 
     except BaseException as exc:
         logger.error(
-            f"Heartbeat process encountered terminal exception: {exc}", exc_info=True
+            f"Heartbeat process encountered terminal exception: {exc!r}", exc_info=True
         )
         raise
