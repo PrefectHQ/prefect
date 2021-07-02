@@ -1,4 +1,6 @@
-Below is a basic core flow that you can copy:
+# Run a flow
+
+Now that you have Prefect installed.  You're ready to run a flow. Paste the code below into an interactive Python REPL session: 
 
 ```python
 import prefect
@@ -14,7 +16,7 @@ flow = Flow("hello-flow", tasks=[hello_task])
 flow.run()
 ```
 
-Paste the code above into an interactive Python REPL session. You should see the following logs after running `flow.run()` :
+You should see the following logs after running `flow.run()`:
 
 ```
 [2020-01-08 23:49:00,239] INFO - prefect.FlowRunner | Beginning Flow run for 'hello-flow'
@@ -25,6 +27,6 @@ Paste the code above into an interactive Python REPL session. You should see the
 [2020-01-08 23:49:00,252] INFO - prefect.FlowRunner | Flow run SUCCESS: all reference tasks succeeded
 ```
 
-If you're running into issues, check that your Python environment is properly set up to run Prefect. Refer to the [Prefect Core Installation](https://docs.prefect.io/core/getting_started/installation.html) documentation for further details.
+And that's it.  You have run your first Prefect flow!  
 
-Now you're got a basic flow running, if you want to do more with Prefect you have many options.  To register your flow with our API, check out the [Orchestration Layer]() docs.  To find out more about Prefect Core Concepts, check out [Thinking Prefectly]().  There's also more advanced [tutorials]() or [video and blog resources]().
+Now you've got a basic flow running, if you want to do more with Prefect you have many options.  To register your flow with our API, check out the [Orchestration Layer]() docs.  To find out more about Prefect Core Concepts, check out [Thinking Prefectly]().  There's also a more advanced [tutorial]() and many [video and blog resources]().

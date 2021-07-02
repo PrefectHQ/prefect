@@ -1,4 +1,6 @@
-### Basic Installation
+# Installation
+
+## Basic installation
 
 Prefect requires Python 3.6+. If you're new to Python, we recommend installing the [Anaconda distribution](https://www.anaconda.com/distribution/).
 
@@ -31,7 +33,7 @@ pipenv install --pre prefect
 
 ::::
 
-### Optional dependencies
+## Installing optional dependencies
 
 Prefect ships with a number of optional dependencies, which can be installed using "extras" syntax:
 

@@ -335,7 +335,7 @@ module.exports = {
           ]
         },
         {
-          title: 'Tutorial',
+          title: ' ETL Tutorial',
           collapsable: true,
           children: getChildren('docs/core', 'tutorial')
         },

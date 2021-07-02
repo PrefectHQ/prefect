@@ -3,7 +3,7 @@
 
 The Core Quick Start guide has covered: 
 - Installing prefect
-- Writing a flow
+- Running a flow
 
 This is just the beginning; Prefect has many more resources and concepts to explore. 
 
@@ -28,26 +28,21 @@ See the [examples](/core/examples/overview.md) page for more information.
 
 ## Concepts
 
-Visit the [Concept](/orchestration/concepts/api.html) docs for actions such as
-working directly with Prefect's [GraphQL
-API](/orchestration/concepts/graphql.html), diving into the
-[CLI](/orchestration/concepts/cli.html), setting [concurrency
-limits](/orchestration/concepts/task-concurrency-limiting.html) on your Cloud runs,
-and more.
-
+Visit the [Core Concepts](/core/concepts/api.html) docs for more information on tasks, flows and parameters and states. You can also see how to set up [notifications](/core/concepts/notifications.html#state-handlers) and find out how Prefect [caches and persists data](/core/concepts/persistence.html).
 
 ## Video Guides
 
-Check out the Prefect YouTube channel for advice and guides such as [how to Deploy Prefect Server.](https://youtu.be/yjORjWHyKhg)
+Check out the Prefect YouTube channel for advice and guides such as [how to get started with Prefect](https://youtu.be/iP7gR3r9DME) or [how to contribute to Prefect](https://youtu.be/qePaNCdySes). 
 
-## Ideas and Tutorials from the Prefect Blog
-The Prefect blog has lots of guides on getting started and ideas on simple ways to get started with Prefect
+## The Prefect Blog
+
+The [Prefect blog](https://www.prefect.io/resources) has lots of extra information and updates about Prefect and ideas on simple ways to get started: 
+
+Learn about the [new flow run experience](https://www.prefect.io/blog/prefect-0-15-0-a-new-flow-run-experience)
 
 Learn how to get started with parallel computation: [Part 1](https://medium.com/the-prefect-blog/getting-started-with-parallel-computation-60da4850f0)[Part 2](https://medium.com/the-prefect-blog/prefect-getting-started-with-operationalizing-your-python-code-999a0bf1dda8)
 
-[Get started with Prefect Cloud on AWS](https://medium.com/the-prefect-blog/seamless-move-from-local-to-aws-kubernetes-cluster-with-prefect-f263a4573c56)
-
-[Set up Server on GCP](https://medium.com/the-prefect-blog/prefect-server-101-deploying-to-google-cloud-platform-47354b16afe2)
+[Using Great Expectations with Prefect](https://medium.com/hashmapinc/understanding-great-expectations-and-how-to-use-it-7754c78962f4)
 
 [Possible First Project](https://medium.com/the-prefect-blog/my-prefect-home-c05ebe625410)
 
