@@ -1,4 +1,4 @@
-# First Flow
+# Register & Run a Flow
 
 Now that your environment is setup, it's time to deploy your first Flow.
 
