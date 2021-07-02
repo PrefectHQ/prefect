@@ -189,16 +189,30 @@ module.exports = {
       '/orchestration/': [
         '/orchestration/',
         {
-          title: 'Tutorial',
+          title: 'Getting Started',
           collapsable: true,
           children: [
-            'tutorial/overview',
-            'tutorial/first',
-            'tutorial/parameters',
-            'tutorial/flow_config',
-            'tutorial/next-steps'
+            'getting-started/quick-start',
+            'getting-started/install-core',
+            'getting-started/basic-core-flow',
+            'getting-started/set-up',
+            'getting-started/registering-and-running-a-flow',
+            'getting-started/next-steps',
+            'getting-started/flow-configs',
+            'getting-started/more-resources'
           ]
         },
+        // {
+        //   title: 'Tutorial',
+        //   collapsable: true,
+        //   children: [
+        //     'tutorial/overview',
+        //     'tutorial/first',
+        //     'tutorial/parameters',
+        //     'tutorial/flow_config',
+        //     'tutorial/next-steps'
+        //   ]
+        // },
         {
           title: 'Concepts',
           collapsable: true,
