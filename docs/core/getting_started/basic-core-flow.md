@@ -29,4 +29,4 @@ You should see the following logs after running `flow.run()`:
 
 And that's it.  You have run your first Prefect flow!  
 
-Now you've got a basic flow running, if you want to do more with Prefect you have many options.  To register your flow with our API, check out the [Orchestration Layer]() docs.  To find out more about Prefect Core Concepts, check out [Thinking Prefectly]().  There's also a more advanced [tutorial]() and many [video and blog resources]().
+Now you've got a basic flow running, if you want to do more with Prefect, you have many options.  To register your flow with our API, check out the [orchestration layer](/orchestration/getting-started/quick-start.md) docs. Or to find out more about Prefect Core, check out our [ETL tutorial](/core/tutorial/01-etl-before-prefect.md) or our [video and blog resources](/core/getting_started/more-resources.md).
