@@ -1,15 +1,14 @@
 # Parameters & Mapped Tasks
 
-Writing a flow to greet one person is all good, but now the requirements have
-changed.
+Writing a flow to greet one person is all good, but if the requirements change, prefect can still help you. Let's say:
 
 - You now need to greet multiple people
 - You need the list of people to be configurable
 
-In [the core ETL tutorial](/core/tutorial/03-parameterized-flow.md) we learned how
+In [the core ETL tutorial](/core/tutorial/03-parameterized-flow.md) we cover how
 to do this using [parameters](/core/concepts/parameters.md) and [mapped
 tasks](/core/concepts/mapping.md). These concepts work equally well when run
-using a Prefect Backend.
+using a Prefect backend.
 
 ## Update Your Flow
 

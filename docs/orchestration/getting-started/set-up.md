@@ -4,7 +4,7 @@
 
 If you want an orchestration layer, you have two options:  Prefect Server and Prefect Cloud. You can see an overview and comparison on the [welcome](/orchestration/README.md) page. 
 
-Once you decie which option is best for you, follow the instructions below to set up Server or Cloud. 
+Once you decide which option is best for you, follow the instructions below to set up Server or Cloud. 
 
 :::: tabs
 ::: tab Cloud
@@ -40,7 +40,7 @@ To learn more about API Keys including how to save them, set them through enviro
 
 ::: tab Server 
 
-Prefect Core server is included with the Prefect Core python package you installed earlier in the quick start guide.  Server requires Docker and Docker Compose to be installed. If you have Docker Desktop on your machine, you've got both of these. 
+Prefect Server is included with the Prefect Core python package you installed earlier in the quick start guide.  Server requires Docker and Docker Compose to be installed. If you have Docker Desktop on your machine, you've got both of these. 
 
 ## Set backend 
 

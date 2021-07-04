@@ -2,7 +2,7 @@
 # More Resources
 
 The Quick Start guide has covered: 
-- Installing prefect
+- Installing Prefect Core
 - Writing a flow
 - Creating a project
 - Registering and running your flow
@@ -61,7 +61,7 @@ for some example flow deployment patterns.
 
 ## Video Guides
 
-Check out the Prefect YouTube channel for advice and guides such as [how to Deploy Prefect Server.](https://youtu.be/yjORjWHyKhg)
+Check out the Prefect YouTube channel for advice and guides such as [how to Deploy Prefect Server](https://youtu.be/yjORjWHyKhg).
 
 ## Ideas and Tutorials from the Prefect Blog
 The Prefect blog has lots of guides on getting started and ideas on simple ways to get started with Prefect
