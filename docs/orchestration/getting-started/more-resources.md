@@ -2,11 +2,11 @@
 # More Resources
 
 The Quick Start guide has covered: 
-- installing prefect
-- writing a flow
-- creating a project
-- registering and running your flow
-- providing flow parameters at runtime
+- Installing prefect
+- Writing a flow
+- Creating a project
+- Registering and running your flow
+- Providing flow parameters at runtime
 - Altering a flow's execution environment through it's
   [run-config](/orchestration/flow_config/run_configs.md)
 
