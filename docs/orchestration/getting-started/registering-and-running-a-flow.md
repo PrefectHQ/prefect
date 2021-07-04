@@ -1,10 +1,10 @@
 # Register & Run a Flow
 
-Now that your environment is setup, it's time to deploy your first Flow.
+Now that your environment is setup, it's time to deploy your flow.
 
 ## Creating a Project
 
-Before we can register a flow with the Prefect Backend, we first need to create
+Before we can register a flow with the Prefect backend, we first need to create
 a _Project_. Similar to a directory in a filesystem, Prefect organizes flows
 into projects, where each flow belongs to exactly one project.
 
@@ -26,13 +26,13 @@ For more information, see the [projects documentation](/orchestration/concepts/p
 
 ## Register a Flow
 
-In order for your flow to be managed by a Prefect Backend (either Cloud or
+In order for your flow to be managed by a Prefect backend (either Cloud or
 Server) it must first be _registered_.
 
 The easiest way to register a created flow is to call `flow.register` with the
 name of the project you wish to register it under.
 
-Here's the example flow we'll be using:
+Here's the example flow we're using (updated to now say "Hello, Cloud!"):
 
 ```python
 import prefect
@@ -74,10 +74,10 @@ Running the above should output some details about your flow:
 ```bash
 $ python hello_flow.py
 Result check: OK
-Flow URL: https://cloud.prefect.io/jim-prefectio/flow/fc5e630d-9154-489d-98d4-ea6ffabb9ca0
+Flow URL: https://cloud.prefect.io/dev-prefectio/flow/fc5e630d-9154-489d-98d4-ea6ffabb9ca0
  └── ID: 90f9f57b-bff6-4d34-85be-8696d9982306
  └── Project: tutorial
- └── Labels: ['Jims-MBP']
+ └── Labels: ['LABEL']
 ```
 
 After registering your flow, you should see it in the UI on the tutorial
@@ -95,7 +95,6 @@ You may have noticed that both your registered flow and your local agent have la
 This hostname label ensures that only local agents started on this machine can execute your registered flow. Without labels, your flow might get picked up by other agents running in your infrastructure, or your locally running agent would attempt to execute other flows - potentially even flows that it can't access!
 
 Labels are a powerful feature of Prefect Cloud and Server, providing fine control over exactly what flows your agents can execute. 
-
 
 ## Start an Agent
 
@@ -119,11 +118,6 @@ This should output some initial logs, then sit idle waiting for scheduled flow
 runs. If you need to shutdown the agent at any point, you can stop it with a
 `Ctrl-C`. For now, you'll want to leave it running for the rest of the
 tutorial.
-
-::: tip Service Account API Key <Badge text="Cloud"/>
-If you're using Prefect Cloud, the Local Agent will need access to the Service Account's API Key [you created
-earlier](/orchestration/tutorial/overview.html#create-a-service-account-key).
-:::
 
 ## Execute a Flow Run
 

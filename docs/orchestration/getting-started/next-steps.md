@@ -6,7 +6,7 @@ changed.
 - You now need to greet multiple people
 - You need the list of people to be configurable
 
-In [the core tutorial](/core/tutorial/03-parameterized-flow.md) we learned how
+In [the core ETL tutorial](/core/tutorial/03-parameterized-flow.md) we learned how
 to do this using [parameters](/core/concepts/parameters.md) and [mapped
 tasks](/core/concepts/mapping.md). These concepts work equally well when run
 using a Prefect Backend.
@@ -44,9 +44,9 @@ old version and register a new version using the new code.
 
 ## Execute a Flow Run
 
-As in the [previous section](./first.md#execute-a-flow-run), you can execute a
+As in the [previous section](./registerings-and-running-a-flow.md#execute-a-flow-run), you can execute a
 flow run using the "Quick Run" button in the UI. Make sure you still have your
-Agent running [from before](./first.md#start-an-agent).
+Agent running [from before](./registering-and-running-a-flow.md#start-an-agent).
 
 After a few seconds, you should see your flow run complete successfully.
 
