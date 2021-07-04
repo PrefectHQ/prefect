@@ -2,7 +2,9 @@
 
 ## Server or Cloud?
 
-If you want an orchestration layer, you have two options:  Prefect Server and Prefect Cloud. You can see an overview and comparison on the [welcome](/orchestration/README.md) page. 
+If you want an orchestration layer, you have two options:  Prefect Core server and Prefect Cloud. You can see an overview and comparison on the [welcome](/orchestration/README.md) page. 
+
+Once you decie which option is best for you, follow the instructions below to set up server or Cloud. 
 
 :::: tabs
 ::: tab Cloud
@@ -20,7 +22,7 @@ $ prefect backend cloud
 
 Note that you can change backends at any time by rerunning the `prefect backend ...` command.
 
-## Authenticate with Prefect Cloud <Badge text="Cloud"/>
+## Authenticate with Prefect Cloud 
 
 Next you'll need to authenticate with the backend before you can proceed further.
 
@@ -67,11 +69,11 @@ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
 
 ::: tab Core server 
 
-Prefect Core server is included with the Prefect Core python package you installed earlier in the quick start guide.  
+Prefect Core server is included with the Prefect Core python package you installed earlier in the quick start guide.  Server requires Docker and Docker Compose to be installed. If you have Docker Desktop on your machine, you've got both of these. 
 
 ## Set backend 
 
-Your first step is to make sure your backend is set to use Prefect Server by running 
+Your first step is to make sure your backend is set to use Prefect Core server by running 
 
   ```bash
 $ prefect backend server

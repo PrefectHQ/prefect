@@ -1,6 +1,6 @@
 # Overview
 
-This is a Quick Start guide to help you get a basic Prefect flow registered and running on one of our Prefect Cloud or Prefect Server orchestration layers.  
+This is a Quick Start guide to help you get a basic Prefect flow registered and running on one of our Prefect Cloud or Prefect Core server orchestration layers.  
 
 Because it is a foundational part of running a flow, this guide includes an overview of what is needed to get started with Prefect Core.  If you already have a solid understanding of Core and want to move straight onto orchestration, we recommend you go straight to [set up server or Cloud](/set-up.md).  
 
