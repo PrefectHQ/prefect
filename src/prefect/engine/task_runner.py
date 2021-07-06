@@ -901,8 +901,8 @@ class TaskRunner(Runner):
         # checkpoint tasks if a result is present, except for when the user has opted out by
         # disabling checkpointing
         if (
-            prefect.context.get("checkpointing") is True
-            and self.task.checkpoint is not False
+            prefect.context.get("checkpointing")
+            and self.task.checkpoint
             and value is not None
         ):
             try:
@@ -989,8 +989,8 @@ class TaskRunner(Runner):
                 # checkpoint tasks if a result is present, except for when the user has opted
                 # out by disabling checkpointing
                 if (
-                    prefect.context.get("checkpointing") is True
-                    and self.task.checkpoint is not False
+                    prefect.context.get("checkpointing")
+                    and self.task.checkpoint
                     and loop_result.value is not None
                 ):
                     try:
