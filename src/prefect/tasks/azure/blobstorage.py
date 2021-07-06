@@ -75,6 +75,12 @@ class BlobStorageUpload(Task):
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be an Azure connection string
         - container (str, optional): the name of the Azure Blob Storage to upload to
+        - overwrite_blob (bool, optional): Whether the blob to be uploaded should overwrite
+                    the current data. If True, upload_blob will overwrite the existing data.
+                    Note for Append blob types: if set to False and the data already exists,
+                    an error will not be raised and the data will be appended to the existing
+                    blob; if set overwrite=True, then the existing append blob will be deleted,
+                    and a new one created.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -83,6 +89,7 @@ class BlobStorageUpload(Task):
         self,
         azure_credentials_secret: str = "AZ_CONNECTION_STRING",
         container: str = None,
+        overwrite_blob: bool = False,
         **kwargs
     ) -> None:
         self.azure_credentials_secret = azure_credentials_secret
@@ -96,6 +103,7 @@ class BlobStorageUpload(Task):
         blob_name: str = None,
         azure_credentials_secret: str = "AZ_CONNECTION_STRING",
         container: str = None,
+        overwrite_blob: bool = False
     ) -> str:
         """
         Task run method.
@@ -107,6 +115,12 @@ class BlobStorageUpload(Task):
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be an Azure connection string
             - container (str, optional): the name of the Blob Storage container to upload to
+            - overwrite_blob (bool, optional): Whether the blob to be uploaded should overwrite
+                    the current data. If True, upload_blob will overwrite the existing data.
+                    Note for Append blob types: if set to False and the data already exists,
+                    an error will not be raised and the data will be appended to the existing
+                    blob; if set overwrite=True, then the existing append blob will be deleted,
+                    and a new one created.
 
         Returns:
             - str: the name of the blob the data payload was uploaded to
@@ -128,6 +142,6 @@ class BlobStorageUpload(Task):
 
         client = blob_service.get_blob_client(container=container, blob=blob_name)
 
-        client.upload_blob(data)
+        client.upload_blob(data, overwrite=overwrite_blob)
 
         return blob_name
