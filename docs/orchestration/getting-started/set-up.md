@@ -9,10 +9,12 @@ Once you decide which option is best for you, follow the instructions below to s
 :::: tabs
 ::: tab Cloud
 
-## Create (or log into) your Prefect Cloud account
+## Cloud 
+
+### Create (or log into) your Prefect Cloud account
 To use Prefect Cloud you'll need to go to login to (or set up an account for) Prefect Cloud at [https://cloud.prefect.io](https://cloud.prefect.io).
 
-## Set backend 
+### Set backend 
 
 Once you have an account set up, make sure your backend is set to use Prefect Cloud by running 
 
@@ -22,7 +24,7 @@ $ prefect backend cloud
 
 Note that you can change backends at any time by rerunning the `prefect backend ...` command.
 
-## Authenticate with Prefect Cloud 
+### Authenticate with Prefect Cloud 
 
 Next you'll need to authenticate with the backend before you can proceed further.
 
@@ -40,9 +42,11 @@ To learn more about API Keys including how to save them, set them through enviro
 
 ::: tab Server 
 
+## Server
+
 Prefect Server is included with the Prefect Core python package you installed earlier in the quick start guide.  Server requires Docker and Docker Compose to be installed. If you have Docker Desktop on your machine, you've got both of these. 
 
-## Set backend 
+### Set backend 
 
 Your first step is to make sure your backend is set to use Prefect Server by running 
 
@@ -51,7 +55,7 @@ $ prefect backend server
 ```
 Note that you can change backends at any time by rerunning the `prefect backend ...` command.
 
-## Start Server
+### Start Server
 
 You can start Server by running 
 
