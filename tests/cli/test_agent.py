@@ -282,11 +282,12 @@ def test_agent_start_sets_or_uses_existing_api_key(use_existing, monkeypatch):
     if not use_existing:
         command.extend(["--key", "BAR"])
 
-    def check_config():
+    def assert_correct_api_key(*args, **kwargs):
         assert prefect.config.cloud.api_key == "FOO" if use_existing else "BAR"
+        return MagicMock()
 
     monkeypatch.setattr(
-        "prefect.agent.local.LocalAgent", MagicMock(side_effect=check_config)
+        "prefect.agent.local.LocalAgent", MagicMock(side_effect=assert_correct_api_key)
     )
 
     with set_temporary_config({"cloud.api_key": "FOO"}):
