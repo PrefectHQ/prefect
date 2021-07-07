@@ -161,6 +161,7 @@ def test_agent_start(name, import_path, extra_cmd, extra_kwargs, monkeypatch):
 
     result = CliRunner().invoke(agent, command)
 
+    print(result.output)
     assert result.exit_code == 0
 
     agent_cls.assert_called_once()
