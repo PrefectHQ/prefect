@@ -1161,6 +1161,20 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.location == "3"
 
+    def test_raised_success_state_is_checkpointed(self):
+        @prefect.task(checkpoint=True, result=PrefectResult())
+        def fn(x):
+            raise prefect.engine.signals.SUCCESS("custom-message", result=x + 1)
+
+        edge = Edge(Task(), fn, key="x")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state.message == "custom-message"
+        assert new_state._result.location == "3"
+
     def test_result_formatting_with_checkpointing(self, tmpdir):
         result = LocalResult(dir=tmpdir, location="{task_name}.txt")
 
