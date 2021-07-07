@@ -3,6 +3,7 @@ from importlib import import_module
 
 from click.testing import CliRunner
 import pytest
+import sys
 
 import prefect
 from prefect.cli import cli
@@ -150,7 +151,7 @@ def test_agent_start(name, import_path, extra_cmd, extra_kwargs, monkeypatch):
 
     def check_config(*args, **kwargs):
         assert prefect.config.cloud.agent.auth_token == "TEST-TOKEN"
-        assert prefect.config.cloud.agent.level == "DEBUG"
+        assert prefect.config.cloud.agent.level.upper() == "DEBUG"
         assert prefect.config.cloud.api == "TEST-API"
         return agent_obj
 
@@ -161,8 +162,8 @@ def test_agent_start(name, import_path, extra_cmd, extra_kwargs, monkeypatch):
 
     result = CliRunner().invoke(agent, command)
 
-    print(result.output)
-    assert result.exit_code == 0
+    if result.exception:
+        raise result.exception
 
     agent_cls.assert_called_once()
     kwargs = agent_cls.call_args[1]
@@ -289,4 +290,7 @@ def test_agent_start_sets_or_uses_existing_api_key(use_existing, monkeypatch):
     )
 
     with set_temporary_config({"cloud.api_key": "FOO"}):
-        CliRunner().invoke(agent, command)
+        result = CliRunner().invoke(agent, command)
+
+    if result.exception:
+        raise result.exception
