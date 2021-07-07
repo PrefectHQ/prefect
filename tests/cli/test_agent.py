@@ -7,6 +7,7 @@ import pytest
 import prefect
 from prefect.cli import cli
 from prefect.cli.agent import agent
+from prefect.utilities.configuration import set_temporary_config
 
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
@@ -275,3 +276,20 @@ def test_agent_kubernetes_install(monkeypatch, use_token):
     kwargs = generate.call_args[1]
     assert kwargs == expected_kwargs
     assert "apiVersion" in result.output
+
+
+@pytest.mark.parametrize("use_existing", [True, False])
+def test_agent_start_sets_or_uses_existing_api_key(use_existing, monkeypatch):
+    command = ["local", "start"]
+    if not use_existing:
+        command.extend(["--key", "BAR"])
+
+    def check_config():
+        assert prefect.config.cloud.api_key == "FOO" if use_existing else "BAR"
+
+    monkeypatch.setattr(
+        "prefect.agent.local.LocalAgent", MagicMock(side_effect=check_config)
+    )
+
+    with set_temporary_config({"cloud.api_key": "FOO"}):
+        CliRunner().invoke(agent, command)
