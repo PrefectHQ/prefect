@@ -1,0 +1,3 @@
+
+fix:
+  - "Fix loading of `PREFECT__CLOUD__API_KEY` environment variable when starting agents - [#4751](https://github.com/PrefectHQ/prefect/pull/4751)"
