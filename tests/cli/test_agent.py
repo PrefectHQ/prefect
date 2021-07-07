@@ -9,10 +9,6 @@ from prefect.cli import cli
 from prefect.cli.agent import agent
 from prefect.utilities.configuration import set_temporary_config
 
-pytest.importorskip("boto3")
-pytest.importorskip("botocore")
-pytest.importorskip("kubernetes")
-
 
 @pytest.mark.parametrize(
     "cmd",
