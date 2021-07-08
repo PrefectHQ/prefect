@@ -330,8 +330,6 @@ def get_source(obj):
 
 @preprocess(remove_partial=False)
 def format_subheader(obj, level=1, in_table=False):
-    if isinstance(obj, MagicMock):
-        return ""
     class_sig = format_signature(obj)
     if inspect.isclass(obj):
         header = "## {}\n".format(obj.__name__)
