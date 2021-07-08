@@ -69,10 +69,6 @@ module.exports = {
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.png',
     nav: [
-      // {
-      //   text: 'Get Started',
-      //   link: '/start/'
-      // },
       {
         text: 'Core Engine',
         link: '/core/'
@@ -198,17 +194,6 @@ module.exports = {
             'getting-started/more-resources'
           ]
         },
-        // {
-        //   title: 'Tutorial',
-        //   collapsable: true,
-        //   children: [
-        //     'tutorial/overview',
-        //     'tutorial/first',
-        //     'tutorial/parameters',
-        //     'tutorial/flow_config',
-        //     'tutorial/next-steps'
-        //   ]
-        // },
         {
           title: 'Concepts',
           collapsable: true,
