@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix missing event timestamp attribute errors in K8s agent - [#4693](https://github.com/PrefectHQ/prefect/pull/4693)"

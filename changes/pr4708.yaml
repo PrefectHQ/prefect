@@ -1,3 +1,0 @@
-
-fix:
-  - "Raise a better exception when a task run result type is not set - [#4708](https://github.com/PrefectHQ/prefect/pull/4708)"

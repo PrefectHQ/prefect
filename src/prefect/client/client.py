@@ -1198,7 +1198,10 @@ class Client:
 
         # Search for matching cloud API because we can't guarantee that the backend config is set
         using_cloud_api = ".prefect.io" in prefect.config.cloud.api
-        tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
+        # Only use the "old" `as_user` logic if using an api token
+        tenant_slug = self.get_default_tenant_slug(
+            as_user=(as_user and using_cloud_api and self._api_token is not None)
+        )
 
         # For various API versions parse out `api-` for direct UI link
         base_url = (
@@ -1213,13 +1216,14 @@ class Client:
 
         return "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
 
-    def get_default_tenant_slug(self, as_user: bool = True) -> str:
+    def get_default_tenant_slug(self, as_user: bool = False) -> str:
         """
         Get the default tenant slug for the currently authenticated user
 
         Args:
-            - as_user (bool, optional): whether this query is being made from a USER scoped token;
-                defaults to `True`. Only used internally for queries made from RUNNERs
+            - as_user (bool, optional):
+                whether this query is being made from a USER scoped token;
+                defaults to `False`. Only relevant when using an API token.
 
         Returns:
             - str: the slug of the current default tenant for this user
@@ -1229,7 +1233,7 @@ class Client:
                 "query": {"user": {"default_membership": {"tenant": "slug"}}}
             }  # type: dict
         else:
-            query = {"query": {"tenant": {"slug"}}}
+            query = {"query": {"tenant": {"id", "slug"}}}
 
         res = self.graphql(query)
 
@@ -1237,7 +1241,14 @@ class Client:
             user = res.get("data").user[0]
             slug = user.default_membership.tenant.slug
         else:
-            slug = res.get("data").tenant[0].slug
+            tenants = res["data"]["tenant"]
+            for tenant in tenants:
+                if tenant.id == self.tenant_id:
+                    return tenant.slug
+            raise ValueError(
+                f"Failed to find current tenant {self.tenant_id!r} in result {res}"
+            )
+
         return slug
 
     def create_project(self, project_name: str, project_description: str = None) -> str:

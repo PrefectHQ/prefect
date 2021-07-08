@@ -87,3 +87,43 @@ mutation {
 ```
 
 When assigning a role to a user or service account, a user cannot assign a role that has more permissions than they possess.
+
+### Querying for Role Information
+
+To list available Default and Custom roles and their corresponding permissions, run the following query
+
+```graphql
+query {
+  auth_role {
+    created
+    id
+    name
+    permissions
+  }
+}
+```
+
+The `id` value for a given role should be provided as the `role_id` parameter when calling `set_membership_role` or updating/deleting custom roles.
+
+### Querying for Membership Information
+
+To list all users and their membership ids in the current tenant, run the following query
+
+
+```graphql
+query {
+  user_view_same_tenant {
+    id
+    account_type
+    email
+    first_name
+    last_name
+    username
+    memberships {
+      id
+    }
+  }
+}
+```
+
+The `memberships.id` value for a given user should be provided as the `membership_id` parameter when calling `set_membership_role`.
