@@ -1,0 +1,5 @@
+feature:
+  - "Exposes schedule activation from `prefect register CLI - [#4752](https://github.com/PrefectHQ/prefect/pull/4752)"
+
+contributor:
+  - "[Gabriel Montañola](https://github.com/gmontanola)"
