@@ -1629,27 +1629,7 @@ def test_create_flow_run_with_input(patch_post, use_flow_id, use_extra_args):
     assert variables["input"] == expected
 
 
-def test_get_default_tenant_slug_as_user(patch_post):
-    response = {
-        "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
-    }
-
-    patch_post(response)
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-        slug = client.get_default_tenant_slug(as_user=True)
-
-        assert slug == "tslug"
-
-
-def test_get_default_tenant_slug_not_as_user(patch_post):
+def test_get_default_tenant_slug(patch_post):
     response = {
         "data": {
             "tenant": [
@@ -1670,35 +1650,12 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         }
     ):
         client = Client()
-        slug = client.get_default_tenant_slug(as_user=False)
+        slug = client.get_default_tenant_slug()
 
         assert slug == "tslug"
 
 
-def test_get_cloud_url_as_user(patch_post, cloud_api):
-    response = {
-        "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
-    }
-
-    patch_post(response)
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://api.prefect.io",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-
-        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=True)
-        assert url == "http://cloud.prefect.io/tslug/flow/id"
-
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=True)
-        assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
-
-
-def test_get_cloud_url_not_as_user(patch_post, cloud_api):
+def test_get_cloud_url(patch_post, cloud_api):
     response = {
         "data": {
             "tenant": [
@@ -1719,16 +1676,52 @@ def test_get_cloud_url_not_as_user(patch_post, cloud_api):
         client = Client()
         client._tenant_id = "tenant-id"
 
-        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=False)
+        url = client.get_cloud_url(subdirectory="flow", id="id")
         assert url == "http://cloud.prefect.io/tslug/flow/id"
 
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=False)
+        url = client.get_cloud_url(subdirectory="flow-run", id="id2")
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
+
+
+def test_get_cloud_url_defaults_to_first_tenant_if_tenant_id_unknown(
+    patch_post, cloud_api
+):
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "firstslug", "id": "tenant-id"},
+                {"slug": "secondslug", "id": "foo"},
+            ]
+        }
+    }
+
+    patch_post(response)
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://api.prefect.io",
+            "backend": "cloud",
+            "cloud.auth_token": "secret_token",  # using legacy API token
+        }
+    ):
+        client = Client()
+        client._tenant_id = None  # tenant id is not known
+
+        url = client.get_cloud_url(subdirectory="flow", id="id")
+        assert url == "http://cloud.prefect.io/firstslug/flow/id"
+
+        url = client.get_cloud_url(subdirectory="flow-run", id="id2")
+        assert url == "http://cloud.prefect.io/firstslug/flow-run/id2"
 
 
 def test_get_cloud_url_different_regex(patch_post, cloud_api):
     response = {
-        "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
     }
 
     patch_post(response)
