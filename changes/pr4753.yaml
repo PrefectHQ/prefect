@@ -1,0 +1,2 @@
+fix:
+  - "Fix bug in `Client.get_cloud_url` when using API tokens - [#4753](https://github.com/PrefectHQ/prefect/pull/4753)"
