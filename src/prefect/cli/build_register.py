@@ -338,6 +338,7 @@ def register_serialized_flow(
     serialized_flow: dict,
     project_id: str,
     force: bool = False,
+    schedule: bool = True,
 ) -> Tuple[str, int, bool]:
     """Register a pre-serialized flow.
 
@@ -387,6 +388,7 @@ def register_serialized_flow(
     inputs = dict(
         project_id=project_id,
         serialized_flow=compress(serialized_flow),
+        set_schedule_active=schedule,
     )
     if not force:
         inputs["idempotency_key"] = hashlib.sha256(
@@ -417,6 +419,7 @@ def build_and_register(
     project_id: str,
     labels: List[str] = None,
     force: bool = False,
+    schedule: bool = True,
 ) -> Counter:
     """Build and register all flows.
 
@@ -471,6 +474,7 @@ def build_and_register(
                     serialized_flow=serialized_flow,
                     project_id=project_id,
                     force=force,
+                    schedule=schedule,
                 )
             except Exception as exc:
                 click.secho(" Error", fg="red")
@@ -496,6 +500,7 @@ def register_internal(
     names: List[str] = None,
     labels: List[str] = None,
     force: bool = False,
+    schedule: bool = True,
     in_watch: bool = False,
 ) -> None:
     """Do a single registration pass, loading, building, and registering the
@@ -533,7 +538,7 @@ def register_internal(
     for source, flows in source_to_flows.items():
         click.echo(f"Processing {source.location!r}:")
         stats += build_and_register(
-            client, flows, project_id, labels=labels, force=force
+            client, flows, project_id, labels=labels, force=force, schedule=schedule
         )
 
     # Output summary message
@@ -728,9 +733,19 @@ REGISTER_EPILOG = """
     default=False,
     is_flag=True,
 )
+@click.option(
+    "--schedule/--no-schedule",
+    help=(
+        "Toggles the flow schedule activation upon registering. Default "
+        "behavior is activated."
+    ),
+    default=True,
+)
 @click.pass_context
 @handle_terminal_error
-def register(ctx, project, paths, modules, json_paths, names, labels, force, watch):
+def register(
+    ctx, project, paths, modules, json_paths, names, labels, force, watch, schedule
+):
     """Register one or more flows into a project.
 
     Flows with unchanged metadata will be skipped as registering again will only
@@ -778,6 +793,7 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
                     labels=labels,
                     force=force,
                     in_watch=True,
+                    schedule=schedule,
                 ),
                 daemon=True,
             )
@@ -786,7 +802,9 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
     else:
         paths = expand_paths(list(paths or ()))
         modules = list(modules or ())
-        register_internal(project, paths, modules, json_paths, names, labels, force)
+        register_internal(
+            project, paths, modules, json_paths, names, labels, force, schedule
+        )
 
 
 BUILD_EPILOG = """
