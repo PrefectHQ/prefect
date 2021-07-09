@@ -338,6 +338,14 @@ class Client:
     def tenant_id(self, tenant_id: str) -> None:
         self._tenant_id = tenant_id
 
+    @property
+    def _using_cloud_api(self) -> bool:
+        """
+        Returns True if using Prefect Cloud API
+        """
+        # Search for matching cloud API because we can't guarantee that the backend config is set
+        return ".prefect.io" in prefect.config.cloud.api
+
     # ----------------------------------------------------------------------------------
 
     def create_tenant(self, name: str, slug: str = None) -> str:
@@ -1237,14 +1245,6 @@ class Client:
         raise ValueError(
             f"Failed to find current tenant {self.tenant_id!r} in result {res}"
         )
-
-    @property
-    def _using_cloud_api(self):
-        """
-        Returns True if using Prefect Cloud API
-        """
-        # Search for matching cloud API because we can't guarantee that the backend config is set
-        return ".prefect.io" in prefect.config.cloud.api
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
