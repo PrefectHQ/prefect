@@ -1675,6 +1675,32 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         assert slug == "tslug"
 
 
+def test_get_default_tenant_slug_not_as_user_no_tenant_id_set(patch_post):
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "firstslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
+
+    patch_post(response)
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "backend": "cloud",
+        }
+    ):
+        client = Client()
+        client._tenant_id = None  # tenant id is not set
+        slug = client.get_default_tenant_slug(as_user=False)
+
+        assert slug == "firstslug"
+
+
 def test_get_cloud_url_as_user(patch_post, cloud_api):
     response = {
         "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}

@@ -1242,6 +1242,8 @@ class Client:
             slug = user.default_membership.tenant.slug
         else:
             tenants = res["data"]["tenant"]
+            if not self.tenant_id and tenants:
+                return tenants[0].slug
             for tenant in tenants:
                 if tenant.id == self.tenant_id:
                     return tenant.slug
