@@ -349,6 +349,8 @@ def register_serialized_flow(
         - force (bool, optional): If `False` (default), an idempotency key will
             be generated to avoid unnecessary re-registration. Set to `True` to
             force re-registration.
+        - schedule (bool, optional): If `True` (default) activates the flow schedule
+            upon registering.
 
     Returns:
         - flow_id (str): the flow id
@@ -430,6 +432,8 @@ def build_and_register(
         - labels (List[str], optional): Any extra labels to set on all flows
         - force (bool, optional): If false (default), an idempotency key will
             be used to avoid unnecessary register calls.
+        - schedule (bool, optional): If `True` (default) activates the flow schedule
+            upon registering.
 
     Returns:
         - Counter: stats about the number of successful, failed, and skipped flows.
@@ -518,6 +522,8 @@ def register_internal(
             flows.
         - force (bool, optional): If false (default), an idempotency key will
             be used to avoid unnecessary register calls.
+        - schedule (bool, optional): If `True` (default) activates the flow schedule
+            upon registering.
         - in_watch (bool, optional): Whether this call resulted from a
             `register --watch` call.
     """
@@ -654,6 +660,10 @@ REGISTER_EPILOG = """
 \b  Watch a directory of flows for changes, and re-register flows upon change.
 
 \b    $ prefect register --project my-project -p myflows/ --watch
+
+\b  Register a flow found in `flow.py` and disables its schedule.
+
+\b    $ prefect register --project my-project -p flow.py --no-schedule
 """
 
 
@@ -737,7 +747,7 @@ REGISTER_EPILOG = """
     "--schedule/--no-schedule",
     help=(
         "Toggles the flow schedule activation upon registering. Default "
-        "behavior is activated."
+        "behavior is activated. Useful for CI and development."
     ),
     default=True,
 )
