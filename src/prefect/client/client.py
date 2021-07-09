@@ -1224,8 +1224,9 @@ class Client:
 
         # if the current tenant is not known, just return the first tenant
         if not self.tenant_id and tenants:
-            self.logger.warning(
-                f"Unknown tenant_id configured in Client when determining tenant slug. Returning first tenant slug {tenants[0].slug!r}."
+            warnings.warn(
+                f"Unknown tenant_id configured in Client when determining tenant slug. "
+                f"Returning first tenant slug {tenants[0].slug!r}."
             )
             return tenants[0].slug
 

@@ -1734,6 +1734,7 @@ def test_get_cloud_url_different_regex(patch_post, cloud_api):
         }
     ):
         client = Client()
+        client._tenant_id = "tenant-id"
 
         url = client.get_cloud_url(subdirectory="flow", id="id")
         assert url == "http://hello.prefect.io/tslug/flow/id"
