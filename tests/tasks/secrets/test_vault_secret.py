@@ -11,7 +11,7 @@ from prefect.engine.results import SecretResult
 from prefect.utilities.tasks import defaults_from_attrs
 
 # local imports
-from prefect.tasks.secrets import VaultSecret
+from prefect.tasks.secrets.vault_secret import VaultSecret
 
 
 def test_create_vault_var():
