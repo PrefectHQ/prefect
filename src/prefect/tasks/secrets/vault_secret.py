@@ -105,9 +105,13 @@ class VaultSecret(SecretBase):
             )
             value = vault_secret["data"]["data"]
         except hvac.exceptions.InvalidPath as exc:
-            raise hvac.exceptions.InvalidPath(f"Secret not found: {vault_path['path']}") from exc
+            raise hvac.exceptions.InvalidPath(
+                f"Secret not found: {vault_path['path']}"
+            ) from exc
         except hvac.exceptions.Forbidden as exc:
-            raise hvac.exceptions.Forbidden(f"Access forbidden: {vault_path['path']}") from exc
+            raise hvac.exceptions.Forbidden(
+                f"Access forbidden: {vault_path['path']}"
+            ) from exc
         return value
 
     @defaults_from_attrs("name")
