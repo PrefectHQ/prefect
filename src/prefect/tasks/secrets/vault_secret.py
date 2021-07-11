@@ -7,7 +7,7 @@ try:
 except ImportError as err:
     raise ImportError(
         "Using `prefect.tasks.secrets.vault_secret` requires hvac to be installed."
-    )
+    ) from err
 
 import prefect
 from prefect.tasks.secrets import SecretBase, PrefectSecret
