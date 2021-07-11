@@ -45,14 +45,14 @@ class VaultSecret(SecretBase):
             - vault.credentials: Prefect Parameter with Prefect Secret containing vault
                 auth credentials
         Arguments:
-            - name (str): name of the secret to be retrieved
+            - name (str): name of the secret to be retrieved using "<mount_point>/<path>"
         Returns:
-            - secret (str): the value of the secret retrieved
+            - secret (dict): a dict of the secret key/value items retrieved
         Raises:
-            - KeyError: unable to find VAULT_ADDR or vault_addr
+            - KeyError: unable to find VAULT_ADDR or vault_addr environment variable
             - PermissionError: unable to authenticate or attempting an unsupported auth method
-            - KeyError: unable to lookup secret in vault
-            - PermissionError: provided token/role not authorised to access the secret
+            - hvac.exceptions.InvalidPath: unable to lookup secret in vault using the secret path
+            - hvac.exceptions.Forbidden: provided token/role not authorised to access the secret
         """
         self.logger.debug(f"looking up vault path: {name}")
         client = hvac.Client()
@@ -97,7 +97,6 @@ class VaultSecret(SecretBase):
             raise KeyError(
                 f'Invalid secret path: {name}.  Expected: "<mount_point>/<path>"'
             )
-
         vault_path = m.groupdict()
         value = ""
         try:
@@ -105,10 +104,10 @@ class VaultSecret(SecretBase):
                 path=vault_path["path"], mount_point=vault_path["mount_point"]
             )
             value = vault_secret["data"]["data"]
-        except KeyError as exc:
-            raise KeyError(f"Secret not found: {vault_path['path']}") from exc
-        except hvac.exceptions.Forbidden:
-            raise PermissionError(f"Access forbidden: {vault_path['path']}")
+        except hvac.exceptions.InvalidPath as exc:
+            raise hvac.exceptions.InvalidPath(f"Secret not found: {vault_path['path']}") from exc
+        except hvac.exceptions.Forbidden as exc:
+            raise hvac.exceptions.Forbidden(f"Access forbidden: {vault_path['path']}") from exc
         return value
 
     @defaults_from_attrs("name")
