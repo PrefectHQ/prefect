@@ -1,7 +1,13 @@
-import hvac
 import re
 import json
 import os
+
+try:
+    import hvac
+except ImportError as err:
+    raise ImportError(
+        "Using `prefect.tasks.secrets.vault_secret` requires hvac to be installed."
+    )
 
 import prefect
 from prefect.tasks.secrets import SecretBase, PrefectSecret

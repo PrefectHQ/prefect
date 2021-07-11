@@ -7,4 +7,3 @@ prevents the persistence of sensitive information.
 """
 from .base import SecretBase, PrefectSecret
 from .env_var import EnvVarSecret
-from .vault_secret import VaultSecret
