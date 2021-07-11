@@ -30,7 +30,7 @@ from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
-from prefect.engine.signals import PrefectError, FAIL, LOOP
+from prefect.engine.signals import FAIL, LOOP
 from prefect.engine.state import (
     Cancelled,
     Failed,
@@ -50,7 +50,7 @@ from prefect.run_configs import LocalRun, UniversalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.tasks import task
 from prefect.utilities.edges import unmapped
@@ -1036,6 +1036,37 @@ def test_update_with_parameter_merge():
 
     assert add_res == 3
     assert sub_res == 0
+
+
+@pytest.mark.parametrize("merge, expected", [(True, 3), (False, 2)])
+def test_update_with_reference_task_merge(merge, expected):
+    @task
+    def add_one(a_number: int):
+        return a_number + 1
+
+    @task
+    def mult_one(z: int):
+        return z * 1
+
+    with Flow("Add") as add_fl:
+        a_number = Parameter("a_number", default=1)
+        the_result = add_one(a_number)
+        pos_two = mult_one(the_result)
+
+    @task
+    def sub_one(a_number: int, another_number: int):
+        return a_number - another_number
+
+    with Flow("Subtract") as subtract_fl:
+        a_number = Parameter("another_number", default=2)
+        another_number = Parameter("yet_another_number", default=2)
+        the_result = sub_one(a_number, another_number)
+        neg_one = mult_one(the_result)
+
+    subtract_fl.set_reference_tasks([the_result])
+
+    add_fl.update(subtract_fl, merge_reference_tasks=merge)
+    assert len(add_fl.reference_tasks()) == expected
 
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
@@ -3149,7 +3180,7 @@ def test_timeout_actually_stops_execution(executor, tmpdir):
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
-    assert isinstance(state.result[slow_fn].result, TaskTimeoutError)
+    assert isinstance(state.result[slow_fn].result, TaskTimeoutSignal)
     # We cannot capture the UserWarning because it is being run by a Dask worker
     # but we can make sure the TimeoutError includes a note about it
     assert (
@@ -3311,6 +3342,14 @@ class TestTerminalStateHandler:
         flow_state = flow.run()
         assert flow_state.is_successful()
         assert flow_state.message == "Custom message here"
+
+    def test_terminal_state_handler_check_is_backwards_compatible(self):
+        with Flow("test") as flow:
+            pass
+
+        flow.__dict__.pop("terminal_state_handler")
+        flow_state = flow.run()
+        assert flow_state.is_successful()
 
     def test_flow_state_used_if_terminal_state_handler_does_not_return_a_new_state(
         self,

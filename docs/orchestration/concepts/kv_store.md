@@ -17,7 +17,7 @@ You can view, update, and delete key value pairs on the [KV Store page](https://
 Setting a key value pair will overwrite the existing value if the key exists.
 
 :::: tabs
-::: tab Prefect library
+::: tab Python client
 ```python
 from prefect.backend import set_key_value
 key_value_uuid = set_key_value(key="foo", value="bar")
@@ -43,7 +43,7 @@ mutation {
 ## Getting the value of a key
 
 :::: tabs
-::: tab Prefect library
+::: tab Python client
 ```python
 from prefect.backend import get_key_value
 value = get_key_value(key="foo")
@@ -69,7 +69,7 @@ query {
 ## Deleting key value pairs
 
 :::: tabs
-::: tab Prefect library
+::: tab Python client
 ```python
 from prefect.backend import delete_key
 success = delete_key(key="foo")
@@ -95,7 +95,7 @@ mutation {
 ## Listing keys
 
 :::: tabs
-::: tab Prefect library
+::: tab Python client
 ```python
 from prefect.backend import list_keys
 my_keys = list_keys()
@@ -124,7 +124,7 @@ query {
 
 ## Using key value pairs in flows
 
-To interact with the KV Store from a flow, call the Prefect library functions in a task.
+To interact with the KV Store from a flow, call the Prefect Core library functions in a task.
 
 For example, let's say we wanted to track the last date a flow has been executed and pick up from that date.
 

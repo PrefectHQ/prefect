@@ -258,6 +258,7 @@ def get_call_signature(obj):
         sig = inspect.signature(obj)
     except Exception:
         sig = inspect.signature(obj.__init__)
+
     items = []
     for n, p in enumerate(sig.parameters.values()):
         # drop self or cls from methods
@@ -344,6 +345,10 @@ def format_subheader(obj, level=1, in_table=False):
 
 
 def get_class_methods(obj, methods=None):
+    if isinstance(obj, MagicMock):
+        # Skip mocked classes so these tests pass for optional requirements
+        return []
+
     if methods is None:
         members = inspect.getmembers(
             obj,

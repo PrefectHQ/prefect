@@ -9,7 +9,7 @@ import pytest
 from prefect.agent import Agent
 from prefect.engine.state import Scheduled, Failed, Submitted
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError
+from prefect.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, EnumValue, with_args
 from prefect.utilities.compatibility import nullcontext
 
@@ -514,7 +514,7 @@ def test_deploy_flow_run_logs_flow_run_exceptions(monkeypatch, caplog, cloud_api
     client.write_run_logs.assert_called_with(
         [dict(flow_run_id="id", level="ERROR", message="Error Here", name="agent")]
     )
-    assert "Encountered exception while deploying flow run id" in caplog.text
+    assert "Exception encountered while deploying flow run id" in caplog.text
 
 
 def test_submit_deploy_flow_run_jobs_raises_exception_and_logs(monkeypatch, cloud_api):

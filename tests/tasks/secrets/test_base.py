@@ -5,22 +5,14 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect.engine.results import SecretResult
-from prefect.tasks.secrets import SecretBase, PrefectSecret, Secret
+from prefect.tasks.secrets import SecretBase, PrefectSecret
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.exceptions import AuthorizationError, ClientError
 
 
 def test_secret_base_has_no_logic():
     secret = SecretBase()
     assert secret.run() is None
-
-
-def test_prefect_secret_raises_deprecation_warning():
-    assert issubclass(Secret, PrefectSecret)
-    with pytest.warns(UserWarning, match="deprecated"):
-        secret = Secret(name="foo")
-    assert isinstance(secret, PrefectSecret)
-    assert secret.name == "foo"
 
 
 class TestPrefectSecret:

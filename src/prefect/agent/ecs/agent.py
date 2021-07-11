@@ -498,7 +498,20 @@ class ECSAgent(Agent):
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
                 "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    config.cloud.agent.get("auth_token")
+                    or self.flow_run_api_key
+                    or ""
+                ),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else ""
+                ),
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 # Backwards compatibility variable for containers on Prefect <0.15.0
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),

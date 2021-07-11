@@ -7,6 +7,7 @@ import uuid
 from typing import Optional, Iterable, List, Any
 
 import json
+import pendulum
 import yaml
 
 import prefect
@@ -15,7 +16,7 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
 
@@ -227,12 +228,27 @@ class KubernetesAgent(Agent):
                                 )
 
                                 for event in sorted(
-                                    pod_events.items, key=lambda x: x.last_timestamp
+                                    pod_events.items,
+                                    key=lambda e: (
+                                        # Some events are missing timestamp attrs and
+                                        # `None` is not sortable vs datetimes so we
+                                        # default to 'now'
+                                        getattr(e, "last_timestamp", None)
+                                        or pendulum.now()
+                                    ),
                                 ):
-                                    # Skip old events or events without timestamps
+
+                                    # Skip events without timestamps
+                                    if not getattr(event, "last_timestamp", None):
+                                        self.logger.debug(
+                                            f"Encountered K8s event on pod {pod_name!r}"
+                                            f" with no timestamp: {event!r}"
+                                        )
+                                        continue
+
+                                    # Skip old events
                                     if (
-                                        not event.last_timestamp
-                                        or event.last_timestamp
+                                        event.last_timestamp
                                         < self.job_pod_event_timestamps[job_name][
                                             pod_name
                                         ]
@@ -516,7 +532,12 @@ class KubernetesAgent(Agent):
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
-        env[1]["value"] = config.cloud.agent.auth_token
+        env[1]["value"] = (
+            # Pull an auth token if it exists but fall back to an API key so
+            # flows in pre-0.15.0 containers still authenticate correctly
+            config.cloud.agent.get("auth_token")
+            or self.flow_run_api_key
+        )
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = flow_run.flow.id  # type: ignore
         env[4]["value"] = self.namespace
@@ -685,7 +706,20 @@ class KubernetesAgent(Agent):
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    config.cloud.agent.get("auth_token")
+                    or self.flow_run_api_key
+                    or ""
+                ),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else ""
+                ),
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
@@ -735,6 +769,8 @@ class KubernetesAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         backend: str = None,
+        key: str = None,
+        tenant_id: str = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -765,6 +801,10 @@ class KubernetesAgent(Agent):
                 jobs created by this agent and to set in the agent's own environment
             - backend (str, optional): toggle which backend to use for this agent.
                 Defaults to backend currently set in config.
+            - key (str, optional): An API key for the agent to use for authentication
+                with Prefect Cloud
+            - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
+                set, the default tenant associated with the API key will be used.
 
         Returns:
             - str: A string representation of the generated YAML
@@ -772,6 +812,8 @@ class KubernetesAgent(Agent):
 
         # Use defaults if not provided
         token = token or ""
+        key = key or ""
+        tenant_id = tenant_id or ""
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
         labels = labels or []
@@ -802,6 +844,8 @@ class KubernetesAgent(Agent):
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
         agent_env[11]["value"] = backend
+        agent_env[13]["value"] = key
+        agent_env[14]["value"] = tenant_id
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request

@@ -15,7 +15,7 @@ from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Mapping
 
 import prefect
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.logging import get_logger
 
 if TYPE_CHECKING:
@@ -54,8 +54,12 @@ def run_with_heartbeat(
                     #   submit tasks to run within daemonic subprocesses
                     current_env = dict(os.environ).copy()
                     auth_token = prefect.context.config.cloud.get("auth_token")
+                    api_key = prefect.context.config.cloud.get("api_key")
+                    tenant_id = prefect.context.config.cloud.get("tenant_id")
                     api_url = prefect.context.config.cloud.get("api")
                     current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
+                    current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
+                    current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
                     current_env.setdefault("PREFECT__CLOUD__API", api_url)
                     clean_env = {k: v for k, v in current_env.items() if v is not None}
                     p = subprocess.Popen(
@@ -97,7 +101,7 @@ def run_with_thread_timeout(
         - args (Sequence): arguments to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
-            `TaskTimeoutError`, represented as an integer in seconds
+            `TaskTimeoutSignal`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.executors.run_with_thread_timeout` namespace will be created.
         - name (str): an optional name to attach to logs for this function run, defaults
@@ -108,7 +112,7 @@ def run_with_thread_timeout(
         - the result of `fn(*args, **kwargs)`
 
     Raises:
-        - TaskTimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutSignal: if function execution exceeds the allowed timeout
         - ValueError: if run from outside the main thread
     """
     logger = logger or get_logger()
@@ -119,7 +123,7 @@ def run_with_thread_timeout(
         return fn(*args, **kwargs)
 
     def error_handler(signum, frame):  # type: ignore
-        raise TaskTimeoutError("Execution timed out.")
+        raise TaskTimeoutSignal("Execution timed out.")
 
     try:
         # Set the signal handler for alarms
@@ -222,7 +226,7 @@ def run_with_multiprocess_timeout(
         - args (Sequence): arguments to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
-            `TaskTimeoutError`, represented as an integer in seconds
+            `TaskTimeoutSignal`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.` namespace will be created.
         - name (str): an optional name to attach to logs for this function run, defaults
@@ -234,7 +238,7 @@ def run_with_multiprocess_timeout(
 
     Raises:
         - AssertionError: if run from a daemonic process
-        - TaskTimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutSignal: if function execution exceeds the allowed timeout
     """
     logger = logger or get_logger()
     name = name or f"Function '{fn.__name__}'"
@@ -277,7 +281,7 @@ def run_with_multiprocess_timeout(
             raise result
         return result
     else:
-        raise TaskTimeoutError(f"Execution timed out for {name}.")
+        raise TaskTimeoutSignal(f"Execution timed out for {name}.")
 
 
 def run_task_with_timeout(
@@ -292,7 +296,7 @@ def run_task_with_timeout(
     The exact implementation varies depending on whether this function is being
     run in the main thread or a non-daemonic subprocess.  If this is run from a
     daemonic subprocess or on Windows, the task is run in a `ThreadPoolExecutor`
-    and only a soft timeout is enforced, meaning a `TaskTimeoutError` is raised at the
+    and only a soft timeout is enforced, meaning a `TaskTimeoutSignal` is raised at the
     appropriate time but the task continues running in the background.
 
     The task is passed instead of a function so we can give better logs and messages.
@@ -312,7 +316,7 @@ def run_task_with_timeout(
         - the result of `f(*args, **kwargs)`
 
     Raises:
-        - TaskTimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutSignal: if function execution exceeds the allowed timeout
     """
     logger = logger or get_logger()
     name = prefect.context.get("task_full_name", task.name)
@@ -386,7 +390,7 @@ def run_task_with_timeout(
     try:
         return fut.result(timeout=task.timeout)
     except FutureTimeout as exc:
-        raise TaskTimeoutError(
+        raise TaskTimeoutSignal(
             f"Execution timed out but was executed {soft_timeout_reason} and will "
             "continue to run in the background."
         ) from exc

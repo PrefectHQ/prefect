@@ -15,8 +15,8 @@ from prefect.utilities.graphql import GraphQLResult
 docker = pytest.importorskip("docker")
 
 
-@pytest.fixture(autouse=True)
-def mock_cloud_config(cloud_api):
+@pytest.fixture
+def config_with_token(cloud_api):
     with set_temporary_config(
         {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
     ):
@@ -51,7 +51,7 @@ def test_docker_agent_init(api):
         ("win32", "npipe:////./pipe/docker_engine"),
     ],
 )
-def test_docker_agent_config_options(platform, url, monkeypatch):
+def test_docker_agent_config_options(platform, url, monkeypatch, config_with_token):
     api = MagicMock()
     monkeypatch.setattr("docker.APIClient", api)
     monkeypatch.setattr("prefect.agent.docker.agent.platform", platform)
@@ -64,7 +64,7 @@ def test_docker_agent_config_options(platform, url, monkeypatch):
     assert api.call_args[1]["base_url"] == url
 
 
-def test_docker_agent_config_options_populated(monkeypatch):
+def test_docker_agent_config_options_populated(monkeypatch, config_with_token):
     api = MagicMock()
     monkeypatch.setattr("docker.APIClient", api)
 
@@ -133,7 +133,9 @@ def test_populate_env_vars(api, backend):
     expected_vars = {
         "PREFECT__BACKEND": backend,
         "PREFECT__CLOUD__API": cloud_api,
-        "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
+        "PREFECT__CLOUD__AUTH_TOKEN": "",
+        "PREFECT__CLOUD__API_KEY": "",
+        "PREFECT__CLOUD__TENANT_ID": "",
         "PREFECT__CLOUD__AGENT__LABELS": "[]",
         "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
         "PREFECT__CONTEXT__FLOW_ID": "foo",
@@ -149,6 +151,59 @@ def test_populate_env_vars(api, backend):
     assert env_vars == expected_vars
 
 
+def test_environment_has_agent_token_from_config(api, config_with_token):
+    agent = DockerAgent()
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
+    )
+
+    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
+
+
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_config(api, tenant_id):
+    with set_temporary_config(
+        {
+            "cloud.api_key": "TEST_KEY",
+            "cloud.tenant_id": tenant_id,
+            "cloud.agent.auth_token": None,
+        }
+    ):
+        agent = DockerAgent()
+        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
+            "test-image",
+        )
+
+    assert env_vars["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+    assert env_vars["PREFECT__CLOUD__TENANT_ID"] == "ID"
+
+
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_disk(api, monkeypatch, tenant_id):
+    """Check that the API key is passed through from the on disk cache"""
+    monkeypatch.setattr(
+        "prefect.Client.load_auth_from_disk",
+        MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
+    )
+
+    agent = DockerAgent()
+    agent.client._get_auth_tenant = MagicMock(return_value="ID")
+
+    env = agent.populate_env_vars(
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
+        "test-image",
+    )
+
+    assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+
+
 def test_populate_env_vars_includes_agent_labels(api):
     agent = DockerAgent(labels=["42", "marvin"])
 
@@ -159,7 +214,7 @@ def test_populate_env_vars_includes_agent_labels(api):
 
 
 @pytest.mark.parametrize("flag", [True, False])
-def test_populate_env_vars_sets_log_to_cloud(flag, api):
+def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_token):
     agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
     env_vars = agent.populate_env_vars(
@@ -944,44 +999,6 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
         agent._parse_volume_spec([candidate])
 
 
-def test_docker_agent_network(api):
-    api.create_networking_config.return_value = {"test-network": "config"}
-
-    with pytest.warns(UserWarning):
-        agent = DockerAgent(network="test-network")
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Docker(
-                            registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert agent.network == "test-network"
-    assert agent.networks is None
-    args, kwargs = api.create_container.call_args
-    assert kwargs["networking_config"] == {"test-network": "config"}
-
-
-def test_docker_agent_network_network_and_networks(api):
-    with pytest.raises(ValueError):
-        DockerAgent(
-            network="test-network", networks=["test-network-1", "test-network-2"]
-        )
-
-
 def test_docker_agent_networks(api):
     api.create_networking_config.return_value = {
         "test-network-1": "config1",
@@ -1011,7 +1028,6 @@ def test_docker_agent_networks(api):
 
     assert "test-network-1" in agent.networks
     assert "test-network-2" in agent.networks
-    assert agent.network is None
     args, kwargs = api.create_container.call_args
     assert kwargs["networking_config"] == {
         "test-network-1": "config1",

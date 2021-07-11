@@ -18,6 +18,31 @@ functions = [
     "some_successful",
 ]
 
+[pages.backend.flow]
+title = "Flow"
+module = "prefect.backend.flow"
+classes = ["FlowView"]
+experimental = true
+
+[pages.backend.flow_run]
+title = "Flow Run"
+module = "prefect.backend.flow_run"
+classes = ["FlowRunView"]
+functions = ["watch_flow_run"]
+experimental = true
+
+[pages.backend.task_run]
+title = "Task Run"
+module = "prefect.backend.task_run"
+classes = ["TaskRunView"]
+experimental = true
+
+[pages.backend.tenant]
+title = "Tenant"
+module = "prefect.backend.tenant"
+classes = ["TenantView"]
+experimental = true
+
 [pages.backend.kv_store]
 title = "KV Store"
 module = "prefect.backend.kv_store"
@@ -41,7 +66,7 @@ commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
 [pages.cli.auth]
 title = "auth"
 module = "prefect.cli.auth"
-commands = ["login", "logout", "list_tenants", "switch_tenants", "create_token", "list_tokens", "revoke_token"]
+commands = ["login", "logout", "list_tenants", "switch_tenants", "create_key", "list_keys", "revoke_key", "status", "create_token", "list_tokens", "revoke_token"]
 
 [pages.cli.create]
 title = "create"
@@ -81,7 +106,7 @@ commands = ["set_command", "get_command", "delete_command", "list_command"]
 [pages.cli.run]
 title = "run"
 module = "prefect.cli.run"
-commands = ["flow"]
+commands = ["run", "run_flow"]
 
 [pages.cli.server]
 title = "server"
@@ -250,6 +275,19 @@ title = "Storage"
 module = "prefect.storage"
 classes = {"Storage" = ["add_flow", "build"], "Azure" = [], "Bitbucket" = [], "CodeCommit" = [], "Docker" = [], "GCS" = [], "Git" = [], "GitHub" = [], "GitLab" = [], "Local" = [], "Module" = [], "S3" = [], "Webhook" = []}
 
+[pages.exceptions]
+title = "Exceptions"
+module = "prefect.exceptions"
+classes = [
+    "PrefectSignal", 
+    "VersionLockMismatchSignal", 
+    "TaskTimeoutSignal",
+    "PrefectException",
+    "ClientError",
+    "AuthorizationError",
+    "FlowStorageError"
+]
+
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"
@@ -294,7 +332,14 @@ classes = ["FivetranSyncTask"]
 [pages.tasks.prefect]
 title = "Prefect Tasks"
 module = "prefect.tasks.prefect"
-classes = ["StartFlowRun", "RenameFlowRun", "CancelFlowRun"]
+classes = [
+    "StartFlowRun",
+    "RenameFlowRun",
+    "CancelFlowRun",
+    "create_flow_run",
+    "get_task_run_result",
+    "wait_for_flow_run"
+    ]
 
 [pages.tasks.github]
 title = "GitHub Tasks"
@@ -409,9 +454,7 @@ classes = [
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
-classes = [
-        "RunGreatExpectationsValidation", "RunGreatExpectationsCheckpoint",
-        ]
+classes = ["RunGreatExpectationsValidation"]
 
 [pages.tasks.gsheets]
 title = "Google Sheets Tasks"

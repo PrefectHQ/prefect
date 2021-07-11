@@ -1,6 +1,6 @@
-const sidebar115 = require('../api/0.11.5/sidebar')
 const sidebar126 = require('../api/0.12.6/sidebar')
 const sidebar1319 = require('../api/0.13.19/sidebar')
+const sidebar1422 = require('../api/0.14.22/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -80,10 +80,10 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.21)', link: '/api/latest/' },
+          { text: 'Latest (0.15.0)', link: '/api/latest/' },
+          { text: '0.14.22', link: '/api/0.14.22/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },
-          { text: '0.11.5', link: '/api/0.11.5/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
@@ -93,19 +93,15 @@ module.exports = {
       }
     ],
     sidebar: {
-      '/api/0.11.5/': sidebar115.sidebar,
       '/api/0.12.6/': sidebar126.sidebar,
       '/api/0.13.19/': sidebar1319.sidebar,
+      '/api/0.14.22/': sidebar1422.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
           path: '/api/latest/'
         },
         'changelog',
-        {
-          title: 'Test Coverage',
-          path: 'https://codecov.io/gh/PrefectHQ/prefect'
-        },
         {
           title: 'prefect',
           collapsable: true,
@@ -200,22 +196,19 @@ module.exports = {
           collapsable: true,
           children: [
             'concepts/api',
+            'concepts/api_keys',
             'concepts/cli',
-            'concepts/projects',
             'concepts/flows',
-            'concepts/flow_runs',
+            'concepts/projects',
             'concepts/kv_store',
             'concepts/secrets',
-            'concepts/api_keys',
-            'concepts/roles',
             'concepts/automations',
             'concepts/cloud_hooks',
-            'concepts/task-concurrency-limiting',
             'concepts/services'
           ]
         },
         {
-          title: 'Flow Run Configuration',
+          title: 'Flow Configuration',
           collapsable: true,
           children: [
             'flow_config/overview',
@@ -224,6 +217,19 @@ module.exports = {
             'flow_config/executors',
             'flow_config/docker',
             'flow_config/upgrade'
+          ]
+        },
+        {
+          title: 'Flow Runs',
+          collapsable: true,
+          children: [
+            'flow-runs/overview',
+            'flow-runs/creation',
+            'flow-runs/inspection',
+            'flow-runs/task-runs',
+            'flow-runs/scheduling',
+            'flow-runs/setting-states',
+            'flow-runs/concurrency-limits'
           ]
         },
         {
@@ -248,6 +254,13 @@ module.exports = {
             'ui/task-run',
             'ui/interactive-api',
             'ui/team-settings'
+          ]
+        },
+        {
+          title: 'RBAC',
+          collapsable: true,
+          children: [
+            'rbac/overview'
           ]
         },
         {

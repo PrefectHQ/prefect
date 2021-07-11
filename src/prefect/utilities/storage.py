@@ -10,7 +10,7 @@ from distutils.version import LooseVersion
 import cloudpickle
 
 import prefect
-from prefect.utilities.exceptions import StorageError
+from prefect.exceptions import FlowStorageError
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -231,7 +231,7 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
                 "environment. Please ensure you have all required flow "
                 "dependencies installed."
             )
-        raise StorageError("\n".join(parts)) from exc
+        raise FlowStorageError("\n".join(parts)) from exc
 
     run_prefect = run_versions["prefect"]
     reg_prefect = reg_versions.get("prefect")

@@ -75,8 +75,6 @@ class DockerAgent(Agent):
             re-route Flow run logs to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any
             and all created containers.
-        - network (str, optional): Add containers to an existing docker network
-            (deprecated in favor of `networks`).
         - networks (List[str], optional): Add containers to existing Docker networks.
         - reg_allow_list (List[str], optional): Limits Docker Agent to only pull images
             from the listed registries.
@@ -98,11 +96,10 @@ class DockerAgent(Agent):
         no_pull: bool = None,
         volumes: List[str] = None,
         show_flow_logs: bool = False,
-        network: str = None,
         networks: List[str] = None,
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
-        docker_interface: bool = None,
+        docker_interface: bool = None,  # Deprecated in 0.14.18
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -144,20 +141,7 @@ class DockerAgent(Agent):
             )
 
         # Add containers to the given Docker networks
-        if networks and network:
-            raise ValueError(
-                "Only provide either `network` or `networks` argument, not both!"
-            )
-        if network:
-            warnings.warn(
-                "DockerAgent `network` argument is deprecated and will be removed from Prefect. "
-                "Use `networks` instead.",
-                UserWarning,
-            )
-        self.network = network
-        self.logger.debug(f"Docker network set to {self.network}")
         self.networks = networks
-        self.logger.debug(f"Docker networks set to {self.networks}")
 
         self.docker_client_timeout = docker_client_timeout or 60
 
@@ -411,7 +395,11 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(image))
 
-        host_config = {"auto_remove": True}  # type: dict
+        host_config = {
+            "auto_remove": True,
+            # Compatibility for linux -- https://github.com/docker/cli/issues/2290
+            "extra_hosts": {"host.docker.internal": "host-gateway"},
+        }  # type: dict
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
@@ -425,11 +413,6 @@ class DockerAgent(Agent):
         if self.networks:
             networking_config = self.docker_client.create_networking_config(
                 {self.networks[0]: self.docker_client.create_endpoint_config()}
-            )
-        # Try fallback on old, deprecated, behaviour.
-        if self.network:
-            networking_config = self.docker_client.create_networking_config(
-                {self.network: self.docker_client.create_endpoint_config()}
             )
         labels = {
             "io.prefect.flow-name": flow_run.flow.name,
@@ -497,11 +480,6 @@ class DockerAgent(Agent):
                     container.get("Id"), self.networks
                 )
             )
-        if self.network:
-            self.logger.debug(
-                "Adding container to docker network: {}".format(self.network)
-            )
-
         self.docker_client.start(container=container.get("Id"))
 
         if self.show_flow_logs:
@@ -568,7 +546,20 @@ class DockerAgent(Agent):
             {
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": api,
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    config.cloud.agent.get("auth_token")
+                    or self.flow_run_api_key
+                    or ""
+                ),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else ""
+                ),
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore

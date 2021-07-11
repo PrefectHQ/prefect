@@ -42,7 +42,7 @@ from prefect.utilities.executors import (
     tail_recursive,
 )
 from prefect.utilities.compatibility import nullcontext
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -834,12 +834,12 @@ class TaskRunner(Runner):
             - signals.PAUSE: if the task raises PAUSE
             - ENDRUN: if the task is not ready to run
         """
+        task_name = prefect.context.get("task_full_name", self.task.name)
+
         if not state.is_running():
             self.logger.debug(
-                "Task '{name}': Can't run task because it's not in a "
-                "Running state; ending run.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
+                f"Task {task_name!r}: Can't run task because it's not in a Running "
+                "state; ending run."
             )
 
             raise ENDRUN(state)
@@ -848,11 +848,7 @@ class TaskRunner(Runner):
         raw_inputs = {k: r.value for k, r in inputs.items()}
         new_state = None
         try:
-            self.logger.debug(
-                "Task '{name}': Calling task.run() method...".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
-            )
+            self.logger.debug(f"Task {task_name!r}: Calling task.run() method...")
 
             # Create a stdout redirect if the task has log_stdout enabled
             log_context = (
@@ -869,20 +865,35 @@ class TaskRunner(Runner):
                     logger=self.logger,
                 )
 
-        # inform user of timeout
-        except TaskTimeoutError as exc:
+        except TaskTimeoutSignal as exc:  # Convert timeouts to a `TimedOut` state
             if prefect.context.get("raise_on_exception"):
                 raise exc
             state = TimedOut("Task timed out during execution.", result=exc)
             return state
 
-        except signals.LOOP as exc:
+        except signals.LOOP as exc:  # Convert loop signals to a `Looped` state
             new_state = exc.state
             assert isinstance(new_state, Looped)
             value = new_state.result
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
+
+        except signals.SUCCESS as exc:
+            # Success signals can be treated like a normal result
+            new_state = exc.state
+            assert isinstance(new_state, Success)
+            value = new_state.result
+
+        except Exception as exc:  # Handle exceptions in the task
+            if prefect.context.get("raise_on_exception"):
+                raise
+            self.logger.error(
+                f"Task {task_name!r}: Exception encountered during task execution!",
+                exc_info=True,
+            )
+            state = Failed(f"Error during execution of task: {exc!r}", result=exc)
+            return state
 
         # checkpoint tasks if a result is present, except for when the user has opted out by
         # disabling checkpointing
