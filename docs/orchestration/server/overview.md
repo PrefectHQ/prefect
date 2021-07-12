@@ -36,7 +36,7 @@ repository.
 Prefect Server is designed to be deployed inside user infrastructure, and should be runnable in a wide
 variety of deployment backends. 
 
-For deployment instructions, read our guide to [Single-Node Deployment](/orchestration/Server/deploy-local.html) or, if you have a Kubernetes cluste you'd prefer to use, see the [Helm chart README](https://github.com/PrefectHQ/server/tree/master/helm/prefect-server).
+For deployment instructions, read our guide to [Single-Node Deployment](/orchestration/Server/deploy-local.html) or, if you have a Kubernetes cluster you'd prefer to use, see the [Helm chart README](https://github.com/PrefectHQ/server/tree/master/helm/prefect-server).
 
 ::: warning Migrating off of Prefect Server <= 0.12.6
 The initial release of Prefect Server with Prefect Core 0.12.6 is no longer supported. Due to the large number of features and changes in the new [Server codebase](https://github.com/PrefectHQ/server) there is unfortunately no route to migrating your run and state history to a new Server installation.
