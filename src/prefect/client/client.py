@@ -1242,7 +1242,7 @@ class Client:
             slug = user.default_membership.tenant.slug
         else:
             tenants = res["data"]["tenant"]
-            for tenant in tenant:
+            for tenant in tenants:
                 # Return the slug if it matches the current tenant id OR if there is no
                 # current tenant id we are using a RUNNER API token so we'll return
                 # the first (and only) tenant
