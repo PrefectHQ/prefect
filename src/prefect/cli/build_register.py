@@ -102,7 +102,7 @@ def expand_paths(paths: List[str]) -> List[str]:
     """Given a list of paths, expand any directories to find all contained
     python files."""
     out = []
-    globbed_paths = []
+    globbed_paths = set()
     for path in tuple(paths):
         globbed_paths += glob.glob(path, recursive=True)
     for path in globbed_paths:
