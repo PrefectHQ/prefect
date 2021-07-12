@@ -313,7 +313,7 @@ class Client:
         if prefect.config.backend == "cloud":
             if self._api_token and not self.api_key:
                 # Backwards compatibility for API tokens
-                if not self._tenant_id and self._api_token:
+                if not self._tenant_id:
                     self._init_tenant()
 
                 # Should be set by `_init_tenant()` but we will not guarantee it
