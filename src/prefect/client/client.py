@@ -1243,7 +1243,10 @@ class Client:
         else:
             tenants = res["data"]["tenant"]
             for tenant in tenants:
-                if tenant.id == self.tenant_id:
+                # Return the slug if it matches the current tenant id OR if there is no
+                # current tenant id we are using a RUNNER API token so we'll return
+                # the first (and only) tenant
+                if tenant.id == self.tenant_id or self.tenant_id is None:
                     return tenant.slug
             raise ValueError(
                 f"Failed to find current tenant {self.tenant_id!r} in result {res}"
