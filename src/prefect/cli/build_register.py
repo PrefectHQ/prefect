@@ -8,6 +8,7 @@ import runpy
 import sys
 import time
 import traceback
+import glob
 from collections import Counter, defaultdict
 from types import ModuleType
 from typing import Union, NamedTuple, List, Dict, Iterator, Tuple
@@ -101,7 +102,10 @@ def expand_paths(paths: List[str]) -> List[str]:
     """Given a list of paths, expand any directories to find all contained
     python files."""
     out = []
-    for path in paths:
+    globbed_paths = []
+    for path in tuple(paths):
+        globbed_paths += glob.glob(path, recursive=True)
+    for path in globbed_paths:
         if not os.path.exists(path):
             raise TerminalError(f"Path {path!r} doesn't exist")
         elif os.path.isdir(path):
@@ -646,9 +650,9 @@ REGISTER_EPILOG = """
 
 \b    $ prefect register --project my-project --json https://some-url/flows.json
 
-\b  Register all flows in python files found recursively using shell globbing
+\b  Register all flows in python files found recursively using globbing
 
-\b    $ prefect register --project my-project **/*.py
+\b    $ prefect register --project my-project --path "**/*.py"
 
 \b  Watch a directory of flows for changes, and re-register flows upon change.
 
@@ -657,10 +661,6 @@ REGISTER_EPILOG = """
 
 
 @click.group(invoke_without_command=True, epilog=REGISTER_EPILOG)
-@click.argument(
-    "arg_paths",
-    nargs=-1,
-)
 @click.option(
     "--project",
     help="The name of the Prefect project to register this flow in. Required.",
@@ -738,9 +738,7 @@ REGISTER_EPILOG = """
 )
 @click.pass_context
 @handle_terminal_error
-def register(
-    ctx, project, arg_paths, paths, modules, json_paths, names, labels, force, watch
-):
+def register(ctx, project, paths, modules, json_paths, names, labels, force, watch):
     """Register one or more flows into a project.
 
     Flows with unchanged metadata will be skipped as registering again will only
@@ -756,11 +754,10 @@ def register(
             )
         return
 
-    # Include variadic <paths> args
-    paths = list(paths or ()) + list(arg_paths or ())
-
     if project is None:
         raise ClickException("Missing required option '--project'")
+
+    paths = expand_paths(paths)
 
     if watch:
         if any(parse_path(j).scheme != "file" for j in json_paths):
@@ -797,7 +794,6 @@ def register(
             proc.start()
             proc.join()
     else:
-        paths = expand_paths(paths)
         modules = list(modules or ())
         register_internal(project, paths, modules, json_paths, names, labels, force)
 
@@ -819,15 +815,11 @@ BUILD_EPILOG = """
 
 \b  Build all flows in python files named `flow.py` found recursively using globbing
 
-\b    $ prefect register --project my-project **/flow.py
+\b    $ prefect register --project my-project -p "**/flow.py"
 """
 
 
 @click.command(epilog=BUILD_EPILOG)
-@click.argument(
-    "arg_paths",
-    nargs=-1,
-)
 @click.option(
     "--path",
     "-p",
@@ -884,7 +876,7 @@ BUILD_EPILOG = """
     help="Updates an existing `json` file rather than overwriting it.",
 )
 @handle_terminal_error
-def build(arg_paths, paths, modules, names, labels, output, update):
+def build(paths, modules, names, labels, output, update):
     """Build one or more flows.
 
     This command builds all specified flows and writes their metadata to a JSON
@@ -901,7 +893,7 @@ def build(arg_paths, paths, modules, names, labels, output, update):
         serialized_flows = {}
 
     # Collect flows from specified paths & modules
-    paths = expand_paths(list(paths or ()) + list(arg_paths or ()))
+    paths = expand_paths(list(paths or ()))
     modules = list(modules or ())
     click.echo("Collecting flows...")
     source_to_flows = collect_flows(paths, modules, [], names=names)
