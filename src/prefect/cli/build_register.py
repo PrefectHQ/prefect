@@ -104,7 +104,7 @@ def expand_paths(paths: List[str]) -> List[str]:
     out = []
     globbed_paths = set()
     for path in tuple(paths):
-        globbed_paths += glob.glob(path, recursive=True)
+        globbed_paths.update(glob.glob(path, recursive=True))
     for path in globbed_paths:
         if not os.path.exists(path):
             raise TerminalError(f"Path {path!r} doesn't exist")
@@ -652,7 +652,7 @@ REGISTER_EPILOG = """
 
 \b  Register all flows in python files found recursively using globbing
 
-\b    $ prefect register --project my-project --path "**/*.py"
+\b    $ prefect register --project my-project --path "**/*"
 
 \b  Watch a directory of flows for changes, and re-register flows upon change.
 
