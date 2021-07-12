@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix bug where an agent using token auth could clear the tenant from disk - [#4759](https://github.com/PrefectHQ/prefect/pull/4759)"

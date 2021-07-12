@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix bug where the tenant could not be inferred during flow runs while using token auth - [#4758](https://github.com/PrefectHQ/prefect/pull/4758)"
