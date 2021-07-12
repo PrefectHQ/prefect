@@ -442,6 +442,7 @@ class TestDaskExecutor:
         assert any("Worker %s removed" == rec.msg for rec in caplog.records)
 
     @pytest.mark.parametrize("kind", ["external", "inproc"])
+    @pytest.mark.flaky
     def test_exit_early_with_external_or_inproc_cluster_waits_for_pending_futures(
         self, kind, monkeypatch
     ):
