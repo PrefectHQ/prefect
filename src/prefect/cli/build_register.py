@@ -104,11 +104,12 @@ def expand_paths(paths: List[str]) -> List[str]:
     out = []
     globbed_paths = set()
     for path in tuple(paths):
-        globbed_paths.update(glob.glob(path, recursive=True))
-    for path in globbed_paths:
-        if not os.path.exists(path):
+        found_paths = glob.glob(path, recursive=True)
+        if not found_paths:
             raise TerminalError(f"Path {path!r} doesn't exist")
-        elif os.path.isdir(path):
+        globbed_paths.update(found_paths)
+    for path in globbed_paths:
+        if os.path.isdir(path):
             with os.scandir(path) as directory:
                 out.extend(
                     e.path for e in directory if e.is_file() and e.path.endswith(".py")
