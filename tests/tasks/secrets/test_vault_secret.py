@@ -1,16 +1,43 @@
 import hvac
 import pytest
 import cloudpickle
-from typing import Any
 from unittest.mock import MagicMock
 
 # prefect imports
-from prefect import prefect, Task
+from prefect import prefect, Flow, task
 from prefect.engine.results import SecretResult
-from prefect.utilities.tasks import defaults_from_attrs
 
 # local imports
 from prefect.tasks.secrets.vault_secret import VaultSecret
+
+
+@task
+def vault_secret_test_task(secret: str):
+    """
+    helper task for testing use of VaultSecret within a flow
+    """
+    return secret
+
+
+def test_vault_secret_use_in_flow(monkeypatch, server_api):
+    """
+    Verify use of VaultSecret in a flow defintion
+    """
+    monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
+    hvac.Client.is_authenticated = MagicMock(return_value=True)
+    hvac.Client.auth_approle = MagicMock(return_value=None)
+    mock_vault_response = {"data": {"data": {"fake-key": "fake-value"}}}
+    hvac.api.secrets_engines.KvV2.read_secret_version = MagicMock(
+        return_value=mock_vault_response
+    )
+    vault_creds = {"VAULT_TOKEN": "fake-token"}
+    with prefect.context(secrets={"VAULT_CREDENTIALS": vault_creds}):
+        with Flow("vault-secret-test-flow") as flow:
+            secret = VaultSecret("secret/fake-path")
+            ret = vault_secret_test_task(secret)
+
+        state = flow.run()
+        assert state.result[ret].result == {"fake-key": "fake-value"}
 
 
 def test_create_vault_var():
@@ -33,42 +60,11 @@ def test_secret_is_pickleable():
     assert isinstance(new.result, SecretResult)
 
 
-# --- Test Harness Task ---
-class VaultSecretTestTask(Task):
-    """
-    Test harness task for testing VaultSecrets
-    Provides example of using VaultSecrets from a task
-
-    Returns a vault secret value from a vault secret key
-    """
-
-    def __init__(self, secret_key: str = None, **kwargs: Any):
-        self.secret_key = secret_key
-        kwargs.setdefault("name", secret_key)
-        super().__init__(**kwargs)
-
-    @defaults_from_attrs("secret_key")
-    def run(self, secret_key: str = None, vault_credentials_secret: str = None):
-        # self.logger.info("--- starting test task ---")
-        if vault_credentials_secret is None:
-            fake_secret = VaultSecret(self.secret_key)
-        else:
-            fake_secret = VaultSecret(
-                self.secret_key, vault_credentials_secret=vault_credentials_secret
-            )
-        fake_secret_val = fake_secret.run()
-        # self.logger.info("--- leaving test task ---")
-        return fake_secret_val
-
-
-# --- end VaultSecretTestTask ---
-
-
 def test_vault_addr_env_var_missing(monkeypatch, server_api):
     monkeypatch.delenv("vault_addr", raising=False)
     monkeypatch.delenv("VAULT_ADDR", raising=False)
     with pytest.raises(ValueError, match=r"var not found"):
-        task = VaultSecretTestTask("fake-no-vault-addr-secret")
+        task = VaultSecret("fake-no-vault-addr-secret")
         task.run()
 
 
@@ -81,7 +77,7 @@ def test_vault_addr_from_env_var(monkeypatch, vault_var, server_api):
     with pytest.raises(
         ValueError, match=r"Local Secret \"VAULT_CREDENTIALS\" was not found."
     ):
-        task = VaultSecretTestTask("fake-no-vault-addr-secret")
+        task = VaultSecret("fake-no-vault-addr-secret")
         task.run()
 
 
@@ -93,7 +89,7 @@ def test_vault_auth_missing(monkeypatch, server_api):
     with pytest.raises(ValueError, match=r"Supported methods"), prefect.context(
         secrets={"VAULT_CREDENTIALS": {"WRONG_TOKEN": "wrong-token-value"}}
     ):
-        task = VaultSecretTestTask("fake-remote-secret")
+        task = VaultSecret("fake-remote-secret")
         out = task.run()
         assert out == "assert-wont-be-reached"
 
@@ -121,7 +117,7 @@ def test_vault_secret_lookup(monkeypatch, vault_creds, server_api):
         return_value=mock_vault_response
     )
     with prefect.context(secrets={"VAULT_CREDENTIALS": vault_creds}):
-        task = VaultSecretTestTask("secret/fake-path")
+        task = VaultSecret("secret/fake-path")
         out = task.run()
         assert out == {"fake-key": "fake-value"}
 
@@ -149,6 +145,8 @@ def test_vault_secret_lookup_using_alt_creds(monkeypatch, vault_creds, server_ap
         return_value=mock_vault_response
     )
     with prefect.context(secrets={"MY_VAULT_CREDS": vault_creds}):
-        task = VaultSecretTestTask("secret/fake-path")
-        out = task.run(vault_credentials_secret="MY_VAULT_CREDS")
+        task = VaultSecret(
+            "secret/fake-path", vault_credentials_secret="MY_VAULT_CREDS"
+        )
+        out = task.run()
         assert out == {"fake-key": "fake-value"}
