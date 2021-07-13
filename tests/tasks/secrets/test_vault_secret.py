@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 from prefect import prefect, Task, Parameter
 from prefect.engine.results import SecretResult
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.exceptions import ClientError
 
 # local imports
 from prefect.tasks.secrets.vault_secret import VaultSecret
@@ -86,7 +85,7 @@ def test_vault_addr_env_var_missing(server_api):
     prefect.context.config["cloud"]["use_local_secrets"] = False
     os.unsetenv("vault_addr")
     os.unsetenv("VAULT_ADDR")
-    with pytest.raises(ClientError, match=r"var not found"):
+    with pytest.raises(ValueError, match=r"var not found"):
         task = VaultSecretTestTask("fake-no-vault-addr-secret")
         task.run()
 
@@ -111,7 +110,7 @@ def test_vault_auth_missing(server_api):
     """
     os.environ["VAULT_ADDR"] = "http://localhost:8200"
     prefect.context.config["cloud"]["use_local_secrets"] = False
-    with pytest.raises(ClientError, match=r"Supported methods"):
+    with pytest.raises(ValueError, match=r"Supported methods"):
         with prefect.context(
             # parameters={"vault.credentials": "fake-vault-creds"},
             secrets={"VAULT_CREDENTIALS": {"WRONG_TOKEN": "wrong-token-value"}},

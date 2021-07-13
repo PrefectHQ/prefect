@@ -12,7 +12,6 @@ except ImportError as err:
 import prefect
 from prefect.tasks.secrets import SecretBase, PrefectSecret
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.exceptions import ClientError
 
 
 class VaultSecret(SecretBase):
@@ -55,24 +54,23 @@ class VaultSecret(SecretBase):
             - secret (dict): a dict of the secret key/value items retrieved
 
         Raises:
-            - ClientError: unable to configure the vault client
-            - PermissionError: unable to authenticate or attempting an unsupported auth method
+            - ValueError: unable to configure the vault client or unable to parse the provided
+                secret name into a "<mount_point>/<path>" pattern
+            - RuntimeError: unable to authenticate or attempting an unsupported auth method or
+                or provided token/role not authorised to access the the secret
             - KeyError: unable to lookup secret in vault using the secret path
-            - PermissionError: provided token/role not authorised to access the secret
         """
-        self.logger.debug(f"looking up vault path: {name}")
+        self.logger.debug(f"Looking up vault path: {name}")
         client = hvac.Client()
         # get vault address url
-        vault_url = os.getenv("VAULT_ADDR", default=None)
-        if vault_url is None:
-            vault_url = os.getenv("vault_addr", default=None)
-            if vault_url is None:
-                raise ClientError(
-                    "VAULT_ADDR url var not found. "
-                    'Either "VAULT_ADDR" or "vault_addr" env var required.'
-                )
+        vault_url = os.getenv("VAULT_ADDR") or os.getenv("vault_addr")
+        if not vault_url:
+            raise ValueError(
+                "VAULT_ADDR url var not found. "
+                'Either "VAULT_ADDR" or "vault_addr" env var required.'
+            )
         client.url = vault_url
-        self.logger.debug(f"vault addr set to: {client.url}")
+        self.logger.debug(f"Vault addr set to: {client.url}")
 
         # get vault auth credentials from the PrefectSecret
         vault_creds = PrefectSecret(self.vault_credentials_secret).run()
@@ -86,20 +84,20 @@ class VaultSecret(SecretBase):
                 vault_creds["VAULT_ROLE_ID"], vault_creds["VAULT_SECRET_ID"]
             )
         else:
-            raise ClientError(
+            raise ValueError(
                 "Unable to authenticate with vault service.  "
                 "Supported methods: token, appRole"
             )
         if not client.is_authenticated():
-            raise PermissionError(
+            raise RuntimeError(
                 "Unable to autheticate with vault using supplied credentials"
             )
-        self.logger.debug("passed vault authentication check")
+        self.logger.debug("Passed vault authentication check")
         # regex to parse path into 2 named parts: <mount_point>/<path>
         secret_path_re = r"^(?P<mount_point>[^/]+)/(?P<path>.+)$"
         m = re.fullmatch(secret_path_re, name)
         if m is None:
-            raise KeyError(
+            raise ValueError(
                 f'Invalid secret path: {name}.  Expected: "<mount_point>/<path>"'
             )
         vault_path = m.groupdict()
@@ -110,9 +108,9 @@ class VaultSecret(SecretBase):
             )
             value = vault_secret["data"]["data"]
         except hvac.exceptions.InvalidPath as exc:
-            raise KeyError(f"Secret not found: {vault_path['path']}") from exc
+            raise KeyError(f"Secret not found: {name}") from exc
         except hvac.exceptions.Forbidden as exc:
-            raise PermissionError(f"Access forbidden: {vault_path['path']}") from exc
+            raise RuntimeError(f"Access forbidden: {name}") from exc
         return value
 
     @defaults_from_attrs("name")
@@ -134,9 +132,9 @@ class VaultSecret(SecretBase):
             - ValueError: if a `result` keyword is passed, or if called within a flow building context,
                 or `use_local_secrets=True` and the Secret does not exist
             - KeyError: if `use_local_secrets=False` and the Client fails to retrieve the secret
-            - PermissionError: if `use_local_secrets=False` and the Client is not authorised to read
+            - RuntimeError: if `use_local_secrets=False` and the Client is not authorised to read
                 the secret
-            - ClientError: if unable to find VAULT_ADDR or vault_addr environment variable
+            - ValueError: if unable to find VAULT_ADDR or vault_addr environment variable
         """
         if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
             raise ValueError(
