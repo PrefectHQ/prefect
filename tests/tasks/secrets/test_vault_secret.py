@@ -90,11 +90,8 @@ def test_vault_auth_missing(monkeypatch, server_api):
     Verify that either VAULT_TOKEN or VAULT_ROLE_ID/VAULT_SECRET_ID are required.
     """
     monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
-    with (
-        pytest.raises(ValueError, match=r"Supported methods"),
-        prefect.context(
-            secrets={"VAULT_CREDENTIALS": {"WRONG_TOKEN": "wrong-token-value"}}
-        )
+    with pytest.raises(ValueError, match=r"Supported methods"), prefect.context(
+        secrets={"VAULT_CREDENTIALS": {"WRONG_TOKEN": "wrong-token-value"}}
     ):
         task = VaultSecretTestTask("fake-remote-secret")
         out = task.run()
