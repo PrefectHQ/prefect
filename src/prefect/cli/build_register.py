@@ -661,7 +661,7 @@ REGISTER_EPILOG = """
 
 \b    $ prefect register --project my-project -p myflows/ --watch
 
-\b  Register a flow found in `flow.py` and disables its schedule.
+\b  Register a flow found in `flow.py` and disable its schedule.
 
 \b    $ prefect register --project my-project -p flow.py --no-schedule
 """
