@@ -1,6 +1,7 @@
 import os
 import sys
 import types
+import textwrap
 
 import pytest
 import cloudpickle
@@ -63,12 +64,20 @@ class TestExtractFlowFromFile:
 
     @pytest.fixture
     def flow_path_with_additional_file(self, tmpdir):
-        contents = """from prefect import Flow\nfrom pathlib import Path\nwith open(str(Path(__file__).resolve().parent)+"/test.txt", "r") as f:\n\tname=f.read()\nf2=Flow(name)"""
+        contents = """\
+        from prefect import Flow
+        from pathlib import Path
+
+        with open(str(Path(__file__).resolve().parent)+"/test.txt", "r") as f:
+            name = f.read()
+        
+        f2 = Flow(name)
+        """
 
         full_path = os.path.join(tmpdir, "flow.py")
 
         with open(full_path, "w") as f:
-            f.write(contents)
+            f.write(textwrap.dedent(contents))
 
         with open(os.path.join(tmpdir, "test.txt"), "w") as f:
             f.write("test-flow")
