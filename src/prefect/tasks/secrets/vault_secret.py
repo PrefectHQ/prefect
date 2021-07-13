@@ -116,9 +116,6 @@ class VaultSecret(SecretBase):
     def run(self, name: str = None):
         """
         The run method for VaultSecret Task.
-        for the local secret value, and if not found either raises an error or queries
-        the Vault service, depending on whether `config.cloud.use_local_secrets` is `True`
-        or `False`.
 
         Args:
             - name (str, optional): The secret name defined by the Vault secret
@@ -128,12 +125,10 @@ class VaultSecret(SecretBase):
             - Any: the underlying value of the Vault Secret
 
         Raises:
-            - ValueError: if a `result` keyword is passed, or if called within a flow building context,
-                or `use_local_secrets=True` and the Secret does not exist
-            - KeyError: if `use_local_secrets=False` and the Client fails to retrieve the secret
+            - ValueError: if a `result` keyword is passed, or if called within a flow building context
+                or if unable to find VAULT_ADDR or vault_addr environment variable
             - RuntimeError: if `use_local_secrets=False` and the Client is not authorised to read
                 the secret
-            - ValueError: if unable to find VAULT_ADDR or vault_addr environment variable
         """
         if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
             raise ValueError(
@@ -141,18 +136,10 @@ class VaultSecret(SecretBase):
                 "not while building a Flow."
             )
 
-        secrets = prefect.context.get("secrets", {})
         value = None
         try:
-            value = secrets[name]
-        except KeyError:
-            if prefect.context.config.cloud.use_local_secrets is False:
-                # lookup the secret value in Vault
-                value = self._get_vault_secret(name)
-            else:
-                raise ValueError(f'Local secret "{name}" not found.') from None
-
-        try:
+            # lookup the secret value in Vault
+            value = self._get_vault_secret(name)
             return json.loads(value)
         except (json.JSONDecodeError, TypeError):
             return value
