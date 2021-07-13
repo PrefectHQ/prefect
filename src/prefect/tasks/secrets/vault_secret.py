@@ -17,13 +17,12 @@ from prefect.utilities.tasks import defaults_from_attrs
 class VaultSecret(SecretBase):
     """
     Vault Secrets Task.  This task retrieves a secret using the Hashicorp Vault service.
-    Local secrets are checked before querying the Vault service.
 
     Client configuration:
-        - vault_addr: set via env var.  Both VAULT_ADDR and vault_addr supported
+        - vault_addr: set via env var.  Both `VAULT_ADDR` and `vault_addr` supported
 
     Args:
-        - name (str): The secret name defined by the Vault secret path "<mount-point>/<path>"
+        - name (str): secret name defined by the Vault secret path "<mount-point>/<path>"
         - vault_credentials_secret (str, optional): name of the PrefectSecret containing Vault
             credentials.
                 Defaults to a PrefectSecret named `VAULT_CREDENTIALS`.
@@ -116,7 +115,7 @@ class VaultSecret(SecretBase):
     @defaults_from_attrs("name")
     def run(self, name: str = None):
         """
-        The run method for VaultSecret Task.  Note that this method first checks context
+        The run method for VaultSecret Task.
         for the local secret value, and if not found either raises an error or queries
         the Vault service, depending on whether `config.cloud.use_local_secrets` is `True`
         or `False`.

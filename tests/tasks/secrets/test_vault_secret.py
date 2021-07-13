@@ -1,4 +1,3 @@
-import os
 import hvac
 import pytest
 import cloudpickle
@@ -6,12 +5,20 @@ from typing import Any
 from unittest.mock import MagicMock
 
 # prefect imports
-from prefect import prefect, Task, Parameter
+from prefect import prefect, Task
 from prefect.engine.results import SecretResult
 from prefect.utilities.tasks import defaults_from_attrs
+from prefect.utilities.configuration import set_temporary_config
 
 # local imports
 from prefect.tasks.secrets.vault_secret import VaultSecret
+
+# used for temporary config
+cloud_secrets_config = {
+    'cloud': {
+        'use_local_secrets': False
+    }
+}
 
 
 def test_create_vault_var():
@@ -81,44 +88,38 @@ def test_local_vault_secret():
         assert val == {"fake-local-secret-key": "fake-local-secret-value"}
 
 
-def test_vault_addr_env_var_missing(server_api):
-    prefect.context.config["cloud"]["use_local_secrets"] = False
-    os.unsetenv("vault_addr")
-    os.unsetenv("VAULT_ADDR")
-    with pytest.raises(ValueError, match=r"var not found"):
+def test_vault_addr_env_var_missing(monkeypatch, server_api):
+    monkeypatch.delenv('vault_addr', raising=False)
+    monkeypatch.delenv('VAULT_ADDR', raising=False)
+    with (set_temporary_config(cloud_secrets_config),
+          pytest.raises(ValueError, match=r"var not found")):
         task = VaultSecretTestTask("fake-no-vault-addr-secret")
         task.run()
 
 
 @pytest.mark.parametrize("vault_var", ["vault_addr", "VAULT_ADDR"])
-def test_vault_addr_from_env_var(vault_var, server_api):
+def test_vault_addr_from_env_var(monkeypatch, vault_var, server_api):
     """
     Verify accepting either upper case or lower case vault addr env vars
     """
-    os.environ[vault_var] = "http://localhost:8200"
-    prefect.context.config["cloud"]["use_local_secrets"] = False
-    with pytest.raises(
-        ValueError, match=r"Local Secret \"VAULT_CREDENTIALS\" was not found."
-    ):
+    monkeypatch.setenv(vault_var, "http://localhost:8200")
+    with (set_temporary_config(cloud_secrets_config),
+          pytest.raises(ValueError, match=r"Local Secret \"VAULT_CREDENTIALS\" was not found.")):
         task = VaultSecretTestTask("fake-no-vault-addr-secret")
         task.run()
 
 
-def test_vault_auth_missing(server_api):
+def test_vault_auth_missing(monkeypatch, server_api):
     """
     Verify that either VAULT_TOKEN or VAULT_ROLE_ID/VAULT_SECRET_ID are required.
     """
-    os.environ["VAULT_ADDR"] = "http://localhost:8200"
-    prefect.context.config["cloud"]["use_local_secrets"] = False
-    with pytest.raises(ValueError, match=r"Supported methods"):
-        with prefect.context(
-            # parameters={"vault.credentials": "fake-vault-creds"},
-            secrets={"VAULT_CREDENTIALS": {"WRONG_TOKEN": "wrong-token-value"}},
-        ):
-            # Parameter("vault.credentials", default="fake-vault-creds")
-            task = VaultSecretTestTask("fake-remote-secret")
-            out = task.run()
-            assert out == "assert-wont-be-reached"
+    monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
+    with (set_temporary_config(cloud_secrets_config),
+          pytest.raises(ValueError, match=r"Supported methods"),
+          prefect.context(secrets={"VAULT_CREDENTIALS": {"WRONG_TOKEN": "wrong-token-value"}})):
+        task = VaultSecretTestTask("fake-remote-secret")
+        out = task.run()
+        assert out == "assert-wont-be-reached"
 
 
 @pytest.mark.parametrize(
@@ -131,22 +132,20 @@ def test_vault_auth_missing(server_api):
         },
     ],
 )
-def test_vault_secret_lookup(vault_creds, server_api):
+def test_vault_secret_lookup(monkeypatch, vault_creds, server_api):
     """
     Mocked lookup of a secret from vault
     The prefect server/cloud secret also mocked
     """
-    os.environ["VAULT_ADDR"] = "http://localhost:8200"
+    monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
     hvac.Client.is_authenticated = MagicMock(return_value=True)
     hvac.Client.auth_approle = MagicMock(return_value=None)
     mock_vault_response = {"data": {"data": {"fake-key": "fake-value"}}}
     hvac.api.secrets_engines.KvV2.read_secret_version = MagicMock(
         return_value=mock_vault_response
     )
-    with prefect.context(
-        secrets={"VAULT_CREDENTIALS": vault_creds},
-    ):
-        prefect.context.config["cloud"]["use_local_secrets"] = False
+    with (set_temporary_config(cloud_secrets_config),
+          prefect.context(secrets={"VAULT_CREDENTIALS": vault_creds})):
         task = VaultSecretTestTask("secret/fake-path")
         out = task.run()
         assert out == {"fake-key": "fake-value"}
@@ -162,22 +161,20 @@ def test_vault_secret_lookup(vault_creds, server_api):
         },
     ],
 )
-def test_vault_secret_lookup_using_alt_creds(vault_creds, server_api):
+def test_vault_secret_lookup_using_alt_creds(monkeypatch, vault_creds, server_api):
     """
     Mocked lookup of a secret from vault
     The prefect server/cloud secret also mocked
     """
-    os.environ["VAULT_ADDR"] = "http://localhost:8200"
+    monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
     hvac.Client.is_authenticated = MagicMock(return_value=True)
     hvac.Client.auth_approle = MagicMock(return_value=None)
     mock_vault_response = {"data": {"data": {"fake-key": "fake-value"}}}
     hvac.api.secrets_engines.KvV2.read_secret_version = MagicMock(
         return_value=mock_vault_response
     )
-    with prefect.context(
-        secrets={"MY_VAULT_CREDS": vault_creds},
-    ):
-        prefect.context.config["cloud"]["use_local_secrets"] = False
+    with (set_temporary_config(cloud_secrets_config),
+          prefect.context(secrets={"MY_VAULT_CREDS": vault_creds})):
         task = VaultSecretTestTask("secret/fake-path")
         out = task.run(vault_credentials_secret="MY_VAULT_CREDS")
         assert out == {"fake-key": "fake-value"}
