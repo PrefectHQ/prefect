@@ -84,7 +84,7 @@ def extract_flow_from_file(
     # Load objects from file into dict
     # if a file_path has been provided, provide __file__ as a global variable
     # so it resolves correctly during extraction
-    exec_vals = {"__file__": file_path} if file_path else {}  # type: Dict[str, Any]
+    exec_vals: Dict[str, Any] = {"__file__": file_path} if file_path else {}
     exec(contents, exec_vals)
 
     # Grab flow name from values loaded via exec
