@@ -746,8 +746,10 @@ REGISTER_EPILOG = """
 @click.option(
     "--schedule/--no-schedule",
     help=(
-        "Toggles the flow schedule activation upon registering. Default "
-        "behavior is activated. Useful for CI and development."
+        "Toggles the flow schedule upon registering. By default, the "
+        "flow's schedule will be activated and future runs will be created. "
+        "If disabled, the schedule will still be attached to the flow but "
+        "no runs will be created until it is activated."
     ),
     default=True,
 )
