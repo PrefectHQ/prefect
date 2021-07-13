@@ -94,7 +94,7 @@ def test_vault_auth_missing(monkeypatch, server_api):
         pytest.raises(ValueError, match=r"Supported methods"),
         prefect.context(
             secrets={"VAULT_CREDENTIALS": {"WRONG_TOKEN": "wrong-token-value"}}
-        ),
+        )
     ):
         task = VaultSecretTestTask("fake-remote-secret")
         out = task.run()
