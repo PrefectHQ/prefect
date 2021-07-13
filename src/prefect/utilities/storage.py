@@ -82,22 +82,24 @@ def extract_flow_from_file(
         raise ValueError("Provide either `file_path` or `file_contents`.")
 
     # Load objects from file into dict
-    exec_vals = {}  # type: ignore
+    # if a file_path has been provided, provide __file__ as a global variable
+    # so it resolves correctly during extraction
+    exec_vals = {"__file__": file_path} if file_path else {}  # type: ignore
     exec(contents, exec_vals)
 
     # Grab flow name from values loaded via exec
-    flows = {o.name: o for o in exec_vals.values() if isinstance(o, prefect.Flow)}
+    flows = {o.name: o for o in exec_vals.values() if isinstance(o, prefect.Flow)}  # type: ignore
     if flows:
         if flow_name:
             if flow_name in flows:
-                return flows[flow_name]
+                return flows[flow_name]  # type: ignore
             else:
                 flows_list = "\n".join("- %r" % n for n in sorted(flows))
                 raise ValueError(
                     f"Flow {flow_name!r} not found in file. Found flows:\n{flows_list}"
                 )
         else:
-            return list(flows.values())[0]
+            return list(flows.values())[0]  # type: ignore
     else:
         raise ValueError("No flows found in file.")
 

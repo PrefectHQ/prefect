@@ -61,6 +61,20 @@ class TestExtractFlowFromFile:
 
         return full_path
 
+    @pytest.fixture
+    def flow_path_with_additional_file(self, tmpdir):
+        contents = """from prefect import Flow\nfrom pathlib import Path\nwith open(str(Path(__file__).resolve().parent)+"/test.txt", "r") as f:\n\tname=f.read()\nf2=Flow(name)"""
+
+        full_path = os.path.join(tmpdir, "flow.py")
+
+        with open(full_path, "w") as f:
+            f.write(contents)
+
+        with open(os.path.join(tmpdir, "test.txt"), "w") as f:
+            f.write("test-flow")
+
+        return full_path
+
     def test_extract_flow_from_file_path(self, flow_path):
         flow = extract_flow_from_file(file_path=flow_path)
         assert flow.name == "flow-1"
@@ -71,6 +85,13 @@ class TestExtractFlowFromFile:
 
         flow = extract_flow_from_file(file_path=flow_path, flow_name="flow-2")
         assert flow.name == "flow-2"
+
+    def test_extract_flow_from_file_path_can_load_files_from_same_directory(
+        self, flow_path_with_additional_file
+    ):
+        flow = extract_flow_from_file(file_path=flow_path_with_additional_file)
+        assert flow.name == "test-flow"
+        assert flow.run().is_successful()
 
     def test_extract_flow_from_file_contents(self, flow_path):
         with open(flow_path, "r") as f:
