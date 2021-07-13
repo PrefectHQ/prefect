@@ -4,7 +4,7 @@ import json
 import sys
 import warnings
 from operator import attrgetter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Any
 from distutils.version import LooseVersion
 
 import cloudpickle
@@ -84,22 +84,22 @@ def extract_flow_from_file(
     # Load objects from file into dict
     # if a file_path has been provided, provide __file__ as a global variable
     # so it resolves correctly during extraction
-    exec_vals = {"__file__": file_path} if file_path else {}  # type: ignore
+    exec_vals = {"__file__": file_path} if file_path else {}  # type: Dict[str, Any]
     exec(contents, exec_vals)
 
     # Grab flow name from values loaded via exec
-    flows = {o.name: o for o in exec_vals.values() if isinstance(o, prefect.Flow)}  # type: ignore
+    flows = {o.name: o for o in exec_vals.values() if isinstance(o, prefect.Flow)}
     if flows:
         if flow_name:
             if flow_name in flows:
-                return flows[flow_name]  # type: ignore
+                return flows[flow_name]
             else:
                 flows_list = "\n".join("- %r" % n for n in sorted(flows))
                 raise ValueError(
                     f"Flow {flow_name!r} not found in file. Found flows:\n{flows_list}"
                 )
         else:
-            return list(flows.values())[0]  # type: ignore
+            return list(flows.values())[0]
     else:
         raise ValueError("No flows found in file.")
 
