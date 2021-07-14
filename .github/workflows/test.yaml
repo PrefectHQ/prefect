@@ -37,7 +37,7 @@ jobs:
         with:
           path: ${{ env.pythonLocation }}
           # Load installed python packages from the cache
-          key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
           
       - name: Install packages
         run: |
