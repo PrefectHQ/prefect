@@ -3,7 +3,7 @@ name: Run static analysis
 on: [pull_request]
 
 jobs:
-  typecheck:
+  python-typecheck:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +31,7 @@ jobs:
         run: |
           mypy src
 
-  black:
+  python-format:
     runs-on: ubuntu-latest
 
     steps:
