@@ -3,7 +3,7 @@ name: Run tests
 on: [pull_request]
 
 jobs:
-  python-unit-tests:
+  python-unit:
 
     strategy:
       matrix:
