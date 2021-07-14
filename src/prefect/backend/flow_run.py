@@ -722,7 +722,7 @@ class FlowRunView:
         task_run_data = TaskRunView._query_for_task_runs(
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
-                "task_id": {"_nin": list(self._cached_task_runs.keys())},
+                "id": {"_nin": list(self._cached_task_runs.keys())},
             }
         )
         task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
