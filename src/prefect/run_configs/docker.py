@@ -38,7 +38,7 @@ class DockerRun(RunConfig):
         image: str = None,
         env: dict = None,
         labels: Iterable[str] = None,
-        host_config: dict = {}
+        host_config: dict = None
     ) -> None:
         super().__init__(env=env, labels=labels)
         self.image = image
