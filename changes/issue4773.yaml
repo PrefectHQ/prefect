@@ -1,0 +1,5 @@
+enhancement:
+  - "Exposed the host_config for the Docker Agent in the DockerRun to pass arguments at runtime. - [#4733](https://github.com/PrefectHQ/prefect/issues/4773)"
+
+contributor:
+  - "[Nelson Griffiths](https://github.com/ngriffiths13)"
