@@ -3,7 +3,7 @@
 This folder contains workflows for CI
 
 - test: Runs python tests on ubuntu-latest with python 3.7
-- static_analysis: Runs mypy and black
+- static_analysis: Runs mypy, black, flake8
 
 ## Testing locally
 
