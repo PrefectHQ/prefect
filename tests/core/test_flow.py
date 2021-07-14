@@ -1332,7 +1332,7 @@ class TestFlowVisualize:
         )
         graphviz.backend.ExecutableNotFound = err
         with patch.dict("sys.modules", graphviz=graphviz):
-            with pytest.raises(err, match="Please install Graphviz"):
+            with pytest.raises(err):
                 f.visualize()
 
     def test_viz_returns_graph_object_if_in_ipython(self):
