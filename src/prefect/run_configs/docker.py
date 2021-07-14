@@ -30,7 +30,13 @@ class DockerRun(RunConfig):
     """
 
     def __init__(
-        self, *, image: str = None, env: dict = None, labels: Iterable[str] = None
+        self,
+        *,
+        image: str = None,
+        env: dict = None,
+        labels: Iterable[str] = None,
+        host_config: dict = {}
     ) -> None:
         super().__init__(env=env, labels=labels)
         self.image = image
+        self.host_config = host_config
