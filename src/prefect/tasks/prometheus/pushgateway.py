@@ -53,6 +53,60 @@ class _GaugeToGatewayBase(Task):
         This will unpack the values and labels to create all the a collector that will be pushed
         to pushgateway.
 
+        The following example is checking the data quality of a dataframe and output the metrics
+        for the job to the pushgateway
+
+        example:
+        ```
+        from typing import Any, Dict, List, Tuple
+        import pandas as pd
+        from prefect import task, Flow, Parameter
+        from prefect.tasks.prometheus import PushAddGaugeToGateway
+
+
+        @task
+        def read_csv(path: str) -> pd.DataFrame:
+            return pd.read_csv(path)
+
+
+        @task
+        def check_na(
+            df: pd.DataFrame, dataframe_name: str
+        ) -> Tuple[List[Dict[str, Any]], List[float]]:
+            total_rows = df.shape[0]
+            lkeys = []
+            lvalues = []
+            for c in df.columns:
+                na_values = len(df[df[c].isna()][c])
+                key = {"df": dataframe_name, "column": c}
+                lkeys.append(key)
+                lvalues.append(na_values / total_rows)
+            
+            return (lkeys, lvalues)
+
+
+        with Flow("Check_Data") as flow:
+            source_path = Parameter(name="sourcePath", required=True)
+            name = Parameter(name="name", required=True)
+            pushgateway_url = Parameter(
+                name="pushgatewayUrl", default="http://localhost:9091"
+            )
+            df = read_csv(source_path)
+            check_result = check_na(df, name)
+            push_gateway = PushAddGaugeToGateway()
+            push_gateway(
+                values=check_result[1],
+                labels=check_result[0],
+                pushgateway_url=pushgateway_url,
+                counter_name="null_values",
+                grouping_key=["df"],
+                job_name="check_data",
+            )
+
+        flow.run(parameters={"sourcePath": "sample_data.csv", "name": "mySample"})
+
+        ```
+
         Args:
             - values (List[float]): List of the values to push
             - labels (List[Dict[str, str]]): List of the labels to push attached to the values
