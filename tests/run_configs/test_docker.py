@@ -6,7 +6,7 @@ def test_no_args():
     assert config.env is None
     assert config.image is None
     assert config.labels == set()
-    assert config.host_config == {}
+    assert config.host_config is None
 
 
 def test_all_args(tmpdir):
