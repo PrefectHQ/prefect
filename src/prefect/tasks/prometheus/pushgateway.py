@@ -98,7 +98,7 @@ class _GaugeToGatewayBase(Task):
                 values=check_result[1],
                 labels=check_result[0],
                 pushgateway_url=pushgateway_url,
-                counter_name="null_values",
+                counter_name="null_values_percentage",
                 grouping_key=["df"],
                 job_name="check_data",
             )
