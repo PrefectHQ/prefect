@@ -1,9 +1,9 @@
-name: Run Python tests
+name: Run tests
 
 on: [pull_request]
 
 jobs:
-  test:
+  python-unit-tests:
 
     strategy:
       matrix:
