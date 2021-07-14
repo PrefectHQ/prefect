@@ -81,7 +81,7 @@ class _GaugeToGatewayBase(Task):
                 key = {"df": dataframe_name, "column": c}
                 lkeys.append(key)
                 lvalues.append(na_values / total_rows)
-            
+
             return (lkeys, lvalues)
 
 
