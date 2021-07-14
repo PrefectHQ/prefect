@@ -730,7 +730,7 @@ class FlowRunView:
         for task_run in task_runs:
             self._cache_task_run_if_finished(task_run)
 
-        return task_runs + list(self._cached_task_runs.values())
+        return list(self._cached_task_runs.values())
 
     def get_task_run_ids(self) -> List[str]:
         """
