@@ -1,16 +1,17 @@
-from setuptools import find_packages, setup
+from setuptools import setup, find_packages
+
+install_requires = open("requirements.txt").read().strip().split("\n")
+dev_requires = open("requirements-dev.txt").read().strip().split("\n")
 
 setup(
     name="prefect",
-    version="2.0",
-    install_requires=[
-        "sqlalchemy >= 1.4, < 2.0",
-        "xxhash >= 2.0, < 3.0",
-        "pendulum >= 2.0, < 3.0",
-        "pydantic >= 1.8, < 2.0",
-    ],
+    version="2.0.0",
+    # Package loading
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
+    # Requirements
     python_requires=">=3.7",
+    install_requires=install_requires,
+    extras_require={"dev": dev_requires},
 )
