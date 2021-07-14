@@ -389,18 +389,23 @@ class FlowRunView:
             for task_run in task_runs:
                 self._cache_task_run_if_finished(task_run)
 
-    def _cache_task_run_if_finished(self, task_run: "TaskRunView") -> None:
+    def _cache_task_run_if_finished(self, task_run: "TaskRunView") -> bool:
         """
         Add a task run to the cache if it is in a finished state
 
         Args:
             - task_run: The task run to add
+        
+        Returns:
+            True if the task run was finished and cached, False otherwise.
         """
         if task_run.state.is_finished():
             self._cached_task_runs[task_run.task_run_id] = task_run
             self._slug_index_to_cached_id[
                 (task_run.task_slug, task_run.map_index)
             ] = task_run.task_run_id
+            return True
+        return False
 
     def get_latest(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
@@ -728,9 +733,10 @@ class FlowRunView:
         task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
         # Add to cache
         for task_run in task_runs:
-            self._cache_task_run_if_finished(task_run)
+            if self._cache_task_run_if_finished(task_run):
+                task_runs.remove(task_run)
 
-        return list(self._cached_task_runs.values())
+        return task_runs + list(self._cached_task_runs.values())
 
     def get_task_run_ids(self) -> List[str]:
         """
