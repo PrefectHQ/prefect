@@ -3,6 +3,6 @@
 ## Installation
 
 ```bash
-/orion
-$ pip install -e .\[dev\]
+$ git clone https://github.com/PrefectHQ/orion.git
+$ pip install -e "./orion[dev]"
 ```
