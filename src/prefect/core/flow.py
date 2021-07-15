@@ -15,18 +15,18 @@ class Flow:
     # are more polished
     def __init__(
         self,
-        name: str,
+        name: str = None,
         fn: Callable = None,
         version: str = None,
         executor=None,
         decsription: str = None,
     ):
-        self.name = name
-
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
         if not callable(fn):
             raise TypeError("'fn' must be callable")
+
+        self.name = name or fn.__name__
 
         self.description = decsription or inspect.getdoc(fn)
 
