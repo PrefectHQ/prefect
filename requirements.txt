@@ -4,3 +4,4 @@ pendulum >= 2.0, < 3.0
 pydantic >= 1.8, < 2.0
 fastapi >= 0.66, < 0.67
 aiosqlite==0.17.0
+httpx >= 0.18
