@@ -6,5 +6,7 @@ import sqlalchemy as sa
 
 
 @app.post("/flows/", response_model=schemas.Flow)
-async def create_flow(flow: schemas.Flow, session: sa.orm.Session = Depends(get_session)):
+async def create_flow(
+    flow: schemas.Flow, session: sa.orm.Session = Depends(get_session)
+):
     return await models.flows.create_flow(session=session, name=flow.name)
