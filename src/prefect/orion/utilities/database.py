@@ -15,12 +15,13 @@ camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
 engine = create_engine("sqlite:////tmp/orion.db", echo=True)
 Session = sessionmaker(engine, future=True)
-GLOBAL_SESSION = Session()
 
 
 class UUIDDefault(FunctionElement):
     """
-    Platform-independent UUID default generator
+    Platform-independent UUID default generator.
+    Note the actual functionality for this class is speficied in the
+    `compiles`-decorated functions below
     """
 
     name = "uuid_default"
@@ -28,12 +29,36 @@ class UUIDDefault(FunctionElement):
 
 @compiles(UUIDDefault, "postgresql")
 def visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
+    """
+    Generates a random UUID in Postgres; requires the pgcrypto extension.
+    """
+
     return "(GEN_RANDOM_UUID())"
 
 
 @compiles(UUIDDefault)
 def visit_custom_uuid_default(element, compiler, **kwargs):
-    return "(hex(randomblob(16)))"
+    """
+    Generates a random UUID in other databases (SQLite) by concatenating
+    bytes in a way that approximates a UUID hex representation. This is
+    sufficient for our purposes of having a random client-generated ID
+    that is compatible with a UUID spec.
+    """
+
+    return """
+    (
+        lower(hex(randomblob(4))) 
+        || '-' 
+        || lower(hex(randomblob(2))) 
+        || '-4' 
+        || substr(lower(hex(randomblob(2))),2) 
+        || '-' 
+        || substr('89ab',abs(random()) % 4 + 1, 1) 
+        || substr(lower(hex(randomblob(2))),2) 
+        || '-' 
+        || lower(hex(randomblob(6)))
+    )
+    """
 
 
 class UUID(TypeDecorator):
@@ -106,40 +131,6 @@ class Base(object):
         server_default=sa.func.now(),
         onupdate=sa.func.now(),
     )
-
-
-def provide_session(fn):
-    """
-    Decorator to provide a session to functions that require it. If a function
-    has a parameter annotated as having type `sqlalchemy.orm.Session` that wasn't
-    provided, it will be provided automatically.
-    """
-    fn_parameters = inspect.signature(fn).parameters
-    try:
-        session_idx, session_name = next(
-            (i, k)
-            for i, (k, p) in enumerate(fn_parameters.items())
-            if p.annotation is sa.orm.Session
-        )
-    except StopIteration:
-        raise ValueError(
-            f'Function "{fn.__qualname__}" has no argument '
-            "annotated with sqlalchemy.orm.Session."
-        )
-
-    @functools.wraps(fn)
-    def inner(*args, **kwargs):
-        # check if session was provided explicitly or by position
-        if session_name in kwargs or session_idx < len(args):
-            return fn(*args, **kwargs)
-        else:
-            # grab session from context (not implemented yet)
-            # or use global session if none in context
-            session = GLOBAL_SESSION
-            kwargs[session_name] = session
-            return fn(*args, **kwargs)
-
-    return inner
 
 
 def reset_db():
