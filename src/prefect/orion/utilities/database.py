@@ -1,10 +1,9 @@
-import functools
-import inspect
 import re
 import uuid
 
 import sqlalchemy as sa
-from sqlalchemy import Column, create_engine
+from sqlalchemy import Column
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
@@ -13,8 +12,8 @@ from sqlalchemy.types import CHAR, TypeDecorator
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-engine = create_engine("sqlite:////tmp/orion.db", echo=True)
-Session = sessionmaker(engine, future=True)
+engine = create_async_engine("sqlite+aiosqlite:////tmp/orion.db", echo=True)
+async_session = sessionmaker(engine, future=True, expire_on_commit=False, class_=AsyncSession)
 
 
 class UUIDDefault(FunctionElement):
@@ -133,6 +132,7 @@ class Base(object):
     )
 
 
-def reset_db():
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+async def reset_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)

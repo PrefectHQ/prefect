@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Request, Response
-from prefect.orion.utilities.database import Session
+from fastapi import FastAPI
 
 app = FastAPI()
 
