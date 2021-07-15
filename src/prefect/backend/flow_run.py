@@ -389,15 +389,12 @@ class FlowRunView:
             for task_run in task_runs:
                 self._cache_task_run_if_finished(task_run)
 
-    def _cache_task_run_if_finished(self, task_run: "TaskRunView"):
+    def _cache_task_run_if_finished(self, task_run: "TaskRunView")-> None:
         """
         Add a task run to the cache if it is in a finished state
 
         Args:
             - task_run: The task run to add
-        
-        Returns:
-            True if the task run was finished and cached, False otherwise.
         """
         if task_run.state.is_finished():
             self._cached_task_runs[task_run.task_run_id] = task_run
