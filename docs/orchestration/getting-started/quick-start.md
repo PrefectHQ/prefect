@@ -6,4 +6,4 @@ Because it is a foundational part of running a flow, this guide includes an over
 
 If you want to run a simple flow and have no need (yet) for an API or UI, then check out our [core](/core/getting_started/quick-start.md) docs.  
 
-Once you've gone through the basic tutorial, we encourage you to find out more about Prefect concepts by reading [Thinking Prefectly](/core/getting-started/thinking-prefectly.md) and looking at our [other resources](/orchestration/getting-started/more-resources.md). 
+Once you've gone through the basic tutorial, we encourage you to find out more about Prefect concepts by reading [Thinking Prefectly](/core/about-prefect/thinking-prefectly.md) and looking at our [other resources](/orchestration/getting-started/more-resources.md). 

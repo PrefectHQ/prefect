@@ -185,8 +185,8 @@ module.exports = {
           collapsable: true,
           children: [
             'getting-started/quick-start',
-            'docs/core/getting_started/install-core',
-            'docs/core/getting_started/basic-core-flow',
+            'getting-started/install',
+            'getting-started/basic-core-flow.md',
             'getting-started/set-up',
             'getting-started/registering-and-running-a-flow',
             'getting-started/next-steps',
