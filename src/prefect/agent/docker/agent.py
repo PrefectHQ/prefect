@@ -403,7 +403,7 @@ class DockerAgent(Agent):
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
-        if run_config and run_config.host_config:
+        if run_config is not None and run_config.host_config:
             # The host_config passed from the run_config will overwrite defaults
             host_config.update(run_config.host_config)
 
