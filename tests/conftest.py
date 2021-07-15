@@ -1,6 +1,7 @@
 import pytest
 import inspect
 
+from .fixtures.database_fixtures import *
 
 def pytest_collection_modifyitems(session, config, items):
     """
