@@ -27,8 +27,6 @@ different aspects of developing and running flows. These examples can all be run
 locally or through Prefect Cloud/Server. To create a new project and register all
 examples, run the following:
 
-You can register all the examples in a new project by running the following:
-
 ```
 # Create a new "Prefect Examples" project
 $ prefect create project "Prefect Examples"

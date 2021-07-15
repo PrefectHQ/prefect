@@ -185,8 +185,8 @@ module.exports = {
           collapsable: true,
           children: [
             'getting-started/quick-start',
-            'getting-started/install-core',
-            'getting-started/basic-core-flow',
+            'docs/core/getting_started/install-core',
+            'docs/core/getting_started/basic-core-flow',
             'getting-started/set-up',
             'getting-started/registering-and-running-a-flow',
             'getting-started/next-steps',
@@ -313,10 +313,10 @@ module.exports = {
           title: 'About Prefect',
           collapsable: true,
           children: [
-            'getting_started/why-prefect',
-            'getting_started/why-not-airflow',
-            'getting_started/thinking-prefectly',
-            'getting_started/next-steps'
+            'about_prefect/why-prefect',
+            'about_prefect/why-not-airflow',
+            'about_prefect/thinking-prefectly',
+            'about_prefect/next-steps'
           ]
         },
         {

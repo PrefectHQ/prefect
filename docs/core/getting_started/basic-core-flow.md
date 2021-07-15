@@ -1,6 +1,10 @@
 # Run a flow
 
-Now that you have Prefect installed.  You're ready to run a flow. Paste the code below into an interactive Python REPL session: 
+Now that you have Prefect installed,  you're ready to run a flow.
+
+A [flow](/core/concepts/flows.html) is a container for [tasks](/core/concepts/tasks.html) and shows the direction of work and the dependencies between tasks.
+
+To run your flow, paste the code below into an interactive Python REPL session: 
 
 ```python
 import prefect
@@ -28,6 +32,5 @@ You should see the following logs after running `flow.run()`:
 [2020-01-08 23:49:00,252] INFO - prefect.FlowRunner | Flow run SUCCESS: all reference tasks succeeded
 ```
 
-And that's it.  You have run your first Prefect flow!  
+And that's it.  You have run your first Prefect flow using Prefect Core!  
 
-Now you've got a basic flow running, if you want to do more with Prefect, you have many options.  To register your flow with our API, check out the [orchestration layer](/orchestration/getting-started/quick-start.md) docs. Or to find out more about Prefect Core, check out our [ETL tutorial](/core/tutorial/01-etl-before-prefect.md) or our [video and blog resources](/core/getting_started/more-resources.md).

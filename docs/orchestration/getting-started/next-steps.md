@@ -62,7 +62,7 @@ Click through the logs tab to see the logs for each name.
 To start a flow run with non-default values for a parameter, you can click the
 `"Run"` button (middle of the flow page) instead of the `"Quick Run"` button.
 This brings you to a [run
-page](http://localhost:8080/orchestration/ui/flow.html#run) where you can
+page](/orchestration/ui/flow.html#run) where you can
 configure more details for a specific flow run. Here we'll set the flow run
 name to `"custom-names"`, and provide new values for the `"people"` parameter.
 
