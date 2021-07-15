@@ -1,6 +1,10 @@
-# Basic Core Flow
+# Run a flow
 
-To get started, paste the code above into an interactive Python REPL session: 
+Now that you have Prefect installed,  you're ready to run a flow.
+
+A [flow](/core/concepts/flows.html) is a container for [tasks](/core/concepts/tasks.html) and shows the direction of work and the dependencies between tasks.
+
+To run your flow, paste the code below into an interactive Python REPL session: 
 
 ```python
 import prefect
