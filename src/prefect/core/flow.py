@@ -29,6 +29,10 @@ class Flow:
             raise TypeError("'fn' must be callable")
 
         self.description = inspect.getdoc(fn)
+
+        # TODO: Note that pydantic will now coerce parameter types into the correct type
+        #       even if the user wants failure on inexact type matches. We may want to
+        #       implement a strict runtime typecheck with a configuration flag
         self.fn = validate_arguments(fn)
         update_wrapper(self, fn)
         self.version = version
