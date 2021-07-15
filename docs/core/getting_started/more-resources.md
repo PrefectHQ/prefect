@@ -7,6 +7,10 @@ The Core Quick Start guide has covered:
 
 This is just the beginning; Prefect has many more resources and concepts to explore. 
 
+## Orchestration
+
+If you want greater orchestration for your flows, check out our [orchestration docs](/orchestration/getting-started/quick-flow) about how to add an API and UI layer for your flows. 
+
 ## Video Guides
 
 Check out the Prefect YouTube channel for advice and guides such as [how to get started with Prefect](https://youtu.be/iP7gR3r9DME) or [how to contribute to Prefect](https://youtu.be/qePaNCdySes). 
