@@ -21,7 +21,7 @@ with the appropriate parameter values.  Prefect makes this pattern easy to autom
 
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 from prefect.tasks.prefect import StartFlowRun
@@ -39,8 +39,7 @@ with Flow("parent-flow") as flow:
     flow_run(parameters=extract_some_data)
 ```
 :::
-
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 from prefect.tasks.prefect import StartFlowRun
@@ -73,7 +72,7 @@ The following example creates the following Flow-of-Flows that runs every weekda
 ![Flow of Flows](/idioms/flow-of-flows.png)
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import Flow
 from prefect.schedules import CronSchedule
@@ -98,7 +97,7 @@ with Flow("parent-flow", schedule=weekday_schedule) as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Flow
 from prefect.schedules import CronSchedule

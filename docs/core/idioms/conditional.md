@@ -30,8 +30,8 @@ The resulting flow looks like:
 ![Flow with conditional branches](/idioms/conditional-branches.png)
 
 
-:::: tabs
-::: tab "Functional API"
+:::: 
+::: tab Functional API
 ```python
 from random import random
 
@@ -67,7 +67,7 @@ with Flow("conditional-branches") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import random
 
@@ -133,8 +133,8 @@ The resulting flow looks like:
 ![Flow with conditional branches](/idioms/conditional-branches-merge.png)
 
 
-:::: tabs
-::: tab "Functional API"
+:::: 
+::: tab Functional API
 ```python
 from random import random
 
@@ -173,7 +173,7 @@ with Flow("conditional-branches") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import random
 
