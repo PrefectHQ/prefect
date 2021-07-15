@@ -502,7 +502,7 @@ classes = ["PostgresExecute", "PostgresExecuteMany", "PostgresFetch"]
 [pages.tasks.prometheus]
 title = "prometheus Tasks"
 module = "prefect.tasks.prometheus"
-classes = ["PushGaugeToGateway"]
+classes = ["PushGaugeToGateway", "PushAddGaugeToGateway"]
 
 [pages.tasks.sql_server]
 title = "SQL Server Tasks"
