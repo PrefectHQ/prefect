@@ -88,7 +88,7 @@ will bring you to the [flow](/orchestration/ui/flow.md) page.
 
 Your flow has been successfully registered!
 
-***Labels**
+**Labels**
 
 You may have noticed that both your registered flow and your local agent have labels associated with them. Specifically, your may have noticed that your flow had a single label set to the hostname of your local machine (e.g. "Janes-MacBook.local"). 
 
