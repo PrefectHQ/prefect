@@ -29,6 +29,15 @@ class TestFlow:
         )
         assert f.description == "Hello"
 
+    def test_default_name_is_from_function(self):
+        def my_fn():
+            pass
+
+        f = Flow(
+            fn=my_fn,
+        )
+        assert f.name == "my_fn"
+
 
 class TestDecorator:
     def test_flow_decorator_initializes(self):
