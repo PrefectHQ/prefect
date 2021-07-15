@@ -6,7 +6,7 @@ from prefect.core import Flow
 
 class TestFlow:
     def test_initializes(self):
-        f = Flow(name="test", fn=lambda **kwargs: 42, version="A", decsription="B")
+        f = Flow(name="test", fn=lambda **kwargs: 42, version="A", description="B")
         assert f.name == "test"
         assert f.fn() == 42
         assert f.version == "A"

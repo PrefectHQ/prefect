@@ -19,7 +19,7 @@ class Flow:
         fn: Callable = None,
         version: str = None,
         executor=None,
-        decsription: str = None,
+        description: str = None,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -28,7 +28,7 @@ class Flow:
 
         self.name = name or fn.__name__
 
-        self.description = decsription or inspect.getdoc(fn)
+        self.description = description or inspect.getdoc(fn)
 
         # TODO: Note that pydantic will now coerce parameter types into the correct type
         #       even if the user wants failure on inexact type matches. We may want to
