@@ -30,7 +30,7 @@ The resulting flow looks like:
 ![Flow with conditional branches](/idioms/conditional-branches.png)
 
 
-:::: 
+:::: tabs
 ::: tab Functional API
 ```python
 from random import random
@@ -133,7 +133,7 @@ The resulting flow looks like:
 ![Flow with conditional branches](/idioms/conditional-branches-merge.png)
 
 
-:::: 
+:::: tabs
 ::: tab Functional API
 ```python
 from random import random
