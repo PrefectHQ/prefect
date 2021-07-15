@@ -13,7 +13,9 @@ from sqlalchemy.types import CHAR, TypeDecorator
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
 engine = create_async_engine("sqlite+aiosqlite:////tmp/orion.db", echo=True)
-async_session = sessionmaker(engine, future=True, expire_on_commit=False, class_=AsyncSession)
+async_session = sessionmaker(
+    engine, future=True, expire_on_commit=False, class_=AsyncSession
+)
 
 
 class UUIDDefault(FunctionElement):

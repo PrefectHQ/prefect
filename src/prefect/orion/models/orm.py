@@ -1,12 +1,7 @@
 from contextlib import contextmanager
 
 import sqlalchemy as sa
-from sqlalchemy import (
-    JSON,
-    Column,
-    Integer,
-    String
-)
+from sqlalchemy import JSON, Column, Integer, String
 from sqlalchemy.orm import relationship
 
 from prefect.orion.utilities.database import UUID, Base, engine
