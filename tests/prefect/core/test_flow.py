@@ -16,6 +16,19 @@ class TestFlow:
         with pytest.raises(TypeError):
             Flow(name="test", fn={})
 
+    def test_default_description_is_from_docstring(self):
+        def my_fn():
+            """
+            Hello
+            """
+            pass
+
+        f = Flow(
+            name="test",
+            fn=my_fn,
+        )
+        assert f.description == "Hello"
+
 
 class TestDecorator:
     def test_flow_decorator_initializes(self):
