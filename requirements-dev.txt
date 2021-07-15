@@ -1,4 +1,5 @@
 black
 mypy
 pytest
+pytest-asyncio
 flake8
