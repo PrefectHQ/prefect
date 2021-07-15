@@ -476,9 +476,9 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
 
     if run_kind == "docker":
         env = {"TESTING": "VALUE"}
-        host_config = {"shm_size": "128m"}
+        host_config = {"auto_remove": False, "shm_size": "128m"}
         exp_host_config = {
-            "auto_remove": True,
+            "auto_remove": False,
             "extra_hosts": {"host.docker.internal": "host-gateway"},
             "shm_size": "128m",
         }
