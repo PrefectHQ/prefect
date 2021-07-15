@@ -20,6 +20,17 @@ def use_gateway_mock(monkeypatch):
     return pushaddgateway
 
 
+@pytest.fixture
+def push_mock(monkeypatch):
+    push = MagicMock()
+    monkeypatch.setattr(
+        _GaugeToGatewayBase,
+        "_push",
+        push,
+    )
+    return push
+
+
 class TestGaugeToGatewayBase:
     def test_can_instanciate_PushGaugeToGateway(self):
         task = _GaugeToGatewayBase()
@@ -86,6 +97,56 @@ class TestGaugeToGatewayBase:
         task = _GaugeToGatewayBase(pushgateway_url=url, counter_name=counter_name)
         task.run(values=[], labels=[])
         assert use_gateway_mock.call_count == 0
+
+    def test_call_pushgateway_one_when_no_grouping_key(self, push_mock):
+        url = "http://pushgateway.com"
+        counter_name = "flow_grid_rows"
+        task = _GaugeToGatewayBase(
+            pushgateway_url=url, counter_name=counter_name, grouping_key=[]
+        )
+        task.run(
+            values=[1, 2, 3],
+            labels=[
+                {"key1": "label1_1", "key2": "label2_1"},
+                {"key1": "label1_2", "key2": "label2_2"},
+                {"key1": "label1_3", "key2": "label2_"},
+            ],
+        )
+        assert push_mock.call_count == 1
+
+    def test_call_pushgateway_one_when_grouping_key_same_values(self, push_mock):
+        url = "http://pushgateway.com"
+        counter_name = "flow_grid_rows"
+        task = _GaugeToGatewayBase(
+            pushgateway_url=url, counter_name=counter_name, grouping_key=["key1"]
+        )
+        task.run(
+            values=[1, 2, 3],
+            labels=[
+                {"key1": "label1_1", "key2": "label2_1"},
+                {"key1": "label1_1", "key2": "label2_2"},
+                {"key1": "label1_1", "key2": "label2_"},
+            ],
+        )
+        assert push_mock.call_count == 1
+
+    def test_call_pushgateway_twice_when_grouping_key_differents_values(
+        self, push_mock
+    ):
+        url = "http://pushgateway.com"
+        counter_name = "flow_grid_rows"
+        task = _GaugeToGatewayBase(
+            pushgateway_url=url, counter_name=counter_name, grouping_key=["key1"]
+        )
+        task.run(
+            values=[1, 2, 3],
+            labels=[
+                {"key1": "label1_1", "key2": "label2_1"},
+                {"key1": "label1_1", "key2": "label2_2"},
+                {"key1": "label1_2", "key2": "label2_3"},
+            ],
+        )
+        assert push_mock.call_count == 2
 
 
 class TestPushGaugeToGateway:

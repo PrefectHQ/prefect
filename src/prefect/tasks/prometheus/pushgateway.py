@@ -5,6 +5,7 @@ from prometheus_client import (
     pushadd_to_gateway,
     push_to_gateway,
 )
+from collections import namedtuple
 from typing import Dict, List, Optional
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -141,27 +142,41 @@ class _GaugeToGatewayBase(Task):
         if len(values) == 0 or len(labels) == 0:
             return
 
-        grouping_key_values = (
-            {key: labels[0][key] for key in grouping_key} if grouping_key else {}
+        GroupingValues = namedtuple(
+            "GroupingValues", ["grouping_key", "labels_names", "labels", "values"]
         )
 
-        registry = CollectorRegistry()
-        g = Gauge(
-            counter_name,
-            counter_description,
-            labelnames=labels[0].keys(),
-            registry=registry,
-        )
+        groups = {}
+        for l, v in zip(labels, values):
 
-        for k, v in zip(labels, values):
-            g.labels(**k).set(v)
+            grouping_key_values = (
+                {key: l[key] for key in grouping_key} if grouping_key else {}
+            )
+            group_key_id = "-".join(grouping_key_values.values())
+            group_values = groups.setdefault(
+                group_key_id, GroupingValues(grouping_key_values, l.keys(), [], [])
+            )
+            group_values.labels.append(l)
+            group_values.values.append(v)
 
-        self._push(
-            gateway=pushgateway_url,
-            job=job_name,
-            grouping_key=grouping_key_values,
-            registry=registry,
-        )
+        for group in groups.values():
+            registry = CollectorRegistry()
+            g = Gauge(
+                counter_name,
+                counter_description,
+                labelnames=group.labels_names,
+                registry=registry,
+            )
+
+            for k, v in zip(group.labels, group.values):
+                g.labels(**k).set(v)
+
+            self._push(
+                gateway=pushgateway_url,
+                job=job_name,
+                grouping_key=group.grouping_key,
+                registry=registry,
+            )
 
 
 class PushGaugeToGateway(_GaugeToGatewayBase):
