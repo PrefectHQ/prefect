@@ -730,13 +730,15 @@ class FlowRunView:
                 "id": {"_nin": list(self._cached_task_runs.keys())},
             }
         )
-        task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
-        # Add to cache
-        for task_run in task_runs:
-            if self._cache_task_run_if_finished(task_run):
-                task_runs.remove(task_run)
+        
+        new_task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
+        
+        task_runs = new_task_runs + list(self._cached_task_runs.values())
+        
+        for task_run in new_task_runs:
+            self._cache_task_run_if_finished(task_run)
 
-        return task_runs + list(self._cached_task_runs.values())
+        return task_runs
 
     def get_task_run_ids(self) -> List[str]:
         """
