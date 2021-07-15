@@ -9,7 +9,7 @@ This is just the beginning; Prefect has many more resources and concepts to expl
 
 ## Orchestration
 
-If you want greater orchestration for your flows, check out our [orchestration docs](/orchestration/getting-started/quick-flow) about how to add an API and UI layer for your flows. 
+If you want greater orchestration for your flows, check out our [orchestration docs](/orchestration/README.md) about how to add an API and UI layer for your flows. 
 
 ## Video Guides
 
