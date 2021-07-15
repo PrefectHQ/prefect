@@ -12,10 +12,10 @@ jobs:
   #       with:
   #         persist-credentials: false
 
-  #     - name: Set up Python 3.8
+  #     - name: Set up Python
   #       uses: actions/setup-python@v2
   #       with:
-  #         python-version: 3.8
+  #         python-version: 3.7
       
   #     - uses: actions/cache@v2
   #       with:
@@ -40,10 +40,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python 3.8
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.7
       
       - name: Install black
         run: |
@@ -62,10 +62,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python 3.8
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.7
 
       - name: Install black
         run: |
