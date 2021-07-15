@@ -389,7 +389,7 @@ class FlowRunView:
             for task_run in task_runs:
                 self._cache_task_run_if_finished(task_run)
 
-    def _cache_task_run_if_finished(self, task_run: "TaskRunView") -> bool:
+    def _cache_task_run_if_finished(self, task_run: "TaskRunView"):
         """
         Add a task run to the cache if it is in a finished state
 
@@ -404,8 +404,6 @@ class FlowRunView:
             self._slug_index_to_cached_id[
                 (task_run.task_slug, task_run.map_index)
             ] = task_run.task_run_id
-            return True
-        return False
 
     def get_latest(self, load_static_tasks: bool = False) -> "FlowRunView":
         """
@@ -730,10 +728,10 @@ class FlowRunView:
                 "id": {"_nin": list(self._cached_task_runs.keys())},
             }
         )
-        
+
         new_task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
         
-        task_runs = new_task_runs + list(self._cached_task_runs.values())
+        task_runs = [t for t in new_task_runs if t.task_run_id not in self._cached_task_runs.keys()]  + list(self._cached_task_runs.values())
         
         for task_run in new_task_runs:
             self._cache_task_run_if_finished(task_run)
