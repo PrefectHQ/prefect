@@ -45,7 +45,7 @@ class Flow:
         return result
 
 
-def flow(_fn: Callable = None, name: str = None, **flow_init_kwargs: Any):
+def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
     # TOOD: Using `**flow_init_kwargs` here hides possible settings from the user
     #       and it may be worth enumerating possible arguments explicitly for user
     #       friendlyness
