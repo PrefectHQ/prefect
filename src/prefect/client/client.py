@@ -313,7 +313,7 @@ class Client:
         if prefect.config.backend == "cloud":
             if self._api_token and not self.api_key:
                 # Backwards compatibility for API tokens
-                if not self._tenant_id and self._api_token:
+                if not self._tenant_id:
                     self._init_tenant()
 
                 # Should be set by `_init_tenant()` but we will not guarantee it
@@ -483,9 +483,23 @@ class Client:
                 try:
                     self.login_to_tenant(tenant_id=self._tenant_id)
                 except AuthorizationError:
-                    # if an authorization error is raised, then the token is invalid and should
-                    # be cleared
-                    self.logout_from_tenant()
+                    # Either the token is invalid _or_ it is not USER scoped. Try
+                    # pulling the correct tenant id from the API
+                    try:
+                        result = self.graphql({"query": {"tenant": {"id"}}})
+                        tenants = result["data"]["tenant"]
+                        # TENANT or RUNNER scoped tokens should have a single tenant
+                        if len(tenants) != 1:
+                            raise ValueError(
+                                "Failed to authorize with Prefect Cloud. "
+                                f"Could not log in to tenant {self._tenant_id!r}. "
+                                f"Found available tenants: {tenants}"
+                            )
+                        self._tenant_id = tenants[0].id
+                    except AuthorizationError:
+                        # On failure, we've just been given an invalid token and should
+                        # delete the auth information from disk
+                        self.logout_from_tenant()
 
         # This code should now be superceded by the `tenant_id` property but will remain
         # here for backwards compat until API tokens are removed entirely
@@ -1243,7 +1257,10 @@ class Client:
         else:
             tenants = res["data"]["tenant"]
             for tenant in tenants:
-                if tenant.id == self.tenant_id:
+                # Return the slug if it matches the current tenant id OR if there is no
+                # current tenant id we are using a RUNNER API token so we'll return
+                # the first (and only) tenant
+                if tenant.id == self.tenant_id or self.tenant_id is None:
                     return tenant.slug
             raise ValueError(
                 f"Failed to find current tenant {self.tenant_id!r} in result {res}"
