@@ -6,10 +6,11 @@ from prefect.core import Flow
 
 class TestFlow:
     def test_initializes(self):
-        f = Flow(name="test", fn=lambda **kwargs: 42, version="A")
+        f = Flow(name="test", fn=lambda **kwargs: 42, version="A", decsription="B")
         assert f.name == "test"
         assert f.fn() == 42
         assert f.version == "A"
+        assert f.description == "B"
 
     def test_raises_on_bad_funcs(self):
         with pytest.raises(TypeError):
