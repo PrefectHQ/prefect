@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from typing import List
 
 import sqlalchemy as sa
 from sqlalchemy import (
