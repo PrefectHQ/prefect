@@ -49,6 +49,9 @@ def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
     # TOOD: Using `**flow_init_kwargs` here hides possible settings from the user
     #       and it may be worth enumerating possible arguments explicitly for user
     #       friendlyness
+    # TODO: For mypy type checks, @overload will have to be used to clarify return
+    #       types for @flow and @flow(...)
+    #       https://mypy.readthedocs.io/en/stable/generics.html?highlight=decorator#decorator-factories
     if _fn is None:
         return lambda _fn: Flow(fn=_fn, name=name, **flow_init_kwargs)
     return Flow(fn=_fn, name=name, **flow_init_kwargs)
