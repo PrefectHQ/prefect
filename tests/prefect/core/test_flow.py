@@ -18,6 +18,7 @@ class TestFlow:
 
 class TestDecorator:
     def test_flow_decorator_initializes(self):
+        # TODO: We should cover initialization with an executor once introduced
         @flow(name="foo", version="B")
         def my_flow():
             return "bar"
