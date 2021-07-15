@@ -26,9 +26,8 @@ from prefect.orion.utilities.database import UUID, Base, engine
 
 class Flow(Base):
     name = Column(String, nullable=False, unique=True)
-    metadata = Column(JSON, server_default="{}", nullable=False)
-    tags = Column(JSON, server_default="[]", nullable=False)
-    parameters = Column(JSON, server_default="{}", nullable=False)
+    tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
 
 
 # TODO: add indexes
