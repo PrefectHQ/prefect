@@ -726,10 +726,16 @@ class FlowRunView:
             }
         )
 
-        new_task_runs = [TaskRunView._from_task_run_data(data) for data in task_run_data]
-        
-        task_runs = [t for t in new_task_runs if t.task_run_id not in self._cached_task_runs.keys()]  + list(self._cached_task_runs.values())
-        
+        new_task_runs = [
+            TaskRunView._from_task_run_data(data) for data in task_run_data
+        ]
+
+        task_runs = [
+            t
+            for t in new_task_runs
+            if t.task_run_id not in self._cached_task_runs.keys()
+        ] + list(self._cached_task_runs.values())
+
         for task_run in new_task_runs:
             self._cache_task_run_if_finished(task_run)
 
