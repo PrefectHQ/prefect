@@ -3,3 +3,4 @@ xxhash >= 2.0, < 3.0
 pendulum >= 2.0, < 3.0
 pydantic >= 1.8, < 2.0
 fastapi >= 0.66, < 0.67
+pyyaml <= 6.0
