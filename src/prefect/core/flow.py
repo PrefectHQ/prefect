@@ -6,6 +6,9 @@ from typing import Any, Callable
 from uuid import uuid4
 
 
+from prefect.core.utilities import file_hash
+
+
 class Flow:
     """
     Base class representing Prefect workflows.
@@ -35,7 +38,8 @@ class Flow:
         #       implement a strict runtime typecheck with a configuration flag
         self.fn = validate_arguments(fn)
         update_wrapper(self, fn)
-        self.version = version
+
+        self.version = version or file_hash(fn.__globals__["__file__"])
         self.executor = executor
 
     def _run(self, *args, **kwargs):
