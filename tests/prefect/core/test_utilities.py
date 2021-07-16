@@ -12,3 +12,10 @@ def test_file_hash_raises_if_path_doesnt_exist():
 
     with pytest.raises(FileNotFoundError, match="/root/foo/bar.txt"):
         file_hash(path=fake_path)
+
+
+def test_file_hash_hashes(tmpdir):
+    with open(tmpdir / "test.py", "w") as f:
+        f.write("0")
+
+    assert file_hash(tmpdir / "test.py") == "897316929176464ebc9ad085f31e7284"
