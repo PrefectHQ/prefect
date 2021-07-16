@@ -22,4 +22,6 @@ class Settings(BaseSettings):
     logging_level: str = "INFO"
 
     # database
+    # using `default_factory` avoids instantiating the default value until the parent
+    # settings class is instantiated
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
