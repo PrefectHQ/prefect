@@ -8,10 +8,11 @@ class LoggingSettings(BaseSettings):
         env_prefix = "PREFECT_LOGGING_"
         frozen = True
 
-    logging_settings_path: Path = Path("~/.prefect/logging.yml").expanduser()
     console_level: str = "DEBUG"
     root_level: str = "WARNING"
     prefect_level: str = "DEBUG"
+
+    settings_path: Path = Path("~/.prefect/logging.yml").expanduser()
     log_directory: Path = Path("~/.prefect/logs").expanduser()
 
 
