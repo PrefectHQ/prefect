@@ -2,6 +2,7 @@ import pytest
 
 from prefect import flow
 from prefect.core import Flow
+from prefect.core.utilities import file_hash
 
 
 class TestFlow:
@@ -65,3 +66,10 @@ class TestDecorator:
         assert my_flow.name == "foo"
         assert my_flow.version == "B"
         assert my_flow.fn() == "bar"
+
+    def test_flow_decorator_sets_default_version(self):
+        @flow
+        def my_flow():
+            pass
+
+        assert my_flow.version == file_hash(__file__)
