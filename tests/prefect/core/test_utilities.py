@@ -1,4 +1,5 @@
 import pytest
+import hashlib
 
 from prefect.core.utilities import file_hash
 
@@ -18,4 +19,7 @@ def test_file_hash_hashes(tmpdir):
     with open(tmpdir / "test.py", "w") as f:
         f.write("0")
 
-    assert file_hash(tmpdir / "test.py") == "897316929176464ebc9ad085f31e7284"
+    hash = file_hash(tmpdir / "test.py")
+    assert hash == hashlib.md5(b"0").hexdigest()
+    # Check if the hash is stable
+    assert hash == "cfcd208495d565ef66e7dff9f98764da"
