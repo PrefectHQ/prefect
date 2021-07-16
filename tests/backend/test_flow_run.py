@@ -215,13 +215,7 @@ def test_flow_run_view_get_all_task_runs(patch_post, patch_posts):
     assert len(flow_run._cached_task_runs) == 1
     assert len(tr) == 2
 
-    patch_post(
-        {
-            "data": {
-                "task_run": [TASK_RUN_DATA_FINISHED, TASK_RUN_DATA_RUNNING_NOW_FINISHED]
-            }
-        }
-    )
+    patch_post({"data": {"task_run": [TASK_RUN_DATA_RUNNING_NOW_FINISHED]}})
     tr = flow_run.get_all_task_runs()
     assert len(flow_run._cached_task_runs) == 2
     assert len(tr) == 2
