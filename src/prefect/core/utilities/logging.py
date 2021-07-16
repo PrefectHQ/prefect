@@ -50,3 +50,17 @@ def get_logger(name: str = None) -> logging.Logger:
     if name is not None:
         logger = logger.getChild(name)
     return logger
+
+
+class OrionHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord):
+        # TODO: Implement a log handler that sends logs to Orion, Core uses a custom
+        #       queue to batch messages but we may want to use the stdlib
+        #       `MemoryHandler` as a base which implements queueing already
+        #       https://docs.python.org/3/howto/logging-cookbook.html#buffering-logging-messages-and-outputting-them-conditionally
+        pass
+
+
+class JsonFormatter(logging.Formatter):
+    # TODO: Implement a log formatter that converts `LogRecord` to JSON for Orion
+    pass

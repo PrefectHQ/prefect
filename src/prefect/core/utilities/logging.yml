@@ -4,12 +4,20 @@ formatters:
     simple:
         format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
+    json:
+        class: prefect.core.utilities.logging.JsonFormatter
+
 handlers:
     console:
         class: logging.StreamHandler
         level: ${console_level}
         formatter: simple
         stream: ext://sys.stdout
+
+    orion:
+        class: prefect.core.utilities.logging.OrionHandler
+        level: DEBUG
+        formatter: json
 
     info_file_handler:
         class: logging.handlers.RotatingFileHandler
@@ -36,6 +44,13 @@ loggers:
         level: ${prefect_level}
         handlers: [console, error_file_handler]
         propagate: no
+
+    # Only flow run logs are sent to Orion by default
+    prefect.flow_run:
+        level: ${prefect_level}
+        handlers: [orion]
+        propogate: yes
+
 
 root:
     level: ${root_level}
