@@ -39,7 +39,10 @@ class Flow:
         update_wrapper(self, fn)
 
         # Version defaults to a hash of the function's file
-        self.version: Optional[str] = version or file_hash(fn.__globals__["__file__"])
+        flow_file = fn.__globals__.get("__file__")
+        self.version: Optional[str] = version or (
+            file_hash(flow_file) if flow_file else None
+        )
         self.executor = executor
 
     def _run(self, *args, **kwargs):
