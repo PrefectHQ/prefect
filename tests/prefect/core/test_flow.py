@@ -16,6 +16,17 @@ class TestFlow:
         f = Flow(name="test", fn=lambda **kwargs: 42)
         assert isinstance(f.version, str)
 
+    def test_version_none_if_interactively_defined(self):
+        "Defining functions interactively does not set __file__ global"
+
+        def ipython_function():
+            pass
+
+        del ipython_function.__globals__["__file__"]
+
+        f = Flow(name="test", fn=ipython_function)
+        assert f.version is None
+
     def test_raises_on_bad_funcs(self):
         with pytest.raises(TypeError):
             Flow(name="test", fn={})
