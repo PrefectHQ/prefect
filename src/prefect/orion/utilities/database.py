@@ -9,6 +9,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import CHAR, TypeDecorator
+from prefect.orion.utilities.settings import Settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
