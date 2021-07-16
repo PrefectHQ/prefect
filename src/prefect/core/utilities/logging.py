@@ -64,3 +64,10 @@ class OrionHandler(logging.Handler):
 class JsonFormatter(logging.Formatter):
     # TODO: Implement a log formatter that converts `LogRecord` to JSON for Orion
     pass
+
+
+class RunContextInjector(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # TODO: Inject real information about the run into log records
+        record.flow_run_id = "flow-run-id"
+        return True

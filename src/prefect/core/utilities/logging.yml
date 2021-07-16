@@ -1,11 +1,23 @@
 version: 1
 disable_existing_loggers: False
+
 formatters:
     simple:
         format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
+    flow_run:
+        format: "%(asctime)s - %(flow_run_id)s - %(levelname)s - %(message)s"
+
     json:
         class: prefect.core.utilities.logging.JsonFormatter
+
+filters:
+    run_context:
+        # Injects run information into a log record
+        class: prefect.core.utilities.logging.RunContextInjector
+
+    # A user could define a custom filter that drops records containing
+    # sensitive information
 
 handlers:
     console:
@@ -49,6 +61,7 @@ loggers:
     prefect.flow_run:
         level: ${prefect_level}
         handlers: [orion]
+        filters: [run_context]
         propogate: yes
 
 
