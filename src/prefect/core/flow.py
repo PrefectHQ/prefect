@@ -2,8 +2,7 @@ import inspect
 
 from functools import update_wrapper
 from pydantic import validate_arguments
-from typing import Any, Callable
-from uuid import uuid4
+from typing import Any, Callable, Optional
 
 
 from prefect.core.utilities import file_hash
@@ -39,7 +38,8 @@ class Flow:
         self.fn = validate_arguments(fn)
         update_wrapper(self, fn)
 
-        self.version = version or file_hash(fn.__globals__["__file__"])
+        # Version defaults to a hash of the function's file
+        self.version: Optional[str] = version or file_hash(fn.__globals__["__file__"])
         self.executor = executor
 
     def _run(self, *args, **kwargs):
