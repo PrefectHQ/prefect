@@ -6,6 +6,7 @@ def test_no_args():
     assert config.env is None
     assert config.image is None
     assert config.labels == set()
+    assert config.host_config is None
 
 
 def test_all_args(tmpdir):
@@ -14,7 +15,9 @@ def test_all_args(tmpdir):
         env={"hello": "world"},
         image="testing",
         labels=["a", "b"],
+        host_config={"host": "config"},
     )
     assert config.env == {"hello": "world"}
     assert config.image == "testing"
     assert config.labels == {"a", "b"}
+    assert config.host_config == {"host": "config"}
