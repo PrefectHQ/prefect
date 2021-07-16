@@ -12,6 +12,10 @@ class TestFlow:
         assert f.version == "A"
         assert f.description == "B"
 
+    def test_initializes_with_default_version(self):
+        f = Flow(name="test", fn=lambda **kwargs: 42)
+        assert isinstance(f.version, str)
+
     def test_raises_on_bad_funcs(self):
         with pytest.raises(TypeError):
             Flow(name="test", fn={})
