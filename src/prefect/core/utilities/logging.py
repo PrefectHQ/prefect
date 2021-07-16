@@ -33,10 +33,14 @@ def setup_logging() -> None:
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
-    if settings.settings_path.exists():
-        config = load_logging_config(settings.logging_settings_path, settings)
-    else:
-        config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, settings)
+    config = load_logging_config(
+        (
+            settings.logging_settings_path
+            if settings.settings_path.exists()
+            else DEFAULT_LOGGING_SETTINGS_PATH
+        ),
+        settings,
+    )
 
     logging.config.dictConfig(config)
 
