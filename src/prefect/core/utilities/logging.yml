@@ -7,7 +7,7 @@ formatters:
 handlers:
     console:
         class: logging.StreamHandler
-        level: $console_level
+        level: ${console_level}
         formatter: simple
         stream: ext://sys.stdout
 
@@ -15,7 +15,7 @@ handlers:
         class: logging.handlers.RotatingFileHandler
         level: INFO
         formatter: simple
-        filename: $log_directory/info.log
+        filename: ${log_directory}/info.log
         maxBytes: 10485760 # 10MB
         backupCount: 20
         encoding: utf8
@@ -25,7 +25,7 @@ handlers:
         class: logging.handlers.RotatingFileHandler
         level: ERROR
         formatter: simple
-        filename: $log_directory/errors.log
+        filename: ${log_directory}/errors.log
         maxBytes: 10485760 # 10MB
         backupCount: 20
         encoding: utf8
@@ -33,10 +33,10 @@ handlers:
 
 loggers:
     prefect:
-        level: $prefect_level
+        level: ${prefect_level}
         handlers: [console, error_file_handler]
         propagate: no
 
 root:
-    level: $root_level
+    level: ${root_level}
     handlers: [console, info_file_handler, error_file_handler]
