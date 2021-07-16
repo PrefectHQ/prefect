@@ -10,10 +10,15 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import CHAR, TypeDecorator
+from prefect.orion.utilities.settings import Settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-engine = create_engine("sqlite:////tmp/orion.db", echo=True)
+
+engine = create_engine(
+    Settings().database.connection_url,
+    echo=Settings().database.echo,
+)
 Session = sessionmaker(engine, future=True)
 
 
