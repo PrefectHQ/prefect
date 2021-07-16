@@ -1,5 +1,4 @@
-from fastapi import Request
-from prefect.orion.utilities.database import async_session
+from prefect.orion.utilities.database import OrionAsyncSession
 
 
 async def get_session():
@@ -9,5 +8,5 @@ async def get_session():
     The context manager will automatically handle commits,
     rollbacks, and closing the connection.
     """
-    async with async_session.begin() as session:
+    async with OrionAsyncSession.begin() as session:
         yield session
