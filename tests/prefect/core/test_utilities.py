@@ -4,7 +4,7 @@ import hashlib
 from prefect.core.utilities import file_hash
 
 
-def test_file_hash_returns_hash():
+def test_file_hash_returns_string():
     assert isinstance(file_hash(__file__), str)
 
 
