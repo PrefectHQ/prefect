@@ -26,20 +26,8 @@ async def read_flows(
     session: sa.orm.Session,
     offset: int = 0,
     limit: int = 10,
-    order_by: List[str] = None,
 ) -> List[orm.Flow]:
-    query = select(orm.Flow).offset(offset).limit(limit)
-
-    # for now, order by name by default
-    order_by = order_by or ["name"]
-    if order_by:
-        order_by_clauses = []
-        for clause in order_by:
-            if clause.startswith("-"):
-                order_by_clauses.append(getattr(orm.Flow, clause[1:]).desc())
-            else:
-                order_by_clauses.append(getattr(orm.Flow, clause).asc())
-        query = query.order_by(*order_by_clauses)
+    query = select(orm.Flow).offset(offset).limit(limit).order_by(orm.Flow.name)
     result = await session.execute(query)
     return result.scalars().all()
 
