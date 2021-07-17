@@ -305,14 +305,10 @@ Let's see an example of creating a Fargate service type for Prefect Agent using 
     "containerDefinitions": [
         {
             "name": "prefect-agent",
-            "image": "prefecthq/prefect:0.14.13-python3.8",
+            "image": "prefecthq/prefect:0.15.1-python3.8",
             "essential": true,
-            "command": ["prefect","agent","ecs","start"],
+            "command": ["prefect","agent","ecs","start","--key","<your-key>"],
             "environment": [
-                {
-                    "name": "PREFECT__CLOUD__API_KEY",
-                    "value": "<your-key>"
-                },
                 {
                     "name": "PREFECT__CLOUD__AGENT__LABELS",
                     "value": "['label1', 'label2']"},
