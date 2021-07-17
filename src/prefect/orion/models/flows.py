@@ -15,3 +15,7 @@ async def create_flow(session: sa.orm.Session, name: str) -> orm.Flow:
         await nested.rollback()
         stmt = await session.execute(select(orm.Flow).filter_by(name=name))
         return stmt.scalar()
+
+
+async def read_flow(session: sa.orm.Session, id: str) -> orm.Flow:
+    return await session.get(orm.Flow, id)
