@@ -68,8 +68,6 @@ class TestDecorator:
         assert my_flow.fn() == "bar"
 
     def test_flow_decorator_sets_default_version(self):
-        @flow
-        def my_flow():
-            pass
+        my_flow = flow(file_hash)
 
-        assert my_flow.version == file_hash(__file__)
+        assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
