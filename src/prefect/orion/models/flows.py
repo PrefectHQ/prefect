@@ -29,6 +29,9 @@ async def read_flows(
     order_by: List[str] = None,
 ) -> List[orm.Flow]:
     query = select(orm.Flow).offset(offset).limit(limit)
+
+    # for now, order by name by default
+    order_by = order_by or ["name"]
     if order_by:
         order_by_clauses = []
         for clause in order_by:

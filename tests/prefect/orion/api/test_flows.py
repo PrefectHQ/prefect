@@ -41,27 +41,16 @@ class TestReadFlows:
         assert response.status_code == 200
         assert len(response.json()) == 2
 
-    async def test_read_flows_order_by(self, flows, client):
-        response = await client.get("/flows/?order_by=name")
-        assert response.status_code == 200
-        assert len(response.json()) == 2
-        assert response.json()[0]["name"] == "my-flow-0"
-        assert response.json()[1]["name"] == "my-flow-1"
-
-    async def test_read_flows_order_by_descending(self, flows, client):
-        response = await client.get("/flows/?order_by=-name")
-        assert response.status_code == 200
-        assert len(response.json()) == 2
-        assert response.json()[0]["name"] == "my-flow-1"
-        assert response.json()[1]["name"] == "my-flow-0"
-
     async def test_read_flows_applies_limit(self, flows, client):
         response = await client.get("/flows/?limit=1")
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_flows_offset(self, flows, client):
-        response = await client.get("/flows/?offset=1&order_by=name")
+        # right now this works because flows are ordered by name
+        # by default, when ordering is actually implemented, this test
+        # should be re-written
+        response = await client.get("/flows/?offset=1")
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-1"

@@ -25,12 +25,9 @@ async def read_flow(flow_id: str, session: sa.orm.Session = Depends(get_session)
 async def read_flows(
     offset: int = 0,
     limit: int = 10,
-    order_by: List[str] = Query(None),
     session: sa.orm.Session = Depends(get_session),
 ):
-    return await models.flows.read_flows(
-        session=session, offset=offset, limit=limit, order_by=order_by
-    )
+    return await models.flows.read_flows(session=session, offset=offset, limit=limit)
 
 
 @app.delete("/flows/{flow_id}", status_code=204)
