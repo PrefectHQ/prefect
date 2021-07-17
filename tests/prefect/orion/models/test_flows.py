@@ -56,9 +56,32 @@ class TestReadFlows:
         read_flows = await models.flows.read_flows(session=database_session)
         assert len(read_flows) == len(flows)
 
+    async def test_read_flows_orders(self, flows, database_session):
+        read_flows = await models.flows.read_flows(
+            session=database_session, order_by=["name"]
+        )
+        assert len(read_flows) == len(flows)
+        assert read_flows[0].name == "my-flow-1"
+        assert read_flows[1].name == "my-flow-2"
+
+    async def test_read_flows_orders_descending(self, flows, database_session):
+        read_flows = await models.flows.read_flows(
+            session=database_session, order_by=["-name"]
+        )
+        assert len(read_flows) == len(flows)
+        assert read_flows[0].name == "my-flow-2"
+        assert read_flows[1].name == "my-flow-1"
+
     async def test_read_flows_applies_limit(self, flows, database_session):
         read_flows = await models.flows.read_flows(session=database_session, limit=1)
         assert len(read_flows) == 1
+
+    async def test_read_flows_applies_offset(self, flows, database_session):
+        read_flows = await models.flows.read_flows(
+            session=database_session, order_by=["name"], offset=1
+        )
+        assert len(read_flows) == 1
+        assert read_flows[0].name == "my-flow-2"
 
     async def test_read_flows_returns_empty_list(self, database_session):
         read_flows = await models.flows.read_flows(session=database_session)
