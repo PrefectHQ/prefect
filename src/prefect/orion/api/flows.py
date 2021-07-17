@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from fastapi import Depends, HTTPException
 
 from prefect.orion import models
-from prefect.orion.api import app, schemas
+from prefect.orion.api import schemas
 from prefect.orion.utilities.server import OrionRouter, get_session
 
 router = OrionRouter(prefix="/flows", tags=["flows"])
@@ -37,9 +37,7 @@ async def read_flows(
 
 
 @router.delete("/{flow_id}", status_code=204)
-async def delete_flow(
-    flow_id: str, session: sa.orm.Session = Depends(get_session)
-) -> bool:
+async def delete_flow(flow_id: str, session: sa.orm.Session = Depends(get_session)):
     result = await models.flows.delete_flow(session=session, id=flow_id)
     if not result:
         raise HTTPException(status_code=404, detail="Flow not found")
