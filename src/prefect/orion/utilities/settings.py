@@ -1,4 +1,4 @@
-from pydantic import BaseSettings, Field
+from pydantic import BaseSettings, Field, SecretStr
 
 
 class DatabaseSettings(BaseSettings):
