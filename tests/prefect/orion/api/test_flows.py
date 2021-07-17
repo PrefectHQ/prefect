@@ -1,3 +1,4 @@
+import pytest
 from uuid import uuid4
 
 
@@ -26,6 +27,29 @@ class TestReadFlow:
     async def test_read_flow_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/flows/{uuid4()}")
         assert response.status_code == 404
+
+
+class TestReadFlows:
+    @pytest.fixture
+    async def flows(self, client):
+        for i in range(2):
+            response = await client.post("/flows/", json={"name": f"my-flow-{i}"})
+            assert response.status_code == 201
+
+    async def test_read_flows(self, flows, client):
+        response = await client.get("/flows/")
+        assert response.status_code == 200
+        assert len(response.json()) == 2
+
+    async def test_read_flows_applies_limit(self, flows, client):
+        response = await client.get("/flows/?limit=1")
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+
+    async def test_read_flows_returns_empty_list(self, client):
+        response = await client.get("/flows/")
+        assert response.status_code == 200
+        assert response.json() == []
 
 
 class TestDeleteFlow:
