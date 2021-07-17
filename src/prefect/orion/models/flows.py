@@ -23,9 +23,20 @@ async def read_flow(session: sa.orm.Session, id: str) -> orm.Flow:
 
 
 async def read_flows(
-    session: sa.orm.Session, offset: int = 0, limit: int = 10
+    session: sa.orm.Session,
+    offset: int = 0,
+    limit: int = 10,
+    order_by: List[str] = None,
 ) -> List[orm.Flow]:
     query = select(orm.Flow).offset(offset).limit(limit)
+    if order_by:
+        order_by_clauses = []
+        for clause in order_by:
+            if clause.startswith("-"):
+                order_by_clauses.append(getattr(orm.Flow, clause[1:]).desc())
+            else:
+                order_by_clauses.append(getattr(orm.Flow, clause).asc())
+        query = query.order_by(*order_by_clauses)
     result = await session.execute(query)
     return result.scalars().all()
 
