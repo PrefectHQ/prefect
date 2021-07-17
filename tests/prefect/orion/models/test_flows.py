@@ -63,3 +63,22 @@ class TestReadFlows:
     async def test_read_flows_returns_empty_list(self, database_session):
         read_flows = await models.flows.read_flows(session=database_session)
         assert len(read_flows) == 0
+
+
+class TestDeleteFlow:
+    async def test_delete_flow(self, database_session):
+        # create a flow to delete
+        flow = await models.flows.create_flow(session=database_session, name="my-flow")
+        assert flow.name == "my-flow"
+
+        assert await models.flows.delete_flow(session=database_session, id=flow.id)
+
+        # make sure the flow is deleted
+        assert (
+            await models.flows.read_flow(session=database_session, id=flow.id)
+        ) is None
+
+    async def test_delete_flow_returns_false_if_does_not_exist(self, database_session):
+        assert not (
+            await models.flows.delete_flow(session=database_session, id=uuid4())
+        )
