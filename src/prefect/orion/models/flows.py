@@ -25,9 +25,7 @@ async def read_flow(session: sa.orm.Session, id: str) -> orm.Flow:
 async def read_flows(
     session: sa.orm.Session, offset: int = 0, limit: int = 10
 ) -> List[orm.Flow]:
-    query = select(orm.Flow)
-    query = query.offset(offset)
-    query = query.limit(limit)
+    query = select(orm.Flow).offset(offset).limit(limit)
     result = await session.execute(query)
     return result.scalars().all()
 
