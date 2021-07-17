@@ -1,3 +1,4 @@
+import json
 import os
 import prefect.orion
 
@@ -23,3 +24,11 @@ def test_nested_settings():
     os.environ["ORION_DATABASE_ECHO"] = "0"
     settings = prefect.orion.Settings()
     assert settings.database.echo is False
+
+
+def test_secret_settings_are_not_serialized():
+    settings = prefect.orion.Settings()
+    assert settings.database.connection_url != "**********"
+
+    settings_json = json.loads(settings.json())
+    assert settings_json["database"]["connection_url"] == "**********"
