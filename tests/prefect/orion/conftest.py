@@ -27,7 +27,7 @@ async def database_engine():
     """Creates an in memory sqlite database for use in testing"""
     try:
         # create an in memory db engine
-        engine = create_async_engine("sqlite+aiosqlite://", echo=True)
+        engine = create_async_engine("sqlite+aiosqlite://")
         # populate database tables
         await reset_db(engine=engine)
         yield engine
