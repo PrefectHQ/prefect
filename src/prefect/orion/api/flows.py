@@ -6,7 +6,7 @@ from prefect.orion.utilities.server import get_session
 from prefect.orion import models
 
 
-@app.post("/flows/", response_model=schemas.Flow, status_code=201)
+@app.post("/flows/", response_model=schemas.Flow)
 async def create_flow(
     flow: schemas.Flow, session: sa.orm.Session = Depends(get_session)
 ):
