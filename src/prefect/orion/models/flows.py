@@ -1,3 +1,4 @@
+from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
 
@@ -19,6 +20,16 @@ async def create_flow(session: sa.orm.Session, name: str) -> orm.Flow:
 
 async def read_flow(session: sa.orm.Session, id: str) -> orm.Flow:
     return await session.get(orm.Flow, id)
+
+
+async def read_flows(
+    session: sa.orm.Session, offset: int = 0, limit: int = 10
+) -> List[orm.Flow]:
+    query = select(orm.Flow)
+    query = query.offset(offset)
+    query = query.limit(limit)
+    result = await session.execute(query)
+    return result.scalars().all()
 
 
 async def delete_flow(session: sa.orm.Session, id: str) -> bool:
