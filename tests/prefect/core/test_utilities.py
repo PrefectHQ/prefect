@@ -13,10 +13,10 @@ def test_file_hash_requires_path():
         file_hash()
 
 
-def test_file_hash_raises_if_path_doesnt_exist():
-    fake_path = "/root/foo/bar.txt"
+def test_file_hash_raises_if_path_doesnt_exist(tmpdir):
+    fake_path = str(tmpdir / "foobar.txt")
 
-    with pytest.raises(FileNotFoundError, match="/root/foo/bar.txt"):
+    with pytest.raises(FileNotFoundError, match=fake_path):
         file_hash(path=fake_path)
 
 
