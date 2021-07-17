@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from prefect.orion.models import orm
 
@@ -19,3 +19,8 @@ async def create_flow(session: sa.orm.Session, name: str) -> orm.Flow:
 
 async def read_flow(session: sa.orm.Session, id: str) -> orm.Flow:
     return await session.get(orm.Flow, id)
+
+
+async def delete_flow(session: sa.orm.Session, id: str) -> bool:
+    result = await session.execute(delete(orm.Flow).where(orm.Flow.id == id))
+    return result.rowcount > 0
