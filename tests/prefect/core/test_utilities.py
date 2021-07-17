@@ -8,10 +8,6 @@ def test_file_hash_returns_string():
     assert isinstance(file_hash(__file__), str)
 
 
-def test_file_hash_returns_hash():
-    assert isinstance(file_hash(__file__), str)
-
-
 def test_file_hash_requires_path():
     with pytest.raises(TypeError, match="path"):
         file_hash()
