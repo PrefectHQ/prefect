@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from prefect.orion.api.server import app
 from prefect.orion.utilities.server import get_session
 from prefect.orion.utilities.database import reset_db
+from prefect.orion.utilities.settings import Settings
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -27,7 +28,9 @@ async def database_engine():
     """Creates an in memory sqlite database for use in testing"""
     try:
         # create an in memory db engine
-        engine = create_async_engine("sqlite+aiosqlite://", echo=True)
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", echo=Settings().database.echo
+        )
         # populate database tables
         await reset_db(engine=engine)
         yield engine
