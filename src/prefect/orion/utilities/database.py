@@ -13,7 +13,9 @@ from prefect.orion.utilities.settings import Settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-engine = create_async_engine("sqlite+aiosqlite:////tmp/orion.db", echo=True)
+engine = create_async_engine(
+    Settings().database.connection_url.get_secret_value(), echo=Settings().database.echo
+)
 OrionAsyncSession = sessionmaker(
     engine, future=True, expire_on_commit=False, class_=AsyncSession
 )
