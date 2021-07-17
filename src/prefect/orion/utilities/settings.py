@@ -6,7 +6,7 @@ class DatabaseSettings(BaseSettings):
         env_prefix = "ORION_DATABASE_"
         frozen = True
 
-    connection_url: str = "sqlite+aiosqlite:////tmp/orion.db"
+    connection_url: SecretStr = "sqlite+aiosqlite:////tmp/orion.db"
     echo: bool = True
 
 
