@@ -6,7 +6,7 @@ class TestCreateFlow:
     async def test_create_flow(self, client):
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
-        assert response.status_code == 201
+        assert response.status_code == 200
         assert response.json()["name"] == "my-flow"
 
 
@@ -15,7 +15,7 @@ class TestReadFlow:
         # first create a flow to read
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
-        assert response.status_code == 201
+        assert response.status_code == 200
         flow_id = response.json()["id"]
 
         # make sure we we can read the flow correctly
@@ -34,7 +34,7 @@ class TestReadFlows:
     async def flows(self, client):
         for i in range(2):
             response = await client.post("/flows/", json={"name": f"my-flow-{i}"})
-            assert response.status_code == 201
+            assert response.status_code == 200
 
     async def test_read_flows(self, flows, client):
         response = await client.get("/flows/")
@@ -66,7 +66,7 @@ class TestDeleteFlow:
         # first create a flow to delete
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
-        assert response.status_code == 201
+        assert response.status_code == 200
         flow_id = response.json()["id"]
 
         # delete the flow
