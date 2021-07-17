@@ -1,4 +1,4 @@
-from pydantic import BaseSettings, Field
+from pydantic import BaseSettings, Field, SecretStr
 
 
 class DatabaseSettings(BaseSettings):
@@ -6,7 +6,7 @@ class DatabaseSettings(BaseSettings):
         env_prefix = "ORION_DATABASE_"
         frozen = True
 
-    connection_url: str = "sqlite:///tmp/orion.db"
+    connection_url: SecretStr = "sqlite:///tmp/orion.db"
     echo: bool = True
 
 
