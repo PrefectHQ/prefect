@@ -4,10 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from prefect.orion import api
 
-app = FastAPI()
-
-# routers
-app.include_router(api.flows.router)
+app = FastAPI(title="Prefect Orion", version="alpha")
 
 # middleware
 app.add_middleware(
@@ -18,6 +15,15 @@ app.add_middleware(
 )
 
 
-@app.get("/hello", tags=["meta"])
+# routers
+app.include_router(api.flows.router)
+
+
+@app.get("/hello", tags=["debug"])
 def hello():
     return "👋"
+
+
+@app.get("/echo", tags=["debug"])
+def echo(x: str):
+    return x
