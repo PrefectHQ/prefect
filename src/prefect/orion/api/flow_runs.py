@@ -14,15 +14,7 @@ router = OrionRouter(prefix="/flow_runs", tags=["flow_runs"])
 async def create_flow_run(
     flow_run: schemas.FlowRun, session: sa.orm.Session = Depends(get_session)
 ) -> schemas.FlowRun:
-    return await models.flow_runs.create_flow_run(
-        session=session,
-        flow_id=flow_run.flow_id,
-        flow_version=flow_run.flow_version,
-        parameters=flow_run.parameters,
-        parent_task_run_id=flow_run.parent_task_run_id,
-        context=flow_run.context,
-        tags=flow_run.tags,
-    )
+    return await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
 
 
 @router.get("/{flow_run_id}")

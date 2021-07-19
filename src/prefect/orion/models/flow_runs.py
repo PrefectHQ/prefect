@@ -3,28 +3,16 @@ import sqlalchemy as sa
 from sqlalchemy import select, delete
 
 from prefect.orion.models import orm
+from prefect.orion.api import schemas
 
 
 async def create_flow_run(
-    session: sa.orm.Session,
-    flow_id: str,
-    flow_version: str,
-    parameters: Dict[str, Any] = None,
-    parent_task_run_id: str = None,
-    context: Dict[str, Any] = None,
-    tags: List[str] = None,
+    session: sa.orm.Session, flow_run: schemas.FlowRun
 ) -> orm.FlowRun:
-    flow_run = orm.FlowRun(
-        flow_id=flow_id,
-        flow_version=flow_version,
-        parameters=parameters,
-        parent_task_run_id=parent_task_run_id,
-        context=context,
-        tags=tags,
-    )
-    session.add(flow_run)
+    new_flow_run = orm.FlowRun(**flow_run.dict())
+    session.add(new_flow_run)
     await session.flush()
-    return flow_run
+    return new_flow_run
 
 
 async def read_flow_run(session: sa.orm.Session, id: str) -> orm.FlowRun:
