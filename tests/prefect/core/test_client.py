@@ -1,17 +1,25 @@
-from prefect.core.client import create_flow, read_flow
+import pytest
+
 from prefect.core import flow
+from prefect.core.client import Client
 from prefect.orion.api import schemas
 
 
-async def test_create_then_read_flow(client):
+@pytest.fixture
+async def user_client(client):
+    client = Client(http_client=client)
+    yield client
+
+
+async def test_create_then_read_flow(user_client):
     @flow
     def foo():
         pass
 
-    flow_id = await create_flow(client, foo)
+    flow_id = await user_client.create_flow(foo)
     assert isinstance(flow_id, str)
 
-    lookup = await read_flow(client, flow_id)
+    lookup = await user_client.read_flow(flow_id)
     assert isinstance(lookup, schemas.Flow)
     assert lookup.name == foo.name
     assert lookup.tags == list(foo.tags)
