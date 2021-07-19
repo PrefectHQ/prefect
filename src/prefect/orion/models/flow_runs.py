@@ -14,22 +14,17 @@ async def create_flow_run(
     context: Dict[str, Any] = None,
     tags: List[str] = None,
 ) -> orm.FlowRun:
-    try:
-        nested = await session.begin_nested()
-        flow_run = orm.FlowRun(
-            flow_id=flow_id,
-            flow_version=flow_version,
-            parameters=parameters,
-            parent_task_run_id=parent_task_run_id,
-            context=context,
-            tags=tags,
-        )
-        session.add(flow_run)
-        await session.flush()
-        return flow_run
-    except:
-        await nested.rollback()
-        raise
+    flow_run = orm.FlowRun(
+        flow_id=flow_id,
+        flow_version=flow_version,
+        parameters=parameters,
+        parent_task_run_id=parent_task_run_id,
+        context=context,
+        tags=tags,
+    )
+    session.add(flow_run)
+    await session.flush()
+    return flow_run
 
 
 async def read_flow_run(session: sa.orm.Session, id: str) -> orm.FlowRun:
