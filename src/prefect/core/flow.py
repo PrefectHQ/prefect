@@ -3,7 +3,9 @@ import inspect
 from functools import update_wrapper
 from pydantic import validate_arguments
 from typing import Any, Callable
-from uuid import uuid4
+
+
+from prefect.core.utilities import file_hash
 
 
 class Flow:
@@ -35,7 +37,10 @@ class Flow:
         #       implement a strict runtime typecheck with a configuration flag
         self.fn = validate_arguments(fn)
         update_wrapper(self, fn)
-        self.version = version
+
+        # Version defaults to a hash of the function's file
+        flow_file = fn.__globals__.get("__file__")
+        self.version = version or (file_hash(flow_file) if flow_file else None)
         self.executor = executor
 
     def _run(self, *args, **kwargs):

@@ -2,6 +2,7 @@ import pytest
 
 from prefect import flow
 from prefect.core import Flow
+from prefect.core.utilities import file_hash
 
 
 class TestFlow:
@@ -11,6 +12,21 @@ class TestFlow:
         assert f.fn() == 42
         assert f.version == "A"
         assert f.description == "B"
+
+    def test_initializes_with_default_version(self):
+        f = Flow(name="test", fn=lambda **kwargs: 42)
+        assert isinstance(f.version, str)
+
+    def test_version_none_if_interactively_defined(self):
+        "Defining functions interactively does not set __file__ global"
+
+        def ipython_function():
+            pass
+
+        del ipython_function.__globals__["__file__"]
+
+        f = Flow(name="test", fn=ipython_function)
+        assert f.version is None
 
     def test_raises_on_bad_funcs(self):
         with pytest.raises(TypeError):
@@ -50,3 +66,8 @@ class TestDecorator:
         assert my_flow.name == "foo"
         assert my_flow.version == "B"
         assert my_flow.fn() == "bar"
+
+    def test_flow_decorator_sets_default_version(self):
+        my_flow = flow(file_hash)
+
+        assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
