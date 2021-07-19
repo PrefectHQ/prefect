@@ -6,41 +6,24 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, validator
 
-from prefect.orion.utilities.server import AutoEnum
 
-
-class APISchema(BaseModel):
+class PrefectBaseModel(BaseModel):
     class Config:
         orm_mode = True
 
     id: UUID = None
 
 
-class ParameterType(AutoEnum):
-    INT = auto()
-    STRING = auto()
-    FLOAT = auto()
-    BOOLEAN = auto()
-    JSON = auto()
-    DATETIME = auto()
-
-
-class Parameter(BaseModel):
-    name: str
-    type: ParameterType = ParameterType.JSON
-    is_required: bool = False
-    default: Any = None
-    description: str = None
-
-    @validator("default")
-    def default_is_json(cls, v):
-        try:
-            json.dumps(v)
-        except:
-            raise ValueError("Default values must be JSON-compatible.")
-
-
-class Flow(APISchema):
+class Flow(PrefectBaseModel):
     name: str
     tags: List[str] = Field(default_factory=list)
-    parameters: List[Parameter] = Field(default_factory=list)
+    parameters: dict = Field(default_factory=dict)
+
+
+class FlowRun(PrefectBaseModel):
+    flow_id: UUID
+    flow_version: str
+    parameters: dict = Field(default_factory=dict)
+    parent_task_run_id: UUID = None
+    context: dict = Field(default_factory=dict)
+    tags: List[str] = Field(default_factory=list)
