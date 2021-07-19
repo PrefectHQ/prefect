@@ -25,6 +25,7 @@ class TestCreateFlowRun:
         assert response.status_code == 200
         assert response.json()["flow_id"] == flow_id
         assert response.json()["flow_version"] == "0.1"
+        assert response.json()["id"]
 
 
 class TestReadFlowRun:

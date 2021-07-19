@@ -1,25 +1,25 @@
-import uuid
 import pytest
 from uuid import uuid4
 from prefect.orion import models
-from prefect.orion.models.flow_runs import read_flow_run
+from prefect.orion.api import schemas
 
 
 class TestCreateFlowRun:
     async def test_create_flow_run_succeeds(self, database_session):
-        fake_flow_id = uuid4()
+        fake_flow_run = schemas.FlowRun(flow_id=uuid4(), flow_version="0.1")
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_id=fake_flow_id, flow_version="0.1"
+            session=database_session, flow_run=fake_flow_run
         )
-        assert flow_run.flow_id == fake_flow_id
-        assert flow_run.flow_version == "0.1"
+        assert flow_run.flow_id == fake_flow_run.flow_id
+        assert flow_run.flow_version == fake_flow_run.flow_version
 
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, database_session):
         # create a flow run to read
+        fake_flow_run = schemas.FlowRun(flow_id=uuid4(), flow_version="0.1")
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_id=uuid4(), flow_version="0.1"
+            session=database_session, flow_run=fake_flow_run
         )
 
         read_flow_run = await models.flow_runs.read_flow_run(
@@ -36,11 +36,13 @@ class TestReadFlowRun:
 class TestReadFlowRuns:
     @pytest.fixture
     async def flow_runs(self, database_session):
+        fake_flow_run_0 = schemas.FlowRun(flow_id=uuid4(), flow_version="0.1")
         flow_run_0 = await models.flow_runs.create_flow_run(
-            session=database_session, flow_id=uuid4(), flow_version="0.1"
+            session=database_session, flow_run=fake_flow_run_0
         )
+        fake_flow_run_1 = schemas.FlowRun(flow_id=uuid4(), flow_version="0.1")
         flow_run_1 = await models.flow_runs.create_flow_run(
-            session=database_session, flow_id=uuid4(), flow_version="0.2"
+            session=database_session, flow_run=fake_flow_run_1
         )
         return [flow_run_0, flow_run_1]
 
@@ -62,8 +64,9 @@ class TestReadFlowRuns:
 class TestDeleteFlowRun:
     async def test_delete_flow_run(self, database_session):
         # create a flow run to delete
+        fake_flow_run = schemas.FlowRun(flow_id=uuid4(), flow_version="0.1")
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_id=uuid4(), flow_version="0.1"
+            session=database_session, flow_run=fake_flow_run
         )
 
         assert await models.flow_runs.delete_flow_run(
