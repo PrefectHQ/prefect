@@ -53,6 +53,12 @@ class Flow:
         result = self._run(*args, **kwargs)
         return result
 
+    @property
+    def parameters(self) -> dict:
+        # TODO: Implement return using `inspect.signature` with conversion to a JSON
+        #       serializable type
+        return {}
+
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
     # TOOD: Using `**flow_init_kwargs` here hides possible settings from the user
