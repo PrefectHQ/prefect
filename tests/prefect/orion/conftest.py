@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from prefect.orion.api.server import app
-from prefect.orion.utilities.server import get_session
+from prefect.orion.api.dependencies import get_session
 from prefect.orion.utilities.database import reset_db
 from prefect.orion.utilities.settings import Settings
 
