@@ -15,8 +15,8 @@ class Client:
         self.base_url = base_url
         self._client = http_client or httpx.AsyncClient(base_url=base_url)
 
-    async def post(self, route: str, json: dict) -> httpx.Response:
-        return await self._client.post(route, json=json)
+    async def post(self, route: str, **kwargs) -> httpx.Response:
+        return await self._client.post(route, **kwargs)
 
     async def get(self, route: str) -> httpx.Response:
         return await self._client.get(route)
@@ -64,7 +64,11 @@ class Client:
             parent_task_run_id=parent_task_run_id,
         )
 
-        flow_run_id = await self.post("/flow_runs/", json=flow_run_data.dict())
+        response = await self.post("/flow_runs/", data=flow_run_data.json())
+        flow_run_id = response.json().get("id")
+        if not flow_run_id:
+            raise Exception(f"Malformed response: {response}")
+
         return flow_run_id
 
     async def read_flow_run(self, flow_run_id: str) -> api.schemas.FlowRun:
