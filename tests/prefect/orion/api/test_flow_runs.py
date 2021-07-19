@@ -1,5 +1,6 @@
 import pytest
 from uuid import uuid4
+from prefect.orion import models
 
 
 @pytest.fixture
@@ -19,13 +20,18 @@ async def flow_run_id(client, flow_id):
 
 
 class TestCreateFlowRun:
-    async def test_create_flow_run(self, flow_id, client):
+    async def test_create_flow_run(self, flow_id, client, database_session):
         flow_run_data = {"flow_id": flow_id, "flow_version": "0.1"}
         response = await client.post("/flow_runs/", json=flow_run_data)
         assert response.status_code == 200
         assert response.json()["flow_id"] == flow_id
         assert response.json()["flow_version"] == "0.1"
         assert response.json()["id"]
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=database_session, id=response.json()["id"]
+        )
+        assert flow_run.flow_id == flow_id
 
 
 class TestReadFlowRun:
@@ -66,12 +72,16 @@ class TestReadFlowRuns:
 
 
 class TestDeleteFlowRuns:
-    async def test_delete_flow_runs(self, flow_run_id, client):
+    async def test_delete_flow_runs(self, flow_run_id, client, database_session):
         # delete the flow run
         response = await client.delete(f"/flow_runs/{flow_run_id}")
         assert response.status_code == 204
 
         # make sure it's deleted
+        flow_run = await models.flow_runs.read_flow_run(
+            session=database_session, id=flow_run_id
+        )
+        assert flow_run is None
         response = await client.get(f"/flow_runs/{flow_run_id}")
         assert response.status_code == 404
 
