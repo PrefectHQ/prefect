@@ -11,7 +11,7 @@ class Flow(Base):
 
 
 class FlowRun(Base):
-    flow_id = Column(UUID(), nullable=False)
+    flow_id = Column(UUID(), nullable=False, index=True)
     flow_version = Column(String)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     parent_task_run_id = Column(UUID(), nullable=True)
