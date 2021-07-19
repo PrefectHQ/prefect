@@ -19,7 +19,7 @@ def test_runtime_settings():
 
 def test_nested_settings():
     settings = prefect.orion.Settings()
-    assert settings.database.echo is True
+    assert settings.database.echo is False
 
     os.environ["ORION_DATABASE_ECHO"] = "0"
     settings = prefect.orion.Settings()

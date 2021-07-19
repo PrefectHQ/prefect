@@ -17,7 +17,11 @@ class PrefectBaseModel(BaseModel):
 class Flow(PrefectBaseModel):
     name: str
     tags: List[str] = Field(default_factory=list)
-    parameters: dict = Field(default_factory=dict)
+    parameters: dict = Field(
+        default_factory=dict,
+        title="Parameters",
+        description="An OpenAPI-compatible description of the parameters",
+    )
 
 
 class FlowRun(PrefectBaseModel):
