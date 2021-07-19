@@ -2,7 +2,7 @@ import inspect
 
 from functools import update_wrapper
 from pydantic import validate_arguments
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 
 from prefect.core.utilities import file_hash
@@ -22,6 +22,7 @@ class Flow:
         version: str = None,
         executor=None,
         description: str = None,
+        tags: Iterable[str] = None,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -42,6 +43,8 @@ class Flow:
         flow_file = fn.__globals__.get("__file__")
         self.version = version or (file_hash(flow_file) if flow_file else None)
         self.executor = executor
+
+        self.tags = set(tags if tags else [])
 
     def _run(self, *args, **kwargs):
         # placeholder method that will eventually manage state
