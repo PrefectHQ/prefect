@@ -75,6 +75,14 @@ TASK_RUN_DATA_RUNNING = {
     "serialized_state": Running(message="state-2").serialize(),
     "flow_run_id": "flow_run_id-2",
 }
+TASK_RUN_DATA_RUNNING_NOW_FINISHED = {
+    "id": "task-run-id-2",
+    "name": "name-2",
+    "task": {"id": "task-id-2", "slug": "task-slug-2"},
+    "map_index": "map_index-2",
+    "serialized_state": Success(message="state-1").serialize(),
+    "flow_run_id": "flow_run_id-2",
+}
 
 
 def test_flow_run_view_query_for_flow_run_raises_bad_responses(patch_post):
@@ -191,6 +199,26 @@ def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
     assert flow_run._cached_task_runs[
         "task-run-id-1"
     ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
+
+
+def test_flow_run_view_get_all_task_runs(patch_post, patch_posts):
+    patch_posts(
+        [
+            {"data": {"flow_run": [FLOW_RUN_DATA_1]}},
+            {"data": {"task_run": [TASK_RUN_DATA_FINISHED]}},
+        ]
+    )
+    flow_run = FlowRunView.from_flow_run_id("fake-id")
+
+    patch_post({"data": {"task_run": [TASK_RUN_DATA_FINISHED, TASK_RUN_DATA_RUNNING]}})
+    tr = flow_run.get_all_task_runs()
+    assert len(flow_run._cached_task_runs) == 1
+    assert len(tr) == 2
+
+    patch_post({"data": {"task_run": [TASK_RUN_DATA_RUNNING_NOW_FINISHED]}})
+    tr = flow_run.get_all_task_runs()
+    assert len(flow_run._cached_task_runs) == 2
+    assert len(tr) == 2
 
 
 def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
