@@ -36,6 +36,7 @@ class Client:
         global _current_client
         self._previous_client = _current_client
         _current_client = self
+        return self
 
     def __exit__(self, *exc):
         global _current_client
