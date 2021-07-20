@@ -7,7 +7,6 @@ from prefect.orion import models
 async def flow_id(client):
     flow_data = {"name": "my-flow"}
     response = await client.post("/flows/", json=flow_data)
-    assert response.status_code == 200
     return response.json()["id"]
 
 
@@ -15,7 +14,6 @@ async def flow_id(client):
 async def flow_run_id(client, flow_id):
     flow_run_data = {"flow_id": flow_id, "flow_version": "0.1"}
     response = await client.post("/flow_runs/", json=flow_run_data)
-    assert response.status_code == 200
     return response.json()["id"]
 
 

@@ -1,7 +1,7 @@
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Response, status
 
 from prefect.orion import models
 from prefect.orion.api import schemas, dependencies
@@ -10,9 +10,11 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/flows", tags=["flows"])
 
 
-@router.post("/")
+@router.post("/", status_code=200)
 async def create_flow(
-    flow: schemas.Flow, session: sa.orm.Session = Depends(dependencies.get_session)
+    flow: schemas.Flow,
+    response: Response,
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.Flow:
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
@@ -27,6 +29,7 @@ async def create_flow(
     nested = await session.begin_nested()
     try:
         flow = await models.flows.create_flow(session=session, flow=flow)
+        response.status_code = status.HTTP_201_CREATED
     except:
         await nested.rollback()
         flow = await models.flows.read_flow_by_name(session=session, name=flow.name)
