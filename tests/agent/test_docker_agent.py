@@ -476,9 +476,20 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
 
     if run_kind == "docker":
         env = {"TESTING": "VALUE"}
-        run = DockerRun(image=image, env=env)
+        host_config = {"auto_remove": False, "shm_size": "128m"}
+        exp_host_config = {
+            "auto_remove": False,
+            "extra_hosts": {"host.docker.internal": "host-gateway"},
+            "shm_size": "128m",
+        }
+        run = DockerRun(image=image, env=env, host_config=host_config)
     else:
         env = {}
+        host_config = {}
+        exp_host_config = {
+            "auto_remove": True,
+            "extra_hosts": {"host.docker.internal": "host-gateway"},
+        }
         run = None if run_kind == "missing" else UniversalRun()
 
     agent = DockerAgent()
@@ -505,6 +516,9 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
     res_env = api.create_container.call_args[1]["environment"]
     for k, v in env.items():
         assert res_env[k] == v
+    res_host_config = api.create_host_config.call_args[1]
+    for k, v in exp_host_config.items():
+        assert res_host_config[k] == v
 
 
 def test_docker_agent_deploy_flow_unsupported_run_config(api):
