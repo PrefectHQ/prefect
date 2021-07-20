@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Checkpoint task results when `SUCCESS` is raised - [#4744](https://github.com/PrefectHQ/prefect/pull/4744)"

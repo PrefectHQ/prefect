@@ -343,6 +343,7 @@ def register_serialized_flow(
     serialized_flow: dict,
     project_id: str,
     force: bool = False,
+    schedule: bool = True,
 ) -> Tuple[str, int, bool]:
     """Register a pre-serialized flow.
 
@@ -353,6 +354,8 @@ def register_serialized_flow(
         - force (bool, optional): If `False` (default), an idempotency key will
             be generated to avoid unnecessary re-registration. Set to `True` to
             force re-registration.
+        - schedule (bool, optional): If `True` (default) activates the flow schedule
+            upon registering.
 
     Returns:
         - flow_id (str): the flow id
@@ -392,6 +395,7 @@ def register_serialized_flow(
     inputs = dict(
         project_id=project_id,
         serialized_flow=compress(serialized_flow),
+        set_schedule_active=schedule,
     )
     if not force:
         inputs["idempotency_key"] = hashlib.sha256(
@@ -422,6 +426,7 @@ def build_and_register(
     project_id: str,
     labels: List[str] = None,
     force: bool = False,
+    schedule: bool = True,
 ) -> Counter:
     """Build and register all flows.
 
@@ -432,6 +437,8 @@ def build_and_register(
         - labels (List[str], optional): Any extra labels to set on all flows
         - force (bool, optional): If false (default), an idempotency key will
             be used to avoid unnecessary register calls.
+        - schedule (bool, optional): If `True` (default) activates the flow schedule
+            upon registering.
 
     Returns:
         - Counter: stats about the number of successful, failed, and skipped flows.
@@ -476,6 +483,7 @@ def build_and_register(
                     serialized_flow=serialized_flow,
                     project_id=project_id,
                     force=force,
+                    schedule=schedule,
                 )
             except Exception as exc:
                 click.secho(" Error", fg="red")
@@ -501,6 +509,7 @@ def register_internal(
     names: List[str] = None,
     labels: List[str] = None,
     force: bool = False,
+    schedule: bool = True,
     in_watch: bool = False,
 ) -> None:
     """Do a single registration pass, loading, building, and registering the
@@ -518,6 +527,8 @@ def register_internal(
             flows.
         - force (bool, optional): If false (default), an idempotency key will
             be used to avoid unnecessary register calls.
+        - schedule (bool, optional): If `True` (default) activates the flow schedule
+            upon registering.
         - in_watch (bool, optional): Whether this call resulted from a
             `register --watch` call.
     """
@@ -538,7 +549,7 @@ def register_internal(
     for source, flows in source_to_flows.items():
         click.echo(f"Processing {source.location!r}:")
         stats += build_and_register(
-            client, flows, project_id, labels=labels, force=force
+            client, flows, project_id, labels=labels, force=force, schedule=schedule
         )
 
     # Output summary message
@@ -658,6 +669,10 @@ REGISTER_EPILOG = """
 \b  Watch a directory of flows for changes, and re-register flows upon change.
 
 \b    $ prefect register --project my-project -p myflows/ --watch
+
+\b  Register a flow found in `flow.py` and disable its schedule.
+
+\b    $ prefect register --project my-project -p flow.py --no-schedule
 """
 
 
@@ -737,9 +752,21 @@ REGISTER_EPILOG = """
     default=False,
     is_flag=True,
 )
+@click.option(
+    "--schedule/--no-schedule",
+    help=(
+        "Toggles the flow schedule upon registering. By default, the "
+        "flow's schedule will be activated and future runs will be created. "
+        "If disabled, the schedule will still be attached to the flow but "
+        "no runs will be created until it is activated."
+    ),
+    default=True,
+)
 @click.pass_context
 @handle_terminal_error
-def register(ctx, project, paths, modules, json_paths, names, labels, force, watch):
+def register(
+    ctx, project, paths, modules, json_paths, names, labels, force, watch, schedule
+):
     """Register one or more flows into a project.
 
     Flows with unchanged metadata will be skipped as registering again will only
@@ -789,6 +816,7 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
                     labels=labels,
                     force=force,
                     in_watch=True,
+                    schedule=schedule,
                 ),
                 daemon=True,
             )
@@ -796,7 +824,9 @@ def register(ctx, project, paths, modules, json_paths, names, labels, force, wat
             proc.join()
     else:
         modules = list(modules or ())
-        register_internal(project, paths, modules, json_paths, names, labels, force)
+        register_internal(
+            project, paths, modules, json_paths, names, labels, force, schedule
+        )
 
 
 BUILD_EPILOG = """

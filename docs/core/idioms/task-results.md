@@ -7,7 +7,7 @@ This currently does not cover retrieving result values when running in the conte
 :::
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 
@@ -36,7 +36,7 @@ assert state.result[p].result == None     # task does not return a result
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 

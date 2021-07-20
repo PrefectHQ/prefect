@@ -80,6 +80,7 @@ def run_with_heartbeat(
                     msg = "Heartbeat process died with exit code {}".format(exit_code)
                     self.logger.error(msg)
                 p.kill()
+                p.wait()
 
     return inner
 
