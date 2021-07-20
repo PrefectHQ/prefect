@@ -4,19 +4,15 @@
 
 Released on July 20, 2021.
 
-### Features
-
-- Exposes schedule activation from `prefect register CLI - [#4752](https://github.com/PrefectHQ/prefect/pull/4752)
-
 ### Enhancements
 
-- Exposed the host_config for the Docker Agent in the DockerRun to pass arguments at runtime. - [#4733](https://github.com/PrefectHQ/prefect/issues/4773)
-- Enable and document loading additional repository files with `Git` storage - [#4767](https://github.com/PrefectHQ/prefect/pull/4767)
+- Allow CLI registration of flows without starting their schedule `prefect register --no-schedule` - [#4752](https://github.com/PrefectHQ/prefect/pull/4752)
+- Add `host_config` to `DockerRun` to expose deeper settings for Docker flow runs - [#4733](https://github.com/PrefectHQ/prefect/issues/4773)
+- Enable loading additional repository files with `Git` storage - [#4767](https://github.com/PrefectHQ/prefect/pull/4767)
 
 ### Fixes
 
-- Doc code block tab formating - [#4781](https://github.com/PrefectHQ/prefect/pull/4781)
-- Fix FlowRunView's `get_all_task_runs` method - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)
+- Fix duplicate task runs in `FlowRunView.get_all_task_runs` - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)
 
 ### Contributors
 
