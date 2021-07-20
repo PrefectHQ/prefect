@@ -1,2 +1,0 @@
-enhancement:
-  - "Enable and document loading additional repository files with `Git` storage - [#4767](https://github.com/PrefectHQ/prefect/pull/4767)"

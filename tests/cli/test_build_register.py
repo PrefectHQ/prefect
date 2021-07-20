@@ -329,6 +329,27 @@ class TestRegister:
         assert flow_version == exp_version
         assert is_new == is_new_version
 
+    @pytest.mark.parametrize("schedule", [True, False])
+    def test_register_serialized_flow_toggle_schedule(self, schedule):
+        client = MagicMock()
+        client.graphql.side_effect = [
+            GraphQLResult({"data": {"flow": []}}),
+            GraphQLResult(
+                {"data": {"create_flow_from_compressed_string": {"id": "id"}}}
+            ),
+        ]
+
+        serialized_flow = Flow("testing").serialize(build=False)
+
+        register_serialized_flow(
+            client, serialized_flow, "my-project-id", schedule=schedule
+        )
+
+        assert (
+            client.graphql.call_args[1]["variables"]["input"]["set_schedule_active"]
+            == schedule
+        )
+
     @pytest.mark.parametrize("relative", [False, True])
     def test_load_flows_from_script(self, tmpdir, relative):
         abs_path = str(tmpdir.join("test.py"))
@@ -600,7 +621,10 @@ class TestRegister:
 
     @pytest.mark.parametrize("force", [False, True])
     @pytest.mark.parametrize("names", [[], ["flow 1"]])
-    def test_register_cli(self, tmpdir, monkeypatch, mock_get_project_id, force, names):
+    @pytest.mark.parametrize("schedule", [True, False])
+    def test_register_cli(
+        self, tmpdir, monkeypatch, mock_get_project_id, force, names, schedule
+    ):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -628,6 +652,8 @@ class TestRegister:
             cmd.append("--force")
         for name in names:
             cmd.extend(["--name", name])
+        if not schedule:
+            cmd.append("--no-schedule")
         result = CliRunner().invoke(cli, cmd)
 
         assert result.exit_code == 0
@@ -647,6 +673,7 @@ class TestRegister:
                 *storage_labels,
             }
             assert kwargs["force"] == force
+            assert kwargs["schedule"] == schedule
 
         # Bulk of the output is tested elsewhere, only a few smoketests here
         assert "Building `Local` storage..." in result.stdout

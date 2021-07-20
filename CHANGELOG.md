@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.15.2 <Badge text="beta" type="success" />
+
+Released on July 20, 2021.
+
+### Enhancements
+
+- Allow CLI registration of flows without starting their schedule `prefect register --no-schedule` - [#4752](https://github.com/PrefectHQ/prefect/pull/4752)
+- Add `host_config` to `DockerRun` to expose deeper settings for Docker flow runs - [#4733](https://github.com/PrefectHQ/prefect/issues/4773)
+- Enable loading additional repository files with `Git` storage - [#4767](https://github.com/PrefectHQ/prefect/pull/4767)
+
+### Fixes
+
+- Fix duplicate task runs in `FlowRunView.get_all_task_runs` - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)
+- Fix zombie processes from exited heartbeats - [#4733](https://github.com/PrefectHQ/prefect/pull/4733)
+
+### Task Library
+
+- Add `VaultSecret` task for retrieving secrets from private Vault instances - [#4656](https://github.com/PrefectHQ/prefect/pull/4656)
+
+### Contributors
+
+- [Gabriel Montañola](https://github.com/gmontanola)
+- [Nelson Griffiths](https://github.com/ngriffiths13)
+- [Pawel Janowski](https://github.com/pjanowski)
+- [Yueh Han Huang](https://github.com/bojne)
+- [Chris Ottinger](https://github.com/datwiz)
+
 ## 0.15.1 <Badge text="beta" type="success" />
 
 Released on July 12, 2021.
