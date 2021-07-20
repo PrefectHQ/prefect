@@ -11,10 +11,10 @@ class TestFunctionToSchema:
         def f():
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
             "properties": {},
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
         }
 
@@ -22,9 +22,9 @@ class TestFunctionToSchema:
         def f(x):
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x"}},
             "required": ["x"],
@@ -34,9 +34,9 @@ class TestFunctionToSchema:
         def f(x=42):
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42}},
         }
@@ -45,9 +45,9 @@ class TestFunctionToSchema:
         def f(x: int = 42):
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "type": "integer"}},
         }
@@ -56,9 +56,9 @@ class TestFunctionToSchema:
         def f(x: int, y: float = 5.0):
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "type": "integer"},
@@ -75,9 +75,9 @@ class TestFunctionToSchema:
         ):
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "type": "string", "format": "date-time"},
@@ -106,9 +106,9 @@ class TestFunctionToSchema:
         def f(x: Enum = "RED"):
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {
@@ -136,9 +136,9 @@ class TestFunctionToSchema:
         ):
             pass
 
-        schema = functions.input_schema(f)
+        schema = functions.parameter_schema(f)
         assert schema == {
-            "title": "Inputs",
+            "title": "Parameters",
             "type": "object",
             "properties": {
                 "a": {"title": "a", "type": "array", "items": {"type": "string"}},
