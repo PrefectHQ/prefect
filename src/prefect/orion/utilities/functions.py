@@ -10,14 +10,15 @@ class ParameterSchema(pydantic.BaseModel):
 
     title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"
-    properties: Dict[str, Any] = pydantic.Field(default_factory=list)
+    properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
     required: List[str] = None
     definitions: Dict[str, Any] = None
 
     def dict(self, *args, **kwargs):
-        """Exclude `None` fields by default."""
-        if "exclude_none" not in kwargs:
-            kwargs["exclude_none"] = True
+        """Exclude `None` fields by default to comply with
+        the OpenAPI spec.
+        """
+        kwargs.setdefault("exclude_none", True)
         return super().dict(*args, **kwargs)
 
 
