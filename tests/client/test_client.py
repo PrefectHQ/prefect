@@ -110,8 +110,6 @@ class TestClientAuthentication:
         # Old data is unchanged
         assert data[old_key] == dict(api_key="KEY", tenant_id="ID")
 
-        prefect.context.config.home_dir
-
     def test_client_load_auth_from_disk(self):
         client = Client(api_key="KEY", tenant_id="ID")
         client.save_auth_to_disk()
