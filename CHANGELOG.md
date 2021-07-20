@@ -14,12 +14,17 @@ Released on July 20, 2021.
 
 - Fix duplicate task runs in `FlowRunView.get_all_task_runs` - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)
 
+### Task Library
+
+- Add `VaultSecret` task for retrieving secrets from private Vault instances - [#4656](https://github.com/PrefectHQ/prefect/pull/4656)
+
 ### Contributors
 
 - [Gabriel Montañola](https://github.com/gmontanola)
 - [Nelson Griffiths](https://github.com/ngriffiths13)
 - [Pawel Janowski](https://github.com/pjanowski)
 - [Yueh Han Huang](https://github.com/bojne)
+- [Chris Ottinger](https://github.com/datwiz)
 
 ## 0.15.1 <Badge text="beta" type="success" />
 
