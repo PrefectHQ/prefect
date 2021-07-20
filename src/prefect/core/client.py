@@ -1,11 +1,20 @@
 import httpx
 
-from typing import TYPE_CHECKING, Iterable, Dict, Any
+from typing import TYPE_CHECKING, Iterable, Dict, Any, Optional
 
 from prefect.orion import api
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
+
+
+_clients: Dict[Optional[str], "Client"] = {}
+
+
+def get_client(base_url: str = None):
+    if base_url not in _clients:
+        _clients[base_url] = Client(base_url)
+    return _clients[base_url]
 
 
 class Client:
@@ -35,6 +44,10 @@ class Client:
 
         # Return the id of the created flow
         return flow_id
+
+    async def read_flow(self, flow_id: str) -> api.schemas.Flow:
+        response = await self.get(f"/flows/{flow_id}")
+        return api.schemas.Flow(**response.json())
 
     async def read_flow(self, flow_id: str) -> api.schemas.Flow:
         response = await self.get(f"/flows/{flow_id}")

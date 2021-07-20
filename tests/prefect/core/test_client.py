@@ -1,14 +1,5 @@
-import pytest
-
 from prefect.core import flow
-from prefect.core.client import Client
 from prefect.orion.api import schemas
-
-
-@pytest.fixture
-async def user_client(client):
-    client = Client(http_client=client)
-    yield client
 
 
 async def test_create_then_read_flow(user_client):
