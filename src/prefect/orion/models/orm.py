@@ -1,33 +1,22 @@
-from contextlib import contextmanager
-from typing import List
-
 import sqlalchemy as sa
-import xxhash
-from sqlalchemy import (
-    JSON,
-    TIMESTAMP,
-    Column,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    UniqueConstraint,
-    create_engine,
-    func,
-    insert,
-    literal,
-    select,
-    update,
-)
-from sqlalchemy.orm import relationship
+from sqlalchemy import JSON, Column, String
 
-from prefect.orion.utilities.database import UUID, Base, engine
+from prefect.orion.utilities.database import UUID, Base
 
 
 class Flow(Base):
     name = Column(String, nullable=False, unique=True)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
+
+
+class FlowRun(Base):
+    flow_id = Column(UUID(), nullable=False, index=True)
+    flow_version = Column(String)
+    parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
+    parent_task_run_id = Column(UUID(), nullable=True)
+    context = Column(JSON, server_default="{}", default=dict, nullable=False)
+    tags = Column(JSON, server_default="[]", default=list, nullable=False)
 
 
 # TODO: add indexes
