@@ -1,6 +1,6 @@
 import pytest
 
-import prefect.core.client
+
 from prefect.core.client import Client
 
 
