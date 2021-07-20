@@ -98,7 +98,6 @@ def flow_run(id, num):
         while iter_count < (num or 1):
 
             try:  # Ignore (but log) client exceptions
-                logger.debug(f"Sending hearbeat for flow run {id!r}")
                 client.update_flow_run_heartbeat(id)
             except Exception as exc:
                 logger.error(
