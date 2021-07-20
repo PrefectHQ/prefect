@@ -52,7 +52,7 @@ async def create_flow(flow: "Flow", client: Client = None) -> str:
         tags=flow.tags,
         parameters=flow.parameters,
     )
-    response = await client.post("/flows/", content=flow_data.dict())
+    response = await client.post("/flows/", json=flow_data.dict())
 
     flow_id = response.json().get("id")
     if not flow_id:
