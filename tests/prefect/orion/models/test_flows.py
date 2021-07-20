@@ -1,34 +1,42 @@
-import pytest
 from uuid import uuid4
+
+import pytest
+import sqlalchemy as sa
+
 from prefect.orion import models
+from prefect.orion.api import schemas
 
 
 class TestCreateFlow:
     async def test_create_flow_succeeds(self, database_session):
-        flow = await models.flows.create_flow(session=database_session, name="my-flow")
-        assert flow.name == "my-flow"
-        assert flow.id
-
-    async def test_create_flow_returns_records_if_already_exists(
-        self, database_session
-    ):
-        # create a flow
-        flow = await models.flows.create_flow(session=database_session, name="my-flow")
-        assert flow.name == "my-flow"
-        assert flow.id
-
-        # try to create the same flow, it should return the existing
-        same_flow = await models.flows.create_flow(
-            session=database_session, name="my-flow"
+        flow = await models.flows.create_flow(
+            session=database_session, flow=schemas.Flow(name="my-flow")
         )
-        assert same_flow.name == flow.name
-        assert same_flow.id == flow.id
+        assert flow.name == "my-flow"
+        assert flow.id
+
+    async def test_create_flow_raises_if_already_exists(self, database_session):
+        # create a flow
+        flow = await models.flows.create_flow(
+            session=database_session, flow=schemas.Flow(name="my-flow")
+        )
+        assert flow.name == "my-flow"
+        assert flow.id
+
+        # try to create the same flow
+
+        with pytest.raises(sa.exc.IntegrityError):
+            await models.flows.create_flow(
+                session=database_session, flow=schemas.Flow(name="my-flow")
+            )
 
 
 class TestReadFlow:
     async def test_read_flow(self, database_session):
         # create a flow to read
-        flow = await models.flows.create_flow(session=database_session, name="my-flow")
+        flow = await models.flows.create_flow(
+            session=database_session, flow=schemas.Flow(name="my-flow")
+        )
         assert flow.name == "my-flow"
 
         read_flow = await models.flows.read_flow(session=database_session, id=flow.id)
@@ -36,19 +44,39 @@ class TestReadFlow:
         assert flow.name == read_flow.name
 
     async def test_read_flow_returns_none_if_does_not_exist(self, database_session):
-        assert (
-            await models.flows.read_flow(session=database_session, id=uuid4())
-        ) is None
+        result = await models.flows.read_flow(session=database_session, id=str(uuid4()))
+        assert result is None
+
+
+class TestReadFlowByName:
+    async def test_read_flow(self, database_session):
+        # create a flow to read
+        flow = await models.flows.create_flow(
+            session=database_session, flow=schemas.Flow(name="my-flow")
+        )
+        assert flow.name == "my-flow"
+
+        read_flow = await models.flows.read_flow_by_name(
+            session=database_session, name=flow.name
+        )
+        assert flow.id == read_flow.id
+        assert flow.name == read_flow.name
+
+    async def test_read_flow_returns_none_if_does_not_exist(self, database_session):
+        result = await models.flows.read_flow_by_name(
+            session=database_session, name=str(uuid4())
+        )
+        assert result is None
 
 
 class TestReadFlows:
     @pytest.fixture
     async def flows(self, database_session):
         flow_1 = await models.flows.create_flow(
-            session=database_session, name="my-flow-1"
+            session=database_session, flow=schemas.Flow(name="my-flow-1")
         )
         flow_2 = await models.flows.create_flow(
-            session=database_session, name="my-flow-2"
+            session=database_session, flow=schemas.Flow(name="my-flow-2")
         )
         return [flow_1, flow_2]
 
@@ -76,7 +104,9 @@ class TestReadFlows:
 class TestDeleteFlow:
     async def test_delete_flow(self, database_session):
         # create a flow to delete
-        flow = await models.flows.create_flow(session=database_session, name="my-flow")
+        flow = await models.flows.create_flow(
+            session=database_session, flow=schemas.Flow(name="my-flow")
+        )
         assert flow.name == "my-flow"
 
         assert await models.flows.delete_flow(session=database_session, id=flow.id)
@@ -87,6 +117,7 @@ class TestDeleteFlow:
         ) is None
 
     async def test_delete_flow_returns_false_if_does_not_exist(self, database_session):
-        assert not (
-            await models.flows.delete_flow(session=database_session, id=uuid4())
+        result = await models.flows.delete_flow(
+            session=database_session, id=str(uuid4())
         )
+        assert result is False
