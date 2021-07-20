@@ -89,3 +89,4 @@ class TestFlowCall:
         flow_run = read_flow_run_sync(future.run_id)
         assert str(flow_run.id) == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
+        assert flow_run.flow_version == foo.version
