@@ -5,8 +5,8 @@ from pydantic import validate_arguments
 from typing import Any, Callable, Iterable
 
 
-from prefect.core.utilities import file_hash, sync
-from prefect.core.client import get_client
+from prefect.core.utilities import file_hash
+from prefect.core.client import create_flow_run_sync
 from prefect.core.futures import PrefectFuture
 
 
@@ -55,7 +55,7 @@ class Flow:
 
     def __call__(self, *args, **kwargs) -> PrefectFuture:
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
-        flow_run_id = sync(get_client().create_flow_run, self, parameters=parameters)
+        flow_run_id = create_flow_run_sync(self, parameters=parameters)
         result = self._run(*args, **kwargs)
         return PrefectFuture(run_id=flow_run_id, result=result)
 

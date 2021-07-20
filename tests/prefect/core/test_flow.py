@@ -3,7 +3,8 @@ import pytest
 from prefect import flow
 from prefect.core import Flow
 from prefect.core.futures import PrefectFuture
-from prefect.core.utilities import file_hash, sync
+from prefect.core.client import read_flow_run_sync
+from prefect.core.utilities import file_hash
 
 
 class TestFlow:
@@ -85,6 +86,6 @@ class TestFlowCall:
         assert future.result == 6
         assert future.run_id is not None
 
-        flow_run = sync(user_client.read_flow_run, future.run_id)
+        flow_run = read_flow_run_sync(future.run_id)
         assert str(flow_run.id) == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}

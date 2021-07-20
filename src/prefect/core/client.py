@@ -3,6 +3,7 @@ import httpx
 from typing import TYPE_CHECKING, Iterable, Dict, Any, Optional
 
 from prefect.orion import api
+from prefect.core.utilities import sync
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -19,8 +20,8 @@ def get_client(base_url: str = None):
 
 
 def get_current_client():
+    global _current_client
     if not _current_client:
-        global _current_client
         _current_client = get_client()
     return _current_client
 
@@ -39,8 +40,8 @@ class Client:
         return await self._client.get(route)
 
     def __enter__(self):
-        self._previous_client = _current_client
         global _current_client
+        self._previous_client = _current_client
         _current_client = self
 
     def __exit__(self, *exc):
@@ -49,7 +50,9 @@ class Client:
         self._previous_client = None
 
 
-async def create_flow(self, flow: "Flow") -> str:
+async def create_flow(flow: "Flow", client: Client = None) -> str:
+    client = client or get_current_client()
+
     flow_data = api.schemas.Flow(
         name=flow.name,
         tags=flow.tags,
@@ -63,12 +66,6 @@ async def create_flow(self, flow: "Flow") -> str:
 
     # Return the id of the created flow
     return flow_id
-
-
-async def read_flow(flow_id: str, client: Client = None) -> api.schemas.Flow:
-    client = client or get_current_client()
-    response = await client.get(f"/flows/{flow_id}")
-    return api.schemas.Flow(**response.json())
 
 
 async def read_flow(flow_id: str, client: Client = None) -> api.schemas.Flow:
@@ -91,7 +88,7 @@ async def create_flow_run(
     context = context or {}
 
     # Retrieve the flow id
-    flow_id = await client.create_flow(flow)
+    flow_id = await create_flow(flow, client=client)
 
     flow_run_data = api.schemas.FlowRun(
         flow_id=flow_id,
@@ -114,3 +111,9 @@ async def read_flow_run(flow_run_id: str, client: Client = None) -> api.schemas.
     client = client or get_current_client()
     response = await client.get(f"/flow_runs/{flow_run_id}")
     return api.schemas.FlowRun(**response.json())
+
+
+read_flow_sync = sync(read_flow)
+create_flow_sync = sync(create_flow)
+read_flow_run_sync = sync(read_flow_run)
+create_flow_run_sync = sync(create_flow_run)
