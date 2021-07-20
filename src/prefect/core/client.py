@@ -93,7 +93,7 @@ async def create_flow_run(
         parent_task_run_id=parent_task_run_id,
     )
 
-    response = await client.post("/flow_runs/", data=flow_run_data.json())
+    response = await client.post("/flow_runs/", json=flow_run_data.json_dict())
     flow_run_id = response.json().get("id")
     if not flow_run_id:
         raise Exception(f"Malformed response: {response}")

@@ -1,4 +1,5 @@
 import pytest
+import os
 
 from prefect import flow
 from prefect.core import Flow
@@ -77,7 +78,7 @@ class TestDecorator:
 
 class TestFlowCall:
     def test_call_creates_flow_run(self, user_client):
-        @flow
+        @flow(version="test")
         def foo(x, y=2, z=3):
             return x + y + z
 

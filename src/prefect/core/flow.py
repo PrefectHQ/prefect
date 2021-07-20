@@ -9,6 +9,8 @@ from prefect.core.utilities import file_hash
 from prefect.core.client import create_flow_run_sync
 from prefect.core.futures import PrefectFuture
 
+from prefect.orion.utilities.functions import parameter_schema, ParameterSchema
+
 
 class Flow:
     """
@@ -60,10 +62,8 @@ class Flow:
         return PrefectFuture(run_id=flow_run_id, result=result)
 
     @property
-    def parameters(self) -> dict:
-        # TODO: Implement return using `inspect.signature` with conversion to a JSON
-        #       serializable type
-        return {}
+    def parameters(self) -> ParameterSchema:
+        return parameter_schema(self.fn)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
