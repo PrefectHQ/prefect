@@ -88,7 +88,7 @@ class TestClientAuthentication:
 
         # Ensure saving is robust to a missing directory
         Path(prefect.context.config.home_dir).rmdir()
-        
+
         client = Client(api_key="KEY", tenant_id="ID")
         client.save_auth_to_disk()
 
