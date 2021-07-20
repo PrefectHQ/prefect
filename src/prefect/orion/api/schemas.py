@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field, validator
-from prefect.orion.utilities.functions import InputSchema
+from prefect.orion.utilities.functions import ParameterSchema
 
 
 class PrefectBaseModel(BaseModel):
@@ -18,7 +18,7 @@ class PrefectBaseModel(BaseModel):
 class Flow(PrefectBaseModel):
     name: str
     tags: List[str] = Field(default_factory=list)
-    parameters: InputSchema = Field(default_factory=InputSchema)
+    parameters: ParameterSchema = Field(default_factory=ParameterSchema)
 
 
 class FlowRun(PrefectBaseModel):

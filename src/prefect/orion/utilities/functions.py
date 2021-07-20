@@ -5,10 +5,10 @@ import pydantic
 from typing_extensions import Literal
 
 
-class InputSchema(pydantic.BaseModel):
+class ParameterSchema(pydantic.BaseModel):
     """Simple data model corresponding to an OpenAPI `Schema`"""
 
-    title: Literal["Inputs"] = "Inputs"
+    title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"
     properties: Dict[str, Any] = pydantic.Field(default_factory=list)
     required: List[str] = None
@@ -21,7 +21,7 @@ class InputSchema(pydantic.BaseModel):
         return super().dict(*args, **kwargs)
 
 
-def input_schema(fn: Callable) -> InputSchema:
+def parameter_schema(fn: Callable) -> ParameterSchema:
     """Given a function, generates an OpenAPI-compatible description
     of the function's arguments, including:
         - name
@@ -47,4 +47,6 @@ def input_schema(fn: Callable) -> InputSchema:
                 description=None,
             ),
         )
-    return InputSchema(**pydantic.create_model("Inputs", **model_fields).schema())
+    return ParameterSchema(
+        **pydantic.create_model("Parameters", **model_fields).schema()
+    )
