@@ -14,7 +14,23 @@ router = OrionRouter(prefix="/flows", tags=["flows"])
 async def create_flow(
     flow: schemas.Flow, session: sa.orm.Session = Depends(dependencies.get_session)
 ) -> schemas.Flow:
-    return await models.flows.create_flow(session=session, name=flow.name)
+    """Gracefully creates a new flow from the provided schema. If a flow with the
+    same name already exists, the existing flow is returned.
+
+    Args:
+        flow (schemas.Flow): a flow schema
+        session (sa.orm.Session, optional): a database session
+
+    Returns:
+        schemas.Flow: a flow schema
+    """
+    nested = await session.begin_nested()
+    try:
+        flow = await models.flows.create_flow(session=session, flow=flow)
+    except:
+        await nested.rollback()
+        flow = await models.flows.read_flow_by_name(session=session, name=flow.name)
+    return flow
 
 
 @router.get("/{flow_id}")
