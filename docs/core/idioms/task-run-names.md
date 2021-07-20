@@ -9,7 +9,7 @@ This feature only works when running in the context of an [API backend](/orchest
 In the example snippet below we have a flow that maps over a set of data returned from an upstream task and (for demonstration purposes) it raises an error when it receives the `demo` string as an input.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 
@@ -28,7 +28,7 @@ with Flow("task_run_names") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 
@@ -62,7 +62,7 @@ task_run_name="{val}"
 The backend will template the task run's name based on the `val` input it receives:
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python{7}
 from prefect import task, Flow
 
@@ -81,7 +81,7 @@ with Flow("task_run_names") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python{15}
 from prefect import Task, Flow
 

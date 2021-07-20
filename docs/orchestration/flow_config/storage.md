@@ -309,7 +309,10 @@ storage = Git(
     git_token_username="myuser"                 # username associated with the Deploy Token
 )
 ```
+:::
 
+:::tip Loading additional files from git repository
+`Git` storage allows you to load additional files alongside your flow file. For more information, see [Loading Additional Files with Git Storage](/orchestration/flow_config/storage.html#loading-additional-files-with-git-storage)
 :::
 
 ### GitHub
@@ -529,6 +532,44 @@ secrets](/core/concepts/secrets.md) `SOME_TOKEN`. Because this resolution is
 at runtime, this storage option never has your sensitive information stored in
 it and that sensitive information is never sent to Prefect Cloud.
 
+## Loading Additional Files with Git Storage
+
+`Git` storage clones the full repository when loading a flow from storage. This allows you to load non-Python files that live alongside your flow in your repository. For example, you may have a `.sql` file containing a query run in your flow that you want to use in one of your tasks.
+
+To get the file path of your flow, use Python's `__file__` builtin.
+
+For example, let's say we want to say hello to a person and their name is specified by a `.txt` file in our repository.
+
+Our git repository contains two files in the root directory, `flow.py` and `person.txt`.
+
+`flow.py` contains our flow, including logic for loading information from `person.txt`, and should look like this
+
+```python
+from pathlib import Path
+
+import prefect
+from prefect import task, Flow
+from prefect.storage import Git
+
+# get the path to the flow file using pathlib and __file__
+# this path is dynamically populated when the flow is loaded from storage
+file_path = Path(__file__).resolve().parent
+
+# using our flow path, load the file
+with open(str(file_path) + '/person.txt', 'r') as my_file:
+        name = my_file.read()
+
+@task
+def say_hello(name):
+        logger = prefect.context.get("logger")
+        logger.info(f"Hi {name}")
+
+with Flow("my-hello-flow") as flow:
+        say_hello(name)
+
+# configure our flow to use `Git` storage
+flow.storage = Git(flow_path="flow.py", repo='org/repo')
+```
 
 ## SSH + Git Storage
 

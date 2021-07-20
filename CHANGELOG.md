@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.1 <Badge text="beta" type="success" />
+
+Released on July 12, 2021.
+
+### Enhancements
+
+- Add documentation for querying role and membership info - [#4721](https://github.com/PrefectHQ/prefect/pull/4721)
+- Checkpoint task results when `SUCCESS` is raised - [#4744](https://github.com/PrefectHQ/prefect/pull/4744)
+
+### Fixes
+
+- Fix loading of `PREFECT__CLOUD__API_KEY` environment variable when starting agents - [#4751](https://github.com/PrefectHQ/prefect/pull/4751)
+- Fix bug where the tenant could not be inferred during flow runs while using token auth - [#4758](https://github.com/PrefectHQ/prefect/pull/4758)
+- Fix bug where an agent using token auth could clear the tenant from disk - [#4759](https://github.com/PrefectHQ/prefect/pull/4759)
+
 ## 0.15.0 <Badge text="beta" type="success" />
 
 Released on July 1, 2021.

@@ -48,7 +48,7 @@ A `TaskRunView` is created by querying the backend for task run data. You can us
 
 When using a task slug, the `flow_run_id` is needed because the task may have been run in multiple flow runs.
 ```python
-import prefect.backend from TaskRunView
+from prefect.backend import TaskRunView
 
 task_run = TaskRunView.from_task_slug("say_hello-1", flow_run_id="8e445d74-9ca6-425b-98e5-72754b7ea174")
 # TaskRunView(
@@ -65,7 +65,7 @@ task_run = TaskRunView.from_task_slug("say_hello-1", flow_run_id="8e445d74-9ca6-
 ::: tab Task run id
 
 ```python
-import prefect.backend from TaskRunView
+from prefect.backend import TaskRunView
 
 task_run = TaskRunView.from_task_run_id("c8751f34-9d5e-4ea7-aead-8b50978dabb7")
 # TaskRunView(

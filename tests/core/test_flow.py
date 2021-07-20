@@ -1332,7 +1332,7 @@ class TestFlowVisualize:
         )
         graphviz.backend.ExecutableNotFound = err
         with patch.dict("sys.modules", graphviz=graphviz):
-            with pytest.raises(err, match="Please install Graphviz"):
+            with pytest.raises(err):
                 f.visualize()
 
     def test_viz_returns_graph_object_if_in_ipython(self):
@@ -2358,6 +2358,7 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
+    @pytest.mark.flaky
     def test_flow_dot_run_handles_cached_states_across_runs_with_always_run_trigger(
         self, repeat_schedule
     ):

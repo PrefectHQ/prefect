@@ -879,14 +879,11 @@ class TaskRunner(Runner):
                 new_state.loop_count
             )
 
-        except signals.PrefectStateSignal:
-            # Other state signals will be handled by the `call_state_handlers`
-            # decorator. Once Prefect signal exceptions are modified to inherit
-            # from `BaseException` instead of `Exception`, this can be removed
-            raise
-        except signals.ENDRUN:
-            # As above, the `ENDRUN` is a special exception
-            raise
+        except signals.SUCCESS as exc:
+            # Success signals can be treated like a normal result
+            new_state = exc.state
+            assert isinstance(new_state, Success)
+            value = new_state.result
 
         except Exception as exc:  # Handle exceptions in the task
             if prefect.context.get("raise_on_exception"):

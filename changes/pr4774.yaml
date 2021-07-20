@@ -1,0 +1,5 @@
+fix:
+  - "Fix FlowRunView's `get_all_task_runs` method - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)"
+
+contributor:
+  - "[Pawel Janowski](https://github.com/pjanowski)"

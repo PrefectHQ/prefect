@@ -5,7 +5,7 @@ Since Prefect flows are Python objects they can be tested in any way you would n
 Use the following flow as an example:
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 
@@ -28,7 +28,7 @@ with Flow("testing-example") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 
