@@ -1,5 +1,6 @@
 black
 mypy
 pytest
+pytest-asyncio
 flake8
 pytest-env
