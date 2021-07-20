@@ -1,3 +1,8 @@
+"""
+"Full" schemas for working with data objects internally
+"""
+
+import datetime
 import json
 from typing import List
 from uuid import UUID
@@ -11,7 +16,7 @@ class PrefectBaseModel(BaseModel):
     class Config:
         orm_mode = True
 
-    id: UUID = None
+    id: UUID
 
     def json_dict(self, *args, **kwargs) -> dict:
         """Returns a dict of JSON-compatible values, equivalent
