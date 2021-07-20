@@ -280,6 +280,7 @@ class Client:
         }
 
         # Update the file, including a comment blurb
+        self._auth_file.parent.mkdir(parents=True, exist_ok=True)
         self._auth_file.write_text(
             "# This file is auto-generated and should not be manually edited\n"
             "# Update the Prefect config or use the CLI to login instead\n\n"
