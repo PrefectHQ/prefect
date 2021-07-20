@@ -17,6 +17,8 @@ class PrefectBaseModel(BaseModel):
         orm_mode = True
 
     id: UUID
+    created: datetime.datetime
+    updated: datetime.datetime
 
     def json_dict(self, *args, **kwargs) -> dict:
         """Returns a dict of JSON-compatible values, equivalent
