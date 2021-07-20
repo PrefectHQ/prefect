@@ -1,7 +1,8 @@
 import inspect
-from typing import Dict, Any, Callable, Literal, List
+from typing import Any, Callable, Dict, List
 
 import pydantic
+from typing_extensions import Literal
 
 
 class InputSchema(pydantic.BaseModel):
