@@ -16,8 +16,7 @@ class ParameterSchema(pydantic.BaseModel):
 
     def dict(self, *args, **kwargs):
         """Exclude `None` fields by default."""
-        if "exclude_none" not in kwargs:
-            kwargs["exclude_none"] = True
+        kwargs.setdefault("exclude_none", True)
         return super().dict(*args, **kwargs)
 
 
