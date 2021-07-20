@@ -33,6 +33,9 @@ async def create_flow(
 async def read_flow(
     flow_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
 ) -> schemas.api.Flow:
+    """
+    Get a flow by id
+    """
     flow = await models.flows.read_flow(session=session, id=flow_id)
     if not flow:
         raise HTTPException(status_code=404, detail="Flow not found")
@@ -44,6 +47,9 @@ async def read_flows(
     pagination: dependencies.Pagination = Depends(),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.api.Flow]:
+    """
+    Query for flows
+    """
     return await models.flows.read_flows(
         session=session, offset=pagination.offset, limit=pagination.limit
     )
@@ -53,6 +59,9 @@ async def read_flows(
 async def delete_flow(
     flow_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
 ):
+    """
+    Delete a flow by id
+    """
     result = await models.flows.delete_flow(session=session, id=flow_id)
     if not result:
         raise HTTPException(status_code=404, detail="Flow not found")
