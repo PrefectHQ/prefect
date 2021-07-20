@@ -9,12 +9,20 @@ if TYPE_CHECKING:
 
 
 _clients: Dict[Optional[str], "Client"] = {}
+_current_client: "Client" = None
 
 
 def get_client(base_url: str = None):
     if base_url not in _clients:
         _clients[base_url] = Client(base_url)
     return _clients[base_url]
+
+
+def get_current_client():
+    if not _current_client:
+        global _current_client
+        _current_client = get_client()
+    return _current_client
 
 
 class Client:
@@ -87,3 +95,13 @@ class Client:
     async def read_flow_run(self, flow_run_id: str) -> api.schemas.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")
         return api.schemas.FlowRun(**response.json())
+
+    def __enter__(self):
+        self._previous_client = _current_client
+        global _current_client
+        _current_client = self
+
+    def __exit__(self, *exc):
+        global _current_client
+        _current_client = self._previous_client
+        self._previous_client = None
