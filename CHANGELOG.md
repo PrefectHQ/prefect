@@ -13,6 +13,7 @@ Released on July 20, 2021.
 ### Fixes
 
 - Fix duplicate task runs in `FlowRunView.get_all_task_runs` - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)
+- Fix zombie processes from exited heartbeats - [#4733](https://github.com/PrefectHQ/prefect/pull/4733)
 
 ### Task Library
 
