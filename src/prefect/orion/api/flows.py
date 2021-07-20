@@ -10,7 +10,7 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/flows", tags=["flows"])
 
 
-@router.post("/", status_code=200)
+@router.post("/")
 async def create_flow(
     flow: schemas.Flow,
     response: Response,
@@ -18,13 +18,6 @@ async def create_flow(
 ) -> schemas.Flow:
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
-
-    Args:
-        flow (schemas.Flow): a flow schema
-        session (sa.orm.Session, optional): a database session
-
-    Returns:
-        schemas.Flow: a flow schema
     """
     nested = await session.begin_nested()
     try:
