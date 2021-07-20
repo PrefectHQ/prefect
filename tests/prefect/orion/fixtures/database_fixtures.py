@@ -23,15 +23,13 @@ async def database_engine():
 
 @pytest.fixture
 async def database_session(database_engine):
-    try:
-        OrionTestAsyncSession = sessionmaker(
-            database_engine, future=True, expire_on_commit=False, class_=AsyncSession
-        )
-        async with OrionTestAsyncSession.begin() as session:
+    """Test database session"""
+    async with AsyncSession(
+        database_engine, future=True, expire_on_commit=False
+    ) as session:
+        # open transaction
+        async with session.begin():
             yield session
-    finally:
-        # TODO - do we need to clean stuff up here?
-        pass
 
 
 @pytest.fixture
