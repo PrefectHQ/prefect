@@ -23,7 +23,7 @@ def function_to_parameter_schema(fn: Callable) -> Dict[str, Any]:
     model_fields = {}
     for param in signature.parameters.values():
         model_fields[param.name] = (
-            Any if param.annotation is inspect._empty else param.annotation,
+            Any if param.annotation is param.empty else param.annotation,
             pydantic.Field(
                 default=... if param.default is param.empty else param.default,
                 title=param.name,
