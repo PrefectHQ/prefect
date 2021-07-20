@@ -20,6 +20,7 @@ from prefect.cli.build_register import (
     build_and_register,
     get_project_id,
     register_serialized_flow,
+    expand_paths,
 )
 from prefect.engine.results import LocalResult
 from prefect.environments.execution import LocalEnvironment
@@ -109,6 +110,65 @@ def register_flow_errors_if_pass_options_to_register_group():
     )
     assert result.exit_code == 1
     assert "Got unexpected extra argument (flow)" in result.stdout
+
+
+def test_expand_paths_glob(tmpdir):
+    glob_path = str(tmpdir.join("**").join("*.py"))
+
+    expected_paths = [
+        pathlib.Path(tmpdir) / "a.py",
+        pathlib.Path(tmpdir) / "foo" / "b.py",
+        pathlib.Path(tmpdir) / "bar" / "c.py",
+        pathlib.Path(tmpdir) / "foobar" / "baz" / "d.py",
+    ]
+    other_paths = [
+        pathlib.Path(tmpdir) / "a.foo",
+        pathlib.Path(tmpdir) / "bar" / "b.bar",
+    ]
+    for path in expected_paths + other_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+
+    result = expand_paths([glob_path])
+    assert set(result) == set(str(path.absolute()) for path in expected_paths)
+
+
+def test_expand_paths_dir_listing(tmpdir):
+    dir_path = str(tmpdir)
+
+    expected_paths = [
+        pathlib.Path(tmpdir) / "a.py",
+        pathlib.Path(tmpdir) / "b.py",
+    ]
+    other_paths = [
+        pathlib.Path(tmpdir) / "a.foo",
+        pathlib.Path(tmpdir) / "bar" / "b.bar",
+        pathlib.Path(tmpdir) / "foo" / "c.py",
+    ]
+    for path in expected_paths + other_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+
+    result = expand_paths([dir_path])
+    assert set(result) == set(str(path.absolute()) for path in expected_paths)
+
+
+def test_expand_paths_full_paths(tmpdir):
+    paths = [
+        pathlib.Path(tmpdir) / "a.py",
+        pathlib.Path(tmpdir) / "b.py",
+    ]
+    other_paths = [
+        pathlib.Path(tmpdir) / "a.foo",
+        pathlib.Path(tmpdir) / "bar" / "b.bar",
+        pathlib.Path(tmpdir) / "foo" / "c.py",
+    ]
+    for path in paths + other_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+
+    result = expand_paths([str(path.absolute()) for path in paths])
+    assert set(result) == set(str(path.absolute()) for path in paths)
 
 
 class TestWatchForChanges:

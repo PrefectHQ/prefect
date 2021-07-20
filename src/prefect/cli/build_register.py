@@ -8,6 +8,7 @@ import runpy
 import sys
 import time
 import traceback
+import glob
 from collections import Counter, defaultdict
 from types import ModuleType
 from typing import Union, NamedTuple, List, Dict, Iterator, Tuple
@@ -101,10 +102,14 @@ def expand_paths(paths: List[str]) -> List[str]:
     """Given a list of paths, expand any directories to find all contained
     python files."""
     out = []
-    for path in paths:
-        if not os.path.exists(path):
+    globbed_paths = set()
+    for path in tuple(paths):
+        found_paths = glob.glob(path, recursive=True)
+        if not found_paths:
             raise TerminalError(f"Path {path!r} doesn't exist")
-        elif os.path.isdir(path):
+        globbed_paths.update(found_paths)
+    for path in globbed_paths:
+        if os.path.isdir(path):
             with os.scandir(path) as directory:
                 out.extend(
                     e.path for e in directory if e.is_file() and e.path.endswith(".py")
@@ -657,6 +662,10 @@ REGISTER_EPILOG = """
 
 \b    $ prefect register --project my-project --json https://some-url/flows.json
 
+\b  Register all flows in python files found recursively using globbing
+
+\b    $ prefect register --project my-project --path "**/*"
+
 \b  Watch a directory of flows for changes, and re-register flows upon change.
 
 \b    $ prefect register --project my-project -p myflows/ --watch
@@ -776,6 +785,8 @@ def register(
     if project is None:
         raise ClickException("Missing required option '--project'")
 
+    paths = expand_paths(paths)
+
     if watch:
         if any(parse_path(j).scheme != "file" for j in json_paths):
             raise ClickException("--watch is not supported for remote paths")
@@ -812,7 +823,6 @@ def register(
             proc.start()
             proc.join()
     else:
-        paths = expand_paths(list(paths or ()))
         modules = list(modules or ())
         register_internal(
             project, paths, modules, json_paths, names, labels, force, schedule
@@ -833,6 +843,10 @@ BUILD_EPILOG = """
 \b  Build all flows found in a module named `myproject.flows`.
 
 \b    $ prefect build -m "myproject.flows"
+
+\b  Build all flows in python files named `flow.py` found recursively using globbing
+
+\b    $ prefect register --project my-project -p "**/flow.py"
 """
 
 
