@@ -71,7 +71,7 @@ Here we provide a full example for using a `ResourceManager` to setup and
 cleanup a temporary [Dask](https://dask.org) cluster.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import Flow, task, resource_manager, Parameter
 import dask
@@ -127,7 +127,7 @@ with Flow("dask-example") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Flow, Task, resource_manager, Parameter
 import dask

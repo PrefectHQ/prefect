@@ -100,7 +100,7 @@ prefect agent <AGENT TYPE> start --label dev --label staging
 
 :::
 
-::: tab "Python API"
+::: tab Python API
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -110,7 +110,7 @@ DockerAgent(labels=["dev", "staging"]).start()
 
 :::
 
-::: tab "Prefect Config"
+::: tab Prefect Config
 
 ```toml
 # ~/.prefect/config.toml
@@ -120,7 +120,7 @@ labels = ["dev", "staging"]
 
 :::
 
-::: tab "Environment Variable"
+::: tab Environment Variable
 
 ```bash
 export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
@@ -146,7 +146,7 @@ prefect agent <AGENT TYPE> start --env KEY=VALUE --env KEY2=VALUE2
 
 :::
 
-::: tab "Python API"
+::: tab Python API
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -185,7 +185,7 @@ prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
 
 :::
 
-::: tab "Python API"
+::: tab Python API
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -195,7 +195,7 @@ DockerAgent(agent_address="http://localhost:8080").start()
 
 :::
 
-::: tab "Prefect Config"
+::: tab Prefect Config
 
 ```toml
 # ~/.prefect/config.toml
@@ -205,7 +205,7 @@ agent_address = "http://localhost:8080"
 
 :::
 
-::: tab "Environment Variable"
+::: tab Environment Variable
 
 ```bash
 $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080

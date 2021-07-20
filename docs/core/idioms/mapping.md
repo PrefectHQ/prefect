@@ -9,7 +9,7 @@ In this example let's take a flow where we want to pass in a [Parameter](/core/c
 This flow is going to map over the output from the `get_numbers` task, generating `total` additional tasks with random numbers, and then it is going to output each of those numbers multiplied by the supplied `multiple`.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from random import sample
 
@@ -33,7 +33,7 @@ with Flow("unmapped-values") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import sample
 

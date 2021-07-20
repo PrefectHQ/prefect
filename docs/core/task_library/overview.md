@@ -29,7 +29,7 @@ Just like any other Prefect [task](/core/concepts/tasks.html), tasks in the task
 used by importing and adding them to your flow.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 from prefect.tasks.shell import ShellTask
@@ -46,7 +46,7 @@ with Flow("list_files") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 from prefect.tasks.shell import ShellTask
@@ -68,7 +68,7 @@ Keyword arguments for tasks imported from the task library can either be set at 
 purposed or optionally set and overwritten when defining the flow.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 from prefect.tasks.shell import ShellTask
@@ -90,7 +90,7 @@ with Flow("count_files") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 from prefect.tasks.shell import ShellTask
