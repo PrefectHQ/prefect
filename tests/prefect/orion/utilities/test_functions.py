@@ -2,63 +2,63 @@ import datetime
 import pendulum
 from enum import Enum
 import json
-from prefect.orion.utilities import parameters
+from prefect.orion.utilities import functions
 from typing import List, Dict, Any, Tuple, Union
 
 
 class TestFunctionToSchema:
-    def test_simple_function_with_no_parameters(self):
+    def test_simple_function_with_no_arguments(self):
         def f():
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
             "properties": {},
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
         }
 
-    def test_function_with_one_required_parameter(self):
+    def test_function_with_one_required_argument(self):
         def f(x):
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
             "properties": {"x": {"title": "x"}},
             "required": ["x"],
         }
 
-    def test_function_with_one_optional_parameter(self):
+    def test_function_with_one_optional_argument(self):
         def f(x=42):
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42}},
         }
 
-    def test_function_with_one_optional_annotated_parameter(self):
+    def test_function_with_one_optional_annotated_argument(self):
         def f(x: int = 42):
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "type": "integer"}},
         }
 
-    def test_function_with_two_parameters(self):
+    def test_function_with_two_arguments(self):
         def f(x: int, y: float = 5.0):
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "type": "integer"},
@@ -67,7 +67,7 @@ class TestFunctionToSchema:
             "required": ["x"],
         }
 
-    def test_function_with_datetime_parameters(self):
+    def test_function_with_datetime_arguments(self):
         def f(
             x: datetime.datetime,
             y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
@@ -75,9 +75,9 @@ class TestFunctionToSchema:
         ):
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "type": "string", "format": "date-time"},
@@ -97,7 +97,7 @@ class TestFunctionToSchema:
             "required": ["x"],
         }
 
-    def test_function_with_enum_parameter(self):
+    def test_function_with_enum_argument(self):
         class Color(Enum):
             RED = "RED"
             GREEN = "GREEN"
@@ -106,9 +106,9 @@ class TestFunctionToSchema:
         def f(x: Enum = "RED"):
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
             "properties": {
                 "x": {
@@ -126,7 +126,7 @@ class TestFunctionToSchema:
             },
         }
 
-    def test_function_with_generic_parameters(self):
+    def test_function_with_generic_arguments(self):
         def f(
             a: List[str],
             b: Dict[str, Any],
@@ -136,9 +136,9 @@ class TestFunctionToSchema:
         ):
             pass
 
-        schema = parameters.function_to_parameter_schema(f)
+        schema = functions.input_schema(f)
         assert schema == {
-            "title": "Parameters",
+            "title": "Inputs",
             "type": "object",
             "properties": {
                 "a": {"title": "a", "type": "array", "items": {"type": "string"}},
