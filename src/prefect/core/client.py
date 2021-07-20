@@ -9,20 +9,13 @@ if TYPE_CHECKING:
     from prefect.core.flow import Flow
 
 
-_clients: Dict[Optional[str], "Client"] = {}
 _current_client: "Client" = None
-
-
-def get_client(base_url: str = None):
-    if base_url not in _clients:
-        _clients[base_url] = Client(base_url)
-    return _clients[base_url]
 
 
 def get_current_client():
     global _current_client
     if not _current_client:
-        _current_client = get_client()
+        _current_client = Client()
     return _current_client
 
 
