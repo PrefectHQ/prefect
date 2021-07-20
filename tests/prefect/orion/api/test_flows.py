@@ -6,8 +6,16 @@ class TestCreateFlow:
     async def test_create_flow(self, client):
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["name"] == "my-flow"
+
+    async def test_create_flow_gracefully_fallsback(self, client):
+        """If the flow already exists, we return a 200 code"""
+        flow_data = {"name": "my-flow"}
+        response_1 = await client.post("/flows/", json=flow_data)
+        response_2 = await client.post("/flows/", json=flow_data)
+        assert response_2.status_code == 200
+        assert response_2.json()["name"] == "my-flow"
 
 
 class TestReadFlow:
@@ -15,7 +23,6 @@ class TestReadFlow:
         # first create a flow to read
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
-        assert response.status_code == 200
         flow_id = response.json()["id"]
 
         # make sure we we can read the flow correctly
@@ -32,9 +39,8 @@ class TestReadFlow:
 class TestReadFlows:
     @pytest.fixture
     async def flows(self, client):
-        for i in range(2):
-            response = await client.post("/flows/", json={"name": f"my-flow-{i}"})
-            assert response.status_code == 200
+        await client.post("/flows/", json={"name": f"my-flow-1"})
+        await client.post("/flows/", json={"name": f"my-flow-2"})
 
     async def test_read_flows(self, flows, client):
         response = await client.get("/flows/")
@@ -53,7 +59,7 @@ class TestReadFlows:
         response = await client.get("/flows/?offset=1")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert response.json()[0]["name"] == "my-flow-1"
+        assert response.json()[0]["name"] == "my-flow-2"
 
     async def test_read_flows_returns_empty_list(self, client):
         response = await client.get("/flows/")
@@ -66,7 +72,6 @@ class TestDeleteFlow:
         # first create a flow to delete
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
-        assert response.status_code == 200
         flow_id = response.json()["id"]
 
         # delete the flow
