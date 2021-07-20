@@ -1,5 +1,6 @@
 import datetime
 import json
+from pathlib import Path
 import uuid
 from unittest.mock import MagicMock
 
@@ -84,6 +85,9 @@ class TestClientAuthentication:
         assert client._tenant_id == "DISK_TENANT"
 
     def test_client_save_auth_to_disk(self):
+
+        Path(prefect.context.config.home_dir).rmdir()
+        
         client = Client(api_key="KEY", tenant_id="ID")
         client.save_auth_to_disk()
 
@@ -105,6 +109,8 @@ class TestClientAuthentication:
 
         # Old data is unchanged
         assert data[old_key] == dict(api_key="KEY", tenant_id="ID")
+
+        prefect.context.config.home_dir
 
     def test_client_load_auth_from_disk(self):
         client = Client(api_key="KEY", tenant_id="ID")
