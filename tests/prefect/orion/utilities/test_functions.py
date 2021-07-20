@@ -103,7 +103,7 @@ class TestFunctionToSchema:
             GREEN = "GREEN"
             BLUE = "BLUE"
 
-        def f(x: Enum = "RED"):
+        def f(x: Color = "RED"):
             pass
 
         schema = functions.parameter_schema(f)
@@ -114,14 +114,14 @@ class TestFunctionToSchema:
                 "x": {
                     "title": "x",
                     "default": "RED",
-                    "allOf": [{"$ref": "#/definitions/Enum"}],
+                    "allOf": [{"$ref": "#/definitions/Color"}],
                 }
             },
             "definitions": {
-                "Enum": {
-                    "title": "Enum",
-                    "description": "Generic enumeration.\n\nDerive from this class to define new enumerations.",
-                    "enum": [],
+                "Color": {
+                    "title": "Color",
+                    "description": "An enumeration.",
+                    "enum": ["RED", "GREEN", "BLUE"],
                 }
             },
         }
@@ -160,3 +160,91 @@ class TestFunctionToSchema:
             },
             "required": ["a", "b", "c", "d", "e"],
         }
+
+
+class TestMethodToSchema:
+    def test_methods_with_no_arguments(self):
+        class Foo:
+            def f(self):
+                pass
+
+            @classmethod
+            def g(cls):
+                pass
+
+            @staticmethod
+            def h():
+                pass
+
+        for method in [Foo().f, Foo.g, Foo.h]:
+            schema = functions.parameter_schema(method)
+            assert schema == {
+                "properties": {},
+                "title": "Parameters",
+                "type": "object",
+            }
+
+    def test_methods_with_enum_arguments(self):
+        class Color(Enum):
+            RED = "RED"
+            GREEN = "GREEN"
+            BLUE = "BLUE"
+
+        class Foo:
+            def f(self, color: Color = "RED"):
+                pass
+
+            @classmethod
+            def g(cls, color: Color = "RED"):
+                pass
+
+            @staticmethod
+            def h(color: Color = "RED"):
+                pass
+
+        for method in [Foo().f, Foo.g, Foo.h]:
+            schema = functions.parameter_schema(method)
+            assert schema == {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "color": {
+                        "title": "color",
+                        "default": "RED",
+                        "allOf": [{"$ref": "#/definitions/Color"}],
+                    }
+                },
+                "definitions": {
+                    "Color": {
+                        "title": "Color",
+                        "description": "An enumeration.",
+                        "enum": ["RED", "GREEN", "BLUE"],
+                    }
+                },
+            }
+
+    def test_methods_with_complex_arguments(self):
+        class Foo:
+            def f(self, x: datetime.datetime, y: int = 42, z: bool = None):
+                pass
+
+            @classmethod
+            def g(cls, x: datetime.datetime, y: int = 42, z: bool = None):
+                pass
+
+            @staticmethod
+            def h(x: datetime.datetime, y: int = 42, z: bool = None):
+                pass
+
+        for method in [Foo().f, Foo.g, Foo.h]:
+            schema = functions.parameter_schema(method)
+            assert schema == {
+                "title": "Parameters",
+                "type": "object",
+                "properties": {
+                    "x": {"title": "x", "type": "string", "format": "date-time"},
+                    "y": {"title": "y", "default": 42, "type": "integer"},
+                    "z": {"title": "z", "type": "boolean"},
+                },
+                "required": ["x"],
+            }
