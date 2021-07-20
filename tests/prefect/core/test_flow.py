@@ -76,7 +76,7 @@ class TestDecorator:
 
 
 class TestFlowCall:
-    def test_call(self, user_client):
+    def test_call_creates_flow_run(self, user_client):
         @flow
         def foo(x, y=2, z=3):
             return x + y + z
