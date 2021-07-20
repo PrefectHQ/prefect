@@ -10,6 +10,8 @@ from prefect.orion.api.dependencies import get_session
 from prefect.orion.utilities.database import reset_db
 from prefect.orion.utilities.settings import Settings
 
+from .fixtures.database_fixtures import *
+
 
 def pytest_collection_modifyitems(session, config, items):
     """
@@ -21,35 +23,6 @@ def pytest_collection_modifyitems(session, config, items):
             item.function
         ):
             item.add_marker(pytest.mark.asyncio)
-
-
-@pytest.fixture(autouse=True, scope="function")
-async def database_engine():
-    """Creates an in memory sqlite database for use in testing"""
-    try:
-        # create an in memory db engine
-        engine = create_async_engine(
-            "sqlite+aiosqlite://", echo=Settings().database.echo
-        )
-        # populate database tables
-        await reset_db(engine=engine)
-        yield engine
-    finally:
-        # TODO - do we need to delete anything or clean stuff up?
-        pass
-
-
-@pytest.fixture(autouse=True, scope="function")
-async def database_session(database_engine):
-    try:
-        OrionTestAsyncSession = sessionmaker(
-            database_engine, future=True, expire_on_commit=False, class_=AsyncSession
-        )
-        async with OrionTestAsyncSession.begin() as session:
-            yield session
-    finally:
-        # TODO - do we need to clean stuff up here?
-        pass
 
 
 @pytest.fixture
