@@ -1,3 +1,4 @@
+
 # Logging configuration and usage
 
 Prefect natively ships with a default logger configured to handle the management of logs. More information on logging in Prefect can be found in the [logging concept document](/core/concepts/logging.html).
