@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Allow `prefect build/register` paths to contain globs for recursion - [#4761](https://github.com/PrefectHQ/prefect/pull/4761)"

@@ -1,5 +1,0 @@
-fix:
-  - "Missing auth_file directory is handled properly - [#4774](https://github.com/PrefectHQ/prefect/pull/4792)"
-
-contributor:
-  - "[Pawel Janowski](https://github.com/pjanowski)"

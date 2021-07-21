@@ -9,11 +9,14 @@ Released on July 20, 2021.
 - Allow CLI registration of flows without starting their schedule `prefect register --no-schedule` - [#4752](https://github.com/PrefectHQ/prefect/pull/4752)
 - Add `host_config` to `DockerRun` to expose deeper settings for Docker flow runs - [#4733](https://github.com/PrefectHQ/prefect/issues/4773)
 - Enable loading additional repository files with `Git` storage - [#4767](https://github.com/PrefectHQ/prefect/pull/4767)
+- Update flow run heartbeats to be robust to exceptions - [#4736](https://github.com/PrefectHQ/prefect/pull/4736)
+- Allow `prefect build/register` paths to contain globs for recursion - [#4761](https://github.com/PrefectHQ/prefect/pull/4761)
 
 ### Fixes
 
 - Fix duplicate task runs in `FlowRunView.get_all_task_runs` - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)
 - Fix zombie processes from exited heartbeats - [#4733](https://github.com/PrefectHQ/prefect/pull/4733)
+- Missing `auth_file` directory is created when saving credentials - [#4774](https://github.com/PrefectHQ/prefect/pull/4792)
 
 ### Task Library
 
