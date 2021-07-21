@@ -1,3 +1,8 @@
+"""
+"Full" schemas for working with data objects internally
+"""
+
+import datetime
 import json
 from typing import List
 from uuid import UUID
@@ -11,7 +16,9 @@ class PrefectBaseModel(BaseModel):
     class Config:
         orm_mode = True
 
-    id: UUID = None
+    id: UUID
+    created: datetime.datetime
+    updated: datetime.datetime
 
     def json_dict(self, *args, **kwargs) -> dict:
         """Returns a dict of JSON-compatible values, equivalent
@@ -29,15 +36,15 @@ class PrefectBaseModel(BaseModel):
 
 
 class Flow(PrefectBaseModel):
-    name: str
-    tags: List[str] = Field(default_factory=list)
+    name: str = Field(..., example="my-flow")
+    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     parameters: ParameterSchema = Field(default_factory=ParameterSchema)
 
 
 class FlowRun(PrefectBaseModel):
     flow_id: UUID
-    flow_version: str
+    flow_version: str = Field(..., example="v1.0")
     parameters: dict = Field(default_factory=dict)
     parent_task_run_id: UUID = None
-    context: dict = Field(default_factory=dict)
-    tags: List[str] = Field(default_factory=list)
+    context: dict = Field(default_factory=dict, example={"my_var": "my_val"})
+    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])

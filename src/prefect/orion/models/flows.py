@@ -3,10 +3,12 @@ import sqlalchemy as sa
 from sqlalchemy import select, delete
 
 from prefect.orion.models import orm
-from prefect.orion.api import schemas
+from prefect.orion import schemas
 
 
-async def create_flow(session: sa.orm.Session, flow: schemas.Flow) -> orm.Flow:
+async def create_flow(
+    session: sa.orm.Session, flow: schemas.inputs.FlowCreate
+) -> orm.Flow:
     """Creates a new flow
 
     Args:

@@ -1,4 +1,5 @@
 import pytest
+import pendulum
 from uuid import uuid4
 
 
@@ -8,6 +9,15 @@ class TestCreateFlow:
         response = await client.post("/flows/", json=flow_data)
         assert response.status_code == 201
         assert response.json()["name"] == "my-flow"
+
+    async def test_create_flow_populates_and_returned_created(self, client):
+        now = pendulum.now(tz="utc")
+        flow_data = {"name": "my-flow"}
+        response = await client.post("/flows/", json=flow_data)
+        assert response.status_code == 201
+        assert response.json()["name"] == "my-flow"
+        assert pendulum.parse(response.json()["created"]) >= now
+        assert pendulum.parse(response.json()["updated"]) >= now
 
     async def test_create_flow_gracefully_fallsback(self, client):
         """If the flow already exists, we return a 200 code"""

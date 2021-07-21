@@ -1,11 +1,9 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
 
 from prefect.orion.utilities.database import Base
 from prefect.orion.utilities.settings import Settings
-from prefect.orion import models
-from prefect.orion.api import schemas
+from prefect.orion import models, schemas
 
 
 @pytest.fixture
@@ -35,7 +33,7 @@ async def database_session(database_engine):
 @pytest.fixture
 async def flow(database_session):
     return await models.flows.create_flow(
-        session=database_session, flow=schemas.Flow(name="my-flow")
+        session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow")
     )
 
 
@@ -43,5 +41,5 @@ async def flow(database_session):
 async def flow_run(database_session, flow):
     return await models.flow_runs.create_flow_run(
         session=database_session,
-        flow_run=schemas.FlowRun(flow_id=flow.id, flow_version="0.1"),
+        flow_run=schemas.inputs.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
     )
