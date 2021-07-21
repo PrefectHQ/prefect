@@ -1,8 +1,10 @@
 aiosqlite==0.17.0
+croniter >= 1.0, <2.0
 fastapi == 0.66
 httpx == 0.18
 pendulum >= 2.0, < 3.0
 pydantic >= 1.8, < 2.0
+pytz
 sqlalchemy >= 1.4.3, < 2.0
 typing_extensions >= 3.10, < 4.0
 xxhash >= 2.0, < 3.0

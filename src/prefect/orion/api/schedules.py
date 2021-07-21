@@ -1,25 +1,33 @@
-import pendulum
-from pydantic import BaseModel, conint, Field, validator
+import pytz
 import datetime
-from typing import Set, List
+from typing import List, Set
+
+import pendulum
+from croniter import croniter
+from pendulum.tz.timezone import Timezone
+from pydantic import BaseModel, Field, conint, validator
+
+__all__ = ["IntervalSchedule", "CronSchedule"]
 
 
-class IntervalSchedule(BaseModel):
+class ScheduleFilters(BaseModel):
+    """A collection of filters that can be applied to a date. Each filter
+    is defined as an inclusive set of dates or times: candidate dates
+    will pass the filter if they match all of the supplied criteria.
+    """
+
     class Config:
         extra = "forbid"
 
-    interval: datetime.timedelta
-    anchor: datetime.datetime = Field(default_factory=lambda: pendulum.now("utc"))
+    months: Set[conint(ge=1, le=12)] = None
+    days_of_month: Set[conint(ge=-31, le=31)] = None
+    days_of_week: Set[conint(ge=0, le=6)] = None
+    hours_of_day: Set[conint(ge=0, le=23)] = None
+    minutes_of_hour: Set[conint(ge=0, le=59)] = None
 
-    # filters
-    months: Set[conint(ge=1, le=12)] = Field(default_factory=set)
-    days_of_month: Set[conint(ge=-31, le=31)] = Field(default_factory=set)
-    days_of_week: Set[conint(ge=0, le=6)] = Field(default_factory=set)
-    hours_of_day: Set[conint(ge=0, le=23)] = Field(default_factory=set)
-    minutes_of_hour: Set[conint(ge=0, le=59)] = Field(default_factory=set)
-
-    # adjustments
-    advance_to_next_business_day: bool = False
+    def dict(self, *args, **kwargs) -> dict:
+        kwargs.setdefault("exclude_unset", True)
+        return super().dict(*args, **kwargs)
 
     @validator("days_of_month")
     def zero_is_invalid_day_of_month(cls, v):
@@ -27,61 +35,8 @@ class IntervalSchedule(BaseModel):
             raise ValueError("0 is not a valid day of the month")
         return v
 
-    @validator("interval")
-    def interval_must_be_positive(cls, v):
-        if v.total_seconds() <= 0:
-            raise ValueError("The interval must be positive")
-        return v
-
-    def get_dates(
-        self, n: int, start: datetime.datetime = None
-    ) -> List[datetime.datetime]:
-        """Retrieves dates from the schedule
-
-        Args:
-            n (int): The number of dates to generate
-            start (datetime.datetime, optional): The first returned date will be on or after
-                this date. Defaults to None.
-
-        Returns:
-            List[pendulum.DateTime]: a list of dates
-        """
-        if start is None:
-            start = pendulum.now("utc")
-
-        # compute the offset between the anchor date and the start date to jump to the next date
-        offset = (start - self.anchor).total_seconds() / self.interval.total_seconds()
-        next_date = self.anchor.add(seconds=self.interval.total_seconds() * int(offset))
-
-        # daylight savings time boundaries can create a situation where the next date is before
-        # the start date, so we advance it if necessary
-        while next_date < start:
-            next_date += self.interval
-
-        counter = 0
-        dates = []
-
-        # don't exceed 1000 candidates
-        while len(dates) < n and counter < 1000:
-
-            # check filters
-            if self.evaluate_filters(next_date):
-
-                # advance to the next business day
-                if self.advance_to_next_business_day:
-                    while next_date.weekday() >= 5:
-                        next_date += self.interval
-
-                dates.append(next_date)
-
-            counter += 1
-            next_date += self.interval
-
-        return dates
-
-    def evaluate_filters(self, dt: pendulum.DateTime) -> bool:
-        """Evaluates whether a candidate date satisfies the filters
-        applied to this schedule.
+    def apply_filters(self, dt: pendulum.DateTime) -> bool:
+        """Evaluates whether a candidate date satisfies the filters.
 
         Args:
             dt (pendulum.DateTime): A candidate date
@@ -110,3 +65,205 @@ class IntervalSchedule(BaseModel):
             return False
 
         return True
+
+
+class ScheduleAdjustments(BaseModel):
+    """Adjusts a candidate date by modifying it to meet the supplied criteria."""
+
+    class Config:
+        extra = "forbid"
+
+    advance_to_next_weekday: bool = False
+
+    def dict(self, *args, **kwargs) -> dict:
+        kwargs.setdefault("exclude_unset", True)
+        return super().dict(*args, **kwargs)
+
+    def apply_adjustments(self, dt: pendulum.DateTime) -> pendulum.DateTime:
+        # advance to the next weekday day
+        if self.advance_to_next_weekday:
+            while dt.weekday() >= 5:
+                dt = dt.add(days=1)
+
+        return dt
+
+
+class IntervalSchedule(BaseModel):
+    class Config:
+        extra = "forbid"
+
+    interval: datetime.timedelta
+    timezone: str = None
+    anchor_date: datetime.datetime = None
+
+    filters = ScheduleFilters()
+    adjustments = ScheduleAdjustments()
+
+    @validator("interval")
+    def interval_must_be_positive(cls, v):
+        if v.total_seconds() <= 0:
+            raise ValueError("The interval must be positive")
+        return v
+
+    @validator("timezone")
+    def valid_timezone(cls, v):
+        if v and v not in pendulum.tz.timezones:
+            raise ValueError(f'Invalid timezone: "{v}"')
+        return v
+
+    @validator("anchor_date", pre=True, always=True)
+    def default_anchor_with_timezone(cls, v, *, values, **kwargs):
+        if v and values["timezone"]:
+            raise ValueError("Specify an anchor date or a timezone, but not both.")
+        return v or pendulum.datetime(2020, 1, 1, tz=values.get("timezone") or "UTC")
+
+    def get_dates(
+        self, n: int, start: datetime.datetime = None
+    ) -> List[datetime.datetime]:
+        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or after
+                this date. Defaults to None.
+
+        Returns:
+            List[pendulum.DateTime]: a list of dates
+        """
+        if start is None:
+            start = pendulum.now("utc")
+
+        # compute the offset between the anchor date and the start date to jump to the next date
+        offset = (
+            start - self.anchor_date
+        ).total_seconds() / self.interval.total_seconds()
+        next_date = self.anchor_date.add(
+            seconds=self.interval.total_seconds() * int(offset)
+        )
+
+        # break the interval into `days` and `seconds` because pendulum
+        # will handle DST boundaries properly if days are provided, but not
+        # if we add `total seconds`. Therefore, `next_date + self.interval`
+        # fails while `next_date.add(days=days, seconds=seconds)` works.
+        interval_days = self.interval.days
+        interval_seconds = self.interval.total_seconds() - (
+            interval_days * 24 * 60 * 60
+        )
+
+        # daylight savings time boundaries can create a situation where the next date is before
+        # the start date, so we advance it if necessary
+        while next_date < start:
+            next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+
+        counter = 0
+        dates = []
+
+        # don't exceed 10000 candidates
+        while len(dates) < n and counter < 10000:
+
+            # check filters
+            if self.filters.apply_filters(next_date):
+                next_date = self.adjustments.apply_adjustments(next_date)
+                dates.append(next_date)
+
+            counter += 1
+
+            next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+
+            # next_date += self.interval
+
+        return dates
+
+
+class CronSchedule(BaseModel):
+    """
+    Cron schedule
+
+    NOTE: If the timezone is a DST-observing one, then the schedule will adjust
+    itself appropriately. Cron's rules for DST are based on clock times, not
+    intervals. This means that an hourly cron schedule will fire on every new
+    clock hour, not every elapsed hour; for example, when clocks are set back
+    this will result in a two-hour pause as the schedule will fire *the first
+    time* 1am is reached and *the first time* 2am is reached, 120 minutes later.
+    Longer schedules, such as one that fires at 9am every morning, will
+    automatically adjust for DST.
+
+    Args:
+        cron (str): a valid cron string
+        timezone (str): a valid timezone string
+        day_or (bool, optional): Control how croniter handles `day` and `day_of_week` entries.
+            Defaults to True, matching cron which connects those values using OR.
+            If the switch is set to False, the values are connected using AND. This behaves like
+            fcron and enables you to e.g. define a job that executes each 2nd friday of a month
+            by setting the days of month and the weekday.
+
+    """
+
+    cron: str
+    timezone: str = None
+    day_or: bool = True
+
+    @validator("timezone")
+    def valid_timezone(cls, v):
+        if v and v not in pendulum.tz.timezones:
+            raise ValueError(f'Invalid timezone: "{v}"')
+        return v
+
+    @validator("cron")
+    def valid_cron_string(cls, v):
+        if not croniter.is_valid(v):
+            raise ValueError(f'Invalid cron string: "{v}"')
+        return v
+
+    def get_dates(
+        self, n: int, start: datetime.datetime = None
+    ) -> List[datetime.datetime]:
+        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or after
+                this date. Defaults to None.
+
+        Returns:
+            List[pendulum.DateTime]: a list of dates
+        """
+        if start is None:
+            start = pendulum.now(self.timezone or "utc")
+        elif self.timezone:
+            start = start.in_tz(self.timezone)
+
+        # subtract one second from the start date, so that croniter returns it
+        # as an event (if it meets the cron criteria)
+        start = start.subtract(seconds=1)
+
+        # croniter's DST logic interferes with all other datetime libraries except pytz
+        start_localized = pytz.timezone(start.tz.name).localize(
+            datetime.datetime(
+                year=start.year,
+                month=start.month,
+                day=start.day,
+                hour=start.hour,
+                minute=start.minute,
+                second=start.second,
+                microsecond=start.microsecond,
+            )
+        )
+
+        # Respect microseconds by rounding up
+        if start_localized.microsecond > 0:
+            start_localized += datetime.timedelta(seconds=1)
+
+        cron = croniter(self.cron, start_localized, day_or=self.day_or)  # type: ignore
+        dates = []
+        counter = 0
+
+        while len(dates) < n and counter < 10000:
+            next_date = pendulum.instance(cron.get_next(datetime.datetime))
+            if next_date not in dates:
+                dates.append(next_date)
+            counter += 1
+
+        return dates
