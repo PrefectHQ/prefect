@@ -1,5 +1,5 @@
 from prefect.orion.utilities.database import OrionAsyncSession
-from pydantic import BaseModel, conint, Field
+from pydantic import BaseModel, conint
 
 
 async def get_session():

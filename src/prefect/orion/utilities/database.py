@@ -103,6 +103,34 @@ class UUID(TypeDecorator):
             return str(value)
 
 
+class NowDefault(FunctionElement):
+    """
+    Platform-independent "now" generator
+    """
+
+    name = "now_default"
+
+
+@compiles(NowDefault, "sqlite")
+def visit_custom_uuid_default_for_sqlite(element, compiler, **kwargs):
+    """
+    Generates the current timestamp for SQLite
+
+    We need to add three zeros to the string representation
+    because SQLAlchemy uses a regex expression which is expecting
+    6 decimal places
+    """
+    return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
+
+
+@compiles(NowDefault)
+def visit_custom_now_default(element, compiler, **kwargs):
+    """
+    Generates the current timestamp in other databases (Postgres)
+    """
+    return sa.func.now()
+
+
 @as_declarative()
 class Base(object):
     """
@@ -126,15 +154,25 @@ class Base(object):
         default=lambda: str(uuid.uuid4()),
     )
     created = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=NowDefault()
     )
     updated = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
         index=True,
-        server_default=sa.func.now(),
-        onupdate=sa.func.now(),
+        server_default=NowDefault(),
+        onupdate=NowDefault(),
     )
+
+    # required in order to access columns with server defaults
+    # or SQL expression defaults, subsequent to a flush, without
+    # triggering an expired load
+    #
+    # this allows us to load attributes with a server default after
+    # an INSERT, for example
+    #
+    # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
+    __mapper_args__ = {"eager_defaults": True}
 
 
 async def reset_db(engine=engine):
