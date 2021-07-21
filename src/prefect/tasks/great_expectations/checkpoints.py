@@ -56,9 +56,11 @@ class RunGreatExpectationsValidation(Task):
         batch_kwargs = get_batch_kwargs(datasource_name, dataset)
 
         expectation_suite_name = Parameter("expectation_suite_name")
+        prev_run_row_count = 100  # can be taken eg. from Prefect KV store
         validation_task(
             batch_kwargs=batch_kwargs,
             expectation_suite_name=expectation_suite_name,
+            evaluation_parameters=dict(prev_run_row_count=prev_run_row_count)
         )
 
     flow.run(
@@ -94,7 +96,12 @@ class RunGreatExpectationsValidation(Task):
         - disable_markdown_artifact (bool, optional): toggle the posting of a markdown artifact from
             this tasks. Defaults to `False`.
         - validation_operator (str, optional): configure the actions to be executed after running
-            validation. Defaults to `action_list_operator`.
+            validation. Defaults to `action_list_operator`
+        - evaluation_parameters (Optional[dict], optional): the evaluation parameters to use when
+            running validation. For more information, see
+            [example](https://docs.prefect.io/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
+            and
+            [docs](https://docs.greatexpectations.io/en/latest/reference/core_concepts/evaluation_parameters.html).
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -111,6 +118,7 @@ class RunGreatExpectationsValidation(Task):
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
         validation_operator: str = "action_list_operator",
+        evaluation_parameters: Optional[dict] = None,
         **kwargs
     ):
         self.checkpoint_name = checkpoint_name
@@ -124,6 +132,7 @@ class RunGreatExpectationsValidation(Task):
         self.run_info_at_end = run_info_at_end
         self.disable_markdown_artifact = disable_markdown_artifact
         self.validation_operator = validation_operator
+        self.evaluation_parameters = evaluation_parameters
 
         super().__init__(**kwargs)
 
@@ -139,6 +148,7 @@ class RunGreatExpectationsValidation(Task):
         "run_info_at_end",
         "disable_markdown_artifact",
         "validation_operator",
+        "evaluation_parameters",
     )
     def run(
         self,
@@ -153,6 +163,7 @@ class RunGreatExpectationsValidation(Task):
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
         validation_operator: str = "action_list_operator",
+        evaluation_parameters: Optional[dict] = None,
     ):
         """
         Task run method.
@@ -179,6 +190,11 @@ class RunGreatExpectationsValidation(Task):
                 task. Defaults to `True`.
             - disable_markdown_artifact (bool, optional): toggle the posting of a markdown artifact from
                 this tasks. Defaults to `False`.
+            - evaluation_parameters (Optional[dict], optional): the evaluation parameters to use when
+                running validation. For more information, see
+                [example](https://docs.prefect.io/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
+                and
+                [docs](https://docs.greatexpectations.io/en/latest/reference/core_concepts/evaluation_parameters.html).
             - validation_operator (str, optional): configure the actions to be executed after running
                 validation. Defaults to `action_list_operator`.
 
@@ -244,6 +260,7 @@ class RunGreatExpectationsValidation(Task):
             validation_operator,
             assets_to_validate=assets_to_validate,
             run_id={"run_name": run_name or prefect.context.get("task_slug")},
+            evaluation_parameters=evaluation_parameters,
         )
 
         # Generate artifact markdown
