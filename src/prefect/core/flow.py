@@ -36,12 +36,6 @@ class Flow:
         self.name = name or fn.__name__
 
         self.description = description or inspect.getdoc(fn)
-
-        # TODO: Note that pydantic will now coerce parameter types into the correct type
-        #       even if the user wants failure on inexact type matches. We may want to
-        #       implement a strict runtime typecheck with a configuration flag
-        # TODO: `validate_arguments` is not an async safe wrapper so it breaks our func
-        # self.fn = validate_arguments(fn)
         update_wrapper(self, fn)
         self.fn = fn
 
@@ -56,8 +50,11 @@ class Flow:
         self.parameters = parameter_schema(self.fn)
 
     async def _run(self, *args, **kwargs):
-        # placeholder method that will eventually manage state
-        call_result = self.fn(*args, **kwargs)
+        # TODO: Manage state
+        # TODO: Note that pydantic will now coerce parameter types into the correct type
+        #       even if the user wants failure on inexact type matches. We may want to
+        #       implement a strict runtime typecheck with a configuration flag
+        call_result = validate_arguments(self.fn)(*args, **kwargs)
         if inspect.isawaitable(call_result):
             return await call_result
         return call_result
