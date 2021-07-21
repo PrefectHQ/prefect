@@ -50,6 +50,9 @@ class Flow:
 
         self.tags = set(tags if tags else [])
 
+        # Generate a parameter schema from the function
+        self._parameters = parameter_schema(self.fn)
+
     def _run(self, *args, **kwargs):
         # placeholder method that will eventually manage state
         result = self.fn(*args, **kwargs)
@@ -63,7 +66,7 @@ class Flow:
 
     @property
     def parameters(self) -> ParameterSchema:
-        return parameter_schema(self.fn)
+        return self._parameters
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
