@@ -12,7 +12,7 @@ router = OrionRouter(prefix="/flow_runs", tags=["flow_runs"])
 
 @router.post("/")
 async def create_flow_run(
-    flow_run: schemas.inputs.FlowRunCreate,
+    flow_run: schemas.actions.FlowRunCreate,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.api.FlowRun:
     """
