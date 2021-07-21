@@ -10,9 +10,10 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from prefect.orion.utilities.functions import ParameterSchema
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
-class PrefectBaseModel(BaseModel):
+class APIBaseModel(PrefectBaseModel):
     class Config:
         orm_mode = True
 
@@ -20,28 +21,14 @@ class PrefectBaseModel(BaseModel):
     created: datetime.datetime
     updated: datetime.datetime
 
-    def json_dict(self, *args, **kwargs) -> dict:
-        """Returns a dict of JSON-compatible values, equivalent
-        to `json.loads(self.json())`.
 
-        `self.dict()` returns Python-native types, including UUIDs
-        and datetimes; `self.json()` returns a JSON string. This
-        method is useful when we require a JSON-compatible Python
-        object.
-
-        Returns:
-            dict: a JSON-compatible dict
-        """
-        return json.loads(self.json(*args, **kwargs))
-
-
-class Flow(PrefectBaseModel):
+class Flow(APIBaseModel):
     name: str = Field(..., example="my-flow")
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     parameters: ParameterSchema = Field(default_factory=ParameterSchema)
 
 
-class FlowRun(PrefectBaseModel):
+class FlowRun(APIBaseModel):
     flow_id: UUID
     flow_version: str = Field(..., example="v1.0")
     parameters: dict = Field(default_factory=dict)
