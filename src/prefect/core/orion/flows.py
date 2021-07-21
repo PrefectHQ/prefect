@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from prefect.core.utilities import sync
 
-from prefect.orion import api
+from prefect.orion import schemas
 from prefect.core.orion.client import get_client
 
 if TYPE_CHECKING:
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 async def create_flow(flow: "Flow", client: "Client" = None) -> str:
     client = client or get_client()
 
-    flow_data = api.schemas.Flow(
+    flow_data = schemas.actions.FlowCreate(
         name=flow.name,
         tags=flow.tags,
         parameters=flow.parameters,
@@ -27,10 +27,10 @@ async def create_flow(flow: "Flow", client: "Client" = None) -> str:
     return flow_id
 
 
-async def read_flow(flow_id: str, client: "Client" = None) -> api.schemas.Flow:
+async def read_flow(flow_id: str, client: "Client" = None) -> schemas.api.Flow:
     client = client or get_client()
     response = await client.get(f"/flows/{flow_id}")
-    return api.schemas.Flow(**response.json())
+    return schemas.api.Flow(**response.json())
 
 
 read_flow_sync = sync(read_flow)
