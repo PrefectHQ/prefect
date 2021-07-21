@@ -1,5 +1,6 @@
 import httpx
 
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Iterable, Dict, Any, Optional
 
 from prefect.orion import api
@@ -9,14 +10,15 @@ if TYPE_CHECKING:
     from prefect.core.flow import Flow
 
 
-_current_client: "Client" = None
+_current_client: ContextVar["Client"] = ContextVar("client")
 
 
-def get_current_client():
-    global _current_client
-    if not _current_client:
-        _current_client = Client()
-    return _current_client
+def get_current_client() -> "Client":
+    client = _current_client.get(None)
+    if not client:
+        client = "example"  # Client()
+        _current_client.set(client)
+    return client
 
 
 class Client:
@@ -33,15 +35,11 @@ class Client:
         return await self._client.get(route)
 
     def __enter__(self):
-        global _current_client
-        self._previous_client = _current_client
-        _current_client = self
+        self._current_client_reset_token = _current_client.set(self)
         return self
 
     def __exit__(self, *exc):
-        global _current_client
-        _current_client = self._previous_client
-        self._previous_client = None
+        _current_client.reset(self._current_client_reset_token)
 
 
 async def create_flow(flow: "Flow", client: Client = None) -> str:
