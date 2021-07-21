@@ -51,7 +51,7 @@ class Flow:
         self.tags = set(tags if tags else [])
 
         # Generate a parameter schema from the function
-        self._parameters = parameter_schema(self.fn)
+        self.parameters = parameter_schema(self.fn)
 
     def _run(self, *args, **kwargs):
         # placeholder method that will eventually manage state
@@ -63,10 +63,6 @@ class Flow:
         flow_run_id = create_flow_run_sync(self, parameters=parameters)
         result = self._run(*args, **kwargs)
         return PrefectFuture(run_id=flow_run_id, result=result)
-
-    @property
-    def parameters(self) -> ParameterSchema:
-        return self._parameters
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
