@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Update flow run heartbeats to be robust to exceptions - [#4736](https://github.com/PrefectHQ/prefect/pull/4736)"
