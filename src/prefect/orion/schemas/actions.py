@@ -1,5 +1,5 @@
 """
-Reduced schemas for accepting API inputs
+Reduced schemas for accepting API actions
 """
 
 from typing import List

@@ -7,7 +7,7 @@ from prefect.orion import schemas
 
 
 async def create_flow_run(
-    session: sa.orm.Session, flow_run: schemas.inputs.FlowRunCreate
+    session: sa.orm.Session, flow_run: schemas.actions.FlowRunCreate
 ) -> orm.FlowRun:
     new_flow_run = orm.FlowRun(**flow_run.dict())
     session.add(new_flow_run)
