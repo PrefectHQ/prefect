@@ -16,7 +16,7 @@ Released on July 20, 2021.
 
 - Fix duplicate task runs in `FlowRunView.get_all_task_runs` - [#4774](https://github.com/PrefectHQ/prefect/pull/4774)
 - Fix zombie processes from exited heartbeats - [#4733](https://github.com/PrefectHQ/prefect/pull/4733)
-- Missing `auth_file` directory is created when saving credentials - [#4774](https://github.com/PrefectHQ/prefect/pull/4792)
+- Missing `auth_file` directory is created when saving credentials - [#4792](https://github.com/PrefectHQ/prefect/pull/4792)
 
 ### Task Library
 
