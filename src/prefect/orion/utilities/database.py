@@ -105,7 +105,7 @@ class UUID(TypeDecorator):
 
 class NowDefault(FunctionElement):
     """
-    TODO
+    Platform-independent "now" generator
     """
 
     name = "now_default"
@@ -114,7 +114,11 @@ class NowDefault(FunctionElement):
 @compiles(NowDefault, "sqlite")
 def visit_custom_uuid_default_for_sqlite(element, compiler, **kwargs):
     """
-    TODO
+    Generates the current timestamp for SQLite
+
+    We need to add three zeros to the string representation
+    because SQLAlchemy uses a regex expression which is expecting
+    6 decimal places
     """
     return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
 
@@ -122,10 +126,7 @@ def visit_custom_uuid_default_for_sqlite(element, compiler, **kwargs):
 @compiles(NowDefault)
 def visit_custom_now_default(element, compiler, **kwargs):
     """
-    Generates a random UUID in other databases (SQLite) by concatenating
-    bytes in a way that approximates a UUID hex representation. This is
-    sufficient for our purposes of having a random client-generated ID
-    that is compatible with a UUID spec.
+    Generates the current timestamp in other databases (Postgres)
     """
     return sa.func.now()
 
@@ -159,8 +160,8 @@ class Base(object):
         sa.TIMESTAMP(timezone=True),
         nullable=False,
         index=True,
-        server_default=sa.func.now(),
-        onupdate=sa.func.now(),
+        server_default=NowDefault(),
+        onupdate=NowDefault(),
     )
 
     # required in order to access columns with server defaults
