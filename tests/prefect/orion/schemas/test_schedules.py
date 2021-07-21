@@ -5,7 +5,7 @@ import pendulum
 from pendulum import datetime, now
 from pydantic import ValidationError
 
-from prefect.orion.api.schedules import (
+from prefect.orion.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     ScheduleAdjustments,
