@@ -54,6 +54,9 @@ class Flow:
         # TODO: Note that pydantic will now coerce parameter types into the correct type
         #       even if the user wants failure on inexact type matches. We may want to
         #       implement a strict runtime typecheck with a configuration flag
+        # TODO: `validate_arguments` can throw an error while wrapping `fn` if the
+        #       signature is not pydantic-compatible. We'll want to confirm that it will
+        #       work at Flow.__init__ so we can raise errors to users immediately
         call_result = validate_arguments(self.fn)(*args, **kwargs)
         if inspect.isawaitable(call_result):
             return await call_result
