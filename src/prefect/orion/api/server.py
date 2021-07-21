@@ -1,8 +1,10 @@
+# import prefect
 from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
 
 from prefect.orion import api
+from prefect.orion.schemas import schedules
 
 app = FastAPI(title="Prefect Orion", version="alpha")
 
