@@ -4,7 +4,7 @@ import os
 from prefect import flow
 from prefect.core import Flow
 from prefect.core.futures import PrefectFuture
-from prefect.core.client import read_flow_run_sync
+from prefect.core.orion.flow_runs import read_flow_run_sync
 from prefect.core.utilities import file_hash
 
 

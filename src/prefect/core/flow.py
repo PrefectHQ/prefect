@@ -6,7 +6,7 @@ from typing import Any, Callable, Iterable
 
 
 from prefect.core.utilities import file_hash
-from prefect.core.client import create_flow_run_sync
+from prefect.core.orion.flow_runs import create_flow_run_sync
 from prefect.core.futures import PrefectFuture
 
 from prefect.orion.utilities.functions import parameter_schema, ParameterSchema
