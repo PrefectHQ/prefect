@@ -21,7 +21,7 @@ def set_client(client: "Client") -> contextvars.Token:
 
 class Client:
     def __init__(self, http_client: httpx.AsyncClient = None) -> None:
-        self._client = http_client
+        self._client = http_client or httpx.AsyncClient(base_url="http://localhost/")
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
         return await self._client.post(route, **kwargs)

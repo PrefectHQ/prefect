@@ -20,7 +20,7 @@ async def create_flow_run(
     context: dict = None,
     extra_tags: Iterable[str] = None,
     parent_task_run_id: str = None,
-    client: Client = None,
+    client: "Client" = None,
 ) -> str:
     client = client or get_client()
     tags = set(flow.tags).union(extra_tags or [])
@@ -47,7 +47,9 @@ async def create_flow_run(
     return flow_run_id
 
 
-async def read_flow_run(flow_run_id: str, client: Client = None) -> api.schemas.FlowRun:
+async def read_flow_run(
+    flow_run_id: str, client: "Client" = None
+) -> api.schemas.FlowRun:
     client = client or get_client()
     response = await client.get(f"/flow_runs/{flow_run_id}")
     return api.schemas.FlowRun(**response.json())

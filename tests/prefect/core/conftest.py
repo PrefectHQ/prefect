@@ -1,7 +1,7 @@
 import pytest
 
 
-from prefect.core.client import Client, set_client, _CLIENT
+from prefect.core.orion.client import Client, set_client, _CLIENT
 
 
 @pytest.fixture
