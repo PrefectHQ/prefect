@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
 
