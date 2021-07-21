@@ -9,7 +9,7 @@ from prefect.orion import models, schemas
 class TestCreateFlow:
     async def test_create_flow_succeeds(self, database_session):
         flow = await models.flows.create_flow(
-            session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow")
+            session=database_session, flow=schemas.actions.FlowCreate(name="my-flow")
         )
         assert flow.name == "my-flow"
         assert flow.id
@@ -17,7 +17,7 @@ class TestCreateFlow:
     async def test_create_flow_raises_if_already_exists(self, database_session):
         # create a flow
         flow = await models.flows.create_flow(
-            session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow")
+            session=database_session, flow=schemas.actions.FlowCreate(name="my-flow")
         )
         assert flow.name == "my-flow"
         assert flow.id
@@ -26,7 +26,8 @@ class TestCreateFlow:
 
         with pytest.raises(sa.exc.IntegrityError):
             await models.flows.create_flow(
-                session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow")
+                session=database_session,
+                flow=schemas.actions.FlowCreate(name="my-flow"),
             )
 
 
@@ -34,7 +35,7 @@ class TestReadFlow:
     async def test_read_flow(self, database_session):
         # create a flow to read
         flow = await models.flows.create_flow(
-            session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow")
+            session=database_session, flow=schemas.actions.FlowCreate(name="my-flow")
         )
         assert flow.name == "my-flow"
 
@@ -51,7 +52,7 @@ class TestReadFlowByName:
     async def test_read_flow(self, database_session):
         # create a flow to read
         flow = await models.flows.create_flow(
-            session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow")
+            session=database_session, flow=schemas.actions.FlowCreate(name="my-flow")
         )
         assert flow.name == "my-flow"
 
@@ -72,10 +73,10 @@ class TestReadFlows:
     @pytest.fixture
     async def flows(self, database_session):
         flow_1 = await models.flows.create_flow(
-            session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow-1")
+            session=database_session, flow=schemas.actions.FlowCreate(name="my-flow-1")
         )
         flow_2 = await models.flows.create_flow(
-            session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow-2")
+            session=database_session, flow=schemas.actions.FlowCreate(name="my-flow-2")
         )
         return [flow_1, flow_2]
 
@@ -104,7 +105,7 @@ class TestDeleteFlow:
     async def test_delete_flow(self, database_session):
         # create a flow to delete
         flow = await models.flows.create_flow(
-            session=database_session, flow=schemas.inputs.FlowCreate(name="my-flow")
+            session=database_session, flow=schemas.actions.FlowCreate(name="my-flow")
         )
         assert flow.name == "my-flow"
 

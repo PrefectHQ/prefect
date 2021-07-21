@@ -5,7 +5,7 @@ from prefect.orion import models, schemas
 
 class TestCreateFlowRun:
     async def test_create_flow_run_succeeds(self, database_session):
-        fake_flow_run = schemas.inputs.FlowRunCreate(
+        fake_flow_run = schemas.actions.FlowRunCreate(
             flow_id=uuid4(), flow_version="0.1"
         )
         flow_run = await models.flow_runs.create_flow_run(
@@ -18,7 +18,7 @@ class TestCreateFlowRun:
 class TestReadFlowRun:
     async def test_read_flow_run(self, database_session):
         # create a flow run to read
-        fake_flow_run = schemas.inputs.FlowRunCreate(
+        fake_flow_run = schemas.actions.FlowRunCreate(
             flow_id=uuid4(), flow_version="0.1"
         )
         flow_run = await models.flow_runs.create_flow_run(
@@ -39,13 +39,13 @@ class TestReadFlowRun:
 class TestReadFlowRuns:
     @pytest.fixture
     async def flow_runs(self, database_session):
-        fake_flow_run_0 = schemas.inputs.FlowRunCreate(
+        fake_flow_run_0 = schemas.actions.FlowRunCreate(
             flow_id=uuid4(), flow_version="0.1"
         )
         flow_run_0 = await models.flow_runs.create_flow_run(
             session=database_session, flow_run=fake_flow_run_0
         )
-        fake_flow_run_1 = schemas.inputs.FlowRunCreate(
+        fake_flow_run_1 = schemas.actions.FlowRunCreate(
             flow_id=uuid4(), flow_version="0.1"
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
@@ -71,7 +71,7 @@ class TestReadFlowRuns:
 class TestDeleteFlowRun:
     async def test_delete_flow_run(self, database_session):
         # create a flow run to delete
-        fake_flow_run = schemas.inputs.FlowRunCreate(
+        fake_flow_run = schemas.actions.FlowRunCreate(
             flow_id=uuid4(), flow_version="0.1"
         )
         flow_run = await models.flow_runs.create_flow_run(
