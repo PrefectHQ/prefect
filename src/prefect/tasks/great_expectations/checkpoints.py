@@ -199,7 +199,7 @@ class RunGreatExpectationsValidation(Task):
                 validation. Defaults to `action_list_operator`.
 
         Raises:
-            - 'signals.VALIDATIONFAIL' if the validation was not a success
+            - 'signals.FAIL' if the validation was not a success
 
         Returns:
             - result
