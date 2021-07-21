@@ -18,7 +18,6 @@ def sync(fn):
 
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        current_context = contextvars.copy_context()
         return asyncio.get_event_loop().run_until_complete(fn(*args, **kwargs))
 
     return wrapper
