@@ -18,6 +18,15 @@ class ScheduleFilters(BaseModel):
 
     class Config:
         extra = "forbid"
+        schema_extra = dict(
+            example=dict(
+                months=[3, 6, 9, 12],
+                days_of_month=[15, -1],
+                days_of_week=[0, 1, 2, 3, 4],
+                hours_of_day=[9, 10, 11],
+                minutes_of_hour=[0, 15, 30, 45],
+            )
+        )
 
     months: Set[conint(ge=1, le=12)] = None
     days_of_month: Set[conint(ge=-31, le=31)] = None
@@ -93,7 +102,7 @@ class IntervalSchedule(BaseModel):
         extra = "forbid"
 
     interval: datetime.timedelta
-    timezone: str = None
+    timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
 
     filters = ScheduleFilters()
@@ -200,9 +209,12 @@ class CronSchedule(BaseModel):
 
     """
 
-    cron: str
-    timezone: str = None
-    day_or: bool = True
+    cron: str = Field(..., example="0 0 * * *")
+    timezone: str = Field(None, example="America/New_York")
+    day_or: bool = Field(
+        True,
+        description="Control croniter behavior for handling day and day_of_week entries.",
+    )
 
     @validator("timezone")
     def valid_timezone(cls, v):
