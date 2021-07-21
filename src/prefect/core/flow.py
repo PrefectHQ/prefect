@@ -2,7 +2,7 @@ import inspect
 
 from functools import update_wrapper
 from pydantic import validate_arguments
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Awaitable, Union
 
 
 from prefect.core.utilities import file_hash, sync
@@ -40,7 +40,7 @@ class Flow:
         self.fn = fn
 
         # Version defaults to a hash of the function's file
-        flow_file = fn.__globals__.get("__file__")
+        flow_file = fn.__globals__.get("__file__")  # type: ignore
         self.version = version or (file_hash(flow_file) if flow_file else None)
         self.executor = executor
 
@@ -65,7 +65,9 @@ class Flow:
         result = await self._run(*args, **kwargs)
         return PrefectFuture(run_id=flow_run_id, result=result)
 
-    def __call__(self, *args, **kwargs) -> PrefectFuture:
+    def __call__(
+        self, *args, **kwargs
+    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         if inspect.iscoroutinefunction(self.fn):
             return self._call_async(args, kwargs)
         else:
