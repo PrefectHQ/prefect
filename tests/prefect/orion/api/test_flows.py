@@ -12,12 +12,13 @@ class TestCreateFlow:
         assert response.json()["name"] == "my-flow"
 
     async def test_create_flow_populates_and_returned_created(self, client):
+
         now = pendulum.now(tz="utc")
-        time.sleep(1)
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
         assert response.status_code == 201
         assert response.json()["name"] == "my-flow"
+        breakpoint()
         assert pendulum.parse(response.json()["created"]) >= now
 
     async def test_create_flow_gracefully_fallsback(self, client):

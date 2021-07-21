@@ -103,6 +103,33 @@ class UUID(TypeDecorator):
             return str(value)
 
 
+class NowDefault(FunctionElement):
+    """
+    TODO
+    """
+
+    name = "now_default"
+
+
+@compiles(NowDefault, "sqlite")
+def visit_custom_uuid_default_for_sqlite(element, compiler, **kwargs):
+    """
+    TODO
+    """
+    return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
+
+
+@compiles(NowDefault)
+def visit_custom_now_default(element, compiler, **kwargs):
+    """
+    Generates a random UUID in other databases (SQLite) by concatenating
+    bytes in a way that approximates a UUID hex representation. This is
+    sufficient for our purposes of having a random client-generated ID
+    that is compatible with a UUID spec.
+    """
+    return sa.func.now()
+
+
 @as_declarative()
 class Base(object):
     """
@@ -126,7 +153,7 @@ class Base(object):
         default=lambda: str(uuid.uuid4()),
     )
     created = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=NowDefault()
     )
     updated = Column(
         sa.TIMESTAMP(timezone=True),
