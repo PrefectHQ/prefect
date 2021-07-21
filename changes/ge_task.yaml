@@ -1,0 +1,5 @@
+enhancement:
+  - "Add new `evaluation_parameters` parameter to `RunGreatExpectationsValidation` task"
+
+contributor:
+  - "[Michal Zawadzki](https://github.com/trymzet)"
