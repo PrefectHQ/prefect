@@ -1,3 +1,3 @@
-import prefect.orion.schemas.api
-import prefect.orion.schemas.inputs
+import prefect.orion.schemas.core
+import prefect.orion.schemas.actions
 import prefect.orion.schemas.schedules

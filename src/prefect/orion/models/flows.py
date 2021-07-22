@@ -7,13 +7,13 @@ from prefect.orion import schemas
 
 
 async def create_flow(
-    session: sa.orm.Session, flow: schemas.inputs.FlowCreate
+    session: sa.orm.Session, flow: schemas.actions.FlowCreate
 ) -> orm.Flow:
     """Creates a new flow
 
     Args:
         session (sa.orm.Session): a database session
-        flow (schemas.Flow): a flow model
+        flow (schemas.core.Flow): a flow model
 
     Returns:
         orm.Flow: the newly-created flow
@@ -60,6 +60,16 @@ async def read_flows(
     offset: int = None,
     limit: int = None,
 ) -> List[orm.Flow]:
+    """Read flows
+
+    Args:
+        session (sa.orm.Session): A database session
+        offset (int): Query offset
+        limit(int): Query limit
+
+    Returns:
+        List[orm.Flow]: flows
+    """
 
     query = select(orm.Flow).order_by(orm.Flow.name)
 
@@ -73,5 +83,14 @@ async def read_flows(
 
 
 async def delete_flow(session: sa.orm.Session, id: str) -> bool:
+    """Delete a flow by id
+
+    Args:
+        session (sa.orm.Session): A database session
+        id (str): a flow id
+
+    Returns:
+        bool: whether or not the flow was deleted
+    """
     result = await session.execute(delete(orm.Flow).where(orm.Flow.id == id))
     return result.rowcount > 0
