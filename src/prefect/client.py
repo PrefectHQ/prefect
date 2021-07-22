@@ -64,9 +64,9 @@ class OrionClient:
         # Return the id of the created flow
         return flow_id
 
-    async def read_flow(self, flow_id: str) -> schemas.api.Flow:
+    async def read_flow(self, flow_id: str) -> schemas.core.Flow:
         response = await self.get(f"/flows/{flow_id}")
-        return schemas.api.Flow(**response.json())
+        return schemas.core.Flow(**response.json())
 
     async def create_flow_run(
         self,
@@ -99,9 +99,9 @@ class OrionClient:
 
         return flow_run_id
 
-    async def read_flow_run(self, flow_run_id: str) -> schemas.api.FlowRun:
+    async def read_flow_run(self, flow_run_id: str) -> schemas.core.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")
-        return schemas.api.FlowRun(**response.json())
+        return schemas.core.FlowRun(**response.json())
 
 
 # A synchronous API could look like this...

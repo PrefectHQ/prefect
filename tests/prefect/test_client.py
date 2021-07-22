@@ -11,7 +11,7 @@ async def test_create_then_read_flow(orion_client):
     assert isinstance(flow_id, str)
 
     lookup = await orion_client.read_flow(flow_id)
-    assert isinstance(lookup, schemas.api.Flow)
+    assert isinstance(lookup, schemas.core.Flow)
     assert lookup.name == foo.name
     assert lookup.tags == list(foo.tags)
     assert lookup.parameters == foo.parameters
@@ -26,7 +26,7 @@ async def test_create_then_read_flow_run(orion_client):
     assert isinstance(flow_run_id, str)
 
     lookup = await orion_client.read_flow_run(flow_run_id)
-    assert isinstance(lookup, schemas.api.FlowRun)
+    assert isinstance(lookup, schemas.core.FlowRun)
     assert lookup.tags == list(foo.tags)
 
     # TODO: Check parameters
