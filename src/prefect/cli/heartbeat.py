@@ -1,4 +1,5 @@
 import time
+import os
 
 import click
 
@@ -93,6 +94,19 @@ def flow_run(id, num):
     client = Client()
     logger = get_logger("heartbeat")
     iter_count = 0
+
+    # Lower the OOM score for the hearbeat process so it is not killed before the flow
+    # run
+    try:
+        if os.path.exists("/proc/self/oom_score_adj"):
+            with open("/proc/self/oom_score_adj", "wb") as f:
+                f.write("-500".encode("ascii"))
+        else:
+            logger.debug(
+                "Cannot set OOM score for heartbeat thread, `oom_score_adj` not available."
+            )
+    except Exception:
+        logger.debug("Failed to lower OOM score for hearbeat thread.", exc_info=True)
 
     # Ensure that logs are sent to the backend since this is typically called without
     # console stdout/err
