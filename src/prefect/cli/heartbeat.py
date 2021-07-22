@@ -100,7 +100,7 @@ def flow_run(id, num):
     try:
         if sys.platform == "linux":
             with open("/proc/self/oom_score_adj", "wb") as f:
-                f.write("-500".encode("ascii"))
+                f.write("0".encode("ascii"))
     except Exception:
         logger.debug("Failed to lower OOM score for hearbeat thread.", exc_info=True)
 
