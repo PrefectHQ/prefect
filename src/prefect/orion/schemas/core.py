@@ -66,7 +66,3 @@ class State(APIBaseModel):
     message: str = Field("", example="Flow run started")
     state_details: StateDetails = Field(default_factory=StateDetails)
     run_details: RunDetails = Field(default_factory=RunDetails)
-
-# TODO
-# rename api -> core
-# flow_run/:id/states
