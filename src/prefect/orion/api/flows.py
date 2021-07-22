@@ -15,7 +15,7 @@ async def create_flow(
     flow: schemas.actions.FlowCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.api.Flow:
+) -> schemas.core.Flow:
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
     """
@@ -32,7 +32,7 @@ async def create_flow(
 @router.get("/{flow_id}")
 async def read_flow(
     flow_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
-) -> schemas.api.Flow:
+) -> schemas.core.Flow:
     """
     Get a flow by id
     """
@@ -46,7 +46,7 @@ async def read_flow(
 async def read_flows(
     pagination: dependencies.Pagination = Depends(),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.api.Flow]:
+) -> List[schemas.core.Flow]:
     """
     Query for flows
     """

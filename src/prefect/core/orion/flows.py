@@ -27,10 +27,10 @@ async def create_flow(flow: "Flow", client: "Client" = None) -> str:
     return flow_id
 
 
-async def read_flow(flow_id: str, client: "Client" = None) -> schemas.api.Flow:
+async def read_flow(flow_id: str, client: "Client" = None) -> schemas.core.Flow:
     client = client or get_client()
     response = await client.get(f"/flows/{flow_id}")
-    return schemas.api.Flow(**response.json())
+    return schemas.core.Flow(**response.json())
 
 
 read_flow_sync = sync(read_flow)

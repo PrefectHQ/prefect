@@ -49,10 +49,10 @@ async def create_flow_run(
 
 async def read_flow_run(
     flow_run_id: str, client: "Client" = None
-) -> schemas.api.FlowRun:
+) -> schemas.core.FlowRun:
     client = client or get_client()
     response = await client.get(f"/flow_runs/{flow_run_id}")
-    return schemas.api.FlowRun(**response.json())
+    return schemas.core.FlowRun(**response.json())
 
 
 read_flow_run_sync = sync(read_flow_run)
