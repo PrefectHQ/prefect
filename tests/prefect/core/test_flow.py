@@ -1,7 +1,10 @@
 import pytest
+import os
 
 from prefect import flow
 from prefect.core import Flow
+from prefect.core.futures import PrefectFuture
+from prefect.core.orion.flow_runs import read_flow_run_sync
 from prefect.core.utilities import file_hash
 
 
@@ -71,3 +74,20 @@ class TestDecorator:
         my_flow = flow(file_hash)
 
         assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
+
+
+class TestFlowCall:
+    def test_call_creates_flow_run(self, user_client):
+        @flow(version="test")
+        def foo(x, y=2, z=3):
+            return x + y + z
+
+        future = foo(1, 2)
+        assert isinstance(future, PrefectFuture)
+        assert future.result() == 6
+        assert future.run_id is not None
+
+        flow_run = read_flow_run_sync(future.run_id)
+        assert str(flow_run.id) == future.run_id
+        assert flow_run.parameters == {"x": 1, "y": 2}
+        assert flow_run.flow_version == foo.version
