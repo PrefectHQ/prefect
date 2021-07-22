@@ -1,11 +1,10 @@
-import contextvars
 from functools import wraps
 from types import TracebackType
 from typing import Any, Dict, Iterable, Type, TYPE_CHECKING
 
 import httpx
 
-from prefect.core.utilities import sync
+from prefect.utilities import sync
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 

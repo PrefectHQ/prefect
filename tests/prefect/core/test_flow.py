@@ -1,12 +1,13 @@
-import pytest
-import pydantic
 from typing import List
 
+import pydantic
+import pytest
+
 from prefect import flow
-from prefect.core import Flow
-from prefect.core.futures import PrefectFuture
 from prefect.client import OrionClient, read_flow_run
-from prefect.core.utilities import file_hash
+from prefect.core.flow import Flow
+from prefect.core.futures import PrefectFuture
+from prefect.utilities import file_hash
 
 
 class TestFlow:
