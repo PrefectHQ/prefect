@@ -1,5 +1,5 @@
 import time
-import os
+import sys
 
 import click
 
@@ -98,13 +98,9 @@ def flow_run(id, num):
     # Lower the OOM score for the hearbeat process so it is not killed before the flow
     # run
     try:
-        if os.path.exists("/proc/self/oom_score_adj"):
+        if sys.platform == "linux":
             with open("/proc/self/oom_score_adj", "wb") as f:
                 f.write("-500".encode("ascii"))
-        else:
-            logger.debug(
-                "Cannot set OOM score for heartbeat thread, `oom_score_adj` not available."
-            )
     except Exception:
         logger.debug("Failed to lower OOM score for hearbeat thread.", exc_info=True)
 
