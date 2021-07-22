@@ -35,3 +35,4 @@ class StateCreate(PrefectBaseModel):
     type: StateType
     timestamp: datetime.datetime
     message: str = Field("", example="Some info")
+    data: bytes = b""

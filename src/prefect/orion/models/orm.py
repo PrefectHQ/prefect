@@ -32,6 +32,7 @@ class FlowRunState(Base):
     message = Column(String)
     state_details = Column(JSON, server_default="{}", default=dict, nullable=False)
     run_details = Column(JSON, server_default="{}", default=dict, nullable=False)
+    data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
 
 
 # TODO: add indexes

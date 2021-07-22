@@ -4,6 +4,7 @@ from sqlalchemy import select, delete
 
 from prefect.orion.models import orm
 from prefect.orion import schemas
+from prefect.orion.schemas.core import RunDetails
 
 
 async def create_flow_run_state(
@@ -24,14 +25,18 @@ async def create_flow_run_state(
     most_recent_state = await read_most_recent_flow_run_state_by_flow_run_id(
         session=session, flow_run_id=flow_run_id
     )
-    run_details = most_recent_state.run_details if most_recent_state else {}
+    if most_recent_state is not None:
+        run_details = most_recent_state.run_details
+        run_details["previous_state_id"] = most_recent_state.id
+    else:
+        run_details = RunDetails().json_dict()
 
     # populate state details
     state_details = schemas.core.StateDetails(flow_run_id=flow_run_id).json_dict()
 
     # create the new flow run state
     new_flow_run_state = orm.FlowRunState(
-        **flow_run_state.dict(),
+        **flow_run_state.dict(exclude={"data"}),
         flow_run_id=flow_run_id,
         state_details=state_details,
         run_details=run_details
