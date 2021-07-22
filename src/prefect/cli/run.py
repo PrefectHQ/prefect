@@ -269,7 +269,9 @@ def load_json_key_values(
         try:
             return json.loads(value)
         except ValueError as exc:
-            if "Expecting value" in str(exc) and '"' not in value:
+            if (
+                "Extra data" in str(exc) or "Expecting value" in str(exc)
+            ) and '"' not in value:
                 return cast_value(f'"{value}"')
             raise exc
 
