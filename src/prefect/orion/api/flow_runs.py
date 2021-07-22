@@ -14,7 +14,7 @@ router = OrionRouter(prefix="/flow_runs", tags=["flow_runs"])
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.api.FlowRun:
+) -> schemas.core.FlowRun:
     """
     Create a flow run
     """
@@ -24,7 +24,7 @@ async def create_flow_run(
 @router.get("/{flow_run_id}")
 async def read_flow_run(
     flow_run_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
-) -> schemas.api.FlowRun:
+) -> schemas.core.FlowRun:
     """
     Get a flow run by id
     """
@@ -39,7 +39,7 @@ async def read_flow_runs(
     offset: int = 0,
     limit: int = 10,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.api.FlowRun]:
+) -> List[schemas.core.FlowRun]:
     """
     Query for flow runs
     """

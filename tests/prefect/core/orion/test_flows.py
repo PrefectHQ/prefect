@@ -12,7 +12,7 @@ async def test_create_then_read_flow(user_client):
     assert isinstance(flow_id, str)
 
     lookup = await read_flow(flow_id)
-    assert isinstance(lookup, schemas.api.Flow)
+    assert isinstance(lookup, schemas.core.Flow)
     assert lookup.name == foo.name
     assert lookup.tags == list(foo.tags)
     assert lookup.parameters == foo.parameters
