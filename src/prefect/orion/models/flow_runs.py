@@ -57,6 +57,28 @@ async def read_flow_runs(
     return result.scalars().all()
 
 
+async def read_current_state(
+    session: sa.orm.Session, flow_run_id: str
+) -> orm.FlowRunState:
+    """Reads the most recent state for a flow run
+
+    Args:
+        session (sa.orm.Session): A database session
+        flow_run_id (str): the flow run id
+
+    Returns:
+        orm.FlowRunState: the most recent flow run state
+    """
+    query = (
+        select(orm.FlowRunState)
+        .filter(orm.FlowRunState.flow_run_id == flow_run_id)
+        .order_by(orm.FlowRunState.timestamp.desc())
+        .limit(1)
+    )
+    result = await session.execute(query)
+    return result.scalars().first()
+
+
 async def delete_flow_run(session: sa.orm.Session, id: str) -> bool:
     """Delete a flow run by id
 
