@@ -6,7 +6,7 @@ from typing import Any, Callable, Iterable, Awaitable, Union
 
 
 from prefect.core.utilities import file_hash, sync
-from prefect.core.orion.flow_runs import create_flow_run
+from prefect.client import OrionClient
 from prefect.core.futures import PrefectFuture
 
 from prefect.orion.utilities.functions import parameter_schema, ParameterSchema
@@ -46,10 +46,9 @@ class Flow:
 
         self.tags = set(tags if tags else [])
 
-        # Generate a parameter schema from the function
         self.parameters = parameter_schema(self.fn)
 
-    async def _run(self, *args, **kwargs):
+    async def _run(self, client, args, kwargs):
         # TODO: Manage state
         # TODO: Note that pydantic will now coerce parameter types into the correct type
         #       even if the user wants failure on inexact type matches. We may want to
@@ -64,8 +63,13 @@ class Flow:
 
     async def _call_async(self, args, kwargs) -> PrefectFuture:
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
-        flow_run_id = await create_flow_run(self, parameters=parameters)
-        result = await self._run(*args, **kwargs)
+
+        async with OrionClient() as client:
+            flow_run_id = await client.create_flow_run(
+                self,
+                parameters=parameters,
+            )
+            result = await self._run(client, args, kwargs)
         return PrefectFuture(run_id=flow_run_id, result=result)
 
     def __call__(
