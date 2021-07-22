@@ -5,19 +5,19 @@ from typing import List, Set
 import pendulum
 from croniter import croniter
 from pendulum.tz.timezone import Timezone
-from pydantic import BaseModel, Field, conint, validator
+from pydantic import Field, conint, validator
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 __all__ = ["IntervalSchedule", "CronSchedule"]
 
 
-class ScheduleFilters(BaseModel):
+class ScheduleFilters(PrefectBaseModel):
     """A collection of filters that can be applied to a date. Each filter
     is defined as an inclusive set of dates or times: candidate dates
     will pass the filter if they match all of the supplied criteria.
     """
 
     class Config:
-        extra = "forbid"
         schema_extra = dict(
             example=dict(
                 months=[3, 6, 9, 12],
@@ -76,11 +76,8 @@ class ScheduleFilters(BaseModel):
         return True
 
 
-class ScheduleAdjustments(BaseModel):
+class ScheduleAdjustments(PrefectBaseModel):
     """Adjusts a candidate date by modifying it to meet the supplied criteria."""
-
-    class Config:
-        extra = "forbid"
 
     advance_to_next_weekday: bool = False
 
@@ -97,9 +94,7 @@ class ScheduleAdjustments(BaseModel):
         return dt
 
 
-class IntervalSchedule(BaseModel):
-    class Config:
-        extra = "forbid"
+class IntervalSchedule(PrefectBaseModel):
 
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
@@ -185,7 +180,7 @@ class IntervalSchedule(BaseModel):
         return dates
 
 
-class CronSchedule(BaseModel):
+class CronSchedule(PrefectBaseModel):
     """
     Cron schedule
 
