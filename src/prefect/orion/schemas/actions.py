@@ -10,7 +10,7 @@ from pydantic import Field
 
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.orion.schemas.api import FlowRunMetadata
+from prefect.orion.schemas.core import FlowRunMetadata
 from prefect.orion.utilities.enum import StateType
 
 
