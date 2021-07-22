@@ -136,7 +136,7 @@ class IntervalSchedule(PrefectBaseModel):
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
-            start = pendulum.now("utc")
+            start = pendulum.now(self.timezone or "UTC")
 
         # compute the offset between the anchor date and the start date to jump to the next date
         offset = (
