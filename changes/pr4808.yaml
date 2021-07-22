@@ -1,0 +1,3 @@
+
+enhancement:
+  - "Attempt to lower the OOM score for hearbeat processes on startup - [#4808](https://github.com/PrefectHQ/prefect/pull/4808)"
