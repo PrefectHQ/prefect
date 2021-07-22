@@ -23,6 +23,9 @@ class OrionClient:
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
         response = await self._client.post(route, **kwargs)
+        # TODO: We may not _always_ want to raise bad status codes but for now we will
+        #       because response.json() will throw misleading errors and this will ease
+        #       development
         response.raise_for_status()
         return response
 
