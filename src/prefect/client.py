@@ -19,7 +19,6 @@ class OrionClient:
         self._client = http_client or httpx.AsyncClient(
             app=orion_app, base_url="http://ephemeral"
         )
-        self._context_token: contextvars.Token = None
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
         response = await self._client.post(route, **kwargs)
