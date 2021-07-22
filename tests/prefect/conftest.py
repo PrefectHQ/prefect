@@ -10,7 +10,7 @@ from prefect.orion.api.dependencies import get_session
 from prefect.orion.utilities.database import reset_db
 from prefect.orion.utilities.settings import Settings
 
-from .fixtures.database_fixtures import *
+from .orion.fixtures.database_fixtures import *
 
 
 def pytest_collection_modifyitems(session, config, items):
