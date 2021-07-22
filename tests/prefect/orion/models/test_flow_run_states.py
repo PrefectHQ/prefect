@@ -48,26 +48,6 @@ class TestReadFlowRunState:
 
 
 class TestReadFlowRunStatesByFlowRun:
-    @pytest.fixture
-    async def flow_run_states(self, database_session, flow_run):
-        scheduled_state = schemas.actions.StateCreate(
-            name="Scheduled", type="Scheduled", timestamp=pendulum.now()
-        )
-        scheduled_flow_run_state = await models.flow_run_states.create_flow_run_state(
-            session=database_session,
-            flow_run_state=scheduled_state,
-            flow_run_id=flow_run.id,
-        )
-        running_state = schemas.actions.StateCreate(
-            name="Running", type="Running", timestamp=pendulum.now()
-        )
-        running_flow_run_state = await models.flow_run_states.create_flow_run_state(
-            session=database_session,
-            flow_run_state=running_state,
-            flow_run_id=flow_run.id,
-        )
-        return [scheduled_flow_run_state, running_flow_run_state]
-
     async def test_flow_run_states_by_flow_run_id(
         self, database_session, flow_run, flow_run_states
     ):
@@ -91,28 +71,6 @@ class TestReadFlowRunStatesByFlowRun:
 
 
 class TestReadFlowRunStatesByFlowRun:
-    @pytest.fixture
-    async def flow_run_states(self, database_session, flow_run):
-        scheduled_state = schemas.actions.StateCreate(
-            name="Scheduled",
-            type="Scheduled",
-            timestamp=pendulum.now().subtract(seconds=10),
-        )
-        scheduled_flow_run_state = await models.flow_run_states.create_flow_run_state(
-            session=database_session,
-            flow_run_state=scheduled_state,
-            flow_run_id=flow_run.id,
-        )
-        running_state = schemas.actions.StateCreate(
-            name="Running", type="Running", timestamp=pendulum.now()
-        )
-        running_flow_run_state = await models.flow_run_states.create_flow_run_state(
-            session=database_session,
-            flow_run_state=running_state,
-            flow_run_id=flow_run.id,
-        )
-        return [scheduled_flow_run_state, running_flow_run_state]
-
     async def test_read_most_recent_flow_run_state_by_flow_run_id(
         self, database_session, flow_run, flow_run_states
     ):
