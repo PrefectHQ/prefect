@@ -1,15 +1,13 @@
 import inspect
-
 from functools import update_wrapper
+from typing import Any, Awaitable, Callable, Dict, Iterable, Tuple, Union
+
 from pydantic import validate_arguments
-from typing import Any, Callable, Iterable, Awaitable, Union, Tuple, Any, Dict
 
-
-from prefect.core.utilities import file_hash, sync
 from prefect.client import OrionClient
 from prefect.core.futures import PrefectFuture
-
-from prefect.orion.utilities.functions import parameter_schema, ParameterSchema
+from prefect.orion.utilities.functions import parameter_schema
+from prefect.utilities import file_hash, sync
 
 
 class Flow:
