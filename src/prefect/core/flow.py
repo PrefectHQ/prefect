@@ -58,7 +58,7 @@ class Flow:
         #       signature is not pydantic-compatible. We'll want to confirm that it will
         #       work at Flow.__init__ so we can raise errors to users immediately
         call_result = validate_arguments(self.fn)(*args, **kwargs)
-        if inspect.isawaitable(call_result):
+        if inspect.iscoroutinefunction(self.fn):
             return await call_result
         return call_result
 
