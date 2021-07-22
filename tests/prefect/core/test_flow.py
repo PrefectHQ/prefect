@@ -1,4 +1,6 @@
 import pytest
+import pydantic
+from typing import List
 
 from prefect import flow
 from prefect.core import Flow
@@ -135,3 +137,25 @@ class TestFlowCall:
         assert str(flow_run.id) == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
+
+    def test_call_coerces_parameter_types(self):
+        class CustomType(pydantic.BaseModel):
+            z: int
+
+        @flow(version="test")
+        def foo(x: int, y: List[int], zt: CustomType):
+            return x + sum(y) + zt.z
+
+        future = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
+        assert future.result() == 10
+
+    def test_call_raises_on_incompatible_parameter_types(self):
+        @flow(version="test")
+        def foo(x: int):
+            pass
+
+        with pytest.raises(
+            pydantic.error_wrappers.ValidationError,
+            match="value is not a valid integer",
+        ):
+            foo(x="foo")
