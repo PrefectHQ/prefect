@@ -5,7 +5,7 @@ from typing import List
 from prefect import flow
 from prefect.core import Flow
 from prefect.core.futures import PrefectFuture
-from prefect.core.orion.flow_runs import read_flow_run_sync, read_flow_run
+from prefect.client import OrionClient, read_flow_run
 from prefect.core.utilities import file_hash
 
 
@@ -78,7 +78,7 @@ class TestDecorator:
 
 
 class TestFlowCall:
-    def test_sync_call_creates_flow_run_and_runs(self, user_client):
+    def test_sync_call_creates_flow_run_and_runs(self, orion_client):
         @flow(version="test")
         def foo(x, y=2, z=3):
             return x + y + z
@@ -88,12 +88,12 @@ class TestFlowCall:
         assert future.result() == 6
         assert future.run_id is not None
 
-        flow_run = read_flow_run_sync(future.run_id)
+        flow_run = read_flow_run(future.run_id)
         assert str(flow_run.id) == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
 
-    async def test_call_detects_async_and_awaits(self, user_client):
+    async def test_call_detects_async_and_awaits(self, orion_client):
         @flow(version="test")
         async def asyncfoo(x, y=2, z=3):
             return x + y + z
@@ -103,10 +103,42 @@ class TestFlowCall:
         assert future.result() == 6
         assert future.run_id is not None
 
-        flow_run = await read_flow_run(future.run_id)
+        flow_run = await orion_client.read_flow_run(future.run_id)
         assert str(flow_run.id) == future.run_id
 
-    def test_call_coerces_parameter_types(self, user_client):
+    async def test_async_call_creates_ephemeral_instance(self):
+        @flow(version="test")
+        async def foo(x, y=2, z=3):
+            return x + y + z
+
+        future = await foo(1, 2)
+        assert isinstance(future, PrefectFuture)
+        assert future.result() == 6
+        assert future.run_id is not None
+
+        async with OrionClient() as client:
+            flow_run = await client.read_flow_run(future.run_id)
+
+        assert str(flow_run.id) == future.run_id
+        assert flow_run.parameters == {"x": 1, "y": 2}
+        assert flow_run.flow_version == foo.version
+
+    def test_sync_call_creates_ephemeral_instance(self):
+        @flow(version="test")
+        def foo(x, y=2, z=3):
+            return x + y + z
+
+        future = foo(1, 2)
+        assert isinstance(future, PrefectFuture)
+        assert future.result() == 6
+        assert future.run_id is not None
+
+        flow_run = read_flow_run(future.run_id)
+        assert str(flow_run.id) == future.run_id
+        assert flow_run.parameters == {"x": 1, "y": 2}
+        assert flow_run.flow_version == foo.version
+
+    def test_call_coerces_parameter_types(self):
         class CustomType(pydantic.BaseModel):
             z: int
 
@@ -117,7 +149,7 @@ class TestFlowCall:
         future = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
         assert future.result() == 10
 
-    def test_call_raises_on_incompatible_parameter_types(self, user_client):
+    def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
             pass
