@@ -59,7 +59,7 @@ class RunDetails(PrefectBaseModel):
     last_run_time: float = 0.0
 
 
-class State(APIBaseModel):
+class FlowRunState(APIBaseModel):
     name: str
     type: StateType
     timestamp: datetime.datetime
