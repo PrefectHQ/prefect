@@ -106,7 +106,7 @@ class OrionClient:
 # A synchronous API could look like this...
 
 
-def create_sync_api(method):
+def _create_sync_api(method):
     """
     Create a synchronous version of a function with a transient async client context
     """
@@ -119,5 +119,5 @@ def create_sync_api(method):
     return sync(run_with_client)
 
 
-read_flow = create_sync_api(OrionClient.read_flow)
-read_flow_run = create_sync_api(OrionClient.read_flow_run)
+read_flow = _create_sync_api(OrionClient.read_flow)
+read_flow_run = _create_sync_api(OrionClient.read_flow_run)
