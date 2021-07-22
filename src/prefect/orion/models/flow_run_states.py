@@ -16,7 +16,8 @@ async def create_flow_run_state(
 
     Args:
         session (sa.orm.Session): a database session
-        flow (schemas.actions.FlowRunState): a flow run state model
+        flow_run_state (schemas.actions.FlowRunState): a flow run state model
+        flow_run_id (str): the flow run id
 
     Returns:
         orm.FlowRunState: the newly-created flow run state
