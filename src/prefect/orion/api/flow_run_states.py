@@ -39,13 +39,13 @@ async def read_flow_run_state(
 
 
 @router.get("/")
-async def read_flow_run_states_by_flow_run_id(
+async def read_flow_run_states(
     flow_run_id: str,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.FlowRunState]:
     """
     Get states associated with a flow run
     """
-    return await models.flow_run_states.read_flow_run_states_by_flow_run_id(
+    return await models.flow_run_states.read_flow_run_states(
         session=session, flow_run_id=flow_run_id
     )
