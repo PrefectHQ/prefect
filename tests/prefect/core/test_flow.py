@@ -1,10 +1,9 @@
 import pytest
-import os
 
 from prefect import flow
 from prefect.core import Flow
 from prefect.core.futures import PrefectFuture
-from prefect.core.orion.flow_runs import read_flow_run_sync
+from prefect.core.orion.flow_runs import read_flow_run_sync, read_flow_run
 from prefect.core.utilities import file_hash
 
 
@@ -77,7 +76,7 @@ class TestDecorator:
 
 
 class TestFlowCall:
-    def test_call_creates_flow_run(self, user_client):
+    def test_sync_call_creates_flow_run_and_runs(self, user_client):
         @flow(version="test")
         def foo(x, y=2, z=3):
             return x + y + z
@@ -91,3 +90,16 @@ class TestFlowCall:
         assert str(flow_run.id) == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
+
+    async def test_call_detects_async_and_awaits(self, user_client):
+        @flow(version="test")
+        async def asyncfoo(x, y=2, z=3):
+            return x + y + z
+
+        future = await asyncfoo(1, 2)
+        assert isinstance(future, PrefectFuture)
+        assert future.result() == 6
+        assert future.run_id is not None
+
+        flow_run = await read_flow_run(future.run_id)
+        assert str(flow_run.id) == future.run_id
