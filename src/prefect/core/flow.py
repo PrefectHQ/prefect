@@ -2,7 +2,7 @@ import inspect
 
 from functools import update_wrapper
 from pydantic import validate_arguments
-from typing import Any, Callable, Iterable, Awaitable, Union
+from typing import Any, Callable, Iterable, Awaitable, Union, Tuple, Any, Dict
 
 
 from prefect.core.utilities import file_hash, sync
@@ -48,7 +48,9 @@ class Flow:
 
         self.parameters = parameter_schema(self.fn)
 
-    async def _run(self, client, args, kwargs):
+    async def _run(
+        self, client: OrionClient, args: Tuple[Any, ...], kwargs: Dict[str, Any]
+    ):
         # TODO: Manage state; `client` is not consumed yet but will be used for this
         # TODO: Note that pydantic will now coerce parameter types into the correct type
         #       even if the user wants failure on inexact type matches. We may want to
@@ -61,7 +63,10 @@ class Flow:
             return await call_result
         return call_result
 
-    async def _call_async(self, args, kwargs) -> PrefectFuture:
+    async def _call_async(
+        self, args: Tuple[Any, ...], kwargs: Dict[str, Any]
+    ) -> PrefectFuture:
+        # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
         async with OrionClient() as client:
@@ -74,7 +79,7 @@ class Flow:
         return PrefectFuture(run_id=flow_run_id, result=result)
 
     def __call__(
-        self, *args, **kwargs
+        self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         if inspect.iscoroutinefunction(self.fn):
             return self._call_async(args, kwargs)
