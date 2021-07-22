@@ -70,23 +70,19 @@ class TestReadFlowRunState:
         ) is None
 
 
-class TestReadFlowRunStatesByFlowRun:
-    async def test_flow_run_states_by_flow_run_id(
-        self, database_session, flow_run, flow_run_states
-    ):
+class TestReadFlowRunStates:
+    async def test_flow_run_states(self, database_session, flow_run, flow_run_states):
         flow_run_states_by_flow_run_id = (
-            await models.flow_run_states.read_flow_run_states_by_flow_run_id(
+            await models.flow_run_states.read_flow_run_states(
                 session=database_session, flow_run_id=flow_run.id
             )
         )
         assert len(flow_run_states_by_flow_run_id) == len(flow_run_states)
 
-    async def test_flow_run_states_by_flow_run_id_filters_by_flow_run_id(
-        self, database_session
-    ):
+    async def test_flow_run_states_filters_by_flow_run_id(self, database_session):
         # query for states using a random flow run id
         flow_run_states_by_flow_run_id = (
-            await models.flow_run_states.read_flow_run_states_by_flow_run_id(
+            await models.flow_run_states.read_flow_run_states(
                 session=database_session, flow_run_id=uuid4()
             )
         )

@@ -60,7 +60,7 @@ async def read_flow_run_state(session: sa.orm.Session, id: str) -> orm.FlowRunSt
     return await session.get(orm.FlowRunState, id)
 
 
-async def read_flow_run_states_by_flow_run_id(
+async def read_flow_run_states(
     session: sa.orm.Session, flow_run_id: str
 ) -> List[orm.FlowRunState]:
     """Reads flow runs states for a flow run
