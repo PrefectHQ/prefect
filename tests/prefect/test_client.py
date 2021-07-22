@@ -1,4 +1,4 @@
-from prefect.core import flow
+from prefect import flow
 from prefect.orion import schemas
 
 
