@@ -98,7 +98,7 @@ class TestFlowCall:
 
         future = await asyncfoo(1, 2)
         assert isinstance(future, PrefectFuture)
-        assert future.result == 6
+        assert future.result() == 6
         assert future.run_id is not None
 
         flow_run = await read_flow_run(future.run_id)
