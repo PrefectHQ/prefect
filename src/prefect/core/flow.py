@@ -2,10 +2,14 @@ import inspect
 
 from functools import update_wrapper
 from pydantic import validate_arguments
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 
 from prefect.core.utilities import file_hash
+from prefect.core.orion.flow_runs import create_flow_run_sync
+from prefect.core.futures import PrefectFuture
+
+from prefect.orion.utilities.functions import parameter_schema, ParameterSchema
 
 
 class Flow:
@@ -22,6 +26,7 @@ class Flow:
         version: str = None,
         executor=None,
         description: str = None,
+        tags: Iterable[str] = None,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -43,15 +48,21 @@ class Flow:
         self.version = version or (file_hash(flow_file) if flow_file else None)
         self.executor = executor
 
+        self.tags = set(tags if tags else [])
+
+        # Generate a parameter schema from the function
+        self.parameters = parameter_schema(self.fn)
+
     def _run(self, *args, **kwargs):
         # placeholder method that will eventually manage state
         result = self.fn(*args, **kwargs)
         return result
 
-    def __call__(self, *args, **kwargs):
-        # this method will always retrieve a run ID from the backend
+    def __call__(self, *args, **kwargs) -> PrefectFuture:
+        parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
+        flow_run_id = create_flow_run_sync(self, parameters=parameters)
         result = self._run(*args, **kwargs)
-        return result
+        return PrefectFuture(run_id=flow_run_id, result=result)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
