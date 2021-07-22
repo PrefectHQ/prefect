@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy import JSON, Column, String, Enum
 from prefect.orion.utilities.database import UUID, Base, NowDefault
-from prefect.orion.utilities.enum import StateType
+from prefect.orion.schemas.core import StateType
 
 
 class Flow(Base):

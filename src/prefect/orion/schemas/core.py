@@ -3,6 +3,7 @@
 """
 
 import datetime
+from enum import auto
 from typing import List
 from uuid import UUID
 
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.orion.utilities.enum import StateType
+from prefect.orion.utilities.enum import AutoEnum
 
 
 class APIBaseModel(PrefectBaseModel):
@@ -42,6 +43,14 @@ class FlowRun(APIBaseModel):
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     flow_run_metadata: FlowRunMetadata = Field(default_factory=FlowRunMetadata)
+
+
+class StateType(AutoEnum):
+    Running = auto()
+    Completed = auto()
+    Failed = auto()
+    Scheduled = auto()
+    Pending = auto()
 
 
 class StateDetails(PrefectBaseModel):
