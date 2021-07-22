@@ -30,7 +30,7 @@ async def read_flow_run(
     """
     flow_run = await models.flow_runs.read_flow_run(session=session, id=flow_run_id)
     if not flow_run:
-        raise HTTPException(status_code=404, detail="Flow not found")
+        raise HTTPException(status_code=404, detail="Flow run not found")
     return flow_run
 
 
@@ -57,5 +57,5 @@ async def delete_flow_run(
     """
     result = await models.flow_runs.delete_flow_run(session=session, id=flow_run_id)
     if not result:
-        raise HTTPException(status_code=404, detail="Flow not found")
+        raise HTTPException(status_code=404, detail="Flow run not found")
     return result
