@@ -49,7 +49,7 @@ class Flow:
         self.parameters = parameter_schema(self.fn)
 
     async def _run(self, client, args, kwargs):
-        # TODO: Manage state
+        # TODO: Manage state; `client` is not consumed yet but will be used for this
         # TODO: Note that pydantic will now coerce parameter types into the correct type
         #       even if the user wants failure on inexact type matches. We may want to
         #       implement a strict runtime typecheck with a configuration flag
@@ -70,6 +70,7 @@ class Flow:
                 parameters=parameters,
             )
             result = await self._run(client, args, kwargs)
+
         return PrefectFuture(run_id=flow_run_id, result=result)
 
     def __call__(
