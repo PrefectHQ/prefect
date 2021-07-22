@@ -34,4 +34,4 @@ class StateCreate(PrefectBaseModel):
     name: str
     type: StateType
     timestamp: datetime.datetime
-    message: str = Field("", example="Flow run started")
+    message: str = Field("", example="Some info")

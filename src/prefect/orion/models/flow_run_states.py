@@ -46,7 +46,7 @@ async def read_flow_run_state(session: sa.orm.Session, id: str) -> orm.FlowRunSt
 
     Args:
         session (sa.orm.Session): A database session
-        id (str): a flow state id
+        id (str): a flow run state id
 
     Returns:
         orm.FlowRunState: the flow state
@@ -85,7 +85,7 @@ async def read_most_recent_flow_run_state_by_flow_run_id(
         flow_run_id (str): the flow run id
 
     Returns:
-        List[orm.FlowRunState]: the flow run states
+        orm.FlowRunState: the most recent flow run state
     """
     query = (
         select(orm.FlowRunState)
@@ -102,7 +102,7 @@ async def delete_flow_run_state(session: sa.orm.Session, id: str) -> bool:
 
     Args:
         session (sa.orm.Session): A database session
-        id (str): a flow state id
+        id (str): a flow run state id
 
     Returns:
         bool: whether or not the flow run state was deleted
