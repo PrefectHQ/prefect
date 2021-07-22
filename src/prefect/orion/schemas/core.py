@@ -3,7 +3,7 @@
 """
 
 import datetime
-import json
+from enum import auto
 from typing import List
 from uuid import UUID
 
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.enum import AutoEnum
 
 
 class APIBaseModel(PrefectBaseModel):
@@ -42,3 +43,37 @@ class FlowRun(APIBaseModel):
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     flow_run_metadata: FlowRunMetadata = Field(default_factory=FlowRunMetadata)
+
+
+class StateType(AutoEnum):
+    Running = auto()
+    Completed = auto()
+    Failed = auto()
+    Scheduled = auto()
+    Pending = auto()
+
+
+class StateDetails(PrefectBaseModel):
+    flow_run_id: UUID = None
+    task_run_id: UUID = None
+
+
+class RunDetails(PrefectBaseModel):
+    previous_state_id: UUID = None
+    run_count: int = 0
+    start_time: datetime.datetime = None
+    end_time: datetime.datetime = None
+    total_run_time_seconds: float = 0.0
+    total_time_seconds: float = 0.0
+    last_run_time: float = 0.0
+
+
+class FlowRunState(APIBaseModel):
+    name: str
+    type: StateType
+    timestamp: datetime.datetime
+    message: str = Field("", example="Flow run started")
+    state_details: StateDetails = Field(default_factory=StateDetails)
+    run_details: RunDetails = Field(default_factory=RunDetails)
+    # TODO implement this when we do ResultLocations
+    data_location: dict = Field(default_factory=dict)
