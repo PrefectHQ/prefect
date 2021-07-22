@@ -5,20 +5,43 @@ from prefect.orion import models, schemas
 
 
 class TestCreateFlowRunState:
-    async def test_create_flow_run_state_succeeds(self, database_session):
-        fake_flow_run_id = uuid4()
+    async def test_create_flow_run_state_succeeds(self, flow_run, database_session):
         fake_flow_run_state = schemas.actions.StateCreate(
             name="MyState", type="Running", timestamp=pendulum.now()
         )
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
             flow_run_state=fake_flow_run_state,
-            flow_run_id=fake_flow_run_id,
+            flow_run_id=flow_run.id,
         )
         assert flow_run_state.name == fake_flow_run_state.name
         assert flow_run_state.type == fake_flow_run_state.type
-        assert flow_run_state.flow_run_id == fake_flow_run_id
-        assert flow_run_state.state_details["flow_run_id"] == str(fake_flow_run_id)
+        assert flow_run_state.flow_run_id == flow_run.id
+        assert flow_run_state.state_details["flow_run_id"] == flow_run.id
+
+    async def test_create_flow_run_state_succeeds(self, flow_run, database_session):
+        fake_flow_run_state = schemas.actions.StateCreate(
+            name="MyState",
+            type="Scheduled",
+            timestamp=pendulum.now().subtract(seconds=5),
+        )
+        flow_run_state = await models.flow_run_states.create_flow_run_state(
+            session=database_session,
+            flow_run_state=fake_flow_run_state,
+            flow_run_id=flow_run.id,
+        )
+
+        another_fake_flow_run_state = schemas.actions.StateCreate(
+            name="MyState", type="Running", timestamp=pendulum.now()
+        )
+        another_flow_run_state = await models.flow_run_states.create_flow_run_state(
+            session=database_session,
+            flow_run_state=fake_flow_run_state,
+            flow_run_id=flow_run.id,
+        )
+        assert (
+            another_flow_run_state.run_details["previous_state_id"] == flow_run_state.id
+        )
 
 
 class TestReadFlowRunState:
