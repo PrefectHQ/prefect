@@ -64,7 +64,6 @@ class FlowRunState(APIBaseModel):
     type: StateType
     timestamp: datetime.datetime
     message: str = Field("", example="Flow run started")
-    data: bytes = b""
     state_details: StateDetails = Field(default_factory=StateDetails)
     run_details: RunDetails = Field(default_factory=RunDetails)
     # TODO implement this when we do ResultLocations
