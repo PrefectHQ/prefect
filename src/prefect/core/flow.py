@@ -2,11 +2,11 @@ import inspect
 
 from functools import update_wrapper
 from pydantic import validate_arguments
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Awaitable, Union
 
 
-from prefect.core.utilities import file_hash
-from prefect.core.orion.flow_runs import create_flow_run_sync
+from prefect.core.utilities import file_hash, sync
+from prefect.core.orion.flow_runs import create_flow_run
 from prefect.core.futures import PrefectFuture
 
 from prefect.orion.utilities.functions import parameter_schema, ParameterSchema
@@ -36,15 +36,11 @@ class Flow:
         self.name = name or fn.__name__
 
         self.description = description or inspect.getdoc(fn)
-
-        # TODO: Note that pydantic will now coerce parameter types into the correct type
-        #       even if the user wants failure on inexact type matches. We may want to
-        #       implement a strict runtime typecheck with a configuration flag
-        self.fn = validate_arguments(fn)
         update_wrapper(self, fn)
+        self.fn = fn
 
         # Version defaults to a hash of the function's file
-        flow_file = fn.__globals__.get("__file__")
+        flow_file = fn.__globals__.get("__file__")  # type: ignore
         self.version = version or (file_hash(flow_file) if flow_file else None)
         self.executor = executor
 
@@ -53,16 +49,32 @@ class Flow:
         # Generate a parameter schema from the function
         self.parameters = parameter_schema(self.fn)
 
-    def _run(self, *args, **kwargs):
-        # placeholder method that will eventually manage state
-        result = self.fn(*args, **kwargs)
-        return result
+    async def _run(self, *args, **kwargs):
+        # TODO: Manage state
+        # TODO: Note that pydantic will now coerce parameter types into the correct type
+        #       even if the user wants failure on inexact type matches. We may want to
+        #       implement a strict runtime typecheck with a configuration flag
+        # TODO: `validate_arguments` can throw an error while wrapping `fn` if the
+        #       signature is not pydantic-compatible. We'll want to confirm that it will
+        #       work at Flow.__init__ so we can raise errors to users immediately
+        call_result = validate_arguments(self.fn)(*args, **kwargs)
+        if inspect.iscoroutinefunction(self.fn):
+            return await call_result
+        return call_result
 
-    def __call__(self, *args, **kwargs) -> PrefectFuture:
+    async def _call_async(self, args, kwargs) -> PrefectFuture:
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
-        flow_run_id = create_flow_run_sync(self, parameters=parameters)
-        result = self._run(*args, **kwargs)
+        flow_run_id = await create_flow_run(self, parameters=parameters)
+        result = await self._run(*args, **kwargs)
         return PrefectFuture(run_id=flow_run_id, result=result)
+
+    def __call__(
+        self, *args, **kwargs
+    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+        if inspect.iscoroutinefunction(self.fn):
+            return self._call_async(args, kwargs)
+        else:
+            return sync(self._call_async)(args, kwargs)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
