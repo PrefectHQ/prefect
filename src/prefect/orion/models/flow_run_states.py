@@ -1,9 +1,10 @@
 from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
+from sqlalchemy.sql.functions import mode
 
 from prefect.orion.models import orm
-from prefect.orion import schemas
+from prefect.orion import schemas, models
 from prefect.orion.schemas.core import RunDetails
 
 
@@ -23,7 +24,7 @@ async def create_flow_run_state(
         orm.FlowRunState: the newly-created flow run state
     """
     # carry over RunDetails from the most recent state
-    most_recent_state = await read_most_recent_flow_run_state_by_flow_run_id(
+    most_recent_state = await models.flow_runs.read_current_state(
         session=session, flow_run_id=flow_run_id
     )
     if most_recent_state is not None:
