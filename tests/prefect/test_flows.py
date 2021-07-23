@@ -5,8 +5,8 @@ import pytest
 
 from prefect import flow
 from prefect.client import OrionClient, read_flow_run
-from prefect.core.flow import Flow
-from prefect.core.futures import PrefectFuture
+from prefect.flows import Flow
+from prefect.futures import PrefectFuture
 from prefect.utilities import file_hash
 
 
