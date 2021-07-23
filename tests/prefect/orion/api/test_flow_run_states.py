@@ -8,9 +8,7 @@ class TestCreateFlowRunState:
     async def test_create_flow_run_state(self, flow_run, client, database_session):
         flow_run_state_data = {
             "flow_run_id": flow_run.id,
-            "flow_run_state": schemas.actions.StateCreate(
-                name="MyState", type="Running", timestamp=pendulum.now()
-            ).json_dict(),
+            "flow_run_state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
         }
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
         assert response.status_code == 200
@@ -27,9 +25,7 @@ class TestReadFlowRunStateById:
         # create a flow run state to read
         flow_run_state_data = {
             "flow_run_id": flow_run.id,
-            "flow_run_state": schemas.actions.StateCreate(
-                name="MyState", type="Running", timestamp=pendulum.now()
-            ).json_dict(),
+            "flow_run_state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
         }
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
 
