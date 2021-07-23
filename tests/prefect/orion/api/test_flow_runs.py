@@ -72,3 +72,17 @@ class TestDeleteFlowRuns:
     async def test_delete_flow_run_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/flow_runs/{uuid4()}")
         assert response.status_code == 404
+
+
+class TestSetFlowRunState:
+    async def test_set_flow_run_state(self, flow_run, client, database_session):
+        await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(type="RUNNING", name="Test State"),
+        )
+
+        state = await models.flow_runs.read_current_state(
+            session=database_session, flow_run_id=flow_run.id
+        )
+        assert state.type.value == "RUNNING"
+        assert state.name == "Test State"
