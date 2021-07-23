@@ -1,7 +1,7 @@
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Body
+from fastapi import Depends, HTTPException, Body, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -59,3 +59,26 @@ async def delete_flow_run(
     if not result:
         raise HTTPException(status_code=404, detail="Flow run not found")
     return result
+
+
+@router.post("/{id}/set_state")
+async def set_flow_run_state(
+    id: str,
+    state: schemas.actions.StateCreate = Body(..., description="The intended state."),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    response: Response = None,
+) -> schemas.responses.SetStateResponse:
+    """Set a flow run state, invoking any orchestration rules."""
+
+    # create the state
+    await models.flow_run_states.create_flow_run_state(
+        session=session, flow_run_id=id, state=state
+    )
+    # set the 201 because a new state was created
+    response.status_code = status.HTTP_201_CREATED
+
+    # indicate the state was accepted
+    return schemas.responses.SetStateResponse(
+        status=schemas.responses.SetStateStatus.ACCEPT,
+        new_state=None,
+    )
