@@ -464,7 +464,12 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
 
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
-def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
+@pytest.mark.parametrize("docker_engine_version", ["20.10.0", "19.1.1"])
+def test_docker_agent_deploy_flow_run_config(
+    api, run_kind, has_docker_storage, docker_engine_version
+):
+    api.version.return_value = {"Version": docker_engine_version}
+
     if has_docker_storage:
         storage = Docker(
             registry_url="testing", image_name="on-storage", image_tag="tag"
@@ -479,7 +484,6 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
         host_config = {"auto_remove": False, "shm_size": "128m"}
         exp_host_config = {
             "auto_remove": False,
-            "extra_hosts": {"host.docker.internal": "host-gateway"},
             "shm_size": "128m",
         }
         run = DockerRun(image=image, env=env, host_config=host_config)
@@ -488,9 +492,11 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
         host_config = {}
         exp_host_config = {
             "auto_remove": True,
-            "extra_hosts": {"host.docker.internal": "host-gateway"},
         }
         run = None if run_kind == "missing" else UniversalRun()
+
+    if docker_engine_version == "20.10.0":
+        exp_host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
     agent = DockerAgent()
     agent.deploy_flow(
