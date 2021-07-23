@@ -1,8 +1,10 @@
+# import prefect
 from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
 
 from prefect.orion import api
+from prefect.orion.schemas import schedules
 
 app = FastAPI(title="Prefect Orion", version="alpha")
 
@@ -19,6 +21,7 @@ app.add_middleware(
 app.include_router(api.flows.router)
 app.include_router(api.flow_runs.router)
 app.include_router(api.task_runs.router)
+app.include_router(api.flow_run_states.router)
 
 
 @app.get("/hello", tags=["debug"])
