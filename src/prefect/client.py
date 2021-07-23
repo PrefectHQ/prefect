@@ -1,15 +1,15 @@
 from functools import wraps
 from types import TracebackType
-from typing import Any, Dict, Iterable, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Type
 
 import httpx
 
-from prefect.utilities import sync
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
+from prefect.utilities import sync
 
 if TYPE_CHECKING:
-    from prefect.core import Flow
+    from prefect.flows import Flow
 
 
 class OrionClient:
