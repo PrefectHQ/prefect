@@ -21,14 +21,14 @@ async def create_task_run(
     return await models.task_runs.create_task_run(session=session, task_run=task_run)
 
 
-@router.get("/{task_run_id}")
+@router.get("/{id}")
 async def read_task_run(
-    task_run_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
 ) -> schemas.core.TaskRun:
     """
     Get a task run by id
     """
-    task_run = await models.task_runs.read_task_run(session=session, id=task_run_id)
+    task_run = await models.task_runs.read_task_run(session=session, id=id)
     if not task_run:
         raise HTTPException(status_code=404, detail="Task not found")
     return task_run
@@ -47,14 +47,14 @@ async def read_task_runs(
     )
 
 
-@router.delete("/{task_run_id}", status_code=204)
+@router.delete("/{id}", status_code=204)
 async def delete_task_run(
-    task_run_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
 ):
     """
     Delete a task run by id
     """
-    result = await models.task_runs.delete_task_run(session=session, id=task_run_id)
+    result = await models.task_runs.delete_task_run(session=session, id=id)
     if not result:
         raise HTTPException(status_code=404, detail="Task not found")
     return result
