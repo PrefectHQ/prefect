@@ -48,9 +48,11 @@ async def flow_run(database_session, flow):
 
 @pytest.fixture
 async def task_run(database_session, flow_run):
-    return await models.flow_runs.create_flow_run(
-        session=database_session,
-        flow_run=schemas.actions.TaskRunCreate(flow_run_id=flow_run.id),
+    fake_task_run = schemas.actions.TaskRunCreate(
+        flow_run_id=flow_run.id, task_key="my-key"
+    )
+    return await models.task_runs.create_task_run(
+        session=database_session, task_run=fake_task_run
     )
 
 
