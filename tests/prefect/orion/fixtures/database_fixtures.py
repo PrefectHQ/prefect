@@ -54,13 +54,13 @@ async def flow_run_states(database_session, flow_run):
     )
     scheduled_flow_run_state = await models.flow_run_states.create_flow_run_state(
         session=database_session,
-        flow_run_state=scheduled_state,
         flow_run_id=flow_run.id,
+        state=scheduled_state,
     )
     running_state = schemas.actions.StateCreate(type="RUNNING")
     running_flow_run_state = await models.flow_run_states.create_flow_run_state(
         session=database_session,
-        flow_run_state=running_state,
         flow_run_id=flow_run.id,
+        state=running_state,
     )
     return [scheduled_flow_run_state, running_flow_run_state]

@@ -9,8 +9,8 @@ class TestCreateFlowRunState:
         fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
-            flow_run_state=fake_flow_run_state,
             flow_run_id=flow_run.id,
+            state=fake_flow_run_state,
         )
         assert flow_run_state.name == fake_flow_run_state.name
         assert flow_run_state.type == fake_flow_run_state.type
@@ -23,15 +23,15 @@ class TestCreateFlowRunState:
         )
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
-            flow_run_state=fake_flow_run_state,
             flow_run_id=flow_run.id,
+            state=fake_flow_run_state,
         )
 
         another_fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         another_flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
-            flow_run_state=fake_flow_run_state,
             flow_run_id=flow_run.id,
+            state=fake_flow_run_state,
         )
         assert (
             another_flow_run_state.run_details["previous_state_id"] == flow_run_state.id
@@ -44,8 +44,8 @@ class TestReadFlowRunState:
         fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
-            flow_run_state=fake_flow_run_state,
             flow_run_id=uuid4(),
+            state=fake_flow_run_state,
         )
         read_flow_run_state = await models.flow_run_states.read_flow_run_state(
             session=database_session, id=flow_run_state.id
@@ -87,8 +87,8 @@ class TestDeleteFlowRunState:
         fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
-            flow_run_state=fake_flow_run_state,
             flow_run_id=uuid4(),
+            state=fake_flow_run_state,
         )
 
         assert await models.flow_run_states.delete_flow_run_state(
