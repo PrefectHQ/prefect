@@ -26,13 +26,15 @@ class TestReadFlowRun:
         )
 
         read_flow_run = await models.flow_runs.read_flow_run(
-            session=database_session, id=flow_run.id
+            session=database_session, flow_run_id=flow_run.id
         )
         assert flow_run == read_flow_run
 
     async def test_read_flow_run_returns_none_if_does_not_exist(self, database_session):
         assert (
-            await models.flow_runs.read_flow_run(session=database_session, id=uuid4())
+            await models.flow_runs.read_flow_run(
+                session=database_session, flow_run_id=uuid4()
+            )
         ) is None
 
 
@@ -98,13 +100,13 @@ class TestDeleteFlowRun:
         )
 
         assert await models.flow_runs.delete_flow_run(
-            session=database_session, id=flow_run.id
+            session=database_session, flow_run_id=flow_run.id
         )
 
         # make sure the flow run is deleted
         assert (
             await models.flow_runs.read_flow_run(
-                session=database_session, id=flow_run.id
+                session=database_session, flow_run_id=flow_run.id
             )
         ) is None
 
@@ -112,5 +114,7 @@ class TestDeleteFlowRun:
         self, database_session
     ):
         assert not (
-            await models.flow_runs.delete_flow_run(session=database_session, id=uuid4())
+            await models.flow_runs.delete_flow_run(
+                session=database_session, flow_run_id=uuid4()
+            )
         )
