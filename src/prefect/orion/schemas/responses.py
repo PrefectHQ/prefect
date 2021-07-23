@@ -13,4 +13,4 @@ class SetStateStatus(AutoEnum):
 
 class SetStateResponse(PrefectBaseModel):
     status: SetStateStatus
-    state: State = None
+    new_state: State = None

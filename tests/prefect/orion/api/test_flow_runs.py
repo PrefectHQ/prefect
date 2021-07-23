@@ -76,10 +76,13 @@ class TestDeleteFlowRuns:
 
 class TestSetFlowRunState:
     async def test_set_flow_run_state(self, flow_run, client, database_session):
-        await client.post(
+        response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(type="RUNNING", name="Test State"),
         )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+        assert response.json()["new_state"] is None
 
         state = await models.flow_runs.read_current_state(
             session=database_session, flow_run_id=flow_run.id
