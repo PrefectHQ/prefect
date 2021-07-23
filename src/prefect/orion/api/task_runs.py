@@ -14,7 +14,7 @@ router = OrionRouter(prefix="/task_runs", tags=["task_runs"])
 async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.api.TaskRun:
+) -> schemas.core.TaskRun:
     """
     Create a task run
     """
@@ -24,7 +24,7 @@ async def create_task_run(
 @router.get("/{task_run_id}")
 async def read_task_run(
     task_run_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
-) -> schemas.api.TaskRun:
+) -> schemas.core.TaskRun:
     """
     Get a task run by id
     """
@@ -34,18 +34,19 @@ async def read_task_run(
     return task_run
 
 
-@router.get("/")
-async def read_task_runs(
-    offset: int = 0,
-    limit: int = 10,
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.api.TaskRun]:
-    """
-    Query for task runs
-    """
-    return await models.task_runs.read_task_runs(
-        session=session, offset=offset, limit=limit
-    )
+# TODO - whats the access pattern here?
+# @router.get("/")
+# async def read_task_runs(
+#     offset: int = 0,
+#     limit: int = 10,
+#     session: sa.orm.Session = Depends(dependencies.get_session),
+# ) -> List[schemas.core.TaskRun]:
+#     """
+#     Query for task runs
+#     """
+#     return await models.task_runs.read_task_runs(
+#         session=session, offset=offset, limit=limit
+#     )
 
 
 @router.delete("/{task_run_id}", status_code=204)
