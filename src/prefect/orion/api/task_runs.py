@@ -34,19 +34,17 @@ async def read_task_run(
     return task_run
 
 
-# TODO - whats the access pattern here?
-# @router.get("/")
-# async def read_task_runs(
-#     offset: int = 0,
-#     limit: int = 10,
-#     session: sa.orm.Session = Depends(dependencies.get_session),
-# ) -> List[schemas.core.TaskRun]:
-#     """
-#     Query for task runs
-#     """
-#     return await models.task_runs.read_task_runs(
-#         session=session, offset=offset, limit=limit
-#     )
+@router.get("/")
+async def read_task_runs(
+    flow_run_id: str,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[schemas.core.TaskRun]:
+    """
+    Query for task runs
+    """
+    return await models.task_runs.read_task_runs(
+        session=session, flow_run_id=flow_run_id
+    )
 
 
 @router.delete("/{task_run_id}", status_code=204)

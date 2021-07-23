@@ -20,11 +20,13 @@ async def read_task_run(session: sa.orm.Session, id: str) -> orm.TaskRun:
 
 
 async def read_task_runs(
-    session: sa.orm.Session,
-    offset: int = 0,
-    limit: int = 10,
+    session: sa.orm.Session, flow_run_id: str
 ) -> List[orm.TaskRun]:
-    query = select(orm.TaskRun).offset(offset).limit(limit).order_by(orm.TaskRun.id)
+    query = (
+        select(orm.TaskRun)
+        .filter(orm.TaskRun.flow_run_id == flow_run_id)
+        .order_by(orm.TaskRun.task_key)
+    )
     result = await session.execute(query)
     return result.scalars().all()
 
