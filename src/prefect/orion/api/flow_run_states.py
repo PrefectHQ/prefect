@@ -26,7 +26,7 @@ async def create_flow_run_state(
 @router.get("/{id}")
 async def read_flow_run_state(
     id: str, session: sa.orm.Session = Depends(dependencies.get_session)
-) -> schemas.core.FlowRunState:
+) -> schemas.core.State:
     """
     Get a flow run state by id
     """
