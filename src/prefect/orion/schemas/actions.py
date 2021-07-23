@@ -2,12 +2,9 @@
 Reduced schemas for accepting API actions
 """
 
-<<<<<<< HEAD
 from typing import List, Dict
-=======
 import datetime
 from typing import List
->>>>>>> 6775a574ae15dad00e3f05a8ce7f1e9826c3e889
 from uuid import UUID
 import datetime
 
@@ -15,11 +12,8 @@ from pydantic import Field
 
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel
-<<<<<<< HEAD
 from prefect.orion.schemas.api import TaskRunMetadata
-=======
 from prefect.orion.schemas.core import FlowRunMetadata, StateType
->>>>>>> 6775a574ae15dad00e3f05a8ce7f1e9826c3e889
 
 
 class FlowCreate(PrefectBaseModel):
