@@ -24,17 +24,17 @@ async def create_flow_run(
     return new_flow_run
 
 
-async def read_flow_run(session: sa.orm.Session, id: str) -> orm.FlowRun:
-    """Reads a flow run by id
+async def read_flow_run(session: sa.orm.Session, flow_run_id: str) -> orm.FlowRun:
+    """Reads a flow run by flow_run_id
 
     Args:
         session (sa.orm.Session): A database session
-        id (str): a flow run id
+        flow_run_id (str): a flow run id
 
     Returns:
         orm.FlowRun: the flow run
     """
-    return await session.get(orm.FlowRun, id)
+    return await session.get(orm.FlowRun, flow_run_id)
 
 
 async def read_flow_runs(
@@ -79,15 +79,17 @@ async def read_current_state(
     return result.scalars().first()
 
 
-async def delete_flow_run(session: sa.orm.Session, id: str) -> bool:
-    """Delete a flow run by id
+async def delete_flow_run(session: sa.orm.Session, flow_run_id: str) -> bool:
+    """Delete a flow run by flow_run_id
 
     Args:
         session (sa.orm.Session): A database session
-        id (str): a flow run id
+        flow_run_id (str): a flow run id
 
     Returns:
         bool: whether or not the flow run was deleted
     """
-    result = await session.execute(delete(orm.FlowRun).where(orm.FlowRun.id == id))
+    result = await session.execute(
+        delete(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
+    )
     return result.rowcount > 0

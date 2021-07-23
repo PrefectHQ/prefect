@@ -13,7 +13,7 @@ class TestCreateFlowRun:
         assert response.json()["id"]
 
         flow_run = await models.flow_runs.read_flow_run(
-            session=database_session, id=response.json()["id"]
+            session=database_session, flow_run_id=response.json()["id"]
         )
         assert flow_run.flow_id == flow.id
 
@@ -63,7 +63,7 @@ class TestDeleteFlowRuns:
 
         # make sure it's deleted
         run = await models.flow_runs.read_flow_run(
-            session=database_session, id=flow_run.id
+            session=database_session, flow_run_id=flow_run.id
         )
         assert run is None
         response = await client.get(f"/flow_runs/{flow_run.id}")
