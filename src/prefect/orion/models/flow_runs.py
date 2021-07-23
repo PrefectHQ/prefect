@@ -25,7 +25,7 @@ async def create_flow_run(
 
 
 async def read_flow_run(session: sa.orm.Session, flow_run_id: str) -> orm.FlowRun:
-    """Reads a flow run by flow_run_id
+    """Reads a flow run by id
 
     Args:
         session (sa.orm.Session): A database session
