@@ -1,26 +1,23 @@
-"""
-"Full" schemas for working with data objects internally
-"""
-
 import datetime
 from enum import auto
 from typing import List
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+import pendulum
+from pydantic import Field, validator
 
+from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.orion.utilities.enum import AutoEnum
 
 
 class APIBaseModel(PrefectBaseModel):
     class Config:
         orm_mode = True
 
-    id: UUID
-    created: datetime.datetime
-    updated: datetime.datetime
+    id: UUID = None
+    created: datetime.datetime = None
+    updated: datetime.datetime = None
 
 
 class Flow(APIBaseModel):
@@ -46,11 +43,11 @@ class FlowRun(APIBaseModel):
 
 
 class StateType(AutoEnum):
-    Running = auto()
-    Completed = auto()
-    Failed = auto()
-    Scheduled = auto()
-    Pending = auto()
+    RUNNING = auto()
+    COMPLETED = auto()
+    FAILED = auto()
+    SCHEDULED = auto()
+    PENDING = auto()
 
 
 class StateDetails(PrefectBaseModel):
@@ -68,12 +65,22 @@ class RunDetails(PrefectBaseModel):
     last_run_time: float = 0.0
 
 
-class FlowRunState(APIBaseModel):
-    name: str
+class _BaseState(PrefectBaseModel):
     type: StateType
-    timestamp: datetime.datetime
-    message: str = Field("", example="Flow run started")
+    name: str = None
+    timestamp: datetime.datetime = Field(default_factory=pendulum.now)
+    message: str = Field(None, example="Run started")
+    data: bytes = None
+
+    @validator("name", pre=True, always=True)
+    def default_name_from_type(cls, v, *, values, **kwargs):
+        """If a name is not provided, use the type"""
+        if v is None:
+            v = values.get("type").value.capitalize()
+        return v
+
+
+class State(_BaseState, APIBaseModel):
+    data_location: dict = None
     state_details: StateDetails = Field(default_factory=StateDetails)
     run_details: RunDetails = Field(default_factory=RunDetails)
-    # TODO implement this when we do ResultLocations
-    data_location: dict = Field(default_factory=dict)

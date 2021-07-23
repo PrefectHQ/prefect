@@ -6,9 +6,7 @@ from prefect.orion import models, schemas
 
 class TestCreateFlowRunState:
     async def test_create_flow_run_state_succeeds(self, flow_run, database_session):
-        fake_flow_run_state = schemas.actions.StateCreate(
-            name="MyState", type="Running", timestamp=pendulum.now()
-        )
+        fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
             flow_run_id=flow_run.id,
@@ -21,9 +19,7 @@ class TestCreateFlowRunState:
 
     async def test_create_flow_run_state_succeeds(self, flow_run, database_session):
         fake_flow_run_state = schemas.actions.StateCreate(
-            name="MyState",
-            type="Scheduled",
-            timestamp=pendulum.now().subtract(seconds=5),
+            type="SCHEDULED",
         )
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
@@ -31,9 +27,7 @@ class TestCreateFlowRunState:
             state=fake_flow_run_state,
         )
 
-        another_fake_flow_run_state = schemas.actions.StateCreate(
-            name="MyState", type="Running", timestamp=pendulum.now()
-        )
+        another_fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         another_flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
             flow_run_id=flow_run.id,
@@ -47,9 +41,7 @@ class TestCreateFlowRunState:
 class TestReadFlowRunState:
     async def test_read_flow_run_state(self, database_session):
         # create a flow run to read
-        fake_flow_run_state = schemas.actions.StateCreate(
-            name="MyState", type="Running", timestamp=pendulum.now()
-        )
+        fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
             flow_run_id=uuid4(),
@@ -92,9 +84,7 @@ class TestReadFlowRunStates:
 class TestDeleteFlowRunState:
     async def test_delete_flow_run_state(self, database_session):
         # create a flow run to read
-        fake_flow_run_state = schemas.actions.StateCreate(
-            name="MyState", type="Running", timestamp=pendulum.now()
-        )
+        fake_flow_run_state = schemas.actions.StateCreate(type="RUNNING")
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
             flow_run_id=uuid4(),
