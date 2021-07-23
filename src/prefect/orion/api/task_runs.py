@@ -7,7 +7,7 @@ from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
-router = OrionRouter(prefix="/task_runs", tags=["task_runs"])
+router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
 
 
 @router.post("/")
