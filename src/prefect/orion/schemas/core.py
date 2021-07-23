@@ -77,3 +77,20 @@ class FlowRunState(APIBaseModel):
     run_details: RunDetails = Field(default_factory=RunDetails)
     # TODO implement this when we do ResultLocations
     data_location: dict = Field(default_factory=dict)
+
+class TaskRunMetadata(PrefectBaseModel):
+    is_subflow: bool = False
+
+class TaskRun(APIBaseModel):
+    flow_run_id: UUID
+    task_key: str
+    dynamic_key: str
+    cache_key: str
+    cache_expiration: datetime.datetime
+    task_version: str
+    empirical_policy: dict = Field(default_factory=dict)
+    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
+    inputs: ParameterSchema = Field(default_factory=ParameterSchema)
+    upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
+    task_run_metadata: TaskRunMetadata = Field(default_factory=TaskRunMetadata)
+
