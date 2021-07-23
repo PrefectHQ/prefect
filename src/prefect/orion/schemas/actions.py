@@ -10,7 +10,7 @@ from pydantic import Field
 
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.orion.schemas.core import FlowRunMetadata, StateType
+from prefect.orion.schemas.core import FlowRunMetadata, _BaseState
 
 
 class FlowCreate(PrefectBaseModel):
@@ -29,9 +29,5 @@ class FlowRunCreate(PrefectBaseModel):
     flow_run_metadata: FlowRunMetadata = Field(default_factory=FlowRunMetadata)
 
 
-class StateCreate(PrefectBaseModel):
-    name: str
-    type: StateType
-    timestamp: datetime.datetime
-    message: str = Field("", example="Some info")
-    data: bytes = b""
+class StateCreate(_BaseState):
+    pass
