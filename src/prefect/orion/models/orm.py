@@ -24,18 +24,18 @@ class FlowRun(Base):
 
 class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
-    name = Column(String)
     type = Column(Enum(StateType), nullable=False, index=True)
     timestamp = Column(
         sa.TIMESTAMP(timezone=True), nullable=False, server_default=NowDefault()
     )
+    name = Column(String)
     message = Column(String)
     state_details = Column(JSON, server_default="{}", default=dict, nullable=False)
     run_details = Column(JSON, server_default="{}", default=dict, nullable=False)
     data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
 
     __table__args__ = sa.Index(
-        "flow_run_state_flow_run_id_timestamp_desc_idx", flow_run_id, timestamp.desc()
+        "ix_flow_run_state_flow_run_id_timestamp_desc", flow_run_id, timestamp.desc()
     )
 
 
