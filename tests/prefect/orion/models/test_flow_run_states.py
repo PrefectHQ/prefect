@@ -48,7 +48,7 @@ class TestReadFlowRunState:
             state=fake_flow_run_state,
         )
         read_flow_run_state = await models.flow_run_states.read_flow_run_state(
-            session=database_session, id=flow_run_state.id
+            session=database_session, flow_run_state_id=flow_run_state.id
         )
         assert flow_run_state == read_flow_run_state
 
@@ -57,7 +57,7 @@ class TestReadFlowRunState:
     ):
         assert (
             await models.flow_run_states.read_flow_run_state(
-                session=database_session, id=uuid4()
+                session=database_session, flow_run_state_id=uuid4()
             )
         ) is None
 
@@ -92,13 +92,13 @@ class TestDeleteFlowRunState:
         )
 
         assert await models.flow_run_states.delete_flow_run_state(
-            session=database_session, id=flow_run_state.id
+            session=database_session, flow_run_state_id=flow_run_state.id
         )
 
         # make sure the flow run state is deleted
         assert (
             await models.flow_run_states.read_flow_run_state(
-                session=database_session, id=flow_run_state.id
+                session=database_session, flow_run_state_id=flow_run_state.id
             )
         ) is None
 
@@ -107,6 +107,6 @@ class TestDeleteFlowRunState:
     ):
         assert not (
             await models.flow_run_states.delete_flow_run_state(
-                session=database_session, id=uuid4()
+                session=database_session, flow_run_state_id=uuid4()
             )
         )

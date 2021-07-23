@@ -15,7 +15,7 @@ class TestCreateFlowRunState:
         assert response.json()["id"]
 
         flow_run_state = await models.flow_run_states.read_flow_run_state(
-            session=database_session, id=response.json()["id"]
+            session=database_session, flow_run_state_id=response.json()["id"]
         )
         assert flow_run_state.flow_run_id == flow_run.id
 
