@@ -1,7 +1,7 @@
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Response, status
+from fastapi import Depends, HTTPException, Response, status, Path
 
 from prefect.orion import schemas, models
 from prefect.orion.api import dependencies
@@ -31,12 +31,13 @@ async def create_flow(
 
 @router.get("/{id}")
 async def read_flow(
-    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    flow_id: str = Path(..., description="The flow id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Flow:
     """
     Get a flow by id
     """
-    flow = await models.flows.read_flow(session=session, id=id)
+    flow = await models.flows.read_flow(session=session, flow_id=flow_id)
     if not flow:
         raise HTTPException(status_code=404, detail="Flow not found")
     return flow
@@ -57,12 +58,13 @@ async def read_flows(
 
 @router.delete("/{id}", status_code=204)
 async def delete_flow(
-    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    flow_id: str = Path(..., description="The flow id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
     Delete a flow by id
     """
-    result = await models.flows.delete_flow(session=session, id=id)
+    result = await models.flows.delete_flow(session=session, flow_id=flow_id)
     if not result:
         raise HTTPException(status_code=404, detail="Flow not found")
     return result
