@@ -14,7 +14,7 @@ async def create_flow_run_state(
     flow_run_state: schemas.actions.StateCreate,
     flow_run_id: str = Body(...),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.FlowRunState:
+) -> schemas.core.State:
     """
     Create a flow run state, disregarding orchestration logic
     """
@@ -26,7 +26,7 @@ async def create_flow_run_state(
 @router.get("/{flow_run_state_id}")
 async def read_flow_run_state(
     flow_run_state_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
-) -> schemas.core.FlowRunState:
+) -> schemas.core.State:
     """
     Get a flow run state by id
     """
@@ -42,7 +42,7 @@ async def read_flow_run_state(
 async def read_flow_run_states(
     flow_run_id: str,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.core.FlowRunState]:
+) -> List[schemas.core.State]:
     """
     Get states associated with a flow run
     """
