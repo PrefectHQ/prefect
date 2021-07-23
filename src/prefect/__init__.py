@@ -1,3 +1,1 @@
-import prefect.orion
-
-from .core import flow
+from prefect.core.flow import flow

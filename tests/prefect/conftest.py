@@ -1,16 +1,18 @@
-import pytest
 import inspect
-from httpx import AsyncClient
+from unittest.mock import MagicMock
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+import pytest
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from prefect.orion.api.server import app
+from prefect.client import OrionClient
 from prefect.orion.api.dependencies import get_session
+from prefect.orion.api.server import app
 from prefect.orion.utilities.database import reset_db
 from prefect.orion.utilities.settings import Settings
 
-from .fixtures.database_fixtures import *
+from .orion.fixtures.database_fixtures import *
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -40,3 +42,12 @@ async def client(database_session):
 
     async with AsyncClient(app=app, base_url="http://test") as async_client:
         yield async_client
+
+
+@pytest.fixture
+async def orion_client(client, monkeypatch):
+    async with OrionClient(http_client=client) as user_client:
+        monkeypatch.setattr(
+            "prefect.client.OrionClient", MagicMock(return_value=user_client)
+        )
+        yield user_client

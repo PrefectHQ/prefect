@@ -4,6 +4,9 @@ from pydantic import BaseModel
 
 
 class PrefectBaseModel(BaseModel):
+    class Config:
+        extra = "forbid"
+
     def json_dict(self, *args, **kwargs) -> dict:
         """Returns a dict of JSON-compatible values, equivalent
         to `json.loads(self.json())`.
