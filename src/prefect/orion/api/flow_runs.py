@@ -21,14 +21,14 @@ async def create_flow_run(
     return await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
 
 
-@router.get("/{flow_run_id}")
+@router.get("/{id}")
 async def read_flow_run(
-    flow_run_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
 ) -> schemas.core.FlowRun:
     """
     Get a flow run by id
     """
-    flow_run = await models.flow_runs.read_flow_run(session=session, id=flow_run_id)
+    flow_run = await models.flow_runs.read_flow_run(session=session, id=id)
     if not flow_run:
         raise HTTPException(status_code=404, detail="Flow run not found")
     return flow_run
@@ -48,14 +48,14 @@ async def read_flow_runs(
     )
 
 
-@router.delete("/{flow_run_id}", status_code=204)
+@router.delete("/{id}", status_code=204)
 async def delete_flow_run(
-    flow_run_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
 ):
     """
     Delete a flow run by id
     """
-    result = await models.flow_runs.delete_flow_run(session=session, id=flow_run_id)
+    result = await models.flow_runs.delete_flow_run(session=session, id=id)
     if not result:
         raise HTTPException(status_code=404, detail="Flow run not found")
     return result
