@@ -10,15 +10,15 @@ from prefect.orion.schemas.core import RunDetails
 
 async def create_flow_run_state(
     session: sa.orm.Session,
-    flow_run_state: schemas.actions.StateCreate,
     flow_run_id: str,
+    state: schemas.actions.StateCreate,
 ) -> orm.FlowRunState:
     """Creates a new flow run state
 
     Args:
         session (sa.orm.Session): a database session
-        flow_run_state (schemas.actions.FlowRunState): a flow run state model
         flow_run_id (str): the flow run id
+        state (schemas.actions.FlowRunState): a flow run state model
 
     Returns:
         orm.FlowRunState: the newly-created flow run state
@@ -38,7 +38,7 @@ async def create_flow_run_state(
 
     # create the new flow run state
     new_flow_run_state = orm.FlowRunState(
-        **flow_run_state.dict(exclude={"data"}),
+        **state.dict(exclude={"data"}),
         flow_run_id=flow_run_id,
         state_details=state_details,
         run_details=run_details

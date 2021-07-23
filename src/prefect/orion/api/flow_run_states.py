@@ -11,27 +11,27 @@ router = OrionRouter(prefix="/flow_run_states", tags=["Flow Run States"])
 
 @router.post("/")
 async def create_flow_run_state(
-    flow_run_state: schemas.actions.StateCreate,
     flow_run_id: str = Body(...),
+    state: schemas.actions.StateCreate = Body(...),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.FlowRunState:
+) -> schemas.core.State:
     """
     Create a flow run state, disregarding orchestration logic
     """
     return await models.flow_run_states.create_flow_run_state(
-        session=session, flow_run_state=flow_run_state, flow_run_id=flow_run_id
+        session=session, state=state, flow_run_id=flow_run_id
     )
 
 
-@router.get("/{flow_run_state_id}")
+@router.get("/{id}")
 async def read_flow_run_state(
-    flow_run_state_id: str, session: sa.orm.Session = Depends(dependencies.get_session)
-) -> schemas.core.FlowRunState:
+    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+) -> schemas.core.State:
     """
     Get a flow run state by id
     """
     flow_run_state = await models.flow_run_states.read_flow_run_state(
-        session=session, id=flow_run_state_id
+        session=session, id=id
     )
     if not flow_run_state:
         raise HTTPException(status_code=404, detail="Flow run state not found")
@@ -42,7 +42,7 @@ async def read_flow_run_state(
 async def read_flow_run_states(
     flow_run_id: str,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.core.FlowRunState]:
+) -> List[schemas.core.State]:
     """
     Get states associated with a flow run
     """
