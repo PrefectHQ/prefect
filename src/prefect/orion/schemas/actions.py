@@ -44,5 +44,6 @@ class TaskRunCreate(PrefectBaseModel):
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_metadata: TaskRunMetadata = Field(default_factory=TaskRunMetadata)
 
+
 class StateCreate(_BaseState):
     pass
