@@ -18,13 +18,15 @@ class TestCreateTaskRun:
 class TestReadTaskRun:
     async def test_read_task_run(self, task_run, database_session):
         read_task_run = await models.task_runs.read_task_run(
-            session=database_session, id=task_run.id
+            session=database_session, task_run_id=task_run.id
         )
         assert task_run == read_task_run
 
     async def test_read_task_run_returns_none_if_does_not_exist(self, database_session):
         assert (
-            await models.task_runs.read_task_run(session=database_session, id=uuid4())
+            await models.task_runs.read_task_run(
+                session=database_session, task_run_id=uuid4()
+            )
         ) is None
 
 
@@ -61,13 +63,13 @@ class TestReadTaskRuns:
 class TestDeleteTaskRun:
     async def test_delete_task_run(self, task_run, database_session):
         assert await models.task_runs.delete_task_run(
-            session=database_session, id=task_run.id
+            session=database_session, task_run_id=task_run.id
         )
 
         # make sure the task run is deleted
         assert (
             await models.task_runs.read_task_run(
-                session=database_session, id=task_run.id
+                session=database_session, task_run_id=task_run.id
             )
         ) is None
 
@@ -75,5 +77,7 @@ class TestDeleteTaskRun:
         self, database_session
     ):
         assert not (
-            await models.task_runs.delete_task_run(session=database_session, id=uuid4())
+            await models.task_runs.delete_task_run(
+                session=database_session, task_run_id=uuid4()
+            )
         )
