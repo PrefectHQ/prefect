@@ -1,3 +1,4 @@
+import warnings
 import json
 from typing import List
 from pydantic import BaseModel, create_model
@@ -43,7 +44,7 @@ def pydantic_subclass(
         assert not hasattr(Child(), 'y')
     """
 
-    # collect required field names
+    # collect field names
     field_names = set(include_fields or base.__fields__)
     excluded_fields = set(exclude_fields or [])
     if field_names.difference(base.__fields__):
@@ -59,8 +60,23 @@ def pydantic_subclass(
     field_names.difference_update(excluded_fields)
 
     # create model
+    #
+    # this approach takes advantage of the fact that `create_model` passes all
+    # kwargs to the new class's `namespace`, therefore overwriting the
+    # `__fields__` attribute inherited from `__base__`. Because pydantic *does*
+    # recognize that `__fields__` isn't a standard attribute name, we suppress
+    # the warning it issues. If this implementation stops being supported, we
+    # can revert to the method in https://github.com/PrefectHQ/orion/pull/53.
     new_fields = {k: v for k, v in base.__fields__.items() if k in field_names}
-    new_cls = create_model(name or base.__name__, __base__=base, __fields__=new_fields)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="(fields may not start with an underscore)"
+        )
+        new_cls = create_model(
+            name or base.__name__,
+            __base__=base,
+            __fields__=new_fields,
+        )
 
     return new_cls
 
