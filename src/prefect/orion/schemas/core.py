@@ -49,7 +49,7 @@ class StateType(AutoEnum):
     RETRYING = auto()
     COMPLETED = auto()
     FAILED = auto()
-    CANCELLED = auto()
+    CANCELED = auto()
     AWAITING_RETRY = auto()
 
 
@@ -102,8 +102,8 @@ class State(APIBaseModel):
     def is_failed(self):
         return self.type == StateType.FAILED
 
-    def is_cancelled(self):
-        return self.type == StateType.CANCELLED
+    def is_canceled(self):
+        return self.type == StateType.CANCELED
 
     def is_awaiting_retry(self):
         return self.type == StateType.AWAITING_RETRY
