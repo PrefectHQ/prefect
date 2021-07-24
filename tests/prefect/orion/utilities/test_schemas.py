@@ -24,6 +24,11 @@ class TestPydanticSubclass:
         Child = pydantic_subclass(self.Parent)
         assert Child.__name__ == "Parent"
 
+    def test_pydantic_does_not_issue_warning_when_creating_subclass(self):
+        with pytest.warns(None) as record:
+            pydantic_subclass(self.Parent)
+        assert len(record) == 0
+
     def test_subclass_name(self):
         Child = pydantic_subclass(self.Parent, name="Child")
         assert Child.__name__ == "Child"
