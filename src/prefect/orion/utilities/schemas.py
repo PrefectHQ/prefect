@@ -16,9 +16,13 @@ def pydantic_subclass(
     `create_model` to dynamically generate a new subclass.
 
     Args:
-        cls (pydantic.BaseModel): a Pydantic BaseModel
-        include_fields (List[str]): a set of field names to include. If `None`, all fields are included.
-        exclude_fields (List[str]): a list of field names to exclude. If `None`, no fields are excluded.
+        base (pydantic.BaseModel): a Pydantic BaseModel
+        name (str): a name for the subclass. If not provided
+            it will have the same name as the base class.
+        include_fields (List[str]): a set of field names to include.
+            If `None`, all fields are included.
+        exclude_fields (List[str]): a list of field names to exclude.
+            If `None`, no fields are excluded.
 
     Returns:
         pydantic.BaseModel: a new model subclass that contains only the specified fields.
@@ -60,11 +64,13 @@ def pydantic_subclass(
     field_names.difference_update(excluded_fields)
 
     # create model
-    base.__fields__ = {k: v for k, v in base.__fields__.items() if k in field_names}
-    new_cls = create_model(name or base.__name__, __base__=base)
+    try:
+        base.__fields__ = {k: v for k, v in base.__fields__.items() if k in field_names}
+        new_cls = create_model(name or base.__name__, __base__=base)
 
-    # restore original __fields__
-    base.__fields__ = original_fields
+    finally:
+        # restore original __fields__
+        base.__fields__ = original_fields
 
     return new_cls
 
@@ -92,7 +98,7 @@ class PrefectBaseModel(BaseModel):
             exclude_fields (List[str], optional): fields to exclude
 
         Returns:
-            BaseModel: [description]
+            BaseModel: a subclass of this class
         """
         return pydantic_subclass(
             base=cls,
