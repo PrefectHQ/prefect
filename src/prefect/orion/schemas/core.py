@@ -16,8 +16,8 @@ class APIBaseModel(PrefectBaseModel):
         orm_mode = True
 
     id: UUID = None
-    created: datetime.datetime = None
-    updated: datetime.datetime = None
+    created: datetime.datetime = Field(None, repr=False)
+    updated: datetime.datetime = Field(None, repr=False)
 
 
 class Flow(APIBaseModel):
@@ -43,11 +43,14 @@ class FlowRun(APIBaseModel):
 
 
 class StateType(AutoEnum):
-    RUNNING = auto()
-    COMPLETED = auto()
-    FAILED = auto()
     SCHEDULED = auto()
     PENDING = auto()
+    RUNNING = auto()
+    RETRYING = auto()
+    COMPLETED = auto()
+    FAILED = auto()
+    CANCELED = auto()
+    AWAITING_RETRY = auto()
 
 
 class StateDetails(PrefectBaseModel):
@@ -65,12 +68,14 @@ class RunDetails(PrefectBaseModel):
     last_run_time: float = 0.0
 
 
-class _BaseState(PrefectBaseModel):
+class State(APIBaseModel):
     type: StateType
     name: str = None
-    timestamp: datetime.datetime = Field(default_factory=pendulum.now)
+    timestamp: datetime.datetime = Field(default_factory=pendulum.now, repr=False)
     message: str = Field(None, example="Run started")
-    data: bytes = None
+    data: bytes = Field(None, repr=False)
+    state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
+    run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
 
     @validator("name", pre=True, always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
@@ -79,8 +84,35 @@ class _BaseState(PrefectBaseModel):
             v = values.get("type").value.capitalize()
         return v
 
+    def is_scheduled(self):
+        return self.type in (StateType.SCHEDULED, StateType.AWAITING_RETRY)
 
-class State(_BaseState, APIBaseModel):
-    data_location: dict = None
-    state_details: StateDetails = Field(default_factory=StateDetails)
-    run_details: RunDetails = Field(default_factory=RunDetails)
+    def is_pending(self):
+        return self.type == StateType.PENDING
+
+    def is_running(self):
+        return self.type in (StateType.RUNNING, StateType.RETRYING)
+
+    def is_retrying(self):
+        return self.type == StateType.RETRYING
+
+    def is_completed(self):
+        return self.type == StateType.COMPLETED
+
+    def is_failed(self):
+        return self.type == StateType.FAILED
+
+    def is_canceled(self):
+        return self.type == StateType.CANCELED
+
+    def is_awaiting_retry(self):
+        return self.type == StateType.AWAITING_RETRY
+
+
+def Completed(**kwargs) -> State:
+    """Convenience function for creating `Completed` states.
+
+    Returns:
+        State: a Completed state
+    """
+    return State(type=StateType.COMPLETED, **kwargs)

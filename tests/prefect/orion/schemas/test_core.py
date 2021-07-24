@@ -1,3 +1,4 @@
+import pytest
 import pendulum
 import prefect.orion.schemas.core as core
 
@@ -15,3 +16,51 @@ class TestState:
         dt = pendulum.now()
         state = core.State(type=core.StateType.RUNNING)
         assert state.timestamp > dt
+
+
+class TestStateTypeFunctions:
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_scheduled(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_scheduled() == (
+            state_type in (core.StateType.SCHEDULED, core.StateType.AWAITING_RETRY)
+        )
+
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_pending(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_pending() == (state_type == core.StateType.PENDING)
+
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_running(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_running() == (
+            state_type in (core.StateType.RUNNING, core.StateType.RETRYING)
+        )
+
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_retrying(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_retrying() == (state_type == core.StateType.RETRYING)
+
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_completed(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_completed() == (state_type == core.StateType.COMPLETED)
+
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_failed(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_failed() == (state_type == core.StateType.FAILED)
+
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_canceled(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_canceled() == (state_type == core.StateType.CANCELED)
+
+    @pytest.mark.parametrize("state_type", core.StateType)
+    def test_is_awaiting_retry(self, state_type):
+        state = core.State(type=state_type)
+        assert state.is_awaiting_retry() == (
+            state_type == core.StateType.AWAITING_RETRY
+        )

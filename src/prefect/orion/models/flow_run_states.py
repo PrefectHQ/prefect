@@ -33,15 +33,16 @@ async def create_flow_run_state(
     else:
         run_details = RunDetails().json_dict()
 
-    # populate state details
-    state_details = schemas.core.StateDetails(flow_run_id=flow_run_id).json_dict()
+    # ensure flow run id is accurate in state details
+    state.state_details.flow_run_id = flow_run_id
 
     # create the new flow run state
     new_flow_run_state = orm.FlowRunState(
-        **state.dict(exclude={"data"}),
+        **state.dict(exclude={"data", "state_details"}),
         flow_run_id=flow_run_id,
-        state_details=state_details,
-        run_details=run_details
+        run_details=run_details,
+        # provide state details as json
+        state_details=state.state_details.json_dict()
     )
     session.add(new_flow_run_state)
     await session.flush()
