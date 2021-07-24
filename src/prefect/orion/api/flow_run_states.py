@@ -1,6 +1,6 @@
 from typing import List
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Body
+from fastapi import Depends, HTTPException, Body, Path
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -25,13 +25,14 @@ async def create_flow_run_state(
 
 @router.get("/{id}")
 async def read_flow_run_state(
-    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    flow_run_state_id: str = Path(..., description="The flow run state id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.State:
     """
     Get a flow run state by id
     """
     flow_run_state = await models.flow_run_states.read_flow_run_state(
-        session=session, id=id
+        session=session, flow_run_state_id=flow_run_state_id
     )
     if not flow_run_state:
         raise HTTPException(status_code=404, detail="Flow run state not found")
