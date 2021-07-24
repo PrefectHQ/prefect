@@ -29,7 +29,7 @@ async def read_task_run(session: sa.orm.Session, task_run_id: str) -> orm.TaskRu
 
     Args:
         session (sa.orm.Session): a database session
-        id (str): the task run id
+        task_run_id (str): the task run id
 
     Returns:
         orm.TaskRun: the task run
@@ -63,7 +63,7 @@ async def delete_task_run(session: sa.orm.Session, task_run_id: str) -> bool:
 
     Args:
         session (sa.orm.Session): a database session
-        id (str): the task run id to delete
+        task_run_id (str): the task run id to delete
 
     Returns:
         bool: whether or not the task run was deleted
