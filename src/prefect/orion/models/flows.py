@@ -28,17 +28,17 @@ async def create_flow(
     return flow
 
 
-async def read_flow(session: sa.orm.Session, id: str) -> orm.Flow:
+async def read_flow(session: sa.orm.Session, flow_id: str) -> orm.Flow:
     """Reads a flow by id
 
     Args:
         session (sa.orm.Session): A database session
-        id (str): a flow id
+        flow_id (str): a flow id
 
     Returns:
         orm.Flow: the flow
     """
-    return await session.get(orm.Flow, id)
+    return await session.get(orm.Flow, flow_id)
 
 
 async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:
@@ -82,15 +82,15 @@ async def read_flows(
     return result.scalars().all()
 
 
-async def delete_flow(session: sa.orm.Session, id: str) -> bool:
+async def delete_flow(session: sa.orm.Session, flow_id: str) -> bool:
     """Delete a flow by id
 
     Args:
         session (sa.orm.Session): A database session
-        id (str): a flow id
+        flow_id (str): a flow id
 
     Returns:
         bool: whether or not the flow was deleted
     """
-    result = await session.execute(delete(orm.Flow).where(orm.Flow.id == id))
+    result = await session.execute(delete(orm.Flow).where(orm.Flow.id == flow_id))
     return result.rowcount > 0

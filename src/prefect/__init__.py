@@ -1,1 +1,1 @@
-from prefect.core.flow import flow
+from prefect.flows import flow
