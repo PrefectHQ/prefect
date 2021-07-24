@@ -11,15 +11,12 @@ from pydantic import Field
 from prefect.orion.utilities.schemas import pydantic_subclass
 from prefect.orion.schemas.core import State, Flow, FlowRun
 
-
-FlowCreate = pydantic_subclass(
-    Flow,
+FlowCreate = Flow.subclass(
     name="FlowCreate",
     include_fields=["name", "tags", "parameters"],
 )
 
-FlowRunCreate = pydantic_subclass(
-    FlowRun,
+FlowRunCreate = FlowRun.subclass(
     name="FlowRunCreate",
     include_fields=[
         "flow_id",
@@ -32,8 +29,7 @@ FlowRunCreate = pydantic_subclass(
     ],
 )
 
-StateCreate = pydantic_subclass(
-    State,
+StateCreate = State.subclass(
     name="StateCreate",
     include_fields=[
         "type",
