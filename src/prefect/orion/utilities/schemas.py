@@ -71,7 +71,35 @@ def pydantic_subclass(
 
 class PrefectBaseModel(BaseModel):
     class Config:
+        # TODO: enforced during early testing to help catch errors
+        # while models are changing; can be relaxed later.
         extra = "forbid"
+
+    @classmethod
+    def subclass(
+        cls,
+        name: str = None,
+        include_fields: List[str] = None,
+        exclude_fields: List[str] = None,
+    ) -> BaseModel:
+        """Creates a subclass of this model containing only the specified fields.
+
+        See `pydantic_subclass()`.
+
+        Args:
+            name (str, optional): a name for the subclass
+            include_fields (List[str], optional): fields to include
+            exclude_fields (List[str], optional): fields to exclude
+
+        Returns:
+            BaseModel: [description]
+        """
+        return pydantic_subclass(
+            base=cls,
+            name=name,
+            include_fields=include_fields,
+            exclude_fields=exclude_fields,
+        )
 
     def json_dict(self, *args, **kwargs) -> dict:
         """Returns a dict of JSON-compatible values, equivalent

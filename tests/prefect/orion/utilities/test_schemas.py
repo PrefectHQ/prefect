@@ -1,9 +1,9 @@
 import pytest
 import pydantic
-from prefect.orion.utilities.schemas import pydantic_subclass
+from prefect.orion.utilities.schemas import PrefectBaseModel, pydantic_subclass
 
 
-class TestSubclassModel:
+class TestPydanticSubclass:
     class Parent(pydantic.BaseModel):
         class Config:
             extra = "forbid"
@@ -70,3 +70,15 @@ class TestSubclassModel:
             pydantic.ValidationError, match="(extra fields not permitted)"
         ):
             Child(y=5, z=10, q=17)
+
+
+class TestClassmethodSubclass:
+    class Parent(PrefectBaseModel):
+        x: int
+        y: int
+
+    def test_classmethod_creates_subclass(self):
+        Child = self.Parent.subclass("Child", include_fields=["x"])
+        assert Child.__name__ == "Child"
+        assert Child(x=1)
+        assert not hasattr(Child(x=1), "y")
