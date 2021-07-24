@@ -1,3 +1,4 @@
+import warnings
 import json
 from typing import List
 from pydantic import BaseModel, create_model
@@ -42,13 +43,8 @@ def pydantic_subclass(
         assert hasattr(Child(), 'x')
         assert not hasattr(Child(), 'y')
     """
-    # copying a class doesn't work (`base is deepcopy(base)`), so we need to
-    # make sure we don't modify the actual parent class. Instead, we store its
-    # original __fields__ attribute, replace it with a modified one for the
-    # subclass operation, and then restore the original value.
-    original_fields = base.__fields__
 
-    # collect required field names
+    # collect field names
     field_names = set(include_fields or base.__fields__)
     excluded_fields = set(exclude_fields or [])
     if field_names.difference(base.__fields__):
@@ -64,13 +60,23 @@ def pydantic_subclass(
     field_names.difference_update(excluded_fields)
 
     # create model
-    try:
-        base.__fields__ = {k: v for k, v in base.__fields__.items() if k in field_names}
-        new_cls = create_model(name or base.__name__, __base__=base)
-
-    finally:
-        # restore original __fields__
-        base.__fields__ = original_fields
+    #
+    # this approach takes advantage of the fact that `create_model` passes all
+    # kwargs to the new class's `namespace`, therefore overwriting the
+    # `__fields__` attribute inherited from `__base__`. Because pydantic *does*
+    # recognize that `__fields__` isn't a standard attribute name, we suppress
+    # the warning it issues. If this implementation stops being supported, we
+    # can revert to the method in https://github.com/PrefectHQ/orion/pull/53.
+    new_fields = {k: v for k, v in base.__fields__.items() if k in field_names}
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="(fields may not start with an underscore)"
+        )
+        new_cls = create_model(
+            name or base.__name__,
+            __base__=base,
+            __fields__=new_fields,
+        )
 
     return new_cls
 
