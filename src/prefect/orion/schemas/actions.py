@@ -8,26 +8,35 @@ from uuid import UUID
 
 from pydantic import Field
 
-from prefect.orion.utilities.functions import ParameterSchema
-from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.orion.schemas.core import FlowRunMetadata, _BaseState
+from prefect.orion.utilities.schemas import pydantic_subclass
+from prefect.orion.schemas.core import State, Flow, FlowRun
 
+FlowCreate = Flow.subclass(
+    name="FlowCreate",
+    include_fields=["name", "tags", "parameters"],
+)
 
-class FlowCreate(PrefectBaseModel):
-    name: str = Field(..., example="my-flow")
-    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
-    parameters: ParameterSchema = Field(default_factory=ParameterSchema)
+FlowRunCreate = FlowRun.subclass(
+    name="FlowRunCreate",
+    include_fields=[
+        "flow_id",
+        "flow_version",
+        "parameters",
+        "parent_task_run_id",
+        "context",
+        "tags",
+        "flow_run_metadata",
+    ],
+)
 
-
-class FlowRunCreate(PrefectBaseModel):
-    flow_id: UUID
-    flow_version: str = Field(..., example="v1.0")
-    parameters: dict = Field(default_factory=dict)
-    parent_task_run_id: UUID = None
-    context: dict = Field(default_factory=dict, example={"my_var": "my_val"})
-    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
-    flow_run_metadata: FlowRunMetadata = Field(default_factory=FlowRunMetadata)
-
-
-class StateCreate(_BaseState):
-    pass
+StateCreate = State.subclass(
+    name="StateCreate",
+    include_fields=[
+        "type",
+        "name",
+        "timestamp",
+        "message",
+        "data",
+        "state_details",
+    ],
+)
