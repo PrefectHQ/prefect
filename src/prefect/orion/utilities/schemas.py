@@ -3,11 +3,11 @@ from typing import List
 from pydantic import BaseModel, create_model
 
 
-def subclass_model(
+def pydantic_subclass(
     base: BaseModel,
     name: str = None,
-    include: List[str] = None,
-    exclude: List[str] = None,
+    include_fields: List[str] = None,
+    exclude_fields: List[str] = None,
 ) -> BaseModel:
     """Creates a subclass of a Pydantic model that excludes certain fields.
     Pydantic models use the __fields__ attribute of their parent class to
@@ -17,8 +17,8 @@ def subclass_model(
 
     Args:
         cls (pydantic.BaseModel): a Pydantic BaseModel
-        include (List[str]): a set of field names to include. If `None`, all fields are included.
-        exclude (List[str]): a list of field names to exclude. If `None`, no fields are excluded.
+        include_fields (List[str]): a set of field names to include. If `None`, all fields are included.
+        exclude_fields (List[str]): a list of field names to exclude. If `None`, no fields are excluded.
 
     Returns:
         pydantic.BaseModel: a new model subclass that contains only the specified fields.
@@ -28,11 +28,11 @@ def subclass_model(
             x: int = 1
             y: int = 2
 
-        Child = subclass_model(Parent, 'Child', exclude=['y'])
+        Child = pydantic_subclass(Parent, 'Child', exclude_fields=['y'])
 
         # equivalent, for extending the subclass further
         # with new fields
-        class Child(subclass_model(Parent, exclude=['y'])):
+        class Child(pydantic_subclass(Parent, exclude_fields=['y'])):
             pass
 
         assert hasattr(Child(), 'x')
@@ -45,8 +45,19 @@ def subclass_model(
     original_fields = base.__fields__
 
     # collect required field names
-    field_names = set(include or base.__fields__)
-    field_names.difference_update(exclude or [])
+    field_names = set(include_fields or base.__fields__)
+    excluded_fields = set(exclude_fields or [])
+    if field_names.difference(base.__fields__):
+        raise ValueError(
+            "Included fields not found on base class: "
+            f"{field_names.difference(base.__fields__)}"
+        )
+    elif excluded_fields.difference(base.__fields__):
+        raise ValueError(
+            "Excluded fields not found on base class: "
+            f"{excluded_fields.difference(base.__fields__)}"
+        )
+    field_names.difference_update(excluded_fields)
 
     # create model
     base.__fields__ = {k: v for k, v in base.__fields__.items() if k in field_names}
