@@ -42,10 +42,6 @@ def pydantic_subclass(
         assert hasattr(Child(), 'x')
         assert not hasattr(Child(), 'y')
     """
-    # copying a class doesn't work (`base is deepcopy(base)`), so we need to
-    # make sure we don't modify the actual parent class. Instead, we store its
-    # original __fields__ attribute, replace it with a modified one for the
-    # subclass operation, and then restore the original value.
 
     # collect required field names
     field_names = set(include_fields or base.__fields__)
