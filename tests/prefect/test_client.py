@@ -1,3 +1,6 @@
+from uuid import UUID
+
+
 from prefect import flow
 from prefect.orion import schemas
 
@@ -8,7 +11,7 @@ async def test_create_then_read_flow(orion_client):
         pass
 
     flow_id = await orion_client.create_flow(foo)
-    assert isinstance(flow_id, str)
+    assert isinstance(flow_id, UUID)
 
     lookup = await orion_client.read_flow(flow_id)
     assert isinstance(lookup, schemas.core.Flow)
@@ -23,7 +26,7 @@ async def test_create_then_read_flow_run(orion_client):
         pass
 
     flow_run_id = await orion_client.create_flow_run(foo)
-    assert isinstance(flow_run_id, str)
+    assert isinstance(flow_run_id, UUID)
 
     lookup = await orion_client.read_flow_run(flow_run_id)
     assert isinstance(lookup, schemas.core.FlowRun)
