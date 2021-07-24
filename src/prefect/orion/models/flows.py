@@ -13,7 +13,7 @@ async def create_flow(
 
     Args:
         session (sa.orm.Session): a database session
-        flow (schemas.core.Flow): a flow model
+        flow (schemas.actions.FlowCreate): a flow model
 
     Returns:
         orm.Flow: the newly-created flow

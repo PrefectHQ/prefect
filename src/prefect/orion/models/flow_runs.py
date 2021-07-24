@@ -13,7 +13,7 @@ async def create_flow_run(
 
     Args:
         session (sa.orm.Session): a database session
-        flow_run (schemas.core.FlowRun): a flow run model
+        flow_run (schemas.actions.FlowRunCreate): a flow run model
 
     Returns:
         orm.FlowRun: the newly-created flow run
