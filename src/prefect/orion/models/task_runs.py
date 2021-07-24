@@ -13,7 +13,7 @@ async def create_task_run(
 
     Args:
         session (sa.orm.Session): a database session
-        task_run (schemas.core.TaskRun): a task run model
+        task_run (schemas.actions.TaskRunCreate): a task run model
 
     Returns:
         orm.TaskRun: the newly-created flow run
