@@ -5,7 +5,7 @@ from typing import Any, Awaitable, Callable, Dict, Iterable, Tuple, Union
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient
-from prefect.core.futures import PrefectFuture
+from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities import file_hash, sync
 
