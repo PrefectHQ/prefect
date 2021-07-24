@@ -13,7 +13,7 @@ class TestCreateTaskRun:
         assert response.json()["id"]
 
         task_run = await models.task_runs.read_task_run(
-            session=database_session, id=response.json()["id"]
+            session=database_session, task_run_id=response.json()["id"]
         )
         assert task_run.flow_run_id == flow_run.id
 
@@ -53,7 +53,7 @@ class TestDeleteTaskRuns:
 
         # make sure it's deleted
         run = await models.task_runs.read_task_run(
-            session=database_session, id=task_run.id
+            session=database_session, task_run_id=task_run.id
         )
         assert run is None
         response = await client.get(f"/task_runs/{task_run.id}")

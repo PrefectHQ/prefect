@@ -24,7 +24,7 @@ async def create_task_run(
     return new_task_run
 
 
-async def read_task_run(session: sa.orm.Session, id: str) -> orm.TaskRun:
+async def read_task_run(session: sa.orm.Session, task_run_id: str) -> orm.TaskRun:
     """Read a task run by id
 
     Args:
@@ -34,7 +34,7 @@ async def read_task_run(session: sa.orm.Session, id: str) -> orm.TaskRun:
     Returns:
         orm.TaskRun: the task run
     """
-    return await session.get(orm.TaskRun, id)
+    return await session.get(orm.TaskRun, task_run_id)
 
 
 async def read_task_runs(
@@ -58,7 +58,7 @@ async def read_task_runs(
     return result.scalars().all()
 
 
-async def delete_task_run(session: sa.orm.Session, id: str) -> bool:
+async def delete_task_run(session: sa.orm.Session, task_run_id: str) -> bool:
     """Delete a task run by id
 
     Args:
@@ -68,5 +68,7 @@ async def delete_task_run(session: sa.orm.Session, id: str) -> bool:
     Returns:
         bool: whether or not the task run was deleted
     """
-    result = await session.execute(delete(orm.TaskRun).where(orm.TaskRun.id == id))
+    result = await session.execute(
+        delete(orm.TaskRun).where(orm.TaskRun.id == task_run_id)
+    )
     return result.rowcount > 0

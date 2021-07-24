@@ -1,7 +1,7 @@
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Path
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -23,12 +23,15 @@ async def create_task_run(
 
 @router.get("/{id}")
 async def read_task_run(
-    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    task_run_id: str = Path(..., description="The task run id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.TaskRun:
     """
     Get a task run by id
     """
-    task_run = await models.task_runs.read_task_run(session=session, id=id)
+    task_run = await models.task_runs.read_task_run(
+        session=session, task_run_id=task_run_id
+    )
     if not task_run:
         raise HTTPException(status_code=404, detail="Task not found")
     return task_run
@@ -49,12 +52,15 @@ async def read_task_runs(
 
 @router.delete("/{id}", status_code=204)
 async def delete_task_run(
-    id: str, session: sa.orm.Session = Depends(dependencies.get_session)
+    task_run_id: str = Path(..., description="The task run id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
     Delete a task run by id
     """
-    result = await models.task_runs.delete_task_run(session=session, id=id)
+    result = await models.task_runs.delete_task_run(
+        session=session, task_run_id=task_run_id
+    )
     if not result:
         raise HTTPException(status_code=404, detail="Task not found")
     return result
