@@ -58,3 +58,6 @@ async def delete_task_run(
     if not result:
         raise HTTPException(status_code=404, detail="Task not found")
     return result
+
+
+# TODO - implement /task_runs/:id/set_state route
