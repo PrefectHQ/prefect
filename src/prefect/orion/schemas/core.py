@@ -85,13 +85,13 @@ class State(APIBaseModel):
         return v
 
     def is_scheduled(self):
-        return self.type == StateType.SCHEDULED
+        return self.type in (StateType.SCHEDULED, StateType.AWAITING_RETRY)
 
     def is_pending(self):
         return self.type == StateType.PENDING
 
     def is_running(self):
-        return self.type == StateType.RUNNING
+        return self.type in (StateType.RUNNING, StateType.RETRYING)
 
     def is_retrying(self):
         return self.type == StateType.RETRYING
