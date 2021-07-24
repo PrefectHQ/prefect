@@ -5,8 +5,8 @@ import pytest
 
 from prefect import flow
 from prefect.client import OrionClient, read_flow_run
-from prefect.core.flow import Flow
-from prefect.core.futures import PrefectFuture
+from prefect.flows import Flow
+from prefect.futures import PrefectFuture
 from prefect.utilities import file_hash
 
 
@@ -90,7 +90,7 @@ class TestFlowCall:
         assert future.run_id is not None
 
         flow_run = read_flow_run(future.run_id)
-        assert str(flow_run.id) == future.run_id
+        assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
 
@@ -105,7 +105,7 @@ class TestFlowCall:
         assert future.run_id is not None
 
         flow_run = await orion_client.read_flow_run(future.run_id)
-        assert str(flow_run.id) == future.run_id
+        assert flow_run.id == future.run_id
 
     async def test_async_call_creates_ephemeral_instance(self):
         @flow(version="test")
@@ -120,7 +120,7 @@ class TestFlowCall:
         async with OrionClient() as client:
             flow_run = await client.read_flow_run(future.run_id)
 
-        assert str(flow_run.id) == future.run_id
+        assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
 
@@ -135,7 +135,7 @@ class TestFlowCall:
         assert future.run_id is not None
 
         flow_run = read_flow_run(future.run_id)
-        assert str(flow_run.id) == future.run_id
+        assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
 
