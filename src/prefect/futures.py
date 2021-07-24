@@ -1,5 +1,8 @@
+from uuid import UUID
+
+
 class PrefectFuture:
-    def __init__(self, run_id: str, result=None) -> None:
+    def __init__(self, run_id: UUID, result=None) -> None:
         self.run_id = run_id
         self._result = result
 

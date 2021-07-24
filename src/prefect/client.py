@@ -1,15 +1,16 @@
 from functools import wraps
 from types import TracebackType
-from typing import Any, Dict, Iterable, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Type
+from uuid import UUID
 
 import httpx
 
-from prefect.utilities import sync
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
+from prefect.utilities import sync
 
 if TYPE_CHECKING:
-    from prefect.core import Flow
+    from prefect.flows import Flow
 
 
 class OrionClient:
@@ -49,7 +50,7 @@ class OrionClient:
     async def hello(self) -> httpx.Response:
         return await self.post("/hello")
 
-    async def create_flow(self, flow: "Flow") -> str:
+    async def create_flow(self, flow: "Flow") -> UUID:
         flow_data = schemas.actions.FlowCreate(
             name=flow.name,
             tags=flow.tags,
@@ -62,9 +63,9 @@ class OrionClient:
             raise Exception(f"Malformed response: {response}")
 
         # Return the id of the created flow
-        return flow_id
+        return UUID(flow_id)
 
-    async def read_flow(self, flow_id: str) -> schemas.core.Flow:
+    async def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
         response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow(**response.json())
 
@@ -75,7 +76,7 @@ class OrionClient:
         context: dict = None,
         extra_tags: Iterable[str] = None,
         parent_task_run_id: str = None,
-    ) -> str:
+    ) -> UUID:
         tags = set(flow.tags).union(extra_tags or [])
         parameters = parameters or {}
         context = context or {}
@@ -97,9 +98,9 @@ class OrionClient:
         if not flow_run_id:
             raise Exception(f"Malformed response: {response}")
 
-        return flow_run_id
+        return UUID(flow_run_id)
 
-    async def read_flow_run(self, flow_run_id: str) -> schemas.core.FlowRun:
+    async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun(**response.json())
 
