@@ -46,7 +46,6 @@ def pydantic_subclass(
     # make sure we don't modify the actual parent class. Instead, we store its
     # original __fields__ attribute, replace it with a modified one for the
     # subclass operation, and then restore the original value.
-    original_fields = base.__fields__
 
     # collect required field names
     field_names = set(include_fields or base.__fields__)
@@ -64,13 +63,8 @@ def pydantic_subclass(
     field_names.difference_update(excluded_fields)
 
     # create model
-    try:
-        base.__fields__ = {k: v for k, v in base.__fields__.items() if k in field_names}
-        new_cls = create_model(name or base.__name__, __base__=base)
-
-    finally:
-        # restore original __fields__
-        base.__fields__ = original_fields
+    new_fields = {k: v for k, v in base.__fields__.items() if k in field_names}
+    new_cls = create_model(name or base.__name__, __base__=base, __fields__=new_fields)
 
     return new_cls
 
