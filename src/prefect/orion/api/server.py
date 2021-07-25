@@ -20,6 +20,7 @@ app.add_middleware(
 # routers
 app.include_router(api.flows.router)
 app.include_router(api.flow_runs.router)
+app.include_router(api.task_runs.router)
 app.include_router(api.flow_run_states.router)
 
 

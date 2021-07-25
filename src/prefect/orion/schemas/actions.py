@@ -1,15 +1,7 @@
 """
 Reduced schemas for accepting API actions
 """
-
-import datetime
-from typing import List
-from uuid import UUID
-
-from pydantic import Field
-
-from prefect.orion.utilities.schemas import pydantic_subclass
-from prefect.orion.schemas.core import State, Flow, FlowRun
+from prefect.orion.schemas.core import State, Flow, FlowRun, TaskRun
 
 FlowCreate = Flow.subclass(
     name="FlowCreate",
@@ -38,5 +30,22 @@ StateCreate = State.subclass(
         "message",
         "data",
         "state_details",
+    ],
+)
+
+TaskRunCreate = TaskRun.subclass(
+    name="TaskRunCreate",
+    include_fields=[
+        "flow_run_id",
+        "task_key",
+        "dynamic_key",
+        "cache_key",
+        "cache_expiration",
+        "task_version",
+        "empirical_policy",
+        "tags",
+        "task_inputs",
+        "upstream_task_run_ids",
+        "task_run_metadata",
     ],
 )

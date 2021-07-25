@@ -47,6 +47,16 @@ async def flow_run(database_session, flow):
 
 
 @pytest.fixture
+async def task_run(database_session, flow_run):
+    fake_task_run = schemas.actions.TaskRunCreate(
+        flow_run_id=flow_run.id, task_key="my-key"
+    )
+    return await models.task_runs.create_task_run(
+        session=database_session, task_run=fake_task_run
+    )
+
+
+@pytest.fixture
 async def flow_run_states(database_session, flow_run):
     scheduled_state = schemas.actions.StateCreate(
         type=schemas.core.StateType.SCHEDULED,
