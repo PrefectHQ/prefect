@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
 
@@ -13,7 +13,7 @@ async def create_flow_run(
 
     Args:
         session (sa.orm.Session): a database session
-        flow_run (schemas.core.FlowRun): a flow run model
+        flow_run (schemas.actions.FlowRunCreate): a flow run model
 
     Returns:
         orm.FlowRun: the newly-created flow run

@@ -1,6 +1,6 @@
 import datetime
 from enum import auto
-from typing import List
+from typing import List, Dict
 from uuid import UUID
 
 import pendulum
@@ -40,6 +40,24 @@ class FlowRun(APIBaseModel):
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     flow_run_metadata: FlowRunMetadata = Field(default_factory=FlowRunMetadata)
+
+
+class TaskRunMetadata(PrefectBaseModel):
+    is_subflow: bool = False
+
+
+class TaskRun(APIBaseModel):
+    flow_run_id: UUID
+    task_key: str
+    dynamic_key: str = None
+    cache_key: str = None
+    cache_expiration: datetime.datetime = None
+    task_version: str = None
+    empirical_policy: dict = Field(default_factory=dict)
+    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
+    task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
+    upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
+    task_run_metadata: TaskRunMetadata = Field(default_factory=TaskRunMetadata)
 
 
 class StateType(AutoEnum):
@@ -111,7 +129,6 @@ class State(APIBaseModel):
 
 def Completed(**kwargs) -> State:
     """Convenience function for creating `Completed` states.
-
     Returns:
         State: a Completed state
     """
