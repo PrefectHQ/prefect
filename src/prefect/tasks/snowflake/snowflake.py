@@ -1,4 +1,5 @@
 import snowflake.connector as sf
+from snowflake.connector.cursor import SnowflakeCursor
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -58,7 +59,13 @@ class SnowflakeQuery(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "data", "autocommit")
-    def run(self, query: str = None, data: tuple = None, autocommit: bool = None):
+    def run(
+        self,
+        query: str = None,
+        data: tuple = None,
+        autocommit: bool = None,
+        cursor_type: SnowflakeCursor = SnowflakeCursor
+        ):
         """
         Task run method. Executes a query against snowflake database.
 
@@ -105,7 +112,7 @@ class SnowflakeQuery(Task):
         # context manager automatically rolls back failed transactions
         try:
             with conn:
-                with conn.cursor() as cursor:
+                with conn.cursor(cursor_type) as cursor:
                     executed = cursor.execute(query, params=data).fetchall()
             conn.close()
             return executed
