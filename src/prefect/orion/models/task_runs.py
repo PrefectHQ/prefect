@@ -52,7 +52,7 @@ async def read_task_runs(
     query = (
         select(orm.TaskRun)
         .filter(orm.TaskRun.flow_run_id == flow_run_id)
-        .order_by(orm.TaskRun.task_key)
+        .order_by(orm.TaskRun.id)
     )
     result = await session.execute(query)
     return result.scalars().all()
