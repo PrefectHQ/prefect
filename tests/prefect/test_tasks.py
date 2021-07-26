@@ -23,8 +23,10 @@ class TestTaskCall:
 
         @flow
         def bar():
-            future = foo(1)
-            assert isinstance(future, PrefectFuture)
-            assert future.result() == 1
+            return foo(1)
+            # Returns a future so we can run assertions outside of the flow context
 
-        bar()
+        flow_future = bar()
+        task_future = flow_future.result()
+        assert isinstance(task_future, PrefectFuture)
+        assert task_future.result() == 1
