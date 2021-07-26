@@ -113,18 +113,15 @@ class OrionClient:
     def set_flow_run_state(
         self,
         flow_run_id: UUID,
-        state: schemas.core.StateType,
-        message: str = None,
-        data: bytes = None,
+        state: schemas.core.State,
     ) -> schemas.responses.SetStateResponse:
         state_data = schemas.actions.StateCreate(
-            type=state,
-            message=message,
-            data=data,
-            state_details=schemas.core.StateDetails(
-                flow_run_id=flow_run_id,
-            ),
+            type=state.type,
+            message=state.message,
+            data=state.data,
+            state_details=state.state_details,
         )
+        state_data.state_details.flow_run_id = flow_run_id
 
         response = self.post(
             f"/flow_runs/{flow_run_id}/set_state",

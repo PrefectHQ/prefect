@@ -40,7 +40,10 @@ def test_set_then_read_flow_run_state(orion_client):
 
     flow_run_id = orion_client.create_flow_run(foo)
     response = orion_client.set_flow_run_state(
-        flow_run_id, state=schemas.core.StateType.COMPLETED, message="Test!"
+        flow_run_id,
+        state=schemas.core.State(
+            type=schemas.core.StateType.COMPLETED, message="Test!"
+        ),
     )
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
