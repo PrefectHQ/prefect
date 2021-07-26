@@ -82,11 +82,6 @@ def pydantic_subclass(
 
 
 class PrefectBaseModel(BaseModel):
-    class Config:
-        # TODO: enforced during early testing to help catch errors
-        # while models are changing; can be relaxed later.
-        extra = "forbid"
-
     @classmethod
     def subclass(
         cls,
