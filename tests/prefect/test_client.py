@@ -33,18 +33,20 @@ def test_create_then_read_flow_run(orion_client):
     assert lookup.tags == list(foo.tags)
 
 
-def test_create_then_read_flow_run_state(orion_client):
+def test_set_then_read_flow_run_state(orion_client):
     @flow
     def foo():
         pass
 
     flow_run_id = orion_client.create_flow_run(foo)
-    state = orion_client.create_flow_run_state(
+    response = orion_client.set_flow_run_state(
         flow_run_id, state=schemas.core.StateType.COMPLETED, message="Test!"
     )
-    assert isinstance(state, schemas.core.State)
+    assert isinstance(response, schemas.responses.SetStateResponse)
+    assert response.status == schemas.responses.SetStateStatus.ACCEPT
+    assert response.new_state is None
 
-    lookup = orion_client.read_flow_run_state(state.id)
+    lookup = orion_client.read_flow_run_state(response.new_state.id)
     assert isinstance(lookup, schemas.core.State)
     assert lookup.type == schemas.core.StateType.COMPLETED
     assert lookup.message == "Test!"
