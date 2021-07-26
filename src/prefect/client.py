@@ -93,7 +93,7 @@ class OrionClient:
 
 class _ASGIClient:
     """
-    Creates a synchronous wrapper for calling an async WSGI application's routes using
+    Creates a synchronous wrapper for calling an ASGI application's routes using
     temporary `httpx.AsyncClient` instances and an event loop in a thread.
     """
 
