@@ -3,6 +3,15 @@ import pydantic
 from prefect.orion.utilities.schemas import PrefectBaseModel, pydantic_subclass
 
 
+class TestExtraForbidden:
+    def test_extra_attributes_are_forbidden_during_unit_tests(self):
+        class Model(PrefectBaseModel):
+            x: int
+
+        with pytest.raises(pydantic.ValidationError):
+            Model(x=1, y=2)
+
+
 class TestPydanticSubclass:
     class Parent(pydantic.BaseModel):
         class Config:

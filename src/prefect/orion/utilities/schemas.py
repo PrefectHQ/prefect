@@ -4,6 +4,8 @@ import json
 from typing import List
 from pydantic import BaseModel
 
+from prefect.orion.utilities.settings import Settings
+
 
 def pydantic_subclass(
     base: BaseModel,
@@ -77,9 +79,9 @@ def pydantic_subclass(
 
 class PrefectBaseModel(BaseModel):
     class Config:
-        # TODO: enforced during early testing to help catch errors
-        # while models are changing; can be relaxed later.
-        extra = "forbid"
+        # when testing, extra attributes are prohibited to help
+        # catch unintentional errors; otherwise they are ignored.
+        extra = "forbid" if Settings().test_mode else "ignore"
 
     @classmethod
     def subclass(
