@@ -52,3 +52,6 @@ def test_set_then_read_flow_run_state(orion_client):
     assert isinstance(state, schemas.core.State)
     assert state.type == schemas.core.StateType.COMPLETED
     assert state.message == "Test!"
+
+    lookup_direct = orion_client.read_flow_run_state(state.id)
+    assert lookup_direct == state
