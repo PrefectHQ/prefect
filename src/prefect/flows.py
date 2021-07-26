@@ -61,9 +61,7 @@ class Flow:
         #       work at Flow.__init__ so we can raise errors to users immediately
         return validate_arguments(self.fn)(*call_args, **call_kwargs)
 
-    def __call__(
-        self, *args: Any, **kwargs: Any
-    ) -> PrefectFuture:
+    def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
