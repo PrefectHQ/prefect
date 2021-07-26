@@ -1,7 +1,7 @@
 import asyncio
 import threading
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, Type, List
 from uuid import UUID
 
 import httpx
@@ -31,8 +31,8 @@ class OrionClient:
         response.raise_for_status()
         return response
 
-    def get(self, route: str) -> httpx.Response:
-        response = self._async_runner.run(self._client.get(route))
+    def get(self, route: str, **kwargs) -> httpx.Response:
+        response = self._async_runner.run(self._client.get(route, **kwargs))
         response.raise_for_status()
         return response
 
@@ -109,13 +109,13 @@ class OrionClient:
         response = self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
 
-    def create_flow_run_state(
+    def set_flow_run_state(
         self,
         flow_run_id: UUID,
         state: schemas.core.StateType,
         message: str = None,
         data: bytes = None,
-    ) -> schemas.core.State:
+    ) -> schemas.responses.SetStateResponse:
         state_data = schemas.actions.StateCreate(
             type=state,
             message=message,
@@ -126,16 +126,20 @@ class OrionClient:
         )
 
         response = self.post(
-            "/flow_run_states",
-            json=dict(flow_run_id=str(flow_run_id), state=state_data.json_dict()),
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=state_data.json_dict(),
         )
-        return schemas.core.State.parse_obj(response.json())
+        return schemas.responses.SetStateResponse.parse_obj(response.json())
 
     def read_flow_run_state(self, flow_run_state_id: UUID) -> schemas.core.State:
         response = self.get(
             f"/flow_run_states/{flow_run_state_id}",
         )
         return schemas.core.State.parse_obj(response.json())
+
+    def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.core.State]:
+        response = self.get("/flow_run_states/", params=dict(flow_run_id=flow_run_id))
+        return [schemas.core.State.parse_obj(obj) for obj in response.json()]
 
 
 class _AsyncRunner:

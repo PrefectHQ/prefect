@@ -8,6 +8,7 @@ from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.utilities import file_hash
+from prefect.orion.schemas.core import StateType
 
 
 class TestFlow:
@@ -79,7 +80,7 @@ class TestDecorator:
 
 
 class TestFlowCall:
-    def test_sync_call_creates_flow_run_and_runs(self, orion_client):
+    def test_call_creates_flow_run_and_runs(self, orion_client):
         @flow(version="test")
         def foo(x, y=2, z=3):
             return x + y + z
@@ -94,7 +95,7 @@ class TestFlowCall:
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
 
-    def test_sync_call_creates_ephemeral_instance(self):
+    def test_call_creates_ephemeral_instance(self):
         @flow(version="test")
         def foo(x, y=2, z=3):
             return x + y + z
@@ -126,8 +127,34 @@ class TestFlowCall:
         def foo(x: int):
             pass
 
+        # No error until the future is unpacked
+        future = foo(x="foo")
+
         with pytest.raises(
             pydantic.error_wrappers.ValidationError,
             match="value is not a valid integer",
         ):
-            foo(x="foo")
+            future.result()
+
+    @pytest.mark.parametrize("error", [ValueError("Hello"), None])
+    def test_state_reflects_result_of_run(self, error, orion_client):
+        @flow(version="test")
+        def foo():
+            if error:
+                raise error
+
+        future = foo()
+
+        raised = None
+        try:
+            future.result()
+        except Exception as exc:
+            raised = exc
+
+        # Assert the exception was raised correctly
+        assert raised is error
+
+        # Assert the final state is correct
+        states = orion_client.read_flow_run_states(future.run_id)
+        final_state = states[-1]
+        assert final_state.type == (StateType.FAILED if error else StateType.COMPLETED)

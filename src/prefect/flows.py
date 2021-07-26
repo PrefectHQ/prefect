@@ -8,6 +8,7 @@ from prefect.client import OrionClient
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities import file_hash
+from prefect.orion.schemas.core import StateType
 
 
 class Flow:
@@ -49,17 +50,36 @@ class Flow:
     def _run(
         self,
         client: OrionClient,
+        flow_run_id: str,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
-    ):
-        # TODO: Manage state; `client` is not consumed yet but will be used for this
-        # TODO: Note that pydantic will now coerce parameter types into the correct type
-        #       even if the user wants failure on inexact type matches. We may want to
-        #       implement a strict runtime typecheck with a configuration flag
-        # TODO: `validate_arguments` can throw an error while wrapping `fn` if the
-        #       signature is not pydantic-compatible. We'll want to confirm that it will
-        #       work at Flow.__init__ so we can raise errors to users immediately
-        return validate_arguments(self.fn)(*call_args, **call_kwargs)
+    ) -> PrefectFuture:
+        """
+        TODO: Note that pydantic will now coerce parameter types into the correct type
+              even if the user wants failure on inexact type matches. We may want to
+              implement a strict runtime typecheck with a configuration flag
+        TODO: `validate_arguments` can throw an error while wrapping `fn` if the
+              signature is not pydantic-compatible. We'll want to confirm that it will
+              work at Flow.__init__ so we can raise errors to users immediately
+        TODO: Implement state orchestation logic using return values from the API
+        """
+
+        client.set_flow_run_state(flow_run_id, StateType.RUNNING)
+
+        try:
+            result = validate_arguments(self.fn)(*call_args, **call_kwargs)
+        except Exception as exc:
+            result = exc
+            state = StateType.FAILED
+            message = "Flow run encountered a user exception."
+        else:
+            state = StateType.COMPLETED
+            message = "Flow run completed."
+
+        client.set_flow_run_state(flow_run_id, state=state, message=message)
+        return PrefectFuture(
+            run_id=flow_run_id, result=result, is_exception=(state == StateType.FAILED)
+        )
 
     def __call__(
         self, *args: Any, **kwargs: Any
@@ -72,9 +92,8 @@ class Flow:
                 self,
                 parameters=parameters,
             )
-            result = self._run(client, call_args=args, call_kwargs=kwargs)
-
-        return PrefectFuture(run_id=flow_run_id, result=result)
+            client.set_flow_run_state(flow_run_id, StateType.PENDING)
+            return self._run(client, flow_run_id, call_args=args, call_kwargs=kwargs)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
