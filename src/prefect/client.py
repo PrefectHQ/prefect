@@ -1,13 +1,13 @@
-from functools import wraps
+import asyncio
+import threading
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, Type
 from uuid import UUID
 
 import httpx
 
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
-from prefect.utilities import sync
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -20,43 +20,48 @@ class OrionClient:
             app=orion_app, base_url="http://ephemeral"
         )
 
-    async def post(self, route: str, **kwargs) -> httpx.Response:
-        response = await self._client.post(route, **kwargs)
+        # A wrapper is used to call the async httpx interface from a sync context
+        self._async_runner = _AsyncRunner()
+
+    def post(self, route: str, **kwargs) -> httpx.Response:
+        response = self._async_runner.run(self._client.post(route, **kwargs))
         # TODO: We may not _always_ want to raise bad status codes but for now we will
         #       because response.json() will throw misleading errors and this will ease
         #       development
         response.raise_for_status()
         return response
 
-    async def get(self, route: str) -> httpx.Response:
-        response = await self._client.get(route)
+    def get(self, route: str) -> httpx.Response:
+        response = self._async_runner.run(self._client.get(route))
         response.raise_for_status()
         return response
 
-    async def __aenter__(self):
-        await self._client.__aenter__()
+    def __enter__(self):
+        self._async_runner.run(self._client.__aenter__())
         return self
 
-    async def __aexit__(
+    def __exit__(
         self,
         exc_type: Type[BaseException] = None,
         exc_value: BaseException = None,
         traceback: TracebackType = None,
     ):
-        await self._client.__aexit__(exc_type, exc_value, traceback)
+
+        self._async_runner.run(self._client.__aexit__(None, None, None))
+        self._async_runner.stop()
 
     # API methods ----------------------------------------------------------------------
 
-    async def hello(self) -> httpx.Response:
-        return await self.post("/hello")
+    def hello(self) -> httpx.Response:
+        return self.post("/hello")
 
-    async def create_flow(self, flow: "Flow") -> UUID:
+    def create_flow(self, flow: "Flow") -> UUID:
         flow_data = schemas.actions.FlowCreate(
             name=flow.name,
             tags=flow.tags,
             parameters=flow.parameters,
         )
-        response = await self.post("/flows/", json=flow_data.json_dict())
+        response = self.post("/flows/", json=flow_data.json_dict())
 
         flow_id = response.json().get("id")
         if not flow_id:
@@ -65,11 +70,11 @@ class OrionClient:
         # Return the id of the created flow
         return UUID(flow_id)
 
-    async def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
-        response = await self.get(f"/flows/{flow_id}")
+    def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
+        response = self.get(f"/flows/{flow_id}")
         return schemas.core.Flow(**response.json())
 
-    async def create_flow_run(
+    def create_flow_run(
         self,
         flow: "Flow",
         parameters: Dict[str, Any] = None,
@@ -82,7 +87,7 @@ class OrionClient:
         context = context or {}
 
         # Retrieve the flow id
-        flow_id = await self.create_flow(flow)
+        flow_id = self.create_flow(flow)
 
         flow_run_data = schemas.actions.FlowRunCreate(
             flow_id=flow_id,
@@ -93,33 +98,47 @@ class OrionClient:
             parent_task_run_id=parent_task_run_id,
         )
 
-        response = await self.post("/flow_runs/", json=flow_run_data.json_dict())
+        response = self.post("/flow_runs/", json=flow_run_data.json_dict())
         flow_run_id = response.json().get("id")
         if not flow_run_id:
             raise Exception(f"Malformed response: {response}")
 
         return UUID(flow_run_id)
 
-    async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
-        response = await self.get(f"/flow_runs/{flow_run_id}")
+    def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
+        response = self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun(**response.json())
 
 
-# A synchronous API could look like this...
+class _AsyncRunner:
+    def __init__(self) -> None:
+        self.thread, self.event_loop = self._create_threaded_event_loop()
 
+    def _create_threaded_event_loop(
+        self,
+    ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
+        def start_loop(loop):
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
 
-def _create_sync_api(method):
-    """
-    Create a synchronous version of a function with a transient async client context
-    """
+        loop = asyncio.new_event_loop()
 
-    @wraps(method)
-    async def run_with_client(*args, **kwargs):
-        async with OrionClient() as client:
-            return await method(client, *args, **kwargs)
+        t = threading.Thread(target=start_loop, args=(loop,), daemon=True)
+        t.start()
 
-    return sync(run_with_client)
+        return t, loop
 
+    def run(self, coro):
+        if not self.event_loop:
+            raise ValueError("Event loop has not been created.")
+        if not self.event_loop.is_running():
+            raise ValueError("Event loop is not running.")
 
-read_flow = _create_sync_api(OrionClient.read_flow)
-read_flow_run = _create_sync_api(OrionClient.read_flow_run)
+        future = asyncio.run_coroutine_threadsafe(coro, loop=self.event_loop)
+        result = future.result()
+
+        return result
+
+    def stop(self):
+        if self.event_loop.is_running():
+            self.event_loop.stop()
