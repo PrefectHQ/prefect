@@ -46,7 +46,9 @@ def test_set_then_read_flow_run_state(orion_client):
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
     assert response.new_state is None
 
-    lookup = orion_client.read_flow_run_state(response.new_state.id)
-    assert isinstance(lookup, schemas.core.State)
-    assert lookup.type == schemas.core.StateType.COMPLETED
-    assert lookup.message == "Test!"
+    lookup = orion_client.read_flow_run_states(flow_run_id)
+    assert len(lookup) == 1
+    state = lookup[-1]
+    assert isinstance(state, schemas.core.State)
+    assert state.type == schemas.core.StateType.COMPLETED
+    assert state.message == "Test!"
