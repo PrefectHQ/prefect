@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class OrionClient:
     def __init__(self, http_client: httpx.Client = None) -> None:
         # If not given an httpx client, create one that connects to an ephemeral app
-        self._client = http_client or _WSGIClient(app=orion_app)
+        self._client = http_client or _ASGIClient(app=orion_app)
 
     def post(self, route: str, **kwargs) -> httpx.Response:
         response = self._client.post(route, **kwargs)
@@ -91,7 +91,7 @@ class OrionClient:
         return schemas.core.FlowRun(**response.json())
 
 
-class _WSGIClient:
+class _ASGIClient:
     """
     Creates a synchronous wrapper for calling an async WSGI application's routes using
     temporary `httpx.AsyncClient` instances and an event loop in a thread.
