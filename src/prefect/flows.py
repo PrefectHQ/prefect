@@ -81,9 +81,7 @@ class Flow:
             run_id=flow_run_id, result=result, is_exception=(state == StateType.FAILED)
         )
 
-    def __call__(
-        self, *args: Any, **kwargs: Any
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
