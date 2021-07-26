@@ -63,7 +63,7 @@ class Flow:
 
     def __call__(
         self, *args: Any, **kwargs: Any
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    ) -> PrefectFuture:
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
