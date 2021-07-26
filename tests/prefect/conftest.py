@@ -45,8 +45,8 @@ async def client(database_session):
 
 
 @pytest.fixture
-async def orion_client(client, monkeypatch):
-    async with OrionClient(http_client=client) as user_client:
+def orion_client(client, monkeypatch):
+    with OrionClient(http_client=client) as user_client:
         monkeypatch.setattr(
             "prefect.client.OrionClient", MagicMock(return_value=user_client)
         )
