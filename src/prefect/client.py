@@ -4,6 +4,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, Type, List
 from uuid import UUID
 
+import pydantic
 import httpx
 
 from prefect.orion import schemas
@@ -133,7 +134,7 @@ class OrionClient:
 
     def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.core.State]:
         response = self.get("/flow_run_states/", params=dict(flow_run_id=flow_run_id))
-        return [schemas.core.State.parse_obj(obj) for obj in response.json()]
+        return pydantic.parse_obj_as(List[schemas.core.State], response.json())
 
 
 class _AsyncRunner:
