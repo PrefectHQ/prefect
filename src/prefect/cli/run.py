@@ -438,6 +438,12 @@ See `prefect run --help` for more details on the options.
     ),
     is_flag=True,
 )
+@click.option(
+    "--schedule",
+    "-s",
+    help="Execute the flow run according to the schedule defined with the flow.",
+    is_flag=True,
+)
 # Display settings ---------------------------------------------------------------------
 @click.option(
     "--quiet",
@@ -473,6 +479,7 @@ def run(
     context_vars,
     params,
     execute,
+    schedule,
     log_level,
     param_file,
     run_name,
@@ -587,7 +594,9 @@ def run(
         ):
             with prefect.context(**context_dict):
                 try:
-                    result_state = flow.run(parameters=params_dict)
+                    result_state = flow.run(
+                        parameters=params_dict, run_on_schedule=schedule
+                    )
                 except Exception as exc:
                     quiet_echo("Flow runner encountered an exception!")
                     log_exception(exc, indent=2)
