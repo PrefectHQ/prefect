@@ -8,7 +8,7 @@ from prefect.client import OrionClient
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities import file_hash
-from prefect.orion.schemas.core import StateType
+from prefect.orion.schemas.core import StateType, State
 
 
 class Flow:
@@ -64,21 +64,23 @@ class Flow:
         TODO: Implement state orchestation logic using return values from the API
         """
 
-        client.set_flow_run_state(flow_run_id, StateType.RUNNING)
+        client.set_flow_run_state(flow_run_id, State(type=StateType.RUNNING))
 
         try:
             result = validate_arguments(self.fn)(*call_args, **call_kwargs)
         except Exception as exc:
             result = exc
-            state = StateType.FAILED
+            state_type = StateType.FAILED
             message = "Flow run encountered a user exception."
         else:
-            state = StateType.COMPLETED
+            state_type = StateType.COMPLETED
             message = "Flow run completed."
 
-        client.set_flow_run_state(flow_run_id, state=state, message=message)
+        state = State(type=state_type, message=message)
+        client.set_flow_run_state(flow_run_id, state=state)
+
         return PrefectFuture(
-            run_id=flow_run_id, result=result, is_exception=(state == StateType.FAILED)
+            run_id=flow_run_id, result=result, is_exception=state.is_failed()
         )
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
@@ -90,7 +92,7 @@ class Flow:
                 self,
                 parameters=parameters,
             )
-            client.set_flow_run_state(flow_run_id, StateType.PENDING)
+            client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
             return self._run(client, flow_run_id, call_args=args, call_kwargs=kwargs)
 
 
