@@ -72,7 +72,7 @@ class OrionClient:
 
     def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
         response = self.get(f"/flows/{flow_id}")
-        return schemas.core.Flow(**response.json())
+        return schemas.core.Flow.parse_obj(response.json())
 
     def create_flow_run(
         self,
@@ -107,7 +107,35 @@ class OrionClient:
 
     def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = self.get(f"/flow_runs/{flow_run_id}")
-        return schemas.core.FlowRun(**response.json())
+        return schemas.core.FlowRun.parse_obj(response.json())
+
+    def create_flow_run_state(
+        self,
+        flow_run_id: UUID,
+        state: schemas.core.StateType,
+        message: str = None,
+        data: bytes = None,
+    ) -> schemas.core.State:
+        state_data = schemas.actions.StateCreate(
+            type=state,
+            message=message,
+            data=data,
+            state_details=schemas.core.StateDetails(
+                flow_run_id=flow_run_id,
+            ),
+        )
+
+        response = self.post(
+            "/flow_run_states",
+            json=dict(flow_run_id=str(flow_run_id), state=state_data.json_dict()),
+        )
+        return schemas.core.State.parse_obj(response.json())
+
+    def read_flow_run_state(self, flow_run_state_id: UUID) -> schemas.core.State:
+        response = self.get(
+            f"/flow_run_states/{flow_run_state_id}",
+        )
+        return schemas.core.State.parse_obj(response.json())
 
 
 class _AsyncRunner:
