@@ -131,12 +131,6 @@ class OrionClient:
         )
         return schemas.responses.SetStateResponse.parse_obj(response.json())
 
-    def read_flow_run_state(self, flow_run_state_id: UUID) -> schemas.core.State:
-        response = self.get(
-            f"/flow_run_states/{flow_run_state_id}",
-        )
-        return schemas.core.State.parse_obj(response.json())
-
     def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.core.State]:
         response = self.get("/flow_run_states/", params=dict(flow_run_id=flow_run_id))
         return [schemas.core.State.parse_obj(obj) for obj in response.json()]
