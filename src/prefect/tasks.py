@@ -1,7 +1,7 @@
 import inspect
 from uuid import UUID
 from functools import update_wrapper
-from typing import Any, Awaitable, Callable, Dict, Iterable, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Tuple
 
 from prefect import _context
 from prefect.flows import FlowRunContext
@@ -43,9 +43,7 @@ class Task:
         # TODO: Orchestrate states
         return self.fn(*call_args, **call_kwargs)
 
-    def __call__(
-        self, *args: Any, **kwargs: Any
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
 
         flow_run = _context.flow_run.get(None)
         if not flow_run:
@@ -55,7 +53,7 @@ class Task:
 
         # TODO: Submit `self._run` to an executor
         result = self._run(
-            flow_run="flow_run",
+            flow_run=flow_run,
             task_run_id=task_run_id,
             call_args=args,
             call_kwargs=kwargs,
