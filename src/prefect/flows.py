@@ -7,7 +7,7 @@ from pydantic import validate_arguments
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
-from prefect.utilities import file_hash, sync
+from prefect.utilities import file_hash
 
 
 class Flow:
@@ -46,7 +46,7 @@ class Flow:
 
         self.parameters = parameter_schema(self.fn)
 
-    async def _run(
+    def _run(
         self,
         client: OrionClient,
         call_args: Tuple[Any, ...],
@@ -59,37 +59,20 @@ class Flow:
         # TODO: `validate_arguments` can throw an error while wrapping `fn` if the
         #       signature is not pydantic-compatible. We'll want to confirm that it will
         #       work at Flow.__init__ so we can raise errors to users immediately
-        call_result = validate_arguments(self.fn)(*call_args, **call_kwargs)
-        if inspect.iscoroutinefunction(self.fn):
-            return await call_result
-        return call_result
+        return validate_arguments(self.fn)(*call_args, **call_kwargs)
 
-    async def _call_async(
-        self, call_args: Tuple[Any, ...], call_kwargs: Dict[str, Any]
-    ) -> PrefectFuture:
+    def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         # Generate dict of passed parameters
-        parameters = (
-            inspect.signature(self.fn).bind_partial(*call_args, **call_kwargs).arguments
-        )
+        parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
-        async with OrionClient() as client:
-            flow_run_id = await client.create_flow_run(
+        with OrionClient() as client:
+            flow_run_id = client.create_flow_run(
                 self,
                 parameters=parameters,
             )
-            result = await self._run(
-                client, call_args=call_args, call_kwargs=call_kwargs
-            )
+            result = self._run(client, call_args=args, call_kwargs=kwargs)
 
         return PrefectFuture(run_id=flow_run_id, result=result)
-
-    def __call__(
-        self, *args: Any, **kwargs: Any
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-        if inspect.iscoroutinefunction(self.fn):
-            return self._call_async(call_args=args, call_kwargs=kwargs)
-        else:
-            return sync(self._call_async)(call_args=args, call_kwargs=kwargs)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
