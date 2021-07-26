@@ -1,7 +1,9 @@
-import warnings
+import copy
+
 import json
 from typing import List
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel
+
 from prefect.orion.utilities.settings import Settings
 
 
@@ -60,24 +62,17 @@ def pydantic_subclass(
         )
     field_names.difference_update(excluded_fields)
 
-    # create model
-    #
-    # this approach takes advantage of the fact that `create_model` passes all
-    # kwargs to the new class's `namespace`, therefore overwriting the
-    # `__fields__` attribute inherited from `__base__`. Because pydantic *does*
-    # recognize that `__fields__` isn't a standard attribute name, we suppress
-    # the warning it issues. If this implementation stops being supported, we
-    # can revert to the method in https://github.com/PrefectHQ/orion/pull/53.
-    new_fields = {k: v for k, v in base.__fields__.items() if k in field_names}
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", message="(fields may not start with an underscore)"
-        )
-        new_cls = create_model(
-            name or base.__name__,
-            __base__=base,
-            __fields__=new_fields,
-        )
+    # create a new class that inherits from `base` but only contains the specified
+    # pydantic __fields__
+    new_cls = type(
+        name or base.__name__,
+        (base,),
+        {
+            "__fields__": {
+                k: copy.copy(v) for k, v in base.__fields__.items() if k in field_names
+            }
+        },
+    )
 
     return new_cls
 

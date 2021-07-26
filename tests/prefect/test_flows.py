@@ -4,7 +4,7 @@ import pydantic
 import pytest
 
 from prefect import flow
-from prefect.client import OrionClient, read_flow_run
+from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.utilities import file_hash
@@ -89,37 +89,7 @@ class TestFlowCall:
         assert future.result() == 6
         assert future.run_id is not None
 
-        flow_run = read_flow_run(future.run_id)
-        assert flow_run.id == future.run_id
-        assert flow_run.parameters == {"x": 1, "y": 2}
-        assert flow_run.flow_version == foo.version
-
-    async def test_call_detects_async_and_awaits(self, orion_client):
-        @flow(version="test")
-        async def asyncfoo(x, y=2, z=3):
-            return x + y + z
-
-        future = await asyncfoo(1, 2)
-        assert isinstance(future, PrefectFuture)
-        assert future.result() == 6
-        assert future.run_id is not None
-
-        flow_run = await orion_client.read_flow_run(future.run_id)
-        assert flow_run.id == future.run_id
-
-    async def test_async_call_creates_ephemeral_instance(self):
-        @flow(version="test")
-        async def foo(x, y=2, z=3):
-            return x + y + z
-
-        future = await foo(1, 2)
-        assert isinstance(future, PrefectFuture)
-        assert future.result() == 6
-        assert future.run_id is not None
-
-        async with OrionClient() as client:
-            flow_run = await client.read_flow_run(future.run_id)
-
+        flow_run = orion_client.read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
@@ -134,7 +104,8 @@ class TestFlowCall:
         assert future.result() == 6
         assert future.run_id is not None
 
-        flow_run = read_flow_run(future.run_id)
+        with OrionClient() as orion_client:
+            flow_run = orion_client.read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version

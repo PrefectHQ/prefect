@@ -85,6 +85,24 @@ class TestPydanticSubclass:
         ):
             Child(y=5, z=10, q=17)
 
+    def test_validators_for_missing_fields_are_ok(self):
+        class Parent2(pydantic.BaseModel):
+
+            x: int
+            y: int = 2
+
+            @pydantic.validator("x")
+            def x_greater_10(cls, v):
+                if v <= 10:
+                    raise ValueError()
+                return v
+
+        # child has a validator for a field that it doesn't include
+        # and no error is raised during creation
+        child = pydantic_subclass(Parent2, include_fields=["y"])
+        with pytest.raises(ValueError):
+            child.x_greater_10(5)
+
 
 class TestClassmethodSubclass:
     class Parent(PrefectBaseModel):
