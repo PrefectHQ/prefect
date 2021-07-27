@@ -4,7 +4,6 @@ import inspect
 
 import pytest
 
-
 from .orion.fixtures.database_fixtures import *
 from .orion.fixtures.app_fixtures import *
 
