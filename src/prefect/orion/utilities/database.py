@@ -1,3 +1,4 @@
+import asyncio
 import re
 import uuid
 
@@ -16,6 +17,7 @@ camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 engine = create_async_engine(
     Settings().database.connection_url.get_secret_value(), echo=Settings().database.echo
 )
+
 OrionAsyncSession = sessionmaker(
     engine, future=True, expire_on_commit=False, class_=AsyncSession
 )
@@ -175,7 +177,9 @@ class Base(object):
     __mapper_args__ = {"eager_defaults": True}
 
 
-async def reset_db(engine=engine):
+async def create_database_objects():
+    """Creates all database objects from metadata; useful when
+    working with in-memory or prototype databases.
+    """
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
