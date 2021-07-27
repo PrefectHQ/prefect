@@ -4,7 +4,7 @@ from functools import update_wrapper
 from typing import Any, Callable, Dict, Iterable, Tuple
 from uuid import UUID
 
-from pydantic import validate_arguments
+from pydantic import validate_arguments, BaseModel
 
 from prefect import _context
 from prefect.client import OrionClient
@@ -91,11 +91,14 @@ def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
     return Flow(fn=_fn, name=name, **flow_init_kwargs)
 
 
-@dataclass(frozen=True)
-class FlowRunContext:
+class FlowRunContext(BaseModel):
     flow: Flow
     flow_run_id: UUID
     client: OrionClient
+
+    class Config:
+        allow_mutation = False
+        arbitrary_types_allowed = True
 
     def __enter__(self):
         # We've frozen the rest of the data on the class but we'd like to still store
