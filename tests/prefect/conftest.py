@@ -1,4 +1,5 @@
 import inspect
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
@@ -45,9 +46,12 @@ async def client(database_session):
 
 
 @pytest.fixture
-def orion_client(client, monkeypatch):
-    with OrionClient(http_client=client) as user_client:
-        monkeypatch.setattr(
-            "prefect.client.OrionClient", MagicMock(return_value=user_client)
-        )
-        yield user_client
+async def orion_client(client, monkeypatch):
+    @contextmanager
+    def yield_client(_):
+        yield client
+
+    # Patch the ASGIClient to use the existing test client
+    monkeypatch.setattr("prefect.client._ASGIClient._httpx_client", yield_client)
+
+    yield OrionClient()
