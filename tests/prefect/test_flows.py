@@ -80,7 +80,7 @@ class TestDecorator:
 
 
 class TestFlowCall:
-    def test_call_creates_flow_run_and_runs(self, orion_client):
+    def test_call_creates_flow_run_and_runs(self):
         @flow(version="test")
         def foo(x, y=2, z=3):
             return x + y + z
@@ -136,7 +136,7 @@ class TestFlowCall:
             future.result()
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
-    def test_state_reflects_result_of_run(self, error, orion_client):
+    def test_state_reflects_result_of_run(self, error):
         @flow(version="test")
         def foo():
             if error:
@@ -154,6 +154,6 @@ class TestFlowCall:
         assert raised is error
 
         # Assert the final state is correct
-        states = orion_client.read_flow_run_states(future.run_id)
+        states = OrionClient().read_flow_run_states(future.run_id)
         final_state = states[-1]
         assert final_state.type == (StateType.FAILED if error else StateType.COMPLETED)
