@@ -79,12 +79,10 @@ class Task:
         )
         client.set_task_run_state(task_run_id, State(type=StateType.PENDING))
 
-        future = PrefectFuture(
-            run_id=task_run_id,
-        )
+        future = PrefectFuture(run_id=task_run_id)
 
-        # TODO: Submit `self._run` to an executor
-        self._run(
+        flow_run_context.flow.executor.submit(
+            self._run,
             flow_run_context=flow_run_context,
             task_run_id=task_run_id,
             future=future,
