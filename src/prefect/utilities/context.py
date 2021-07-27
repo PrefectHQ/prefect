@@ -61,8 +61,11 @@ class TaskRunContext(ContextModel):
 
 
 class RunContext(ContextModel):
-    task_run: Optional[TaskRunContext]
+    # Unlike the other Context objects, this is designed to be a user-facing container
+    # that cannot be used in `with` blocks
+
     flow_run: FlowRunContext
+    task_run: Optional[TaskRunContext]
 
     def __enter__(self):
         raise TypeError("The `RunContext` cannot be set.")
@@ -75,4 +78,4 @@ class RunContext(ContextModel):
                 "The run context could not be retrieved. "
                 "You are not in a flow run context."
             )
-        return cls(task_run=TaskRunContext.get(), flow_run=flow_run_ctx)
+        return cls(flow_run=flow_run_ctx, task_run=TaskRunContext.get())
