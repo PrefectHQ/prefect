@@ -12,6 +12,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities import file_hash
 from prefect.orion.schemas.core import StateType, State
+from prefect.executors import Executor
 
 
 class Flow:
@@ -26,7 +27,7 @@ class Flow:
         name: str = None,
         fn: Callable = None,
         version: str = None,
-        executor=None,
+        executor: Executor = None,
         description: str = None,
         tags: Iterable[str] = None,
     ):
@@ -49,6 +50,7 @@ class Flow:
         self.tags = set(tags if tags else [])
 
         self.parameters = parameter_schema(self.fn)
+        self.executor = executor or Executor()
 
     def _run(
         self,
