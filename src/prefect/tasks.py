@@ -7,7 +7,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import State, StateType
 
 if TYPE_CHECKING:
-    from prefect._context import FlowRunContext, TaskRunContext
+    from prefect.utilities.context import FlowRunContext, TaskRunContext
 
 
 class Task:
@@ -67,7 +67,7 @@ class Task:
         future.set_result(result, user_exception=state.is_failed())
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect._context import FlowRunContext, TaskRunContext
+        from prefect.utilities.context import FlowRunContext, TaskRunContext
 
         flow_run_context = FlowRunContext.get()
         if not flow_run_context:
