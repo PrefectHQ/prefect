@@ -1,9 +1,10 @@
 import asyncio
 import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List
 from uuid import UUID
 from contextlib import contextmanager
 
+import pydantic
 import httpx
 
 from prefect.orion import schemas
@@ -26,8 +27,8 @@ class OrionClient:
         response.raise_for_status()
         return response
 
-    def get(self, route: str) -> httpx.Response:
-        response = self._client.get(route)
+    def get(self, route: str, **kwargs) -> httpx.Response:
+        response = self._client.get(route, **kwargs)
         response.raise_for_status()
         return response
 
@@ -53,7 +54,7 @@ class OrionClient:
 
     def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
         response = self.get(f"/flows/{flow_id}")
-        return schemas.core.Flow(**response.json())
+        return schemas.core.Flow.parse_obj(response.json())
 
     def create_flow_run(
         self,
@@ -88,7 +89,30 @@ class OrionClient:
 
     def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = self.get(f"/flow_runs/{flow_run_id}")
-        return schemas.core.FlowRun(**response.json())
+        return schemas.core.FlowRun.parse_obj(response.json())
+
+    def set_flow_run_state(
+        self,
+        flow_run_id: UUID,
+        state: schemas.core.State,
+    ) -> schemas.responses.SetStateResponse:
+        state_data = schemas.actions.StateCreate(
+            type=state.type,
+            message=state.message,
+            data=state.data,
+            state_details=state.state_details,
+        )
+        state_data.state_details.flow_run_id = flow_run_id
+
+        response = self.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=state_data.json_dict(),
+        )
+        return schemas.responses.SetStateResponse.parse_obj(response.json())
+
+    def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.core.State]:
+        response = self.get("/flow_run_states/", params=dict(flow_run_id=flow_run_id))
+        return pydantic.parse_obj_as(List[schemas.core.State], response.json())
 
 
 class _ASGIClient:
