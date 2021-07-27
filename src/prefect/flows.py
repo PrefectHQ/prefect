@@ -84,7 +84,7 @@ class Flow:
         future.set_result(result, user_exception=state.is_failed())
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect._context import FlowRunContext
+        from prefect.utilities.context import FlowRunContext
 
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments

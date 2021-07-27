@@ -3,7 +3,7 @@ import pytest
 from uuid import uuid4
 from contextvars import ContextVar
 from prefect import flow, task
-from prefect._context import (
+from prefect.utilities.context import (
     FlowRunContext,
     TaskRunContext,
     ContextModel,
