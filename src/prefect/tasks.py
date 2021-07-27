@@ -35,7 +35,7 @@ class Task:
 
     def _run(
         self,
-        flow_run: FlowRunContext,
+        flow_run_context: FlowRunContext,
         task_run_id: UUID,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
@@ -45,15 +45,15 @@ class Task:
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
 
-        flow_run = _context.flow_run.get(None)
-        if not flow_run:
+        flow_run_context = _context.flow_run.get(None)
+        if not flow_run_context:
             raise RuntimeError("Tasks cannot be called outside of a flow.")
 
         task_run_id = ""  # flow_run.client.create_task_run(...)
 
         # TODO: Submit `self._run` to an executor
         result = self._run(
-            flow_run=flow_run,
+            flow_run_context=flow_run_context,
             task_run_id=task_run_id,
             call_args=args,
             call_kwargs=kwargs,
