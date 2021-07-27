@@ -8,7 +8,7 @@ from prefect.orion.api.dependencies import get_session
 from prefect.orion.api.server import app
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 async def override_app_database_session(database_session):
     """
     Overrides the Orion server's database session to always
@@ -16,7 +16,7 @@ async def override_app_database_session(database_session):
     """
 
     # override the default get session logic to use
-    # test database instead of actual db
+    # test database
     def _get_session_override():
         return database_session
 
