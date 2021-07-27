@@ -87,13 +87,13 @@ class Flow:
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
-        with OrionClient() as client:
-            flow_run_id = client.create_flow_run(
-                self,
-                parameters=parameters,
-            )
-            client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
-            return self._run(client, flow_run_id, call_args=args, call_kwargs=kwargs)
+        client = OrionClient()
+        flow_run_id = client.create_flow_run(
+            self,
+            parameters=parameters,
+        )
+        client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
+        return self._run(client, flow_run_id, call_args=args, call_kwargs=kwargs)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):

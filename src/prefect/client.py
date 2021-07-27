@@ -1,8 +1,8 @@
 import asyncio
 import threading
-from types import TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, Type, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple
 from uuid import UUID
+from contextlib import contextmanager
 
 import pydantic
 import httpx
@@ -15,17 +15,12 @@ if TYPE_CHECKING:
 
 
 class OrionClient:
-    def __init__(self, http_client: httpx.AsyncClient = None) -> None:
+    def __init__(self, http_client: httpx.Client = None) -> None:
         # If not given an httpx client, create one that connects to an ephemeral app
-        self._client = http_client or httpx.AsyncClient(
-            app=orion_app, base_url="http://ephemeral"
-        )
-
-        # A wrapper is used to call the async httpx interface from a sync context
-        self._async_runner = _AsyncRunner()
+        self._client = http_client or _ASGIClient(app=orion_app)
 
     def post(self, route: str, **kwargs) -> httpx.Response:
-        response = self._async_runner.run(self._client.post(route, **kwargs))
+        response = self._client.post(route, **kwargs)
         # TODO: We may not _always_ want to raise bad status codes but for now we will
         #       because response.json() will throw misleading errors and this will ease
         #       development
@@ -36,20 +31,6 @@ class OrionClient:
         response = self._async_runner.run(self._client.get(route, **kwargs))
         response.raise_for_status()
         return response
-
-    def __enter__(self):
-        self._async_runner.run(self._client.__aenter__())
-        return self
-
-    def __exit__(
-        self,
-        exc_type: Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ):
-
-        self._async_runner.run(self._client.__aexit__(None, None, None))
-        self._async_runner.stop()
 
     # API methods ----------------------------------------------------------------------
 
@@ -134,13 +115,55 @@ class OrionClient:
         return pydantic.parse_obj_as(List[schemas.core.State], response.json())
 
 
-class _AsyncRunner:
-    def __init__(self) -> None:
-        self.thread, self.event_loop = self._create_threaded_event_loop()
+class _ASGIClient:
+    """
+    Creates a synchronous wrapper for calling an ASGI application's routes using
+    temporary `httpx.AsyncClient` instances and an event loop in a thread.
+    """
+
+    def __init__(self, app) -> None:
+        self._thread, self._event_loop = self._create_threaded_event_loop()
+        self.app = app
+
+    @contextmanager
+    def _httpx_client(self):
+        """
+        Creates a temporary httpx.AsyncClient and clean up on exit
+
+        Since this client is created per request, we are forfeiting the benefits of
+        a long-lived HTTP session. However, since this is only intended to be used with
+        an ASGI application running in-process, there should not be a meaningful change
+        in performance.
+        """
+        client = httpx.AsyncClient(app=self.app, base_url="http://ephemeral")
+        try:
+            yield client
+        finally:
+            self._run_coro(client.aclose())
+
+    # httpx.Client methods -------------------------------------------------------------
+
+    def get(self, route: str, **kwargs: Any) -> httpx.Response:
+        with self._httpx_client() as client:
+            return self._run_coro(client.get(route, **kwargs))
+
+    def post(self, route: str, **kwargs: Any) -> httpx.Response:
+        with self._httpx_client() as client:
+            return self._run_coro(client.post(route, **kwargs))
+
+    # Event loop management ------------------------------------------------------------
 
     def _create_threaded_event_loop(
         self,
     ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
+        """
+        Spawns an event loop in a daemonic thread.
+
+        Creating a new event loop that runs in a child thread prevents us from throwing
+        exceptions when there is already an event loop in the main thread and prevents
+        synchronous code in the main thread from blocking the event loop from executing.
+        """
+
         def start_loop(loop):
             asyncio.set_event_loop(loop)
             loop.run_forever()
@@ -152,17 +175,17 @@ class _AsyncRunner:
 
         return t, loop
 
-    def run(self, coro):
-        if not self.event_loop:
+    def _run_coro(self, coro):
+        if not self._event_loop:
             raise ValueError("Event loop has not been created.")
-        if not self.event_loop.is_running():
+        if not self._event_loop.is_running():
             raise ValueError("Event loop is not running.")
 
-        future = asyncio.run_coroutine_threadsafe(coro, loop=self.event_loop)
+        future = asyncio.run_coroutine_threadsafe(coro, loop=self._event_loop)
         result = future.result()
 
         return result
 
-    def stop(self):
-        if self.event_loop.is_running():
-            self.event_loop.stop()
+    def __del__(self):
+        if self._event_loop.is_running():
+            self._event_loop.stop()
