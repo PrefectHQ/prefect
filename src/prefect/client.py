@@ -1,6 +1,6 @@
 import asyncio
 import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List
 from uuid import UUID
 from contextlib import contextmanager
 
@@ -28,7 +28,7 @@ class OrionClient:
         return response
 
     def get(self, route: str, **kwargs) -> httpx.Response:
-        response = self._async_runner.run(self._client.get(route, **kwargs))
+        response = self._client.get(route, **kwargs)
         response.raise_for_status()
         return response
 
