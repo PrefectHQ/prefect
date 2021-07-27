@@ -51,7 +51,7 @@ async def orion_client(client, monkeypatch):
     def yield_client(_):
         yield client
 
-    # Patch the WSGIClient to use the existing test client
+    # Patch the ASGIClient to use the existing test client
     monkeypatch.setattr("prefect.client._ASGIClient._httpx_client", yield_client)
 
     yield OrionClient()
