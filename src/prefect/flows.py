@@ -1,17 +1,14 @@
 import inspect
-from dataclasses import dataclass
 from functools import update_wrapper
 from typing import Any, Callable, Dict, Iterable, Tuple
-from uuid import UUID
 
-from pydantic import validate_arguments, BaseModel
+from pydantic import validate_arguments
 
-from prefect import _context
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture
+from prefect.orion.schemas.core import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities import file_hash
-from prefect.orion.schemas.core import StateType, State
 
 
 class Flow:
@@ -87,6 +84,8 @@ class Flow:
         )
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
+        from prefect._context import FlowRunContext
+
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
@@ -112,22 +111,3 @@ def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
     if _fn is None:
         return lambda _fn: Flow(fn=_fn, name=name, **flow_init_kwargs)
     return Flow(fn=_fn, name=name, **flow_init_kwargs)
-
-
-class FlowRunContext(BaseModel):
-    flow: Flow
-    flow_run_id: UUID
-    client: OrionClient
-
-    class Config:
-        allow_mutation = False
-        arbitrary_types_allowed = True
-        extra = "forbid"
-
-    def __enter__(self):
-        # We've frozen the rest of the data on the class but we'd like to still store
-        # this token for resetting on context exit
-        object.__setattr__(self, "__token", _context.flow_run.set(self))
-
-    def __exit__(self, *_):
-        _context.flow_run.reset(getattr(self, "__token"))

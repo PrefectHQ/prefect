@@ -1,11 +1,12 @@
 import inspect
-from uuid import UUID
+from uuid import UUID, uuid4
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple
+from typing import Any, Callable, Dict, Iterable, Tuple, TYPE_CHECKING
 
-from prefect import _context
-from prefect.flows import FlowRunContext
 from prefect.futures import PrefectFuture
+
+if TYPE_CHECKING:
+    from prefect._context import FlowRunContext, TaskRunContext
 
 
 class Task:
@@ -35,7 +36,7 @@ class Task:
 
     def _run(
         self,
-        flow_run_context: FlowRunContext,
+        flow_run_context: "FlowRunContext",
         task_run_id: UUID,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
@@ -44,20 +45,22 @@ class Task:
         return self.fn(*call_args, **call_kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
+        from prefect._context import FlowRunContext, TaskRunContext
 
-        flow_run_context = _context.flow_run.get(None)
+        flow_run_context = FlowRunContext.get()
         if not flow_run_context:
             raise RuntimeError("Tasks cannot be called outside of a flow.")
 
-        task_run_id = ""  # flow_run.client.create_task_run(...)
+        task_run_id = uuid4()  # flow_run.client.create_task_run(...)
 
-        # TODO: Submit `self._run` to an executor
-        result = self._run(
-            flow_run_context=flow_run_context,
-            task_run_id=task_run_id,
-            call_args=args,
-            call_kwargs=kwargs,
-        )
+        with TaskRunContext(task_run_id=task_run_id, task=self):
+            # TODO: Submit `self._run` to an executor
+            result = self._run(
+                flow_run_context=flow_run_context,
+                task_run_id=task_run_id,
+                call_args=args,
+                call_kwargs=kwargs,
+            )
 
         return PrefectFuture(run_id=task_run_id, result=result)
 
