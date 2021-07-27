@@ -1,7 +1,7 @@
 import pytest
 import hashlib
 
-from prefect.utilities import file_hash
+from prefect.utilities.files import file_hash
 
 
 def test_file_hash_returns_string():
