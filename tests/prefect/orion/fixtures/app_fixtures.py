@@ -31,15 +31,3 @@ async def client(override_app_database_session):
 
     async with AsyncClient(app=app, base_url="https://test") as async_client:
         yield async_client
-
-
-@pytest.fixture
-async def orion_client(client, monkeypatch):
-    @contextmanager
-    def yield_client(_):
-        yield client
-
-    # Patch the ASGIClient to use the existing test client
-    monkeypatch.setattr("prefect.client._ASGIClient._httpx_client", yield_client)
-
-    yield OrionClient()
