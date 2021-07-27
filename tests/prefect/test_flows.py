@@ -79,7 +79,7 @@ class TestDecorator:
 
 
 class TestFlowCall:
-    def test_sync_call_creates_flow_run_and_runs(self, orion_client):
+    def test_sync_call_creates_flow_run_and_runs(self):
         @flow(version="test")
         def foo(x, y=2, z=3):
             return x + y + z
@@ -89,7 +89,7 @@ class TestFlowCall:
         assert future.result() == 6
         assert future.run_id is not None
 
-        flow_run = orion_client.read_flow_run(future.run_id)
+        flow_run = OrionClient().read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
@@ -104,8 +104,7 @@ class TestFlowCall:
         assert future.result() == 6
         assert future.run_id is not None
 
-        with OrionClient() as orion_client:
-            flow_run = orion_client.read_flow_run(future.run_id)
+        flow_run = OrionClient().read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2}
         assert flow_run.flow_version == foo.version
