@@ -88,3 +88,23 @@ async def flow_run_states(database_session, flow_run):
         state=running_state,
     )
     return [scheduled_flow_run_state, running_flow_run_state]
+
+
+@pytest.fixture
+async def task_run_states(database_session, task_run):
+    scheduled_state = schemas.actions.StateCreate(
+        type=schemas.core.StateType.SCHEDULED,
+        timestamp=pendulum.now().subtract(seconds=5),
+    )
+    scheduled_task_run_state = await models.task_run_states.create_task_run_state(
+        session=database_session,
+        task_run_id=task_run.id,
+        state=scheduled_state,
+    )
+    running_state = schemas.actions.StateCreate(type="RUNNING")
+    running_task_run_state = await models.task_run_states.create_task_run_state(
+        session=database_session,
+        task_run_id=task_run.id,
+        state=running_state,
+    )
+    return [scheduled_task_run_state, running_task_run_state]

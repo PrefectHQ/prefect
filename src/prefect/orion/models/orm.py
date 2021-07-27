@@ -60,4 +60,21 @@ class FlowRunState(Base):
     )
 
 
+class TaskRunState(Base):
+    task_run_id = Column(UUID(), nullable=False, index=True)
+    type = Column(Enum(StateType), nullable=False, index=True)
+    timestamp = Column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=NowDefault()
+    )
+    name = Column(String)
+    message = Column(String)
+    state_details = Column(JSON, server_default="{}", default=dict, nullable=False)
+    run_details = Column(JSON, server_default="{}", default=dict, nullable=False)
+    data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    __table__args__ = sa.Index(
+        "ix_task_run_state_task_run_id_timestamp_desc", task_run_id, timestamp.desc()
+    )
+
+
 # TODO: add indexes

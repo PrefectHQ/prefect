@@ -22,6 +22,7 @@ app.include_router(api.flows.router)
 app.include_router(api.flow_runs.router)
 app.include_router(api.task_runs.router)
 app.include_router(api.flow_run_states.router)
+app.include_router(api.task_run_states.router)
 
 
 @app.get("/hello", tags=["debug"])
