@@ -1,13 +1,17 @@
 from uuid import UUID
+from typing import Any
 
 
 class PrefectFuture:
-    def __init__(self, run_id: UUID, result=None, is_exception: bool = False) -> None:
+    def __init__(self, run_id: UUID) -> None:
         self.run_id = run_id
-        self._result = result
-        self.is_exception = is_exception
+        self.user_exception = False
 
     def result(self):
-        if self.is_exception:
+        if self.user_exception:
             raise self._result
         return self._result
+
+    def set_result(self, result: Any, user_exception: bool = False) -> None:
+        self.user_exception = user_exception
+        self._result = result
