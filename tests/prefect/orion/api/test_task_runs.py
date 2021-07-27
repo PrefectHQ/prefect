@@ -62,3 +62,20 @@ class TestDeleteTaskRuns:
     async def test_delete_task_run_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/task_runs/{uuid4()}")
         assert response.status_code == 404
+
+
+class TestSetTaskRunState:
+    async def test_set_task_run_state(self, task_run, client, database_session):
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(type="RUNNING", name="Test State"),
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+        assert response.json()["new_state"] is None
+
+        state = await models.task_runs.read_current_state(
+            session=database_session, task_run_id=task_run.id
+        )
+        assert state.type.value == "RUNNING"
+        assert state.name == "Test State"
