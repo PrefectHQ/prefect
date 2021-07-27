@@ -1,9 +1,12 @@
 import inspect
+from dataclasses import dataclass
 from functools import update_wrapper
-from typing import Any, Awaitable, Callable, Dict, Iterable, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Tuple
+from uuid import UUID
 
-from pydantic import validate_arguments
+from pydantic import validate_arguments, BaseModel
 
+from prefect import _context
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
@@ -92,8 +95,11 @@ class Flow:
             self,
             parameters=parameters,
         )
-        client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
-        return self._run(client, flow_run_id, call_args=args, call_kwargs=kwargs)
+        with FlowRunContext(flow_run_id=flow_run_id, flow=self, client=client):
+            client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
+            future = self._run(client, flow_run_id, call_args=args, call_kwargs=kwargs)
+
+        return future
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
@@ -106,3 +112,22 @@ def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
     if _fn is None:
         return lambda _fn: Flow(fn=_fn, name=name, **flow_init_kwargs)
     return Flow(fn=_fn, name=name, **flow_init_kwargs)
+
+
+class FlowRunContext(BaseModel):
+    flow: Flow
+    flow_run_id: UUID
+    client: OrionClient
+
+    class Config:
+        allow_mutation = False
+        arbitrary_types_allowed = True
+        extra = "forbid"
+
+    def __enter__(self):
+        # We've frozen the rest of the data on the class but we'd like to still store
+        # this token for resetting on context exit
+        object.__setattr__(self, "__token", _context.flow_run.set(self))
+
+    def __exit__(self, *_):
+        _context.flow_run.reset(getattr(self, "__token"))
