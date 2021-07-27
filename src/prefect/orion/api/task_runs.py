@@ -1,7 +1,7 @@
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Path
+from fastapi import Depends, HTTPException, Path, Body, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -66,4 +66,24 @@ async def delete_task_run(
     return result
 
 
-# TODO - implement /task_runs/:id/set_state route
+@router.post("/{id}/set_state")
+async def set_task_run_state(
+    task_run_id: str = Path(..., description="The task run id", alias="id"),
+    state: schemas.actions.StateCreate = Body(..., description="The intended state."),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    response: Response = None,
+) -> schemas.responses.SetStateResponse:
+    """Set a task run state, invoking any orchestration rules."""
+
+    # create the state
+    await models.task_run_states.create_task_run_state(
+        session=session, task_run_id=task_run_id, state=state
+    )
+    # set the 201 because a new state was created
+    response.status_code = status.HTTP_201_CREATED
+
+    # indicate the state was accepted
+    return schemas.responses.SetStateResponse(
+        status=schemas.responses.SetStateStatus.ACCEPT,
+        new_state=None,
+    )
