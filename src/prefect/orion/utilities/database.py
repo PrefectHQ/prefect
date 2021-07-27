@@ -11,6 +11,7 @@ from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import CHAR, TypeDecorator
 from prefect.orion.utilities.settings import Settings
+from sqlalchemy.event import listens_for
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -21,6 +22,16 @@ engine = create_async_engine(
 OrionAsyncSession = sessionmaker(
     engine, future=True, expire_on_commit=False, class_=AsyncSession
 )
+
+
+@listens_for(sa.engine.Engine, "engine_connect", once=True)
+def create_in_memory_sqlite_objects(conn, named=True):
+    """The first time a connection is made to an engine, we check if it's an
+    in-memory sqlite database. If so, we create all Orion tables as a convenience
+    to the user."""
+    if conn.engine.url.get_backend_name() == "sqlite":
+        if conn.engine.url.database in (":memory:", None):
+            Base.metadata.create_all(conn.engine)
 
 
 class UUIDDefault(FunctionElement):
@@ -175,11 +186,3 @@ class Base(object):
     #
     # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
     __mapper_args__ = {"eager_defaults": True}
-
-
-async def create_database_objects():
-    """Creates all database objects from metadata; useful when
-    working with in-memory or prototype databases.
-    """
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
