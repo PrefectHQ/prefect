@@ -60,7 +60,7 @@ async def read_task_runs(
 
 async def read_current_state(
     session: sa.orm.Session, task_run_id: str
-) -> orm.FlowRunState:
+) -> orm.TaskRunState:
     """Reads the most recent state for a task run
 
     Args:
@@ -68,7 +68,7 @@ async def read_current_state(
         task_run_id (str): the task run id
 
     Returns:
-        orm.FlowRunState: the most recent task run state
+        orm.TaskRunState: the most recent task run state
     """
     query = (
         select(orm.TaskRunState)
