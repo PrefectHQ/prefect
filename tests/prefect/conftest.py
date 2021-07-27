@@ -4,13 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from prefect.client import OrionClient
 from prefect.orion.api.dependencies import get_session
 from prefect.orion.api.server import app
-from prefect.orion.utilities.database import reset_db
 from prefect.orion.utilities.settings import Settings
 
 from .orion.fixtures.database_fixtures import *

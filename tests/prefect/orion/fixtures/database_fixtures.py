@@ -11,7 +11,9 @@ from prefect.orion import models, schemas
 async def database_engine():
     """Creates an in memory sqlite database for use in testing"""
     # create an in memory db engine
-    engine = create_async_engine("sqlite+aiosqlite://", echo=Settings().database.echo)
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:", echo=Settings().database.echo
+    )
 
     # populate database tables
     async with engine.begin() as conn:
