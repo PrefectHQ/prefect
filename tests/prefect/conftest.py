@@ -1,19 +1,12 @@
+import logging
+import asyncio
 import inspect
-from contextlib import contextmanager
-from unittest.mock import MagicMock
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
 
-from prefect.client import OrionClient
-from prefect.orion.api.dependencies import get_session
-from prefect.orion.api.server import app
-from prefect.orion.utilities.database import reset_db
-from prefect.orion.utilities.settings import Settings
 
 from .orion.fixtures.database_fixtures import *
+from .orion.fixtures.app_fixtures import *
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -28,30 +21,20 @@ def pytest_collection_modifyitems(session, config, items):
             item.add_marker(pytest.mark.asyncio)
 
 
-@pytest.fixture
-async def client(database_session):
-    """
-    Yield a test client for testing the api
-    """
+# redefine the event loop to support module-scoped fixtures
+# https://github.com/pytest-dev/pytest-asyncio/issues/68
+@pytest.fixture(scope="session")
+def event_loop(request):
+    loop = asyncio.get_event_loop_policy().new_event_loop()
 
-    # override the default get session logic to use
-    # test database instead of actual db
-    def _get_session_override():
-        return database_session
+    # configure asyncio logging to capture long running tasks
+    asyncio_logger = logging.getLogger("asyncio")
+    asyncio_logger.setLevel("WARNING")
+    asyncio_logger.addHandler(logging.StreamHandler())
+    loop.set_debug(True)
+    loop.slow_callback_duration = 0.1
 
-    app.dependency_overrides[get_session] = _get_session_override
-
-    async with AsyncClient(app=app, base_url="http://test") as async_client:
-        yield async_client
-
-
-@pytest.fixture
-async def orion_client(client, monkeypatch):
-    @contextmanager
-    def yield_client(_):
-        yield client
-
-    # Patch the ASGIClient to use the existing test client
-    monkeypatch.setattr("prefect.client._ASGIClient._httpx_client", yield_client)
-
-    yield OrionClient()
+    try:
+        yield loop
+    finally:
+        loop.close()

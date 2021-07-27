@@ -7,28 +7,42 @@ from prefect.orion.utilities.settings import Settings
 from prefect.orion import models, schemas
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 async def database_engine():
-    """Creates an in memory sqlite database for use in testing"""
+    """Creates an in memory sqlite database for use in testing. For performance,
+    the database is created only once, at the beginning of testing. Subsequent
+    sessions roll themselves back at the end of each test to restore the
+    database.
+    """
     # create an in memory db engine
-    engine = create_async_engine("sqlite+aiosqlite://", echo=Settings().database.echo)
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:", echo=Settings().database.echo
+    )
 
     # populate database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    yield engine
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        yield engine
+    finally:
+        await engine.dispose()
 
 
 @pytest.fixture
 async def database_session(database_engine):
-    """Test database session"""
+    """Test database session. At the end of each test, the session is rolled
+    back to restore the original database condition and avoid carrying over
+    state.
+    """
     async with AsyncSession(
         database_engine, future=True, expire_on_commit=False
     ) as session:
         # open transaction
         async with session.begin():
-            yield session
+            try:
+                yield session
+            finally:
+                await session.rollback()
 
 
 @pytest.fixture
