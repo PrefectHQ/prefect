@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from prefect.orion.utilities.database import Base
-from prefect.orion.utilities.settings import Settings
+from prefect import settings
 from prefect.orion import models, schemas
 
 
@@ -16,7 +16,7 @@ async def database_engine():
     """
     # create an in memory db engine
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:", echo=Settings().database.echo
+        "sqlite+aiosqlite:///:memory:", echo=settings.orion.database.echo
     )
 
     # populate database tables

@@ -7,7 +7,7 @@ from prefect import flow
 from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.utilities import file_hash
+from prefect.utilities.files import file_hash
 from prefect.orion.schemas.core import StateType
 
 

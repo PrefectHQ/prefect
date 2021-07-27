@@ -10,13 +10,14 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import CHAR, TypeDecorator
-from prefect.orion.utilities.settings import Settings
+from prefect import settings
 from sqlalchemy.event import listens_for
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
 engine = create_async_engine(
-    Settings().database.connection_url.get_secret_value(), echo=Settings().database.echo
+    settings.orion.database.connection_url.get_secret_value(),
+    echo=settings.orion.database.echo,
 )
 
 OrionAsyncSession = sessionmaker(
