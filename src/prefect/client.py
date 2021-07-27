@@ -108,7 +108,7 @@ class _ASGIClient:
 
         Since this client is created per request, we are forfeiting the benefits of
         a long-lived HTTP session. However, since this is only intended to be used with
-        a WSGI application running in-process, there should not be a meaningful change
+        an ASGI application running in-process, there should not be a meaningful change
         in performance.
         """
         client = httpx.AsyncClient(app=self.app, base_url="http://ephemeral")
