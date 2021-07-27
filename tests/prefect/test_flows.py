@@ -8,7 +8,6 @@ from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.utilities import file_hash
-from prefect.orion.schemas.core import StateType
 
 
 class TestFlow:
@@ -156,4 +155,4 @@ class TestFlowCall:
         # Assert the final state is correct
         states = OrionClient().read_flow_run_states(future.run_id)
         final_state = states[-1]
-        assert final_state.type == (StateType.FAILED if error else StateType.COMPLETED)
+        assert final_state.is_failed() if error else final_state.is_completed()
