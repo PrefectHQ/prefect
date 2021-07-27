@@ -58,6 +58,28 @@ async def read_task_runs(
     return result.scalars().all()
 
 
+async def read_current_state(
+    session: sa.orm.Session, task_run_id: str
+) -> orm.TaskRunState:
+    """Reads the most recent state for a task run
+
+    Args:
+        session (sa.orm.Session): A database session
+        task_run_id (str): the task run id
+
+    Returns:
+        orm.TaskRunState: the most recent task run state
+    """
+    query = (
+        select(orm.TaskRunState)
+        .filter(orm.TaskRunState.task_run_id == task_run_id)
+        .order_by(orm.TaskRunState.timestamp.desc())
+        .limit(1)
+    )
+    result = await session.execute(query)
+    return result.scalars().first()
+
+
 async def delete_task_run(session: sa.orm.Session, task_run_id: str) -> bool:
     """Delete a task run by id
 
