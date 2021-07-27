@@ -122,6 +122,7 @@ class FlowRunContext(BaseModel):
     class Config:
         allow_mutation = False
         arbitrary_types_allowed = True
+        extra = "forbid"
 
     def __enter__(self):
         # We've frozen the rest of the data on the class but we'd like to still store
