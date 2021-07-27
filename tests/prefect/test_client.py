@@ -35,13 +35,14 @@ def test_create_then_read_flow_run():
     assert lookup.tags == list(foo.tags)
 
 
-def test_set_then_read_flow_run_state(orion_client):
+def test_set_then_read_flow_run_state():
     @flow
     def foo():
         pass
 
-    flow_run_id = orion_client.create_flow_run(foo)
-    response = orion_client.set_flow_run_state(
+    client = prefect.client.OrionClient()
+    flow_run_id = client.create_flow_run(foo)
+    response = client.set_flow_run_state(
         flow_run_id,
         state=schemas.core.State(
             type=schemas.core.StateType.COMPLETED, message="Test!"
@@ -51,7 +52,7 @@ def test_set_then_read_flow_run_state(orion_client):
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
     assert response.new_state is None
 
-    states = orion_client.read_flow_run_states(flow_run_id)
+    states = client.read_flow_run_states(flow_run_id)
     assert len(states) == 1
     state = states[-1]
     assert isinstance(state, schemas.core.State)
