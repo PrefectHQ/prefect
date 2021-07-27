@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.15.3 <Badge text="beta" type="success" />
+
+Released on July 27, 2021.
+
+### Enhancements
+
+- Add new `evaluation_parameters` parameter to `RunGreatExpectationsValidation` task
+
+### Fixes
+
+- Fix `create_flow_run` compatibility with auth tokens - [#4801](https://github.com/PrefectHQ/prefect/pull/4801)
+- Fix auto-quoting for strings that begin with numeric characters - [#4802](https://github.com/PrefectHQ/prefect/pull/4802)
+
+### Contributors
+
+- [Michal Zawadzki](https://github.com/trymzet)
+
 ## 0.15.2 <Badge text="beta" type="success" />
 
 Released on July 20, 2021.
