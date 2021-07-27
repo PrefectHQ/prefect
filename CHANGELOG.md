@@ -6,7 +6,7 @@ Released on July 27, 2021.
 
 ### Enhancements
 
-- Add new `evaluation_parameters` parameter to `RunGreatExpectationsValidation` task
+- Add new `evaluation_parameters` parameter to `RunGreatExpectationsValidation` task - [#4798](https://github.com/PrefectHQ/prefect/pull/4798)
 
 ### Fixes
 
