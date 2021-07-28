@@ -1,17 +1,18 @@
-import asyncio
 import re
 import uuid
 
+import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
+from sqlalchemy.event import listens_for
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import CHAR, TypeDecorator
+
 from prefect import settings
-from sqlalchemy.event import listens_for
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -175,12 +176,18 @@ class Base(object):
         server_default=UUIDDefault(),
         default=lambda: str(uuid.uuid4()),
     )
-    created = Column(sa.TIMESTAMP(timezone=True), nullable=False, server_default=Now())
+    created = Column(
+        sa.TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
+    )
     updated = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
         index=True,
         server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
         onupdate=Now(),
     )
 
