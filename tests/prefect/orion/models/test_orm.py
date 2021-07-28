@@ -38,9 +38,9 @@ class TestFlowRun:
 
     async def test_flow_run_states_relationship(self, flow_run):
         assert [s.type for s in flow_run.states] == [
-            schemas.core.StateType.COMPLETED,
-            schemas.core.StateType.RUNNING,
             schemas.core.StateType.PENDING,
+            schemas.core.StateType.RUNNING,
+            schemas.core.StateType.COMPLETED,
         ]
 
     async def test_flow_run_state_property(self, flow_run):
@@ -80,9 +80,9 @@ class TestTaskRun:
 
     async def test_task_run_states_relationship(self, task_run):
         assert [s.type for s in task_run.states] == [
-            schemas.core.StateType.COMPLETED,
-            schemas.core.StateType.RUNNING,
             schemas.core.StateType.PENDING,
+            schemas.core.StateType.RUNNING,
+            schemas.core.StateType.COMPLETED,
         ]
 
     async def test_task_run_state_property(self, task_run):

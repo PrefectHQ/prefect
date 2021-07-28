@@ -30,7 +30,7 @@ class FlowRun(Base):
         "FlowRunState",
         foreign_keys=lambda: [FlowRunState.flow_run_id],
         primaryjoin="FlowRun.id == FlowRunState.flow_run_id",
-        order_by="desc(FlowRunState.timestamp)",
+        order_by="FlowRunState.timestamp",
         lazy="joined",
     )
 
@@ -38,7 +38,7 @@ class FlowRun(Base):
     def state(self):
         """The current state"""
         if self.states:
-            return self.states[0]
+            return self.states[-1]
 
 
 class TaskRun(Base):
@@ -61,7 +61,7 @@ class TaskRun(Base):
         "TaskRunState",
         foreign_keys=lambda: [TaskRunState.task_run_id],
         primaryjoin="TaskRun.id == TaskRunState.task_run_id",
-        order_by="desc(TaskRunState.timestamp)",
+        order_by="TaskRunState.timestamp",
         lazy="joined",
     )
 
@@ -69,7 +69,7 @@ class TaskRun(Base):
     def state(self):
         """The current state"""
         if self.states:
-            return self.states[0]
+            return self.states[-1]
 
 
 class FlowRunState(Base):
