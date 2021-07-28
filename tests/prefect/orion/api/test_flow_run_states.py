@@ -7,9 +7,10 @@ from prefect.orion import models, schemas
 class TestCreateFlowRunState:
     async def test_create_flow_run_state(self, flow_run, client, database_session):
         flow_run_state_data = {
-            "flow_run_id": flow_run.id,
+            "flow_run_id": str(flow_run.id),
             "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
         }
+
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
         assert response.status_code == 200
         assert response.json()["id"]
@@ -35,7 +36,7 @@ class TestReadFlowRunStateById:
     async def test_read_flow_run_state(self, flow_run, client):
         # create a flow run state to read
         flow_run_state_data = {
-            "flow_run_id": flow_run.id,
+            "flow_run_id": str(flow_run.id),
             "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
         }
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
@@ -56,4 +57,4 @@ class TestReadFlowRunStateByFlowRunId:
         response = await client.get(f"/flow_run_states/?flow_run_id={flow_run.id}")
         assert response.status_code == 200
         response_state_ids = {state["id"] for state in response.json()}
-        assert response_state_ids == set([state.id for state in flow_run_states])
+        assert response_state_ids == set([str(state.id) for state in flow_run_states])

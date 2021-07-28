@@ -1,3 +1,4 @@
+from uuid import UUID
 from typing import List
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, Body, Path
@@ -11,7 +12,7 @@ router = OrionRouter(prefix="/flow_run_states", tags=["Flow Run States"])
 
 @router.post("/")
 async def create_flow_run_state(
-    flow_run_id: str = Body(...),
+    flow_run_id: UUID = Body(...),
     state: schemas.actions.StateCreate = Body(...),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.State:
@@ -25,7 +26,9 @@ async def create_flow_run_state(
 
 @router.get("/{id}")
 async def read_flow_run_state(
-    flow_run_state_id: str = Path(..., description="The flow run state id", alias="id"),
+    flow_run_state_id: UUID = Path(
+        ..., description="The flow run state id", alias="id"
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.State:
     """
@@ -41,7 +44,7 @@ async def read_flow_run_state(
 
 @router.get("/")
 async def read_flow_run_states(
-    flow_run_id: str,
+    flow_run_id: UUID,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.State]:
     """
