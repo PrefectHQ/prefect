@@ -3,10 +3,11 @@ from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 from prefect.futures import PrefectFuture, RunType
+from prefect.client import OrionClient
 from prefect.orion.schemas.core import State, StateType
 
 if TYPE_CHECKING:
-    from prefect.context import RunContext
+    from prefect.context import TaskRunContext
 
 
 class Task:
@@ -40,16 +41,18 @@ class Task:
 
     def _run(
         self,
-        context: "RunContext",
+        context: "TaskRunContext",
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
     ) -> None:
-        context.flow_run.client.set_task_run_state(
-            context.task_run.task_run_id, State(type=StateType.RUNNING)
-        )
+        client = OrionClient()
+
+        client.set_task_run_state(context.task_run_id, State(type=StateType.RUNNING))
 
         try:
-            result = self.fn(*call_args, **call_kwargs)
+            # Enter the context here so it will be populated if this is in a new process
+            with context:
+                result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
             state = State(
                 type=StateType.FAILED,
@@ -62,8 +65,8 @@ class Task:
                 message="Flow run completed.",
             )
 
-        context.flow_run.client.set_task_run_state(
-            context.task_run.task_run_id,
+        client.set_task_run_state(
+            context.task_run_id,
             state=state,
         )
 
@@ -73,7 +76,7 @@ class Task:
         return state
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.context import FlowRunContext, RunContext, TaskRunContext
+        from prefect.context import FlowRunContext, TaskRunContext
 
         flow_run_context = FlowRunContext.get()
         if not flow_run_context:
@@ -85,23 +88,18 @@ class Task:
                 "task in a flow?"
             )
 
-        # Load some objects from the flow run settings
-        client = flow_run_context.client
-        executor = flow_run_context.flow.executor
-
-        task_run_id = client.create_task_run(
+        task_run_id = flow_run_context.client.create_task_run(
             task=self,
             flow_run_id=flow_run_context.flow_run_id,
         )
 
-        context = RunContext(
-            flow_run=flow_run_context,
-            task_run=TaskRunContext(task_run_id=task_run_id, task=self),
-        )
-
-        callback = executor.submit(
+        callback = flow_run_context.flow.executor.submit(
             self._run,
-            context=context,
+            context=TaskRunContext(
+                task_run_id=task_run_id,
+                flow_run_id=flow_run_context.flow_run_id,
+                task=self,
+            ),
             call_args=args,
             call_kwargs=kwargs,
         )
@@ -109,7 +107,7 @@ class Task:
         return PrefectFuture(
             run_id=task_run_id,
             run_type=RunType.TaskRun,
-            client=client,
+            client=flow_run_context.client,
             wait_callback=callback,
         )
 

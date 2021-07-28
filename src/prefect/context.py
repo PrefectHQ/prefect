@@ -53,6 +53,7 @@ class FlowRunContext(ContextModel):
 class TaskRunContext(ContextModel):
     task: Task
     task_run_id: UUID
+    flow_run_id: UUID
 
     __var__ = ContextVar("task_run")
 

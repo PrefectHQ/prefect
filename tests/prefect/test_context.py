@@ -59,7 +59,7 @@ def test_task_run_context():
 
     test_id = uuid4()
 
-    with TaskRunContext(task=foo, task_run_id=test_id):
+    with TaskRunContext(task=foo, task_run_id=test_id, flow_run_id=test_id):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run_id == test_id
@@ -98,7 +98,7 @@ def test_get_run_context_flow_run_and_task_run():
     test_client = OrionClient()
 
     flow_run_ctx = FlowRunContext(flow=foo, flow_run_id=test_id, client=test_client)
-    task_run_ctx = TaskRunContext(task=bar, task_run_id=test_id)
+    task_run_ctx = TaskRunContext(task=bar, task_run_id=test_id, flow_run_id=test_id)
     with flow_run_ctx:
         with task_run_ctx:
             ctx = RunContext.get()
@@ -119,7 +119,7 @@ def test_run_context_does_not_allow_with():
     test_client = OrionClient()
 
     flow_run_ctx = FlowRunContext(flow=foo, flow_run_id=test_id, client=test_client)
-    task_run_ctx = TaskRunContext(task=bar, task_run_id=test_id)
+    task_run_ctx = TaskRunContext(task=bar, task_run_id=test_id, flow_run_id=test_id)
     run_ctx = RunContext(flow_run=flow_run_ctx, task_run=task_run_ctx)
 
     with pytest.raises(TypeError, match="cannot be set"):
