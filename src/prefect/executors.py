@@ -106,6 +106,7 @@ class ProcessPoolExecutor(BaseExecutor):
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
         self._pool = concurrent.futures.ProcessPoolExecutor()
+        self.debug = debug
 
     def submit(
         self,
