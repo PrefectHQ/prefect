@@ -84,7 +84,8 @@ class UUID(TypeDecorator):
     Platform-independent UUID type.
 
     Uses PostgreSQL's UUID type, otherwise uses
-    CHAR(32), storing as stringified hex values.
+    CHAR(36), storing as stringified hex values with
+    hyphens.
     """
 
     impl = CHAR
@@ -94,19 +95,17 @@ class UUID(TypeDecorator):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(PostgresUUID())
         else:
-            return dialect.type_descriptor(CHAR(32))
+            return dialect.type_descriptor(CHAR(36))
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
         elif dialect.name == "postgresql":
             return str(value)
+        elif isinstance(value, uuid.UUID):
+            return str(value)
         else:
-            if not isinstance(value, uuid.UUID):
-                return "%.32x" % uuid.UUID(value).int
-            else:
-                # hexstring
-                return "%.32x" % value.int
+            return str(uuid.UUID(value))
 
     def process_result_value(self, value, dialect):
         if value is None:
