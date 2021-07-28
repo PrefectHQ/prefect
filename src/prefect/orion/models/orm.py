@@ -1,11 +1,9 @@
+import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, String
-from sqlalchemy.sql.schema import Index
+from sqlalchemy import JSON, Column, Enum, String
 
-from prefect.orion.utilities.database import UUID, Base
-from sqlalchemy import JSON, Column, String, Enum
-from prefect.orion.utilities.database import UUID, Base, Now
 from prefect.orion.schemas.core import StateType
+from prefect.orion.utilities.database import UUID, Base, Now
 
 
 class Flow(Base):
@@ -47,7 +45,10 @@ class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=Now()
+        sa.TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
     )
     name = Column(String)
     message = Column(String)
@@ -64,7 +65,10 @@ class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=Now()
+        sa.TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
     )
     name = Column(String)
     message = Column(String)
