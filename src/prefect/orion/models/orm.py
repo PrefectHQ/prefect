@@ -4,7 +4,7 @@ from sqlalchemy.sql.schema import Index
 
 from prefect.orion.utilities.database import UUID, Base
 from sqlalchemy import JSON, Column, String, Enum
-from prefect.orion.utilities.database import UUID, Base, NowDefault
+from prefect.orion.utilities.database import UUID, Base, Now
 from prefect.orion.schemas.core import StateType
 
 
@@ -47,7 +47,7 @@ class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=NowDefault()
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=Now()
     )
     name = Column(String)
     message = Column(String)
@@ -64,7 +64,7 @@ class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=NowDefault()
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=Now()
     )
     name = Column(String)
     message = Column(String)
