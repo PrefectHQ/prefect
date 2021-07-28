@@ -24,12 +24,10 @@ async def create_flow_run_state(
         orm.FlowRunState: the newly-created flow run state
     """
     # carry over RunDetails from the most recent state
-    most_recent_state = await models.flow_runs.read_current_state(
-        session=session, flow_run_id=flow_run_id
-    )
-    if most_recent_state is not None:
-        run_details = most_recent_state.run_details
-        run_details["previous_state_id"] = most_recent_state.id
+    run = await models.flow_runs.read_flow_run(session=session, flow_run_id=flow_run_id)
+    if run and run.state is not None:
+        run_details = run.state.run_details
+        run_details["previous_state_id"] = run.state.id
     else:
         run_details = RunDetails().json_dict()
 
@@ -45,6 +43,11 @@ async def create_flow_run_state(
         state_details=state.state_details.json_dict()
     )
     session.add(new_flow_run_state)
+
+    # refresh the run ORM model to load the new state
+    if run is not None:
+        await session.refresh(run)
+
     await session.flush()
     return new_flow_run_state
 
@@ -61,7 +64,9 @@ async def read_flow_run_state(
     Returns:
         orm.FlowRunState: the flow state
     """
-    return await session.get(orm.FlowRunState, flow_run_state_id)
+    query = select(orm.FlowRunState).filter_by(id=flow_run_state_id)
+    result = await session.execute(query)
+    return result.scalar()
 
 
 async def read_flow_run_states(
@@ -82,7 +87,7 @@ async def read_flow_run_states(
         .order_by(orm.FlowRunState.timestamp)
     )
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
 async def delete_flow_run_state(

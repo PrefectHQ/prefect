@@ -24,12 +24,10 @@ async def create_task_run_state(
         orm.TaskRunState: the newly-created task run state
     """
     # carry over RunDetails from the most recent state
-    most_recent_state = await models.task_runs.read_current_state(
-        session=session, task_run_id=task_run_id
-    )
-    if most_recent_state is not None:
-        run_details = most_recent_state.run_details
-        run_details["previous_state_id"] = most_recent_state.id
+    run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
+    if run and run.state is not None:
+        run_details = run.state.run_details
+        run_details["previous_state_id"] = run.state.id
     else:
         run_details = RunDetails().json_dict()
 
@@ -46,6 +44,11 @@ async def create_task_run_state(
     )
     session.add(new_task_run_state)
     await session.flush()
+
+    # refresh the run ORM model to load the new state
+    if run is not None:
+        await session.refresh(run)
+
     return new_task_run_state
 
 
@@ -61,7 +64,9 @@ async def read_task_run_state(
     Returns:
         orm.TaskRunState: the task state
     """
-    return await session.get(orm.TaskRunState, task_run_state_id)
+    query = select(orm.TaskRunState).filter_by(id=task_run_state_id)
+    result = await session.execute(query)
+    return result.scalar()
 
 
 async def read_task_run_states(
@@ -82,7 +87,7 @@ async def read_task_run_states(
         .order_by(orm.TaskRunState.timestamp)
     )
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
 async def delete_task_run_state(

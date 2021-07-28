@@ -16,7 +16,8 @@ async def database_engine():
     """
     # create an in memory db engine
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:", echo=settings.orion.database.echo
+        settings.orion.database.connection_url.get_secret_value(),
+        echo=settings.orion.database.echo,
     )
 
     # populate database tables
