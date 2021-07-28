@@ -8,3 +8,4 @@ pytz >= 2021.1
 sqlalchemy >= 1.4.3, < 2.0
 typing_extensions >= 3.10, < 4.0
 xxhash >= 2.0, < 3.0
+cloudpickle >= 1.0, < 2.0
