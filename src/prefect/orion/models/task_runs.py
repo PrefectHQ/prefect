@@ -1,9 +1,10 @@
 from typing import List
-import sqlalchemy as sa
-from sqlalchemy import select, delete
 
-from prefect.orion.models import orm
+import sqlalchemy as sa
+from sqlalchemy import delete, select
+
 from prefect.orion import schemas
+from prefect.orion.models import orm
 
 
 async def create_task_run(
@@ -34,7 +35,9 @@ async def read_task_run(session: sa.orm.Session, task_run_id: str) -> orm.TaskRu
     Returns:
         orm.TaskRun: the task run
     """
-    return await session.get(orm.TaskRun, task_run_id)
+    query = select(orm.TaskRun).filter_by(id=task_run_id)
+    result = await session.execute(query)
+    return result.scalar()
 
 
 async def read_task_runs(
@@ -55,29 +58,7 @@ async def read_task_runs(
         .order_by(orm.TaskRun.id)
     )
     result = await session.execute(query)
-    return result.scalars().all()
-
-
-async def read_current_state(
-    session: sa.orm.Session, task_run_id: str
-) -> orm.TaskRunState:
-    """Reads the most recent state for a task run
-
-    Args:
-        session (sa.orm.Session): A database session
-        task_run_id (str): the task run id
-
-    Returns:
-        orm.TaskRunState: the most recent task run state
-    """
-    query = (
-        select(orm.TaskRunState)
-        .filter(orm.TaskRunState.task_run_id == task_run_id)
-        .order_by(orm.TaskRunState.timestamp.desc())
-        .limit(1)
-    )
-    result = await session.execute(query)
-    return result.scalars().first()
+    return result.scalars().unique().all()
 
 
 async def delete_task_run(session: sa.orm.Session, task_run_id: str) -> bool:

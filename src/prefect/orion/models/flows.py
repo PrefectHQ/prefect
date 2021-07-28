@@ -38,7 +38,9 @@ async def read_flow(session: sa.orm.Session, flow_id: str) -> orm.Flow:
     Returns:
         orm.Flow: the flow
     """
-    return await session.get(orm.Flow, flow_id)
+    query = select(orm.Flow).filter_by(id=flow_id)
+    result = await session.execute(query)
+    return result.scalar()
 
 
 async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:
@@ -79,7 +81,7 @@ async def read_flows(
         query = query.limit(limit)
 
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
 async def delete_flow(session: sa.orm.Session, flow_id: str) -> bool:
