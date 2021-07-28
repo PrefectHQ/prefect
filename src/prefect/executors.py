@@ -72,3 +72,24 @@ class ThreadPoolExecutor(BaseExecutor):
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
+
+
+class ProcessPoolExecutor(BaseExecutor):
+    """
+    A parallel executor that submits calls to a process pool
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._pool = concurrent.futures.ProcessPoolExecutor()
+
+    def submit(
+        self,
+        fn: Callable,
+        *args: Any,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        self._pool.submit(fn, *args, **kwargs)
+
+    def shutdown(self) -> None:
+        self._pool.shutdown(wait=True)
