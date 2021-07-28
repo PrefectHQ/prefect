@@ -158,6 +158,8 @@ class Base(object):
     and provides ID, created, and updated columns
     """
 
+    __mapper_args__ = {"eager_defaults": True}
+
     @declared_attr
     def __tablename__(cls):
         """
