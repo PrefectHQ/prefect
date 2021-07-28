@@ -84,7 +84,8 @@ class UUID(TypeDecorator):
     Platform-independent UUID type.
 
     Uses PostgreSQL's UUID type, otherwise uses
-    CHAR(32), storing as stringified hex values.
+    CHAR(36), storing as stringified hex values with
+    hyphens.
     """
 
     impl = CHAR
@@ -94,19 +95,17 @@ class UUID(TypeDecorator):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(PostgresUUID())
         else:
-            return dialect.type_descriptor(CHAR(32))
+            return dialect.type_descriptor(CHAR(36))
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
         elif dialect.name == "postgresql":
             return str(value)
+        elif isinstance(value, uuid.UUID):
+            return str(value)
         else:
-            if not isinstance(value, uuid.UUID):
-                return "%.32x" % uuid.UUID(value).int
-            else:
-                # hexstring
-                return "%.32x" % value.int
+            return str(uuid.UUID(value))
 
     def process_result_value(self, value, dialect):
         if value is None:
@@ -117,30 +116,37 @@ class UUID(TypeDecorator):
             return str(value)
 
 
-class NowDefault(FunctionElement):
+class Now(FunctionElement):
     """
     Platform-independent "now" generator
     """
 
-    name = "now_default"
+    name = "now"
 
 
-@compiles(NowDefault, "sqlite")
-def visit_custom_uuid_default_for_sqlite(element, compiler, **kwargs):
+@compiles(Now, "sqlite")
+def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     """
     Generates the current timestamp for SQLite
 
     We need to add three zeros to the string representation
     because SQLAlchemy uses a regex expression which is expecting
-    6 decimal places
+    6 decimal places, but SQLite only stores milliseconds. This
+    causes SQLAlchemy to interpret 01:23:45.678 as if it were
+    01:23:45.000678. By forcing SQLite to store an extra three
+    0's, we work around his issue.
+
+    Note this only affects timestamps that we ask SQLite to issue
+    in SQL (like the default value for a timestamp column); not
+    datetimes provided by SQLAlchemy itself.
     """
     return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
 
 
-@compiles(NowDefault)
-def visit_custom_now_default(element, compiler, **kwargs):
+@compiles(Now)
+def now(element, compiler, **kwargs):
     """
-    Generates the current timestamp in other databases (Postgres)
+    Generates the current timestamp in standard SQL
     """
     return sa.func.now()
 
@@ -151,6 +157,8 @@ class Base(object):
     Base SQLAlchemy model that automatically infers the table name
     and provides ID, created, and updated columns
     """
+
+    __mapper_args__ = {"eager_defaults": True}
 
     @declared_attr
     def __tablename__(cls):
@@ -167,15 +175,13 @@ class Base(object):
         server_default=UUIDDefault(),
         default=lambda: str(uuid.uuid4()),
     )
-    created = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=NowDefault()
-    )
+    created = Column(sa.TIMESTAMP(timezone=True), nullable=False, server_default=Now())
     updated = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
         index=True,
-        server_default=NowDefault(),
-        onupdate=NowDefault(),
+        server_default=Now(),
+        onupdate=Now(),
     )
 
     # required in order to access columns with server defaults
@@ -187,3 +193,9 @@ class Base(object):
     #
     # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
     __mapper_args__ = {"eager_defaults": True}
+
+
+async def reset_db(engine=engine):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
