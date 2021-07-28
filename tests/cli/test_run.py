@@ -12,6 +12,8 @@ from prefect.engine.state import Scheduled, Success, Failed, Submitted
 from prefect.run_configs import UniversalRun
 from prefect.storage import Local as LocalStorage
 from prefect.backend import FlowRunView, FlowView
+from prefect.utilities.executors import run_with_thread_timeout
+from prefect.exceptions import TaskTimeoutSignal
 
 from prefect.cli.run import load_json_key_values, run
 
@@ -401,6 +403,12 @@ def test_run_local_passes_parameters(caplog):
     assert "Configured local flow run\n└── Parameters: {'name': 'foo'}" in result.output
     # Parameter was used by the flow
     assert "Hello Foo" in caplog.text
+
+
+def test_run_local_respects_schedule(caplog):
+    result = CliRunner().invoke(run, ["--module", "prefect.hello_world", "--schedule"])
+    print(result)
+    assert 1 == 2
 
 
 def test_run_local_passes_parameters_from_file(caplog, tmpdir):
@@ -808,3 +816,21 @@ def test_run_cloud_execute_respects_no_logs(cloud_mocks):
     assert "Executing flow run..." in result.output
     # Run logs do not
     assert "LOG MESSAGE" not in result.output
+
+
+def test_run_local_respects_schedule(hello_world_flow_file, caplog):
+    def scheduled_run():
+        return CliRunner().invoke(run, ["--path", hello_world_flow_file, "--schedule"])
+
+    with pytest.raises(TaskTimeoutSignal):
+        run_with_thread_timeout(scheduled_run, timeout=3)
+
+    assert "Waiting for next scheduled run at" in caplog.text
+
+
+def test_run_local_defaults_to_no_schedule(hello_world_flow_file, caplog):
+    result = CliRunner().invoke(run, ["--path", hello_world_flow_file])
+
+    assert not result.exit_code
+    assert "Hello World" in caplog.text
+    assert "Flow run succeeded" in result.output
