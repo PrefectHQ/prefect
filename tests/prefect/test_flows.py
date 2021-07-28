@@ -86,7 +86,8 @@ class TestFlowCall:
 
         future = foo(1, 2)
         assert isinstance(future, PrefectFuture)
-        assert future.result() == 6
+        assert future.result().is_completed()
+        assert future.result().data == 6
         assert future.run_id is not None
 
         flow_run = OrionClient().read_flow_run(future.run_id)
@@ -101,7 +102,8 @@ class TestFlowCall:
 
         future = foo(1, 2)
         assert isinstance(future, PrefectFuture)
-        assert future.result() == 6
+        assert future.result().is_completed()
+        assert future.result().data == 6
         assert future.run_id is not None
 
         flow_run = OrionClient().read_flow_run(future.run_id)
@@ -118,7 +120,8 @@ class TestFlowCall:
             return x + sum(y) + zt.z
 
         future = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert future.result() == 10
+        assert future.result().is_completed()
+        assert future.result().data == 10
 
     def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")
@@ -128,11 +131,12 @@ class TestFlowCall:
         # No error until the future is unpacked
         future = foo(x="foo")
 
+        assert future.result().is_failed()
         with pytest.raises(
             pydantic.error_wrappers.ValidationError,
             match="value is not a valid integer",
         ):
-            future.result()
+            raise future.result().data
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_state_reflects_result_of_run(self, error):
@@ -142,22 +146,8 @@ class TestFlowCall:
                 raise error
 
         future = foo()
-
-        raised = None
-        try:
-            future.result()
-        except Exception as exc:
-            raised = exc
-
-        # Assert the exception was raised correctly
-        assert raised is error
+        state = future.result()
 
         # Assert the final state is correct
-        state = future.state()
         assert state.is_failed() if error else state.is_completed()
-
-        # DOES NOT WORK
-        # print(f"Getting state for {future.run_id}")
-        # states = OrionClient().read_flow_run_states(future.run_id)
-        # final_state = states[-1]
-        # assert final_state.is_failed() if error else final_state.is_completed()
+        assert state.data is error
