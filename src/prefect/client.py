@@ -163,16 +163,6 @@ class OrionClient:
         response = self.get("/task_run_states/", params=dict(task_run_id=task_run_id))
         return pydantic.parse_obj_as(List[schemas.core.State], response.json())
 
-    def __getstate__(self):
-        data = self.__dict__.copy()
-        data["_client"] = {type(self._client)}
-        return data
-
-    def __setstate__(self, data) -> None:
-        # Re-instantiate the underlying http client
-        data["_client"] = data["_client"]()
-        self.__dict__ = data
-
 
 class _ASGIClient:
     """
