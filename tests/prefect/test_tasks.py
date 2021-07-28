@@ -56,6 +56,11 @@ class TestTaskCall:
         assert raised is error
 
         # Assert the final state is correct
+        # WORKS
         states = OrionClient().read_task_run_states(task_future.run_id)
         final_state = states[-1]
         assert final_state.is_failed() if error else final_state.is_completed()
+
+        # ALSO WORKS
+        state = task_future.state()
+        assert state.is_failed() if error else state.is_completed()

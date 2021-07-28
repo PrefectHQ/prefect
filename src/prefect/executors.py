@@ -2,44 +2,37 @@ from typing import Callable, Tuple, Any, Dict
 from typing import NamedTuple
 from uuid import uuid4
 
-from concurrent.futures import ThreadPoolExecutor, Future
+from prefect.futures import PrefectFuture
 
-
-class Call(NamedTuple):
-    id: str
-    fn: Callable
-    args: Tuple[Any, ...]
-    kwargs: Dict[str, Any]
+import concurrent.futures
 
 
 class BaseExecutor:
-    _calls: Dict[str, Call]
-
     def __init__(self) -> None:
-        self._calls = {}
+        pass
 
     def submit(
         self,
         fn: Callable,
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> str:
-        call = Call(str(uuid4()), fn, args, kwargs)
-        self._calls[call.id] = call
+    ) -> None:
+        raise NotImplementedError()
 
-        # Call child hook
-        self._submit(call)
+    def __enter__(self):
+        yield self
 
-        return call.id
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.shutdown()
+        return False
 
-    def result(self, call_id: str):
-        return self._result(call_id)
+    def shutdown(self) -> None:
+        """
+        Clean up resources associated with the executor
 
-    def _submit(self, call: Call) -> None:
-        raise NotImplementedError
-
-    def _result(self, call_id: str) -> Any:
-        raise NotImplementedError
+        Will block until submitted calls are completed
+        """
+        pass
 
 
 class SyncExecutor(BaseExecutor):
@@ -49,33 +42,33 @@ class SyncExecutor(BaseExecutor):
 
     def __init__(self) -> None:
         super().__init__()
-        self._results: Dict[str, Any] = {}
 
-    def _submit(self, call: Call) -> None:
-        try:
-            self._results[call.id] = call.fn(*call.args, **call.kwargs)
-        except Exception as exc:
-            # This is a Prefect exception at this point
-            raise RuntimeError(
-                f"Encountered an exception while executing {call.fn}"
-            ) from exc
-
-    def _result(self, call: Call) -> None:
-        return self._results[call.id]
+    def submit(
+        self,
+        fn: Callable,
+        *args: Any,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        # Just immediately run the function
+        fn(*args, **kwargs)
 
 
-class ThreadedExecutor(BaseExecutor):
+class ThreadPoolExecutor(BaseExecutor):
     """
-    A simple synchronous executor that executes calls as they are submitted
+    A parallel executor that submits calls to a thread pool
     """
 
     def __init__(self) -> None:
         super().__init__()
-        self._pool = ThreadPoolExecutor()
-        self._futures: Dict[str, Future] = {}
+        self._pool = concurrent.futures.ThreadPoolExecutor()
 
-    def _submit(self, call: Call) -> None:
-        self._futures[call.id] = self._pool.submit(call.fn, *call.args, *call.kwargs)
+    def submit(
+        self,
+        fn: Callable,
+        *args: Any,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        self._pool.submit(fn, *args, **kwargs)
 
-    def _result(self, call_id: str) -> None:
-        return self._futures[call_id].result()
+    def shutdown(self) -> None:
+        self._pool.shutdown(wait=True)
