@@ -23,10 +23,14 @@ class SQLAlchemyModel(DBBase):
 
 
 class TestPydantic:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope="session")
     async def create_models(self, database_engine):
         async with database_engine.begin() as conn:
             await conn.run_sync(DBBase.metadata.create_all)
+            try:
+                yield
+            finally:
+                await conn.run_sync(DBBase.metadata.drop_all)
 
     async def test_write_to_Pydantic(self, database_session):
         p_model = PydanticModel(x=100)
