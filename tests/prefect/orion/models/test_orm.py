@@ -7,7 +7,7 @@ from prefect.orion import schemas
 
 class TestFlowRun:
     @pytest.fixture(autouse=True)
-    async def create_flow_run_states(sel, flow_run, database_session):
+    async def create_flow_run_states(self, flow_run, database_session):
         # insert states out of order
         states = [
             orm.FlowRunState(
