@@ -26,6 +26,11 @@ Examples:
 """
 
 from prefect import task, Flow, Parameter
+from datetime import timedelta
+from prefect.schedules import IntervalSchedule
+
+
+schedule = IntervalSchedule(interval=timedelta(seconds=10))
 
 
 @task(log_stdout=True)
@@ -38,6 +43,6 @@ def capitalize(word: str) -> str:
     return word.capitalize()
 
 
-with Flow("hello-world") as hello_flow:
+with Flow("hello-world", schedule) as hello_flow:
     name = Parameter("name", default="world")
     say_hello(capitalize(name))
