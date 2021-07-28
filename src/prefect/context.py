@@ -32,6 +32,7 @@ class ContextModel(BaseModel):
         # We've frozen the rest of the data on the class but we'd like to still store
         # this token for resetting on context exit
         object.__setattr__(self, "__token", self.__var__.set(self))
+        return self
 
     def __exit__(self, *_):
         self.__var__.reset(getattr(self, "__token"))
@@ -51,6 +52,15 @@ class FlowRunContext(ContextModel):
     client: OrionClient
 
     __var__ = ContextVar("flow_run")
+
+    def __getstate__(self):
+        data = self.__dict__.copy()
+        data.pop("client")
+        return data
+
+    def __setstate__(self, data) -> None:
+        data["client"] = OrionClient()
+        self.__dict__ = data
 
 
 class TaskRunContext(ContextModel):

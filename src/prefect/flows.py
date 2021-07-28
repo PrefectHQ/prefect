@@ -1,15 +1,18 @@
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient
-from prefect.futures import PrefectFuture, RunType
-from prefect.orion.utilities.functions import parameter_schema
-from prefect.orion.schemas.responses import SetStateStatus
-from prefect.utilities.files import file_hash
 from prefect.executors import BaseExecutor, SyncExecutor
+from prefect.futures import PrefectFuture, RunType
+from prefect.orion.schemas.core import State, StateType
+from prefect.orion.utilities.functions import parameter_schema
+from prefect.utilities.files import file_hash
+
+if TYPE_CHECKING:
+    from prefect.context import FlowRunContext
 
 
 class Flow:
@@ -50,10 +53,10 @@ class Flow:
 
     def _run(
         self,
-        future: PrefectFuture,
+        context: "FlowRunContext",
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
-    ) -> None:
+    ) -> PrefectFuture:
         """
         TODO: Note that pydantic will now coerce parameter types into the correct type
               even if the user wants failure on inexact type matches. We may want to
@@ -63,19 +66,39 @@ class Flow:
               work at Flow.__init__ so we can raise errors to users immediately
         TODO: Implement state orchestation logic using return values from the API
         """
-        future.set_running()
+        context.client.set_flow_run_state(
+            context.flow_run_id, State(type=StateType.RUNNING)
+        )
 
         try:
             result = validate_arguments(self.fn)(*call_args, **call_kwargs)
         except Exception as exc:
-            response = future.set_exception(exc)
-        else:
-            response = future.set_result(result)
-
-        if not response.status == SetStateStatus.ACCEPT:
-            raise RuntimeError(
-                "State was not accepted and handling is not implemented yet"
+            state = State(
+                type=StateType.FAILED,
+                message="Flow run encountered an exception.",
             )
+            result = exc
+        else:
+            state = State(
+                type=StateType.COMPLETED,
+                message="Flow run completed.",
+            )
+
+        context.client.set_flow_run_state(
+            context.flow_run_id,
+            state=state,
+        )
+
+        # Attach the result to the state
+        state.data = result
+
+        # Return a future that is already resolved to `state`
+        return PrefectFuture(
+            run_id=context.flow_run_id,
+            run_type=RunType.FlowRun,
+            client=context.client,
+            wait_callback=lambda timeout: state,
+        )
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext
@@ -88,14 +111,12 @@ class Flow:
             self,
             parameters=parameters,
         )
-        future = PrefectFuture(
-            run_id=flow_run_id, run_type=RunType.FlowRun, client=client
-        )
-        with self.executor:
-            with FlowRunContext(flow_run_id=flow_run_id, flow=self, client=client):
-                self._run(future, call_args=args, call_kwargs=kwargs)
 
-        return future
+        with self.executor:
+            with FlowRunContext(
+                flow_run_id=flow_run_id, flow=self, client=client
+            ) as context:
+                return self._run(context=context, call_args=args, call_kwargs=kwargs)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):

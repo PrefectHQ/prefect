@@ -1,11 +1,10 @@
-import threading
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.orion.schemas.core import State, StateType
-from prefect.orion.schemas.responses import SetStateResponse, SetStateStatus
+from prefect.orion.schemas.responses import SetStateResponse
 
 
 class RunType(Enum):
@@ -14,15 +13,21 @@ class RunType(Enum):
 
 
 class PrefectFuture:
-    def __init__(self, run_id: UUID, run_type: RunType, client: OrionClient) -> None:
+    def __init__(
+        self,
+        run_id: UUID,
+        run_type: RunType,
+        client: OrionClient,
+        wait_callback: Callable[[float], Optional[State]],
+    ) -> None:
         self.run_id = run_id
         self.run_type = run_type
         self._client = client
         self._result: Any = None
         self._exception: Optional[Exception] = None
-        self._condition = threading.Condition()
+        self._wait_callback = wait_callback
 
-        self.__set_state(State(type=StateType.PENDING))
+        self.set_state(State(type=StateType.PENDING))
 
     @property
     def is_flow_run(self):
@@ -32,89 +37,27 @@ class PrefectFuture:
     def is_task_run(self):
         self.run_type == RunType.TaskRun
 
-    def state(self) -> State:
-        with self._condition:
-            return self.__get_state()
-
-    def result(self, timeout: float = None) -> Any:
+    def result(self, timeout: float = None) -> State:
         """
-        Return the result of the run the future represents
-
-        Raises an exception if the run failed with an exception
+        Return the state of the run the future represents
         """
-        with self._condition:
-            if self.__get_state().is_done():
-                return self.__get_result()
+        state = self.get_state()
+        if state.is_done():
+            return state
 
-            self._condition.wait(timeout)
+        result = self._wait_callback(timeout)
 
-            if self.__get_state().is_done():
-                return self.__get_result()
-            else:
-                raise TimeoutError()
+        return result
 
-    def exception(self, timeout: float = None) -> Optional[Exception]:
-        """
-        Return the exception raised by the run the future represents
-
-        Returns None if the run completed successfully
-        """
-        with self._condition:
-            if self.__get_state().is_done():
-                return self._exception
-
-            self._condition.wait(timeout)
-
-            if self.__get_state().is_done():
-                return self._exception
-            else:
-                raise TimeoutError()
-
-    def set_running(self) -> SetStateResponse:
-        with self._condition:
-            return self.__set_state(State(type=StateType.RUNNING))
-
-    def set_result(self, result: Any) -> SetStateResponse:
-        with self._condition:
-            response = self.__set_state(State(type=StateType.COMPLETED))
-            if response.status == SetStateStatus.ACCEPT:
-                self._result = result
-                self._condition.notify_all()
-            return response
-
-    def set_exception(self, exception: Exception) -> SetStateResponse:
-        with self._condition:
-            self._exception = exception
-            response = self.__set_state(State(type=StateType.FAILED))
-            if response.status == SetStateStatus.ACCEPT:
-                self._exception = exception
-                self._condition.notify_all()
-            return response
-
-    def __hash__(self) -> int:
-        return hash(self.run_id)
-
-    # Unsafe methods -------------------------------------------------------------------
-    # These methods do not use the lock and must be called from a locked context
-
-    def __get_result(self) -> Any:
-        if self._exception:
-            raise self._exception
-        else:
-            return self._result
-
-    def __set_state(self, state: State) -> SetStateResponse:
+    def set_state(self, state: State) -> SetStateResponse:
         method = (
             self._client.set_flow_run_state
             if self.is_flow_run
             else self._client.set_task_run_state
         )
-        print(
-            f"Setting state for {self.run_type.value}('{self.run_id}') to {state.name!r}"
-        )
         return method(self.run_id, state)
 
-    def __get_state(self) -> State:
+    def get_state(self) -> State:
         method = (
             self._client.read_flow_run_states
             if self.is_flow_run
@@ -124,3 +67,6 @@ class PrefectFuture:
         if not states:
             raise RuntimeError("Future has no associated state in the server.")
         return states[-1]
+
+    def __hash__(self) -> int:
+        return hash(self.run_id)

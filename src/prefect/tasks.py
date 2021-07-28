@@ -1,10 +1,9 @@
 import inspect
-from uuid import UUID
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 from prefect.futures import PrefectFuture, RunType
-from prefect.orion.schemas.responses import SetStateStatus
+from prefect.orion.schemas.core import State, StateType
 
 if TYPE_CHECKING:
     from prefect.context import RunContext
@@ -42,33 +41,39 @@ class Task:
     def _run(
         self,
         context: "RunContext",
-        task_run_id: UUID,
-        future: PrefectFuture,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
     ) -> None:
-        print("Entered TaskRun('{task_run_id}') execution method")
-
-        future.set_running()
+        context.flow_run.client.set_task_run_state(
+            context.task_run.task_run_id, State(type=StateType.RUNNING)
+        )
 
         try:
-            # Ensure that the context is set if this method is called in a different
-            # frame than the original context
-            with context.flow_run:
-                with context.task_run:
-                    result = self.fn(*call_args, **call_kwargs)
+            result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
-            response = future.set_exception(exc)
+            state = State(
+                type=StateType.FAILED,
+                message="Flow run encountered an exception.",
+            )
+            result = exc
         else:
-            response = future.set_result(result)
-
-        if not response.status == SetStateStatus.ACCEPT:
-            raise RuntimeError(
-                "State was not accepted and handling is not implemented yet"
+            state = State(
+                type=StateType.COMPLETED,
+                message="Flow run completed.",
             )
 
+        context.flow_run.client.set_task_run_state(
+            context.task_run.task_run_id,
+            state=state,
+        )
+
+        # TODO: Send the data to the server as well? Will need to be serialized there
+        #       but we don't want it serialized here
+        state.data = result
+        return state
+
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.context import FlowRunContext, TaskRunContext, RunContext
+        from prefect.context import FlowRunContext, RunContext, TaskRunContext
 
         flow_run_context = FlowRunContext.get()
         if not flow_run_context:
@@ -89,25 +94,24 @@ class Task:
             flow_run_id=flow_run_context.flow_run_id,
         )
 
-        future = PrefectFuture(
-            run_id=task_run_id, run_type=RunType.TaskRun, client=client
-        )
-
         context = RunContext(
             flow_run=flow_run_context,
             task_run=TaskRunContext(task_run_id=task_run_id, task=self),
         )
 
-        executor.submit(
+        callback = executor.submit(
             self._run,
             context=context,
-            task_run_id=task_run_id,
-            future=future,
             call_args=args,
             call_kwargs=kwargs,
         )
 
-        return future
+        return PrefectFuture(
+            run_id=task_run_id,
+            run_type=RunType.TaskRun,
+            client=client,
+            wait_callback=callback,
+        )
 
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):
