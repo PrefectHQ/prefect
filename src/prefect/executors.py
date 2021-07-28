@@ -94,8 +94,8 @@ class ProcessPoolExecutor(BaseExecutor):
         *args: Any,
         **kwargs: Dict[str, Any],
     ) -> None:
-        payload, run = serialize_call(fn, *args, **kwargs)
-        fut = self._pool.submit(run, payload)
+        payload = _serialize_call(fn, *args, **kwargs)
+        fut = self._pool.submit(_run_serialized_call, payload)
         if self.debug:  # Resolve the future immediately
             fut.result()
 
@@ -103,10 +103,10 @@ class ProcessPoolExecutor(BaseExecutor):
         self._pool.shutdown(wait=True)
 
 
-def serialize_call(fn, *args, **kwargs):
-    def deserialize_and_run(payload):
-        fn, args, kwargs = cloudpickle.loads(payload)
-        return fn(*args, **kwargs)
+def _serialize_call(fn, *args, **kwargs):
+    return cloudpickle.dumps((fn, args, kwargs))
 
-    payload = cloudpickle.dumps((fn, args, kwargs))
-    return payload, deserialize_and_run
+
+def _run_serialized_call(payload):
+    fn, args, kwargs = cloudpickle.loads(payload)
+    return fn(*args, **kwargs)
