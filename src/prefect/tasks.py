@@ -4,7 +4,7 @@ from functools import update_wrapper
 from typing import Any, Callable, Dict, Iterable, Tuple, TYPE_CHECKING
 
 from prefect.futures import PrefectFuture, RunType
-from prefect.orion.schemas.core import State, StateType
+from prefect.orion.schemas.responses import SetStateStatus
 
 if TYPE_CHECKING:
     from prefect.context import RunContext
@@ -47,6 +47,7 @@ class Task:
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
     ) -> None:
+        print("Entered TaskRun('{task_run_id}') execution method")
 
         future.set_running()
 
@@ -57,9 +58,14 @@ class Task:
                 with context.task_run:
                     result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
-            future.set_exception(exc)
+            response = future.set_exception(exc)
         else:
-            future.set_result(result)
+            response = future.set_result(result)
+
+        if not response.status == SetStateStatus.ACCEPT:
+            raise RuntimeError(
+                "State was not accepted and handling is not implemented yet"
+            )
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext, TaskRunContext, RunContext

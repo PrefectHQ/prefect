@@ -7,6 +7,7 @@ from pydantic import validate_arguments
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, RunType
 from prefect.orion.utilities.functions import parameter_schema
+from prefect.orion.schemas.responses import SetStateStatus
 from prefect.utilities.files import file_hash
 from prefect.executors import BaseExecutor, SyncExecutor
 
@@ -62,15 +63,19 @@ class Flow:
               work at Flow.__init__ so we can raise errors to users immediately
         TODO: Implement state orchestation logic using return values from the API
         """
-
         future.set_running()
 
         try:
             result = validate_arguments(self.fn)(*call_args, **call_kwargs)
         except Exception as exc:
-            future.set_exception(exc)
+            response = future.set_exception(exc)
         else:
-            future.set_result(result)
+            response = future.set_result(result)
+
+        if not response.status == SetStateStatus.ACCEPT:
+            raise RuntimeError(
+                "State was not accepted and handling is not implemented yet"
+            )
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext
