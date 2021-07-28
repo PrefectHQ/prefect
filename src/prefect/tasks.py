@@ -3,7 +3,7 @@ from uuid import UUID
 from functools import update_wrapper
 from typing import Any, Callable, Dict, Iterable, Tuple, TYPE_CHECKING
 
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, RunType
 from prefect.orion.schemas.core import State, StateType
 
 if TYPE_CHECKING:
@@ -46,25 +46,20 @@ class Task:
         future: PrefectFuture,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
-    ):
-        client = context.flow_run.client
+    ) -> None:
 
-        client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
+        future.set_running()
 
         try:
-            result = self.fn(*call_args, **call_kwargs)
+            # Ensure that the context is set if this method is called in a different
+            # frame than the original context
+            with context.flow_run:
+                with context.task_run:
+                    result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
-            result = exc
-            state_type = StateType.FAILED
-            message = "Task run encountered a user exception."
+            future.set_exception(exc)
         else:
-            state_type = StateType.COMPLETED
-            message = "Task run completed."
-
-        state = State(type=state_type, message=message)
-        client.set_task_run_state(task_run_id, state=state)
-
-        future.set_result(result, user_exception=state.is_failed())
+            future.set_result(result)
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext, TaskRunContext, RunContext
@@ -87,25 +82,24 @@ class Task:
             task=self,
             flow_run_id=flow_run_context.flow_run_id,
         )
-        client.set_task_run_state(task_run_id, State(type=StateType.PENDING))
 
-        future = PrefectFuture(run_id=task_run_id)
+        future = PrefectFuture(
+            run_id=task_run_id, run_type=RunType.TaskRun, client=client
+        )
 
         context = RunContext(
             flow_run=flow_run_context,
             task_run=TaskRunContext(task_run_id=task_run_id, task=self),
         )
 
-        # TODO: Submit `self._run` to an executor
-        with context.task_run:
-            executor.submit(
-                self._run,
-                context=context,
-                task_run_id=task_run_id,
-                future=future,
-                call_args=args,
-                call_kwargs=kwargs,
-            )
+        executor.submit(
+            self._run,
+            context=context,
+            task_run_id=task_run_id,
+            future=future,
+            call_args=args,
+            call_kwargs=kwargs,
+        )
 
         return future
 

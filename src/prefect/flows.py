@@ -5,12 +5,11 @@ from typing import Any, Callable, Dict, Iterable, Tuple
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient
-from prefect.futures import PrefectFuture
-from prefect.orion.schemas.core import State, StateType
+from prefect.futures import PrefectFuture, RunType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.files import file_hash
 from prefect.orion.schemas.core import StateType, State
-from prefect.executors import BaseExecutor, ThreadedExecutor
+from prefect.executors import BaseExecutor, SyncExecutor
 
 
 class Flow:
@@ -37,7 +36,7 @@ class Flow:
         self.name = name or fn.__name__
 
         self.tags = set(tags if tags else [])
-        self.executor = executor or ThreadedExecutor()
+        self.executor = executor or SyncExecutor()
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
@@ -51,8 +50,6 @@ class Flow:
 
     def _run(
         self,
-        client: OrionClient,
-        flow_run_id: str,
         future: PrefectFuture,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
@@ -67,22 +64,14 @@ class Flow:
         TODO: Implement state orchestation logic using return values from the API
         """
 
-        client.set_flow_run_state(flow_run_id, State(type=StateType.RUNNING))
+        future.set_running()
 
         try:
             result = validate_arguments(self.fn)(*call_args, **call_kwargs)
         except Exception as exc:
-            result = exc
-            state_type = StateType.FAILED
-            message = "Flow run encountered a user exception."
+            future.set_exception(exc)
         else:
-            state_type = StateType.COMPLETED
-            message = "Flow run completed."
-
-        state = State(type=state_type, message=message)
-        client.set_flow_run_state(flow_run_id, state=state)
-
-        future.set_result(result, user_exception=state.is_failed())
+            future.set_result(result)
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext
@@ -95,11 +84,12 @@ class Flow:
             self,
             parameters=parameters,
         )
-        future = PrefectFuture(flow_run_id)
-
-        with FlowRunContext(flow_run_id=flow_run_id, flow=self, client=client):
-            client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
-            self._run(client, flow_run_id, future, call_args=args, call_kwargs=kwargs)
+        future = PrefectFuture(
+            run_id=flow_run_id, run_type=RunType.FlowRun, client=client
+        )
+        with self.executor:
+            with FlowRunContext(flow_run_id=flow_run_id, flow=self, client=client):
+                self._run(future, call_args=args, call_kwargs=kwargs)
 
         return future
 

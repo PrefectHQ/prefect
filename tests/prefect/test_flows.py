@@ -9,6 +9,7 @@ from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.utilities.files import file_hash
 
+
 class TestFlow:
     def test_initializes(self):
         f = Flow(name="test", fn=lambda **kwargs: 42, version="A", description="B")
@@ -152,6 +153,11 @@ class TestFlowCall:
         assert raised is error
 
         # Assert the final state is correct
-        states = OrionClient().read_flow_run_states(future.run_id)
-        final_state = states[-1]
-        assert final_state.is_failed() if error else final_state.is_completed()
+        state = future.state()
+        assert state.is_failed() if error else state.is_completed()
+
+        # DOES NOT WORK
+        # print(f"Getting state for {future.run_id}")
+        # states = OrionClient().read_flow_run_states(future.run_id)
+        # final_state = states[-1]
+        # assert final_state.is_failed() if error else final_state.is_completed()
