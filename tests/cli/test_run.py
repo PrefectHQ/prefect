@@ -405,12 +405,6 @@ def test_run_local_passes_parameters(caplog):
     assert "Hello Foo" in caplog.text
 
 
-def test_run_local_respects_schedule(caplog):
-    result = CliRunner().invoke(run, ["--module", "prefect.hello_world", "--schedule"])
-    print(result)
-    assert 1 == 2
-
-
 def test_run_local_passes_parameters_from_file(caplog, tmpdir):
     params_file = tmpdir.join("params.json")
     params_file.write_text(json.dumps({"name": "foo"}), encoding="UTF-8")
