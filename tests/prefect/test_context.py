@@ -59,7 +59,11 @@ def test_task_run_context():
 
     test_id = uuid4()
 
-    with TaskRunContext(task=foo, task_run_id=test_id, flow_run_id=test_id):
+    test_client = OrionClient()
+
+    with TaskRunContext(
+        task=foo, task_run_id=test_id, flow_run_id=test_id, client=test_client
+    ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run_id == test_id

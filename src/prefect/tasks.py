@@ -54,11 +54,11 @@ class Task:
         client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
 
         try:
-            # Enter the context here so it will be populated if this is in a new process
             with TaskRunContext(
                 task_run_id=task_run_id,
                 flow_run_id=flow_run_id,
                 task=self,
+                client=client,
             ):
                 result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
