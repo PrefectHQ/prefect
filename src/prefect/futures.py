@@ -5,7 +5,7 @@ from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.orion.schemas.core import State, StateType
-from prefect.orion.schemas.responses import SetStateResponse
+from prefect.orion.schemas.responses import SetStateResponse, SetStateStatus
 
 
 class RunType(Enum):
@@ -70,24 +70,28 @@ class PrefectFuture:
             else:
                 raise TimeoutError()
 
-    def set_running(self) -> None:
+    def set_running(self) -> SetStateResponse:
         with self._condition:
-            self.__set_state(State(type=StateType.RUNNING))
+            return self.__set_state(State(type=StateType.RUNNING))
 
-    def set_result(self, result: Any) -> None:
+    def set_result(self, result: Any) -> SetStateResponse:
         with self._condition:
-            self._result = result
-            self.__set_state(State(type=StateType.COMPLETED))
-            self._condition.notify_all()
+            response = self.__set_state(State(type=StateType.COMPLETED))
+            if response.status == SetStateStatus.ACCEPT:
+                self._result = result
+                self._condition.notify_all()
+            return response
 
-    def set_exception(self, exception: Exception) -> None:
+    def set_exception(self, exception: Exception) -> SetStateResponse:
         with self._condition:
             self._exception = exception
-            self.__set_state(State(type=StateType.FAILED))
-            self._condition.notify_all()
+            response = self.__set_state(State(type=StateType.FAILED))
+            if response.status == SetStateStatus.ACCEPT:
+                self._exception = exception
+                self._condition.notify_all()
+            return response
 
     def __hash__(self) -> int:
-        # Ensure this is a hashable type
         return hash(self.run_id)
 
     # Unsafe methods -------------------------------------------------------------------
@@ -105,8 +109,9 @@ class PrefectFuture:
             if self.is_flow_run
             else self._client.set_task_run_state
         )
-        # TODO: Perhaps do some unwrapping of the `SetStateResponse`
-        print(f"Setting state for {self.run_id} to {state.name!r}")
+        print(
+            f"Setting state for {self.run_type.value}('{self.run_id}') to {state.name!r}"
+        )
         return method(self.run_id, state)
 
     def __get_state(self) -> State:
