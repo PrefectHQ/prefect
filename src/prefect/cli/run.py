@@ -441,7 +441,12 @@ See `prefect run --help` for more details on the options.
 @click.option(
     "--schedule",
     "-s",
-    help="Execute the flow run according to the schedule defined with the flow.",
+    help=(
+        "Execute the flow run according to the schedule attached to the flow. If this "
+        "flag is set, this command will wait between scheduled flow runs. If the flow "
+        "has no schedule, this flag will be ignored. If used with a non-local run, an "
+        "exception will be thrown."
+    ),
     is_flag=True,
 )
 # Display settings ---------------------------------------------------------------------
