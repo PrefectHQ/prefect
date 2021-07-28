@@ -1,6 +1,7 @@
 import inspect
 from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from uuid import UUID
 
 from prefect.futures import PrefectFuture, RunType
 from prefect.client import OrionClient
@@ -41,17 +42,24 @@ class Task:
 
     def _run(
         self,
-        context: "TaskRunContext",
+        task_run_id: UUID,
+        flow_run_id: UUID,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
     ) -> None:
+        from prefect.context import TaskRunContext
+
         client = OrionClient()
 
-        client.set_task_run_state(context.task_run_id, State(type=StateType.RUNNING))
+        client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
 
         try:
             # Enter the context here so it will be populated if this is in a new process
-            with context:
+            with TaskRunContext(
+                task_run_id=task_run_id,
+                flow_run_id=flow_run_id,
+                task=self,
+            ):
                 result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
             state = State(
@@ -66,7 +74,7 @@ class Task:
             )
 
         client.set_task_run_state(
-            context.task_run_id,
+            task_run_id,
             state=state,
         )
 
@@ -95,11 +103,8 @@ class Task:
 
         callback = flow_run_context.flow.executor.submit(
             self._run,
-            context=TaskRunContext(
-                task_run_id=task_run_id,
-                flow_run_id=flow_run_context.flow_run_id,
-                task=self,
-            ),
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_context.flow_run_id,
             call_args=args,
             call_kwargs=kwargs,
         )
