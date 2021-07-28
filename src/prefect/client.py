@@ -12,6 +12,7 @@ from prefect.orion.api.server import app as orion_app
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
+    from prefect.tasks import Task
 
 
 class OrionClient:
@@ -112,6 +113,54 @@ class OrionClient:
 
     def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.core.State]:
         response = self.get("/flow_run_states/", params=dict(flow_run_id=flow_run_id))
+        return pydantic.parse_obj_as(List[schemas.core.State], response.json())
+
+    def create_task_run(
+        self,
+        task: "Task",
+        flow_run_id: str,
+        extra_tags: Iterable[str] = None,
+    ) -> UUID:
+        tags = set(task.tags).union(extra_tags or [])
+
+        task_run_data = schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run_id,
+            task_key=task.task_key,
+            tags=list(tags),
+        )
+
+        response = self.post("/task_runs/", json=task_run_data.json_dict())
+        task_run_id = response.json().get("id")
+        if not task_run_id:
+            raise Exception(f"Malformed response: {response}")
+
+        return UUID(task_run_id)
+
+    def read_task_run(self, task_run_id: UUID) -> schemas.core.TaskRun:
+        response = self.get(f"/task_runs/{task_run_id}")
+        return schemas.core.TaskRun.parse_obj(response.json())
+
+    def set_task_run_state(
+        self,
+        task_run_id: UUID,
+        state: schemas.core.State,
+    ) -> schemas.responses.SetStateResponse:
+        state_data = schemas.actions.StateCreate(
+            type=state.type,
+            message=state.message,
+            data=state.data,
+            state_details=state.state_details,
+        )
+        state_data.state_details.task_run_id = task_run_id
+
+        response = self.post(
+            f"/task_runs/{task_run_id}/set_state",
+            json=state_data.json_dict(),
+        )
+        return schemas.responses.SetStateResponse.parse_obj(response.json())
+
+    def read_task_run_states(self, task_run_id: UUID) -> List[schemas.core.State]:
+        response = self.get("/task_run_states/", params=dict(task_run_id=task_run_id))
         return pydantic.parse_obj_as(List[schemas.core.State], response.json())
 
 
