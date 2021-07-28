@@ -10,7 +10,7 @@ from prefect.orion.schemas.core import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.files import file_hash
 from prefect.orion.schemas.core import StateType, State
-from prefect.executors import Executor
+from prefect.executors import BaseExecutor, ThreadedExecutor
 
 
 class Flow:
@@ -25,7 +25,7 @@ class Flow:
         name: str = None,
         fn: Callable = None,
         version: str = None,
-        executor: Executor = None,
+        executor: BaseExecutor = None,
         description: str = None,
         tags: Iterable[str] = None,
     ):
@@ -36,6 +36,9 @@ class Flow:
 
         self.name = name or fn.__name__
 
+        self.tags = set(tags if tags else [])
+        self.executor = executor or ThreadedExecutor()
+
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
@@ -43,12 +46,8 @@ class Flow:
         # Version defaults to a hash of the function's file
         flow_file = fn.__globals__.get("__file__")  # type: ignore
         self.version = version or (file_hash(flow_file) if flow_file else None)
-        self.executor = executor
-
-        self.tags = set(tags if tags else [])
 
         self.parameters = parameter_schema(self.fn)
-        self.executor = executor or Executor()
 
     def _run(
         self,
