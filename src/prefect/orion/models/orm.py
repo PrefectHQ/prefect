@@ -2,14 +2,19 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import JSON, Column, Enum, String
 
-from prefect.orion.schemas.core import StateType
-from prefect.orion.utilities.database import UUID, Base, Now
+from prefect.orion.schemas import core
+from prefect.orion.utilities.database import UUID, Base, Now, Pydantic
 
 
 class Flow(Base):
     name = Column(String, nullable=False, unique=True)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
+    parameters = Column(
+        Pydantic(core.ParameterSchema),
+        server_default="{}",
+        default=dict,
+        nullable=False,
+    )
 
 
 class FlowRun(Base):
@@ -21,7 +26,12 @@ class FlowRun(Base):
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_run_metadata = Column(JSON, server_default="{}", default=dict, nullable=False)
+    flow_run_metadata = Column(
+        Pydantic(core.FlowRunMetadata),
+        server_default="{}",
+        default=dict,
+        nullable=False,
+    )
 
 
 class TaskRun(Base):
@@ -37,13 +47,18 @@ class TaskRun(Base):
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
-    task_run_metadata = Column(JSON, server_default="{}", default=dict, nullable=False)
+    task_run_metadata = Column(
+        Pydantic(core.TaskRunMetadata),
+        server_default="{}",
+        default=dict,
+        nullable=False,
+    )
     # TODO index this
 
 
 class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(StateType), nullable=False, index=True)
+    type = Column(Enum(core.StateType), nullable=False, index=True)
     timestamp = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
@@ -52,8 +67,12 @@ class FlowRunState(Base):
     )
     name = Column(String)
     message = Column(String)
-    state_details = Column(JSON, server_default="{}", default=dict, nullable=False)
-    run_details = Column(JSON, server_default="{}", default=dict, nullable=False)
+    state_details = Column(
+        Pydantic(core.StateDetails), server_default="{}", default=dict, nullable=False
+    )
+    run_details = Column(
+        Pydantic(core.RunDetails), server_default="{}", default=dict, nullable=False
+    )
     data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
 
     __table__args__ = sa.Index(
@@ -63,7 +82,7 @@ class FlowRunState(Base):
 
 class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(StateType), nullable=False, index=True)
+    type = Column(Enum(core.StateType), nullable=False, index=True)
     timestamp = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
@@ -72,8 +91,12 @@ class TaskRunState(Base):
     )
     name = Column(String)
     message = Column(String)
-    state_details = Column(JSON, server_default="{}", default=dict, nullable=False)
-    run_details = Column(JSON, server_default="{}", default=dict, nullable=False)
+    state_details = Column(
+        Pydantic(core.StateDetails), server_default="{}", default=dict, nullable=False
+    )
+    run_details = Column(
+        Pydantic(core.RunDetails), server_default="{}", default=dict, nullable=False
+    )
     data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
 
     __table__args__ = sa.Index(
