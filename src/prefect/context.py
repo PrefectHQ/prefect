@@ -57,24 +57,3 @@ class TaskRunContext(ContextModel):
     client: OrionClient
 
     __var__ = ContextVar("task_run")
-
-
-class RunContext(ContextModel):
-    # Unlike the other Context objects, this is designed to be a user-facing container
-    # that cannot be used in `with` blocks
-
-    flow_run: FlowRunContext
-    task_run: Optional[TaskRunContext]
-
-    def __enter__(self):
-        raise TypeError("The `RunContext` cannot be set.")
-
-    @classmethod
-    def get(cls: T) -> Optional[T]:
-        flow_run_ctx = FlowRunContext.get()
-        if not flow_run_ctx:
-            raise RuntimeError(
-                "The run context could not be retrieved. "
-                "You are not in a flow run context."
-            )
-        return cls(flow_run=flow_run_ctx, task_run=TaskRunContext.get())
