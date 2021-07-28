@@ -54,9 +54,10 @@ class Flow:
         self,
         client: OrionClient,
         flow_run_id: str,
+        future: PrefectFuture,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
-    ) -> PrefectFuture:
+    ) -> None:
         """
         TODO: Note that pydantic will now coerce parameter types into the correct type
               even if the user wants failure on inexact type matches. We may want to
@@ -82,9 +83,7 @@ class Flow:
         state = State(type=state_type, message=message)
         client.set_flow_run_state(flow_run_id, state=state)
 
-        return PrefectFuture(
-            run_id=flow_run_id, result=result, is_exception=state.is_failed()
-        )
+        future.set_result(result, user_exception=state.is_failed())
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         # Generate dict of passed parameters
@@ -95,9 +94,11 @@ class Flow:
             self,
             parameters=parameters,
         )
+        future = PrefectFuture(flow_run_id)
+
         with FlowRunContext(flow_run_id=flow_run_id, flow=self, client=client):
             client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
-            future = self._run(client, flow_run_id, call_args=args, call_kwargs=kwargs)
+            self._run(client, flow_run_id, future, call_args=args, call_kwargs=kwargs)
 
         return future
 
