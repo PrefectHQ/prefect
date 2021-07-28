@@ -45,22 +45,9 @@ class ContextModel(BaseModel):
 class FlowRunContext(ContextModel):
     flow: Flow
     flow_run_id: UUID
-    # TODO: The Client cannot be pickled which means we cannot send this context over
-    #       the network easily. The Client will need to implement __getstate__ and
-    #       __setstate__ so it can be pickled w/ settings but create a new event loop
-    #        on load
     client: OrionClient
 
     __var__ = ContextVar("flow_run")
-
-    def __getstate__(self):
-        data = self.__dict__.copy()
-        data.pop("client")
-        return data
-
-    def __setstate__(self, data) -> None:
-        data["client"] = OrionClient()
-        self.__dict__ = data
 
 
 class TaskRunContext(ContextModel):
