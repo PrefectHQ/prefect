@@ -41,4 +41,7 @@ def test_flow_run_by_executor(executor, monkeypatch, client):
     test_flow.executor = executor
 
     future = test_flow()
-    assert future.result() == ("a", "b")
+    state = future.result()
+    assert state.is_completed()
+    return_data = state.data
+    assert (return_data[0].data, return_data[1].data) == ("a", "b")

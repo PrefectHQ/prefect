@@ -1,11 +1,10 @@
-from typing import Callable, Tuple, Any, Dict
-from typing import NamedTuple
-from uuid import uuid4
-
-from prefect.futures import PrefectFuture
+import concurrent.futures
+from functools import partial
+from typing import Any, Callable, Dict, Optional
 
 import cloudpickle
-import concurrent.futures
+
+from prefect.orion.schemas.core import State
 
 
 class BaseExecutor:
@@ -17,7 +16,10 @@ class BaseExecutor:
         fn: Callable,
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> None:
+    ) -> str:
+        """
+        Submit a call for execution and return a tracking id
+        """
         raise NotImplementedError()
 
     def __enter__(self):
@@ -46,12 +48,17 @@ class SyncExecutor(BaseExecutor):
 
     def submit(
         self,
-        fn: Callable,
+        run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> None:
-        # Just immediately run the function
-        fn(*args, **kwargs)
+    ) -> Callable[[float], Optional[State]]:
+        # Run immediately
+        result = run_fn(*args, **kwargs)
+        return partial(self._wait, result)
+
+    def _wait(self, result: State, timeout: float = None):
+        # Just return the given result
+        return result
 
 
 class ThreadPoolExecutor(BaseExecutor):
@@ -66,13 +73,26 @@ class ThreadPoolExecutor(BaseExecutor):
 
     def submit(
         self,
-        fn: Callable,
+        run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> None:
-        fut = self._pool.submit(fn, *args, **kwargs)
-        if self.debug:  # Resolve the future immediately
-            fut.result()
+    ) -> Callable[[float], Optional[State]]:
+        future = self._pool.submit(run_fn, *args, **kwargs)
+
+        if self.debug:
+            future.result()
+
+        return partial(self._wait, future)
+
+    def _wait(
+        self,
+        future: concurrent.futures.Future,
+        timeout: float = None,
+    ) -> Optional[State]:
+        try:
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            return None
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
@@ -86,18 +106,30 @@ class ProcessPoolExecutor(BaseExecutor):
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
         self._pool = concurrent.futures.ProcessPoolExecutor()
-        self.debug = debug
 
     def submit(
         self,
-        fn: Callable,
+        run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> None:
-        payload = _serialize_call(fn, *args, **kwargs)
-        fut = self._pool.submit(_run_serialized_call, payload)
-        if self.debug:  # Resolve the future immediately
-            fut.result()
+    ) -> Callable[[float], Optional[State]]:
+        payload = _serialize_call(run_fn, *args, **kwargs)
+        future = self._pool.submit(_run_serialized_call, payload)
+
+        if self.debug:
+            future.result()
+
+        return partial(self._wait, future)
+
+    def _wait(
+        self,
+        future: concurrent.futures.Future,
+        timeout: float = None,
+    ) -> Optional[State]:
+        try:
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            return None
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
