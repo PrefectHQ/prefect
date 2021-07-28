@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from prefect.futures import PrefectFuture
 
+import cloudpickle
 import concurrent.futures
 
 
@@ -58,9 +59,10 @@ class ThreadPoolExecutor(BaseExecutor):
     A parallel executor that submits calls to a thread pool
     """
 
-    def __init__(self) -> None:
+    def __init__(self, debug: bool = False) -> None:
         super().__init__()
         self._pool = concurrent.futures.ThreadPoolExecutor()
+        self.debug = debug
 
     def submit(
         self,
@@ -68,7 +70,9 @@ class ThreadPoolExecutor(BaseExecutor):
         *args: Any,
         **kwargs: Dict[str, Any],
     ) -> None:
-        self._pool.submit(fn, *args, **kwargs)
+        fut = self._pool.submit(fn, *args, **kwargs)
+        if self.debug:  # Resolve the future immediately
+            fut.result()
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
@@ -79,9 +83,10 @@ class ProcessPoolExecutor(BaseExecutor):
     A parallel executor that submits calls to a process pool
     """
 
-    def __init__(self) -> None:
+    def __init__(self, debug: bool = False) -> None:
         super().__init__()
         self._pool = concurrent.futures.ProcessPoolExecutor()
+        self.debug = debug
 
     def submit(
         self,
@@ -89,7 +94,19 @@ class ProcessPoolExecutor(BaseExecutor):
         *args: Any,
         **kwargs: Dict[str, Any],
     ) -> None:
-        self._pool.submit(fn, *args, **kwargs)
+        payload, run = serialize_call(fn, *args, **kwargs)
+        fut = self._pool.submit(run, payload)
+        if self.debug:  # Resolve the future immediately
+            fut.result()
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
+
+
+def serialize_call(fn, *args, **kwargs):
+    def deserialize_and_run(payload):
+        fn, args, kwargs = cloudpickle.loads(payload)
+        return fn(*args, **kwargs)
+
+    payload = cloudpickle.dumps((fn, args, kwargs))
+    return payload, deserialize_and_run
