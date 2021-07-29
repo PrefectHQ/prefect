@@ -105,9 +105,17 @@ class OrionClient:
         )
         state_data.state_details.flow_run_id = flow_run_id
 
+        # Attempt to serialize the given data
+        try:
+            state_data_json = state_data.json_dict()
+        except TypeError:
+            # Drop the user data
+            state_data.data = None
+            state_data_json = state_data.json_dict()
+
         response = self.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=state_data.json_dict(),
+            json=state_data_json,
         )
         return schemas.responses.SetStateResponse.parse_obj(response.json())
 
@@ -153,9 +161,17 @@ class OrionClient:
         )
         state_data.state_details.task_run_id = task_run_id
 
+        # Attempt to serialize the given data
+        try:
+            state_data_json = state_data.json_dict()
+        except TypeError:
+            # Drop the user data
+            state_data.data = None
+            state_data_json = state_data.json_dict()
+
         response = self.post(
             f"/task_runs/{task_run_id}/set_state",
-            json=state_data.json_dict(),
+            json=state_data_json,
         )
         return schemas.responses.SetStateResponse.parse_obj(response.json())
 
