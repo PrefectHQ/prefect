@@ -1,6 +1,6 @@
 import datetime
 from enum import auto
-from typing import List, Dict
+from typing import List, Dict, Any
 from uuid import UUID
 
 import pendulum
@@ -91,7 +91,7 @@ class State(APIBaseModel):
     name: str = None
     timestamp: datetime.datetime = Field(default_factory=pendulum.now, repr=False)
     message: str = Field(None, example="Run started")
-    data: bytes = Field(None, repr=False)
+    data: Any = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
     run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
 
