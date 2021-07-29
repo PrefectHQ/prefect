@@ -1,3 +1,4 @@
+from uuid import UUID
 from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
@@ -28,7 +29,7 @@ async def create_flow(
     return flow
 
 
-async def read_flow(session: sa.orm.Session, flow_id: str) -> orm.Flow:
+async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
     """Reads a flow by id
 
     Args:
@@ -82,7 +83,7 @@ async def read_flows(
     return result.scalars().all()
 
 
-async def delete_flow(session: sa.orm.Session, flow_id: str) -> bool:
+async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:
     """Delete a flow by id
 
     Args:

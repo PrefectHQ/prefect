@@ -11,7 +11,7 @@ class TestCreateTaskRun:
         task_run = await models.task_runs.create_task_run(
             session=database_session, task_run=fake_task_run
         )
-        assert str(task_run.flow_run_id) == flow_run.id
+        assert task_run.flow_run_id == flow_run.id
         assert task_run.task_key == "my-key"
 
 
