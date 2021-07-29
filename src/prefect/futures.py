@@ -25,11 +25,9 @@ class PrefectFuture:
         """
         Return the state of the run the future represents
         """
-        # TODO: Since states in the backend don't have data attached yet this will
-        # return a state without data
-        # state = self.get_state()
-        # if state.is_done():
-        #     return state
+        state = self.get_state()
+        if (state.is_completed() or state.is_failed()) and state.data:
+            return state
 
         result = self._wait_callback(timeout)
 
