@@ -126,6 +126,7 @@ class OrionClient:
         task_run_data = schemas.actions.TaskRunCreate(
             flow_run_id=flow_run_id,
             task_key=task.task_key,
+            dynamic_key=task.dynamic_key,
             tags=list(tags),
         )
 
