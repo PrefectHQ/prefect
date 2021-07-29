@@ -19,10 +19,13 @@ async def create_flow_run(
     Returns:
         orm.FlowRun: the newly-created flow run
     """
-    new_flow_run = orm.FlowRun(**flow_run.dict())
-    session.add(new_flow_run)
+    model = orm.FlowRun(**flow_run.dict())
+    session.add(model)
     await session.flush()
-    return new_flow_run
+    # refresh the ORM model to eagerly load relationships
+    if model is not None:
+        await session.refresh(model)
+    return model
 
 
 async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
@@ -35,9 +38,7 @@ async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowR
     Returns:
         orm.FlowRun: the flow run
     """
-    query = select(orm.FlowRun).filter_by(id=flow_run_id)
-    result = await session.execute(query)
-    return result.scalar()
+    return await session.get(orm.FlowRun, flow_run_id)
 
 
 async def read_flow_runs(

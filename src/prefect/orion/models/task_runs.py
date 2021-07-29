@@ -20,10 +20,14 @@ async def create_task_run(
     Returns:
         orm.TaskRun: the newly-created flow run
     """
-    new_task_run = orm.TaskRun(**task_run.dict())
-    session.add(new_task_run)
+    model = orm.TaskRun(**task_run.dict())
+    session.add(model)
     await session.flush()
-    return new_task_run
+    # refresh the ORM model to eagerly load relationships
+    if model is not None:
+        await session.refresh(model)
+
+    return model
 
 
 async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskRun:
@@ -36,9 +40,12 @@ async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskR
     Returns:
         orm.TaskRun: the task run
     """
-    query = select(orm.TaskRun).filter_by(id=task_run_id)
-    result = await session.execute(query)
-    return result.scalar()
+    model = await session.get(orm.TaskRun, task_run_id)
+    # refresh the ORM model to eagerly load relationships
+    if model is not None:
+        await session.refresh(model)
+
+    return model
 
 
 async def read_task_runs(
