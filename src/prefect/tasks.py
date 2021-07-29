@@ -3,12 +3,9 @@ from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 from uuid import UUID
 
-from prefect.futures import PrefectFuture, RunType
+from prefect.futures import PrefectFuture
 from prefect.client import OrionClient
 from prefect.orion.schemas.core import State, StateType
-
-if TYPE_CHECKING:
-    from prefect.context import TaskRunContext
 
 
 class Task:
@@ -101,7 +98,11 @@ class Task:
             flow_run_id=flow_run_context.flow_run_id,
         )
 
-        callback = flow_run_context.flow.executor.submit(
+        flow_run_context.client.set_task_run_state(
+            task_run_id, State(type=StateType.PENDING)
+        )
+
+        callback = flow_run_context.executor.submit(
             self._run,
             task_run_id=task_run_id,
             flow_run_id=flow_run_context.flow_run_id,
@@ -110,8 +111,8 @@ class Task:
         )
 
         return PrefectFuture(
-            run_id=task_run_id,
-            run_type=RunType.TaskRun,
+            flow_run_id=flow_run_context.flow_run_id,
+            task_run_id=task_run_id,
             client=flow_run_context.client,
             wait_callback=callback,
         )

@@ -6,7 +6,7 @@ from pydantic import validate_arguments
 
 from prefect.client import OrionClient
 from prefect.executors import BaseExecutor, SynchronousExecutor
-from prefect.futures import PrefectFuture, RunType
+from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.files import file_hash
@@ -94,8 +94,7 @@ class Flow:
 
         # Return a future that is already resolved to `state`
         return PrefectFuture(
-            run_id=context.flow_run_id,
-            run_type=RunType.FlowRun,
+            flow_run_id=context.flow_run_id,
             client=context.client,
             wait_callback=lambda timeout: state,
         )
@@ -111,6 +110,8 @@ class Flow:
             self,
             parameters=parameters,
         )
+
+        client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
 
         with self.executor as executor:
             with FlowRunContext(
