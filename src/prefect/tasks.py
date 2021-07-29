@@ -100,7 +100,6 @@ class Task:
 
         # increment dynamic_key AFTER the task run is created
         # but BEFORE the task actually gets run
-        # TODO - write tests to make sure this works
         self.dynamic_key += 1
 
         # TODO: Submit `self._run` to an executor
