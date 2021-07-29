@@ -2,7 +2,7 @@
 This module contains async and thread safe variables for passing runtime context data
 """
 from contextvars import ContextVar
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -49,7 +49,6 @@ class RunContext(ContextModel):
     start_time: DateTime = Field(default_factory=pendulum.now)
 
 
-
 class FlowRunContext(RunContext):
     flow: Flow
     flow_run_id: UUID
@@ -66,3 +65,17 @@ class TaskRunContext(RunContext):
     client: OrionClient
 
     __var__ = ContextVar("task_run")
+
+
+def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
+    task_run_ctx = TaskRunContext.get(None)
+    if task_run_ctx:
+        return task_run_ctx
+
+    flow_run_ctx = FlowRunContext.get(None)
+    if flow_run_ctx:
+        return flow_run_ctx
+
+    raise RuntimeError(
+        "No run context available. You are not in a flow or task run context."
+    )
