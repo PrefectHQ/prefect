@@ -34,7 +34,7 @@ def get_test_flow():
     ],
 )
 def test_flow_run_by_executor(executor):
-    if sys.platform == "linux" and getattr(executor, "processes"):
+    if sys.platform == "linux" and getattr(executor, "processes", False):
         pytest.skip(
             "Task runs hang while attempting to contact the ephemeral app when "
             "multiprocessing on linux"
