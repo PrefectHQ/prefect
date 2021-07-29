@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient
-from prefect.executors import BaseExecutor, SyncExecutor
+from prefect.executors import BaseExecutor, SynchronousExecutor
 from prefect.futures import PrefectFuture, RunType
 from prefect.orion.schemas.core import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
@@ -39,7 +39,7 @@ class Flow:
         self.name = name or fn.__name__
 
         self.tags = set(tags if tags else [])
-        self.executor = executor or SyncExecutor()
+        self.executor = executor or SynchronousExecutor()
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
