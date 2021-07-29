@@ -15,7 +15,7 @@ class TestCreateFlowRunState:
         assert flow_run_state.name == fake_flow_run_state.name
         assert flow_run_state.type == fake_flow_run_state.type
         assert flow_run_state.flow_run_id == flow_run.id
-        assert flow_run_state.state_details["flow_run_id"] == flow_run.id
+        assert flow_run_state.state_details.flow_run_id == flow_run.id
 
     async def test_create_flow_run_state_succeeds(self, flow_run, database_session):
         fake_flow_run_state = schemas.actions.StateCreate(
@@ -31,11 +31,9 @@ class TestCreateFlowRunState:
         another_flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=database_session,
             flow_run_id=flow_run.id,
-            state=fake_flow_run_state,
+            state=another_fake_flow_run_state,
         )
-        assert (
-            another_flow_run_state.run_details["previous_state_id"] == flow_run_state.id
-        )
+        assert another_flow_run_state.run_details.previous_state_id == flow_run_state.id
 
 
 class TestReadFlowRunState:
@@ -47,6 +45,7 @@ class TestReadFlowRunState:
             flow_run_id=uuid4(),
             state=fake_flow_run_state,
         )
+
         read_flow_run_state = await models.flow_run_states.read_flow_run_state(
             session=database_session, flow_run_state_id=flow_run_state.id
         )

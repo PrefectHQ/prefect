@@ -33,9 +33,7 @@ class TestCreateTaskRunState:
             task_run_id=task_run.id,
             state=fake_task_run_state,
         )
-        assert (
-            another_task_run_state.run_details["previous_state_id"] == task_run_state.id
-        )
+        assert another_task_run_state.run_details.previous_state_id == task_run_state.id
 
 
 class TestReadTaskRunState:

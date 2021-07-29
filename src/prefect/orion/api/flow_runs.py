@@ -1,7 +1,8 @@
 from typing import List
+from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Body, Response, status, Path
+from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -23,7 +24,7 @@ async def create_flow_run(
 
 @router.get("/{id}")
 async def read_flow_run(
-    flow_run_id: str = Path(..., description="The flow run id", alias="id"),
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.FlowRun:
     """
@@ -53,7 +54,7 @@ async def read_flow_runs(
 
 @router.delete("/{id}", status_code=204)
 async def delete_flow_run(
-    flow_run_id: str = Path(..., description="The flow run id", alias="id"),
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
@@ -69,7 +70,7 @@ async def delete_flow_run(
 
 @router.post("/{id}/set_state")
 async def set_flow_run_state(
-    flow_run_id: str = Path(..., description="The flow run id", alias="id"),
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,

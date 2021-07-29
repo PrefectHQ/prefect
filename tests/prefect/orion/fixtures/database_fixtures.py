@@ -16,7 +16,8 @@ async def database_engine():
     """
     # create an in memory db engine
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:", echo=settings.orion.database.echo
+        settings.orion.database.connection_url.get_secret_value(),
+        echo=settings.orion.database.echo,
     )
 
     # populate database tables
@@ -47,17 +48,19 @@ async def database_session(database_engine):
 
 @pytest.fixture
 async def flow(database_session):
-    return await models.flows.create_flow(
+    model = await models.flows.create_flow(
         session=database_session, flow=schemas.actions.FlowCreate(name="my-flow")
     )
+    return model
 
 
 @pytest.fixture
 async def flow_run(database_session, flow):
-    return await models.flow_runs.create_flow_run(
+    model = await models.flow_runs.create_flow_run(
         session=database_session,
         flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
     )
+    return model
 
 
 @pytest.fixture
@@ -65,9 +68,10 @@ async def task_run(database_session, flow_run):
     fake_task_run = schemas.actions.TaskRunCreate(
         flow_run_id=flow_run.id, task_key="my-key"
     )
-    return await models.task_runs.create_task_run(
+    model = await models.task_runs.create_task_run(
         session=database_session, task_run=fake_task_run
     )
+    return model
 
 
 @pytest.fixture
