@@ -8,6 +8,7 @@ from multiprocessing import current_process
 import pydantic
 import httpx
 
+import prefect
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 
@@ -17,9 +18,14 @@ if TYPE_CHECKING:
 
 
 class OrionClient:
-    def __init__(self, http_client: httpx.Client = None) -> None:
-        # If not given an httpx client, create one that connects to an ephemeral app
-        self._client = http_client or _ASGIClient(app=orion_app)
+    def __init__(self, client_settings: dict) -> None:
+        if prefect.settings.orion_host:
+            self._client = httpx.Client(
+                base_url=prefect.settings.orion_host, **client_settings
+            )
+        else:
+            # Create an ephemeral app client
+            self._client = _ASGIClient(app=orion_app, client_settings=client_settings)
 
     def post(self, route: str, **kwargs) -> httpx.Response:
         response = self._client.post(route, **kwargs)
@@ -253,9 +259,10 @@ class _ASGIClient:
     thread.
     """
 
-    def __init__(self, app) -> None:
+    def __init__(self, app, client_settings: dict) -> None:
         self._event_loop = _get_process_event_loop()
         self.app = app
+        self.client_settings = client_settings
 
     @contextmanager
     def _httpx_client(self):
@@ -268,7 +275,9 @@ class _ASGIClient:
         an ASGI application running in-process, there should not be a meaningful change
         in performance.
         """
-        client = httpx.AsyncClient(app=self.app, base_url="http://ephemeral")
+        client = httpx.AsyncClient(
+            app=self.app, base_url="http://ephemeral", **self.client_settings
+        )
         try:
             yield client
         finally:
