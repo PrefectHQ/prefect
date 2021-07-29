@@ -18,14 +18,14 @@ if TYPE_CHECKING:
 
 
 class OrionClient:
-    def __init__(self, client_settings: dict) -> None:
+    def __init__(self, httpx_settings: dict) -> None:
         if prefect.settings.orion_host:
             self._client = httpx.Client(
-                base_url=prefect.settings.orion_host, **client_settings
+                base_url=prefect.settings.orion_host, **httpx_settings
             )
         else:
             # Create an ephemeral app client
-            self._client = _ASGIClient(app=orion_app, client_settings=client_settings)
+            self._client = _ASGIClient(app=orion_app, httpx_settings=httpx_settings)
 
     def post(self, route: str, **kwargs) -> httpx.Response:
         response = self._client.post(route, **kwargs)
@@ -259,10 +259,10 @@ class _ASGIClient:
     thread.
     """
 
-    def __init__(self, app, client_settings: dict) -> None:
+    def __init__(self, app, httpx_settings: dict) -> None:
         self._event_loop = _get_process_event_loop()
         self.app = app
-        self.client_settings = client_settings
+        self.httpx_settings = httpx_settings
 
     @contextmanager
     def _httpx_client(self):
@@ -276,7 +276,7 @@ class _ASGIClient:
         in performance.
         """
         client = httpx.AsyncClient(
-            app=self.app, base_url="http://ephemeral", **self.client_settings
+            app=self.app, base_url="http://ephemeral", **self.httpx_settings
         )
         try:
             yield client
