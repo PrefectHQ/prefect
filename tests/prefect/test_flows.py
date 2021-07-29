@@ -7,7 +7,8 @@ from prefect import flow
 from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.utilities.files import file_hash
+from prefect.utilities.hashing import file_hash
+
 
 class TestFlow:
     def test_initializes(self):
