@@ -74,8 +74,8 @@ class TestSetTaskRunState:
         assert response.json()["status"] == "ACCEPT"
         assert response.json()["new_state"] is None
 
-        state = await models.task_runs.read_current_state(
+        run = await models.task_runs.read_task_run(
             session=database_session, task_run_id=task_run.id
         )
-        assert state.type.value == "RUNNING"
-        assert state.name == "Test State"
+        assert run.state.type.value == "RUNNING"
+        assert run.state.name == "Test State"
