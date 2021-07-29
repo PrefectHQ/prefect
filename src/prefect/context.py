@@ -68,11 +68,11 @@ class TaskRunContext(RunContext):
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
-    task_run_ctx = TaskRunContext.get(None)
+    task_run_ctx = TaskRunContext.get()
     if task_run_ctx:
         return task_run_ctx
 
-    flow_run_ctx = FlowRunContext.get(None)
+    flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
         return flow_run_ctx
 

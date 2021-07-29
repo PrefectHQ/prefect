@@ -9,6 +9,7 @@ from prefect.context import (
     FlowRunContext,
     TaskRunContext,
     ContextModel,
+    get_run_context,
 )
 from prefect.client import OrionClient
 from prefect.executors import BaseExecutor
@@ -65,7 +66,6 @@ def test_task_run_context():
         pass
 
     test_id = uuid4()
-
     test_client = OrionClient()
 
     with TaskRunContext(
@@ -75,3 +75,32 @@ def test_task_run_context():
         assert ctx.task is foo
         assert ctx.task_run_id == test_id
         assert isinstance(ctx.start_time, DateTime)
+
+
+def test_get_run_context():
+    @flow
+    def foo():
+        pass
+
+    @task
+    def bar():
+        pass
+
+    test_id = uuid4()
+    test_client = OrionClient()
+    test_executor = BaseExecutor()
+
+    with pytest.raises(RuntimeError):
+        get_run_context()
+
+    with FlowRunContext(
+        flow=foo, flow_run_id=test_id, client=test_client, executor=test_executor
+    ) as flow_ctx:
+        assert get_run_context() is flow_ctx
+
+        with TaskRunContext(
+            task=bar, task_run_id=test_id, flow_run_id=test_id, client=test_client
+        ) as task_ctx:
+            assert get_run_context() is task_ctx, "Task context takes precendence"
+
+        assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"
