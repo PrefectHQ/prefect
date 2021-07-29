@@ -126,9 +126,6 @@ class State(APIBaseModel):
     def is_awaiting_retry(self):
         return self.type == StateType.AWAITING_RETRY
 
-    def is_done(self):
-        return self.is_completed() or self.is_failed()
-
 
 def Completed(**kwargs) -> State:
     """Convenience function for creating `Completed` states.
