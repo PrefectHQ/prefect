@@ -112,9 +112,12 @@ class Flow:
             parameters=parameters,
         )
 
-        with self.executor:
+        with self.executor as executor:
             with FlowRunContext(
-                flow_run_id=flow_run_id, flow=self, client=client
+                flow_run_id=flow_run_id,
+                flow=self,
+                client=client,
+                executor=executor,
             ) as context:
                 return self._run(context=context, call_args=args, call_kwargs=kwargs)
 
