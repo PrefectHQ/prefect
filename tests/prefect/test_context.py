@@ -1,4 +1,6 @@
 import pytest
+from pendulum.datetime import DateTime
+
 
 from uuid import uuid4
 from contextvars import ContextVar
@@ -9,6 +11,7 @@ from prefect.context import (
     ContextModel,
 )
 from prefect.client import OrionClient
+from prefect.executors import BaseExecutor
 
 
 class ExampleContext(ContextModel):
@@ -43,12 +46,17 @@ def test_flow_run_context():
 
     test_id = uuid4()
     test_client = OrionClient()
+    test_executor = BaseExecutor()
 
-    with FlowRunContext(flow=foo, flow_run_id=test_id, client=test_client):
+    with FlowRunContext(
+        flow=foo, flow_run_id=test_id, client=test_client, executor=test_executor
+    ):
         ctx = FlowRunContext.get()
         assert ctx.flow is foo
         assert ctx.flow_run_id == test_id
         assert ctx.client is test_client
+        assert ctx.executor is test_executor
+        assert isinstance(ctx.start_time, DateTime)
 
 
 def test_task_run_context():
@@ -66,3 +74,4 @@ def test_task_run_context():
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run_id == test_id
+        assert isinstance(ctx.start_time, DateTime)

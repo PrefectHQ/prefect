@@ -5,9 +5,12 @@ from contextvars import ContextVar
 from typing import Optional, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel
+import pendulum
+from pendulum.datetime import DateTime
+from pydantic import BaseModel, Field
 
 from prefect.client import OrionClient
+from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.tasks import Task
 
@@ -42,15 +45,21 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
 
-class FlowRunContext(ContextModel):
+class RunContext(ContextModel):
+    start_time: DateTime = Field(default_factory=pendulum.now)
+
+
+
+class FlowRunContext(RunContext):
     flow: Flow
     flow_run_id: UUID
     client: OrionClient
+    executor: BaseExecutor
 
     __var__ = ContextVar("flow_run")
 
 
-class TaskRunContext(ContextModel):
+class TaskRunContext(RunContext):
     task: Task
     task_run_id: UUID
     flow_run_id: UUID
