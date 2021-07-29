@@ -39,9 +39,7 @@ async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
     Returns:
         orm.Flow: the flow
     """
-    query = select(orm.Flow).filter_by(id=flow_id)
-    result = await session.execute(query)
-    return result.scalar()
+    return await session.get(orm.Flow, flow_id)
 
 
 async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:

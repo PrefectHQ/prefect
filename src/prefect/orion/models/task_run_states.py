@@ -45,7 +45,7 @@ async def create_task_run_state(
     session.add(new_task_run_state)
     await session.flush()
 
-    # refresh the run ORM model to load the new state
+    # refresh the ORM model to eagerly load relationships
     if run is not None:
         await session.refresh(run)
 
@@ -64,9 +64,7 @@ async def read_task_run_state(
     Returns:
         orm.TaskRunState: the task state
     """
-    query = select(orm.TaskRunState).filter_by(id=task_run_state_id)
-    result = await session.execute(query)
-    return result.scalar()
+    return await session.get(orm.TaskRunState, task_run_state_id)
 
 
 async def read_task_run_states(

@@ -43,12 +43,12 @@ async def create_flow_run_state(
         state_details=state.state_details
     )
     session.add(new_flow_run_state)
+    await session.flush()
 
     # refresh the run ORM model to load the new state
     if run is not None:
         await session.refresh(run)
 
-    await session.flush()
     return new_flow_run_state
 
 
@@ -64,9 +64,7 @@ async def read_flow_run_state(
     Returns:
         orm.FlowRunState: the flow state
     """
-    query = select(orm.FlowRunState).filter_by(id=flow_run_state_id)
-    result = await session.execute(query)
-    return result.scalar()
+    return await session.get(orm.FlowRunState, flow_run_state_id)
 
 
 async def read_flow_run_states(
