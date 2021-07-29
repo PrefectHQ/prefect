@@ -1,9 +1,11 @@
+from uuid import UUID
 from typing import List
-import sqlalchemy as sa
-from sqlalchemy import select, delete
 
-from prefect.orion.models import orm
+import sqlalchemy as sa
+from sqlalchemy import delete, select
+
 from prefect.orion import schemas
+from prefect.orion.models import orm
 
 
 async def create_task_run(
@@ -18,13 +20,17 @@ async def create_task_run(
     Returns:
         orm.TaskRun: the newly-created flow run
     """
-    new_task_run = orm.TaskRun(**task_run.dict())
-    session.add(new_task_run)
+    model = orm.TaskRun(**task_run.dict())
+    session.add(model)
     await session.flush()
-    return new_task_run
+    # refresh the ORM model to eagerly load relationships
+    if model is not None:
+        await session.refresh(model)
+
+    return model
 
 
-async def read_task_run(session: sa.orm.Session, task_run_id: str) -> orm.TaskRun:
+async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskRun:
     """Read a task run by id
 
     Args:
@@ -34,11 +40,16 @@ async def read_task_run(session: sa.orm.Session, task_run_id: str) -> orm.TaskRu
     Returns:
         orm.TaskRun: the task run
     """
-    return await session.get(orm.TaskRun, task_run_id)
+    model = await session.get(orm.TaskRun, task_run_id)
+    # refresh the ORM model to eagerly load relationships
+    if model is not None:
+        await session.refresh(model)
+
+    return model
 
 
 async def read_task_runs(
-    session: sa.orm.Session, flow_run_id: str
+    session: sa.orm.Session, flow_run_id: UUID
 ) -> List[orm.TaskRun]:
     """Read a task runs asssociated with a flow run
 
@@ -55,32 +66,10 @@ async def read_task_runs(
         .order_by(orm.TaskRun.id)
     )
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
-async def read_current_state(
-    session: sa.orm.Session, task_run_id: str
-) -> orm.TaskRunState:
-    """Reads the most recent state for a task run
-
-    Args:
-        session (sa.orm.Session): A database session
-        task_run_id (str): the task run id
-
-    Returns:
-        orm.TaskRunState: the most recent task run state
-    """
-    query = (
-        select(orm.TaskRunState)
-        .filter(orm.TaskRunState.task_run_id == task_run_id)
-        .order_by(orm.TaskRunState.timestamp.desc())
-        .limit(1)
-    )
-    result = await session.execute(query)
-    return result.scalars().first()
-
-
-async def delete_task_run(session: sa.orm.Session, task_run_id: str) -> bool:
+async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
     """Delete a task run by id
 
     Args:

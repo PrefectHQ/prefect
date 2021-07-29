@@ -14,6 +14,15 @@ class TestCreateFlowRun:
         assert flow_run.flow_id == fake_flow_run.flow_id
         assert flow_run.flow_version == fake_flow_run.flow_version
 
+    async def test_flow_run_states_starts_empty(self, database_session):
+        fake_flow_run = schemas.actions.FlowRunCreate(
+            flow_id=uuid4(), flow_version="0.1"
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=database_session, flow_run=fake_flow_run
+        )
+        assert flow_run.states == []
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, database_session):
@@ -68,25 +77,6 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_returns_empty_list(self, database_session):
         read_flow_runs = await models.flow_runs.read_flow_runs(session=database_session)
         assert len(read_flow_runs) == 0
-
-
-class TestReadCurrentState:
-    async def test_read_current_state(
-        self, database_session, flow_run, flow_run_states
-    ):
-        most_recent_state = await models.flow_runs.read_current_state(
-            session=database_session, flow_run_id=flow_run.id
-        )
-        assert most_recent_state == flow_run_states[1]
-
-    async def test_read_current_state_returns_none_if_no_states_exist(
-        self, database_session
-    ):
-        # query for states using a random flow run id
-        most_recent_state = await models.flow_runs.read_current_state(
-            session=database_session, flow_run_id=uuid4()
-        )
-        assert most_recent_state is None
 
 
 class TestDeleteFlowRun:

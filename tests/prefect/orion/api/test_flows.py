@@ -13,7 +13,7 @@ class TestCreateFlow:
         flow_id = response.json()["id"]
 
         flow = await models.flows.read_flow(session=database_session, flow_id=flow_id)
-        assert flow.id == flow_id
+        assert str(flow.id) == flow_id
 
     async def test_create_flow_populates_and_returned_created(self, client):
         now = pendulum.now(tz="utc")

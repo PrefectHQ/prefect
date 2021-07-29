@@ -3,6 +3,7 @@ from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 from uuid import UUID
 
+from prefect.utilities.hashing import stable_hash, to_qualified_name
 from prefect.futures import PrefectFuture
 from prefect.client import OrionClient
 from prefect.orion.schemas.core import State, StateType
@@ -33,9 +34,15 @@ class Task:
 
         self.tags = set(tags if tags else [])
 
-        # TODO: More interesting `task_key` generation?
-        # Stable identifier for this task
-        self.task_key = self.name
+        # the task key is a hash of (name, fn, tags)
+        # which is a stable representation of this unit of work.
+        # note runtime tags are not part of the task key; they will be
+        # recorded as metadata only.
+        self.task_key = stable_hash(
+            self.name,
+            to_qualified_name(self.fn),
+            str(sorted(self.tags or [])),
+        )
 
     def _run(
         self,

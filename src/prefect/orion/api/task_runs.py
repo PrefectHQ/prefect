@@ -1,3 +1,4 @@
+from uuid import UUID
 from typing import List
 
 import sqlalchemy as sa
@@ -23,7 +24,7 @@ async def create_task_run(
 
 @router.get("/{id}")
 async def read_task_run(
-    task_run_id: str = Path(..., description="The task run id", alias="id"),
+    task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.TaskRun:
     """
@@ -39,7 +40,7 @@ async def read_task_run(
 
 @router.get("/")
 async def read_task_runs(
-    flow_run_id: str,
+    flow_run_id: UUID,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.TaskRun]:
     """
@@ -52,7 +53,7 @@ async def read_task_runs(
 
 @router.delete("/{id}", status_code=204)
 async def delete_task_run(
-    task_run_id: str = Path(..., description="The task run id", alias="id"),
+    task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
@@ -68,7 +69,7 @@ async def delete_task_run(
 
 @router.post("/{id}/set_state")
 async def set_task_run_state(
-    task_run_id: str = Path(..., description="The task run id", alias="id"),
+    task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
