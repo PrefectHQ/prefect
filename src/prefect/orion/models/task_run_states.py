@@ -28,7 +28,7 @@ async def create_task_run_state(
     run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
     if run and run.state is not None:
         run_details = run.state.run_details
-        run_details.previous_state_id = run.id
+        run_details.previous_state_id = run.state.id
     else:
         run_details = RunDetails()
 
