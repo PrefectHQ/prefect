@@ -1,3 +1,4 @@
+from uuid import UUID
 from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
@@ -24,7 +25,7 @@ async def create_flow_run(
     return new_flow_run
 
 
-async def read_flow_run(session: sa.orm.Session, flow_run_id: str) -> orm.FlowRun:
+async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
     """Reads a flow run by id
 
     Args:
@@ -58,7 +59,7 @@ async def read_flow_runs(
 
 
 async def read_current_state(
-    session: sa.orm.Session, flow_run_id: str
+    session: sa.orm.Session, flow_run_id: UUID
 ) -> orm.FlowRunState:
     """Reads the most recent state for a flow run
 
@@ -79,7 +80,7 @@ async def read_current_state(
     return result.scalars().first()
 
 
-async def delete_flow_run(session: sa.orm.Session, flow_run_id: str) -> bool:
+async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
     """Delete a flow run by flow_run_id
 
     Args:

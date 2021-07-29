@@ -1,3 +1,4 @@
+from uuid import UUID
 from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
@@ -24,7 +25,7 @@ async def create_task_run(
     return new_task_run
 
 
-async def read_task_run(session: sa.orm.Session, task_run_id: str) -> orm.TaskRun:
+async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskRun:
     """Read a task run by id
 
     Args:
@@ -38,7 +39,7 @@ async def read_task_run(session: sa.orm.Session, task_run_id: str) -> orm.TaskRu
 
 
 async def read_task_runs(
-    session: sa.orm.Session, flow_run_id: str
+    session: sa.orm.Session, flow_run_id: UUID
 ) -> List[orm.TaskRun]:
     """Read a task runs asssociated with a flow run
 
@@ -59,7 +60,7 @@ async def read_task_runs(
 
 
 async def read_current_state(
-    session: sa.orm.Session, task_run_id: str
+    session: sa.orm.Session, task_run_id: UUID
 ) -> orm.TaskRunState:
     """Reads the most recent state for a task run
 
@@ -80,7 +81,7 @@ async def read_current_state(
     return result.scalars().first()
 
 
-async def delete_task_run(session: sa.orm.Session, task_run_id: str) -> bool:
+async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
     """Delete a task run by id
 
     Args:

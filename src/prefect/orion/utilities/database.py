@@ -1,17 +1,19 @@
-import asyncio
+import json
 import re
 import uuid
 
+import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
+from sqlalchemy.event import listens_for
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
-from sqlalchemy.types import CHAR, TypeDecorator
+from sqlalchemy.types import CHAR, TypeDecorator, JSON
+
 from prefect import settings
-from sqlalchemy.event import listens_for
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -79,6 +81,25 @@ def visit_custom_uuid_default(element, compiler, **kwargs):
     """
 
 
+class Pydantic(TypeDecorator):
+    impl = JSON
+
+    def __init__(self, pydantic_model):
+        super().__init__()
+        self._pydantic_model = pydantic_model
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        elif not isinstance(value, self._pydantic_model):
+            value = self._pydantic_model.parse_obj(value)
+        return json.loads(value.json())
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return self._pydantic_model.parse_obj(value)
+
+
 class UUID(TypeDecorator):
     """
     Platform-independent UUID type.
@@ -113,7 +134,7 @@ class UUID(TypeDecorator):
         else:
             if not isinstance(value, uuid.UUID):
                 value = uuid.UUID(value)
-            return str(value)
+            return value
 
 
 class Now(FunctionElement):
@@ -173,14 +194,20 @@ class Base(object):
         UUID(),
         primary_key=True,
         server_default=UUIDDefault(),
-        default=lambda: str(uuid.uuid4()),
+        default=uuid.uuid4,
     )
-    created = Column(sa.TIMESTAMP(timezone=True), nullable=False, server_default=Now())
+    created = Column(
+        sa.TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
+    )
     updated = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
         index=True,
         server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
         onupdate=Now(),
     )
 
