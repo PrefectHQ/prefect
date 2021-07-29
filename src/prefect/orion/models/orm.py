@@ -1,6 +1,7 @@
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, Enum, String
+from sqlalchemy import JSON, Column, Enum, String, join, select
+from sqlalchemy.orm import relationship
 
 from prefect.orion.schemas import core
 from prefect.orion.utilities.database import UUID, Base, Now, Pydantic
@@ -33,6 +34,20 @@ class FlowRun(Base):
         nullable=False,
     )
 
+    states = relationship(
+        "FlowRunState",
+        foreign_keys=lambda: [FlowRunState.flow_run_id],
+        primaryjoin="FlowRun.id == FlowRunState.flow_run_id",
+        order_by="FlowRunState.timestamp",
+        lazy="joined",
+    )
+
+    @property
+    def state(self):
+        """The current state"""
+        if self.states:
+            return self.states[-1]
+
 
 class TaskRun(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
@@ -54,6 +69,20 @@ class TaskRun(Base):
         nullable=False,
     )
     # TODO index this
+
+    states = relationship(
+        "TaskRunState",
+        foreign_keys=lambda: [TaskRunState.task_run_id],
+        primaryjoin="TaskRun.id == TaskRunState.task_run_id",
+        order_by="TaskRunState.timestamp",
+        lazy="joined",
+    )
+
+    @property
+    def state(self):
+        """The current state"""
+        if self.states:
+            return self.states[-1]
 
 
 class FlowRunState(Base):
@@ -102,6 +131,3 @@ class TaskRunState(Base):
     __table__args__ = sa.Index(
         "ix_task_run_state_task_run_id_timestamp_desc", task_run_id, timestamp.desc()
     )
-
-
-# TODO: add indexes

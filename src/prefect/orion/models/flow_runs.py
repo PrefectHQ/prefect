@@ -19,10 +19,13 @@ async def create_flow_run(
     Returns:
         orm.FlowRun: the newly-created flow run
     """
-    new_flow_run = orm.FlowRun(**flow_run.dict())
-    session.add(new_flow_run)
+    model = orm.FlowRun(**flow_run.dict())
+    session.add(model)
     await session.flush()
-    return new_flow_run
+    # refresh the ORM model to eagerly load relationships
+    if model is not None:
+        await session.refresh(model)
+    return model
 
 
 async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
@@ -55,29 +58,7 @@ async def read_flow_runs(
     """
     query = select(orm.FlowRun).offset(offset).limit(limit).order_by(orm.FlowRun.id)
     result = await session.execute(query)
-    return result.scalars().all()
-
-
-async def read_current_state(
-    session: sa.orm.Session, flow_run_id: UUID
-) -> orm.FlowRunState:
-    """Reads the most recent state for a flow run
-
-    Args:
-        session (sa.orm.Session): A database session
-        flow_run_id (str): the flow run id
-
-    Returns:
-        orm.FlowRunState: the most recent flow run state
-    """
-    query = (
-        select(orm.FlowRunState)
-        .filter(orm.FlowRunState.flow_run_id == flow_run_id)
-        .order_by(orm.FlowRunState.timestamp.desc())
-        .limit(1)
-    )
-    result = await session.execute(query)
-    return result.scalars().first()
+    return result.scalars().unique().all()
 
 
 async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
