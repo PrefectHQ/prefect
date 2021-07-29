@@ -24,7 +24,7 @@ async def create_flow(
     try:
         flow = await models.flows.create_flow(session=session, flow=flow)
         response.status_code = status.HTTP_201_CREATED
-    except:
+    except sa.exc.IntegrityError:
         await nested.rollback()
         flow = await models.flows.read_flow_by_name(session=session, name=flow.name)
     return flow
