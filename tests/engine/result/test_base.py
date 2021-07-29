@@ -13,15 +13,11 @@ class TestInitialization:
     def test_result_inits_with_value(self):
         r = Result(3)
         assert r.value == 3
-        assert r.validators is None
         assert r.location is None
-        assert r.run_validators is True
 
         s = Result(value=5)
         assert s.value == 5
-        assert s.validators is None
         assert s.location is None
-        assert r.run_validators is True
 
 
 @pytest.mark.parametrize("abstract_interface", ["exists", "read", "write"])
