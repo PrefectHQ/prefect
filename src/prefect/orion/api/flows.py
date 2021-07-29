@@ -1,9 +1,10 @@
 from typing import List
+from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Response, status, Path
+from fastapi import Depends, HTTPException, Path, Response, status
 
-from prefect.orion import schemas, models
+from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
@@ -31,7 +32,7 @@ async def create_flow(
 
 @router.get("/{id}")
 async def read_flow(
-    flow_id: str = Path(..., description="The flow id", alias="id"),
+    flow_id: UUID = Path(..., description="The flow id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Flow:
     """
@@ -58,7 +59,7 @@ async def read_flows(
 
 @router.delete("/{id}", status_code=204)
 async def delete_flow(
-    flow_id: str = Path(..., description="The flow id", alias="id"),
+    flow_id: UUID = Path(..., description="The flow id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """

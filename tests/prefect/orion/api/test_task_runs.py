@@ -6,10 +6,10 @@ from prefect.orion import models
 
 class TestCreateTaskRun:
     async def test_create_task_run(self, flow_run, client, database_session):
-        task_run_data = {"flow_run_id": flow_run.id, "task_key": "my-task-key"}
+        task_run_data = {"flow_run_id": str(flow_run.id), "task_key": "my-task-key"}
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == 200
-        assert response.json()["flow_run_id"] == flow_run.id
+        assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["id"]
 
         task_run = await models.task_runs.read_task_run(
@@ -23,8 +23,8 @@ class TestReadTaskRun:
         # make sure we we can read the task run correctly
         response = await client.get(f"/task_runs/{task_run.id}")
         assert response.status_code == 200
-        assert response.json()["id"] == task_run.id
-        assert response.json()["flow_run_id"] == flow_run.id
+        assert response.json()["id"] == str(task_run.id)
+        assert response.json()["flow_run_id"] == str(flow_run.id)
 
     async def test_read_task_run_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/task_runs/{uuid4()}")
@@ -36,7 +36,7 @@ class TestReadTaskRuns:
         response = await client.get(f"/task_runs/?flow_run_id={flow_run.id}")
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert response.json()[0]["id"] == task_run.id
+        assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
     async def test_read_task_runs_filters_by_flow_run_id(self, client):

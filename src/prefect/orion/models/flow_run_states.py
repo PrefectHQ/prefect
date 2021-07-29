@@ -1,3 +1,4 @@
+from uuid import UUID
 from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select, delete
@@ -10,7 +11,7 @@ from prefect.orion.schemas.core import RunDetails
 
 async def create_flow_run_state(
     session: sa.orm.Session,
-    flow_run_id: str,
+    flow_run_id: UUID,
     state: schemas.actions.StateCreate,
 ) -> orm.FlowRunState:
     """Creates a new flow run state
@@ -27,9 +28,9 @@ async def create_flow_run_state(
     run = await models.flow_runs.read_flow_run(session=session, flow_run_id=flow_run_id)
     if run and run.state is not None:
         run_details = run.state.run_details
-        run_details["previous_state_id"] = run.state.id
+        run_details.previous_state_id = run.id
     else:
-        run_details = RunDetails().json_dict()
+        run_details = RunDetails()
 
     # ensure flow run id is accurate in state details
     state.state_details.flow_run_id = flow_run_id
@@ -39,8 +40,7 @@ async def create_flow_run_state(
         **state.dict(exclude={"data", "state_details"}),
         flow_run_id=flow_run_id,
         run_details=run_details,
-        # provide state details as json
-        state_details=state.state_details.json_dict()
+        state_details=state.state_details
     )
     session.add(new_flow_run_state)
 
@@ -53,7 +53,7 @@ async def create_flow_run_state(
 
 
 async def read_flow_run_state(
-    session: sa.orm.Session, flow_run_state_id: str
+    session: sa.orm.Session, flow_run_state_id: UUID
 ) -> orm.FlowRunState:
     """Reads a flow run state by id
 
@@ -70,7 +70,7 @@ async def read_flow_run_state(
 
 
 async def read_flow_run_states(
-    session: sa.orm.Session, flow_run_id: str
+    session: sa.orm.Session, flow_run_id: UUID
 ) -> List[orm.FlowRunState]:
     """Reads flow runs states for a flow run
 
@@ -91,7 +91,7 @@ async def read_flow_run_states(
 
 
 async def delete_flow_run_state(
-    session: sa.orm.Session, flow_run_state_id: str
+    session: sa.orm.Session, flow_run_state_id: UUID
 ) -> bool:
     """Delete a flow run state by id
 
