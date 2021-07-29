@@ -64,13 +64,13 @@ class Task:
         except Exception as exc:
             state = State(
                 type=StateType.FAILED,
-                message="Flow run encountered an exception.",
+                message="Task run encountered an exception.",
             )
             result = exc
         else:
             state = State(
                 type=StateType.COMPLETED,
-                message="Flow run completed.",
+                message="Task run completed.",
             )
 
         client.set_task_run_state(
