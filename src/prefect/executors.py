@@ -38,7 +38,7 @@ class BaseExecutor:
         pass
 
 
-class SyncExecutor(BaseExecutor):
+class SynchronousExecutor(BaseExecutor):
     """
     A simple synchronous executor that executes calls as they are submitted
     """
@@ -61,15 +61,21 @@ class SyncExecutor(BaseExecutor):
         return result
 
 
-class ThreadPoolExecutor(BaseExecutor):
+class LocalPoolExecutor(BaseExecutor):
     """
-    A parallel executor that submits calls to a thread pool
+    A parallel executor that submits calls to a thread or process pool
     """
 
-    def __init__(self, debug: bool = False) -> None:
+    def __init__(self, debug: bool = False, processes: bool = False) -> None:
         super().__init__()
-        self._pool = concurrent.futures.ThreadPoolExecutor()
+        self._pool_type = (
+            concurrent.futures.ProcessPoolExecutor
+            if processes
+            else concurrent.futures.ThreadPoolExecutor
+        )
+        self._pool: concurrent.futures.Executor = None
         self.debug = debug
+        self.processes = processes
 
     def submit(
         self,
@@ -77,7 +83,18 @@ class ThreadPoolExecutor(BaseExecutor):
         *args: Any,
         **kwargs: Dict[str, Any],
     ) -> Callable[[float], Optional[State]]:
-        future = self._pool.submit(run_fn, *args, **kwargs)
+        if not self._pool:
+            raise RuntimeError(
+                "The executor context must be entered before submitting work."
+            )
+
+        if self.processes:
+            # Use `cloudpickle` to serialize the call instead of the builtin pickle
+            # since it supports more function types
+            payload = _serialize_call(run_fn, *args, **kwargs)
+            future = self._pool.submit(_run_serialized_call, payload)
+        else:
+            future = self._pool.submit(run_fn, *args, **kwargs)
 
         if self.debug:
             future.result()
@@ -94,46 +111,14 @@ class ThreadPoolExecutor(BaseExecutor):
         except concurrent.futures.TimeoutError:
             return None
 
-    def shutdown(self) -> None:
-        self._pool.shutdown(wait=True)
-
-
-class ProcessPoolExecutor(BaseExecutor):
-    """
-    A parallel executor that submits calls to a process pool
-    """
-
-    def __init__(self, debug: bool = False) -> None:
-        super().__init__()
-        self._pool = concurrent.futures.ProcessPoolExecutor()
-        self.debug = debug
-
-    def submit(
-        self,
-        run_fn: Callable[..., State],
-        *args: Any,
-        **kwargs: Dict[str, Any],
-    ) -> Callable[[float], Optional[State]]:
-        payload = _serialize_call(run_fn, *args, **kwargs)
-        future = self._pool.submit(_run_serialized_call, payload)
-
-        if self.debug:
-            future.result()
-
-        return partial(self._wait, future)
-
-    def _wait(
-        self,
-        future: concurrent.futures.Future,
-        timeout: float = None,
-    ) -> Optional[State]:
-        try:
-            return future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError:
-            return None
+    def __enter__(self):
+        # Create the pool when entered
+        self._pool = self._pool_type()
+        return self
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
+        self._pool = None
 
 
 def _serialize_call(fn, *args, **kwargs):
