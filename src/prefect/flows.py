@@ -8,7 +8,7 @@ from prefect.client import OrionClient
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
-from prefect.utilities.files import file_hash
+from prefect.utilities.hashing import file_hash
 from prefect.orion.schemas.core import StateType, State
 
 
