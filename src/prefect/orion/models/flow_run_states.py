@@ -28,7 +28,7 @@ async def create_flow_run_state(
     run = await models.flow_runs.read_flow_run(session=session, flow_run_id=flow_run_id)
     if run and run.state is not None:
         run_details = run.state.run_details
-        run_details.previous_state_id = run.id
+        run_details.previous_state_id = run.state.id
     else:
         run_details = RunDetails()
 
