@@ -80,7 +80,7 @@ async def read_flows(
         query = query.limit(limit)
 
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
 async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:
