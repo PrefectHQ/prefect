@@ -10,6 +10,7 @@ from prefect.futures import PrefectFuture
 from prefect.utilities.hashing import file_hash
 
 
+
 class TestFlow:
     def test_initializes(self):
         f = Flow(name="test", fn=lambda **kwargs: 42, version="A", description="B")
