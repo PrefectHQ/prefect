@@ -1,4 +1,6 @@
 import pytest
+from pendulum.datetime import DateTime
+
 
 from uuid import uuid4
 from contextvars import ContextVar
@@ -7,9 +9,10 @@ from prefect.context import (
     FlowRunContext,
     TaskRunContext,
     ContextModel,
-    RunContext,
+    get_run_context,
 )
 from prefect.client import OrionClient
+from prefect.executors import BaseExecutor
 
 
 class ExampleContext(ContextModel):
@@ -44,12 +47,17 @@ def test_flow_run_context():
 
     test_id = uuid4()
     test_client = OrionClient()
+    test_executor = BaseExecutor()
 
-    with FlowRunContext(flow=foo, flow_run_id=test_id, client=test_client):
+    with FlowRunContext(
+        flow=foo, flow_run_id=test_id, client=test_client, executor=test_executor
+    ):
         ctx = FlowRunContext.get()
         assert ctx.flow is foo
         assert ctx.flow_run_id == test_id
         assert ctx.client is test_client
+        assert ctx.executor is test_executor
+        assert isinstance(ctx.start_time, DateTime)
 
 
 def test_task_run_context():
@@ -58,34 +66,18 @@ def test_task_run_context():
         pass
 
     test_id = uuid4()
+    test_client = OrionClient()
 
-    with TaskRunContext(task=foo, task_run_id=test_id):
+    with TaskRunContext(
+        task=foo, task_run_id=test_id, flow_run_id=test_id, client=test_client
+    ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run_id == test_id
+        assert isinstance(ctx.start_time, DateTime)
 
 
-def test_get_run_context_fails_on_empty():
-    with pytest.raises(RuntimeError, match="could not be retrieved.*not in a flow run"):
-        RunContext.get()
-
-
-def test_run_context_flow_run_only():
-    @flow
-    def foo():
-        pass
-
-    test_id = uuid4()
-    test_client = OrionClient()
-
-    flow_run_ctx = FlowRunContext(flow=foo, flow_run_id=test_id, client=test_client)
-    with flow_run_ctx:
-        ctx = RunContext.get()
-        assert ctx.task_run is None
-        assert ctx.flow_run == flow_run_ctx
-
-
-def test_get_run_context_flow_run_and_task_run():
+def test_get_run_context():
     @flow
     def foo():
         pass
@@ -96,32 +88,19 @@ def test_get_run_context_flow_run_and_task_run():
 
     test_id = uuid4()
     test_client = OrionClient()
+    test_executor = BaseExecutor()
 
-    flow_run_ctx = FlowRunContext(flow=foo, flow_run_id=test_id, client=test_client)
-    task_run_ctx = TaskRunContext(task=bar, task_run_id=test_id)
-    with flow_run_ctx:
-        with task_run_ctx:
-            ctx = RunContext.get()
-            assert ctx.task_run == task_run_ctx
-            assert ctx.flow_run == flow_run_ctx
+    with pytest.raises(RuntimeError):
+        get_run_context()
 
+    with FlowRunContext(
+        flow=foo, flow_run_id=test_id, client=test_client, executor=test_executor
+    ) as flow_ctx:
+        assert get_run_context() is flow_ctx
 
-def test_run_context_does_not_allow_with():
-    @flow
-    def foo():
-        pass
+        with TaskRunContext(
+            task=bar, task_run_id=test_id, flow_run_id=test_id, client=test_client
+        ) as task_ctx:
+            assert get_run_context() is task_ctx, "Task context takes precendence"
 
-    @task
-    def bar():
-        pass
-
-    test_id = uuid4()
-    test_client = OrionClient()
-
-    flow_run_ctx = FlowRunContext(flow=foo, flow_run_id=test_id, client=test_client)
-    task_run_ctx = TaskRunContext(task=bar, task_run_id=test_id)
-    run_ctx = RunContext(flow_run=flow_run_ctx, task_run=task_run_ctx)
-
-    with pytest.raises(TypeError, match="cannot be set"):
-        with run_ctx:
-            pass
+        assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"

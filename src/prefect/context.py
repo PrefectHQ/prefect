@@ -2,12 +2,15 @@
 This module contains async and thread safe variables for passing runtime context data
 """
 from contextvars import ContextVar
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, Union
 from uuid import UUID
 
-from pydantic import BaseModel
+import pendulum
+from pendulum.datetime import DateTime
+from pydantic import BaseModel, Field
 
 from prefect.client import OrionClient
+from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.tasks import Task
 
@@ -32,6 +35,7 @@ class ContextModel(BaseModel):
         # We've frozen the rest of the data on the class but we'd like to still store
         # this token for resetting on context exit
         object.__setattr__(self, "__token", self.__var__.set(self))
+        return self
 
     def __exit__(self, *_):
         self.__var__.reset(getattr(self, "__token"))
@@ -41,41 +45,37 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
 
-class FlowRunContext(ContextModel):
+class RunContext(ContextModel):
+    start_time: DateTime = Field(default_factory=pendulum.now)
+
+
+class FlowRunContext(RunContext):
     flow: Flow
     flow_run_id: UUID
-    # TODO: The Client cannot be pickled which means we cannot send this context over
-    #       the network easily. The Client will need to implement __getstate__ and
-    #       __setstate__ so it can be pickled w/ settings but create a new event loop
-    #        on load
     client: OrionClient
+    executor: BaseExecutor
 
     __var__ = ContextVar("flow_run")
 
 
-class TaskRunContext(ContextModel):
+class TaskRunContext(RunContext):
     task: Task
     task_run_id: UUID
+    flow_run_id: UUID
+    client: OrionClient
 
     __var__ = ContextVar("task_run")
 
 
-class RunContext(ContextModel):
-    # Unlike the other Context objects, this is designed to be a user-facing container
-    # that cannot be used in `with` blocks
+def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
+    task_run_ctx = TaskRunContext.get()
+    if task_run_ctx:
+        return task_run_ctx
 
-    flow_run: FlowRunContext
-    task_run: Optional[TaskRunContext]
+    flow_run_ctx = FlowRunContext.get()
+    if flow_run_ctx:
+        return flow_run_ctx
 
-    def __enter__(self):
-        raise TypeError("The `RunContext` cannot be set.")
-
-    @classmethod
-    def get(cls: T) -> Optional[T]:
-        flow_run_ctx = FlowRunContext.get()
-        if not flow_run_ctx:
-            raise RuntimeError(
-                "The run context could not be retrieved. "
-                "You are not in a flow run context."
-            )
-        return cls(flow_run=flow_run_ctx, task_run=TaskRunContext.get())
+    raise RuntimeError(
+        "No run context available. You are not in a flow or task run context."
+    )
