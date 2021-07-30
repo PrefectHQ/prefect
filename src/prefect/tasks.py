@@ -46,6 +46,8 @@ class Task:
             str(sorted(self.tags or [])),
         )
 
+        self.dynamic_key = 0
+
     def _run(
         self,
         context: "RunContext",
@@ -102,6 +104,10 @@ class Task:
             flow_run=flow_run_context,
             task_run=TaskRunContext(task_run_id=task_run_id, task=self),
         )
+
+        # increment dynamic_key AFTER the task run is created
+        # but BEFORE the task actually gets run
+        self.dynamic_key += 1
 
         # TODO: Submit `self._run` to an executor
         with context.task_run:
