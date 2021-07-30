@@ -14,12 +14,29 @@ router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
 @router.post("/")
 async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
+    response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.TaskRun:
     """
     Create a task run
     """
-    return await models.task_runs.create_task_run(session=session, task_run=task_run)
+    nested = await session.begin_nested()
+    try:
+        task_run = await models.task_runs.create_task_run(
+            session=session, task_run=task_run
+        )
+        response.status_code = status.HTTP_201_CREATED
+    except sa.exc.IntegrityError:
+        await nested.rollback()
+        query = (
+            sa.select(models.orm.TaskRun)
+            .filter(models.orm.TaskRun.flow_run_id == task_run.flow_run_id)
+            .filter(models.orm.TaskRun.task_key == task_run.task_key)
+            .filter(models.orm.TaskRun.dynamic_key == task_run.dynamic_key)
+        )
+        result = await session.execute(query)
+        task_run = result.scalar()
+    return task_run
 
 
 @router.get("/{id}")

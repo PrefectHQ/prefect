@@ -44,6 +44,8 @@ class Task:
             str(sorted(self.tags or [])),
         )
 
+        self.dynamic_key = 0
+
     def _run(
         self,
         task_run_id: UUID,
@@ -108,6 +110,10 @@ class Task:
         flow_run_context.client.set_task_run_state(
             task_run_id, State(type=StateType.PENDING)
         )
+
+        # Increment dynamic_key AFTER the task run is created but BEFORE the task
+        # actually gets run
+        self.dynamic_key += 1
 
         callback = flow_run_context.executor.submit(
             self._run,
