@@ -1,14 +1,12 @@
 import inspect
-from uuid import UUID
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from uuid import UUID
 
 from prefect.utilities.hashing import stable_hash, to_qualified_name
 from prefect.futures import PrefectFuture
+from prefect.client import OrionClient
 from prefect.orion.schemas.core import State, StateType
-
-if TYPE_CHECKING:
-    from prefect.context import RunContext
 
 
 class Task:
@@ -50,33 +48,49 @@ class Task:
 
     def _run(
         self,
-        context: "RunContext",
         task_run_id: UUID,
-        future: PrefectFuture,
+        flow_run_id: UUID,
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
-    ):
-        client = context.flow_run.client
+    ) -> None:
+        from prefect.context import TaskRunContext
+
+        client = OrionClient()
 
         client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
 
         try:
-            result = self.fn(*call_args, **call_kwargs)
+            with TaskRunContext(
+                task_run_id=task_run_id,
+                flow_run_id=flow_run_id,
+                task=self,
+                client=client,
+            ):
+                result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
+            state = State(
+                type=StateType.FAILED,
+                message="Task run encountered an exception.",
+            )
             result = exc
-            state_type = StateType.FAILED
-            message = "Task run encountered a user exception."
         else:
-            state_type = StateType.COMPLETED
-            message = "Task run completed."
+            state = State(
+                type=StateType.COMPLETED,
+                message="Task run completed.",
+            )
 
-        state = State(type=state_type, message=message)
-        client.set_task_run_state(task_run_id, state=state)
+        client.set_task_run_state(
+            task_run_id,
+            state=state,
+        )
 
-        future.set_result(result, user_exception=state.is_failed())
+        # TODO: Send the data to the server as well? Will need to be serialized there
+        #       but we don't want it serialized here
+        state.data = result
+        return state
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.context import FlowRunContext, TaskRunContext, RunContext
+        from prefect.context import FlowRunContext, TaskRunContext
 
         flow_run_context = FlowRunContext.get()
         if not flow_run_context:
@@ -88,38 +102,33 @@ class Task:
                 "task in a flow?"
             )
 
-        client = flow_run_context.client
-
-        task_run_id = client.create_task_run(
+        task_run_id = flow_run_context.client.create_task_run(
             task=self,
             flow_run_id=flow_run_context.flow_run_id,
         )
-        client.set_task_run_state(task_run_id, State(type=StateType.PENDING))
 
-        future = PrefectFuture(
-            run_id=task_run_id,
+        flow_run_context.client.set_task_run_state(
+            task_run_id, State(type=StateType.PENDING)
         )
 
-        context = RunContext(
-            flow_run=flow_run_context,
-            task_run=TaskRunContext(task_run_id=task_run_id, task=self),
+        callback = flow_run_context.executor.submit(
+            self._run,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_context.flow_run_id,
+            call_args=args,
+            call_kwargs=kwargs,
         )
 
-        # increment dynamic_key AFTER the task run is created
-        # but BEFORE the task actually gets run
+        # Increment the dynamic_key so future task calls are distinguishable from this
+        # task run
         self.dynamic_key += 1
 
-        # TODO: Submit `self._run` to an executor
-        with context.task_run:
-            self._run(
-                context=context,
-                task_run_id=task_run_id,
-                future=future,
-                call_args=args,
-                call_kwargs=kwargs,
-            )
-
-        return future
+        return PrefectFuture(
+            flow_run_id=flow_run_context.flow_run_id,
+            task_run_id=task_run_id,
+            client=flow_run_context.client,
+            wait_callback=callback,
+        )
 
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):

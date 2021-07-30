@@ -28,9 +28,9 @@ class TestTaskCall:
             # Returns a future so we can run assertions outside of the flow context
 
         flow_future = bar()
-        task_future = flow_future.result()
+        task_future = flow_future.result().data
         assert isinstance(task_future, PrefectFuture)
-        assert task_future.result() == 1
+        assert task_future.result().data == 1
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_state_reflects_result_of_run(self, error):
@@ -44,21 +44,12 @@ class TestTaskCall:
             return bar()
 
         flow_future = foo()
-        task_future = flow_future.result()
-
-        raised = None
-        try:
-            task_future.result()
-        except Exception as exc:
-            raised = exc
-
-        # Assert the exception was raised correctly
-        assert raised is error
+        task_future = flow_future.result().data
+        state = task_future.result()
 
         # Assert the final state is correct
-        states = OrionClient().read_task_run_states(task_future.run_id)
-        final_state = states[-1]
-        assert final_state.is_failed() if error else final_state.is_completed()
+        assert state.is_failed() if error else state.is_completed()
+        assert state.data is error
 
     def test_task_runs_correctly_populate_dynamic_keys(self):
         @task
@@ -70,7 +61,7 @@ class TestTaskCall:
             return bar(), bar()
 
         flow_future = foo()
-        task_futures = [item for item in flow_future.result()]
+        task_futures = [item for item in flow_future.result().data]
 
         orion_client = OrionClient()
         task_runs = [

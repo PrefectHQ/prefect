@@ -118,7 +118,7 @@ class OrionClient:
     def create_task_run(
         self,
         task: "Task",
-        flow_run_id: str,
+        flow_run_id: UUID,
         extra_tags: Iterable[str] = None,
     ) -> UUID:
         tags = set(task.tags).union(extra_tags or [])

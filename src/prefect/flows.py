@@ -1,15 +1,18 @@
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient
+from prefect.executors import BaseExecutor, SynchronousExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
-from prefect.orion.schemas.core import StateType, State
+
+if TYPE_CHECKING:
+    from prefect.context import FlowRunContext
 
 
 class Flow:
@@ -24,7 +27,7 @@ class Flow:
         name: str = None,
         fn: Callable = None,
         version: str = None,
-        executor=None,
+        executor: BaseExecutor = None,
         description: str = None,
         tags: Iterable[str] = None,
     ):
@@ -35,6 +38,9 @@ class Flow:
 
         self.name = name or fn.__name__
 
+        self.tags = set(tags if tags else [])
+        self.executor = executor or SynchronousExecutor()
+
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
@@ -42,20 +48,15 @@ class Flow:
         # Version defaults to a hash of the function's file
         flow_file = fn.__globals__.get("__file__")  # type: ignore
         self.version = version or (file_hash(flow_file) if flow_file else None)
-        self.executor = executor
-
-        self.tags = set(tags if tags else [])
 
         self.parameters = parameter_schema(self.fn)
 
     def _run(
         self,
-        client: OrionClient,
-        flow_run_id: str,
-        future: PrefectFuture,
+        context: "FlowRunContext",
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
-    ) -> None:
+    ) -> PrefectFuture:
         """
         TODO: Note that pydantic will now coerce parameter types into the correct type
               even if the user wants failure on inexact type matches. We may want to
@@ -65,23 +66,38 @@ class Flow:
               work at Flow.__init__ so we can raise errors to users immediately
         TODO: Implement state orchestation logic using return values from the API
         """
-
-        client.set_flow_run_state(flow_run_id, State(type=StateType.RUNNING))
+        context.client.set_flow_run_state(
+            context.flow_run_id, State(type=StateType.RUNNING)
+        )
 
         try:
             result = validate_arguments(self.fn)(*call_args, **call_kwargs)
         except Exception as exc:
+            state = State(
+                type=StateType.FAILED,
+                message="Flow run encountered an exception.",
+            )
             result = exc
-            state_type = StateType.FAILED
-            message = "Flow run encountered a user exception."
         else:
-            state_type = StateType.COMPLETED
-            message = "Flow run completed."
+            state = State(
+                type=StateType.COMPLETED,
+                message="Flow run completed.",
+            )
 
-        state = State(type=state_type, message=message)
-        client.set_flow_run_state(flow_run_id, state=state)
+        context.client.set_flow_run_state(
+            context.flow_run_id,
+            state=state,
+        )
 
-        future.set_result(result, user_exception=state.is_failed())
+        # Attach the result to the state
+        state.data = result
+
+        # Return a future that is already resolved to `state`
+        return PrefectFuture(
+            flow_run_id=context.flow_run_id,
+            client=context.client,
+            wait_callback=lambda timeout: state,
+        )
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext
@@ -94,13 +110,17 @@ class Flow:
             self,
             parameters=parameters,
         )
-        future = PrefectFuture(flow_run_id)
 
-        with FlowRunContext(flow_run_id=flow_run_id, flow=self, client=client):
-            client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
-            self._run(client, flow_run_id, future, call_args=args, call_kwargs=kwargs)
+        client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
 
-        return future
+        with self.executor as executor:
+            with FlowRunContext(
+                flow_run_id=flow_run_id,
+                flow=self,
+                client=client,
+                executor=executor,
+            ) as context:
+                return self._run(context=context, call_args=args, call_kwargs=kwargs)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
