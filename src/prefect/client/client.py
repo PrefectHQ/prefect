@@ -575,14 +575,14 @@ class Client:
     ) -> "requests.models.Response":
         import requests
 
-        if prefect.context.config.cloud.get("diagnostics") is True:
-            self.logger.debug(f"Preparing request to {url}")
+        if True:#prefect.context.config.cloud.get("diagnostics") is True:
+            self.logger.info(f"Preparing request to {url}")
             clean_headers = {
                 head: re.sub("Bearer .*", "Bearer XXXX", val)
                 for head, val in headers.items()  # type: ignore
             }
-            self.logger.debug(f"Headers: {clean_headers}")
-            self.logger.debug(f"Request: {params}")
+            self.logger.info(f"Headers: {clean_headers}")
+            self.logger.info(f"Request: {params}")
             start_time = time.time()
 
         if method == "GET":
@@ -608,10 +608,10 @@ class Client:
         else:
             raise ValueError("Invalid method: {}".format(method))
 
-        if prefect.context.config.cloud.get("diagnostics") is True:
+        if True:#prefect.context.config.cloud.get("diagnostics") is True:
             end_time = time.time()
-            self.logger.debug(f"Response: {response.json()}")
-            self.logger.debug(
+            self.logger.info(f"Response: {response.json()}")
+            self.logger.info(
                 f"Request duration: {round(end_time - start_time, 4)} seconds"
             )
 
@@ -728,6 +728,7 @@ class Client:
             success, retry_count = False, 0
             # retry up to six times
             while success is False and retry_count < 6:
+                self.logger.info("Retrying, current retry count is %d" % retry_count)
                 response = self._send_request(
                     session=session,
                     method=method,

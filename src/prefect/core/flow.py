@@ -1469,7 +1469,7 @@ class Flow:
             - ValueError: if `build=True` and the flow has no storage
         """
 
-        self.validate()
+        # self.validate()
         schema = prefect.serialization.flow.FlowSchema
 
         # because of how our serializers work, we need to make sure that
