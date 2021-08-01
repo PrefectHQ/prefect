@@ -575,7 +575,7 @@ class Client:
     ) -> "requests.models.Response":
         import requests
 
-        if True:#prefect.context.config.cloud.get("diagnostics") is True:
+        if True:  # prefect.context.config.cloud.get("diagnostics") is True:
             self.logger.info(f"Preparing request to {url}")
             clean_headers = {
                 head: re.sub("Bearer .*", "Bearer XXXX", val)
@@ -608,7 +608,7 @@ class Client:
         else:
             raise ValueError("Invalid method: {}".format(method))
 
-        if True:#prefect.context.config.cloud.get("diagnostics") is True:
+        if True:  # prefect.context.config.cloud.get("diagnostics") is True:
             end_time = time.time()
             self.logger.info(f"Response: {response.json()}")
             self.logger.info(
