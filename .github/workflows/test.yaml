@@ -51,7 +51,7 @@ jobs:
           pytest tests/unit_tests -v
 
       - name: Run integration tests
-         env: 
-            PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:////tmp/orion-tests.db"
-         run: |
+        env: 
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:////tmp/orion-tests.db"
+        run: |
           pytest tests/integration_tests -v
