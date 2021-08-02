@@ -4,6 +4,7 @@ Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
 from pydantic import BaseSettings, Field, SecretStr
+from typing import Literal
 
 
 class DatabaseSettings(BaseSettings):
@@ -12,7 +13,7 @@ class DatabaseSettings(BaseSettings):
         frozen = True
 
     connection_url: SecretStr = "sqlite+aiosqlite:///:memory:"
-    echo: bool = True
+    echo: bool = False
 
 
 class OrionSettings(BaseSettings):
@@ -32,7 +33,8 @@ class Settings(BaseSettings):
         frozen = True
 
     # debug
-    test_mode = False
+    debug_mode: bool = False
+    test_mode: bool = False
 
     # logging
     logging_level: str = "INFO"
