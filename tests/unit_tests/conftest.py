@@ -1,49 +1,31 @@
+from prefect.orion.utilities.database import get_session_factory
 import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from prefect.orion.utilities.database import Base
 from prefect import settings
 from prefect.orion import models, schemas
+from prefect.orion.api.server import app
+from prefect.orion.api.dependencies import get_session
 
 
-@pytest.fixture(scope="session")
-async def database_engine():
-    """Creates an in memory sqlite database for use in testing. For performance,
-    the database is created only once, at the beginning of testing. Subsequent
-    sessions roll themselves back at the end of each test to restore the
-    database.
-    """
-    # create an in memory db engine
-    engine = create_async_engine(
-        settings.orion.database.connection_url.get_secret_value(),
-        echo=settings.orion.database.echo,
-    )
-
-    # populate database tables
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        yield engine
-    finally:
-        await engine.dispose()
-
-
-@pytest.fixture
+@pytest.fixture(autouse=True)
 async def database_session(database_engine):
-    """Test database session. At the end of each test, the session is rolled
-    back to restore the original database condition and avoid carrying over
-    state.
+    """Test database session. All unit tests share this session. At the end of
+    each test, the session is rolled back to restore the original database
+    condition and avoid carrying over state.
     """
-    async with AsyncSession(
-        database_engine, future=True, expire_on_commit=False
-    ) as session:
-        # open transaction
-        async with session.begin():
-            try:
-                yield session
-            finally:
-                await session.rollback()
+    OrionSession = get_session_factory(database_engine)
+
+    async with OrionSession() as session:
+
+        app.dependency_overrides[get_session] = lambda: session
+
+        try:
+            yield session
+        finally:
+            app.dependency_overrides = {}
+            await session.rollback()
 
 
 @pytest.fixture
