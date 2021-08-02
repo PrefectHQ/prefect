@@ -181,14 +181,17 @@ module.exports = {
       '/orchestration/': [
         '/orchestration/',
         {
-          title: 'Tutorial',
+          title: 'Getting Started',
           collapsable: true,
           children: [
-            'tutorial/overview',
-            'tutorial/first',
-            'tutorial/parameters',
-            'tutorial/flow_config',
-            'tutorial/next-steps'
+            'getting-started/quick-start',
+            'getting-started/install',
+            'getting-started/basic-core-flow.md',
+            'getting-started/set-up',
+            'getting-started/registering-and-running-a-flow',
+            'getting-started/next-steps',
+            'getting-started/flow-configs',
+            'getting-started/more-resources'
           ]
         },
         {
@@ -307,18 +310,27 @@ module.exports = {
       '/core/': [
         '/core/',
         {
-          title: 'Getting Started',
+          title: 'About Prefect',
           collapsable: true,
           children: [
-            'getting_started/installation',
-            'getting_started/first-steps',
-            'getting_started/next-steps',
-            'getting_started/why-prefect',
-            'getting_started/why-not-airflow'
+            'about_prefect/why-prefect',
+            'about_prefect/why-not-airflow',
+            'about_prefect/thinking-prefectly',
+            'about_prefect/next-steps'
           ]
         },
         {
-          title: 'Tutorial',
+          title: 'Getting Started',
+          collapsable: true,
+          children: [
+            'getting_started/quick-start',
+            'getting_started/install',
+            'getting_started/basic-core-flow',
+            'getting_started/more-resources'
+          ]
+        },
+        {
+          title: ' ETL Tutorial',
           collapsable: true,
           children: getChildren('docs/core', 'tutorial')
         },
