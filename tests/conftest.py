@@ -52,7 +52,7 @@ async def client():
         yield async_client
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 async def database_engine():
     engine = get_engine()
 
