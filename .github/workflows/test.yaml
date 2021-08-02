@@ -44,6 +44,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Test with pytest
+      - name: Run unit tests
+        env: PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///:memory:"
         run: |
-          pytest tests -v
+          pytest tests/unit_tests -v
+
+      - name: Run integration tests
+         env: PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////tmp/orion-tests.db"
+         run: |
+          pytest tests/integration_tests -v
