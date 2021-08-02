@@ -1,9 +1,9 @@
-name: Test
+name: Run tests
 
 on: [pull_request]
 
 jobs:
-  python-unit:
+  run-tests:
 
     strategy:
       matrix:
@@ -44,6 +44,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Test with pytest
+      - name: Run unit tests
+        env: 
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///:memory:"
         run: |
-          pytest tests
+          pytest tests/unit_tests
+
+      - name: Run integration tests
+        env: 
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:////tmp/orion-tests.db"
+        run: |
+          pytest tests/integration_tests
