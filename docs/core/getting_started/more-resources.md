@@ -38,6 +38,6 @@ See the [examples](/core/examples/overview.md) page for more information.
 
 ## Concepts
 
-Visit the [Core Concepts](/core/concepts/api.html) docs for more information on tasks, flows and parameters and states. You can also see how to set up [notifications](/core/concepts/notifications.html#state-handlers) and find out how Prefect [caches and persists data](/core/concepts/persistence.html).
+Visit the [Core Concepts](/core/concepts/tasks.html) docs for more information on tasks, flows and parameters and states. You can also see how to set up [notifications](/core/concepts/notifications.html#state-handlers) and find out how Prefect [caches and persists data](/core/concepts/persistence.html).
 
 
