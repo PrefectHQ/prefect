@@ -1,3 +1,4 @@
+from prefect.orion.utilities.database import Base, get_engine
 from prefect.orion.utilities.database import get_session_factory
 import pendulum
 import pytest
@@ -7,6 +8,24 @@ from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api.server import app
 from prefect.orion.api.dependencies import get_session
+
+
+@pytest.fixture(scope="package", autouse=True)
+async def setup_db(database_engine):
+    """Unit tests run against a shared, rolled-back database session,
+    so the database only needs to be set up and torn down once, at the start
+    and end of all tests."""
+    try:
+        # reset database before integration tests run
+        async with database_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        yield
+
+    finally:
+        # clear database tables
+        async with database_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.fixture(autouse=True)
