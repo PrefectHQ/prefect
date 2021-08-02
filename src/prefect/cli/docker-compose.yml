@@ -128,6 +128,7 @@ services:
     command: "/intercept.sh"
     environment:
       PREFECT_SERVER__APOLLO_URL: ${APOLLO_URL:-http://localhost:4200/graphql}
+      PREFECT_SERVER__BASE_URL: ${UI_BASE_URL:-/}
     networks:
       - prefect-server
     healthcheck:

@@ -303,7 +303,9 @@ def setup_compose_env(
     )
 
     UI_ENV = dict(
-        APOLLO_URL=config.server.ui.apollo_url, PREFECT_UI_TAG=ui_version or default_tag
+        APOLLO_URL=config.server.ui.apollo_url,
+        PREFECT_UI_TAG=ui_version or default_tag,
+        UI_BASE_URL=config.server.ui.base_url,
     )
 
     HASURA_ENV = dict(HASURA_HOST_PORT=str(hasura_port))
