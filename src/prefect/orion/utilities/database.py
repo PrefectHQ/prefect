@@ -1,30 +1,52 @@
 import json
 import re
 import uuid
+from asyncio import current_task
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.event import listens_for
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_scoped_session,
+    create_async_engine,
+)
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
-from sqlalchemy.types import CHAR, TypeDecorator, JSON
+from sqlalchemy.types import CHAR, JSON, TypeDecorator
 
 from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-engine = create_async_engine(
-    settings.orion.database.connection_url.get_secret_value(),
-    echo=settings.orion.database.echo,
-)
+# create engine
+def get_engine(connection_url=None, echo=None):
+    if connection_url is None:
+        connection_url = settings.orion.database.connection_url.get_secret_value()
+    if echo is None:
+        echo = settings.orion.database.echo
+    return create_async_engine(connection_url, echo=echo)
 
-OrionAsyncSession = sessionmaker(
-    engine, future=True, expire_on_commit=False, class_=AsyncSession
-)
+
+def get_session_factory(engine):
+
+    # create session factory
+    session_factory = sessionmaker(
+        engine,
+        future=True,
+        expire_on_commit=False,
+        class_=AsyncSession,
+    )
+
+    # create session factory with async scoping
+    return async_scoped_session(session_factory, scopefunc=current_task)
+
+
+engine = get_engine()
+OrionAsyncSession = get_session_factory(engine)
 
 
 @listens_for(sa.engine.Engine, "engine_connect", once=True)

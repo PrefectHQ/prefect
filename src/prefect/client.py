@@ -126,7 +126,7 @@ class OrionClient:
     def create_task_run(
         self,
         task: "Task",
-        flow_run_id: str,
+        flow_run_id: UUID,
         extra_tags: Iterable[str] = None,
     ) -> UUID:
         tags = set(task.tags).union(extra_tags or [])
@@ -134,6 +134,7 @@ class OrionClient:
         task_run_data = schemas.actions.TaskRunCreate(
             flow_run_id=flow_run_id,
             task_key=task.task_key,
+            dynamic_key=task.dynamic_key,
             tags=list(tags),
         )
 
