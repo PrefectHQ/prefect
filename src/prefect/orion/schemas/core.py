@@ -8,7 +8,6 @@ from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
 
 
-
 class Flow(APIBaseModel):
     name: str = Field(..., example="my-flow")
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
