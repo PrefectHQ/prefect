@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Optional
 
 import cloudpickle
 
-from prefect.orion.schemas.core import State
+from prefect.orion.schemas.states import State
 
 
 class BaseExecutor:

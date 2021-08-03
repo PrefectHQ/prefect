@@ -12,22 +12,22 @@ class TestFlowRun:
         states = [
             orm.FlowRunState(
                 flow_run_id=flow_run.id,
-                **schemas.core.State(
-                    type=schemas.core.StateType.PENDING,
+                **schemas.states.State(
+                    type=schemas.states.StateType.PENDING,
                     timestamp=pendulum.now().subtract(seconds=1),
                 ).dict(exclude={"data"})
             ),
             orm.FlowRunState(
                 flow_run_id=flow_run.id,
-                **schemas.core.State(
-                    type=schemas.core.StateType.COMPLETED,
+                **schemas.states.State(
+                    type=schemas.states.StateType.COMPLETED,
                     timestamp=pendulum.now().add(seconds=1),
                 ).dict(exclude={"data"})
             ),
             orm.FlowRunState(
                 flow_run_id=flow_run.id,
-                **schemas.core.State(
-                    type=schemas.core.StateType.RUNNING, timestamp=pendulum.now()
+                **schemas.states.State(
+                    type=schemas.states.StateType.RUNNING, timestamp=pendulum.now()
                 ).dict(exclude={"data"})
             ),
         ]
@@ -38,13 +38,13 @@ class TestFlowRun:
 
     async def test_flow_run_states_relationship(self, flow_run):
         assert [s.type for s in flow_run.states] == [
-            schemas.core.StateType.PENDING,
-            schemas.core.StateType.RUNNING,
-            schemas.core.StateType.COMPLETED,
+            schemas.states.StateType.PENDING,
+            schemas.states.StateType.RUNNING,
+            schemas.states.StateType.COMPLETED,
         ]
 
     async def test_flow_run_state_property(self, flow_run):
-        assert flow_run.state.type is schemas.core.StateType.COMPLETED
+        assert flow_run.state.type is schemas.states.StateType.COMPLETED
 
 
 class TestTaskRun:
@@ -54,22 +54,22 @@ class TestTaskRun:
         states = [
             orm.TaskRunState(
                 task_run_id=task_run.id,
-                **schemas.core.State(
-                    type=schemas.core.StateType.PENDING,
+                **schemas.states.State(
+                    type=schemas.states.StateType.PENDING,
                     timestamp=pendulum.now().subtract(seconds=1),
                 ).dict(exclude={"data"})
             ),
             orm.TaskRunState(
                 task_run_id=task_run.id,
-                **schemas.core.State(
-                    type=schemas.core.StateType.COMPLETED,
+                **schemas.states.State(
+                    type=schemas.states.StateType.COMPLETED,
                     timestamp=pendulum.now().add(seconds=1),
                 ).dict(exclude={"data"})
             ),
             orm.TaskRunState(
                 task_run_id=task_run.id,
-                **schemas.core.State(
-                    type=schemas.core.StateType.RUNNING, timestamp=pendulum.now()
+                **schemas.states.State(
+                    type=schemas.states.StateType.RUNNING, timestamp=pendulum.now()
                 ).dict(exclude={"data"})
             ),
         ]
@@ -80,10 +80,10 @@ class TestTaskRun:
 
     async def test_task_run_states_relationship(self, task_run):
         assert [s.type for s in task_run.states] == [
-            schemas.core.StateType.PENDING,
-            schemas.core.StateType.RUNNING,
-            schemas.core.StateType.COMPLETED,
+            schemas.states.StateType.PENDING,
+            schemas.states.StateType.RUNNING,
+            schemas.states.StateType.COMPLETED,
         ]
 
     async def test_task_run_state_property(self, task_run):
-        assert task_run.state.type is schemas.core.StateType.COMPLETED
+        assert task_run.state.type is schemas.states.StateType.COMPLETED

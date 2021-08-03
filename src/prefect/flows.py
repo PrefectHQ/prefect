@@ -7,7 +7,7 @@ from pydantic import validate_arguments
 from prefect.client import OrionClient
 from prefect.executors import BaseExecutor, SynchronousExecutor
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.core import State, StateType
+from prefect.orion.schemas.states import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
 
