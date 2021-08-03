@@ -1,8 +1,10 @@
+import datetime
+from uuid import UUID
 import copy
 
 import json
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from prefect import settings
 
@@ -122,3 +124,12 @@ class PrefectBaseModel(BaseModel):
             dict: a JSON-compatible dict
         """
         return json.loads(self.json(*args, **kwargs))
+
+
+class APIBaseModel(PrefectBaseModel):
+    class Config:
+        orm_mode = True
+
+    id: UUID = None
+    created: datetime.datetime = Field(None, repr=False)
+    updated: datetime.datetime = Field(None, repr=False)
