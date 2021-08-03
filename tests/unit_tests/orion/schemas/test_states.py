@@ -44,6 +44,11 @@ class TestStateTypeFunctions:
         state = State(type=state_type)
         assert state.is_failed() == (state_type == StateType.FAILED)
 
+    @pytest.mark.parametrize("state_type", StateType)
+    def test_is_cancelled(self, state_type):
+        state = State(type=state_type)
+        assert state.is_cancelled() == (state_type == StateType.CANCELLED)
+
 
 class TestStateConvenienceFunctions:
     def test_awaiting_retry(self):

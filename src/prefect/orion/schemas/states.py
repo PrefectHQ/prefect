@@ -18,6 +18,7 @@ class StateType(AutoEnum):
     RUNNING = auto()
     COMPLETED = auto()
     FAILED = auto()
+    CANCELLED = auto()
 
 
 class StateDetails(PrefectBaseModel):
@@ -66,6 +67,9 @@ class State(APIBaseModel):
 
     def is_failed(self):
         return self.type == StateType.FAILED
+
+    def is_cancelled(self):
+        return self.type == StateType.CANCELLED
 
 
 def Completed(**kwargs) -> State:
