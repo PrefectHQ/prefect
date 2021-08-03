@@ -15,7 +15,7 @@ async def create_task_run_state(
     task_run_id: UUID = Body(...),
     state: schemas.actions.StateCreate = Body(...),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.State:
+) -> schemas.states.State:
     """
     Create a task run state, disregarding orchestration logic
     """
@@ -30,7 +30,7 @@ async def read_task_run_state(
         ..., description="The task run state id", alias="id"
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.State:
+) -> schemas.states.State:
     """
     Get a task run state by id
     """
@@ -46,7 +46,7 @@ async def read_task_run_state(
 async def read_task_run_states(
     task_run_id: UUID,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.core.State]:
+) -> List[schemas.states.State]:
     """
     Get states associated with a task run
     """

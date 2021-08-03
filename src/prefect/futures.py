@@ -2,7 +2,7 @@ from typing import Any, Optional, Callable
 from uuid import UUID
 
 from prefect.client import OrionClient
-from prefect.orion.schemas.core import State
+from prefect.orion.schemas.states import State
 
 
 class PrefectFuture:

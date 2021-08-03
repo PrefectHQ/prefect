@@ -3,7 +3,7 @@ import sqlalchemy as sa
 from sqlalchemy import JSON, Column, Enum, String, join, select
 from sqlalchemy.orm import relationship
 
-from prefect.orion.schemas import core
+from prefect.orion.schemas import core, states
 from prefect.orion.utilities.database import UUID, Base, Now, Pydantic
 
 
@@ -95,7 +95,7 @@ class TaskRun(Base):
 
 class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(core.StateType), nullable=False, index=True)
+    type = Column(Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
@@ -105,10 +105,10 @@ class FlowRunState(Base):
     name = Column(String)
     message = Column(String)
     state_details = Column(
-        Pydantic(core.StateDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
     )
     run_details = Column(
-        Pydantic(core.RunDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
     )
     data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
 
@@ -119,7 +119,7 @@ class FlowRunState(Base):
 
 class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(core.StateType), nullable=False, index=True)
+    type = Column(Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
@@ -129,10 +129,10 @@ class TaskRunState(Base):
     name = Column(String)
     message = Column(String)
     state_details = Column(
-        Pydantic(core.StateDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
     )
     run_details = Column(
-        Pydantic(core.RunDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
     )
     data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
 
