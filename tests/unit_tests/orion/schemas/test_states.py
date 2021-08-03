@@ -1,6 +1,6 @@
 import pytest
 import pendulum
-from prefect.orion.schemas.states import State, StateType
+from prefect.orion.schemas.states import State, StateType, AwaitingRetry, Retrying
 
 
 class TestState:
@@ -43,3 +43,17 @@ class TestStateTypeFunctions:
     def test_is_failed(self, state_type):
         state = State(type=state_type)
         assert state.is_failed() == (state_type == StateType.FAILED)
+
+
+class TestStateConvenienceFunctions:
+    def test_awaiting_retry(self):
+        dt = pendulum.now()
+        state = AwaitingRetry(scheduled_time=dt)
+        assert state.type == StateType.SCHEDULED
+        assert state.name == "AwaitingRetry"
+        assert state.state_details.scheduled_time == dt
+
+    def test_retrying(self):
+        state = Retrying()
+        assert state.type == StateType.RUNNING
+        assert state.name == "Retrying"
