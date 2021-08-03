@@ -31,8 +31,8 @@ def my_fn():
         (to_qualified_name, "prefect.utilities.hashing.to_qualified_name"),
         (prefect.tasks.Task, "prefect.tasks.Task"),
         (prefect.tasks.Task.__call__, "prefect.tasks.Task.__call__"),
-        (lambda x: x + 1, "tests.prefect.utilities.test_hashing.<lambda>"),
-        (my_fn, "tests.prefect.utilities.test_hashing.my_fn"),
+        (lambda x: x + 1, "tests.unit_tests.utilities.test_hashing.<lambda>"),
+        (my_fn, "tests.unit_tests.utilities.test_hashing.my_fn"),
     ],
 )
 def test_to_qualified_name(obj, expected):

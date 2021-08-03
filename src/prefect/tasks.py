@@ -44,6 +44,8 @@ class Task:
             str(sorted(self.tags or [])),
         )
 
+        self.dynamic_key = 0
+
     def _run(
         self,
         task_run_id: UUID,
@@ -114,6 +116,10 @@ class Task:
             call_args=args,
             call_kwargs=kwargs,
         )
+
+        # Increment the dynamic_key so future task calls are distinguishable from this
+        # task run
+        self.dynamic_key += 1
 
         return PrefectFuture(
             flow_run_id=flow_run_context.flow_run_id,

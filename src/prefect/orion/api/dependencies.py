@@ -11,8 +11,9 @@ async def get_session():
     The context manager will automatically handle commits,
     rollbacks, and closing the connection.
     """
-    async with OrionAsyncSession.begin() as session:
-        yield session
+    async with OrionAsyncSession() as session:
+        async with session.begin():
+            yield session
 
 
 class Pagination(PrefectBaseModel):

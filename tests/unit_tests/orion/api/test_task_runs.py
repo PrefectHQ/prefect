@@ -8,7 +8,7 @@ class TestCreateTaskRun:
     async def test_create_task_run(self, flow_run, client, database_session):
         task_run_data = {"flow_run_id": str(flow_run.id), "task_key": "my-task-key"}
         response = await client.post("/task_runs/", json=task_run_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["id"]
 
@@ -16,6 +16,22 @@ class TestCreateTaskRun:
             session=database_session, task_run_id=response.json()["id"]
         )
         assert task_run.flow_run_id == flow_run.id
+
+    async def test_create_task_run_gracefully_upserts(
+        self, flow_run, client, database_session
+    ):
+        # create a task run
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "dynamic_key": "my-dynamic-key",
+        }
+        task_run_response = await client.post("/task_runs/", json=task_run_data)
+
+        # recreate the same task run, ensure graceful upsert
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == 200
+        assert response.json()["id"] == task_run_response.json()["id"]
 
 
 class TestReadTaskRun:

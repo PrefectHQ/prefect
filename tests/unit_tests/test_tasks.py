@@ -50,3 +50,24 @@ class TestTaskCall:
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
         assert state.data is error
+
+    def test_task_runs_correctly_populate_dynamic_keys(self):
+        @task
+        def bar():
+            return "foo"
+
+        @flow(version="test")
+        def foo():
+            return bar(), bar()
+
+        flow_future = foo()
+        task_futures = [item for item in flow_future.result().data]
+
+        orion_client = OrionClient()
+        task_runs = [
+            orion_client.read_task_run(task_run.run_id) for task_run in task_futures
+        ]
+
+        # Assert dynamic key is set correctly
+        assert task_runs[0].dynamic_key == "0"
+        assert task_runs[1].dynamic_key == "1"

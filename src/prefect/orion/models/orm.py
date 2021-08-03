@@ -78,6 +78,14 @@ class TaskRun(Base):
         lazy="joined",
     )
 
+    __table__args__ = sa.Index(
+        "ix_task_run_flow_run_id_task_key_dynamic_key",
+        flow_run_id,
+        task_key,
+        dynamic_key,
+        unique=True,
+    )
+
     @property
     def state(self):
         """The current state"""
