@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 from uuid import UUID
 
 from prefect.utilities.hashing import stable_hash, to_qualified_name
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, resolve_futures
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 
@@ -113,8 +113,8 @@ class Task:
             self._run,
             task_run_id=task_run_id,
             flow_run_id=flow_run_context.flow_run_id,
-            call_args=args,
-            call_kwargs=kwargs,
+            call_args=resolve_futures(args),
+            call_kwargs=resolve_futures(kwargs),
         )
 
         # Increment the dynamic_key so future task calls are distinguishable from this

@@ -71,3 +71,20 @@ class TestTaskCall:
         # Assert dynamic key is set correctly
         assert task_runs[0].dynamic_key == "0"
         assert task_runs[1].dynamic_key == "1"
+
+    def test_task_called_with_task_dependency(self):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(y):
+            return y + 1
+
+        @flow
+        def test_flow():
+            return bar(foo(1))
+
+        flow_future = test_flow()
+        task_future = flow_future.result().data
+        assert task_future.result().data == 2
