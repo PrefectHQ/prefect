@@ -1,4 +1,7 @@
-from typing import Any, Optional, Callable
+from collections import OrderedDict
+from collections.abc import Iterator as IteratorABC
+from dataclasses import fields, is_dataclass
+from typing import Any, Callable, Optional
 from uuid import UUID
 
 from prefect.client import OrionClient
@@ -46,3 +49,34 @@ class PrefectFuture:
 
     def __hash__(self) -> int:
         return hash(self.run_id)
+
+
+def resolve_futures(expr):
+    """
+    Given an arbitrary python object resolve futures and states into data
+    """
+    if isinstance(expr, State):
+        return expr.data
+
+    if isinstance(expr, PrefectFuture):
+        return resolve_futures(expr.result())
+
+    # Get the expression type; treat iterators like lists
+    typ = list if isinstance(expr, IteratorABC) else type(expr)
+
+    # If it's a python collection, recursively create a collection of the same type with
+    # resolved futures
+
+    if typ in (list, tuple, set):
+        return typ([resolve_futures(o) for o in expr])
+
+    if typ in (dict, OrderedDict):
+        return typ([[resolve_futures(k), resolve_futures(v)] for k, v in expr.items()])
+
+    if is_dataclass(expr) and not isinstance(expr, type):
+        return typ(
+            **{f.name: resolve_futures(getattr(expr, f.name)) for f in fields(expr)},
+        )
+
+    # If not a supported type, just return it
+    return expr
