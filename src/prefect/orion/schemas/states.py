@@ -1,14 +1,13 @@
 from prefect.orion.schemas.core import APIBaseModel
 import datetime
 from enum import auto
-from typing import List, Dict
+from typing import Any
 from uuid import UUID
 
 import pendulum
 from pydantic import Field, validator
 
 from prefect.orion.utilities.enum import AutoEnum
-from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
@@ -42,7 +41,7 @@ class State(APIBaseModel):
     name: str = None
     timestamp: datetime.datetime = Field(default_factory=pendulum.now, repr=False)
     message: str = Field(None, example="Run started")
-    data: bytes = Field(None, repr=False)
+    data: Any = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
     run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
 
