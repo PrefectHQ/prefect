@@ -14,15 +14,6 @@ class TestCreateFlowRun:
         assert flow_run.flow_id == fake_flow_run.flow_id
         assert flow_run.flow_version == fake_flow_run.flow_version
 
-    async def test_flow_run_states_starts_empty(self, database_session):
-        fake_flow_run = schemas.actions.FlowRunCreate(
-            flow_id=uuid4(), flow_version="0.1"
-        )
-        flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=fake_flow_run
-        )
-        assert flow_run.states == []
-
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, database_session):
