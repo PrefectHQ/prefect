@@ -6,7 +6,7 @@ from sqlalchemy.sql.functions import mode
 
 from prefect.orion.models import orm
 from prefect.orion import schemas, models
-from prefect.orion.schemas.core import RunDetails
+from prefect.orion.schemas.states import RunDetails
 
 
 async def create_flow_run_state(

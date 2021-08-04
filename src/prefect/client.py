@@ -95,7 +95,7 @@ class OrionClient:
     def set_flow_run_state(
         self,
         flow_run_id: UUID,
-        state: schemas.core.State,
+        state: schemas.states.State,
     ) -> schemas.responses.SetStateResponse:
         state_data = schemas.actions.StateCreate(
             type=state.type,
@@ -119,9 +119,9 @@ class OrionClient:
         )
         return schemas.responses.SetStateResponse.parse_obj(response.json())
 
-    def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.core.State]:
+    def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.states.State]:
         response = self.get("/flow_run_states/", params=dict(flow_run_id=flow_run_id))
-        return pydantic.parse_obj_as(List[schemas.core.State], response.json())
+        return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
     def create_task_run(
         self,
@@ -152,7 +152,7 @@ class OrionClient:
     def set_task_run_state(
         self,
         task_run_id: UUID,
-        state: schemas.core.State,
+        state: schemas.states.State,
     ) -> schemas.responses.SetStateResponse:
         state_data = schemas.actions.StateCreate(
             type=state.type,
@@ -176,9 +176,9 @@ class OrionClient:
         )
         return schemas.responses.SetStateResponse.parse_obj(response.json())
 
-    def read_task_run_states(self, task_run_id: UUID) -> List[schemas.core.State]:
+    def read_task_run_states(self, task_run_id: UUID) -> List[schemas.states.State]:
         response = self.get("/task_run_states/", params=dict(task_run_id=task_run_id))
-        return pydantic.parse_obj_as(List[schemas.core.State], response.json())
+        return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
 
 class _ASGIClient:

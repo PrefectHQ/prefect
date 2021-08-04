@@ -6,7 +6,7 @@ from uuid import UUID
 from prefect.utilities.hashing import stable_hash, to_qualified_name
 from prefect.futures import PrefectFuture
 from prefect.client import OrionClient
-from prefect.orion.schemas.core import State, StateType
+from prefect.orion.schemas.states import State, StateType
 
 
 class Task:
