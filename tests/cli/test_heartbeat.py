@@ -20,26 +20,6 @@ def test_heartbeat_help():
     assert "Send heartbeats back to the Prefect API." in result.output
 
 
-def test_heartbeat_task_run(patch_post, cloud_api):
-    patch_post(dict(data=dict(update_task_run_heartbeat="success")))
-
-    with set_temporary_config({"cloud.heartbeat_interval": 0.1}):
-        runner = CliRunner()
-        result = runner.invoke(heartbeat, ["task-run", "--id", "id", "--num", "1"])
-        assert result.exit_code == 0
-
-
-def test_heartbeat_multiple_task_run_heartbeats(patch_post, cloud_api):
-    post = patch_post(dict(data=dict(update_task_run_heartbeat="success")))
-
-    with set_temporary_config({"cloud.heartbeat_interval": 0.1}):
-        runner = CliRunner()
-        result = runner.invoke(heartbeat, ["task-run", "--id", "id", "--num", "2"])
-        assert result.exit_code == 0
-        assert post.called
-        assert post.call_count == 2
-
-
 def test_heartbeat_flow_run(patch_post, cloud_api):
     patch_post(dict(data=dict(update_flow_run_heartbeat="success")))
 
