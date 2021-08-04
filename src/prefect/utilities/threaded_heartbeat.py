@@ -11,7 +11,8 @@ from prefect.utilities.logging import get_logger
 class HeartbeatThread(threading.Thread):
     def __init__(self, stop_event, flow_run_id, num=None):
         threading.Thread.__init__(self)
-        self.daemon = True
+        self.num = num
+        self.daemon = True  # 'daemonizes' the thread, so Python will terminate it if all non-daemonized threads have finished running
         self.stop_event = stop_event
 
     def run(self):
@@ -19,13 +20,14 @@ class HeartbeatThread(threading.Thread):
         client = Client()
         iter_count = 0
         with prefect.context({"flow_run_id": id, "running_with_backend": True}):
-            with log_heartbeat_failure():
-                while iter_count < (num or 1) or not self.stop_event.is_set():
-                    send_heartbeat(self.id, self.num)
-                    iter_count += 1 if num else 0
+            with log_heartbeat_failure(logger):
+                while iter_count < (self.num or 1) or not self.stop_event.is_set():
+                    send_heartbeat(self.id, client, logger)
+                    iter_count += 1 if self.num else 0
+                    time.sleep(config.cloud.heartbeat_interval)
 
 
-def send_heartbeat(client, id):
+def send_heartbeat(id, client, logger):
     try:  # Ignore (but log) client exceptions
         client.update_flow_run_heartbeat(id)
     except Exception as exc:
@@ -36,7 +38,7 @@ def send_heartbeat(client, id):
 
 
 @contextmanager
-def log_heartbeat_failure():
+def log_heartbeat_failure(logger):
     try:
         yield
     except BaseException as exc:
@@ -56,4 +58,3 @@ def threaded_heartbeat(id, num=None):
         yield
     finally:
         HEARTBEAT_STOP_EVENT.set()
-
