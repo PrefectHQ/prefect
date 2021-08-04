@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 from uuid import UUID
 
 from prefect.utilities.hashing import stable_hash, to_qualified_name
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, resolve_futures
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 
