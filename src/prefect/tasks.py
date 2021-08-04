@@ -71,12 +71,13 @@ class Task:
             state = State(
                 type=StateType.FAILED,
                 message="Task run encountered an exception.",
+                data=exc,
             )
-            result = exc
         else:
             state = State(
                 type=StateType.COMPLETED,
                 message="Task run completed.",
+                data=result,
             )
 
         client.set_task_run_state(
@@ -84,9 +85,6 @@ class Task:
             state=state,
         )
 
-        # TODO: Send the data to the server as well? Will need to be serialized there
-        #       but we don't want it serialized here
-        state.data = result
         return state
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
