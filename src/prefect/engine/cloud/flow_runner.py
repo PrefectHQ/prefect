@@ -72,8 +72,8 @@ class CloudFlowRunner(FlowRunner):
     def _heartbeat(self) -> bool:
         try:
             # use empty string for testing purposes
-            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
-            self.client.update_flow_run_heartbeat(flow_run_id)
+            self.flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
+            self.client.update_flow_run_heartbeat(self.flow_run_id)
             self.heartbeat_cmd = [
                 sys.executable,
                 "-m",
@@ -81,12 +81,12 @@ class CloudFlowRunner(FlowRunner):
                 "heartbeat",
                 "flow-run",
                 "-i",
-                flow_run_id,
+                self.flow_run_id,
             ]
 
             query = {
                 "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                    with_args("flow_run_by_pk", {"id": self.flow_run_id}): {
                         "flow": {"settings": True},
                     }
                 }

@@ -1,5 +1,4 @@
 import threading
-import time
 from contextlib import contextmanager
 
 import prefect
@@ -12,7 +11,7 @@ class HeartbeatThread(threading.Thread):
     def __init__(self, stop_event, flow_run_id, num=None):
         threading.Thread.__init__(self)
         self.num = num
-        self.daemon = True  # 'daemonizes' the thread, so Python will terminate it if all non-daemonized threads have finished running
+        self.daemon = True  # 'daemonizes' the thread, so Python will terminate it when all non-daemonized threads have finished
         self.stop_event = stop_event
 
     def run(self):
@@ -22,9 +21,9 @@ class HeartbeatThread(threading.Thread):
         with prefect.context({"flow_run_id": id, "running_with_backend": True}):
             with log_heartbeat_failure(logger):
                 while iter_count < (self.num or 1) or not self.stop_event.is_set():
+                    self.stop_event.wait(timeout=config.cloud.heartbeat_interval)
                     send_heartbeat(self.id, client, logger)
                     iter_count += 1 if self.num else 0
-                    time.sleep(config.cloud.heartbeat_interval)
 
 
 def send_heartbeat(id, client, logger):
@@ -47,14 +46,3 @@ def log_heartbeat_failure(logger):
             exc_info=True,
         )
         raise
-
-
-@contextmanager
-def threaded_heartbeat(id, num=None):
-    try:
-        HEARTBEAT_STOP_EVENT = threading.Event()
-        heartbeat = HeartbeatThread(HEARTBEAT_STOP_EVENT, id, num=None)
-        heartbeat.start()
-        yield
-    finally:
-        HEARTBEAT_STOP_EVENT.set()

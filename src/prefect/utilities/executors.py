@@ -1,5 +1,6 @@
-import copy
 import cloudpickle
+import contextlib
+import copy
 import itertools
 import multiprocessing
 import os
@@ -17,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Ma
 import prefect
 from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.logging import get_logger
+from prefect.utilities.threaded_heartbeat import HeartbeatThread
 
 if TYPE_CHECKING:
     import prefect.engine.runner
@@ -41,48 +43,76 @@ def run_with_heartbeat(
     def inner(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
-        try:
-            p = None
-            try:
-                if self._heartbeat():
-                    # we use Popen + a prefect CLI for a few reasons:
-                    # - using threads would interfere with the task; for example, a task
-                    #   which does not release the GIL would prevent the heartbeat thread from
-                    #   firing
-                    # - using multiprocessing.Process would release the GIL but a subprocess
-                    #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
-                    #   submit tasks to run within daemonic subprocesses
-                    current_env = dict(os.environ).copy()
-                    auth_token = prefect.context.config.cloud.get("auth_token")
-                    api_key = prefect.context.config.cloud.get("api_key")
-                    tenant_id = prefect.context.config.cloud.get("tenant_id")
-                    api_url = prefect.context.config.cloud.get("api")
-                    current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
-                    current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
-                    current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
-                    current_env.setdefault("PREFECT__CLOUD__API", api_url)
-                    clean_env = {k: v for k, v in current_env.items() if v is not None}
-                    p = subprocess.Popen(
-                        self.heartbeat_cmd,
-                        env=clean_env,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-            except Exception:
-                self.logger.exception(
-                    "Heartbeat failed to start.  This could result in a zombie run."
-                )
+
+        if not self._heartbeat():
+            configured_heartbeat = contextlib.nullcontext
+        elif prefect.context.config.heartbeat_style == 'thread':
+            configured_heartbeat = threaded_heartbeat(self.flow_run_id)
+        elif prefect.context.config.heartbeat_style == 'process':
+            configured_heartbeat = threaded_heartbeat(self.heartbeat_cmd, self.logger)
+        else:
+            # default to subprocess heartbeat in case of configuration error
+            configured_heartbeat = subprocess_heartbeat
+
+        with configured_heartbeat:
             return runner_method(self, *args, **kwargs)
-        finally:
-            if p is not None:
-                exit_code = p.poll()
-                if exit_code is not None:
-                    msg = "Heartbeat process died with exit code {}".format(exit_code)
-                    self.logger.error(msg)
-                p.kill()
-                p.wait()
 
     return inner
+
+
+@contextlib.contextmanager
+def threaded_heartbeat(flow_run_id, num=None):
+    try:
+        HEARTBEAT_STOP_EVENT = threading.Event()
+        heartbeat = HeartbeatThread(HEARTBEAT_STOP_EVENT, flow_run_id, num=None)
+        heartbeat.start()
+        yield
+    finally:
+        HEARTBEAT_STOP_EVENT.set()
+
+
+@contextlib.contextmanager
+def subprocess_heartbeat(heartbeat_cmd, logger):
+    p = None
+    try:
+        # we use Popen + a prefect CLI for a few reasons:
+        # - using threads would interfere with the task; for example, a task
+        #   which does not release the GIL would prevent the heartbeat thread from
+        #   firing
+        # - using multiprocessing.Process would release the GIL but a subprocess
+        #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
+        #   submit tasks to run within daemonic subprocesses
+        current_env = dict(os.environ).copy()
+        auth_token = prefect.context.config.cloud.get("auth_token")
+        api_key = prefect.context.config.cloud.get("api_key")
+        tenant_id = prefect.context.config.cloud.get("tenant_id")
+        api_url = prefect.context.config.cloud.get("api")
+        current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
+        current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
+        current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
+        current_env.setdefault("PREFECT__CLOUD__API", api_url)
+        clean_env = {k: v for k, v in current_env.items() if v is not None}
+        p = subprocess.Popen(
+            heartbeat_cmd,
+            env=clean_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        yield
+
+    except Exception:
+        logger.exception(
+            "Heartbeat process failed to start.  This could result in a zombie run."
+        )
+
+    finally:
+        if p is not None:
+            exit_code = p.poll()
+            if exit_code is not None:
+                msg = "Heartbeat process died with exit code {}".format(exit_code)
+                logger.error(msg)
+            p.kill()
+            p.wait()
 
 
 def run_with_thread_timeout(
