@@ -15,9 +15,11 @@ class TestCreateTaskRunState:
         assert task_run_state.name == fake_task_run_state.name
         assert task_run_state.type == fake_task_run_state.type
         assert task_run_state.task_run_id == task_run.id
-        assert task_run_state.state_details["task_run_id"] == task_run.id
+        assert task_run_state.state_details.task_run_id == task_run.id
 
-    async def test_create_task_run_state_succeeds(self, task_run, database_session):
+    async def test_create_task_run_state_twice_succeeds(
+        self, task_run, database_session
+    ):
         fake_task_run_state = schemas.actions.StateCreate(
             type="SCHEDULED",
         )
@@ -31,7 +33,7 @@ class TestCreateTaskRunState:
         another_task_run_state = await models.task_run_states.create_task_run_state(
             session=database_session,
             task_run_id=task_run.id,
-            state=fake_task_run_state,
+            state=another_fake_task_run_state,
         )
         assert another_task_run_state.run_details.previous_state_id == task_run_state.id
 

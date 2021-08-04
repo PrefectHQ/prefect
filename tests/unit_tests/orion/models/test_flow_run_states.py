@@ -17,7 +17,9 @@ class TestCreateFlowRunState:
         assert flow_run_state.flow_run_id == flow_run.id
         assert flow_run_state.state_details.flow_run_id == flow_run.id
 
-    async def test_create_flow_run_state_succeeds(self, flow_run, database_session):
+    async def test_create_flow_run_state_twice_succeeds(
+        self, flow_run, database_session
+    ):
         fake_flow_run_state = schemas.actions.StateCreate(
             type="SCHEDULED",
         )
