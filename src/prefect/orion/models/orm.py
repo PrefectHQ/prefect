@@ -81,7 +81,7 @@ class FlowRunState(Base):
     run_details = Column(
         Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
     )
-    data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
+    data = Column(JSON)
 
     __table__args__ = sa.Index(
         "ix_flow_run_state_flow_run_id_timestamp_desc", flow_run_id, timestamp.desc()
@@ -105,7 +105,7 @@ class TaskRunState(Base):
     run_details = Column(
         Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
     )
-    data_location = Column(JSON, server_default="{}", default=dict, nullable=False)
+    data = Column(JSON)
 
     __table__args__ = sa.Index(
         "ix_task_run_state_task_run_id_timestamp_desc", task_run_id, timestamp.desc()
