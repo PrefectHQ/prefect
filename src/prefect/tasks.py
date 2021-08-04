@@ -1,9 +1,13 @@
 import inspect
 from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
-from uuid import UUID
+from typing import Any, Callable, Dict, Iterable, Tuple, Optional
+from uuid import UUID, uuid4
 
-from prefect.utilities.hashing import stable_hash, to_qualified_name
+from prefect.utilities.hashing import (
+    stable_hash,
+    to_qualified_name,
+    hash_call,
+)
 from prefect.futures import PrefectFuture, resolve_futures
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
@@ -20,6 +24,9 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
+        cache_key: Callable[
+            [Callable, inspect.BoundArguments], Optional[str]
+        ] = hash_call,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -43,6 +50,8 @@ class Task:
             to_qualified_name(self.fn),
             str(sorted(self.tags or [])),
         )
+
+        self.cache_key = cache_key
 
         self.dynamic_key = 0
 
@@ -109,12 +118,21 @@ class Task:
             task_run_id, State(type=StateType.PENDING)
         )
 
+        args, kwargs = resolve_futures((args, kwargs))
+        call = inspect.signature(self.fn).bind_partial(*args, **kwargs)
+
+        if self.cache_key:
+            key = self.cache_key(self.fn, call)
+            # Empty keys are ignored
+            if key and key in []:
+                return ...
+
         callback = flow_run_context.executor.submit(
             self._run,
             task_run_id=task_run_id,
             flow_run_id=flow_run_context.flow_run_id,
-            call_args=resolve_futures(args),
-            call_kwargs=resolve_futures(kwargs),
+            call_args=args,
+            call_kwargs=kwargs,
         )
 
         # Increment the dynamic_key so future task calls are distinguishable from this
