@@ -39,18 +39,33 @@ def test_resolve_futures_transforms_future_in_listlike_type(typ):
     assert resolve_futures(typ(["a", future, "b"])) == typ(["a", "foo", "b"])
 
 
-def test_resolve_futures_transforms_future_in_generator_as_list():
+def test_resolve_futures_transforms_future_in_generator_type():
     def gen():
         yield "a"
-        yield future
+        yield PrefectFuture(
+            flow_run_id=uuid4(),
+            client=mock_client,
+            wait_callback=lambda _: "foo",
+        )
         yield "b"
 
-    future = PrefectFuture(
-        flow_run_id=uuid4(),
-        client=mock_client,
-        wait_callback=lambda _: "foo",
-    )
     assert resolve_futures(gen()) == ["a", "foo", "b"]
+
+
+def test_resolve_futures_transforms_future_in_nested_generator_types():
+    def gen_a():
+        yield PrefectFuture(
+            flow_run_id=uuid4(),
+            client=mock_client,
+            wait_callback=lambda _: "foo",
+        )
+
+    def gen_b():
+        yield range(2)
+        yield gen_a()
+        yield "b"
+
+    assert resolve_futures(gen_b()) == [range(2), ["foo"], "b"]
 
 
 @pytest.mark.parametrize("typ", [dict, OrderedDict])
