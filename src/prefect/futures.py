@@ -55,11 +55,8 @@ def resolve_futures(expr):
     """
     Given an arbitrary python object resolve futures and states into data
     """
-    if isinstance(expr, State):
-        return expr.data
-
     if isinstance(expr, PrefectFuture):
-        return resolve_futures(expr.result())
+        return expr.result().data
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
