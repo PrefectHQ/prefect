@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from dataclasses import dataclass
 
 from prefect.futures import PrefectFuture, resolve_futures
-from prefect.orion.schemas.core import State, StateType
+from prefect.orion.schemas.states import State, StateType
 from prefect.client import OrionClient
 
 
@@ -37,6 +37,20 @@ def test_resolve_futures_transforms_future_in_listlike_type(typ):
         wait_callback=lambda _: "foo",
     )
     assert resolve_futures(typ(["a", future, "b"])) == typ(["a", "foo", "b"])
+
+
+def test_resolve_futures_transforms_future_in_generator_as_list():
+    def gen():
+        yield "a"
+        yield future
+        yield "b"
+
+    future = PrefectFuture(
+        flow_run_id=uuid4(),
+        client=mock_client,
+        wait_callback=lambda _: "foo",
+    )
+    assert resolve_futures(gen()) == ["a", "foo", "b"]
 
 
 @pytest.mark.parametrize("typ", [dict, OrderedDict])
