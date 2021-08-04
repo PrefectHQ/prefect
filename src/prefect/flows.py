@@ -76,21 +76,19 @@ class Flow:
             state = State(
                 type=StateType.FAILED,
                 message="Flow run encountered an exception.",
+                data=exc,
             )
-            result = exc
         else:
             state = State(
                 type=StateType.COMPLETED,
                 message="Flow run completed.",
+                data=result,
             )
 
         context.client.set_flow_run_state(
             context.flow_run_id,
             state=state,
         )
-
-        # Attach the result to the state
-        state.data = result
 
         # Return a future that is already resolved to `state`
         return PrefectFuture(
