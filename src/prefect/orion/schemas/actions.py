@@ -1,7 +1,8 @@
 """
 Reduced schemas for accepting API actions
 """
-from prefect.orion.schemas.core import State, Flow, FlowRun, TaskRun
+from prefect.orion.schemas.core import Flow, FlowRun, TaskRun
+from prefect.orion.schemas.states import State
 
 FlowCreate = Flow.subclass(
     name="FlowCreate",

@@ -45,8 +45,8 @@ def test_set_then_read_flow_run_state():
     flow_run_id = client.create_flow_run(foo)
     response = client.set_flow_run_state(
         flow_run_id,
-        state=schemas.core.State(
-            type=schemas.core.StateType.COMPLETED, message="Test!"
+        state=schemas.states.State(
+            type=schemas.states.StateType.COMPLETED, message="Test!"
         ),
     )
     assert isinstance(response, schemas.responses.SetStateResponse)
@@ -56,8 +56,8 @@ def test_set_then_read_flow_run_state():
     states = client.read_flow_run_states(flow_run_id)
     assert len(states) == 1
     state = states[-1]
-    assert isinstance(state, schemas.core.State)
-    assert state.type == schemas.core.StateType.COMPLETED
+    assert isinstance(state, schemas.states.State)
+    assert state.type == schemas.states.StateType.COMPLETED
     assert state.message == "Test!"
 
 
@@ -96,7 +96,7 @@ def test_set_then_read_task_run_state():
 
     response = client.set_task_run_state(
         task_run_id,
-        schemas.core.State(type=schemas.core.StateType.COMPLETED, message="Test!"),
+        schemas.states.State(type=schemas.states.StateType.COMPLETED, message="Test!"),
     )
 
     assert isinstance(response, schemas.responses.SetStateResponse)
@@ -106,6 +106,6 @@ def test_set_then_read_task_run_state():
     states = client.read_task_run_states(task_run_id)
     assert len(states) == 1
     state = states[-1]
-    assert isinstance(state, schemas.core.State)
-    assert state.type == schemas.core.StateType.COMPLETED
+    assert isinstance(state, schemas.states.State)
+    assert state.type == schemas.states.StateType.COMPLETED
     assert state.message == "Test!"

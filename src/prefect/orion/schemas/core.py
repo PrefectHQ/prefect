@@ -1,23 +1,11 @@
 import datetime
-from enum import auto
-from typing import List, Dict, Any
+from typing import List, Dict
 from uuid import UUID
 
-import pendulum
-from pydantic import Field, validator
+from pydantic import Field
 
-from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.utilities.functions import ParameterSchema
-from prefect.orion.utilities.schemas import PrefectBaseModel
-
-
-class APIBaseModel(PrefectBaseModel):
-    class Config:
-        orm_mode = True
-
-    id: UUID = None
-    created: datetime.datetime = Field(None, repr=False)
-    updated: datetime.datetime = Field(None, repr=False)
+from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
 
 
 class Flow(APIBaseModel):
@@ -58,78 +46,3 @@ class TaskRun(APIBaseModel):
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_metadata: TaskRunMetadata = Field(default_factory=TaskRunMetadata)
-
-
-class StateType(AutoEnum):
-    SCHEDULED = auto()
-    PENDING = auto()
-    RUNNING = auto()
-    RETRYING = auto()
-    COMPLETED = auto()
-    FAILED = auto()
-    CANCELED = auto()
-    AWAITING_RETRY = auto()
-
-
-class StateDetails(PrefectBaseModel):
-    flow_run_id: UUID = None
-    task_run_id: UUID = None
-
-
-class RunDetails(PrefectBaseModel):
-    previous_state_id: UUID = None
-    run_count: int = 0
-    start_time: datetime.datetime = None
-    end_time: datetime.datetime = None
-    total_run_time_seconds: float = 0.0
-    total_time_seconds: float = 0.0
-    last_run_time: float = 0.0
-
-
-class State(APIBaseModel):
-    type: StateType
-    name: str = None
-    timestamp: datetime.datetime = Field(default_factory=pendulum.now, repr=False)
-    message: str = Field(None, example="Run started")
-    data: Any = Field(None, repr=False)
-    state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
-    run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
-
-    @validator("name", pre=True, always=True)
-    def default_name_from_type(cls, v, *, values, **kwargs):
-        """If a name is not provided, use the type"""
-        if v is None:
-            v = values.get("type").value.capitalize()
-        return v
-
-    def is_scheduled(self):
-        return self.type in (StateType.SCHEDULED, StateType.AWAITING_RETRY)
-
-    def is_pending(self):
-        return self.type == StateType.PENDING
-
-    def is_running(self):
-        return self.type in (StateType.RUNNING, StateType.RETRYING)
-
-    def is_retrying(self):
-        return self.type == StateType.RETRYING
-
-    def is_completed(self):
-        return self.type == StateType.COMPLETED
-
-    def is_failed(self):
-        return self.type == StateType.FAILED
-
-    def is_canceled(self):
-        return self.type == StateType.CANCELED
-
-    def is_awaiting_retry(self):
-        return self.type == StateType.AWAITING_RETRY
-
-
-def Completed(**kwargs) -> State:
-    """Convenience function for creating `Completed` states.
-    Returns:
-        State: a Completed state
-    """
-    return State(type=StateType.COMPLETED, **kwargs)
