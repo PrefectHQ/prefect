@@ -104,7 +104,16 @@ def visit_custom_uuid_default(element, compiler, **kwargs):
 
 
 class Timestamp(TypeDecorator):
-    impl = sa.TIMESTAMP(timezone=True)
+    """TypeDecorator that ensures that timestamps have a timezone.
+
+    For SQLite, all timestamps are converted to UTC (since they are stored
+    as naive timestamps) and recovered as UTC.
+
+    Note: this should still be instantiated as Timestamp(timezone=True)
+    """
+
+    impl = sa.TIMESTAMP
+    cache_ok = True
 
     def process_bind_param(self, value, dialect):
         if value is None:
@@ -112,7 +121,7 @@ class Timestamp(TypeDecorator):
         else:
             if value.tzinfo is None:
                 raise ValueError("Timestamps must have a timezone.")
-            elif value.tzinfo != pendulum.timezone("UTC"):
+            elif dialect.name == "sqlite":
                 return pendulum.instance(value).in_timezone("UTC")
             else:
                 return value
@@ -125,6 +134,7 @@ class Timestamp(TypeDecorator):
 
 class Pydantic(TypeDecorator):
     impl = JSON
+    cache_ok = True
 
     def __init__(self, pydantic_model):
         super().__init__()
@@ -239,13 +249,13 @@ class Base(object):
         default=uuid.uuid4,
     )
     created = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
     )
     updated = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         index=True,
         server_default=Now(),
