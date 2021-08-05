@@ -46,7 +46,7 @@ class ContextModel(BaseModel):
 
 
 class RunContext(ContextModel):
-    start_time: DateTime = Field(default_factory=pendulum.now)
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
 
 class FlowRunContext(RunContext):
