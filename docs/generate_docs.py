@@ -31,6 +31,7 @@ from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock
 
+
 import pendulum
 import toml
 import toolz
@@ -297,6 +298,7 @@ def format_signature(obj):
 
 @preprocess
 def create_absolute_path(obj):
+
     dir_struct = inspect.getfile(obj).split(os.sep)
     if ("prefect" not in dir_struct) or ("test_generate_docs.py" in dir_struct):
         return obj.__qualname__

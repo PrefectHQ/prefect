@@ -2,13 +2,9 @@
 sidebarDepth: 0
 ---
 
-# First Steps
+# Thinking Prefectly
 
-Welcome to Prefect! These docs will give you a gentle introduction to Prefect's core concepts. 
-
-We also have a [full tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect.
-
-## Thinking Prefectly
+This page will give you a gentle introduction to Prefect's core concepts. If you are keen to get started we have a [Getting Started guide](/core/getting_started/quick-start.html) and [ETL tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect.
 
 Prefect is a tool for building **data workflows**. A workflow is a series of steps that are performed in a certain order.
 

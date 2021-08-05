@@ -99,7 +99,7 @@ def test_shell_logs_non_zero_exit(caplog):
         task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist")
     out = f.run()
     assert out.is_failed()
-    assert "Command failed with exit code 2" in caplog.text
+    assert "Command failed with exit code" in caplog.text
 
 
 def test_shell_attaches_result_to_failure(caplog):
