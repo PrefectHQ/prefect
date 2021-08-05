@@ -213,7 +213,7 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     in SQL (like the default value for a timestamp column); not
     datetimes provided by SQLAlchemy itself.
     """
-    return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
+    return "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 
 
 @compiles(Now)

@@ -12,7 +12,7 @@ DBBase = declarative_base()
 
 class PydanticModel(pydantic.BaseModel):
     x: int
-    y: datetime.datetime = pydantic.Field(default_factory=pendulum.now)
+    y: datetime.datetime = pydantic.Field(default_factory=lambda: pendulum.now("UTC"))
 
 
 class SQLAlchemyPydanticModel(DBBase):

@@ -39,7 +39,9 @@ class RunDetails(PrefectBaseModel):
 class State(APIBaseModel):
     type: StateType
     name: str = None
-    timestamp: datetime.datetime = Field(default_factory=pendulum.now, repr=False)
+    timestamp: datetime.datetime = Field(
+        default_factory=lambda: pendulum.now("UTC"), repr=False
+    )
     message: str = Field(None, example="Run started")
     data: Any = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
