@@ -1,3 +1,4 @@
+import pydantic
 import json
 import re
 import uuid
@@ -136,20 +137,19 @@ class Pydantic(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def __init__(self, pydantic_model):
+    def __init__(self, pydantic_type):
         super().__init__()
-        self._pydantic_model = pydantic_model
+        self._pydantic_type = pydantic_type
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        elif not isinstance(value, self._pydantic_model):
-            value = self._pydantic_model.parse_obj(value)
-        return json.loads(value.json())
+        value = pydantic.parse_obj_as(self._pydantic_type, value)
+        return json.loads(json.dumps(value, default=pydantic.json.pydantic_encoder))
 
     def process_result_value(self, value, dialect):
         if value is not None:
-            return self._pydantic_model.parse_obj(value)
+            return pydantic.parse_obj_as(self._pydantic_type, value)
 
 
 class UUID(TypeDecorator):
