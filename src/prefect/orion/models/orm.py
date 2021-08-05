@@ -4,7 +4,7 @@ from sqlalchemy import JSON, Column, Enum, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
-from prefect.orion.utilities.database import UUID, Base, Now, Pydantic
+from prefect.orion.utilities.database import UUID, Base, Now, Pydantic, Timestamp
 
 
 class Flow(Base):
@@ -40,7 +40,7 @@ class TaskRun(Base):
     task_key = Column(String, nullable=False)
     dynamic_key = Column(String)
     cache_key = Column(String)
-    cache_expiration = Column(sa.TIMESTAMP(timezone=True))
+    cache_expiration = Column(Timestamp(timezone=True))
     task_version = Column(String)
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     task_inputs = Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -68,7 +68,7 @@ class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
@@ -92,7 +92,7 @@ class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),

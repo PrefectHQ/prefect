@@ -16,7 +16,7 @@ class TestCreateFlow:
         assert str(flow.id) == flow_id
 
     async def test_create_flow_populates_and_returned_created(self, client):
-        now = pendulum.now(tz="utc")
+        now = pendulum.now(tz="UTC")
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
         assert response.status_code == 201
