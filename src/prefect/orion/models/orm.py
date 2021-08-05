@@ -24,6 +24,7 @@ class FlowRun(Base):
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     parent_task_run_id = Column(UUID(), nullable=True)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
+    idempotency_key = Column(String)
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
@@ -32,6 +33,14 @@ class FlowRun(Base):
         server_default="{}",
         default=dict,
         nullable=False,
+    )
+
+    # unique index on flow id / idempotency key
+    __table__args__ = sa.Index(
+        "ix_flow_run_flow_id_idempotency_key",
+        flow_id,
+        idempotency_key,
+        unique=True,
     )
 
 

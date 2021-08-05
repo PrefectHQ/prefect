@@ -1,28 +1,63 @@
+import sqlalchemy as sa
 import pytest
 from uuid import uuid4
 from prefect.orion import models, schemas
 
 
 class TestCreateFlowRun:
-    async def test_create_flow_run_succeeds(self, database_session):
-        fake_flow_run = schemas.actions.FlowRunCreate(
-            flow_id=uuid4(), flow_version="0.1"
-        )
+    async def test_create_flow_run(self, flow, database_session):
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=fake_flow_run
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
-        assert flow_run.flow_id == fake_flow_run.flow_id
-        assert flow_run.flow_version == fake_flow_run.flow_version
+        assert flow_run.flow_id == flow.id
+
+    async def test_create_multiple_flow_runs(self, flow, database_session):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+        )
+
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+        )
+
+        assert flow_run_1.id != flow_run_2.id
+
+    async def test_create_flow_run_with_idempotency_key(self, flow, database_session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, idempotency_key="test"
+            ),
+        )
+        assert flow_run.idempotency_key == "test"
+
+    async def test_create_flow_run_with_existing_idempotency_key(
+        self, flow, database_session
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, idempotency_key="test"
+            ),
+        )
+        with pytest.raises(sa.exc.IntegrityError):
+            await models.flow_runs.create_flow_run(
+                session=database_session,
+                flow_run=schemas.actions.FlowRunCreate(
+                    flow_id=flow.id, idempotency_key="test"
+                ),
+            )
 
 
 class TestReadFlowRun:
-    async def test_read_flow_run(self, database_session):
+    async def test_read_flow_run(self, flow, database_session):
         # create a flow run to read
-        fake_flow_run = schemas.actions.FlowRunCreate(
-            flow_id=uuid4(), flow_version="0.1"
-        )
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=fake_flow_run
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
 
         read_flow_run = await models.flow_runs.read_flow_run(
@@ -40,18 +75,14 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, database_session):
-        fake_flow_run_0 = schemas.actions.FlowRunCreate(
-            flow_id=uuid4(), flow_version="0.1"
-        )
+    async def flow_runs(self, flow, database_session):
         flow_run_0 = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=fake_flow_run_0
-        )
-        fake_flow_run_1 = schemas.actions.FlowRunCreate(
-            flow_id=uuid4(), flow_version="0.1"
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=fake_flow_run_1
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
         return [flow_run_0, flow_run_1]
 
@@ -71,13 +102,11 @@ class TestReadFlowRuns:
 
 
 class TestDeleteFlowRun:
-    async def test_delete_flow_run(self, database_session):
+    async def test_delete_flow_run(self, flow, database_session):
         # create a flow run to delete
-        fake_flow_run = schemas.actions.FlowRunCreate(
-            flow_id=uuid4(), flow_version="0.1"
-        )
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=fake_flow_run
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
 
         assert await models.flow_runs.delete_flow_run(
