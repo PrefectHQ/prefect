@@ -26,7 +26,7 @@ async def many_flow_run_states(flow, database_session):
                 **schemas.states.State(
                     type=schemas.states.StateType.PENDING,
                     data=i,
-                    timestamp=pendulum.now(),
+                    timestamp=pendulum.now("UTC"),
                 ).dict()
             )
             for i in range(5)
@@ -59,7 +59,7 @@ async def many_task_run_states(flow_run, database_session):
                 **schemas.states.State(
                     type=schemas.states.StateType.PENDING,
                     data=i,
-                    timestamp=pendulum.now(),
+                    timestamp=pendulum.now("UTC"),
                 ).dict()
             )
             for i in range(5)

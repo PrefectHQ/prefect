@@ -45,7 +45,7 @@ class TestPydantic:
         results = query.scalars().all()
         assert len(results) == 1
         assert isinstance(results[0].data, PydanticModel)
-        assert results[0].data.y < pendulum.now()
+        assert results[0].data.y < pendulum.now("UTC")
 
     async def test_write_dict_to_Pydantic(self, database_session):
         p_model = PydanticModel(x=100)
