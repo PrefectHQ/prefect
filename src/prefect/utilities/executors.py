@@ -45,7 +45,7 @@ def run_with_heartbeat(
     ) -> "prefect.engine.state.State":
 
         if not self._heartbeat():
-            configured_heartbeat = contextlib.nullcontext
+            configured_heartbeat = no_heartbeat()
         elif prefect.context.config.heartbeat_style == 'thread':
             configured_heartbeat = threaded_heartbeat(self.flow_run_id)
         elif prefect.context.config.heartbeat_style == 'process':
@@ -58,6 +58,12 @@ def run_with_heartbeat(
             return runner_method(self, *args, **kwargs)
 
     return inner
+
+
+@contextlib.contextmanager
+def no_heartbeat():
+    # contextlib.nullcontext was introduced in 3.7
+    yield
 
 
 @contextlib.contextmanager
