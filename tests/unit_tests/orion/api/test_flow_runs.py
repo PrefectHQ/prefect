@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 import pytest
 from uuid import uuid4
 from prefect.orion import models
@@ -5,17 +6,61 @@ from prefect.orion import models
 
 class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, client, database_session):
-        flow_run_data = {"flow_id": str(flow.id), "flow_version": "0.1"}
+        flow_run_data = {"flow_id": str(flow.id)}
         response = await client.post("/flow_runs/", json=flow_run_data)
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["flow_id"] == str(flow.id)
-        assert response.json()["flow_version"] == "0.1"
         assert response.json()["id"]
 
         flow_run = await models.flow_runs.read_flow_run(
             session=database_session, flow_run_id=response.json()["id"]
         )
         assert flow_run.flow_id == flow.id
+
+    async def test_create_multiple_flow_runs(self, flow, client, database_session):
+        response1 = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
+        response2 = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
+        assert response1.status_code == 201
+        assert response2.status_code == 201
+        assert response1.json()["flow_id"] == str(flow.id)
+        assert response2.json()["flow_id"] == str(flow.id)
+        assert response1.json()["id"] != response2.json()["id"]
+
+        result = await database_session.execute(
+            sa.select(models.orm.FlowRun.id).filter_by(flow_id=flow.id)
+        )
+        ids = result.scalars().all()
+        assert {response1.json()["id"], response2.json()["id"]} == {str(i) for i in ids}
+
+    async def test_create_flow_run_with_idempotency_key_recovers_original_flow_run(
+        self, flow, client, database_session
+    ):
+        flow_run_data = {"flow_id": str(flow.id), "idempotency_key": "test-key"}
+        response1 = await client.post("/flow_runs/", json=flow_run_data)
+        assert response1.status_code == 201
+
+        response2 = await client.post("/flow_runs/", json=flow_run_data)
+        assert response2.status_code == 200
+        assert response1.json()["id"] == response2.json()["id"]
+
+    async def test_create_flow_run_with_idempotency_key_across_multiple_flows(
+        self, flow, client, database_session
+    ):
+        flow2 = models.orm.Flow(name="another flow")
+        database_session.add(flow2)
+        await database_session.flush()
+
+        response1 = await client.post(
+            "/flow_runs/", json={"flow_id": str(flow.id), "idempotency_key": "test-key"}
+        )
+        assert response1.status_code == 201
+
+        response2 = await client.post(
+            "/flow_runs/",
+            json={"flow_id": str(flow2.id), "idempotency_key": "test-key"},
+        )
+        assert response2.status_code == 201
+        assert response1.json()["id"] != response2.json()["id"]
 
 
 class TestReadFlowRun:
@@ -36,8 +81,7 @@ class TestReadFlowRuns:
     async def flow_runs(self, client, flow):
         for i in range(2):
             flow_run_data = {"flow_id": str(flow.id), "flow_version": str(i)}
-            response = await client.post("/flow_runs/", json=flow_run_data)
-            assert response.status_code == 200
+            await client.post("/flow_runs/", json=flow_run_data)
 
     async def test_read_flow_runs(self, flow_runs, client):
         response = await client.get("/flow_runs/")

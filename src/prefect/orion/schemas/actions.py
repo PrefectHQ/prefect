@@ -19,6 +19,7 @@ FlowRunCreate = FlowRun.subclass(
         "context",
         "tags",
         "flow_run_metadata",
+        "idempotency_key",
     ],
 )
 

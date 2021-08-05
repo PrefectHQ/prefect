@@ -15,11 +15,31 @@ router = OrionRouter(prefix="/flow_runs", tags=["Flow Runs"])
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     session: sa.orm.Session = Depends(dependencies.get_session),
+    response: Response = None,
 ) -> schemas.core.FlowRun:
     """
     Create a flow run
     """
-    return await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+    nested = await session.begin_nested()
+    try:
+        result = await models.flow_runs.create_flow_run(
+            session=session, flow_run=flow_run
+        )
+        response.status_code = status.HTTP_201_CREATED
+        return result
+    except sa.exc.IntegrityError as exc:
+        # try to load a flow run with the same idempotency key
+        await nested.rollback()
+        stmt = await session.execute(
+            sa.select(models.orm.FlowRun).filter_by(
+                flow_id=flow_run.flow_id,
+                idempotency_key=flow_run.idempotency_key,
+            )
+        )
+        result = stmt.scalar()
+        if not result:
+            raise ValueError("Could not create flow run.")
+        return result
 
 
 @router.get("/{id}")
