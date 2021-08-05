@@ -34,8 +34,8 @@ def get_test_flow():
     "executor",
     [
         SynchronousExecutor(),
-        LocalPoolExecutor(debug=False, processes=False),
-        LocalPoolExecutor(debug=False, processes=True),
+        LocalPoolExecutor(processes=False),
+        LocalPoolExecutor(processes=True),
         DaskExecutor(),
     ],
 )

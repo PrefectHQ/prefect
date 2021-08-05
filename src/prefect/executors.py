@@ -1,6 +1,8 @@
 import concurrent.futures
 from functools import partial
-from typing import Any, Callable, Dict, Optional
+from uuid import UUID
+from typing import Any, Callable, Dict, Optional, TypeVar
+from contextlib import contextmanager
 
 import cloudpickle
 
@@ -9,40 +11,58 @@ import distributed
 
 from prefect.orion.schemas.states import State
 from prefect.futures import resolve_futures, PrefectFuture
+from prefect.client import OrionClient
+
+T = TypeVar("T", bound="BaseExecutor")
 
 
 class BaseExecutor:
     def __init__(self) -> None:
-        pass
+        # Set on `start`
+        self.flow_run_id: str = None
+        self.orion_client: OrionClient = None
 
     def submit(
         self,
         run_id: str,
-        fn: Callable,
+        run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> Callable[[float], Optional[State]]:
+    ) -> PrefectFuture:
         """
-        Submit a call for execution and return a callable that can be used to wait for
-        the call's result; this method is responsible for resolving `PrefectFutures`
-        in args/kwargs into a type supported by the underlying execution method
+        Submit a call for execution and return a `PrefectFuture` that can be used to
+        get the call result. This method is responsible for resolving `PrefectFutures`
+        in args and kwargs into a type supported by the underlying execution method
         """
         raise NotImplementedError()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.shutdown()
-        return False
+    @contextmanager
+    def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
+        self.flow_run_id = flow_run_id
+        self.orion_client = orion_client
+        try:
+            yield self
+        finally:
+            self.shutdown()
+            self.flow_run_id = None
+            self.orion_client = None
 
     def shutdown(self) -> None:
         """
         Clean up resources associated with the executor
 
-        Will block until submitted calls are completed
+        Should block until submitted calls are completed
         """
         pass
+
+    def wait(
+        self, prefect_future: PrefectFuture, timeout: float = None
+    ) -> Optional[State]:
+        """
+        Given a `PrefectFuture`, wait for its return state up to `timeout` seconds.
+        If it is not finished after the timeout expires, `None` should be returned.
+        """
+        raise NotImplementedError()
 
 
 class SynchronousExecutor(BaseExecutor):
@@ -52,6 +72,7 @@ class SynchronousExecutor(BaseExecutor):
 
     def __init__(self) -> None:
         super().__init__()
+        self._results: Dict[UUID, State] = {}
 
     def submit(
         self,
@@ -59,17 +80,25 @@ class SynchronousExecutor(BaseExecutor):
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> Callable[[float], Optional[State]]:
+    ) -> PrefectFuture:
+        if not self.flow_run_id:
+            raise RuntimeError("The executor must be started before submitting work.")
+
         # Block until all upstreams are resolved
         args, kwargs = resolve_futures((args, kwargs))
-        # Run the function immediately
-        result = run_fn(*args, **kwargs)
-        # Return a fake 'wait'
-        return partial(self._wait, result)
 
-    def _wait(self, result: State, timeout: float = None):
-        # Just return the given result
-        return result
+        # Run the function immediately and store the result in memory
+        self._results[run_id] = run_fn(*args, **kwargs)
+
+        return PrefectFuture(
+            task_run_id=run_id,
+            flow_run_id=self.flow_run_id,
+            client=self.orion_client,
+            executor=self,
+        )
+
+    def wait(self, prefect_future: PrefectFuture, timeout: float = None) -> State:
+        return self._results[prefect_future.run_id]
 
 
 class LocalPoolExecutor(BaseExecutor):
@@ -77,7 +106,7 @@ class LocalPoolExecutor(BaseExecutor):
     A parallel executor that submits calls to a thread or process pool
     """
 
-    def __init__(self, debug: bool = False, processes: bool = False) -> None:
+    def __init__(self, processes: bool = False) -> None:
         super().__init__()
         self._pool_type = (
             concurrent.futures.ProcessPoolExecutor
@@ -85,7 +114,7 @@ class LocalPoolExecutor(BaseExecutor):
             else concurrent.futures.ThreadPoolExecutor
         )
         self._pool: concurrent.futures.Executor = None
-        self.debug = debug
+        self._futures: Dict[UUID, concurrent.futures.Future] = {}
         self.processes = processes
 
     def submit(
@@ -94,11 +123,9 @@ class LocalPoolExecutor(BaseExecutor):
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> Callable[[float], Optional[State]]:
+    ) -> PrefectFuture:
         if not self._pool:
-            raise RuntimeError(
-                "The executor context must be entered before submitting work."
-            )
+            raise RuntimeError("The executor must be started before submitting work.")
 
         if self.processes:
             # Resolve `PrefectFutures` in args/kwargs into values which will block but
@@ -117,25 +144,31 @@ class LocalPoolExecutor(BaseExecutor):
                 _resolve_futures_then_run, run_fn, *args, **kwargs
             )
 
-        if self.debug:
-            future.result()
+        self._futures[run_id] = future
 
-        return partial(self._wait, future)
+        return PrefectFuture(
+            task_run_id=run_id,
+            flow_run_id=self.flow_run_id,
+            client=self.orion_client,
+            executor=self,
+        )
 
-    def _wait(
+    def wait(
         self,
-        future: concurrent.futures.Future,
+        prefect_future: PrefectFuture,
         timeout: float = None,
     ) -> Optional[State]:
+        future = self._futures[prefect_future.run_id]
         try:
             return future.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
             return None
 
-    def __enter__(self):
-        # Create the pool when entered
-        self._pool = self._pool_type()
-        return self
+    @contextmanager
+    def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
+        with super().start(flow_run_id=flow_run_id, orion_client=orion_client):
+            self._pool = self._pool_type()
+            yield self
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
@@ -151,10 +184,9 @@ class DaskExecutor(BaseExecutor):
     """
 
     def __init__(self, debug: bool = False) -> None:
-
         super().__init__()
         self._client: "distributed.Client" = None
-        self._run_to_future: Dict[str, "distributed.Future"] = {}
+        self._futures: Dict[UUID, "distributed.Future"] = {}
         self.debug = debug
 
     def submit(
@@ -163,44 +195,43 @@ class DaskExecutor(BaseExecutor):
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> Callable[[float], Optional[State]]:
+    ) -> PrefectFuture:
         if not self._client:
-            raise RuntimeError(
-                "The executor context must be entered before submitting work."
-            )
+            raise RuntimeError("The executor must be started before submitting work.")
 
         args, kwargs = resolve_futures((args, kwargs), resolve_fn=self._get_dask_future)
 
-        future = self._client.submit(run_fn, *args, **kwargs)
+        self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
 
-        self._run_to_future[run_id] = future
-
-        if self.debug:
-            future.result()
-
-        return partial(self._wait, future)
+        return PrefectFuture(
+            task_run_id=run_id,
+            flow_run_id=self.flow_run_id,
+            client=self.orion_client,
+            executor=self,
+        )
 
     def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
-        return self._run_to_future[prefect_future.run_id]
+        return self._futures[prefect_future.run_id]
 
-    def _wait(
+    def wait(
         self,
-        future: "distributed.Future",
+        prefect_future: "distributed.Future",
         timeout: float = None,
     ) -> Optional[State]:
+        future = self._futures[prefect_future.run_id]
         try:
             return future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError:
+        except distributed.TimeoutError:
             return None
 
-    def __enter__(self):
-        # Create the pool when entered
-        self._client = distributed.Client()
-        self._client.__enter__()
-        return self
+    @contextmanager
+    def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
+        with super().start(flow_run_id=flow_run_id, orion_client=orion_client):
+            self._client = distributed.Client()
+            yield self
 
     def shutdown(self) -> None:
-        self._client.__exit__(None, None, None)
+        self._client.close()
 
 
 def _serialize_call(fn, *args, **kwargs):
