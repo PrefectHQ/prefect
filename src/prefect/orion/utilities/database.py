@@ -103,8 +103,38 @@ def visit_custom_uuid_default(element, compiler, **kwargs):
     """
 
 
+class Timestamp(TypeDecorator):
+    """TypeDecorator that ensures that timestamps have a timezone.
+
+    For SQLite, all timestamps are converted to UTC (since they are stored
+    as naive timestamps) and recovered as UTC.
+
+    Note: this should still be instantiated as Timestamp(timezone=True)
+    """
+
+    impl = sa.TIMESTAMP
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        else:
+            if value.tzinfo is None:
+                raise ValueError("Timestamps must have a timezone.")
+            elif dialect.name == "sqlite":
+                return pendulum.instance(value).in_timezone("UTC")
+            else:
+                return value
+
+    def process_result_value(self, value, dialect):
+        # retrieve timestamps in their native timezone (or UTC)
+        if value is not None:
+            return pendulum.instance(value)
+
+
 class Pydantic(TypeDecorator):
     impl = JSON
+    cache_ok = True
 
     def __init__(self, pydantic_model):
         super().__init__()
@@ -183,7 +213,7 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     in SQL (like the default value for a timestamp column); not
     datetimes provided by SQLAlchemy itself.
     """
-    return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
+    return "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 
 
 @compiles(Now)
@@ -219,13 +249,13 @@ class Base(object):
         default=uuid.uuid4,
     )
     created = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
     )
     updated = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         index=True,
         server_default=Now(),
