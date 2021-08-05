@@ -19,9 +19,9 @@ class BaseExecutor:
         **kwargs: Dict[str, Any],
     ) -> Callable[[float], Optional[State]]:
         """
-        Submit a call for execution and return a tracking id; this function is
-        responsible for resolving `PrefectFutures` in args/kwargs into a type supported
-        by the underlying execution method
+        Submit a call for execution and return a callable that can be used to wait for
+        the call's result; this method is responsible for resolving `PrefectFutures`
+        in args/kwargs into a type supported by the underlying execution method
         """
         raise NotImplementedError()
 
