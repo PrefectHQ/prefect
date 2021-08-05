@@ -217,7 +217,7 @@ class DaskExecutor(BaseExecutor):
         prefect_future: PrefectFuture,
         timeout: float = None,
     ) -> Optional[State]:
-        future = self._futures[prefect_future.run_id]
+        future = self._get_dask_future(prefect_future)
         try:
             return future.result(timeout=timeout)
         except distributed.TimeoutError:
