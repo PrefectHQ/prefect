@@ -51,12 +51,23 @@ class PrefectFuture:
         return hash(self.run_id)
 
 
-def resolve_futures(expr):
+def future_to_data(future: PrefectFuture) -> Any:
+    return future.result().data
+
+
+def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to_data):
     """
-    Given an arbitrary python object resolve futures and states into data
+    Given a Python built-in collection, recursively find `PrefectFutures` and build a
+    new collection with the same structure with futures resolved by `resolve_fn`.
+
+    Unsupported object types will be returned without modification.
+
+    By default, futures are resolved into their underlying data which may wait for
+    execution to complete. `resolve_fn` can be passed to convert `PrefectFutures` into
+    futures native to another executor.
     """
     if isinstance(expr, PrefectFuture):
-        return expr.result().data
+        return resolve_fn(expr)
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
