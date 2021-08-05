@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 import pytest
 from uuid import uuid4
-from prefect.orion import models
+from prefect.orion import models, schemas
 
 
 class TestCreateFlowRun:
@@ -78,18 +78,38 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, client, flow):
-        for i in range(2):
-            flow_run_data = {"flow_id": str(flow.id), "flow_version": str(i)}
-            await client.post("/flow_runs/", json=flow_run_data)
+    async def flow_runs(self, flow, database_session):
+        flow_2 = await models.flows.create_flow(
+            session=database_session,
+            flow=schemas.actions.FlowCreate(name="another-test"),
+        )
+
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_2.id),
+        )
+        return [flow_run_1, flow_run_2, flow_run_3]
 
     async def test_read_flow_runs(self, flow_runs, client):
         response = await client.get("/flow_runs/")
         assert response.status_code == 200
+        assert len(response.json()) == 3
+
+    async def test_read_flow_runs(self, flow, flow_runs, client):
+        response = await client.get("/flow_runs/", params=dict(flow_id=flow.id))
+        assert response.status_code == 200
         assert len(response.json()) == 2
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
-        response = await client.get("/flow_runs/?limit=1")
+        response = await client.get("/flow_runs/", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 

@@ -23,10 +23,10 @@ async def create_flow(
         sqlalchemy.exc.IntegrityError: if a flow with the same name already exists
 
     """
-    flow = orm.Flow(**flow.dict())
-    session.add(flow)
+    model = orm.Flow(**flow.dict())
+    session.add(model)
     await session.flush()
-    return flow
+    return model
 
 
 async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:

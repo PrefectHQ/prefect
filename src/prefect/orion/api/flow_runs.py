@@ -60,6 +60,7 @@ async def read_flow_run(
 
 @router.get("/")
 async def read_flow_runs(
+    flow_id: UUID = None,
     offset: int = 0,
     limit: int = 10,
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -68,7 +69,10 @@ async def read_flow_runs(
     Query for flow runs
     """
     return await models.flow_runs.read_flow_runs(
-        session=session, offset=offset, limit=limit
+        session=session,
+        flow_id=flow_id,
+        offset=offset,
+        limit=limit,
     )
 
 
