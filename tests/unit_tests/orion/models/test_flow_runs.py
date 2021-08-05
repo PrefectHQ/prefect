@@ -25,6 +25,9 @@ class TestCreateFlowRun:
 
         assert flow_run_1.id != flow_run_2.id
 
+    @pytest.mark.filterwarnings(
+        "ignore: New instance .* conflicts with persistent instance"
+    )
     async def test_create_flow_run_with_same_id_as_existing_run_errors(
         self, flow, database_session
     ):
