@@ -4,8 +4,11 @@ from typing import Any, Callable, Dict, Optional
 
 import cloudpickle
 
+# TODO: Once executors are split into separate files this should become an optional dependency
+import distributed
+
 from prefect.orion.schemas.states import State
-from prefect.futures import resolve_futures
+from prefect.futures import resolve_futures, PrefectFuture
 
 
 class BaseExecutor:
@@ -14,6 +17,7 @@ class BaseExecutor:
 
     def submit(
         self,
+        run_id: str,
         fn: Callable,
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -51,6 +55,7 @@ class SynchronousExecutor(BaseExecutor):
 
     def submit(
         self,
+        run_id: str,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -85,6 +90,7 @@ class LocalPoolExecutor(BaseExecutor):
 
     def submit(
         self,
+        run_id: str,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -134,6 +140,67 @@ class LocalPoolExecutor(BaseExecutor):
     def shutdown(self) -> None:
         self._pool.shutdown(wait=True)
         self._pool = None
+
+
+class DaskExecutor(BaseExecutor):
+    """
+    A parallel executor that submits calls to a dask cluster
+
+    TODO: __init__ should support cluster setup kwargs as well as existing cluster
+          connection args
+    """
+
+    def __init__(self, debug: bool = False) -> None:
+
+        super().__init__()
+        self._client: "distributed.Client" = None
+        self._run_to_future: Dict[str, "distributed.Future"] = {}
+        self.debug = debug
+
+    def submit(
+        self,
+        run_id: str,
+        run_fn: Callable[..., State],
+        *args: Any,
+        **kwargs: Dict[str, Any],
+    ) -> Callable[[float], Optional[State]]:
+        if not self._client:
+            raise RuntimeError(
+                "The executor context must be entered before submitting work."
+            )
+
+        args, kwargs = resolve_futures((args, kwargs), resolve_fn=self._get_dask_future)
+
+        future = self._client.submit(run_fn, *args, **kwargs)
+
+        self._run_to_future[run_id] = future
+
+        if self.debug:
+            future.result()
+
+        return partial(self._wait, future)
+
+    def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
+        return self._run_to_future[prefect_future.run_id]
+
+    def _wait(
+        self,
+        future: "distributed.Future",
+        timeout: float = None,
+    ) -> Optional[State]:
+        try:
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            return None
+
+    def __enter__(self):
+        # Create the pool when entered
+        self._client = distributed.Client()
+        self._client.__enter__()
+        return self
+
+    def shutdown(self) -> None:
+        self._client.__exit__(None, None, None)
 
 
 def _serialize_call(fn, *args, **kwargs):

@@ -110,6 +110,7 @@ class Task:
         )
 
         callback = flow_run_context.executor.submit(
+            task_run_id,
             self._run,
             task_run_id=task_run_id,
             flow_run_id=flow_run_context.flow_run_id,
