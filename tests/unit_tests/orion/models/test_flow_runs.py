@@ -56,7 +56,7 @@ class TestCreateFlowRun:
     ):
         flow2 = models.orm.Flow(name="another flow")
         database_session.add(flow2)
-        await database_session.flush(flow2)
+        await database_session.flush()
 
         flow_run = await models.flow_runs.create_flow_run(
             session=database_session,
