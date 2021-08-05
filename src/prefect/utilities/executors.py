@@ -49,10 +49,10 @@ def run_with_heartbeat(
         elif prefect.context.config.heartbeat_style == 'thread':
             configured_heartbeat = threaded_heartbeat(self.flow_run_id)
         elif prefect.context.config.heartbeat_style == 'process':
-            configured_heartbeat = threaded_heartbeat(self.heartbeat_cmd, self.logger)
+            configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
         else:
             # default to subprocess heartbeat in case of configuration error
-            configured_heartbeat = subprocess_heartbeat
+            configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
 
         with configured_heartbeat:
             return runner_method(self, *args, **kwargs)
