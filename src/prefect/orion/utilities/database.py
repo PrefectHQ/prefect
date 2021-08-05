@@ -1,3 +1,4 @@
+import pydantic
 import json
 import re
 import uuid
@@ -136,20 +137,26 @@ class Pydantic(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def __init__(self, pydantic_model):
+    def __init__(self, pydantic_type):
         super().__init__()
-        self._pydantic_model = pydantic_model
+        self._pydantic_type = pydantic_type
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        elif not isinstance(value, self._pydantic_model):
-            value = self._pydantic_model.parse_obj(value)
-        return json.loads(value.json())
+        # parse the value to ensure it complies with the schema
+        # (this will raise validation errors if not)
+        value = pydantic.parse_obj_as(self._pydantic_type, value)
+        # sqlalchemy requires the bind parameter's value to be a python-native
+        # collection of JSON-compatible objects. we achieve that by dumping the
+        # value to a json string using the pydantic JSON encoder and re-parsing
+        # it into a python-native form.
+        return json.loads(json.dumps(value, default=pydantic.json.pydantic_encoder))
 
     def process_result_value(self, value, dialect):
         if value is not None:
-            return self._pydantic_model.parse_obj(value)
+            # load the json object into a fully hydrated typed object
+            return pydantic.parse_obj_as(self._pydantic_type, value)
 
 
 class UUID(TypeDecorator):
