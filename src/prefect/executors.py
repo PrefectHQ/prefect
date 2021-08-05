@@ -183,11 +183,10 @@ class DaskExecutor(BaseExecutor):
           connection args
     """
 
-    def __init__(self, debug: bool = False) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self._client: "distributed.Client" = None
         self._futures: Dict[UUID, "distributed.Future"] = {}
-        self.debug = debug
 
     def submit(
         self,
