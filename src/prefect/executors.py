@@ -16,7 +16,7 @@ class BaseExecutor:
         fn: Callable,
         *args: Any,
         **kwargs: Dict[str, Any],
-    ) -> str:
+    ) -> Callable[[float], Optional[State]]:
         """
         Submit a call for execution and return a tracking id
         """
