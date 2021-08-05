@@ -25,6 +25,20 @@ class TestCreateFlowRun:
 
         assert flow_run_1.id != flow_run_2.id
 
+    async def test_create_flow_run_with_same_id_as_existing_run_errors(
+        self, flow, database_session
+    ):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+        )
+
+        with pytest.raises(sa.exc.IntegrityError):
+            await models.flow_runs.create_flow_run(
+                session=database_session,
+                flow_run=schemas.core.FlowRun(id=flow_run_1.id, flow_id=flow.id),
+            )
+
     async def test_create_flow_run_with_idempotency_key(self, flow, database_session):
         flow_run = await models.flow_runs.create_flow_run(
             session=database_session,
