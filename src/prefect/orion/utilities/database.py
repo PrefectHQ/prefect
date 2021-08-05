@@ -103,6 +103,26 @@ def visit_custom_uuid_default(element, compiler, **kwargs):
     """
 
 
+class Timestamp(TypeDecorator):
+    impl = sa.TIMESTAMP(timezone=True)
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        else:
+            if value.tzinfo is None:
+                raise ValueError("Timestamps must have a timezone.")
+            elif value.tzinfo != pendulum.timezone("UTC"):
+                return pendulum.instance(value).in_timezone("UTC")
+            else:
+                return value
+
+    def process_result_value(self, value, dialect):
+        # retrieve timestamps in their native timezone (or UTC)
+        if value is not None:
+            return pendulum.instance(value)
+
+
 class Pydantic(TypeDecorator):
     impl = JSON
 
