@@ -3,7 +3,7 @@ import sys
 import pytest
 
 from prefect import task, flow
-from prefect.executors import SynchronousExecutor, LocalPoolExecutor
+from prefect.executors import SynchronousExecutor, LocalPoolExecutor, DaskExecutor
 
 
 def get_test_flow():
@@ -16,11 +16,16 @@ def get_test_flow():
     def task_b():
         return "b"
 
+    @task
+    def task_c(b):
+        return b + "c"
+
     @flow(version="test")
     def test_flow():
         a = task_a()
         b = task_b()
-        return a.result(), b.result()
+        c = task_c(b)
+        return a.result(), b.result(), c.result()
 
     return test_flow
 
@@ -29,8 +34,9 @@ def get_test_flow():
     "executor",
     [
         SynchronousExecutor(),
-        LocalPoolExecutor(debug=True, processes=False),
+        LocalPoolExecutor(debug=False, processes=False),
         LocalPoolExecutor(debug=False, processes=True),
+        DaskExecutor(),
     ],
 )
 def test_flow_run_by_executor(executor):
@@ -45,4 +51,8 @@ def test_flow_run_by_executor(executor):
 
     assert state.is_completed()
     return_data = state.data
-    assert (return_data[0].data, return_data[1].data) == ("a", "b")
+    assert (return_data[0].data, return_data[1].data, return_data[2].data) == (
+        "a",
+        "b",
+        "bc",
+    )

@@ -24,7 +24,7 @@ class PrefectFuture:
         self._exception: Optional[Exception] = None
         self._wait_callback = wait_callback
 
-    def result(self, timeout: float = None) -> State:
+    def result(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
         """
