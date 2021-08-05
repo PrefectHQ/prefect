@@ -1,16 +1,16 @@
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple, Optional
+from typing import Any, Callable, Dict, Iterable, Tuple, Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from prefect.utilities.hashing import (
-    stable_hash,
-    to_qualified_name,
-    hash_call,
-)
+from prefect.utilities.hashing import stable_hash, to_qualified_name, hash_objects
 from prefect.futures import PrefectFuture, resolve_futures
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
+
+
+def auto_memoize(task: "Task", flow_run_id: str, call: inspect.BoundArguments):
+    return hash_objects(id(task.fn), flow_run_id, call.arguments)
 
 
 class Task:
@@ -24,9 +24,9 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
-        cache_key: Callable[
-            [Callable, inspect.BoundArguments], Optional[str]
-        ] = hash_call,
+        cache_key_fn: Callable[
+            ["Task", str, inspect.BoundArguments], Optional[str]
+        ] = auto_memoize,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -51,7 +51,7 @@ class Task:
             str(sorted(self.tags or [])),
         )
 
-        self.cache_key = cache_key
+        self.cache_key_fn = cache_key_fn
 
         self.dynamic_key = 0
 
@@ -121,8 +121,8 @@ class Task:
         args, kwargs = resolve_futures((args, kwargs))
         call = inspect.signature(self.fn).bind_partial(*args, **kwargs)
 
-        if self.cache_key:
-            key = self.cache_key(self.fn, call)
+        if self.cache_key_fn:
+            key = self.cache_key_fn(task=self, flow_run_id=flow_run_context, call=call)
             # Empty keys are ignored
             if key and key in []:
                 return ...
