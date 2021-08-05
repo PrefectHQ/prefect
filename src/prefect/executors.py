@@ -215,7 +215,7 @@ class DaskExecutor(BaseExecutor):
 
     def wait(
         self,
-        prefect_future: "distributed.Future",
+        prefect_future: PrefectFuture,
         timeout: float = None,
     ) -> Optional[State]:
         future = self._futures[prefect_future.run_id]
