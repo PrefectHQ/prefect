@@ -13,7 +13,7 @@ class TestState:
         assert state.name == "My Running State"
 
     def test_state_default_timestamp(self):
-        dt = pendulum.now()
+        dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING)
         assert state.timestamp > dt
 
@@ -52,7 +52,7 @@ class TestStateTypeFunctions:
 
 class TestStateConvenienceFunctions:
     def test_awaiting_retry(self):
-        dt = pendulum.now()
+        dt = pendulum.now("UTC")
         state = AwaitingRetry(scheduled_time=dt)
         assert state.type == StateType.SCHEDULED
         assert state.name == "AwaitingRetry"
