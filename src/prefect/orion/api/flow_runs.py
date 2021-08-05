@@ -1,6 +1,6 @@
 from typing import List
 from uuid import UUID
-
+import logging
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -37,8 +37,15 @@ async def create_flow_run(
             )
         )
         result = stmt.scalar()
+
+        # if nothing was returned, then the integrity error was caused by violating
+        # a constraint other than the idempotency key. The most probable one is
+        # that a primary key was provided that already exists in the database.
         if not result:
-            raise ValueError("Could not create flow run.")
+            logging.error(exc)
+            raise ValueError(
+                "Could not create flow run due to database constraint violations."
+            )
         return result
 
 
@@ -60,6 +67,7 @@ async def read_flow_run(
 
 @router.get("/")
 async def read_flow_runs(
+    flow_id: UUID = None,
     offset: int = 0,
     limit: int = 10,
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -68,7 +76,10 @@ async def read_flow_runs(
     Query for flow runs
     """
     return await models.flow_runs.read_flow_runs(
-        session=session, offset=offset, limit=limit
+        session=session,
+        flow_id=flow_id,
+        offset=offset,
+        limit=limit,
     )
 
 
