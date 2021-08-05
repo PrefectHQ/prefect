@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Optional
 import cloudpickle
 
 from prefect.orion.schemas.states import State
+from prefect.futures import resolve_futures
 
 
 class BaseExecutor:
@@ -18,7 +19,9 @@ class BaseExecutor:
         **kwargs: Dict[str, Any],
     ) -> Callable[[float], Optional[State]]:
         """
-        Submit a call for execution and return a tracking id
+        Submit a call for execution and return a tracking id; this function is
+        responsible for resolving `PrefectFutures` in args/kwargs into a type supported
+        by the underlying execution method
         """
         raise NotImplementedError()
 
@@ -52,8 +55,11 @@ class SynchronousExecutor(BaseExecutor):
         *args: Any,
         **kwargs: Dict[str, Any],
     ) -> Callable[[float], Optional[State]]:
-        # Run immediately
+        # Block until all upstreams are resolved
+        args, kwargs = resolve_futures((args, kwargs))
+        # Run the function immediately
         result = run_fn(*args, **kwargs)
+        # Return a fake 'wait'
         return partial(self._wait, result)
 
     def _wait(self, result: State, timeout: float = None):
@@ -89,12 +95,21 @@ class LocalPoolExecutor(BaseExecutor):
             )
 
         if self.processes:
+            # Resolve `PrefectFutures` in args/kwargs into values which will block but
+            # futures not serializable; in the future we can rely on Orion to roundtrip
+            # the data instead
+            args, kwargs = resolve_futures((args, kwargs))
             # Use `cloudpickle` to serialize the call instead of the builtin pickle
             # since it supports more function types
             payload = _serialize_call(run_fn, *args, **kwargs)
             future = self._pool.submit(_run_serialized_call, payload)
         else:
-            future = self._pool.submit(run_fn, *args, **kwargs)
+            # Submit a function that resolves input futures then calls the task run
+            # function. Delegating future resolution to the pool stops `submit` from
+            # blocking parallelism.
+            future = self._pool.submit(
+                _resolve_futures_then_run, run_fn, *args, **kwargs
+            )
 
         if self.debug:
             future.result()
@@ -127,4 +142,9 @@ def _serialize_call(fn, *args, **kwargs):
 
 def _run_serialized_call(payload):
     fn, args, kwargs = cloudpickle.loads(payload)
+    return fn(*args, **kwargs)
+
+
+def _resolve_futures_then_run(fn, *args, **kwargs):
+    args, kwargs = resolve_futures((args, kwargs))
     return fn(*args, **kwargs)

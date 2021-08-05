@@ -113,8 +113,8 @@ class Task:
             self._run,
             task_run_id=task_run_id,
             flow_run_id=flow_run_context.flow_run_id,
-            call_args=resolve_futures(args),
-            call_kwargs=resolve_futures(kwargs),
+            call_args=args,
+            call_kwargs=kwargs,
         )
 
         # Increment the dynamic_key so future task calls are distinguishable from this
