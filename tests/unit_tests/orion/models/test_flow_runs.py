@@ -51,6 +51,28 @@ class TestCreateFlowRun:
                 ),
             )
 
+    async def test_create_flow_run_with_existing_idempotency_key_of_a_different_flow(
+        self, flow, database_session
+    ):
+        flow2 = models.orm.Flow(name="another flow")
+        database_session.add(flow2)
+        await database_session.flush(flow2)
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, idempotency_key="test"
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow2.id, idempotency_key="test"
+            ),
+        )
+
+        assert flow_run.id != flow_run_2.id
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, database_session):
