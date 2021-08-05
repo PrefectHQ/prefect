@@ -8,13 +8,13 @@ from prefect.orion.models import orm
 
 @pytest.fixture
 async def many_flow_run_states(flow, database_session):
-    """Creates 10 flow runs, each with 5 states. The data payload of each state is an integer 0-4"""
+    """Creates 5 flow runs, each with 5 states. The data payload of each state is an integer 0-4"""
 
     # clear all other flow runs
     await database_session.execute(sa.delete(orm.FlowRun))
     await database_session.execute(sa.delete(orm.FlowRunState))
 
-    for _ in range(10):
+    for _ in range(5):
         flow_run = await models.flow_runs.create_flow_run(
             session=database_session,
             flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version=1),
@@ -33,19 +33,18 @@ async def many_flow_run_states(flow, database_session):
         ]
 
         database_session.add_all(states)
-        await database_session.flush()
-        await database_session.refresh(flow_run)
+    await database_session.flush()
 
 
 @pytest.fixture
 async def many_task_run_states(flow_run, database_session):
-    """Creates 10 task runs, each with 5 states. The data payload of each state is an integer 0-4"""
+    """Creates 5 task runs, each with 5 states. The data payload of each state is an integer 0-4"""
 
     # clear all other task runs
     await database_session.execute(sa.delete(orm.TaskRun))
     await database_session.execute(sa.delete(orm.TaskRunState))
 
-    for _ in range(10):
+    for _ in range(5):
         task_run = await models.task_runs.create_task_run(
             session=database_session,
             task_run=schemas.actions.TaskRunCreate(
@@ -66,8 +65,7 @@ async def many_task_run_states(flow_run, database_session):
         ]
 
         database_session.add_all(states)
-        await database_session.flush()
-        await database_session.refresh(task_run)
+    await database_session.flush()
 
 
 class TestFlowRun:
@@ -113,7 +111,7 @@ class TestFlowRun:
         )
         result_4 = await database_session.execute(query_4)
         # all flow runs have data == 4
-        assert len(result_4.all()) == 10
+        assert len(result_4.all()) == 5
 
     async def test_flow_run_state_relationship_query_doesnt_match_old_data(
         self, many_flow_run_states, database_session
@@ -169,7 +167,7 @@ class TestTaskRun:
         )
         result_4 = await database_session.execute(query_4)
         # all task runs have data == 4
-        assert len(result_4.all()) == 10
+        assert len(result_4.all()) == 5
 
     async def test_task_run_state_relationship_query_doesnt_match_old_data(
         self, many_task_run_states, database_session
