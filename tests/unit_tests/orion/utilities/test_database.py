@@ -1,11 +1,13 @@
-import pytest
 import datetime
-import pendulum
+from typing import List
 
+import pendulum
+import pydantic
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
+
 from prefect.orion.utilities.database import Pydantic, Timestamp
-import pydantic
 
 DBBase = declarative_base()
 
@@ -20,6 +22,7 @@ class SQLAlchemyPydanticModel(DBBase):
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     data = sa.Column(Pydantic(PydanticModel))
+    data_list = sa.Column(Pydantic(List[PydanticModel]))
 
 
 class TestPydantic:
@@ -73,6 +76,28 @@ class TestPydantic:
         results = query.scalars().all()
         assert len(results) == 1
         assert results[0].data is None
+
+    async def test_generic_model(self, database_session):
+        p_model = PydanticModel(x=100)
+        s_model = SQLAlchemyPydanticModel(data_list=[p_model])
+        database_session.add(s_model)
+        await database_session.flush()
+
+        # clear cache
+        database_session.expire_all()
+
+        query = await database_session.execute(sa.select(SQLAlchemyPydanticModel))
+        results = query.scalars().all()
+        assert len(results) == 1
+        assert isinstance(results[0].data_list[0], PydanticModel)
+        assert results[0].data_list == [p_model]
+
+    async def test_generic_model_validates(self, database_session):
+        p_model = PydanticModel(x=100)
+        s_model = SQLAlchemyPydanticModel(data_list=p_model)
+        database_session.add(s_model)
+        with pytest.raises(sa.exc.StatementError, match="(validation error)"):
+            await database_session.flush()
 
 
 class SQLAlchemyTimestampModel(DBBase):
