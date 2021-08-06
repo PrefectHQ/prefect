@@ -1,4 +1,3 @@
-import datetime
 import itertools
 import sys
 import time
@@ -35,12 +34,13 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.exceptions import VersionLockMismatchSignal
 
 
-@pytest.fixture(autouse=True)
-def cloud_settings(cloud_api):
+@pytest.fixture(autouse=True, params=["process", "thread"])
+def cloud_settings(cloud_api, request):
     with set_temporary_config(
         {
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
+            "heartbeat_mode": f"{request.param}",
         }
     ):
         yield

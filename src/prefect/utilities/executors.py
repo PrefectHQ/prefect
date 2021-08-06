@@ -44,15 +44,23 @@ def run_with_heartbeat(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
 
-        if not self._heartbeat():
+        try:
+            use_heartbeat = self._heartbeat()
+        except Exception:
+            use_heartbeat = None
+            logger = get_logger()
+            logger.exception(
+                "Heartbeat process is misconfigured.  This could result in a zombie run."
+            )
+
+        if not use_heartbeat:
             configured_heartbeat = no_heartbeat()
-        elif prefect.context.config.heartbeat_style == "thread":
+        elif prefect.context.config.heartbeat_mode == "thread":
             configured_heartbeat = threaded_heartbeat(self.flow_run_id)
-        elif prefect.context.config.heartbeat_style == "process":
+        elif prefect.context.config.heartbeat_mode == "process":
             configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
-        else:
-            # default to subprocess heartbeat in case of configuration error
-            configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
+        # because the threaded heartbeat mode is experimental the future, let's not catch configuration
+        # error with `else` -- stale configuration should break tests
 
         with configured_heartbeat:
             return runner_method(self, *args, **kwargs)
