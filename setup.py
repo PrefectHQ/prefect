@@ -73,6 +73,7 @@ extras = {
     "kubernetes": ["dask-kubernetes >= 0.8.0"] + orchestration_extras["kubernetes"],
     "pandas": ["pandas >= 1.0.1"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
+    "prometheus": ["prometheus-client >= 0.9.0"],
     "mysql": ["pymysql >= 0.9.3"],
     "sql_server": ["pyodbc >= 4.0.30"],
     "pushbullet": ["pushbullet.py >= 0.11.0"],
