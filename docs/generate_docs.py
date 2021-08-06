@@ -334,7 +334,7 @@ def format_subheader(obj, level=1, in_table=False):
     if inspect.isclass(obj):
         header = "## {}\n".format(obj.__name__)
     elif not in_table:
-        header = "##" + "#" * level
+        header = "##" + ("#" * level) + "\n"
     else:
         header = "|"
     is_class = '<p class="prefect-sig">class </p>' if inspect.isclass(obj) else ""
