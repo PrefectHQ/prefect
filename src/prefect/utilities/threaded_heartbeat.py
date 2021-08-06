@@ -19,12 +19,12 @@ class HeartbeatThread(threading.Thread):
         logger = get_logger('heartbeat')
         client = Client()
         iter_count = 0
-        with prefect.context({"flow_run_id": id, "running_with_backend": True}):
+        with prefect.context({"flow_run_id": self.flow_run_id, "running_with_backend": True}):
             with log_heartbeat_failure(logger):
-                while iter_count < (self.num or 1) and not self.stop_event.is_set():
-                    self.stop_event.wait(timeout=config.cloud.heartbeat_interval)
+                while iter_count < (self.num or 1) and (self.stop_event.is_set() is False):
                     send_heartbeat(self.flow_run_id, client, logger)
                     iter_count += 1 if self.num else 0
+                    self.stop_event.wait(timeout=config.cloud.heartbeat_interval)
 
 
 def send_heartbeat(flow_run_id, client, logger):
