@@ -109,7 +109,7 @@ class Task:
             task_run_id, State(type=StateType.PENDING)
         )
 
-        callback = flow_run_context.executor.submit(
+        future = flow_run_context.executor.submit(
             task_run_id,
             self._run,
             task_run_id=task_run_id,
@@ -122,12 +122,7 @@ class Task:
         # task run
         self.dynamic_key += 1
 
-        return PrefectFuture(
-            flow_run_id=flow_run_context.flow_run_id,
-            task_run_id=task_run_id,
-            client=flow_run_context.client,
-            wait_callback=callback,
-        )
+        return future
 
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):
