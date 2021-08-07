@@ -18,8 +18,9 @@ mock_client.read_flow_run_states.return_value = [
 def test_resolve_futures_transforms_future():
     future = PrefectFuture(
         flow_run_id=uuid4(),
-        client=mock_client,
-        wait_callback=lambda _: State(type=StateType.COMPLETED, data="foo"),
+        client=None,
+        executor=None,
+        _result=State(type=StateType.COMPLETED, data="foo"),
     )
     assert resolve_futures(future) == "foo"
 
@@ -28,8 +29,9 @@ def test_resolve_futures_transforms_future():
 def test_resolve_futures_transforms_future_in_listlike_type(typ):
     future = PrefectFuture(
         flow_run_id=uuid4(),
-        client=mock_client,
-        wait_callback=lambda _: State(type=StateType.COMPLETED, data="foo"),
+        client=None,
+        executor=None,
+        _result=State(type=StateType.COMPLETED, data="foo"),
     )
     assert resolve_futures(typ(["a", future, "b"])) == typ(["a", "foo", "b"])
 
@@ -39,8 +41,9 @@ def test_resolve_futures_transforms_future_in_generator_type():
         yield "a"
         yield PrefectFuture(
             flow_run_id=uuid4(),
-            client=mock_client,
-            wait_callback=lambda _: State(type=StateType.COMPLETED, data="foo"),
+            client=None,
+            executor=None,
+            _result=State(type=StateType.COMPLETED, data="foo"),
         )
         yield "b"
 
@@ -51,8 +54,9 @@ def test_resolve_futures_transforms_future_in_nested_generator_types():
     def gen_a():
         yield PrefectFuture(
             flow_run_id=uuid4(),
-            client=mock_client,
-            wait_callback=lambda _: State(type=StateType.COMPLETED, data="foo"),
+            client=None,
+            executor=None,
+            _result=State(type=StateType.COMPLETED, data="foo"),
         )
 
     def gen_b():
@@ -67,13 +71,15 @@ def test_resolve_futures_transforms_future_in_nested_generator_types():
 def test_resolve_futures_transforms_future_in_dictlike_type(typ):
     key_future = PrefectFuture(
         flow_run_id=uuid4(),
-        client=mock_client,
-        wait_callback=lambda _: State(type=StateType.COMPLETED, data="foo"),
+        client=None,
+        executor=None,
+        _result=State(type=StateType.COMPLETED, data="foo"),
     )
     value_future = PrefectFuture(
         flow_run_id=uuid4(),
-        client=mock_client,
-        wait_callback=lambda _: State(type=StateType.COMPLETED, data="bar"),
+        client=None,
+        executor=None,
+        _result=State(type=StateType.COMPLETED, data="bar"),
     )
     assert resolve_futures(
         typ([("a", 1), (key_future, value_future), ("b", 2)])
@@ -89,8 +95,9 @@ def test_resolve_futures_transforms_future_in_dataclass():
 
     future = PrefectFuture(
         flow_run_id=uuid4(),
-        client=mock_client,
-        wait_callback=lambda _: State(type=StateType.COMPLETED, data="bar"),
+        client=None,
+        executor=None,
+        _result=State(type=StateType.COMPLETED, data="bar"),
     )
     assert resolve_futures(Foo(a=1, foo=future)) == Foo(a=1, foo="bar", b=2)
 
@@ -104,8 +111,9 @@ def test_resolves_futures_in_nested_collections():
 
     future = PrefectFuture(
         flow_run_id=uuid4(),
-        client=mock_client,
-        wait_callback=lambda _: State(type=StateType.COMPLETED, data="bar"),
+        client=None,
+        executor=None,
+        _result=State(type=StateType.COMPLETED, data="bar"),
     )
     assert resolve_futures(
         Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})

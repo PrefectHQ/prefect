@@ -106,7 +106,9 @@ class Flow:
 
         client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
 
-        with self.executor as executor:
+        with self.executor.start(
+            flow_run_id=flow_run_id, orion_client=client
+        ) as executor:
             with FlowRunContext(
                 flow_run_id=flow_run_id,
                 flow=self,
@@ -119,7 +121,8 @@ class Flow:
                 return PrefectFuture(
                     flow_run_id=flow_run_id,
                     client=client,
-                    wait_callback=lambda timeout: state,
+                    executor=executor,
+                    _result=state,
                 )
 
 
