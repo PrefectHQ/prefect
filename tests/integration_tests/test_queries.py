@@ -21,8 +21,3 @@ async def fill_db(database_session, tests_dir):
             for stmt in stmts:
                 if stmt:
                     await database_session.execute(sa.text(stmt))
-    return
-
-
-def test(fill_db):
-    breakpoint()
