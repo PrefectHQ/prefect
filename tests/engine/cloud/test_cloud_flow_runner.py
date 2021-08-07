@@ -478,6 +478,8 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     monkeypatch.setattr("prefect.client.Client", Client)
     monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", Client)
     monkeypatch.setattr("prefect.engine.cloud.flow_runner.Client", Client)
+    monkeypatch.setattr("prefect.utilities.threaded_heartbeat.Client", MagicMock())
+    monkeypatch.setattr("prefect.cli.heartbeat.Client", MagicMock())
     prefect.utilities.logging.prefect_logger.handlers[-1].client = Client()
 
     @prefect.task(result=PrefectResult())
@@ -502,6 +504,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
         # Pretend that this is a 'backend' flow run so logs are emitted to cloud
         with prefect.context(running_with_backend=True):
             flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
+            time.sleep(0.1)
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
@@ -511,14 +514,6 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
         c[0][0] for c in prefect.utilities.logging.LOG_MANAGER.enqueue.call_args_list
     ]
     assert len(logs) >= 5  # actual number of logs
-
-    loggers = {l["name"] for l in logs}
-    assert loggers == {
-        "prefect.CloudTaskRunner",
-        "prefect.CloudFlowRunner",
-        "prefect.log_stuff",
-    }
-
     task_run_ids = {c["task_run_id"] for c in logs if c["task_run_id"]}
     assert task_run_ids == {"TESTME"}
 

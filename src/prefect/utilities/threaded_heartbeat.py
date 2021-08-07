@@ -16,7 +16,7 @@ class HeartbeatThread(threading.Thread):
         self.stop_event = stop_event
 
     def run(self):
-        logger = get_logger("heartbeat")
+        logger = get_logger("threaded_heartbeat")
         client = Client()
         iter_count = 0
         with prefect.context(

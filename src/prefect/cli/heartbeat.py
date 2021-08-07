@@ -53,7 +53,7 @@ def flow_run(id, num):
     """
 
     client = Client()
-    logger = get_logger("heartbeat")
+    logger = get_logger("subprocess_heartbeat")
     iter_count = 0
 
     # Ensure that logs are sent to the backend since this is typically called without
