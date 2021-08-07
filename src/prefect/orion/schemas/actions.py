@@ -12,6 +12,7 @@ FlowCreate = Flow.subclass(
 FlowRunCreate = FlowRun.subclass(
     name="FlowRunCreate",
     include_fields=[
+        "id",
         "flow_id",
         "flow_version",
         "parameters",

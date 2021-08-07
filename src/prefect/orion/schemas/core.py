@@ -15,6 +15,7 @@ class Flow(APIBaseModel):
 
 
 class FlowRunDetails(PrefectBaseModel):
+    is_subflow: bool = True
     parent_task_run_id: UUID = None
 
 
@@ -31,6 +32,7 @@ class FlowRun(APIBaseModel):
 
 class TaskRunDetails(PrefectBaseModel):
     is_subflow: bool = False
+    subflow_run_id: UUID = None
 
 
 class TaskRun(APIBaseModel):
