@@ -112,6 +112,26 @@ class TestIntervalSchedule:
         assert dates == [start_date.add(days=i) for i in range(5)]
 
     @pytest.mark.parametrize(
+        "end_date",
+        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+    )
+    def test_get_dates_until_end_date(self, end_date):
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=datetime(2021, 1, 1)
+        )
+
+        dates = schedule.get_dates(start=datetime(2018, 1, 1), end=end_date)
+        assert len(dates) == (end_date - datetime(2018, 1, 1)).days + 1
+
+    def test_default_n_is_one_without_end_date(self):
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=datetime(2021, 1, 1)
+        )
+
+        dates = schedule.get_dates(start=datetime(2018, 1, 1, 6))
+        assert dates == [datetime(2018, 1, 2)]
+
+    @pytest.mark.parametrize(
         "start_date",
         [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
     )
@@ -290,6 +310,20 @@ class TestCronSchedule:
         schedule = CronSchedule(cron=self.every_day)
         dates = schedule.get_dates(n=10, start=start_date)
         assert dates == [start_date.add(days=i) for i in range(10)]
+
+    @pytest.mark.parametrize(
+        "end_date",
+        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2022, 3, 3)],
+    )
+    def test_get_dates_until_end_date(self, end_date):
+        schedule = CronSchedule(cron=self.every_day)
+        dates = schedule.get_dates(start=datetime(2018, 1, 1), end=end_date)
+        assert len(dates) == (end_date - datetime(2018, 1, 1)).days + 1
+
+    def test_default_n_is_one_without_end_date(self):
+        schedule = CronSchedule(cron=self.every_day)
+        dates = schedule.get_dates(start=datetime(2018, 1, 1, 6))
+        assert dates == [datetime(2018, 1, 2)]
 
 
 class TestIntervalClockDaylightSavingsTime:

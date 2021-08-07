@@ -1,14 +1,15 @@
+from uuid import UUID
 import pytz
 import datetime
-from typing import List, Set
+from typing import List, Set, Union
 
 import pendulum
 from croniter import croniter
 from pendulum.tz.timezone import Timezone
 from pydantic import Field, conint, validator
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
 
-__all__ = ["IntervalSchedule", "CronSchedule"]
+MAX_ITERATIONS = 10000
 
 
 class ScheduleFilters(PrefectBaseModel):
@@ -122,7 +123,10 @@ class IntervalSchedule(PrefectBaseModel):
         return v or pendulum.datetime(2020, 1, 1, tz=values.get("timezone") or "UTC")
 
     def get_dates(
-        self, n: int, start: datetime.datetime = None
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
@@ -131,12 +135,19 @@ class IntervalSchedule(PrefectBaseModel):
             n (int): The number of dates to generate
             start (datetime.datetime, optional): The first returned date will be on or after
                 this date. Defaults to None.
+            end (datetime.datetime, optional): The maximum scheduled date to return
 
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
             start = pendulum.now(self.timezone or "UTC")
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
 
         # compute the offset between the anchor date and the start date to jump to the next date
         offset = (
@@ -163,19 +174,23 @@ class IntervalSchedule(PrefectBaseModel):
         counter = 0
         dates = []
 
-        # don't exceed 10000 candidates
-        while len(dates) < n and counter < 10000:
+        while True:
 
             # check filters
             if self.filters.apply_filters(next_date):
                 next_date = self.adjustments.apply_adjustments(next_date)
+                # if the end date was exceeded, exit
+                if end and next_date > end:
+                    break
                 dates.append(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
 
             counter += 1
 
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
-
-            # next_date += self.interval
 
         return dates
 
@@ -224,7 +239,10 @@ class CronSchedule(PrefectBaseModel):
         return v
 
     def get_dates(
-        self, n: int, start: datetime.datetime = None
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
@@ -232,13 +250,22 @@ class CronSchedule(PrefectBaseModel):
         Args:
             n (int): The number of dates to generate
             start (datetime.datetime, optional): The first returned date will be on or after
-                this date. Defaults to None.
+                this date. Defaults to the current date.
+            end (datetime.datetime, optional): No returned date will exceed this date.
 
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
             start = pendulum.now(self.timezone or "UTC")
+
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
+
         elif self.timezone:
             start = start.in_tz(self.timezone)
 
@@ -267,10 +294,33 @@ class CronSchedule(PrefectBaseModel):
         dates = []
         counter = 0
 
-        while len(dates) < n and counter < 10000:
+        while True:
+
             next_date = pendulum.instance(cron.get_next(datetime.datetime))
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+            # check for duplicates; weird things can happen with DST and cron
             if next_date not in dates:
                 dates.append(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
+
             counter += 1
 
         return dates
+
+
+class Schedule(APIBaseModel):
+    flow_id: UUID
+    schedule: Union[IntervalSchedule, CronSchedule]
+    type: str = None
+    is_active: bool = True
+
+    @validator("type", always=True)
+    def set_schedule_type(cls, v):
+        if v is not None:
+            raise ValueError("Type can not be customized")
+        return type(cls.schedule).__name__
