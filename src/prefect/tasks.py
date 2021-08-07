@@ -1,7 +1,7 @@
 import inspect
 from functools import update_wrapper
 from typing import Any, Callable, Dict, Iterable, Tuple, Optional, TYPE_CHECKING
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from prefect.utilities.hashing import stable_hash, to_qualified_name, hash_objects
 from prefect.futures import PrefectFuture, resolve_futures
