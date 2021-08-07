@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import logging
+import pathlib
 
 import pytest
 from httpx import AsyncClient
@@ -62,3 +63,8 @@ async def database_engine():
     finally:
         # dispose of engine
         await engine.dispose()
+
+
+@pytest.fixture
+def tests_dir() -> pathlib.Path:
+    return pathlib.Path(__file__).parent

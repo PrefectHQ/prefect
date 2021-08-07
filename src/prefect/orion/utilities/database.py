@@ -1,3 +1,4 @@
+from enum import Enum
 import pydantic
 import json
 import re
@@ -58,6 +59,12 @@ def create_in_memory_sqlite_objects(conn, named=True):
     if conn.engine.url.get_backend_name() == "sqlite":
         if conn.engine.url.database in (":memory:", None):
             Base.metadata.create_all(conn.engine)
+
+
+@compiles(sa.JSON, "postgresql")
+def compile_json_as_jsonb_postgres(type_, compiler, **kw):
+    """Compiles the generic SQLAlchemy JSON type as JSONB on postgres"""
+    return "JSONB"
 
 
 class UUIDDefault(FunctionElement):
