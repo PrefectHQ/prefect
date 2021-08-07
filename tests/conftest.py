@@ -57,14 +57,8 @@ async def database_engine():
     engine = get_engine()
 
     try:
-        # populate database tables
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
         yield engine
 
     finally:
-        # drop database tables
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
         # dispose of engine
         await engine.dispose()
