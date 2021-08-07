@@ -1,3 +1,4 @@
+import pydantic
 import json
 import re
 import uuid
@@ -103,23 +104,59 @@ def visit_custom_uuid_default(element, compiler, **kwargs):
     """
 
 
-class Pydantic(TypeDecorator):
-    impl = JSON
+class Timestamp(TypeDecorator):
+    """TypeDecorator that ensures that timestamps have a timezone.
 
-    def __init__(self, pydantic_model):
-        super().__init__()
-        self._pydantic_model = pydantic_model
+    For SQLite, all timestamps are converted to UTC (since they are stored
+    as naive timestamps) and recovered as UTC.
+
+    Note: this should still be instantiated as Timestamp(timezone=True)
+    """
+
+    impl = sa.TIMESTAMP
+    cache_ok = True
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        elif not isinstance(value, self._pydantic_model):
-            value = self._pydantic_model.parse_obj(value)
-        return json.loads(value.json())
+        else:
+            if value.tzinfo is None:
+                raise ValueError("Timestamps must have a timezone.")
+            elif dialect.name == "sqlite":
+                return pendulum.instance(value).in_timezone("UTC")
+            else:
+                return value
+
+    def process_result_value(self, value, dialect):
+        # retrieve timestamps in their native timezone (or UTC)
+        if value is not None:
+            return pendulum.instance(value)
+
+
+class Pydantic(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+
+    def __init__(self, pydantic_type):
+        super().__init__()
+        self._pydantic_type = pydantic_type
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        # parse the value to ensure it complies with the schema
+        # (this will raise validation errors if not)
+        value = pydantic.parse_obj_as(self._pydantic_type, value)
+        # sqlalchemy requires the bind parameter's value to be a python-native
+        # collection of JSON-compatible objects. we achieve that by dumping the
+        # value to a json string using the pydantic JSON encoder and re-parsing
+        # it into a python-native form.
+        return json.loads(json.dumps(value, default=pydantic.json.pydantic_encoder))
 
     def process_result_value(self, value, dialect):
         if value is not None:
-            return self._pydantic_model.parse_obj(value)
+            # load the json object into a fully hydrated typed object
+            return pydantic.parse_obj_as(self._pydantic_type, value)
 
 
 class UUID(TypeDecorator):
@@ -183,7 +220,7 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     in SQL (like the default value for a timestamp column); not
     datetimes provided by SQLAlchemy itself.
     """
-    return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
+    return "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 
 
 @compiles(Now)
@@ -219,13 +256,13 @@ class Base(object):
         default=uuid.uuid4,
     )
     created = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
     )
     updated = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         index=True,
         server_default=Now(),

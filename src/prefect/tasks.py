@@ -9,8 +9,12 @@ from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 
 
-def auto_memoize(task: "Task", flow_run_id: str, call: inspect.BoundArguments):
-    return hash_objects(id(task.fn), flow_run_id, call.arguments)
+if TYPE_CHECKING:
+    from prefect.context import TaskRunContext
+
+
+def auto_memoize(context: "TaskRunContext", arguments: Dict[str, Any]):
+    return hash_objects(id(context.task.fn), context.flow_run_id, arguments)
 
 
 class Task:
@@ -25,7 +29,7 @@ class Task:
         description: str = None,
         tags: Iterable[str] = None,
         cache_key_fn: Callable[
-            ["Task", str, inspect.BoundArguments], Optional[str]
+            ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = auto_memoize,
     ):
         if not fn:
@@ -65,16 +69,26 @@ class Task:
         from prefect.context import TaskRunContext
 
         client = OrionClient()
+        context = TaskRunContext(
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            task=self,
+            client=client,
+        )
+
+        # Bind the arguments to the function to get a dict of arg -> value
+        arguments = inspect.signature(self.fn).bind(*call_args, **call_kwargs).arguments
+
+        if self.cache_key_fn:
+            key = self.cache_key_fn(context, arguments)
+            # Empty keys are ignored
+            if key and key in []:
+                return ...
 
         client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
 
         try:
-            with TaskRunContext(
-                task_run_id=task_run_id,
-                flow_run_id=flow_run_id,
-                task=self,
-                client=client,
-            ):
+            with context:
                 result = self.fn(*call_args, **call_kwargs)
         except Exception as exc:
             state = State(
@@ -118,16 +132,8 @@ class Task:
             task_run_id, State(type=StateType.PENDING)
         )
 
-        args, kwargs = resolve_futures((args, kwargs))
-        call = inspect.signature(self.fn).bind_partial(*args, **kwargs)
-
-        if self.cache_key_fn:
-            key = self.cache_key_fn(task=self, flow_run_id=flow_run_context, call=call)
-            # Empty keys are ignored
-            if key and key in []:
-                return ...
-
-        callback = flow_run_context.executor.submit(
+        future = flow_run_context.executor.submit(
+            task_run_id,
             self._run,
             task_run_id=task_run_id,
             flow_run_id=flow_run_context.flow_run_id,
@@ -139,12 +145,7 @@ class Task:
         # task run
         self.dynamic_key += 1
 
-        return PrefectFuture(
-            flow_run_id=flow_run_context.flow_run_id,
-            task_run_id=task_run_id,
-            client=flow_run_context.client,
-            wait_callback=callback,
-        )
+        return future
 
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):

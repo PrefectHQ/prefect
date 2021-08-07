@@ -238,7 +238,7 @@ class CronSchedule(PrefectBaseModel):
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
-            start = pendulum.now(self.timezone or "utc")
+            start = pendulum.now(self.timezone or "UTC")
         elif self.timezone:
             start = start.in_tz(self.timezone)
 
