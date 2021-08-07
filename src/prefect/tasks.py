@@ -78,12 +78,11 @@ class Task:
 
         # Bind the arguments to the function to get a dict of arg -> value
         arguments = inspect.signature(self.fn).bind(*call_args, **call_kwargs).arguments
+        cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
 
-        if self.cache_key_fn:
-            key = self.cache_key_fn(context, arguments)
-            # Empty keys are ignored
-            if key and key in []:
-                return ...
+        # TODO: Send the cache key to the backend when updating to a `Running` state.
+        #       It should send back a `Completed` state with cached data if the key is
+        #       a cache hit
 
         client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
 
