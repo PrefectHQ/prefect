@@ -79,7 +79,7 @@ async def task_run(database_session, flow_run):
 async def flow_run_states(database_session, flow_run):
     scheduled_state = schemas.actions.StateCreate(
         type=schemas.states.StateType.SCHEDULED,
-        timestamp=pendulum.now().subtract(seconds=5),
+        timestamp=pendulum.now("UTC").subtract(seconds=5),
     )
     scheduled_flow_run_state = await models.flow_run_states.create_flow_run_state(
         session=database_session,
@@ -99,7 +99,7 @@ async def flow_run_states(database_session, flow_run):
 async def task_run_states(database_session, task_run):
     scheduled_state = schemas.actions.StateCreate(
         type=schemas.states.StateType.SCHEDULED,
-        timestamp=pendulum.now().subtract(seconds=5),
+        timestamp=pendulum.now("UTC").subtract(seconds=5),
     )
     scheduled_task_run_state = await models.task_run_states.create_task_run_state(
         session=database_session,

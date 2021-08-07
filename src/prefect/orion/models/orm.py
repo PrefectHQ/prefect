@@ -4,7 +4,7 @@ from sqlalchemy import JSON, Column, Enum, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
-from prefect.orion.utilities.database import UUID, Base, Now, Pydantic
+from prefect.orion.utilities.database import UUID, Base, Now, Pydantic, Timestamp
 
 
 class Flow(Base):
@@ -40,7 +40,7 @@ class TaskRun(Base):
     task_key = Column(String, nullable=False)
     dynamic_key = Column(String)
     cache_key = Column(String)
-    cache_expiration = Column(sa.TIMESTAMP(timezone=True))
+    cache_expiration = Column(Timestamp(timezone=True))
     task_version = Column(String)
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     task_inputs = Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -55,12 +55,14 @@ class TaskRun(Base):
         nullable=False,
     )
 
-    __table__args__ = sa.Index(
-        "ix_task_run_flow_run_id_task_key_dynamic_key",
-        flow_run_id,
-        task_key,
-        dynamic_key,
-        unique=True,
+    __table_args__ = (
+        sa.Index(
+            "ix_task_run_flow_run_id_task_key_dynamic_key",
+            flow_run_id,
+            task_key,
+            dynamic_key,
+            unique=True,
+        ),
     )
 
 
@@ -68,7 +70,7 @@ class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
@@ -83,8 +85,12 @@ class FlowRunState(Base):
     )
     data = Column(JSON)
 
-    __table__args__ = sa.Index(
-        "ix_flow_run_state_flow_run_id_timestamp_desc", flow_run_id, timestamp.desc()
+    __table_args__ = (
+        sa.Index(
+            "ix_flow_run_state_flow_run_id_timestamp_desc",
+            flow_run_id,
+            timestamp.desc(),
+        ),
     )
 
 
@@ -92,7 +98,7 @@ class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False, index=True)
     type = Column(Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
@@ -107,8 +113,12 @@ class TaskRunState(Base):
     )
     data = Column(JSON)
 
-    __table__args__ = sa.Index(
-        "ix_task_run_state_task_run_id_timestamp_desc", task_run_id, timestamp.desc()
+    __table_args__ = (
+        sa.Index(
+            "ix_task_run_state_task_run_id_timestamp_desc",
+            task_run_id,
+            timestamp.desc(),
+        ),
     )
 
 
