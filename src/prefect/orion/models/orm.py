@@ -4,7 +4,13 @@ from sqlalchemy import JSON, Column, Enum, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
-from prefect.orion.utilities.database import UUID, Base, Now, Pydantic, Timestamp
+from prefect.orion.utilities.database import (
+    UUID,
+    Base,
+    Now,
+    Pydantic,
+    Timestamp,
+)
 
 
 class Flow(Base):
@@ -22,17 +28,47 @@ class FlowRun(Base):
     flow_id = Column(UUID(), nullable=False, index=True)
     flow_version = Column(String)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
-    parent_task_run_id = Column(UUID(), nullable=True)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_run_metadata = Column(
-        Pydantic(core.FlowRunMetadata),
+    flow_run_details = Column(
+        Pydantic(core.FlowRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
     )
+
+
+def add_flow_run_json_index(target, connection, **kw):
+    """Adds a partial index on the `parent_task_run_id` key of the
+    `flow_run_details` column, using dialect-specific syntax. This function is
+    called once the dialect is known via SQLAlchemy's event listening system.
+    """
+    "ix_flow_run_flow_run_details_parent_task_run_id" = "ix_flow_run_flow_run_details_parent_task_run_id"
+    if connection.dialect.name == "sqlite":
+        FlowRun.__table__.append_constraint(
+            sa.Index(
+                "ix_flow_run_flow_run_details_parent_task_run_id",
+                sa.text("json_extract(flow_run_details, '$.parent_task_run_id')"),
+                sqlite_where=sa.text(
+                    "json_extract(flow_run_details, '$.parent_task_run_id') IS NOT NULL"
+                ),
+            )
+        )
+    elif connection.dialect.name == "postgresql":
+        FlowRun.__table__.append_constraint(
+            sa.Index(
+                "ix_flow_run_flow_run_details_parent_task_run_id",
+                sa.text("(flow_run_details ->> 'parent_task_run_id')::UUID"),
+                postgresql_where=sa.text(
+                    "flow_run_details ->> parent_task_run_id IS NOT NULL"
+                ),
+            )
+        )
+
+
+sa.event.listen(FlowRun.__table__, "before_create", add_flow_run_json_index, once=True)
 
 
 class TaskRun(Base):
@@ -48,8 +84,8 @@ class TaskRun(Base):
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
-    task_run_metadata = Column(
-        Pydantic(core.TaskRunMetadata),
+    task_run_details = Column(
+        Pydantic(core.TaskRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
@@ -64,7 +100,6 @@ class TaskRun(Base):
             unique=True,
         ),
     )
-
 
 class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
