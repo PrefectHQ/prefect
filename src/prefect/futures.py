@@ -1,11 +1,14 @@
 from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, TYPE_CHECKING
 from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State
+
+if TYPE_CHECKING:
+    from prefect.executors import BaseExecutor
 
 
 class PrefectFuture:
@@ -13,8 +16,9 @@ class PrefectFuture:
         self,
         flow_run_id: UUID,
         client: OrionClient,
-        wait_callback: Callable[[float], Optional[State]],
+        executor: "BaseExecutor",
         task_run_id: UUID = None,
+        _result: State = None,  # Exposed for flow futures which do not call `executor.wait`
     ) -> None:
         self.flow_run_id = flow_run_id
         self.task_run_id = task_run_id
@@ -22,19 +26,22 @@ class PrefectFuture:
         self._client = client
         self._result: Any = None
         self._exception: Optional[Exception] = None
-        self._wait_callback = wait_callback
+        self._executor = executor
+        self._result = _result
 
-    def result(self, timeout: float = None) -> State:
+    def result(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
         """
+        if self._result:
+            return self._result
+
         state = self.get_state()
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        result = self._wait_callback(timeout)
-
-        return result
+        self._result = self._executor.wait(self, timeout)
+        return self._result
 
     def get_state(self) -> State:
         method = (
@@ -51,12 +58,23 @@ class PrefectFuture:
         return hash(self.run_id)
 
 
-def resolve_futures(expr):
+def future_to_data(future: PrefectFuture) -> Any:
+    return future.result().data
+
+
+def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to_data):
     """
-    Given an arbitrary python object resolve futures and states into data
+    Given a Python built-in collection, recursively find `PrefectFutures` and build a
+    new collection with the same structure with futures resolved by `resolve_fn`.
+
+    Unsupported object types will be returned without modification.
+
+    By default, futures are resolved into their underlying data which may wait for
+    execution to complete. `resolve_fn` can be passed to convert `PrefectFutures` into
+    futures native to another executor.
     """
     if isinstance(expr, PrefectFuture):
-        return expr.result().data
+        return resolve_fn(expr)
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)

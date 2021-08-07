@@ -56,7 +56,7 @@ class Flow:
         context: "FlowRunContext",
         call_args: Tuple[Any, ...],
         call_kwargs: Dict[str, Any],
-    ) -> PrefectFuture:
+    ) -> State:
         """
         TODO: Note that pydantic will now coerce parameter types into the correct type
               even if the user wants failure on inexact type matches. We may want to
@@ -90,12 +90,7 @@ class Flow:
             state=state,
         )
 
-        # Return a future that is already resolved to `state`
-        return PrefectFuture(
-            flow_run_id=context.flow_run_id,
-            client=context.client,
-            wait_callback=lambda timeout: state,
-        )
+        return state
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext
@@ -111,14 +106,24 @@ class Flow:
 
         client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
 
-        with self.executor as executor:
+        with self.executor.start(
+            flow_run_id=flow_run_id, orion_client=client
+        ) as executor:
             with FlowRunContext(
                 flow_run_id=flow_run_id,
                 flow=self,
                 client=client,
                 executor=executor,
             ) as context:
-                return self._run(context=context, call_args=args, call_kwargs=kwargs)
+                state = self._run(context=context, call_args=args, call_kwargs=kwargs)
+
+                # Return a future that is already resolved to `state`
+                return PrefectFuture(
+                    flow_run_id=flow_run_id,
+                    client=client,
+                    executor=executor,
+                    _result=state,
+                )
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
