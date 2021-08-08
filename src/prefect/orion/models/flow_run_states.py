@@ -6,7 +6,7 @@ from sqlalchemy.sql.functions import mode
 
 from prefect.orion.models import orm
 from prefect.orion import schemas, models
-from prefect.orion.schemas.states import RunDetails
+from prefect.orion.schemas import states
 
 
 async def create_flow_run_state(
@@ -24,23 +24,25 @@ async def create_flow_run_state(
     Returns:
         orm.FlowRunState: the newly-created flow run state
     """
-    # carry over RunDetails from the most recent state
-    run = await models.flow_runs.read_flow_run(session=session, flow_run_id=flow_run_id)
-    if run and run.state is not None:
-        run_details = run.state.run_details
-        run_details.previous_state_id = run.state.id
-    else:
-        run_details = RunDetails()
+    # load the flow run
+    run = await models.flow_runs.read_flow_run(
+        session=session,
+        flow_run_id=flow_run_id,
+    )
 
-    # ensure flow run id is accurate in state details
+    if not run:
+        raise ValueError(f"Invalid flow run: {flow_run_id}")
+
+    from_state = run.state.as_state() if run.state else None
+
+    # update the state details
+    state.run_details = states.update_run_details(from_state=from_state, to_state=state)
     state.state_details.flow_run_id = flow_run_id
 
     # create the new flow run state
     new_flow_run_state = orm.FlowRunState(
-        **state.dict(exclude={"data", "state_details"}),
         flow_run_id=flow_run_id,
-        run_details=run_details,
-        state_details=state.state_details
+        **dict(state),
     )
     session.add(new_flow_run_state)
     await session.flush()

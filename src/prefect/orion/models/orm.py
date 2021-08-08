@@ -93,6 +93,9 @@ class FlowRunState(Base):
         ),
     )
 
+    def as_state(self) -> states.State:
+        return states.State.from_orm(self)
+
 
 class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False, index=True)
@@ -120,6 +123,9 @@ class TaskRunState(Base):
             timestamp.desc(),
         ),
     )
+
+    def as_state(self) -> states.State:
+        return states.State.from_orm(self)
 
 
 # the current state of a run is found by a "top-n-per group" query that joins
