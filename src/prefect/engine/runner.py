@@ -1,6 +1,6 @@
 import collections.abc
 import functools
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import prefect
 from prefect.engine import signals

@@ -75,7 +75,7 @@ def test_heartbeat_exceptions_are_logged_to_cloud(monkeypatch):
 
     log = LOG_MANAGER.enqueue.call_args[0][0]
     assert log["flow_run_id"] == "my-special-flow-run-id"
-    assert log["name"] == "prefect.heartbeat"
+    assert log["name"] == "prefect.threaded_heartbeat"
     assert log["level"] == "ERROR"
     assert "Traceback" in log["message"]
     assert (

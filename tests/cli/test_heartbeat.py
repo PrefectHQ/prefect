@@ -96,7 +96,7 @@ def test_heartbeat_exceptions_are_logged_to_cloud(cloud_api, monkeypatch, termin
     # The exception was logged both times
     log = LOG_MANAGER.enqueue.call_args[0][0]
     assert log["flow_run_id"] == "id"
-    assert log["name"] == "prefect.heartbeat"
+    assert log["name"] == "prefect.subprocess_heartbeat"
     assert log["level"] == "ERROR"
 
     if terminal_exc:
