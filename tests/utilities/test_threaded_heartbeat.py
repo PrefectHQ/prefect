@@ -57,6 +57,7 @@ def test_heartbeat_sends_signals_to_client(monkeypatch):
     assert heartbeat.is_alive()
     time.sleep(0.1)
     stop_event.set()
+    heartbeat.join()
     assert Client().update_flow_run_heartbeat.call_count == 1
 
 
@@ -70,6 +71,7 @@ def test_heartbeat_exceptions_are_logged_to_cloud(monkeypatch):
     stop_event = threading.Event()
     heartbeat = HeartbeatThread(stop_event, "my-special-flow-run-id")
     heartbeat.start()
+    time.sleep(0.1)
     stop_event.set()
     heartbeat.join()
 
