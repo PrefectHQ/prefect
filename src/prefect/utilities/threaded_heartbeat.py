@@ -17,7 +17,8 @@ class HeartbeatThread(threading.Thread):
         num: int = None,
     ) -> None:
         threading.Thread.__init__(self)
-        self.daemon = True  # 'daemonizes' the thread, so Python will terminate it when all non-daemonized threads have finished
+        # 'daemonizes' the thread, so it will terminate when all non-daemonized threads have finished
+        self.daemon = True
         self.flow_run_id = flow_run_id
         self.num = num
         self.stop_event = stop_event
