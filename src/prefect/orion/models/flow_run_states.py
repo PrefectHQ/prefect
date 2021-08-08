@@ -45,9 +45,9 @@ async def create_flow_run_state(
     session.add(new_flow_run_state)
     await session.flush()
 
-    # refresh the run ORM model to load the new state
+    # update the ORM model state
     if run is not None:
-        await session.refresh(run)
+        run.state = new_flow_run_state
 
     return new_flow_run_state
 
