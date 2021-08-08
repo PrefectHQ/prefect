@@ -56,7 +56,7 @@ def test_heartbeat_sends_signals_to_client(monkeypatch):
     heartbeat.start()
     assert heartbeat.is_alive()
     stop_event.set()
-    time.sleep(0.1)
+    time.sleep(0.2)
     assert Client().update_flow_run_heartbeat.call_count == 1
 
 
