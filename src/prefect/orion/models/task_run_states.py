@@ -1,3 +1,5 @@
+import datetime
+import pendulum
 from uuid import UUID
 from typing import List
 import sqlalchemy as sa
@@ -6,7 +8,7 @@ from sqlalchemy.sql.functions import mode
 
 from prefect.orion.models import orm
 from prefect.orion import schemas, models
-from prefect.orion.schemas.states import RunDetails
+from prefect.orion.schemas import states
 
 
 async def create_task_run_state(
@@ -24,23 +26,27 @@ async def create_task_run_state(
     Returns:
         orm.TaskRunState: the newly-created task run state
     """
-    # carry over RunDetails from the most recent state
-    run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
-    if run and run.state is not None:
-        run_details = run.state.run_details
-        run_details.previous_state_id = run.state.id
-    else:
-        run_details = RunDetails()
 
-    # ensure task run id is accurate in state details
+    # load the task run
+    run = await models.task_runs.read_task_run(
+        session=session,
+        task_run_id=task_run_id,
+    )
+
+    if not run:
+        raise ValueError(f"Invalid task run: {task_run_id}")
+
+    from_state = run.state.as_state() if run.state else None
+
+    # update the state details
+    state.run_details = states.update_run_details(from_state=from_state, to_state=state)
+    state.state_details.flow_run_id = run.flow_run_id
     state.state_details.task_run_id = task_run_id
 
     # create the new task run state
     new_task_run_state = orm.TaskRunState(
-        **state.dict(exclude={"data", "state_details"}),
         task_run_id=task_run_id,
-        run_details=run_details,
-        state_details=state.state_details
+        **dict(state),
     )
     session.add(new_task_run_state)
     await session.flush()
