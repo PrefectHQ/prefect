@@ -1,8 +1,8 @@
 import threading
+import time
 from unittest.mock import MagicMock
 
 from prefect.utilities.threaded_heartbeat import HeartbeatThread
-from prefect.utilities.configuration import set_temporary_config
 
 
 def test_events_can_stop_the_heartbeat(monkeypatch):
@@ -56,7 +56,7 @@ def test_heartbeat_sends_signals_to_client(monkeypatch):
     heartbeat.start()
     assert heartbeat.is_alive()
     stop_event.set()
-    heartbeat.join()
+    time.sleep(0.1)
     assert Client().update_flow_run_heartbeat.call_count == 1
 
 
