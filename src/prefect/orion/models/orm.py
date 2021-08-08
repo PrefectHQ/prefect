@@ -64,12 +64,14 @@ class TaskRun(Base):
         nullable=False,
     )
 
-    __table__args__ = sa.Index(
-        "ix_task_run_flow_run_id_task_key_dynamic_key",
-        flow_run_id,
-        task_key,
-        dynamic_key,
-        unique=True,
+    __table_args__ = (
+        sa.Index(
+            "ix_task_run_flow_run_id_task_key_dynamic_key",
+            flow_run_id,
+            task_key,
+            dynamic_key,
+            unique=True,
+        ),
     )
 
 
@@ -92,8 +94,12 @@ class FlowRunState(Base):
     )
     data = Column(JSON)
 
-    __table__args__ = sa.Index(
-        "ix_flow_run_state_flow_run_id_timestamp_desc", flow_run_id, timestamp.desc()
+    __table_args__ = (
+        sa.Index(
+            "ix_flow_run_state_flow_run_id_timestamp_desc",
+            flow_run_id,
+            timestamp.desc(),
+        ),
     )
 
 
@@ -116,8 +122,12 @@ class TaskRunState(Base):
     )
     data = Column(JSON)
 
-    __table__args__ = sa.Index(
-        "ix_task_run_state_task_run_id_timestamp_desc", task_run_id, timestamp.desc()
+    __table_args__ = (
+        sa.Index(
+            "ix_task_run_state_task_run_id_timestamp_desc",
+            task_run_id,
+            timestamp.desc(),
+        ),
     )
 
 
