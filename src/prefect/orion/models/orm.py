@@ -68,7 +68,7 @@ class TaskRun(Base):
 
 class FlowRunState(Base):
     flow_run_id = Column(UUID(), nullable=False)
-    type = Column(String, nullable=False, index=True)
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
@@ -97,7 +97,7 @@ class FlowRunState(Base):
 
 class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False)
-    type = Column(String, nullable=False, index=True)
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
