@@ -1,4 +1,3 @@
-import pytest
 import threading
 from unittest.mock import MagicMock
 

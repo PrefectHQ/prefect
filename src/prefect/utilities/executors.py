@@ -13,7 +13,17 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Mapping
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Union,
+    Sequence,
+    Mapping,
+    Iterator,
+)
 
 import prefect
 from prefect.exceptions import TaskTimeoutSignal
@@ -41,19 +51,19 @@ def run_with_heartbeat(
 
     @wraps(runner_method)
     def inner(
-        self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
+        self: "prefect.engine.cloud.CloudFlowRunner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
 
         try:
             use_heartbeat = self._heartbeat()
         except Exception:
-            use_heartbeat = None
+            use_heartbeat = False
             logger = get_logger()
             logger.exception(
                 "Heartbeat process is misconfigured.  This could result in a zombie run."
             )
 
-        if not use_heartbeat:
+        if not use_heartbeat or (prefect.context.config.heartbeat_mode == "off"):
             configured_heartbeat = no_heartbeat()
         elif prefect.context.config.heartbeat_mode == "thread":
             configured_heartbeat = threaded_heartbeat(self.flow_run_id)
@@ -69,13 +79,13 @@ def run_with_heartbeat(
 
 
 @contextlib.contextmanager
-def no_heartbeat():
+def no_heartbeat() -> Iterator[None]:
     # contextlib.nullcontext was introduced in 3.7
     yield
 
 
 @contextlib.contextmanager
-def threaded_heartbeat(flow_run_id, num=None):
+def threaded_heartbeat(flow_run_id: str, num: int = None) -> Iterator[None]:
     try:
         HEARTBEAT_STOP_EVENT = threading.Event()
         heartbeat = HeartbeatThread(HEARTBEAT_STOP_EVENT, flow_run_id, num=None)
@@ -86,7 +96,7 @@ def threaded_heartbeat(flow_run_id, num=None):
 
 
 @contextlib.contextmanager
-def subprocess_heartbeat(heartbeat_cmd, logger):
+def subprocess_heartbeat(heartbeat_cmd: List[str], logger: Logger) -> Iterator[None]:
     p = None
     try:
         # we use Popen + a prefect CLI for a few reasons:
