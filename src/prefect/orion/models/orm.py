@@ -151,7 +151,9 @@ class TaskRun(Base):
     cache_key = Column(String)
     cache_expiration = Column(Timestamp(timezone=True))
     task_version = Column(String)
-    empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
+    empirical_policy = Column(
+        Pydantic(core.TaskRunPolicy), server_default="{}", default=dict, nullable=False
+    )
     task_inputs = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     upstream_task_run_ids = Column(
