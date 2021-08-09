@@ -96,17 +96,19 @@ class TestTaskCall:
         exc = ValueError()
 
         @task(max_retries=3)
-        def foo(mock):
+        def flaky_function():
             mock()
+
+            # 3 retries means 4 attempts
+            # Succeed on the final retry unless we're ending in a failure
             if not always_fail and mock.call_count == 4:
-                # Succeed on the final retry unless we're ending in a failure
                 return True
 
             raise exc
 
         @flow
         def test_flow():
-            return foo(mock)
+            return flaky_function()
 
         flow_future = test_flow()
         task_future = flow_future.result().data
@@ -137,36 +139,28 @@ class TestTaskCall:
             "Failed" if always_fail else "Completed",
         ]
 
-    def test_task_respects_retry_delay(self, monkeypatch):
-        sleep = MagicMock()  # Mock sleep for fast testing
-        monkeypatch.setattr("time.sleep", sleep)
+    def test_task_only_uses_necessary_retries(self):
+        mock = MagicMock()
+        exc = ValueError()
 
-        @task(max_retries=1, retry_delay_seconds=2)
-        def foo(mock):
+        @task(max_retries=3)
+        def flaky_function():
             mock()
-            if not always_fail and mock.call_count == 4:
-                # Succeed on the final retry unless we're ending in a failure
+            if mock.call_count == 2:
                 return True
-
             raise exc
 
         @flow
         def test_flow():
-            return foo(mock)
+            return flaky_function()
 
         flow_future = test_flow()
         task_future = flow_future.result().data
 
-        if always_fail:
-            state = task_future.result()
-            assert state.is_failed()
-            assert state.data is exc
-            assert mock.call_count == 4
-        else:
-            state = task_future.result()
-            assert state.is_completed()
-            assert state.data is True
-            assert mock.call_count == 4
+        state = task_future.result()
+        assert state.is_completed()
+        assert state.data is True
+        assert mock.call_count == 2
 
         client = OrionClient()
         states = client.read_task_run_states(task_future.run_id)
@@ -176,9 +170,42 @@ class TestTaskCall:
             "Running",
             "Awaiting Retry",
             "Running",
-            "Awaiting Retry",
+            "Completed",
+        ]
+
+    def test_task_respects_retry_delay(self, monkeypatch):
+        mock = MagicMock()
+        sleep = MagicMock()  # Mock sleep for fast testing
+        monkeypatch.setattr("time.sleep", sleep)
+
+        @task(max_retries=1, retry_delay_seconds=43)
+        def flaky_function():
+            mock()
+
+            if mock.call_count == 2:
+                return True
+
+            raise ValueError("try again, but only once")
+
+        @flow
+        def test_flow():
+            return flaky_function()
+
+        flow_future = test_flow()
+        task_future = flow_future.result().data
+
+        assert sleep.call_count == 1
+        # due to rounding, the expected sleep time will be less than 43 seconds
+        # we test for a 3-second window to account for delays in CI
+        assert 40 < sleep.call_args[0][0] < 43
+
+        client = OrionClient()
+        states = client.read_task_run_states(task_future.run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
             "Running",
             "Awaiting Retry",
             "Running",
-            "Failed" if always_fail else "Completed",
+            "Completed",
         ]

@@ -70,6 +70,7 @@ class Task:
         self.dynamic_key = 0
 
         # TaskRunPolicy settings
+        # TODO: we should be careful to check that people don't pass negative numbers here
         self.max_retries = max_retries
         self.retry_delay_seconds = retry_delay_seconds
 
@@ -115,9 +116,8 @@ class Task:
 
             if state.is_scheduled():  # Received a retry from the backend
                 print("Awaiting scheduled start time...")
-                time.sleep(
-                    (pendulum.now() - state.state_details.scheduled_time).in_seconds()
-                )
+                wait_time = state.state_details.scheduled_time - pendulum.now()
+                time.sleep(max(wait_time.in_seconds(), 0))
 
                 state = propose_state(client, task_run_id, Retrying())
 
