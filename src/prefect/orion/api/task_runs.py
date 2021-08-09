@@ -99,22 +99,24 @@ async def set_task_run_state(
         session=session, task_run_id=task_run_id, state=state
     )
 
-    # if the set state has the same type as the provided state, it was accepted
+    # if the set state has the same type as the provided state, it was accepted,
+    # though its details may have been updated
     if new_state.type == state.type:
 
         # indicate the state was accepted
         return schemas.responses.SetStateResponse(
             status=schemas.responses.SetStateStatus.ACCEPT,
-            new_state=None,
-            run_details=new_state.run_details,
+            details=dict(
+                run_details=new_state.run_details,
+                state_details=new_state.state_details,
+            ),
         )
 
     # otherwise the requested transition was rejected
     else:
 
-        # indicate the state was accepted
+        # send the new state
         return schemas.responses.SetStateResponse(
             status=schemas.responses.SetStateStatus.REJECT,
-            new_state=new_state,
-            run_details=new_state.run_details,
+            details=dict(state=new_state),
         )
