@@ -143,5 +143,5 @@ def update_run_details(from_state: Optional[State], to_state: State) -> RunDetai
         if run_details.start_time is None:
             run_details.start_time = to_state.timestamp
 
-    # return the modified state
+    # return the new run details
     return run_details
