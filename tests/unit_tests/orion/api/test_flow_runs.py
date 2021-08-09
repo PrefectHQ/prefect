@@ -1,6 +1,7 @@
 import pytest
 from uuid import uuid4
 from prefect.orion import models
+from prefect.orion.schemas import responses, states
 
 
 class TestCreateFlowRun:
@@ -112,11 +113,12 @@ class TestSetFlowRunState:
             json=dict(type="RUNNING", name="Test State"),
         )
         assert response.status_code == 201
-        assert response.json()["status"] == "ACCEPT"
-        assert response.json()["new_state"] is None
+
+        api_response = responses.SetStateResponse.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
 
         run = await models.flow_runs.read_flow_run(
             session=database_session, flow_run_id=flow_run.id
         )
-        assert run.state.type.value == "RUNNING"
+        assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"

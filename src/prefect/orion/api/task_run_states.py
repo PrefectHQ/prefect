@@ -20,7 +20,10 @@ async def create_task_run_state(
     Create a task run state, disregarding orchestration logic
     """
     return await models.task_run_states.create_task_run_state(
-        session=session, state=state, task_run_id=task_run_id
+        session=session,
+        state=state,
+        task_run_id=task_run_id,
+        apply_orchestration_rules=False,
     )
 
 

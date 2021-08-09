@@ -11,15 +11,16 @@ from prefect.orion.utilities.database import (
     Pydantic,
     Timestamp,
 )
+from prefect.orion.utilities.functions import ParameterSchema
 
 
 class Flow(Base):
     name = Column(String, nullable=False, unique=True)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = Column(
-        Pydantic(core.ParameterSchema),
+        Pydantic(ParameterSchema),
         server_default="{}",
-        default=dict,
+        default=ParameterSchema,
         nullable=False,
     )
 
@@ -36,10 +37,16 @@ class FlowRunState(Base):
     name = Column(String, nullable=False)
     message = Column(String)
     state_details = Column(
-        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.StateDetails),
+        server_default="{}",
+        default=states.StateDetails,
+        nullable=False,
     )
     run_details = Column(
-        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.RunDetails),
+        server_default="{}",
+        default=states.RunDetails,
+        nullable=False,
     )
     data = Column(JSON)
 
@@ -68,10 +75,16 @@ class TaskRunState(Base):
     name = Column(String, nullable=False)
     message = Column(String)
     state_details = Column(
-        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.StateDetails),
+        server_default="{}",
+        default=states.StateDetails,
+        nullable=False,
     )
     run_details = Column(
-        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
+        Pydantic(states.RunDetails),
+        server_default="{}",
+        default=states.RunDetails,
+        nullable=False,
     )
     data = Column(JSON)
 
@@ -98,13 +111,13 @@ class FlowRun(Base):
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     parent_task_run_id = Column(UUID(), nullable=True)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
-    empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
+    empirical_policy = Column(JSON, server_default="{}", default={}, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     flow_run_details = Column(
         Pydantic(core.FlowRunDetails),
         server_default="{}",
-        default=dict,
+        default=core.FlowRunDetails,
         nullable=False,
     )
 
@@ -151,8 +164,18 @@ class TaskRun(Base):
     cache_key = Column(String)
     cache_expiration = Column(Timestamp(timezone=True))
     task_version = Column(String)
-    empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
-    task_inputs = Column(JSON, server_default="{}", default=dict, nullable=False)
+    empirical_policy = Column(
+        Pydantic(core.TaskRunPolicy),
+        server_default="{}",
+        default=core.TaskRunPolicy,
+        nullable=False,
+    )
+    task_inputs = Column(
+        Pydantic(ParameterSchema),
+        server_default="{}",
+        default=ParameterSchema,
+        nullable=False,
+    )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
@@ -160,7 +183,7 @@ class TaskRun(Base):
     task_run_details = Column(
         Pydantic(core.TaskRunDetails),
         server_default="{}",
-        default=dict,
+        default=core.TaskRunDetails,
         nullable=False,
     )
 
