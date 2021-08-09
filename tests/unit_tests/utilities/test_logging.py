@@ -62,6 +62,13 @@ def test_setup_logging_uses_env_var_overrides(tmpdir, dictConfigMock, monkeypatc
     )
     expected_config["filters"]["run_context"]["class"] = "UNDERSCORE_KEY_VAL"
 
+    # Test setting a value where the key contains a period
+    monkeypatch.setenv(
+        LoggingSettings.Config.env_prefix + "LOGGERS_PREFECT_FLOW_RUN_LEVEL",
+        "FLOW_RUN_VAL",
+    )
+    expected_config["loggers"]["prefect.flow_run"]["level"] = "FLOW_RUN_VAL"
+
     # Test setting a value that does not exist in the yaml config and should not be
     # set in the expected_config since there is no value to override
     monkeypatch.setenv(LoggingSettings.Config.env_prefix + "_FOO", "IGNORED")

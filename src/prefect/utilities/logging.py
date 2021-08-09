@@ -1,8 +1,9 @@
 import logging
 import logging.config
 import os
+import re
 from pathlib import Path
-
+from functools import partial
 
 import yaml
 
@@ -10,8 +11,11 @@ from prefect.utilities.settings import Settings, LoggingSettings
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
 
-# This path will be used if ``
+# This path will be used if `LoggingSettings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
+
+# Regex call to replace non-alphanumeric characters to '_' to create a valid env var
+to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 
 
 def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
@@ -24,7 +28,10 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     env_prefix = settings.Config.env_prefix
     flat_config = dict_to_flatdict(config)
     for key_tup in flat_config.keys():
-        if override_val := os.environ.get((env_prefix + "_".join(key_tup)).upper()):
+        if override_val := os.environ.get(
+            # Generate a valid environment variable with nesting indicated with '_'
+            to_envvar((env_prefix + "_".join(key_tup)).upper())
+        ):
             flat_config[key_tup] = override_val
 
     return flatdict_to_dict(flat_config)
