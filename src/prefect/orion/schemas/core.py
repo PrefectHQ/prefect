@@ -35,7 +35,7 @@ class TaskRunMetadata(PrefectBaseModel):
 
 
 class TaskRunPolicy(PrefectBaseModel):
-    max_retries: int = None
+    max_retries: int = 0
     retry_delay_seconds: float = 0
 
 

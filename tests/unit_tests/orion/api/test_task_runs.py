@@ -113,7 +113,6 @@ class TestSetTaskRunState:
             task_run_id=task_run.id,
             state=states.State(type="RUNNING"),
         )
-        await database_session.commit()
 
         # fail the running task run
         response = await client.post(
