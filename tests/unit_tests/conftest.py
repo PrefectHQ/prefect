@@ -72,6 +72,7 @@ async def task_run(database_session, flow_run):
     model = await models.task_runs.create_task_run(
         session=database_session, task_run=fake_task_run
     )
+    await database_session.flush()
     return model
 
 
