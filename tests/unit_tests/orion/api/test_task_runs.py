@@ -2,7 +2,7 @@ import uuid
 import pytest
 from uuid import uuid4
 from prefect.orion import models
-from prefect.orion.schemas import states
+from prefect.orion.schemas import states, responses
 import sqlalchemy as sa
 
 
@@ -89,14 +89,15 @@ class TestSetTaskRunState:
             json=dict(type="RUNNING", name="Test State"),
         )
         assert response.status_code == 201
-        assert response.json()["status"] == "ACCEPT"
-        assert response.json()["new_state"] is None
-        assert response.json()["run_details"]["run_count"] == 1
+
+        api_response = responses.SetStateResponse.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+        assert api_response.details.run_details.run_count == 1
 
         run = await models.task_runs.read_task_run(
             session=database_session, task_run_id=task_run.id
         )
-        assert run.state.type.value == "RUNNING"
+        assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
 
     async def test_failed_becomes_awaiting_retry(
@@ -120,7 +121,8 @@ class TestSetTaskRunState:
             json=dict(type="FAILED"),
         )
         assert response.status_code == 201
-        assert response.json()["status"] == "REJECT"
-        new_state = states.State(**response.json()["new_state"])
-        assert new_state.name == "Awaiting Retry"
-        assert new_state.type == states.StateType.SCHEDULED
+
+        api_response = responses.SetStateResponse.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.REJECT
+        assert api_response.details.state.name == "Awaiting Retry"
+        assert api_response.details.state.type == states.StateType.SCHEDULED

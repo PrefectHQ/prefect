@@ -51,7 +51,6 @@ def test_set_then_read_flow_run_state():
     )
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
-    assert response.new_state is None
 
     states = client.read_flow_run_states(flow_run_id)
     assert len(states) == 1
@@ -101,7 +100,6 @@ def test_set_then_read_task_run_state():
 
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
-    assert response.new_state is None
 
     states = client.read_task_run_states(task_run_id)
     assert len(states) == 1
