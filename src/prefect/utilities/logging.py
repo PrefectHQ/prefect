@@ -48,7 +48,7 @@ def setup_logging(settings: Settings) -> None:
 
 def get_logger(name: str = None) -> logging.Logger:
     logger = logging.getLogger("prefect")
-    if name is not None:
+    if name:
         logger = logger.getChild(name)
     return logger
 
