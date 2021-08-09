@@ -31,6 +31,7 @@ StateCreate = State.subclass(
         "message",
         "data",
         "state_details",
+        "run_details",
     ],
 )
 
