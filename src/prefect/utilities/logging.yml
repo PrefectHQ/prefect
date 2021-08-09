@@ -43,7 +43,7 @@ loggers:
         handlers: [orion]
         filters: [run_context]
         propogate: yes
-
+    
     root:
         level: INFO
         handlers: [console]
