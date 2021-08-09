@@ -28,11 +28,12 @@ async def create_task_run(
         response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         await nested.rollback()
-        query = (
-            sa.select(models.orm.TaskRun)
-            .filter(models.orm.TaskRun.flow_run_id == task_run.flow_run_id)
-            .filter(models.orm.TaskRun.task_key == task_run.task_key)
-            .filter(models.orm.TaskRun.dynamic_key == task_run.dynamic_key)
+        query = sa.select(models.orm.TaskRun).filter(
+            sa.and_(
+                models.orm.TaskRun.flow_run_id == task_run.flow_run_id,
+                models.orm.TaskRun.task_key == task_run.task_key,
+                models.orm.TaskRun.dynamic_key == task_run.dynamic_key,
+            )
         )
         result = await session.execute(query)
         task_run = result.scalar()
@@ -84,7 +85,7 @@ async def delete_task_run(
     return result
 
 
-@router.post("/{id}/set_state")
+@router.post("/{id}/set_state", status_code=201)
 async def set_task_run_state(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
@@ -94,14 +95,26 @@ async def set_task_run_state(
     """Set a task run state, invoking any orchestration rules."""
 
     # create the state
-    await models.task_run_states.create_task_run_state(
+    new_state = await models.task_run_states.create_task_run_state(
         session=session, task_run_id=task_run_id, state=state
     )
-    # set the 201 because a new state was created
-    response.status_code = status.HTTP_201_CREATED
 
-    # indicate the state was accepted
-    return schemas.responses.SetStateResponse(
-        status=schemas.responses.SetStateStatus.ACCEPT,
-        new_state=None,
-    )
+    # if the set state has the same type as the provided state, it was accepted
+    if new_state.type == state.type:
+
+        # indicate the state was accepted
+        return schemas.responses.SetStateResponse(
+            status=schemas.responses.SetStateStatus.ACCEPT,
+            new_state=None,
+            run_details=new_state.run_details,
+        )
+
+    # otherwise the requested transition was rejected
+    else:
+
+        # indicate the state was accepted
+        return schemas.responses.SetStateResponse(
+            status=schemas.responses.SetStateStatus.REJECT,
+            new_state=new_state,
+            run_details=new_state.run_details,
+        )

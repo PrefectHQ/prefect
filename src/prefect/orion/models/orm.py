@@ -24,7 +24,9 @@ class FlowRun(Base):
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     parent_task_run_id = Column(UUID(), nullable=True)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
-    empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
+    empirical_policy = Column(
+        Pydantic(core.TaskRunPolicy), server_default="{}", default=core.TaskRunPolicy, nullable=False
+    )
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     flow_run_metadata = Column(
@@ -42,7 +44,9 @@ class TaskRun(Base):
     cache_key = Column(String)
     cache_expiration = Column(Timestamp(timezone=True))
     task_version = Column(String)
-    empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
+    empirical_policy = Column(
+        Pydantic(core.TaskRunPolicy), server_default="{}", default=core.TaskRunPolicy, nullable=False
+    )
     task_inputs = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     upstream_task_run_ids = Column(
