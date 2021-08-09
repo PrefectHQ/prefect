@@ -8,6 +8,7 @@ from asyncio import current_task
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column
+import sqlalchemy
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.event import listens_for
 from sqlalchemy.ext.asyncio import (

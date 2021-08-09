@@ -35,6 +35,11 @@ class TaskRunDetails(PrefectBaseModel):
     subflow_run_id: UUID = None
 
 
+class TaskRunPolicy(PrefectBaseModel):
+    max_retries: int = 0
+    retry_delay_seconds: float = 0
+
+
 class TaskRun(APIBaseModel):
     flow_run_id: UUID
     task_key: str
@@ -42,7 +47,7 @@ class TaskRun(APIBaseModel):
     cache_key: str = None
     cache_expiration: datetime.datetime = None
     task_version: str = None
-    empirical_policy: dict = Field(default_factory=dict)
+    empirical_policy: TaskRunPolicy = Field(default_factory=TaskRunPolicy)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)

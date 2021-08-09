@@ -2,7 +2,7 @@ import pytest
 from uuid import uuid4
 import pendulum
 from prefect.orion import models, schemas
-from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.states import StateType, State
 
 
 class TestCreateTaskRunState:
@@ -67,6 +67,54 @@ class TestCreateTaskRunState:
             trs3.run_details.total_run_time_seconds
             == (trs3.timestamp - trs2.timestamp).total_seconds()
         )
+
+    async def test_failed_becomes_awaiting_retry(
+        self, task_run, client, database_session
+    ):
+        # set max retries to 1
+        # copy to trigger ORM updates
+        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy.max_retries = 1
+        await database_session.flush()
+
+        await models.task_run_states.create_task_run_state(
+            session=database_session,
+            task_run_id=task_run.id,
+            state=State(type="RUNNING"),
+        )
+
+        new_state = await models.task_run_states.create_task_run_state(
+            session=database_session,
+            task_run_id=task_run.id,
+            state=State(type="FAILED"),
+        )
+
+        assert new_state.name == "Awaiting Retry"
+        assert new_state.type == StateType.SCHEDULED
+
+    async def test_failed_doesnt_retry_if_flag_set(
+        self, task_run, client, database_session
+    ):
+        # set max retries to 1
+        # copy to trigger ORM updates
+        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy.max_retries = 1
+        await database_session.flush()
+
+        await models.task_run_states.create_task_run_state(
+            session=database_session,
+            task_run_id=task_run.id,
+            state=State(type="RUNNING"),
+        )
+
+        new_state = await models.task_run_states.create_task_run_state(
+            session=database_session,
+            task_run_id=task_run.id,
+            state=State(type="FAILED"),
+            apply_orchestration_rules=False,
+        )
+
+        assert new_state.type == StateType.FAILED
 
 
 class TestReadTaskRunState:
