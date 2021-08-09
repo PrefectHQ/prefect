@@ -106,8 +106,8 @@ def Retrying(**kwargs) -> State:
 
 
 def update_run_details(from_state: Optional[State], to_state: State) -> RunDetails:
-    """Given two states, updates the first state's run details using information
-    from the second state. Returns the updated run details.
+    """Given two states, generates a run details object using information
+    from both states. Returns the new run details object.
 
     Args:
         from_state (Optional[State]): The current state (if any)
