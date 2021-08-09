@@ -33,6 +33,28 @@ class TestCreateTaskRun:
         assert response.status_code == 200
         assert response.json()["id"] == task_run_response.json()["id"]
 
+    async def test_create_task_run_with_subflow_information(
+        self, flow_run, client, database_session
+    ):
+        sub_id = str(uuid.uuid4())
+        # create a task run
+        task_run_data = dict(
+            flow_run_id=str(flow_run.id),
+            task_key="my-task-key",
+            dynamic_key="my-dynamic-key",
+            task_run_details=dict(is_subflow=True, subflow_run_id=sub_id),
+        )
+        response = await client.post("/task_runs/", json=task_run_data)
+
+        # recreate the same task run, ensure graceful upsert
+        response = await client.post("/task_runs/", json=task_run_data)
+
+        task_run = await models.task_runs.read_task_run(
+            database_session, task_run_id=response.json()["id"]
+        )
+        assert task_run.task_run_details.is_subflow
+        assert str(task_run.task_run_details.subflow_run_id) == sub_id
+
 
 class TestReadTaskRun:
     async def test_read_task_run(self, flow_run, task_run, client):

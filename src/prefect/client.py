@@ -63,7 +63,6 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         extra_tags: Iterable[str] = None,
-        parent_task_run_id: str = None,
     ) -> UUID:
         tags = set(flow.tags).union(extra_tags or [])
         parameters = parameters or {}
@@ -78,7 +77,6 @@ class OrionClient:
             parameters=parameters,
             context=context,
             tags=list(tags),
-            parent_task_run_id=parent_task_run_id,
         )
 
         response = self.post("/flow_runs/", json=flow_run_data.json_dict())
