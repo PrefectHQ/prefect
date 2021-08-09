@@ -15,6 +15,7 @@ async def create_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
     state: schemas.actions.StateCreate,
+    apply_orchestration_rules: bool = True,
 ) -> orm.TaskRunState:
     """Creates a new task run state
 
@@ -39,19 +40,20 @@ async def create_task_run_state(
     from_state = run.state.as_state() if run.state else None
 
     # --- apply retry logic
-    if (
-        from_state
-        and from_state.type == states.StateType.RUNNING
-        and state.type == states.StateType.FAILED
-        and run.state.run_details.run_count <= run.empirical_policy.max_retries
-    ):
-        state = states.AwaitingRetry(
-            scheduled_time=pendulum.now("UTC").add(
-                seconds=run.empirical_policy.retry_delay_seconds
-            ),
-            message=state.message,
-            data=state.data,
-        )
+    if apply_orchestration_rules:
+        if (
+            from_state
+            and from_state.type == states.StateType.RUNNING
+            and state.type == states.StateType.FAILED
+            and run.state.run_details.run_count <= run.empirical_policy.max_retries
+        ):
+            state = states.AwaitingRetry(
+                scheduled_time=pendulum.now("UTC").add(
+                    seconds=run.empirical_policy.retry_delay_seconds
+                ),
+                message=state.message,
+                data=state.data,
+            )
 
     # update the state details
     state.run_details = states.update_run_details(from_state=from_state, to_state=state)
