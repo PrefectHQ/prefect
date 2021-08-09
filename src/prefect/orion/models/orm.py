@@ -1,6 +1,6 @@
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, Enum, String, join
+from sqlalchemy import JSON, Column, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
@@ -19,15 +19,15 @@ class Flow(Base):
 
 
 class FlowRunState(Base):
-    flow_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(states.StateType), nullable=False, index=True)
+    flow_run_id = Column(UUID(), nullable=False)
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
     )
-    name = Column(String)
+    name = Column(String, nullable=False)
     message = Column(String)
     state_details = Column(
         Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
@@ -42,20 +42,21 @@ class FlowRunState(Base):
             "ix_flow_run_state_flow_run_id_timestamp_desc",
             flow_run_id,
             timestamp.desc(),
+            unique=True,
         ),
     )
 
 
 class TaskRunState(Base):
-    task_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(states.StateType), nullable=False, index=True)
+    task_run_id = Column(UUID(), nullable=False)
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
         server_default=Now(),
         default=lambda: pendulum.now("UTC"),
     )
-    name = Column(String)
+    name = Column(String, nullable=False)
     message = Column(String)
     state_details = Column(
         Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
@@ -70,6 +71,7 @@ class TaskRunState(Base):
             "ix_task_run_state_task_run_id_timestamp_desc",
             task_run_id,
             timestamp.desc(),
+            unique=True,
         ),
     )
 

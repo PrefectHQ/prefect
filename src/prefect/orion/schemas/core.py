@@ -20,7 +20,7 @@ class FlowRunMetadata(PrefectBaseModel):
 
 class FlowRun(APIBaseModel):
     flow_id: UUID
-    flow_version: str = Field(..., example="v1.0")
+    flow_version: str = Field(None, example="1.0")
     parameters: dict = Field(default_factory=dict)
     parent_task_run_id: UUID = None
     context: dict = Field(default_factory=dict, example={"my_var": "my_val"})
