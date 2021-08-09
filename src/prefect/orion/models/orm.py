@@ -4,7 +4,13 @@ from sqlalchemy import JSON, Column, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
-from prefect.orion.utilities.database import UUID, Base, Now, Pydantic, Timestamp
+from prefect.orion.utilities.database import (
+    UUID,
+    Base,
+    Now,
+    Pydantic,
+    Timestamp,
+)
 
 
 class Flow(Base):
@@ -89,8 +95,8 @@ class FlowRun(Base):
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_run_metadata = Column(
-        Pydantic(core.FlowRunMetadata),
+    flow_run_details = Column(
+        Pydantic(core.FlowRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
@@ -145,8 +151,8 @@ class TaskRun(Base):
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
-    task_run_metadata = Column(
-        Pydantic(core.TaskRunMetadata),
+    task_run_details = Column(
+        Pydantic(core.TaskRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
@@ -196,3 +202,63 @@ class TaskRun(Base):
             unique=True,
         ),
     )
+
+
+def add_flow_run_subflow_index(target, connection, **kw):
+    """Adds a partial index on the `parent_task_run_id` key of the
+    `flow_run_details` column, using dialect-specific syntax. This function is
+    called once the dialect is known via SQLAlchemy's event listening system.
+    """
+    if connection.dialect.name == "sqlite":
+        FlowRun.__table__.append_constraint(
+            sa.Index(
+                "ix_flow_run_flow_run_details_subflow",
+                sa.text("json_extract(flow_run_details, '$.parent_task_run_id')"),
+                sqlite_where=sa.text(
+                    "json_extract(flow_run_details, '$.is_subflow') IS TRUE"
+                ),
+            )
+        )
+    elif connection.dialect.name == "postgresql":
+        FlowRun.__table__.append_constraint(
+            sa.Index(
+                "ix_flow_run_flow_run_details_subflow",
+                sa.text("(flow_run_details ->> 'parent_task_run_id')::UUID"),
+                postgresql_where=sa.text("flow_run_details ->> 'is_subflow' IS TRUE"),
+            )
+        )
+
+
+sa.event.listen(
+    FlowRun.__table__, "before_create", add_flow_run_subflow_index, once=True
+)
+
+
+def add_task_run_subflow_index(target, connection, **kw):
+    """Adds a partial index on the `subflow_run_id` key of the
+    `task_run_details` column, using dialect-specific syntax. This function is
+    called once the dialect is known via SQLAlchemy's event listening system.
+    """
+    if connection.dialect.name == "sqlite":
+        TaskRun.__table__.append_constraint(
+            sa.Index(
+                "ix_task_run_task_run_details_subflow",
+                sa.text("json_extract(task_run_details, '$.subflow_run_id')"),
+                sqlite_where=sa.text(
+                    "json_extract(task_run_details, '$.is_subflow') IS TRUE"
+                ),
+            )
+        )
+    elif connection.dialect.name == "postgresql":
+        TaskRun.__table__.append_constraint(
+            sa.Index(
+                "ix_task_run_task_run_details_subflow",
+                sa.text("(task_run_details ->> 'subflow_run_id')::UUID"),
+                postgresql_where=sa.text("task_run_details ->> 'is_subflow' IS TRUE"),
+            )
+        )
+
+
+sa.event.listen(
+    TaskRun.__table__, "before_create", add_task_run_subflow_index, once=True
+)
