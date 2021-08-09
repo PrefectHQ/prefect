@@ -69,3 +69,18 @@ def test_setup_logging_uses_env_var_overrides(tmpdir, dictConfigMock, monkeypatc
     setup_logging(fake_settings)
 
     dictConfigMock.assert_called_once_with(expected_config)
+
+
+@pytest.mark.parametrize("name", ["default", None, ""])
+def test_get_logger_returns_prefect_logger_by_default(name):
+    if name == "default":
+        logger = get_logger()
+    else:
+        logger = get_logger(name)
+
+    assert logger.name == "prefect"
+
+
+def test_get_logger_returns_prefect_child_logger():
+    logger = get_logger("foo")
+    assert logger.name == "prefect.foo"
