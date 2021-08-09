@@ -1,3 +1,4 @@
+from enum import Enum
 import pydantic
 import json
 import re
@@ -61,6 +62,12 @@ def create_in_memory_sqlite_objects(conn, named=True):
             Base.metadata.create_all(conn.engine)
 
 
+@compiles(sa.JSON, "postgresql")
+def compile_json_as_jsonb_postgres(type_, compiler, **kw):
+    """Compiles the generic SQLAlchemy JSON type as JSONB on postgres"""
+    return "JSONB"
+
+
 class UUIDDefault(FunctionElement):
     """
     Platform-independent UUID default generator.
@@ -114,7 +121,7 @@ class Timestamp(TypeDecorator):
     Note: this should still be instantiated as Timestamp(timezone=True)
     """
 
-    impl = sa.TIMESTAMP
+    impl = sa.TIMESTAMP(timezone=True)
     cache_ok = True
 
     def process_bind_param(self, value, dialect):
@@ -229,7 +236,7 @@ def now(element, compiler, **kwargs):
     """
     Generates the current timestamp in standard SQL
     """
-    return sa.func.now()
+    return "CURRENT_TIMESTAMP"
 
 
 @as_declarative()
