@@ -52,6 +52,9 @@ class FlowRunState(Base):
         ),
     )
 
+    def as_state(self) -> states.State:
+        return states.State.from_orm(self)
+
 
 class TaskRunState(Base):
     task_run_id = Column(UUID(), nullable=False)
@@ -80,6 +83,9 @@ class TaskRunState(Base):
             unique=True,
         ),
     )
+
+    def as_state(self) -> states.State:
+        return states.State.from_orm(self)
 
 
 frs = aliased(FlowRunState, name="frs")
