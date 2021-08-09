@@ -21,7 +21,7 @@ class FlowRunDetails(PrefectBaseModel):
 
 class FlowRun(APIBaseModel):
     flow_id: UUID
-    flow_version: str = Field(..., example="v1.0")
+    flow_version: str = Field(None, example="1.0")
     parameters: dict = Field(default_factory=dict)
     context: dict = Field(default_factory=dict, example={"my_var": "my_val"})
     empirical_policy: dict = Field(default_factory=dict)
