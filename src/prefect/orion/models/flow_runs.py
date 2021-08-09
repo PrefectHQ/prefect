@@ -19,12 +19,9 @@ async def create_flow_run(
     Returns:
         orm.FlowRun: the newly-created flow run
     """
-    model = orm.FlowRun(**flow_run.dict())
+    model = orm.FlowRun(**flow_run.dict(), state=None)
     session.add(model)
     await session.flush()
-    # refresh the ORM model to eagerly load relationships
-    if model is not None:
-        await session.refresh(model)
     return model
 
 
