@@ -51,9 +51,9 @@ async def create_task_run_state(
     session.add(new_task_run_state)
     await session.flush()
 
-    # refresh the ORM model to eagerly load relationships
+    # update the ORM model state
     if run is not None:
-        await session.refresh(run)
+        run.state = new_task_run_state
 
     return new_task_run_state
 

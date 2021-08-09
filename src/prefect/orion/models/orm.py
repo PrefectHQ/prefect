@@ -1,10 +1,16 @@
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, Enum, String, join
+from sqlalchemy import JSON, Column, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
-from prefect.orion.utilities.database import UUID, Base, Now, Pydantic, Timestamp
+from prefect.orion.utilities.database import (
+    UUID,
+    Base,
+    Now,
+    Pydantic,
+    Timestamp,
+)
 
 
 class Flow(Base):
@@ -18,6 +24,74 @@ class Flow(Base):
     )
 
 
+class FlowRunState(Base):
+    flow_run_id = Column(UUID(), nullable=False)
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
+    timestamp = Column(
+        Timestamp(timezone=True),
+        nullable=False,
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
+    )
+    name = Column(String, nullable=False)
+    message = Column(String)
+    state_details = Column(
+        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
+    )
+    run_details = Column(
+        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
+    )
+    data = Column(JSON)
+
+    __table_args__ = (
+        sa.Index(
+            "ix_flow_run_state_flow_run_id_timestamp_desc",
+            flow_run_id,
+            timestamp.desc(),
+            unique=True,
+        ),
+    )
+
+    def as_state(self) -> states.State:
+        return states.State.from_orm(self)
+
+
+class TaskRunState(Base):
+    task_run_id = Column(UUID(), nullable=False)
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
+    timestamp = Column(
+        Timestamp(timezone=True),
+        nullable=False,
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
+    )
+    name = Column(String, nullable=False)
+    message = Column(String)
+    state_details = Column(
+        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
+    )
+    run_details = Column(
+        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
+    )
+    data = Column(JSON)
+
+    __table_args__ = (
+        sa.Index(
+            "ix_task_run_state_task_run_id_timestamp_desc",
+            task_run_id,
+            timestamp.desc(),
+            unique=True,
+        ),
+    )
+
+    def as_state(self) -> states.State:
+        return states.State.from_orm(self)
+
+
+frs = aliased(FlowRunState, name="frs")
+trs = aliased(TaskRunState, name="trs")
+
+
 class FlowRun(Base):
     flow_id = Column(UUID(), nullable=False, index=True)
     flow_version = Column(String)
@@ -27,11 +101,46 @@ class FlowRun(Base):
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_run_metadata = Column(
-        Pydantic(core.FlowRunMetadata),
+    flow_run_details = Column(
+        Pydantic(core.FlowRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
+    )
+
+    # the current state of a run is found by a "top-n-per group" query that
+    # includes two joins:
+    #   1. from the `Run` table to the `State` table to load states for that run
+    #   2. from the `State` table to itself (aliased as `frs`) to filter all but the current state
+    #
+    # The second join is an outer join that only matches rows where `state.timestamp < frs.timestamp`,
+    # indicating that the matched state is NOT the most recent state. We then add a primary condition
+    # that `frs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
+    # keeping only the most recent state.
+    state = relationship(
+        # the self-referential join of FlowRunState to itself
+        aliased(
+            FlowRunState,
+            join(
+                FlowRunState,
+                frs,
+                sa.and_(
+                    FlowRunState.flow_run_id == frs.flow_run_id,
+                    FlowRunState.timestamp < frs.timestamp,
+                ),
+                isouter=True,
+            ),
+        ),
+        # the join condition from FlowRun to FlowRunState and also including
+        # only the failed matches for frs
+        primaryjoin=lambda: sa.and_(
+            FlowRun.id == FlowRunState.flow_run_id,
+            frs.id.is_(None),
+        ),
+        foreign_keys=[FlowRunState.flow_run_id],
+        uselist=False,
+        viewonly=True,
+        lazy="joined",
     )
 
 
@@ -48,11 +157,46 @@ class TaskRun(Base):
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
-    task_run_metadata = Column(
-        Pydantic(core.TaskRunMetadata),
+    task_run_details = Column(
+        Pydantic(core.TaskRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
+    )
+
+    # the current state of a run is found by a "top-n-per group" query that
+    # includes two joins:
+    #   1. from the `Run` table to the `State` table to load states for that run
+    #   2. from the `State` table to itself (aliased as `trs`) to filter all but the current state
+    #
+    # The second join is an outer join that only matches rows where `state.timestamp < trs.timestamp`,
+    # indicating that the matched state is NOT the most recent state. We then add a primary condition
+    # that `trs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
+    # keeping only the most recent state.
+    state = relationship(
+        # the self-referential join of TaskRunState to itself
+        aliased(
+            TaskRunState,
+            join(
+                TaskRunState,
+                trs,
+                sa.and_(
+                    TaskRunState.task_run_id == trs.task_run_id,
+                    TaskRunState.timestamp < trs.timestamp,
+                ),
+                isouter=True,
+            ),
+        ),
+        # the join condition from TaskRun to TaskRunState and also including
+        # only the failed matches for trs
+        primaryjoin=lambda: sa.and_(
+            TaskRun.id == TaskRunState.task_run_id,
+            trs.id.is_(None),
+        ),
+        foreign_keys=[TaskRunState.task_run_id],
+        uselist=False,
+        viewonly=True,
+        lazy="joined",
     )
 
     __table_args__ = (
@@ -66,132 +210,61 @@ class TaskRun(Base):
     )
 
 
-class FlowRunState(Base):
-    flow_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(states.StateType), nullable=False, index=True)
-    timestamp = Column(
-        Timestamp(timezone=True),
-        nullable=False,
-        server_default=Now(),
-        default=lambda: pendulum.now("UTC"),
-    )
-    name = Column(String)
-    message = Column(String)
-    state_details = Column(
-        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
-    )
-    run_details = Column(
-        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
-    )
-    data = Column(JSON)
-
-    __table_args__ = (
-        sa.Index(
-            "ix_flow_run_state_flow_run_id_timestamp_desc",
-            flow_run_id,
-            timestamp.desc(),
-        ),
-    )
-
-    def as_state(self) -> states.State:
-        return states.State.from_orm(self)
+def add_flow_run_subflow_index(target, connection, **kw):
+    """Adds a partial index on the `parent_task_run_id` key of the
+    `flow_run_details` column, using dialect-specific syntax. This function is
+    called once the dialect is known via SQLAlchemy's event listening system.
+    """
+    if connection.dialect.name == "sqlite":
+        FlowRun.__table__.append_constraint(
+            sa.Index(
+                "ix_flow_run_flow_run_details_subflow",
+                sa.text("json_extract(flow_run_details, '$.parent_task_run_id')"),
+                sqlite_where=sa.text(
+                    "json_extract(flow_run_details, '$.is_subflow') IS TRUE"
+                ),
+            )
+        )
+    elif connection.dialect.name == "postgresql":
+        FlowRun.__table__.append_constraint(
+            sa.Index(
+                "ix_flow_run_flow_run_details_subflow",
+                sa.text("(flow_run_details ->> 'parent_task_run_id')::UUID"),
+                postgresql_where=sa.text("flow_run_details ->> 'is_subflow' IS TRUE"),
+            )
+        )
 
 
-class TaskRunState(Base):
-    task_run_id = Column(UUID(), nullable=False, index=True)
-    type = Column(Enum(states.StateType), nullable=False, index=True)
-    timestamp = Column(
-        Timestamp(timezone=True),
-        nullable=False,
-        server_default=Now(),
-        default=lambda: pendulum.now("UTC"),
-    )
-    name = Column(String)
-    message = Column(String)
-    state_details = Column(
-        Pydantic(states.StateDetails), server_default="{}", default=dict, nullable=False
-    )
-    run_details = Column(
-        Pydantic(states.RunDetails), server_default="{}", default=dict, nullable=False
-    )
-    data = Column(JSON)
-
-    __table_args__ = (
-        sa.Index(
-            "ix_task_run_state_task_run_id_timestamp_desc",
-            task_run_id,
-            timestamp.desc(),
-        ),
-    )
-
-    def as_state(self) -> states.State:
-        return states.State.from_orm(self)
-
-
-# the current state of a run is found by a "top-n-per group" query that joins
-# the run table to the state table, and then joins the state table to itself.
-# The second state join only includes rows where state2's timestamp is greater
-# than state1's timestamp, and the final where clause excludes any rows that
-# successfully matched against state2. This leaves only rows in state1 that
-# have the maximum timestamp (in other words, the current state.)
-#
-# this approach works across all SQL databases.
-
-
-# --------------------------------------------------------------
-# Flow run current state
-
-frs_alias = aliased(FlowRunState)
-frs_query = aliased(
-    FlowRunState,
-    join(
-        FlowRunState,
-        frs_alias,
-        sa.and_(
-            FlowRunState.flow_run_id == frs_alias.flow_run_id,
-            FlowRunState.timestamp < frs_alias.timestamp,
-        ),
-        isouter=True,
-    ),
+sa.event.listen(
+    FlowRun.__table__, "before_create", add_flow_run_subflow_index, once=True
 )
 
-FlowRun.state = relationship(
-    frs_query,
-    primaryjoin=sa.and_(
-        FlowRun.id == FlowRunState.flow_run_id,
-        frs_alias.id == None,
-    ),
-    foreign_keys=[frs_query.flow_run_id],
-    viewonly=True,
-    uselist=False,
-    lazy="joined",
-)
 
-# --------------------------------------------------------------
-# Task run current state
+def add_task_run_subflow_index(target, connection, **kw):
+    """Adds a partial index on the `subflow_run_id` key of the
+    `task_run_details` column, using dialect-specific syntax. This function is
+    called once the dialect is known via SQLAlchemy's event listening system.
+    """
+    if connection.dialect.name == "sqlite":
+        TaskRun.__table__.append_constraint(
+            sa.Index(
+                "ix_task_run_task_run_details_subflow",
+                sa.text("json_extract(task_run_details, '$.subflow_run_id')"),
+                sqlite_where=sa.text(
+                    "json_extract(task_run_details, '$.is_subflow') IS TRUE"
+                ),
+            )
+        )
+    elif connection.dialect.name == "postgresql":
+        TaskRun.__table__.append_constraint(
+            sa.Index(
+                "ix_task_run_task_run_details_subflow",
+                sa.text("(task_run_details ->> 'subflow_run_id')::UUID"),
+                postgresql_where=sa.text("task_run_details ->> 'is_subflow' IS TRUE"),
+            )
+        )
 
-trs_alias = aliased(TaskRunState)
-trs_query = aliased(
-    TaskRunState,
-    join(
-        TaskRunState,
-        trs_alias,
-        sa.and_(
-            TaskRunState.task_run_id == trs_alias.task_run_id,
-            TaskRunState.timestamp < trs_alias.timestamp,
-        ),
-        isouter=True,
-    ),
-)
 
-TaskRun.state = relationship(
-    trs_query,
-    primaryjoin=sa.and_(
-        TaskRun.id == TaskRunState.task_run_id,
-        trs_alias.id == None,
-    ),
-    foreign_keys=[trs_query.task_run_id],
-    viewonly=True,
-    uselist=False,
-    lazy="joined",
+sa.event.listen(
+    TaskRun.__table__, "before_create", add_task_run_subflow_index, once=True
 )
