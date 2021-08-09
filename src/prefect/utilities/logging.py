@@ -1,45 +1,46 @@
 import logging
 import logging.config
-from typing import Optional
+import os
 from pathlib import Path
-from string import Template
+
 
 import yaml
-import json
 
-from prefect.utilities.settings import LoggingSettings
+from prefect.utilities.settings import Settings, LoggingSettings
+from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
 
+# This path will be used if ``
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 
 
-def load_logging_config(path: Path, settings: LoggingSettings) -> Optional[dict]:
+def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     """
-    Loads logging configuration from a path and templates `$var` strings with values
-    from the `LoggingSettings` object so overrides can be provided by normal config
-    methods
+    Loads logging configuration from a path allowing override from the environment
     """
-    # Load the logging config file as a template
-    template = Template(path.read_text())
+    config = yaml.safe_load(path.read_text())
 
-    # Substitute `LoggingSettings` variables; use pydantic to ensure the settings are
-    # serialized into primitive types
-    config = template.substitute(**json.loads(settings.json()))
-    return yaml.safe_load(config)
+    # Load overrides from the environment
+    env_prefix = settings.Config.env_prefix
+    flat_config = dict_to_flatdict(config)
+    for key_tup in flat_config.keys():
+        if override_val := os.environ.get((env_prefix + "_".join(key_tup)).upper()):
+            flat_config[key_tup] = override_val
+
+    return flatdict_to_dict(flat_config)
 
 
-def setup_logging() -> None:
-    settings = LoggingSettings()
+def setup_logging(settings: Settings) -> None:
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
     config = load_logging_config(
         (
-            settings.logging_settings_path
-            if settings.settings_path.exists()
+            settings.logging.settings_path
+            if settings.logging.settings_path.exists()
             else DEFAULT_LOGGING_SETTINGS_PATH
         ),
-        settings,
+        settings.logging,
     )
 
     logging.config.dictConfig(config)

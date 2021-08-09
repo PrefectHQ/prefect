@@ -22,7 +22,7 @@ filters:
 handlers:
     console:
         class: logging.StreamHandler
-        level: ${console_level}
+        level: DEBUG
         formatter: simple
         stream: ext://sys.stdout
 
@@ -31,40 +31,19 @@ handlers:
         level: DEBUG
         formatter: json
 
-    info_file_handler:
-        class: logging.handlers.RotatingFileHandler
-        level: INFO
-        formatter: simple
-        filename: ${log_directory}/info.log
-        maxBytes: 10485760 # 10MB
-        backupCount: 20
-        encoding: utf8
-        delay: True
-
-    error_file_handler:
-        class: logging.handlers.RotatingFileHandler
-        level: ERROR
-        formatter: simple
-        filename: ${log_directory}/errors.log
-        maxBytes: 10485760 # 10MB
-        backupCount: 20
-        encoding: utf8
-        delay: True
-
 loggers:
     prefect:
-        level: ${runner_level}
-        handlers: [console, error_file_handler]
+        level: DEBUG
+        handlers: [console]
         propagate: no
 
     # Only flow run logs are sent to Orion by default
     prefect.flow_run:
-        level: ${runner_level}
+        level: DEBUG
         handlers: [orion]
         filters: [run_context]
         propogate: yes
 
-
-root:
-    level: ${root_level}
-    handlers: [console, info_file_handler, error_file_handler]
+    root:
+        level: INFO
+        handlers: [console]
