@@ -1,12 +1,33 @@
 import inspect
+import time
+import pendulum
 from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from typing import Any, Callable, Dict, Iterable, Tuple
 from uuid import UUID
 
 from prefect.utilities.hashing import stable_hash, to_qualified_name
-from prefect.futures import PrefectFuture, resolve_futures
+from prefect.futures import PrefectFuture
 from prefect.client import OrionClient
-from prefect.orion.schemas.states import State, StateType
+from prefect.orion.schemas.states import State, StateType, Retrying
+from prefect.orion.schemas.responses import SetStateResponse, SetStateStatus
+
+
+def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
+    response = client.set_task_run_state(
+        task_run_id,
+        state=state,
+    )
+    if response.status == SetStateStatus.ACCEPT:
+        if response.details.state_details:
+            state.state_details = response.details.state_details
+        return state
+
+    if response.status == SetStateStatus.ABORT:
+        raise RuntimeError("ABORT is not yet handled")
+
+    server_state = response.details.state
+
+    return server_state
 
 
 class Task:
@@ -63,35 +84,46 @@ class Task:
 
         client = OrionClient()
 
-        client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
+        # Transition from `PENDING` -> `RUNNING`
+        state = propose_state(client, task_run_id, State(type=StateType.RUNNING))
 
-        try:
-            with TaskRunContext(
-                task_run_id=task_run_id,
-                flow_run_id=flow_run_id,
-                task=self,
-                client=client,
-            ):
-                result = self.fn(*call_args, **call_kwargs)
-        except Exception as exc:
-            state = State(
-                type=StateType.FAILED,
-                message="Task run encountered an exception.",
-                data=exc,
-            )
-        else:
-            state = State(
-                type=StateType.COMPLETED,
-                message="Task run completed.",
-                data=result,
-            )
+        # Only run the task if we enter a `RUNNING` state
+        while state.is_running():
 
-        client.set_task_run_state(
-            task_run_id,
-            state=state,
-        )
+            try:
+                with TaskRunContext(
+                    task_run_id=task_run_id,
+                    flow_run_id=flow_run_id,
+                    task=self,
+                    client=client,
+                ):
+                    result = self.fn(*call_args, **call_kwargs)
+            except Exception as exc:
+                terminal_state = State(
+                    type=StateType.FAILED,
+                    message="Task run encountered an exception.",
+                    data=exc,
+                )
+            else:
+                terminal_state = State(
+                    type=StateType.COMPLETED,
+                    message="Task run completed.",
+                    data=result,
+                )
+
+            state = propose_state(client, task_run_id, terminal_state)
+
+            if state.is_scheduled():  # Received a retry from the backend
+                print("Awaiting scheduled start time...")
+                time.sleep(
+                    (pendulum.now() - state.state_details.scheduled_time).in_seconds()
+                )
+
+                state = propose_state(client, task_run_id, Retrying())
 
         return state
+
+        # while state.is_scheduled() or state.is_running():
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext, TaskRunContext

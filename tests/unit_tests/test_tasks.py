@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import Mock
 
 from prefect import flow
 from prefect.tasks import task
@@ -88,3 +89,50 @@ class TestTaskCall:
         flow_future = test_flow()
         task_future = flow_future.result().data
         assert task_future.result().data == 2
+
+    @pytest.mark.parametrize("always_fail", [True, False])
+    def test_task_respects_retry_settings(self, always_fail):
+        mock = Mock()
+        exc = ValueError()
+
+        @task(max_retries=3)
+        def foo(mock):
+            mock()
+            if not always_fail and mock.call_count == 4:
+                # Succeed on the final retry unless we're ending in a failure
+                return True
+
+            raise exc
+
+        @flow
+        def test_flow():
+            return foo(mock)
+
+        flow_future = test_flow()
+        task_future = flow_future.result().data
+
+        if always_fail:
+            state = task_future.result()
+            assert state.is_failed()
+            assert state.data is exc
+            assert mock.call_count == 4
+        else:
+            state = task_future.result()
+            assert state.is_completed()
+            assert state.data is True
+            assert mock.call_count == 4
+
+        client = OrionClient()
+        states = client.read_task_run_states(task_future.run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Awaiting Retry",
+            "Running",
+            "Awaiting Retry",
+            "Running",
+            "Awaiting Retry",
+            "Running",
+            "Failed" if always_fail else "Completed",
+        ]
