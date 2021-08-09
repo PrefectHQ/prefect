@@ -60,12 +60,12 @@ def test_set_then_read_flow_run_state():
     assert state.message == "Test!"
 
 
-def test_create_then_read_taskrun():
+def test_create_then_read_task_run():
     @flow
     def foo():
         pass
 
-    @task(tags=["a", "b"])
+    @task(tags=["a", "b"], max_retries=3)
     def bar():
         pass
 
@@ -78,6 +78,7 @@ def test_create_then_read_taskrun():
     assert isinstance(lookup, schemas.core.TaskRun)
     assert lookup.tags == list(bar.tags)
     assert lookup.task_key == bar.task_key
+    assert lookup.empirical_policy == schemas.core.TaskRunPolicy(max_retries=3)
 
 
 def test_set_then_read_task_run_state():

@@ -20,6 +20,8 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
+        max_retries=0,
+        retry_delay_seconds=0,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -45,6 +47,10 @@ class Task:
         )
 
         self.dynamic_key = 0
+
+        # TaskRunPolicy settings
+        self.max_retries = max_retries
+        self.retry_delay_seconds = retry_delay_seconds
 
     def _run(
         self,
