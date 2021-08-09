@@ -28,10 +28,11 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     env_prefix = settings.Config.env_prefix
     flat_config = dict_to_flatdict(config)
     for key_tup in flat_config.keys():
-        if override_val := os.environ.get(
+        override_val = os.environ.get(
             # Generate a valid environment variable with nesting indicated with '_'
             to_envvar((env_prefix + "_".join(key_tup)).upper())
-        ):
+        )
+        if override_val:
             flat_config[key_tup] = override_val
 
     return flatdict_to_dict(flat_config)
