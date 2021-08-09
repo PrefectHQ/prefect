@@ -90,7 +90,7 @@ def AwaitingRetry(scheduled_time: datetime, **kwargs) -> State:
     """
     return State(
         type=StateType.SCHEDULED,
-        name="AwaitingRetry",
+        name="Awaiting Retry",
         state_details=StateDetails(scheduled_time=scheduled_time),
         **kwargs
     )

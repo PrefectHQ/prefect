@@ -2,6 +2,8 @@ import uuid
 import pytest
 from uuid import uuid4
 from prefect.orion import models
+from prefect.orion.schemas import states
+import sqlalchemy as sa
 
 
 class TestCreateTaskRun:
@@ -89,9 +91,37 @@ class TestSetTaskRunState:
         assert response.status_code == 201
         assert response.json()["status"] == "ACCEPT"
         assert response.json()["new_state"] is None
+        assert response.json()["run_details"]["run_count"] == 1
 
         run = await models.task_runs.read_task_run(
             session=database_session, task_run_id=task_run.id
         )
         assert run.state.type.value == "RUNNING"
         assert run.state.name == "Test State"
+
+    async def test_failed_becomes_awaiting_retry(
+        self, task_run, client, database_session
+    ):
+        # set max retries to 1
+        # copy to trigger ORM updates
+        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy.max_retries = 1
+        await database_session.flush()
+
+        await models.task_run_states.create_task_run_state(
+            session=database_session,
+            task_run_id=task_run.id,
+            state=states.State(type="RUNNING"),
+        )
+        await database_session.commit()
+
+        # fail the running task run
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(type="FAILED"),
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "REJECT"
+        new_state = states.State(**response.json()["new_state"])
+        assert new_state.name == "Awaiting Retry"
+        assert new_state.type == states.StateType.SCHEDULED
