@@ -95,8 +95,8 @@ class FlowRun(Base):
     empirical_policy = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_run_metadata = Column(
-        Pydantic(core.FlowRunMetadata),
+    flow_run_details = Column(
+        Pydantic(core.FlowRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
@@ -151,8 +151,8 @@ class TaskRun(Base):
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
-    task_run_metadata = Column(
-        Pydantic(core.TaskRunMetadata),
+    task_run_details = Column(
+        Pydantic(core.TaskRunDetails),
         server_default="{}",
         default=dict,
         nullable=False,
