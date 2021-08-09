@@ -1,25 +1,70 @@
-import functools
-import inspect
+from enum import Enum
+import pydantic
+import json
 import re
 import uuid
+from asyncio import current_task
 
+import pendulum
 import sqlalchemy as sa
-from sqlalchemy import Column, create_engine
+from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
+from sqlalchemy.event import listens_for
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_scoped_session,
+    create_async_engine,
+)
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
-from sqlalchemy.types import CHAR, TypeDecorator
-from prefect.orion.utilities.settings import Settings
+from sqlalchemy.types import CHAR, JSON, TypeDecorator
+
+from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
+# create engine
+def get_engine(connection_url=None, echo=None):
+    if connection_url is None:
+        connection_url = settings.orion.database.connection_url.get_secret_value()
+    if echo is None:
+        echo = settings.orion.database.echo
+    return create_async_engine(connection_url, echo=echo)
 
-engine = create_engine(
-    Settings().database.connection_url,
-    echo=Settings().database.echo,
-)
-Session = sessionmaker(engine, future=True)
+
+def get_session_factory(engine):
+
+    # create session factory
+    session_factory = sessionmaker(
+        engine,
+        future=True,
+        expire_on_commit=False,
+        class_=AsyncSession,
+    )
+
+    # create session factory with async scoping
+    return async_scoped_session(session_factory, scopefunc=current_task)
+
+
+engine = get_engine()
+OrionAsyncSession = get_session_factory(engine)
+
+
+@listens_for(sa.engine.Engine, "engine_connect", once=True)
+def create_in_memory_sqlite_objects(conn, named=True):
+    """The first time a connection is made to an engine, we check if it's an
+    in-memory sqlite database. If so, we create all Orion tables as a convenience
+    to the user."""
+    if conn.engine.url.get_backend_name() == "sqlite":
+        if conn.engine.url.database in (":memory:", None):
+            Base.metadata.create_all(conn.engine)
+
+
+@compiles(sa.JSON, "postgresql")
+def compile_json_as_jsonb_postgres(type_, compiler, **kw):
+    """Compiles the generic SQLAlchemy JSON type as JSONB on postgres"""
+    return "JSONB"
 
 
 class UUIDDefault(FunctionElement):
@@ -66,12 +111,68 @@ def visit_custom_uuid_default(element, compiler, **kwargs):
     """
 
 
+class Timestamp(TypeDecorator):
+    """TypeDecorator that ensures that timestamps have a timezone.
+
+    For SQLite, all timestamps are converted to UTC (since they are stored
+    as naive timestamps) and recovered as UTC.
+
+    Note: this should still be instantiated as Timestamp(timezone=True)
+    """
+
+    impl = sa.TIMESTAMP(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        else:
+            if value.tzinfo is None:
+                raise ValueError("Timestamps must have a timezone.")
+            elif dialect.name == "sqlite":
+                return pendulum.instance(value).in_timezone("UTC")
+            else:
+                return value
+
+    def process_result_value(self, value, dialect):
+        # retrieve timestamps in their native timezone (or UTC)
+        if value is not None:
+            return pendulum.instance(value)
+
+
+class Pydantic(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+
+    def __init__(self, pydantic_type):
+        super().__init__()
+        self._pydantic_type = pydantic_type
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        # parse the value to ensure it complies with the schema
+        # (this will raise validation errors if not)
+        value = pydantic.parse_obj_as(self._pydantic_type, value)
+        # sqlalchemy requires the bind parameter's value to be a python-native
+        # collection of JSON-compatible objects. we achieve that by dumping the
+        # value to a json string using the pydantic JSON encoder and re-parsing
+        # it into a python-native form.
+        return json.loads(json.dumps(value, default=pydantic.json.pydantic_encoder))
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            # load the json object into a fully hydrated typed object
+            return pydantic.parse_obj_as(self._pydantic_type, value)
+
+
 class UUID(TypeDecorator):
     """
     Platform-independent UUID type.
 
     Uses PostgreSQL's UUID type, otherwise uses
-    CHAR(32), storing as stringified hex values.
+    CHAR(36), storing as stringified hex values with
+    hyphens.
     """
 
     impl = CHAR
@@ -81,19 +182,17 @@ class UUID(TypeDecorator):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(PostgresUUID())
         else:
-            return dialect.type_descriptor(CHAR(32))
+            return dialect.type_descriptor(CHAR(36))
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
         elif dialect.name == "postgresql":
             return str(value)
+        elif isinstance(value, uuid.UUID):
+            return str(value)
         else:
-            if not isinstance(value, uuid.UUID):
-                return "%.32x" % uuid.UUID(value).int
-            else:
-                # hexstring
-                return "%.32x" % value.int
+            return str(uuid.UUID(value))
 
     def process_result_value(self, value, dialect):
         if value is None:
@@ -101,7 +200,42 @@ class UUID(TypeDecorator):
         else:
             if not isinstance(value, uuid.UUID):
                 value = uuid.UUID(value)
-            return str(value)
+            return value
+
+
+class Now(FunctionElement):
+    """
+    Platform-independent "now" generator
+    """
+
+    name = "now"
+
+
+@compiles(Now, "sqlite")
+def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
+    """
+    Generates the current timestamp for SQLite
+
+    We need to add three zeros to the string representation
+    because SQLAlchemy uses a regex expression which is expecting
+    6 decimal places, but SQLite only stores milliseconds. This
+    causes SQLAlchemy to interpret 01:23:45.678 as if it were
+    01:23:45.000678. By forcing SQLite to store an extra three
+    0's, we work around his issue.
+
+    Note this only affects timestamps that we ask SQLite to issue
+    in SQL (like the default value for a timestamp column); not
+    datetimes provided by SQLAlchemy itself.
+    """
+    return "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
+
+
+@compiles(Now)
+def now(element, compiler, **kwargs):
+    """
+    Generates the current timestamp in standard SQL
+    """
+    return "CURRENT_TIMESTAMP"
 
 
 @as_declarative()
@@ -110,6 +244,8 @@ class Base(object):
     Base SQLAlchemy model that automatically infers the table name
     and provides ID, created, and updated columns
     """
+
+    __mapper_args__ = {"eager_defaults": True}
 
     @declared_attr
     def __tablename__(cls):
@@ -124,20 +260,35 @@ class Base(object):
         UUID(),
         primary_key=True,
         server_default=UUIDDefault(),
-        default=lambda: str(uuid.uuid4()),
+        default=uuid.uuid4,
     )
     created = Column(
-        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        Timestamp(timezone=True),
+        nullable=False,
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
     )
     updated = Column(
-        sa.TIMESTAMP(timezone=True),
+        Timestamp(timezone=True),
         nullable=False,
         index=True,
-        server_default=sa.func.now(),
-        onupdate=sa.func.now(),
+        server_default=Now(),
+        default=lambda: pendulum.now("UTC"),
+        onupdate=Now(),
     )
 
+    # required in order to access columns with server defaults
+    # or SQL expression defaults, subsequent to a flush, without
+    # triggering an expired load
+    #
+    # this allows us to load attributes with a server default after
+    # an INSERT, for example
+    #
+    # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
+    __mapper_args__ = {"eager_defaults": True}
 
-def reset_db():
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+
+async def reset_db(engine=engine):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)

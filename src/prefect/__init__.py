@@ -1,6 +1,7 @@
-import prefect.orion
+from prefect.utilities.settings import settings
+from prefect.flows import flow
+from prefect.tasks import task
 
-from .core import flow
-from prefect.core.utilities.logging import setup_logging
+from prefect.utilities.logging import setup_logging
 
 setup_logging()
