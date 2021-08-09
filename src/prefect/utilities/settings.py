@@ -34,13 +34,7 @@ class LoggingSettings(BaseSettings):
         env_prefix = "PREFECT_LOGGING_"
         frozen = True
 
-    console_level: str = "DEBUG"
-    root_level: str = "WARNING"
-    runner_level: str = "DEBUG"
-    orion_level: str = "DEBUG"
-
     settings_path: Path = Path("~/.prefect/logging.yml").expanduser()
-    log_directory: Path = Path("~/.prefect/logs").expanduser()
 
 
 class Settings(BaseSettings):
@@ -52,7 +46,7 @@ class Settings(BaseSettings):
     debug_mode: bool = False
     test_mode: bool = False
 
-    # logging settings
+    # logging
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
 
     # orion
