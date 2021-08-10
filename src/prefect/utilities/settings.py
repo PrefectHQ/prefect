@@ -14,7 +14,10 @@ class DatabaseSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_DATABASE_"
         frozen = True
 
-    connection_url: SecretStr = "sqlite+aiosqlite:///:memory:"
+    # connection_url: SecretStr = "sqlite+aiosqlite:///:memory:"
+    connection_url: SecretStr = (
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/orion"
+    )
     echo: bool = False
 
 

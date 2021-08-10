@@ -62,6 +62,14 @@ def create_in_memory_sqlite_objects(conn, named=True):
             Base.metadata.create_all(conn.engine)
 
 
+@listens_for(sa.engine.Engine, "connect")
+def enable_sqlite_foreign_key_support(dbapi_connection, connection_record):
+    """https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#foreign-key-support"""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
 @compiles(sa.JSON, "postgresql")
 def compile_json_as_jsonb_postgres(type_, compiler, **kw):
     """Compiles the generic SQLAlchemy JSON type as JSONB on postgres"""
