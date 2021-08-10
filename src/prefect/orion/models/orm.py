@@ -156,6 +156,14 @@ class FlowRun(Base):
         lazy="joined",
     )
 
+    # unique index on flow id / idempotency key
+    __table__args__ = sa.Index(
+        "ix_flow_run_flow_id_idempotency_key",
+        flow_id,
+        idempotency_key,
+        unique=True,
+    )
+
 
 class TaskRun(Base):
     flow_run_id = Column(UUID(), nullable=False, index=True)
