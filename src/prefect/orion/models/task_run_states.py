@@ -56,13 +56,14 @@ async def create_task_run_state(
             )
 
         if state.type == states.StateType.RUNNING and state.state_details.cache_key:
-            # Lookup cache key in database
+            # Check for cached states matching the cache key
             cached_state = await get_cached_task_run_state(
                 session, state.state_details.cache_key
             )
             if cached_state:
-                # TODO: THIS EXITS ORCHESTRATION LOGIC!
-                return cached_state
+                state = cached_state.as_state()
+                state.id = None  # Drop the id to avoid collision with the cached state
+                state.name = "Cached"
 
     # update the state details
     state.run_details = states.update_run_details(from_state=from_state, to_state=state)
