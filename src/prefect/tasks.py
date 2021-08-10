@@ -128,8 +128,6 @@ class Task:
 
         return state
 
-        # while state.is_scheduled() or state.is_running():
-
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext, TaskRunContext
 
