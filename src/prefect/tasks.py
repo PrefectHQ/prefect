@@ -114,10 +114,6 @@ class Task:
         arguments = inspect.signature(self.fn).bind(*call_args, **call_kwargs).arguments
         cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
 
-        # TODO: Send the cache key to the backend when updating to a `Running` state.
-        #       It should send back a `Completed` state with cached data if the key is
-        #       a cache hit
-
         # Transition from `PENDING` -> `RUNNING`
         state = propose_state(
             client,
