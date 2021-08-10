@@ -127,7 +127,9 @@ class Task:
                     print(f"Sleeping for {wait_time}s...")
                     time.sleep(wait_time)
 
-                state = propose_state(client, task_run_id, Retrying())
+                state = propose_state(
+                    client, task_run_id, State(type=StateType.RUNNING)
+                )
 
         return state
 
