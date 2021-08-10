@@ -135,7 +135,7 @@ class OrionClient:
             dynamic_key=task.dynamic_key,
             tags=list(tags),
             empirical_policy=schemas.core.TaskRunPolicy(
-                max_retries=task.max_retries,
+                max_retries=task.retries,
                 retry_delay_seconds=task.retry_delay_seconds,
             ),
         )
