@@ -19,7 +19,3 @@ async def populate(database_session, tests_dir):
             for stmt in stmts:
                 if stmt:
                     await database_session.execute(sa.text(stmt))
-
-
-def test():
-    1 / 0
