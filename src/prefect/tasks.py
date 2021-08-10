@@ -120,9 +120,12 @@ class Task:
             state = propose_state(client, task_run_id, terminal_state)
 
             if state.is_scheduled():  # Received a retry from the backend
-                print("Awaiting scheduled start time...")
-                wait_time = state.state_details.scheduled_time - pendulum.now()
-                time.sleep(max(wait_time.in_seconds(), 0))
+                start_time = pendulum.instance(state.state_details.scheduled_time)
+                wait_time = start_time.diff(abs=False).in_seconds() * -1
+                print(f"Task is scheduled to run again {start_time.diff_for_humans()}")
+                if wait_time > 0:
+                    print(f"Sleeping for {wait_time}s...")
+                    time.sleep(wait_time)
 
                 state = propose_state(client, task_run_id, Retrying())
 
