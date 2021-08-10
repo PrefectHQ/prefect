@@ -55,6 +55,15 @@ async def create_task_run_state(
                 data=state.data,
             )
 
+        if state.type == states.StateType.RUNNING and state.state_details.cache_key:
+            # Lookup cache key in database
+            cached_state = get_cached_task_run_state(state.state_details.cache_key)
+            if cached_state:
+                state = cached_state
+
+        if state.type == states.StateType.COMPLETED and state.state_details.cache_key:
+            cache_task_run_state(state)
+
     # update the state details
     state.run_details = states.update_run_details(from_state=from_state, to_state=state)
     state.state_details.flow_run_id = run.flow_run_id
@@ -127,3 +136,15 @@ async def delete_task_run_state(
         delete(orm.TaskRunState).where(orm.TaskRunState.id == task_run_state_id)
     )
     return result.rowcount > 0
+
+
+async def get_cached_task_run_state(
+    session: sa.orm.Session, cache_key: str
+) -> orm.TaskRunState:
+    pass
+
+
+async def cache_task_run_state(
+    session: sa.orm.Session, state: orm.TaskRunState
+) -> None:
+    pass
