@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import logging
+import pathlib
 
 import pytest
 from httpx import AsyncClient
@@ -57,14 +58,13 @@ async def database_engine():
     engine = get_engine()
 
     try:
-        # populate database tables
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
         yield engine
 
     finally:
-        # drop database tables
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
         # dispose of engine
         await engine.dispose()
+
+
+@pytest.fixture
+def tests_dir() -> pathlib.Path:
+    return pathlib.Path(__file__).parent
