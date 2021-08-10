@@ -1,6 +1,6 @@
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, String, join
+from sqlalchemy import JSON, Column, String, join, ForeignKey
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
@@ -26,7 +26,7 @@ class Flow(Base):
 
 
 class FlowRunState(Base):
-    flow_run_id = Column(UUID(), nullable=False)
+    flow_run_id = Column(UUID(), ForeignKey("flow_run.id"), nullable=False)
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
@@ -64,7 +64,7 @@ class FlowRunState(Base):
 
 
 class TaskRunState(Base):
-    task_run_id = Column(UUID(), nullable=False)
+    task_run_id = Column(UUID(), ForeignKey("task_run.id"), nullable=False)
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
@@ -106,7 +106,7 @@ trs = aliased(TaskRunState, name="trs")
 
 
 class FlowRun(Base):
-    flow_id = Column(UUID(), nullable=False, index=True)
+    flow_id = Column(UUID(), ForeignKey("flow.id"), nullable=False, index=True)
     flow_version = Column(String)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     parent_task_run_id = Column(UUID(), nullable=True)
@@ -132,7 +132,7 @@ class FlowRun(Base):
     # keeping only the most recent state.
     state = relationship(
         # the self-referential join of FlowRunState to itself
-        aliased(
+        lambda: aliased(
             FlowRunState,
             join(
                 FlowRunState,
@@ -158,7 +158,7 @@ class FlowRun(Base):
 
 
 class TaskRun(Base):
-    flow_run_id = Column(UUID(), nullable=False, index=True)
+    flow_run_id = Column(UUID(), ForeignKey("flow_run.id"), nullable=False, index=True)
     task_key = Column(String, nullable=False)
     dynamic_key = Column(String)
     cache_key = Column(String)
@@ -198,7 +198,7 @@ class TaskRun(Base):
     # keeping only the most recent state.
     state = relationship(
         # the self-referential join of TaskRunState to itself
-        aliased(
+        lambda: aliased(
             TaskRunState,
             join(
                 TaskRunState,
