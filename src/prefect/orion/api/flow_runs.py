@@ -7,6 +7,9 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
+from prefect.utilities.logging import get_logger
+
+logger = get_logger("orion.api")
 
 router = OrionRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
@@ -42,10 +45,10 @@ async def create_flow_run(
         # a constraint other than the idempotency key. The most probable one is
         # that a primary key was provided that already exists in the database.
         if not result:
-            logging.error(exc)
-            raise ValueError(
-                "Could not create flow run due to database constraint violations."
-            )
+            msg = "Could not create flow run due to database constraint violations."
+            logger.error(msg)
+            logger.error(exc)
+            raise ValueError(msg)
         return result
 
 
