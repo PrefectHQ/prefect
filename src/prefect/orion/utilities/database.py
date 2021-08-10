@@ -25,31 +25,24 @@ from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-# create engine
-def get_engine(connection_url=None, echo=None):
-    if connection_url is None:
-        connection_url = settings.orion.database.connection_url.get_secret_value()
-    if echo is None:
-        echo = settings.orion.database.echo
-    return create_async_engine(connection_url, echo=echo)
+# create async engine
+engine = create_async_engine(
+    settings.orion.database.connection_url.get_secret_value(),
+    echo=settings.orion.database.echo,
+    poolclass=settings.orion.database.get_poolclass(),
+)
 
 
-def get_session_factory(engine):
-
-    # create session factory
-    session_factory = sessionmaker(
+# create session factory with async scoping
+OrionAsyncSession = async_scoped_session(
+    sessionmaker(
         engine,
         future=True,
         expire_on_commit=False,
         class_=AsyncSession,
-    )
-
-    # create session factory with async scoping
-    return async_scoped_session(session_factory, scopefunc=current_task)
-
-
-engine = get_engine()
-OrionAsyncSession = get_session_factory(engine)
+    ),
+    scopefunc=current_task,
+)
 
 
 @listens_for(sa.engine.Engine, "engine_connect", once=True)

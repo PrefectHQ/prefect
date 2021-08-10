@@ -6,8 +6,8 @@ import pathlib
 import pytest
 from httpx import AsyncClient
 
+import prefect
 from prefect.orion.api.server import app
-from prefect.orion.utilities.database import Base, get_engine
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -55,14 +55,7 @@ async def client():
 
 @pytest.fixture(scope="session", autouse=True)
 async def database_engine():
-    engine = get_engine()
-
-    try:
-        yield engine
-
-    finally:
-        # dispose of engine
-        await engine.dispose()
+    return prefect.orion.utilities.database.engine
 
 
 @pytest.fixture
