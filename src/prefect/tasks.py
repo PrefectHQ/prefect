@@ -2,7 +2,7 @@ import inspect
 import time
 import pendulum
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple
+from typing import Any, Callable, Union, Dict, Iterable, Tuple
 from uuid import UUID
 
 from prefect.utilities.hashing import stable_hash, to_qualified_name
@@ -45,8 +45,8 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
-        max_retries=0,
-        retry_delay_seconds=0,
+        retries: int = 0,
+        retry_delay_seconds: Union[float, int] = 0,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -76,7 +76,7 @@ class Task:
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
-        self.max_retries = max_retries
+        self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
     def _run(

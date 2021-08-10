@@ -95,7 +95,7 @@ class TestTaskCall:
         mock = MagicMock()
         exc = ValueError()
 
-        @task(max_retries=3)
+        @task(retries=3)
         def flaky_function():
             mock()
 
@@ -143,7 +143,7 @@ class TestTaskCall:
         mock = MagicMock()
         exc = ValueError()
 
-        @task(max_retries=3)
+        @task(retries=3)
         def flaky_function():
             mock()
             if mock.call_count == 2:
@@ -178,7 +178,7 @@ class TestTaskCall:
         sleep = MagicMock()  # Mock sleep for fast testing
         monkeypatch.setattr("time.sleep", sleep)
 
-        @task(max_retries=1, retry_delay_seconds=43)
+        @task(retries=1, retry_delay_seconds=43)
         def flaky_function():
             mock()
 
