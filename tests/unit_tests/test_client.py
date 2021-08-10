@@ -65,7 +65,7 @@ def test_create_then_read_task_run():
     def foo():
         pass
 
-    @task(tags=["a", "b"], max_retries=3)
+    @task(tags=["a", "b"], retries=3)
     def bar():
         pass
 
