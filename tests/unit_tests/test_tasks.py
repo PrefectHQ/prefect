@@ -214,7 +214,7 @@ class TestTaskRetries:
 
 
 class TestTaskCaching:
-    def test_repeated_task_call_within_flow_is_cached(self):
+    def test_repeated_task_call_within_flow_is_not_cached_by_default(self):
         @task
         def foo(x):
             return x
@@ -226,4 +226,66 @@ class TestTaskCaching:
         flow_future = bar()
         first_state, second_state = flow_future.result().data
         assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert second_state.data == first_state.data
+
+    def test_repeated_task_call_within_flow_run_is_cached(self):
+        @task(cache=True)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(1).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
         assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+    def test_repeated_task_call_in_separate_flow_runs_is_cached(self):
+        @task(cache=True)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result()
+
+        first_state = bar().result().data
+        second_state = bar().result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+    def test_repeated_task_call_with_different_args_is_not_cached(self):
+        @task(cache=True)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(2).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert second_state.data != first_state.data
+
+    def test_repeated_task_call_with_custom_cache_fn_is_cached(self):
+        # Always return a cache match
+        @task(cache_key_fn=lambda *_: "foo")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(2).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
