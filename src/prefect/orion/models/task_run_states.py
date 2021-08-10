@@ -61,7 +61,8 @@ async def create_task_run_state(
                 session, state.state_details.cache_key
             )
             if cached_state:
-                state = cached_state
+                # TODO: THIS EXITS ORCHESTRATION LOGIC!
+                return cached_state
 
     # update the state details
     state.run_details = states.update_run_details(from_state=from_state, to_state=state)
@@ -74,12 +75,11 @@ async def create_task_run_state(
         **dict(state),
     )
     session.add(new_task_run_state)
+    await session.flush()
 
     # Add the new task state to the cache if a key was provided
     if state.type == states.StateType.COMPLETED and state.state_details.cache_key:
-        await cache_task_run_state(session, state)
-
-    await session.flush()
+        await cache_task_run_state(session, new_task_run_state)
 
     # update the ORM model state
     if run is not None:
@@ -149,7 +149,12 @@ async def get_cached_task_run_state(
         select(orm.TaskRunState)
         .select_from(orm.TaskRunStateCache)
         .filter(orm.TaskRunStateCache.cache_key == cache_key)
-        .filter(orm.TaskRunStateCache.cache_expiration < pendulum.now("utc"))
+        .filter(
+            sa.or_(
+                orm.TaskRunStateCache.cache_expiration == None,
+                orm.TaskRunStateCache.cache_expiration < pendulum.now("utc"),
+            )
+        )
         .join(
             orm.TaskRunState,
             orm.TaskRunStateCache.task_run_state_id == orm.TaskRunState.id,
@@ -157,19 +162,17 @@ async def get_cached_task_run_state(
         .order_by(orm.TaskRunState.timestamp)
     )
     result = await session.execute(query)
-    obj = result.scalars().unique().first()
-    if obj:
-        return obj.state
-    return None
+    return result.scalars().unique().first()
 
 
 async def cache_task_run_state(
     session: sa.orm.Session, state: orm.TaskRunState
 ) -> None:
     # create the new task run state
-    new_task_run_state_cache = orm.TaskRunStateCache(
+    new_cache_item = orm.TaskRunStateCache(
         cache_key=state.state_details.cache_key,
         cache_expiration=None,
         task_run_state_id=state.id,
     )
-    session.add(new_task_run_state_cache)
+    session.add(new_cache_item)
+    await session.flush()

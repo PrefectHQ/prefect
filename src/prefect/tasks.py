@@ -145,6 +145,7 @@ class Task:
                     type=StateType.COMPLETED,
                     message="Task run completed.",
                     data=result,
+                    state_details=StateDetails(cache_key=cache_key),
                 )
 
             state = propose_state(client, task_run_id, terminal_state)
