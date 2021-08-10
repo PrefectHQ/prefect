@@ -26,7 +26,11 @@ class Flow(Base):
 
 
 class FlowRunState(Base):
-    flow_run_id = Column(UUID(), ForeignKey("flow_run.id"), nullable=False)
+    # this column isn't explicitly indexed because it is included in
+    # the unique compound index on (task_run_id, timestamp)
+    flow_run_id = Column(
+        UUID(), ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+    )
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
@@ -64,7 +68,11 @@ class FlowRunState(Base):
 
 
 class TaskRunState(Base):
-    task_run_id = Column(UUID(), ForeignKey("task_run.id"), nullable=False)
+    # this column isn't explicitly indexed because it is included in
+    # the unique compound index on (task_run_id, timestamp)
+    task_run_id = Column(
+        UUID(), ForeignKey("task_run.id", ondelete="cascade"), nullable=False
+    )
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
@@ -106,7 +114,9 @@ trs = aliased(TaskRunState, name="trs")
 
 
 class FlowRun(Base):
-    flow_id = Column(UUID(), ForeignKey("flow.id"), nullable=False, index=True)
+    flow_id = Column(
+        UUID(), ForeignKey("flow.id", ondelete="cascade"), nullable=False, index=True
+    )
     flow_version = Column(String)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     parent_task_run_id = Column(UUID(), nullable=True)
@@ -158,7 +168,12 @@ class FlowRun(Base):
 
 
 class TaskRun(Base):
-    flow_run_id = Column(UUID(), ForeignKey("flow_run.id"), nullable=False, index=True)
+    flow_run_id = Column(
+        UUID(),
+        ForeignKey("flow_run.id", ondelete="cascade"),
+        nullable=False,
+        index=True,
+    )
     task_key = Column(String, nullable=False)
     dynamic_key = Column(String)
     cache_key = Column(String)
