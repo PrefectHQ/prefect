@@ -4,6 +4,7 @@ Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
 from pathlib import Path
+from typing import Optional
 
 import sqlalchemy
 from pydantic import BaseSettings, Field, SecretStr
@@ -19,7 +20,7 @@ class DatabaseSettings(BaseSettings):
     echo: bool = False
     poolclass: Literal[None, "NullPool"] = None
 
-    def get_poolclass(self):
+    def get_poolclass(self) -> Optional[sqlalchemy.pool.Pool]:
         if self.poolclass == "NullPool":
             return sqlalchemy.pool.NullPool
 
