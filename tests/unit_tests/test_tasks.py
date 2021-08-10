@@ -90,6 +90,8 @@ class TestTaskCall:
         task_future = flow_future.result().data
         assert task_future.result().data == 2
 
+
+class TestTaskRetries:
     @pytest.mark.parametrize("always_fail", [True, False])
     def test_task_respects_retry_count(self, always_fail):
         mock = MagicMock()
@@ -209,3 +211,19 @@ class TestTaskCall:
             "Running",
             "Completed",
         ]
+
+
+class TestTaskCaching:
+    def test_repeated_task_call_within_flow_is_cached(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(1).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
