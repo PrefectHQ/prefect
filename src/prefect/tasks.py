@@ -70,7 +70,8 @@ class Task:
         self.dynamic_key = 0
 
         # TaskRunPolicy settings
-        # TODO: we should be careful to check that people don't pass negative numbers here
+        # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
+        #       validate that the user passes positive numbers here
         self.max_retries = max_retries
         self.retry_delay_seconds = retry_delay_seconds
 
