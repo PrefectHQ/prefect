@@ -1,12 +1,7 @@
 import inspect
 import time
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple, Optional, TYPE_CHECKING
-from uuid import UUID
-
-from prefect.utilities.hashing import stable_hash, to_qualified_name, hash_objects
-from prefect.futures import PrefectFuture, resolve_futures
-from typing import Any, Callable, Dict, Iterable, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Tuple, Union
 from uuid import UUID
 
 import pendulum
@@ -14,8 +9,8 @@ import pendulum
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.responses import SetStateStatus
-from prefect.orion.schemas.states import State, StateType
-from prefect.utilities.hashing import stable_hash, to_qualified_name
+from prefect.orion.schemas.states import State, StateType, StateDetails
+from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
 
 def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -124,7 +119,13 @@ class Task:
         #       a cache hit
 
         # Transition from `PENDING` -> `RUNNING`
-        state = propose_state(client, task_run_id, State(type=StateType.RUNNING))
+        state = propose_state(
+            client,
+            task_run_id,
+            State(
+                type=StateType.RUNNING, state_details=StateDetails(cache_key=cache_key)
+            ),
+        )
 
         # Only run the task if we enter a `RUNNING` state
         while state.is_running():
