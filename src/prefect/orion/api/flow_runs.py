@@ -46,8 +46,7 @@ async def create_flow_run(
         # that a primary key was provided that already exists in the database.
         if not result:
             msg = "Could not create flow run due to database constraint violations."
-            logger.error(msg)
-            logger.error(exc)
+            logger.error(msg, exc_info=True)
             raise ValueError(msg)
         return result
 
