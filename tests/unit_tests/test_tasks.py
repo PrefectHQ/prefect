@@ -289,3 +289,18 @@ class TestTaskCaching:
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
+
+    def test_many_repeated_task_calls_within_flow_run_are_cached(self):
+        @task(cache=True)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            foo(1)
+            calls = [foo(1) for _ in range(20)]
+            return [call.result() for call in calls]
+
+        flow_future = bar()
+        states = flow_future.result().data
+        assert all(map(lambda state: state.name == "Cached", states))
