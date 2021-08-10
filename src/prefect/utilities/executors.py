@@ -60,8 +60,9 @@ def run_with_heartbeat(
             use_heartbeat = False
             logger = get_logger()
             logger.exception(
-                "Heartbeat process is misconfigured.  This could result in a zombie run."
-            exc_info=True)
+                "Heartbeat process is misconfigured.  This could result in a zombie run.",
+                exc_info=True,
+            )
 
         if not use_heartbeat or (prefect.context.config.heartbeat_mode == "off"):
             configured_heartbeat = no_heartbeat()
