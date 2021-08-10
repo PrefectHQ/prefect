@@ -39,8 +39,8 @@ if TYPE_CHECKING:
     from prefect.context import TaskRunContext
 
 
-def auto_memoize(context: "TaskRunContext", arguments: Dict[str, Any]):
-    return hash_objects(id(context.task.fn), context.flow_run_id, arguments)
+def default_cache_key(context: "TaskRunContext", arguments: Dict[str, Any]):
+    return hash_objects(context.task.fn, arguments)
 
 
 class Task:
@@ -54,9 +54,10 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
+        cache: bool = False,
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
-        ] = auto_memoize,
+        ] = None,
         retries: int = 0,
         retry_delay_seconds: Union[float, int] = 0,
     ):
@@ -83,7 +84,11 @@ class Task:
             str(sorted(self.tags or [])),
         )
 
-        self.cache_key_fn = cache_key_fn
+        # Set the cache_key_fn to the default if caching is requested otherwise use the
+        # user provided function
+        self.cache_key_fn = (
+            default_cache_key if cache and not cache_key_fn else cache_key_fn
+        )
 
         self.dynamic_key = 0
 
