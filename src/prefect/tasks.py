@@ -13,6 +13,10 @@ from prefect.orion.schemas.responses import SetStateResponse, SetStateStatus
 
 
 def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
+    """
+    TODO: Consider rolling this behavior into the `Client` state update method once we
+          understand how we want to handle ABORT cases
+    """
     response = client.set_task_run_state(
         task_run_id,
         state=state,
