@@ -51,7 +51,6 @@ def test_set_then_read_flow_run_state():
     )
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
-    assert response.new_state is None
 
     states = client.read_flow_run_states(flow_run_id)
     assert len(states) == 1
@@ -61,12 +60,12 @@ def test_set_then_read_flow_run_state():
     assert state.message == "Test!"
 
 
-def test_create_then_read_taskrun():
+def test_create_then_read_task_run():
     @flow
     def foo():
         pass
 
-    @task(tags=["a", "b"])
+    @task(tags=["a", "b"], retries=3)
     def bar():
         pass
 
@@ -79,6 +78,7 @@ def test_create_then_read_taskrun():
     assert isinstance(lookup, schemas.core.TaskRun)
     assert lookup.tags == list(bar.tags)
     assert lookup.task_key == bar.task_key
+    assert lookup.empirical_policy == schemas.core.TaskRunPolicy(max_retries=3)
 
 
 def test_set_then_read_task_run_state():
@@ -101,7 +101,6 @@ def test_set_then_read_task_run_state():
 
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
-    assert response.new_state is None
 
     states = client.read_task_run_states(task_run_id)
     assert len(states) == 1
