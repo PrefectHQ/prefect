@@ -1,5 +1,5 @@
 import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 import copy
 
 import json
@@ -130,6 +130,6 @@ class APIBaseModel(PrefectBaseModel):
     class Config:
         orm_mode = True
 
-    id: UUID = None
+    id: UUID = Field(default_factory=uuid4)
     created: datetime.datetime = Field(None, repr=False)
     updated: datetime.datetime = Field(None, repr=False)

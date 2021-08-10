@@ -55,7 +55,7 @@ class TestStateConvenienceFunctions:
         dt = pendulum.now("UTC")
         state = AwaitingRetry(scheduled_time=dt)
         assert state.type == StateType.SCHEDULED
-        assert state.name == "AwaitingRetry"
+        assert state.name == "Awaiting Retry"
         assert state.state_details.scheduled_time == dt
 
     def test_retrying(self):
