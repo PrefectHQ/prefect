@@ -1,13 +1,11 @@
-from prefect.orion.utilities.database import Base, get_engine
-from prefect.orion.utilities.database import get_session_factory
 import pendulum
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from prefect import settings
 from prefect.orion import models, schemas
-from prefect.orion.api.server import app
 from prefect.orion.api.dependencies import get_session
+from prefect.orion.api.server import app
+from prefect.orion.utilities.database import Base, OrionAsyncSession
 
 
 @pytest.fixture(scope="package", autouse=True)
@@ -34,9 +32,7 @@ async def database_session(database_engine):
     each test, the session is rolled back to restore the original database
     condition and avoid carrying over state.
     """
-    OrionSession = get_session_factory(database_engine)
-
-    async with OrionSession() as session:
+    async with OrionAsyncSession() as session:
 
         app.dependency_overrides[get_session] = lambda: session
 

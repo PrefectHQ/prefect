@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.orion.utilities.database import get_session_factory
+from prefect.orion.utilities.database import OrionAsyncSession
 from prefect.orion.utilities.database import Base
 
 import pytest
@@ -25,5 +25,4 @@ async def setup_db(database_engine):
 
 @pytest.fixture
 async def database_session(database_engine):
-    OrionSession = get_session_factory(database_engine)
-    yield OrionSession()
+    yield OrionAsyncSession()

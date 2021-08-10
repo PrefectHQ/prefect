@@ -5,8 +5,9 @@ to avoid instantiating the nested settings class until runtime.
 """
 from pathlib import Path
 
-
+import sqlalchemy
 from pydantic import BaseSettings, Field, SecretStr
+from typing_extensions import Literal
 
 
 class DatabaseSettings(BaseSettings):
@@ -16,6 +17,11 @@ class DatabaseSettings(BaseSettings):
 
     connection_url: SecretStr = "sqlite+aiosqlite:///:memory:"
     echo: bool = False
+    poolclass: Literal[None, "NullPool"] = None
+
+    def get_poolclass(self):
+        if self.poolclass == "NullPool":
+            return sqlalchemy.pool.NullPool
 
 
 class OrionSettings(BaseSettings):
