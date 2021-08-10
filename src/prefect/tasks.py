@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from prefect.context import TaskRunContext
 
 
-def default_cache_key(context: "TaskRunContext", arguments: Dict[str, Any]):
+def default_cache_key_fn(context: "TaskRunContext", arguments: Dict[str, Any]):
     return hash_objects(context.task.fn, arguments)
 
 
@@ -54,7 +54,7 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
-        cache: bool = False,
+        cache: bool = None,
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
@@ -86,9 +86,8 @@ class Task:
 
         # Set the cache_key_fn to the default if caching is requested otherwise use the
         # user provided function
-        self.cache_key_fn = (
-            default_cache_key if cache and not cache_key_fn else cache_key_fn
-        )
+        self.use_caching = bool(cache_key_fn) if cache is None else cache
+        self.cache_key_fn = cache_key_fn or default_cache_key_fn
 
         self.dynamic_key = 0
 
@@ -117,7 +116,7 @@ class Task:
 
         # Bind the arguments to the function to get a dict of arg -> value
         arguments = inspect.signature(self.fn).bind(*call_args, **call_kwargs).arguments
-        cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
+        cache_key = self.cache_key_fn(context, arguments) if self.use_caching else None
 
         # Transition from `PENDING` -> `RUNNING`
         state = propose_state(
