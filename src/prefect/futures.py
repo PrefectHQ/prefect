@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
+from unittest.mock import Mock
 from dataclasses import fields, is_dataclass
 from typing import Any, Callable, Optional, TYPE_CHECKING
 from uuid import UUID
@@ -75,6 +76,10 @@ def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to
     """
     if isinstance(expr, PrefectFuture):
         return resolve_fn(expr)
+
+    if isinstance(expr, Mock):
+        # Explicitly do not coerce mock objects
+        return expr
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
