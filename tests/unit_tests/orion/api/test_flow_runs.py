@@ -1,7 +1,8 @@
 import sqlalchemy as sa
 import pytest
 from uuid import uuid4
-from prefect.orion import models, schemas
+from prefect.orion import models
+from prefect.orion.schemas import responses, states, actions
 
 
 class TestCreateFlowRun:
@@ -62,6 +63,37 @@ class TestCreateFlowRun:
         assert response2.status_code == 201
         assert response1.json()["id"] != response2.json()["id"]
 
+    async def test_create_flow_run_with_provided_id(
+        self, flow, client, database_session
+    ):
+        flow_run_data = dict(flow_id=str(flow.id), id=str(uuid4()), flow_version="0.1")
+        response = await client.post("/flow_runs/", json=flow_run_data)
+        assert response.json()["id"] == flow_run_data["id"]
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=database_session, flow_run_id=flow_run_data["id"]
+        )
+        assert flow_run
+
+    async def test_create_flow_run_with_subflow_information(
+        self, flow, client, database_session
+    ):
+        flow_run_data = dict(
+            flow_id=str(flow.id),
+            flow_run_details=dict(is_subflow=True, parent_task_run_id=str(uuid4())),
+            flow_version="0.1",
+        )
+        response = await client.post("/flow_runs/", json=flow_run_data)
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=database_session, flow_run_id=response.json()["id"]
+        )
+        assert flow_run.flow_run_details.is_subflow
+        assert (
+            str(flow_run.flow_run_details.parent_task_run_id)
+            == flow_run_data["flow_run_details"]["parent_task_run_id"]
+        )
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, flow_run, client):
@@ -81,20 +113,20 @@ class TestReadFlowRuns:
     async def flow_runs(self, flow, database_session):
         flow_2 = await models.flows.create_flow(
             session=database_session,
-            flow=schemas.actions.FlowCreate(name="another-test"),
+            flow=actions.FlowCreate(name="another-test"),
         )
 
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=database_session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=database_session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=database_session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_2.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow_2.id),
         )
         return [flow_run_1, flow_run_2, flow_run_3]
 
@@ -145,11 +177,12 @@ class TestSetFlowRunState:
             json=dict(type="RUNNING", name="Test State"),
         )
         assert response.status_code == 201
-        assert response.json()["status"] == "ACCEPT"
-        assert response.json()["new_state"] is None
+
+        api_response = responses.SetStateResponse.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
 
         run = await models.flow_runs.read_flow_run(
             session=database_session, flow_run_id=flow_run.id
         )
-        assert run.state.type.value == "RUNNING"
+        assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
