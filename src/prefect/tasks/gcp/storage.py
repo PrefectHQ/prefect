@@ -103,7 +103,7 @@ class GCSDownload(GCSBaseTask):
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of these
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of these
     default settings for custom use (for example, if you want to pull different credentials for
     a given Task, or specify the Blob name at runtime).
     """
@@ -223,7 +223,7 @@ class GCSUpload(GCSBaseTask):
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of
     these default settings for custom use (for example, if you want to pull different
     credentials for a given Task, or specify the Blob name at runtime).
     """
@@ -374,7 +374,7 @@ class GCSCopy(GCSBaseTask):
             Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of these
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of these
     default settings for custom use (for example, if you want to pull different credentials for
     a given Task, or specify the Blob name at runtime).
     """
@@ -488,7 +488,7 @@ class GCSBlobExists(GCSBaseTask):
             Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of these
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of these
     default settings for custom use (for example, if you want to pull different credentials for
     a given Task, or specify the Blob name at runtime).
     """
