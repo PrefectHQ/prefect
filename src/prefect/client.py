@@ -57,11 +57,16 @@ class ThreadedEventLoop:
             self._loop.stop()
 
 
-GLOBAL_EVENT_LOOP = ThreadedEventLoop()
+# Lazily instantiated singleton for a shared event-loop running in a daemonic thread
+GLOBAL_EVENT_LOOP: ThreadedEventLoop = None
 
 
 class OrionClient:
     def __init__(self, http_client: httpx.Client = None) -> None:
+        global GLOBAL_EVENT_LOOP
+        if not GLOBAL_EVENT_LOOP:
+            GLOBAL_EVENT_LOOP = ThreadedEventLoop()
+
         # If not given an httpx client, create one that connects to an ephemeral app
         self._client = http_client or _ASGIClient(app=orion_app)
 
