@@ -64,8 +64,8 @@ class SnowflakeQuery(Task):
         query: str = None,
         data: tuple = None,
         autocommit: bool = None,
-        cursor_type: SnowflakeCursor = SnowflakeCursor
-        ):
+        cursor_type: SnowflakeCursor = SnowflakeCursor,
+    ):
         """
         Task run method. Executes a query against snowflake database.
 
@@ -75,6 +75,8 @@ class SnowflakeQuery(Task):
                 placeholder is query string
             - autocommit (bool, optional): set to True to autocommit, defaults to None
                 which takes the snowflake AUTOCOMMIT parameter
+            - cursor_type (SnowflakeCursor, optional): specify the type of database
+                cursor to use for the query, defaults to SnowflakeCursor
 
         Returns:
             - None
