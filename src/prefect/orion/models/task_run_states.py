@@ -162,7 +162,7 @@ async def get_cached_task_run_state(
                 ),
             ),
         )
-        .order_by(orm.TaskRunState.timestamp)
+        .order_by(orm.TaskRunState.timestamp.desc())
         .limit(1)
     )
     result = await session.execute(query)
