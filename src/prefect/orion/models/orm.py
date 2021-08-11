@@ -109,6 +109,15 @@ class TaskRunStateCache(Base):
     )
     task_run_state_id = Column(UUID(), nullable=False)
 
+    __table_args__ = (
+        sa.Index(
+            "ix_cache_key_cache_expiration",
+            cache_key,
+            cache_expiration,
+            unique=True,
+        ),
+    )
+
 
 frs = aliased(FlowRunState, name="frs")
 trs = aliased(TaskRunState, name="trs")
