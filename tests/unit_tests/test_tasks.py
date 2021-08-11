@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from prefect import flow
-from prefect.tasks import task
+from prefect.tasks import task, task_input_hash
 from prefect.futures import PrefectFuture
 from prefect.client import OrionClient
 
@@ -229,8 +229,8 @@ class TestTaskCaching:
         assert second_state.name == "Completed"
         assert second_state.data == first_state.data
 
-    def test_repeated_task_call_within_flow_run_is_cached(self):
-        @task(cache=True)
+    def test_repeated_calls_within_flow_run_is_cached_when_using_input_hash(self):
+        @task(cache_key_fn=task_input_hash)
         def foo(x):
             return x
 
@@ -244,8 +244,8 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
 
-    def test_repeated_task_call_in_separate_flow_runs_is_cached(self):
-        @task(cache=True)
+    def test_repeated_calls_in_separate_flow_runs_is_cached_when_using_input_hash(self):
+        @task(cache_key_fn=task_input_hash)
         def foo(x):
             return x
 
@@ -259,8 +259,8 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
 
-    def test_repeated_task_call_with_different_args_is_not_cached(self):
-        @task(cache=True)
+    def test_repeated_calls_with_different_args_is_not_cached_when_using_input_hash(self):
+        @task(cache_key_fn=task_input_hash)
         def foo(x):
             return x
 
@@ -291,16 +291,16 @@ class TestTaskCaching:
         assert second_state.data == first_state.data
 
     def test_many_repeated_task_calls_within_flow_run_are_cached(self):
-        @task(cache=True)
+        @task(cache_key_fn=task_input_hash)
         def foo(x):
             return x
 
         @flow
         def bar():
             foo(1)
-            calls = [foo(1) for _ in range(20)]
+            calls = [foo(1)] * 5
             return [call.result() for call in calls]
 
         flow_future = bar()
         states = flow_future.result().data
-        assert all(map(lambda state: state.name == "Cached", states))
+        assert all(state.name == "Cached" for state in states)

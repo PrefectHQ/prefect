@@ -84,6 +84,7 @@ class Task:
         )
 
         self.dynamic_key = 0
+        self.cache_key_fn = cache_key_fn
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -110,7 +111,7 @@ class Task:
 
         # Bind the arguments to the function to get a dict of arg -> value
         arguments = inspect.signature(self.fn).bind(*call_args, **call_kwargs).arguments
-        cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn
+        cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
 
         # Transition from `PENDING` -> `RUNNING`
         state = propose_state(
