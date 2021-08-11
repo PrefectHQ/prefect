@@ -3,6 +3,7 @@ import threading
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List
 from uuid import UUID
 from contextlib import contextmanager
+from multiprocessing import current_process
 
 import pydantic
 import httpx
@@ -57,16 +58,22 @@ class ThreadedEventLoop:
             self._loop.stop()
 
 
-# Lazily instantiated singleton for a shared event-loop running in a daemonic thread
-GLOBAL_EVENT_LOOP: ThreadedEventLoop = None
+# Lazily instantiated mapping of PID to a shared event-loop per process
+# These cannot be shared accross processes but this global may be copied during 'fork'
+# operations which can lead to deadlocks
+EVENT_LOOPS: Dict[int, ThreadedEventLoop] = {}
+
+
+def _get_process_event_loop():
+    pid = current_process().pid
+    if pid not in EVENT_LOOPS:
+        EVENT_LOOPS[pid] = ThreadedEventLoop()
+
+    return EVENT_LOOPS[pid]
 
 
 class OrionClient:
     def __init__(self, http_client: httpx.Client = None) -> None:
-        global GLOBAL_EVENT_LOOP
-        if not GLOBAL_EVENT_LOOP:
-            GLOBAL_EVENT_LOOP = ThreadedEventLoop()
-
         # If not given an httpx client, create one that connects to an ephemeral app
         self._client = http_client or _ASGIClient(app=orion_app)
 
@@ -240,6 +247,7 @@ class _ASGIClient:
     """
 
     def __init__(self, app) -> None:
+        self._event_loop = _get_process_event_loop()
         self.app = app
 
     @contextmanager
@@ -256,14 +264,14 @@ class _ASGIClient:
         try:
             yield client
         finally:
-            GLOBAL_EVENT_LOOP.run_coro(client.aclose())
+            self._event_loop.run_coro(client.aclose())
 
     # httpx.Client methods -------------------------------------------------------------
 
     def get(self, route: str, **kwargs: Any) -> httpx.Response:
         with self._httpx_client() as client:
-            return GLOBAL_EVENT_LOOP.run_coro(client.get(route, **kwargs))
+            return self._event_loop.run_coro(client.get(route, **kwargs))
 
     def post(self, route: str, **kwargs: Any) -> httpx.Response:
         with self._httpx_client() as client:
-            return GLOBAL_EVENT_LOOP.run_coro(client.post(route, **kwargs))
+            return self._event_loop.run_coro(client.post(route, **kwargs))
