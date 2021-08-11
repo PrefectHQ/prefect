@@ -153,21 +153,26 @@ class TestFlowCall:
         assert state.data is error
 
     def test_subflow_call(self):
-        @flow(version="test")
-        def foo(x, y=2, z=3):
+        @flow(version="foo")
+        def child(x, y, z):
             return x + y + z
 
-        @flow(version="test")
-        def bar(x, y=2, z=3):
-            return foo(x, y, z).result().data
+        @flow(version="bar")
+        def parent(x, y=2, z=3):
+            return child(x, y, z)
 
-        future = bar(1, 2)
-        assert isinstance(future, PrefectFuture)
-        assert future.result().is_completed()
-        assert future.result().data == 6
-        assert future.run_id is not None
+        parent_future = parent(1, 2)
+        assert isinstance(parent_future, PrefectFuture)
+        assert parent_future.result().is_completed()
 
-        flow_run = OrionClient().read_flow_run(future.run_id)
-        assert flow_run.id == future.run_id
-        assert flow_run.parameters == {"x": 1, "y": 2}
-        assert flow_run.flow_version == foo.version
+        child_future = parent_future.result().data
+        assert isinstance(child_future, PrefectFuture)
+        assert child_future.result().is_completed()
+        assert child_future.result().data == 6
+
+        child_flow_run = OrionClient().read_flow_run(child_future.run_id)
+        assert child_flow_run.id == child_future.run_id
+        assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
+        assert child_flow_run.flow_run_details.is_subflow
+        assert child_flow_run.flow_run_details.parent_task_run_id is not None
+        assert child_flow_run.flow_version == child.version
