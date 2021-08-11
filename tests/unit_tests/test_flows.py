@@ -151,3 +151,23 @@ class TestFlowCall:
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
         assert state.data is error
+
+    def test_subflow_call(self):
+        @flow(version="test")
+        def foo(x, y=2, z=3):
+            return x + y + z
+
+        @flow(version="test")
+        def bar(x, y=2, z=3):
+            return foo(x, y, z).result().data
+
+        future = bar(1, 2)
+        assert isinstance(future, PrefectFuture)
+        assert future.result().is_completed()
+        assert future.result().data == 6
+        assert future.run_id is not None
+
+        flow_run = OrionClient().read_flow_run(future.run_id)
+        assert flow_run.id == future.run_id
+        assert flow_run.parameters == {"x": 1, "y": 2}
+        assert flow_run.flow_version == foo.version

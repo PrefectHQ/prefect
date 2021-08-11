@@ -88,15 +88,36 @@ class Flow:
         return state
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.context import FlowRunContext
+        from prefect.context import FlowRunContext, TaskRunContext
+        from prefect.tasks import task
 
+        flow_run_context = FlowRunContext.get()
+        is_subflow = True if flow_run_context else False
+
+        if TaskRunContext.get():
+            raise RuntimeError(
+                "Flows cannot be called from within tasks. Did you mean to call this "
+                "flow in a flow?"
+            )
+
+        if is_subflow:
+            subflow_task_future = task(self._start_flow_run)(*args, **kwargs)
+            # Unpack the subflow task future into a the flow future
+            return subflow_task_future.result().data
+
+        return self._start_flow_run(*args, **kwargs)
+
+    def _start_flow_run(self, *args, **kwargs) -> PrefectFuture:
+        from prefect.context import FlowRunContext, TaskRunContext
+
+        task_context = TaskRunContext.get()
+        parent_task_run_id = task_context.task_run_id if task_context else None
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
         client = OrionClient()
         flow_run_id = client.create_flow_run(
-            self,
-            parameters=parameters,
+            self, parameters=parameters, parent_task_run_id=parent_task_run_id
         )
 
         client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
