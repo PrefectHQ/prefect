@@ -46,11 +46,19 @@ OrionAsyncSession = async_scoped_session(
 
 
 @listens_for(sa.engine.Engine, "engine_connect", once=True)
-def create_in_memory_sqlite_objects(conn, named=True):
-    """The first time a connection is made to an engine, we check if it's an
-    in-memory sqlite database. If so, we create all Orion tables as a convenience
+def setup_sqlite(conn, named=True):
+    """The first time a connection is made to a sqlite engine:
+    - we check if it's an in-memory sqlite database and create all Orion tables
+      as a convenience
+    - we enable sqlite foreign keys
     to the user."""
     if conn.engine.url.get_backend_name() == "sqlite":
+        # enable foreign keys
+        cursor = conn.connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+        # create tables
         if conn.engine.url.database in (":memory:", None):
             Base.metadata.create_all(conn.engine)
 

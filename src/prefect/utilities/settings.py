@@ -59,5 +59,8 @@ class Settings(BaseSettings):
     # orion
     orion: OrionSettings = Field(default_factory=OrionSettings)
 
+    # the connection url for an orion instance
+    orion_host: str = None
+
 
 settings = Settings()
