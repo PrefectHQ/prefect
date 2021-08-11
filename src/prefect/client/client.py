@@ -723,7 +723,7 @@ class Client:
         while rate_limited:
             jitter = random.random() * 10 * (2 ** iter_count)
             naptime = 3 * 60 + jitter  # 3 + e min sleep
-            self.logger.debug("Rate limit encountered; sleeping...")
+            self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
             time.sleep(naptime)
             response = self._send_request(
                 session=session, method=method, url=url, params=params, headers=headers
