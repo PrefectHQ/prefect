@@ -18,11 +18,13 @@ if TYPE_CHECKING:
 
 
 class OrionClient:
-    def __init__(self, httpx_settings: dict) -> None:
-        if prefect.settings.orion_host:
-            self._client = httpx.Client(
-                base_url=prefect.settings.orion_host, **httpx_settings
-            )
+    def __init__(
+        self, host: str = prefect.settings.orion_host, httpx_settings: dict = None
+    ) -> None:
+        httpx_settings = httpx_settings or {}
+
+        if host:
+            self._client = httpx.Client(base_url=host, **httpx_settings)
         else:
             # Create an ephemeral app client
             self._client = _ASGIClient(app=orion_app, httpx_settings=httpx_settings)
