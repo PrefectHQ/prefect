@@ -148,7 +148,6 @@ async def get_cached_task_run_state(
 ) -> Optional[orm.TaskRunState]:
     task_run_state_id = (
         select(orm.TaskRunStateCache.task_run_state_id)
-        .select_from(orm.TaskRunStateCache)
         .filter(
             sa.and_(
                 orm.TaskRunStateCache.cache_key == cache_key,
