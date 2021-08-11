@@ -15,6 +15,51 @@ if TYPE_CHECKING:
     from prefect.tasks import Task
 
 
+class ThreadedEventLoop:
+    def __init__(self) -> None:
+        self._thread, self._loop = self._create_threaded_event_loop()
+
+    def _create_threaded_event_loop(
+        self,
+    ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
+        """
+        Spawns an event loop in a daemonic thread.
+
+        Creating a new event loop that runs in a child thread prevents us from throwing
+        exceptions when there is already an event loop in the main thread and prevents
+        synchronous code in the main thread from blocking the event loop from executing.
+        """
+
+        def start_loop(loop):
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+
+        loop = asyncio.new_event_loop()
+
+        t = threading.Thread(target=start_loop, args=(loop,), daemon=True)
+        t.start()
+
+        return t, loop
+
+    def run_coro(self, coro):
+        if not self._loop:
+            raise ValueError("Event loop has not been created.")
+        if not self._loop.is_running():
+            raise ValueError("Event loop is not running.")
+
+        future = asyncio.run_coroutine_threadsafe(coro, loop=self._loop)
+        result = future.result()
+
+        return result
+
+    def __del__(self):
+        if self._loop and self._loop.is_running():
+            self._loop.stop()
+
+
+GLOBAL_EVENT_LOOP = ThreadedEventLoop()
+
+
 class OrionClient:
     def __init__(self, http_client: httpx.Client = None) -> None:
         # If not given an httpx client, create one that connects to an ephemeral app
@@ -190,7 +235,6 @@ class _ASGIClient:
     """
 
     def __init__(self, app) -> None:
-        self._thread, self._event_loop = self._create_threaded_event_loop()
         self.app = app
 
     @contextmanager
@@ -207,53 +251,14 @@ class _ASGIClient:
         try:
             yield client
         finally:
-            self._run_coro(client.aclose())
+            GLOBAL_EVENT_LOOP.run_coro(client.aclose())
 
     # httpx.Client methods -------------------------------------------------------------
 
     def get(self, route: str, **kwargs: Any) -> httpx.Response:
         with self._httpx_client() as client:
-            return self._run_coro(client.get(route, **kwargs))
+            return GLOBAL_EVENT_LOOP.run_coro(client.get(route, **kwargs))
 
     def post(self, route: str, **kwargs: Any) -> httpx.Response:
         with self._httpx_client() as client:
-            return self._run_coro(client.post(route, **kwargs))
-
-    # Event loop management ------------------------------------------------------------
-
-    def _create_threaded_event_loop(
-        self,
-    ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
-        """
-        Spawns an event loop in a daemonic thread.
-
-        Creating a new event loop that runs in a child thread prevents us from throwing
-        exceptions when there is already an event loop in the main thread and prevents
-        synchronous code in the main thread from blocking the event loop from executing.
-        """
-
-        def start_loop(loop):
-            asyncio.set_event_loop(loop)
-            loop.run_forever()
-
-        loop = asyncio.new_event_loop()
-
-        t = threading.Thread(target=start_loop, args=(loop,), daemon=True)
-        t.start()
-
-        return t, loop
-
-    def _run_coro(self, coro):
-        if not self._event_loop:
-            raise ValueError("Event loop has not been created.")
-        if not self._event_loop.is_running():
-            raise ValueError("Event loop is not running.")
-
-        future = asyncio.run_coroutine_threadsafe(coro, loop=self._event_loop)
-        result = future.result()
-
-        return result
-
-    def __del__(self):
-        if self._event_loop.is_running():
-            self._event_loop.stop()
+            return GLOBAL_EVENT_LOOP.run_coro(client.post(route, **kwargs))
