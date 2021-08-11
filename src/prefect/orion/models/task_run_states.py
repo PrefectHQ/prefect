@@ -149,16 +149,18 @@ async def get_cached_task_run_state(
     query = (
         select(orm.TaskRunState)
         .select_from(orm.TaskRunStateCache)
-        .filter(orm.TaskRunStateCache.cache_key == cache_key)
-        .filter(
-            sa.or_(
-                orm.TaskRunStateCache.cache_expiration == None,
-                orm.TaskRunStateCache.cache_expiration < pendulum.now("utc"),
-            )
-        )
         .join(
             orm.TaskRunState,
             orm.TaskRunStateCache.task_run_state_id == orm.TaskRunState.id,
+        )
+        .filter(
+            sa.and_(
+                orm.TaskRunStateCache.cache_key == cache_key,
+                sa.or_(
+                    orm.TaskRunStateCache.cache_expiration.is_(None),
+                    orm.TaskRunStateCache.cache_expiration < pendulum.now("utc"),
+                ),
+            ),
         )
         .order_by(orm.TaskRunState.timestamp)
     )
