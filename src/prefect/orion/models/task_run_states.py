@@ -146,13 +146,9 @@ async def delete_task_run_state(
 async def get_cached_task_run_state(
     session: sa.orm.Session, cache_key: str
 ) -> Optional[orm.TaskRunState]:
-    query = (
-        select(orm.TaskRunState)
+    task_run_state_id = (
+        select(orm.TaskRunStateCache.task_run_state_id)
         .select_from(orm.TaskRunStateCache)
-        .join(
-            orm.TaskRunState,
-            orm.TaskRunStateCache.task_run_state_id == orm.TaskRunState.id,
-        )
         .filter(
             sa.and_(
                 orm.TaskRunStateCache.cache_key == cache_key,
@@ -164,7 +160,8 @@ async def get_cached_task_run_state(
         )
         .order_by(orm.TaskRunStateCache.created.desc())
         .limit(1)
-    )
+    ).scalar_subquery()
+    query = select(orm.TaskRunState).filter(orm.TaskRunState.id == task_run_state_id)
     result = await session.execute(query)
     return result.scalar()
 
