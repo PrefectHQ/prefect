@@ -51,7 +51,7 @@ class ExtractSomeData(Task)
 
 extract_some_data = ExtractSomeData(name="extract_some_data")
 
-# assumes you have registered a flow named "exampled" in a project named "examples"
+# assumes you have registered a flow named "example" in a project named "examples"
 flow_run = StartFlowRun(flow_name="example", project_name="examples")
 
 with Flow("parent-flow") as flow:
