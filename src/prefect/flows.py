@@ -85,11 +85,6 @@ class Flow:
                 data=result,
             )
 
-        context.client.set_flow_run_state(
-            context.flow_run_id,
-            state=state,
-        )
-
         return state
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
@@ -115,15 +110,24 @@ class Flow:
                 client=client,
                 executor=executor,
             ) as context:
-                state = self._run(context=context, call_args=args, call_kwargs=kwargs)
-
-                # Return a future that is already resolved to `state`
-                return PrefectFuture(
-                    flow_run_id=flow_run_id,
-                    client=client,
-                    executor=executor,
-                    _result=state,
+                terminal_state = self._run(
+                    context=context, call_args=args, call_kwargs=kwargs
                 )
+
+        # Mark the flow as completed _after_ the executor has shutdown so all tasks are
+        # resolved
+        context.client.set_flow_run_state(
+            context.flow_run_id,
+            state=terminal_state,
+        )
+
+        # Return a fake future that is already resolved to `state`
+        return PrefectFuture(
+            flow_run_id=flow_run_id,
+            client=client,
+            executor=executor,
+            _result=terminal_state,
+        )
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
