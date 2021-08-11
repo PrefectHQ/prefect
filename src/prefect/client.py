@@ -230,7 +230,7 @@ class _ThreadedEventLoop:
 
 
 # Mapping of PID to a lazily instantiated shared event-loop per process
-EVENT_LOOPS: Dict[int, __] = {}
+EVENT_LOOPS: Dict[int, _ThreadedEventLoop] = {}
 
 
 def _get_process_event_loop():
