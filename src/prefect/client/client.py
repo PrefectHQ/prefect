@@ -722,7 +722,7 @@ class Client:
         iter_count = 1
         while rate_limited:
             jitter = random.random() * 10 * (2 ** iter_count)
-            naptime = 3 * 60 + jitter  # 3 + e min sleep
+            naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
             self.logger.debug("Rate limit encountered; sleeping...")
             time.sleep(naptime)
             response = self._send_request(
@@ -1537,26 +1537,11 @@ class Client:
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=True)
-
-    def update_task_run_heartbeat(self, task_run_id: str) -> None:
-        """
-        Convenience method for heartbeating a task run.
-
-        Does NOT raise an error if the update fails.
-
-        Args:
-            - task_run_id (str): the task run ID to heartbeat
-
-        """
-        mutation = {
-            "mutation": {
-                with_args(
-                    "update_task_run_heartbeat", {"input": {"task_run_id": task_run_id}}
-                ): {"success"}
-            }
-        }
-        self.graphql(mutation, raise_on_error=True)
+        self.graphql(
+            mutation,
+            raise_on_error=True,
+            headers={"X-PREFECT-HEARTBEAT-ID": flow_run_id},
+        )
 
     def set_flow_run_name(self, flow_run_id: str, name: str) -> bool:
         """
