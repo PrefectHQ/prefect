@@ -165,7 +165,7 @@ async def get_cached_task_run_state(
         .order_by(orm.TaskRunState.timestamp)
     )
     result = await session.execute(query)
-    return result.scalars().unique().first()
+    return result.scalar()
 
 
 async def cache_task_run_state(
