@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import random
 import re
 import time
 import uuid
@@ -703,13 +704,34 @@ class Client:
         retries = requests.packages.urllib3.util.retry.Retry(
             total=retry_total,
             backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
+            status_forcelist=[500, 502, 503, 504],
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
             session=session, method=method, url=url, params=params, headers=headers
         )
+
+        # custom logic when encountering an API rate limit:
+        # each time we encounter a rate limit, we sleep for
+        # 3 minutes + random amount, where the random amount
+        # is uniformly sampled from (0, 10 * 2 ** rate_limit_counter)
+        # up to (0, 640), at which point an error is raised if the limit
+        # is still being hit
+        rate_limited = response.status_code == 429
+        iter_count = 1
+        while rate_limited:
+            jitter = random.random() * 10 * (2 ** iter_count)
+            naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
+            self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
+            time.sleep(naptime)
+            response = self._send_request(
+                session=session, method=method, url=url, params=params, headers=headers
+            )
+            rate_limited = response.status_code == 429
+            iter_count += 1
+            if iter_count > 6:
+                raise ClientError("Rate limit encountered during execution.")
 
         # parse the response
         try:
@@ -1515,7 +1537,11 @@ class Client:
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=True)
+        self.graphql(
+            mutation,
+            raise_on_error=True,
+            headers={"X-PREFECT-HEARTBEAT-ID": flow_run_id},
+        )
 
     def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
@@ -1525,7 +1551,6 @@ class Client:
 
         Args:
             - task_run_id (str): the task run ID to heartbeat
-
         """
         mutation = {
             "mutation": {
