@@ -73,14 +73,14 @@ class TestReadTaskRun:
 
 class TestReadTaskRuns:
     async def test_read_task_runs(self, flow_run, task_run, client):
-        response = await client.get(f"/task_runs/?flow_run_id={flow_run.id}")
+        response = await client.get("/task_runs/", params=dict(flow_run_id=flow_run.id))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
     async def test_read_task_runs_filters_by_flow_run_id(self, client):
-        response = await client.get(f"/task_runs/?flow_run_id={uuid4()}")
+        response = await client.get("/task_runs/", params=dict(flow_run_id=uuid4()))
         assert response.status_code == 200
         assert response.json() == []
 
