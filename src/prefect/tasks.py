@@ -110,7 +110,9 @@ class Task:
         )
 
         # Bind the arguments to the function to get a dict of arg -> value
-        arguments = inspect.signature(self.fn).bind(*call_args, **call_kwargs).arguments
+        bound_signature = inspect.signature(self.fn).bind(*call_args, **call_kwargs)
+        bound_signature.apply_defaults()
+        arguments = bound_signature.arguments
         cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
 
         # Transition from `PENDING` -> `RUNNING`
