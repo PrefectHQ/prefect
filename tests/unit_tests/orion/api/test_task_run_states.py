@@ -30,6 +30,39 @@ class TestCreateTaskRunState:
         assert response.status_code == 422
         assert "value_error.missing" in response.text
 
+    async def test_create_cached_task_run_state(
+        self, task_run, client, database_session
+    ):
+        first_task_run_state_data = {
+            "task_run_id": str(task_run.id),
+            "state": schemas.actions.StateCreate(
+                type="COMPLETED",
+                state_details={"cache_key": "cache-hit"},
+            ).json_dict(),
+        }
+
+        second_task_run_state_data = {
+            "task_run_id": str(task_run.id),
+            "state": schemas.actions.StateCreate(
+                type="RUNNING", state_details={"cache_key": "cache-hit"}
+            ).json_dict(),
+        }
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state", json=first_task_run_state_data
+        )
+        assert response.status_code == 200
+        assert response.json()["id"]
+
+        cached_response = await client.post(
+            f"/task_runs/{task_run.id}/set_state", json=second_task_run_state_data
+        )
+        assert cached_response.json()["name"] == "Cached"
+
+        # task_run_state = await models.task_run_states.read_task_run_state(
+        #     session=database_session, task_run_state_id=response.json()["id"]
+        # )
+        # assert task_run_state.task_run_id == task_run.id
+
 
 class TestReadTaskRunStateById:
     async def test_read_task_run_state(self, task_run, client):
