@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 import json
 import tempfile
@@ -210,7 +209,7 @@ def test_docker_storage_allows_for_user_provided_config_locations():
 
 def test_files_not_absolute_path():
     with pytest.raises(ValueError):
-        storage = Docker(files={"test": "test"})
+        Docker(files={"test": "test"})
 
 
 def test_build_base_image(monkeypatch):
@@ -377,20 +376,6 @@ def test_build_image_passes_and_pushes(monkeypatch):
 
     assert "reg" in push_image.call_args[0][0]
     assert "reg" in remove.call_args[1]["image"]
-
-
-@pytest.mark.filterwarnings("error")
-def test_build_image_passes_but_raises_warning(monkeypatch):
-    storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
-
-    client = MagicMock()
-    client.images.return_value = ["name"]
-    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
-
-    with pytest.raises(UserWarning):
-        image_name, image_tag = storage._build_image()
-        assert image_name == "test"
-        assert image_tag == "latest"
 
 
 def test_create_dockerfile_from_base_image():
@@ -576,7 +561,7 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
             "424be6b5ed8d3be85064de4b95b5c3d7cb665510",
             (
                 "FROM python:3.6-slim",
-                "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
+                "apt update && apt install -y gcc git make && rm -rf /var/lib/apt/lists/*",
                 "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@424be6b5ed8d3be85064de4b95b5c3d7cb665510#egg=prefect[all_orchestration_extras]",
             ),
         ),
@@ -870,32 +855,20 @@ def test_docker_storage_name_registry_url_none():
     assert storage.name == "test2:test3"
 
 
-def test_docker_storage_get_flow_method():
-    with tempfile.TemporaryDirectory() as directory:
-        storage = Docker(base_image="python:3.6", prefect_directory=directory)
+def test_docker_storage_get_flow_method(tmpdir):
+    flow_dir = str(tmpdir.mkdir("flows"))
 
-        with pytest.raises(ValueError):
-            storage.get_flow()
+    flow = Flow("test")
+    flow_path = os.path.join(flow_dir, "test.prefect")
+    with open(flow_path, "wb") as f:
+        cloudpickle.dump(flow, f)
 
-        @prefect.task
-        def add_to_dict():
-            with open(os.path.join(directory, "output"), "w") as tmp:
-                tmp.write("success")
+    storage = Docker(base_image="python:3.6", prefect_directory=str(tmpdir))
+    storage.add_flow(flow)
 
-        flow_dir = os.path.join(directory, "flows")
-        os.makedirs(flow_dir, exist_ok=True)
-
-        with open(os.path.join(flow_dir, "test.prefect"), "w+") as env:
-            flow = Flow("test", tasks=[add_to_dict])
-            flow_path = os.path.join(flow_dir, "test.prefect")
-            with open(flow_path, "wb") as f:
-                cloudpickle.dump(flow, f)
-            out = storage.add_flow(flow)
-
-        f = storage.get_flow(out)
-        assert isinstance(f, Flow)
-        assert f.name == "test"
-        assert len(f.tasks) == 1
+    f = storage.get_flow(flow.name)
+    assert isinstance(f, Flow)
+    assert f.name == "test"
 
 
 def test_add_similar_flows_fails():

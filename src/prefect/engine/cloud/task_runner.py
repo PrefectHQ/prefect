@@ -9,16 +9,9 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.result import Result
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import (
-    Cached,
-    ClientFailed,
-    Failed,
-    Queued,
-    Retrying,
-    State,
-)
+from prefect.engine.state import Cached, ClientFailed, Failed, Queued, Retrying, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 from prefect.utilities.executors import tail_recursive
 
 
@@ -101,7 +94,7 @@ class CloudTaskRunner(TaskRunner):
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
-        except VersionLockError as exc:
+        except VersionLockMismatchSignal as exc:
             state = self.client.get_task_run_state(task_run_id=task_run_id)
 
             if state.is_running():
@@ -156,33 +149,30 @@ class CloudTaskRunner(TaskRunner):
             - tuple: a tuple of the updated state, context, and upstream_states objects
         """
 
-        # if the map_index is not None, this is a dynamic task and we need to load
-        # task run info for it
-        map_index = context.get("map_index")
-        if map_index not in [-1, None]:
-            try:
-                task_run_info = self.client.get_task_run_info(
-                    flow_run_id=context.get("flow_run_id", ""),
-                    task_id=context.get("task_id", ""),
-                    map_index=map_index,
-                )
+        # load task run info
+        try:
+            task_run_info = self.client.get_task_run_info(
+                flow_run_id=context.get("flow_run_id", ""),
+                task_id=context.get("task_id", ""),
+                map_index=context.get("map_index"),
+            )
 
-                # if state was provided, keep it; otherwise use the one from db
-                state = state or task_run_info.state  # type: ignore
-                context.update(
-                    task_run_id=task_run_info.id,  # type: ignore
-                    task_run_version=task_run_info.version,  # type: ignore
+            # if state was provided, keep it; otherwise use the one from db
+            state = state or task_run_info.state  # type: ignore
+            context.update(
+                task_run_id=task_run_info.id,  # type: ignore
+                task_run_version=task_run_info.version,  # type: ignore
+            )
+        except Exception as exc:
+            self.logger.exception(
+                "Failed to retrieve task state with error: {}".format(repr(exc))
+            )
+            if state is None:
+                state = Failed(
+                    message="Could not retrieve state from Prefect Cloud",
+                    result=exc,
                 )
-            except Exception as exc:
-                self.logger.exception(
-                    "Failed to retrieve task state with error: {}".format(repr(exc))
-                )
-                if state is None:
-                    state = Failed(
-                        message="Could not retrieve state from Prefect Cloud",
-                        result=exc,
-                    )
-                raise ENDRUN(state=state) from exc
+            raise ENDRUN(state=state) from exc
 
         # we assign this so it can be shared with heartbeat thread
         self.task_run_id = context.get("task_run_id", "")  # type: str
@@ -344,7 +334,7 @@ class CloudTaskRunner(TaskRunner):
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
         `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
         state which allow this Task to run.  Additionally, this method will wait and perform
-        Task retries which are scheduled for <= 1 minute in the future.
+        Task retries which are scheduled for <= 10 minutes in the future.
 
         Args:
             - state (State, optional): initial `State` to begin task run from;
@@ -388,18 +378,6 @@ class CloudTaskRunner(TaskRunner):
                 self.client.update_task_run_heartbeat(
                     task_run_id=prefect.context.get("task_run_id")
                 )
-                # mapped children will retrieve their latest info inside
-                # initialize_run(), but we can load up-to-date versions
-                # for all other task runs here
-                if prefect.context.get("map_index") in [-1, None]:
-                    task_run_info = self.client.get_task_run_info(
-                        flow_run_id=prefect.context.get("flow_run_id"),
-                        task_id=prefect.context.get("task_id"),
-                        map_index=prefect.context.get("map_index"),
-                    )
-
-                    # if state was provided, keep it; otherwise use the one from db
-                    context.update(task_run_version=task_run_info.version)  # type: ignore
 
                 end_state = super().run(
                     state=end_state,

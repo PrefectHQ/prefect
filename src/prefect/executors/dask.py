@@ -4,7 +4,7 @@ import uuid
 import sys
 import weakref
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
+from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional, Dict
 
 from prefect import context
 from prefect.executors.base import Executor
@@ -96,6 +96,8 @@ class DaskExecutor(Executor):
             `debug=True` will increase dask's logging level, providing
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
+
+    Examples:
 
     Using a temporary local dask cluster:
 
@@ -200,6 +202,9 @@ class DaskExecutor(Executor):
 
         try:
             if self.address is not None:
+                self.logger.info(
+                    "Connecting to an existing Dask cluster at %s", self.address
+                )
                 with Client(self.address, **self.client_kwargs) as client:
                     self.client = client
                     try:
@@ -208,7 +213,19 @@ class DaskExecutor(Executor):
                     finally:
                         self._post_start_yield()
             else:
-                with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
+                assert callable(self.cluster_class)  # mypy
+                assert isinstance(self.cluster_kwargs, dict)  # mypy
+                self.logger.info(
+                    "Creating a new Dask cluster with `%s.%s`...",
+                    self.cluster_class.__module__,
+                    self.cluster_class.__qualname__,
+                )
+                with self.cluster_class(**self.cluster_kwargs) as cluster:
+                    if getattr(cluster, "dashboard_link", None):
+                        self.logger.info(
+                            "The Dask dashboard is available at %s",
+                            cluster.dashboard_link,
+                        )
                     if self.adapt_kwargs:
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
@@ -397,6 +414,15 @@ class DaskExecutor(Executor):
         return self.client.gather(futures)
 
 
+def _multiprocessing_pool_initializer() -> None:
+    """Initialize a process used in a `multiprocssing.Pool`.
+
+    Ensures the standard atexit handlers are run."""
+    import signal
+
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit())
+
+
 class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable
@@ -436,7 +462,13 @@ class LocalDaskExecutor(Executor):
 
     def _interrupt_pool(self) -> None:
         """Interrupt all tasks in the backing `pool`, if any."""
-        if self.scheduler == "threads" and self._pool is not None:
+        if self._pool is None:
+            return
+
+        # Terminate the pool
+        self._pool.terminate()
+
+        if self.scheduler == "threads":
             # `ThreadPool.terminate()` doesn't stop running tasks, only
             # prevents new tasks from running. In CPython we can attempt to
             # raise an exception in all threads. This exception will be raised
@@ -502,7 +534,9 @@ class LocalDaskExecutor(Executor):
                     from dask.multiprocessing import get_context
 
                     context = get_context()
-                    self._pool = context.Pool(num_workers)
+                    self._pool = context.Pool(
+                        num_workers, initializer=_multiprocessing_pool_initializer
+                    )
             try:
                 exiting_early = False
                 yield
@@ -511,9 +545,10 @@ class LocalDaskExecutor(Executor):
                 raise
             finally:
                 if self._pool is not None:
-                    self._pool.terminate()
                     if exiting_early:
                         self._interrupt_pool()
+                    else:
+                        self._pool.close()
                     self._pool.join()
                     self._pool = None
 
@@ -557,17 +592,49 @@ class LocalDaskExecutor(Executor):
         # import dask here to reduce prefect import times
         import dask
 
+        config: Dict[str, Any] = {}  # Extra config options for dask
+
         # dask's multiprocessing scheduler hardcodes task fusion in a way
         # that's not exposed via a `compute` kwarg. Until that's fixed, we
         # disable fusion globally for the multiprocessing scheduler only.
         # Since multiprocessing tasks execute in a remote process, this
         # shouldn't affect user code.
         if self.scheduler == "processes":
-            config = {"optimization.fuse.active": False}
-        else:
-            config = {}
 
-        with dask.config.set(config):
+            @contextmanager
+            def patch() -> Iterator[None]:
+                # Patch around https://github.com/PrefectHQ/prefect/issues/4086
+                # We can remove this after we drop support for dask 2021.02.0
+                from dask.optimization import cull
+
+                def cull2(dsk, keys):  # type: ignore
+                    return cull(dsk if type(dsk) is dict else dict(dsk), keys)
+
+                dask.multiprocessing.cull = cull2
+                try:
+                    yield
+                finally:
+                    dask.multiprocessing.cull = cull
+
+            config["optimization.fuse.active"] = False
+        else:
+
+            @contextmanager
+            def patch() -> Iterator[None]:
+                yield
+
+        # Patch around https://github.com/PrefectHQ/prefect/issues/4537
+        # dask >= 2021.04.0 adds task submission batching in the multiprocessing case
+        # to offset performance concerns from switching to a concurrent.Futures based
+        # process pool. Since we are using our own pool to handle cancellation robustly,
+        # we do not gain anything from the batched submission and the default task
+        # submission batch size of 6 makes users think their flows will not run in
+        # parallel. When/if we switch to using the new futures based multiprocessing in
+        # dask, we should remove this to retain performance
+        if self.scheduler == "processes":
+            config["chunksize"] = 1
+
+        with patch(), dask.config.set(config):
             return dask.compute(
                 futures, scheduler=self.scheduler, pool=self._pool, optimize_graph=False
             )[0]

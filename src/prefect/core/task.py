@@ -17,7 +17,9 @@ from typing import (
     Mapping,
     Optional,
     Union,
+    Tuple,
 )
+from collections import defaultdict
 
 import prefect
 import prefect.engine.cache_validators
@@ -47,7 +49,7 @@ class NoDefault(enum.Enum):
 
 
 def _validate_run_signature(run: Callable) -> None:
-    func = getattr(run, "__wrapped__", run)
+    func = inspect.unwrap(run)
     try:
         run_sig = inspect.getfullargspec(func)
     except TypeError as exc:
@@ -163,6 +165,21 @@ class TaskMetaclass(type):
         # also get passed through __new__
         return type.__new__(cls, name, parents, methods)  # type: ignore
 
+    @property
+    def _reserved_attributes(self) -> Tuple[str]:
+        """A tuple of attributes reserved for use by the `Task` class.
+
+        Dynamically computed to make it easier to keep up to date. Lazily
+        computed to avoid circular import issues.
+        """
+        if not hasattr(Task, "_cached_reserved_attributes"):
+            # Create a base task instance to determine which attributes are reserved
+            # we need to disable the unused_task_tracker for this duration or it will
+            # track this task
+            with prefect.context(_unused_task_tracker=set()):
+                Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
+        return Task._cached_reserved_attributes  # type: ignore
+
 
 class instance_property:
     """Like property, but only available on instances, not the class"""
@@ -223,9 +240,9 @@ class Task(metaclass=TaskMetaclass):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
-        - timeout (int, optional): The amount of time (in seconds) to wait while
+        - timeout (Union[int, timedelta], optional): The amount of time (in seconds) to wait while
             running this task before a timeout occurs; note that sub-second
-            resolution is not supported
+            resolution is not supported, even when passing in a timedelta.
         - trigger (callable, optional): a function that determines whether the
             task should run, based on the states of any upstream tasks.
         - skip_on_upstream_skip (bool, optional): if `True`, if any immediately
@@ -298,7 +315,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
-        timeout: int = None,
+        timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
@@ -313,6 +330,15 @@ class Task(metaclass=TaskMetaclass):
         task_run_name: Union[str, Callable] = None,
         nout: int = None,
     ):
+        if type(self) is not Task:
+            for attr in Task._reserved_attributes:
+                if hasattr(self, attr):
+                    warnings.warn(
+                        f"`{type(self).__name__}` sets a `{attr}` attribute, which "
+                        "will be overwritten by `prefect.Task`. Please rename this "
+                        "attribute to avoid this issue."
+                    )
+
         self.name = name or type(self).__name__
         self.slug = slug
 
@@ -347,7 +373,17 @@ class Task(metaclass=TaskMetaclass):
             raise ValueError(
                 "A `max_retries` argument greater than 0 must be provided if specifying "
                 "a retry delay."
+                "a retry delay."
             )
+        # Make sure timeout is an integer in seconds
+        if isinstance(timeout, timedelta):
+            if timeout.microseconds > 0:
+                warnings.warn(
+                    "Task timeouts do not support a sub-second resolution; "
+                    "smaller units will be ignored!",
+                    stacklevel=2,
+                )
+            timeout = int(timeout.total_seconds())
         if timeout is not None and not isinstance(timeout, int):
             raise TypeError(
                 "Only integer timeouts (representing seconds) are supported."
@@ -526,8 +562,7 @@ class Task(metaclass=TaskMetaclass):
         # as it has been "interacted" with and don't want spurious
         # warnings
         if "_unused_task_tracker" in prefect.context:
-            if self in prefect.context._unused_task_tracker:
-                prefect.context._unused_task_tracker.remove(self)
+            prefect.context._unused_task_tracker.discard(self)
             if not isinstance(new, prefect.tasks.core.constants.Constant):
                 prefect.context._unused_task_tracker.add(new)
 
@@ -540,9 +575,26 @@ class Task(metaclass=TaskMetaclass):
         if not hasattr(self, "_cached_signature"):
             sig = inspect.Signature.from_callable(self.run)
             parameters = list(sig.parameters.values())
-            parameters.extend(EXTRA_CALL_PARAMETERS)
+            parameters_by_kind = defaultdict(list)
+            for parameter in parameters:
+                parameters_by_kind[parameter.kind].append(parameter)
+            parameters_by_kind[inspect.Parameter.KEYWORD_ONLY].extend(
+                EXTRA_CALL_PARAMETERS
+            )
+
+            ordered_parameters = []
+            ordered_kinds = (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.KEYWORD_ONLY,
+                inspect.Parameter.VAR_KEYWORD,
+            )
+            for kind in ordered_kinds:
+                ordered_parameters.extend(parameters_by_kind[kind])
+
             self._cached_signature = inspect.Signature(
-                parameters=parameters, return_annotation="Task"
+                parameters=ordered_parameters, return_annotation="Task"
             )
         return self._cached_signature
 
@@ -632,7 +684,19 @@ class Task(metaclass=TaskMetaclass):
 
         flow = flow or prefect.context.get("flow", None)
         if not flow:
-            raise ValueError("Could not infer an active Flow context.")
+            # Determine the task name to display which is either the function task name
+            # or the initialized class where we can't know the name of the variable
+            task_name = (
+                self.name
+                if isinstance(self, prefect.tasks.core.function.FunctionTask)
+                else f"{type(self).__name__}(...)"
+            )
+            raise ValueError(
+                f"Could not infer an active Flow context while creating edge to {self}."
+                " This often means you called a task outside a `with Flow(...)` block. "
+                "If you're trying to run this task outside of a Flow context, you "
+                f"need to call `{task_name}.run(...)`"
+            )
 
         self.set_dependencies(
             flow=flow,
@@ -690,7 +754,9 @@ class Task(metaclass=TaskMetaclass):
                         t=type(arg), preview=repr(arg)[:10]
                     )
                 )
-        new = self.copy(**(task_args or {}))
+        task_args = task_args.copy() if task_args else {}
+        task_args.setdefault("nout", None)
+        new = self.copy(**task_args)
         return new.bind(
             *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs
         )
@@ -931,8 +997,12 @@ class Task(metaclass=TaskMetaclass):
         Returns:
             - Task
         """
+        if isinstance(key, Task):
+            name = f"{self.name}[{key.name}]"
+        else:
+            name = f"{self.name}[{key!r}]"
         return prefect.tasks.core.operators.GetItem(
-            checkpoint=self.checkpoint, result=self.result
+            checkpoint=self.checkpoint, name=name, result=self.result
         ).bind(self, key)
 
     def __or__(self, other: object) -> object:
@@ -1241,6 +1311,7 @@ EXTRA_CALL_PARAMETERS = [
     for p in inspect.Signature.from_callable(Task.__call__).parameters.values()
     if p.kind == inspect.Parameter.KEYWORD_ONLY
 ]
+
 
 # DEPRECATED - this is to allow backwards-compatible access to Parameters
 # https://github.com/PrefectHQ/prefect/pull/2758

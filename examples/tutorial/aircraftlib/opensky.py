@@ -58,7 +58,7 @@ def _api_request_json(req: str, options: Dict[str, Any] = None) -> Dict[str, Any
         "https://opensky-network.org/api/{}".format(req),
         auth=(),
         params=options or {},
-        timeout=10.00,
+        timeout=300.00,
     )
     response.raise_for_status()
     return response.json()

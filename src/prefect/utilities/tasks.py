@@ -1,5 +1,4 @@
 import itertools
-import warnings
 from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import timedelta
@@ -97,16 +96,20 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     # Preprocess inputs to `apply_map`:
     # - Extract information about each argument (is unmapped, is constant, ...)
     # - Convert all arguments to instances of `Task`
-    # - Add all non-constant arguments to the flow. Constant arguments are
-    #   added later as needed.
+    # - Add all non-constant arguments to the flow and subflow. Constant arguments
+    #   are added later as needed.
     def preprocess(a: Any) -> "prefect.Task":
-        a2 = as_task(a, flow=flow2)
-        is_mapped = not isinstance(a, prefect.utilities.edges.unmapped)
-        is_constant = isinstance(a2, Constant)
+        # Clear external case/resource when adding tasks to flow2
+        with prefect.context(case=None, resource=None):
+            a2 = as_task(a, flow=flow2)
+            is_mapped = not isinstance(a, prefect.utilities.edges.unmapped)
+            is_constant = isinstance(a2, Constant)
+            if not is_constant:
+                flow2.add_task(a2)  # type: ignore
+
         arg_info[a2] = (is_mapped, is_constant)
         if not is_constant:
             flow.add_task(a2)  # type: ignore
-            flow2.add_task(a2)  # type: ignore
         if is_mapped and is_constant:
             id_to_const[id(a2.value)] = a2  # type: ignore
         return a2
@@ -184,18 +187,6 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
                         upstream_task=arg_task, downstream_task=task, mapped=is_mapped
                     )
     return res
-
-
-# DEPRECATED backward-compatible import
-from prefect.utilities.edges import unmapped as _unmapped
-
-
-def unmapped(*args, **kwargs):  # type: ignore
-    warnings.warn(
-        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`",
-        stacklevel=2,
-    )
-    return _unmapped(*args, **kwargs)
 
 
 @contextmanager

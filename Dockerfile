@@ -30,4 +30,6 @@ RUN apt update && \
     apt clean && apt autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["tini", "-g", "--"]
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["tini", "-g", "--", "entrypoint.sh"]

@@ -2,7 +2,7 @@
 
 Sometimes you have parts of a flow that you only want to run under certain
 conditions. To support this, Prefect provides several built-in [tasks for
-control-flow](/core/task_library/control_flow.html) that you can use to add
+control-flow](/api/latest/tasks/control_flow.html) that you can use to add
 conditional branches to your flow.
 
 ## Running a task based on a condition
@@ -31,7 +31,7 @@ The resulting flow looks like:
 
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from random import random
 
@@ -67,7 +67,7 @@ with Flow("conditional-branches") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import random
 
@@ -134,7 +134,7 @@ The resulting flow looks like:
 
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from random import random
 
@@ -173,7 +173,7 @@ with Flow("conditional-branches") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import random
 

@@ -1,6 +1,8 @@
 
 # Cloud Hooks
 
+*Psst! We have recently added [Automations](/orchestration/concepts/automations.html) which offer more functionality than Cloud Hooks and will eventually replace them.*
+
 Cloud Hooks allow you to send notifications to certain endpoints when your flow enters a given state. For example, you can send a Slack message to your team when a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. The Prefect backend API currently supports hooks for Slack, Twilio, Pager Duty, email, and a more general Webhook.
 
 You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts/api.html) or the Flow Settings page in the UI.

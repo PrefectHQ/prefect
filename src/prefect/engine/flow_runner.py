@@ -155,8 +155,29 @@ class FlowRunner(Runner):
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
 
+        # Determine the current time, allowing our formatted dates in the context
+        # to rely on a manually set value
+        now = context.get("date")
+        if isinstance(now, str):
+            # Attempt to parse into a `DateTime` object since it will often be passed
+            # as a serialized string from the UI we'll override the context on a
+            # successful parse so the type is consistent for users
+            try:
+                now = pendulum.parse(now)
+                context["date"] = now
+            except Exception:
+                pass
+        if not isinstance(now, pendulum.DateTime):
+            if now is not None:
+                self.logger.warning(
+                    "`date` was set in the context manually but could not be parsed "
+                    "into a pendulum `DateTime` object. Additional context variables "
+                    "that rely on the current date i.e `today` and `tomorrow` will be "
+                    "based on the current time instead of the `date` context variable."
+                )
+            now = pendulum.now("utc")
+
         # add various formatted dates to context
-        now = pendulum.now("utc")
         dates = {
             "date": now,
             "today": now.strftime("%Y-%m-%d"),
@@ -224,10 +245,13 @@ class FlowRunner(Runner):
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
 
         # make copies to avoid modifying user inputs
-        task_states = dict(task_states or {})
-        context = dict(context or {})
-        task_contexts = dict(task_contexts or {})
         parameters = dict(parameters or {})
+        task_states = dict(task_states or {})
+        task_contexts = dict(task_contexts or {})
+        # Default to global context, with provided context as override
+        run_context = dict(prefect.context)
+        run_context.update(context or {})
+
         if executor is None:
             # Use the executor on the flow, if configured
             executor = getattr(self.flow, "executor", None)
@@ -237,15 +261,15 @@ class FlowRunner(Runner):
         self.logger.debug("Using executor type %s", type(executor).__name__)
 
         try:
-            state, task_states, context, task_contexts = self.initialize_run(
+            state, task_states, run_context, task_contexts = self.initialize_run(
                 state=state,
                 task_states=task_states,
-                context=context,
+                context=run_context,
                 task_contexts=task_contexts,
                 parameters=parameters,
             )
 
-            with prefect.context(context):
+            with prefect.context(run_context):
                 state = self.check_flow_is_pending_or_running(state)
                 state = self.check_flow_reached_start_time(state)
                 state = self.set_flow_to_running(state)
@@ -266,7 +290,7 @@ class FlowRunner(Runner):
             self.logger.exception(
                 "Unexpected error while running flow: {}".format(repr(exc))
             )
-            if prefect.context.get("raise_on_exception"):
+            if run_context.get("raise_on_exception"):
                 raise exc
             new_state = Failed(
                 message="Unexpected error while running flow: {}".format(repr(exc)),
@@ -427,8 +451,8 @@ class FlowRunner(Runner):
                 ):
                     task_states[task] = task_state = Success(result=task.value)
 
-                # Always restart completed resource setup/cleanup tasks unless
-                # they were explicitly cached.
+                # Always restart completed resource setup/cleanup tasks and
+                # secret tasks unless they were explicitly cached.
                 # TODO: we only need to rerun these tasks if any pending
                 # downstream tasks depend on them.
                 if (
@@ -437,6 +461,7 @@ class FlowRunner(Runner):
                         (
                             prefect.tasks.core.resource_manager.ResourceSetupTask,
                             prefect.tasks.core.resource_manager.ResourceCleanupTask,
+                            prefect.tasks.secrets.SecretBase,
                         ),
                     )
                     and task_state is not None
@@ -691,6 +716,13 @@ class FlowRunner(Runner):
         else:
             self.logger.info("Flow run SUCCESS: no reference tasks failed")
             state = Success(message="No reference tasks failed.", result=return_states)
+
+        if getattr(self.flow, "terminal_state_handler", None):
+            assert callable(self.flow.terminal_state_handler)  # mypy assertion
+            # Uses `getattr` for compatibility with old flows without the attr
+            new_state = self.flow.terminal_state_handler(self.flow, state, key_states)
+            if new_state is not None:
+                return new_state
 
         return state
 

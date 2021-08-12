@@ -193,10 +193,6 @@ class Webhook(Storage):
         flow_script_path: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
-
-        # set up logic for authenticating with Saturn back-end service
         retry_logic = HTTPAdapter(max_retries=Retry(total=3))
         self._session = Session()
         self._session.mount("http://", retry_logic)
@@ -232,23 +228,19 @@ class Webhook(Storage):
 
         super().__init__(stored_as_script=stored_as_script, **kwargs)
 
-    def get_flow(self, flow_location: str = "placeholder") -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Get the flow from storage. This method will call
-        `cloudpickle.loads()` on the binary content of the flow, so it
-        should only be called in an environment with all of the flow's
-        dependencies.
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str): This argument is included to comply with the
-                interface used by other storage objects, but it has no meaning
-                for `Webhook` storage, since `Webhook` only corresponds to a
-                single flow. Ignore it.
+            - flow_name (str): the name of the flow to return.
 
-        Raises:
-            - requests.exceptions.HTTPError if getting the flow fails
+        Returns:
+            - Flow: the requested flow
         """
-        self.logger.info("Retrieving flow")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+
         req_function = self._method_to_function[self.get_flow_request_http_method]
 
         get_flow_request_kwargs = _render_dict(self.get_flow_request_kwargs)
@@ -258,7 +250,9 @@ class Webhook(Storage):
 
         if self.stored_as_script:
             flow_script_content = response.content.decode("utf-8")
-            return extract_flow_from_file(file_contents=flow_script_content)  # type: ignore
+            return extract_flow_from_file(
+                file_contents=flow_script_content, flow_name=flow_name
+            )
 
         return flow_from_bytes_pickle(response.content)
 
@@ -277,8 +271,8 @@ class Webhook(Storage):
         Returns:
             - str: the name of the flow
         """
-        self.flows = {flow.name: flow.name}
-        self._flows = {flow.name: flow}
+        self.flows = {flow.name: flow.name}  # type: Dict[str, str]
+        self._flows = {flow.name: flow}  # type: Dict[str, Flow]
         return flow.name
 
     def build(self) -> "Webhook":
@@ -388,12 +382,3 @@ class Webhook(Storage):
             self.logger.info("Successfully uploaded flow '{}'".format(flow_name))
 
         return self
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is
-        contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows

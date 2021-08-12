@@ -143,7 +143,7 @@ def test_webhook_build_works_with_no_arguments(sample_flow):
     res = webhook.build()
     assert isinstance(res, Webhook)
 
-    res = webhook.get_flow()
+    res = webhook.get_flow(sample_flow.name)
     assert isinstance(res, Flow)
 
 
@@ -221,7 +221,7 @@ def test_webhook_raises_error_on_get_flow_failure(sample_flow):
     webhook.build()
 
     with pytest.raises(HTTPError, match="test-error-message"):
-        webhook.get_flow()
+        webhook.get_flow(sample_flow.name)
 
 
 def test_render_dict_gets_env_variables(monkeypatch):
@@ -360,7 +360,7 @@ def test_webhook_works_with_file_storage(sample_flow, tmpdir):
     res = webhook.build()
     assert isinstance(res, Webhook)
 
-    res = webhook.get_flow()
+    res = webhook.get_flow(sample_flow.name)
     assert isinstance(res, Flow)
     assert res.name == "test-flow"
 

@@ -7,7 +7,7 @@ Prefect supports fully asynchronous / parallel running of a flow's tasks and the
 This flow takes in a [Parameter](/core/concepts/parameters.html) `stop` and then in three separate tasks it generates random numbers up until that `stop`. Those numbers are then turned into a list and their sum is printed in the final `sum_numbers` task.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from random import randrange
 
@@ -34,7 +34,7 @@ with Flow("parallel-execution") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import randrange
 
@@ -69,27 +69,34 @@ sum_numbers.bind(numbers=[number_1, number_2, number_3], flow=flow)
 :::
 ::::
 
-Whenever you run this flow it will by default use Prefect's [`LocalExecutor`](/api/latest/executors.html#localexecutor) which executes tasks synchronously. This means that you will always see the tasks executed in the same order without any parallelization. In order to start executing the tasks in parallel you should run the flow with a [`DaskExecutor`](/api/latest/executors.html#daskexecutor). The Dask Executor is responsible for taking the tasks of this flow and executing them on various Dask workers. You can start using the Dask Executor instantly by importing it and passing it into the flow's run function.
+By default Prefect uses a
+[LocalExecutor](/api/latest/executors.html#localexecutor) which executes
+tasks serially. However, the above flow could be run in parallel. To enable
+parallelism, you can swap out the executor for either a
+[DaskExecutor](/api/latest/executors.html#daskexecutor) or a
+[LocalDaskExecutor](/api/latest/executors.md#localdaskexecutor) (see
+[Choosing an
+Executor](/orchestration/flow_config/executors.html#choosing-an-executor) for
+info on which executor makes sense for your flows).
+
+Using a `LocalDaskExecutor`:
+
+```python
+from prefect.executors import LocalDaskExecutor
+flow.run(parameters={"stop": 5}, executor=LocalDaskExecutor())
+```
+
+Using a `DaskExecutor`:
 
 ```python
 from prefect.executors import DaskExecutor
-flow.run(parameters={"stop": 5}, executor=DaskExecutor())
+
+# If run in a script, you'll need to call `flow.run` from within an
+# `if __name__ == "__main__"` block. This isn't needed if using
+# prefect with Dask in an interactive terminal/notebook.
+if __name__ == "__main__":
+    flow.run(parameters={"stop": 5}, executor=DaskExecutor())
 ```
 
-By not specifying a scheduler address the Dask Executor will create a local Dask cluster, begin executing tasks on it, and then it will be torn down upon flow completion. If you stand up a Dask cluster somewhere else then a scheduler address can be provided to distribute task execution to the remote Dask cluster.
-
-```sh
-# in a new terminal window
-> dask-scheduler
-# Scheduler at: tcp://10.0.0.41:8786
-
-# in new terminal windows
-> dask-worker tcp://10.0.0.41:8786
-> dask-worker tcp://10.0.0.41:8786
-```
-
-```python
-flow.run(parameters={"stop": 5}, executor=DaskExecutor(address="tcp://10.0.0.41:8786"))
-```
-
-Now that you are using Dask for execution you should see the random number generation tasks in the flow execute asynchronously. For more information on execution with Dask check out [this document](/core/advanced_tutorials/dask-cluster.html).
+For more information on using Prefect's executors (and Dask) see the
+[Executors docs](/orchestration/flow_config/executors.html#choosing-an-executor).

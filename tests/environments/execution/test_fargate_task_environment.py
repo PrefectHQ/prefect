@@ -223,7 +223,7 @@ def test_setup_definition_exists(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -274,7 +274,7 @@ def test_setup_definition_changed(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -329,7 +329,7 @@ def test_validate_definition_not_changed_when_env_out_of_order(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -385,7 +385,7 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -421,7 +421,7 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -559,7 +559,7 @@ def test_validate_definition_not_changed_when_names_are_in_arn(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -654,7 +654,7 @@ def test_setup_definition_register(monkeypatch):
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                 {
                     "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                     "value": "[]",
@@ -701,7 +701,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                 {
                     "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                     "value": "[]",

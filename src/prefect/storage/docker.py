@@ -9,7 +9,7 @@ import textwrap
 import uuid
 import warnings
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Iterable, List, Union
 
 import pendulum
 from slugify import slugify
@@ -162,8 +162,6 @@ class Docker(Storage):
         )
 
         self.files = files or {}
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.local_image = local_image
         self.installation_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
@@ -191,7 +189,7 @@ class Docker(Storage):
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
                 self.installation_commands.append(
-                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*"
+                    "apt update && apt install -y gcc git make && rm -rf /var/lib/apt/lists/*"
                 )
         elif base_image and dockerfile:
             raise ValueError(
@@ -221,47 +219,6 @@ class Docker(Storage):
             )
         super().__init__(stored_as_script=stored_as_script, **kwargs)
 
-    def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
-        """
-        Given a flow_location within this Storage object, returns something with a
-        `run()` method which accepts the standard runner kwargs and can run the flow.
-
-        Args:
-            - flow_location (str): the location of a flow within this Storage
-
-        Returns:
-            - a runner interface (something with a `run()` method for running the flow)
-        """
-
-        def runner(env: dict) -> None:
-            """
-            Given a dictionary of environment variables, calls `flow.run()` with these
-            environment variables set.
-            """
-            image = "{}:{}".format(self.image_name, self.image_tag)
-            client = self._get_client()
-            container = client.create_container(image, command="tail -f /dev/null")
-            client.start(container=container.get("Id"))
-            python_script = (
-                f"import cloudpickle; f = open('{flow_location}', 'rb'); "
-                f"flow = cloudpickle.load(f); f.close(); flow.run()"
-            )
-            try:
-                ee = client.exec_create(
-                    container.get("Id"),
-                    'python -c "{}"'.format(python_script),
-                    environment=env,
-                )
-                output = client.exec_start(exec_id=ee, stream=True)
-                for item in output:
-                    for line in item.decode("utf-8").split("\n"):
-                        if line:
-                            print(line)
-            finally:
-                client.stop(container=container.get("Id"))
-
-        return runner
-
     def add_flow(self, flow: "prefect.core.flow.Flow") -> str:
         """
         Method for adding a new flow to this Storage object.
@@ -285,31 +242,22 @@ class Docker(Storage):
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
 
-    def get_flow(self, flow_location: str = None) -> "prefect.core.flow.Flow":
+    def get_flow(self, flow_name: str) -> "prefect.core.flow.Flow":
         """
-        Given a file path within this Docker container, returns the underlying Flow.
-        Note that this method should only be run _within_ the container itself.
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str, optional): the file path of a flow within this container. Will use
-                `path` if not provided.
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.path:
-            flow_location = self.path
-        else:
-            raise ValueError("No flow location provided")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_location = self.flows[flow_name]
 
         if self.stored_as_script:
-            return extract_flow_from_file(file_path=flow_location)
+            return extract_flow_from_file(file_path=flow_location, flow_name=flow_name)
 
         with open(flow_location, "rb") as f:
             return flow_from_bytes_pickle(f.read())
@@ -328,14 +276,6 @@ class Docker(Storage):
             PurePosixPath(self.registry_url or "", self.image_name),  # type: ignore
             self.image_tag,  # type: ignore
         )
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
 
     def build(self, push: bool = True) -> "Storage":
         """
@@ -421,7 +361,6 @@ class Docker(Storage):
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
-                forcerm=True,
                 **self.build_kwargs,
             )
             self._parse_generator_output(output)

@@ -216,6 +216,8 @@ run your flow. You have a few options here:
   )
   ```
 
+For more information on Prefect and Docker images, see [here](./docker.md).
+
 #### Adaptive Scaling
 
 One nice feature of using a `DaskExecutor` is the ability to scale adaptively
