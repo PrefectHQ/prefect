@@ -1,6 +1,6 @@
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, String, join
+from sqlalchemy import JSON, Column, String, join, ForeignKey
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, states
@@ -26,7 +26,11 @@ class Flow(Base):
 
 
 class FlowRunState(Base):
-    flow_run_id = Column(UUID(), nullable=False)
+    # this column isn't explicitly indexed because it is included in
+    # the unique compound index on (task_run_id, timestamp)
+    flow_run_id = Column(
+        UUID(), ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+    )
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
@@ -64,7 +68,11 @@ class FlowRunState(Base):
 
 
 class TaskRunState(Base):
-    task_run_id = Column(UUID(), nullable=False)
+    # this column isn't explicitly indexed because it is included in
+    # the unique compound index on (task_run_id, timestamp)
+    task_run_id = Column(
+        UUID(), ForeignKey("task_run.id", ondelete="cascade"), nullable=False
+    )
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
@@ -125,10 +133,12 @@ trs = aliased(TaskRunState, name="trs")
 
 
 class FlowRun(Base):
-    flow_id = Column(UUID(), nullable=False, index=True)
+    flow_id = Column(
+        UUID(), ForeignKey("flow.id", ondelete="cascade"), nullable=False, index=True
+    )
     flow_version = Column(String)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
-    parent_task_run_id = Column(UUID(), nullable=True)
+    idempotency_key = Column(String)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_policy = Column(JSON, server_default="{}", default={}, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -151,7 +161,7 @@ class FlowRun(Base):
     # keeping only the most recent state.
     state = relationship(
         # the self-referential join of FlowRunState to itself
-        aliased(
+        lambda: aliased(
             FlowRunState,
             join(
                 FlowRunState,
@@ -175,9 +185,22 @@ class FlowRun(Base):
         lazy="joined",
     )
 
+    # unique index on flow id / idempotency key
+    __table__args__ = sa.Index(
+        "ix_flow_run_flow_id_idempotency_key",
+        flow_id,
+        idempotency_key,
+        unique=True,
+    )
+
 
 class TaskRun(Base):
-    flow_run_id = Column(UUID(), nullable=False, index=True)
+    flow_run_id = Column(
+        UUID(),
+        ForeignKey("flow_run.id", ondelete="cascade"),
+        nullable=False,
+        index=True,
+    )
     task_key = Column(String, nullable=False)
     dynamic_key = Column(String)
     cache_key = Column(String)
@@ -217,7 +240,7 @@ class TaskRun(Base):
     # keeping only the most recent state.
     state = relationship(
         # the self-referential join of TaskRunState to itself
-        aliased(
+        lambda: aliased(
             TaskRunState,
             join(
                 TaskRunState,

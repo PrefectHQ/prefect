@@ -23,6 +23,7 @@ class FlowRun(APIBaseModel):
     flow_id: UUID
     flow_version: str = Field(None, example="1.0")
     parameters: dict = Field(default_factory=dict)
+    idempotency_key: str = None
     context: dict = Field(default_factory=dict, example={"my_var": "my_val"})
     empirical_policy: dict = Field(default_factory=dict)
     empirical_config: dict = Field(default_factory=dict)
