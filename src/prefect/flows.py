@@ -1,8 +1,9 @@
 import inspect
 from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple, Optional
 from contextlib import nullcontext
 from pydantic import validate_arguments
+from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.executors import BaseExecutor, SynchronousExecutor
@@ -107,10 +108,10 @@ class Flow:
 
         client = OrionClient()
 
-        parent_task_run_id = None
+        parent_task_run_id: Optional[UUID] = None
         if is_nested_run:
             # Generate a fake task in the parent as a placeholder to point to the child
-            client.create_task_run(
+            parent_task_run_id = client.create_task_run(
                 task=Task(name=self.name, fn=lambda _: ...),
                 flow_run_id=parent_flow_run_id,
             )
