@@ -1,14 +1,14 @@
-from enum import Enum
-import pydantic
 import json
 import re
 import uuid
-from asyncio import current_task
+from asyncio import current_task, get_event_loop
+from enum import Enum
+from typing import Union
 
 import pendulum
+import pydantic
 import sqlalchemy as sa
 from sqlalchemy import Column
-import sqlalchemy
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.event import listens_for
 from sqlalchemy.ext.asyncio import (
@@ -25,24 +25,71 @@ from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-# create async engine
-engine = create_async_engine(
-    settings.orion.database.connection_url.get_secret_value(),
-    echo=settings.orion.database.echo,
-    poolclass=settings.orion.database.get_poolclass(),
-)
+ENGINES = {}
+SESSION_FACTORIES = {}
 
 
-# create session factory with async scoping
-OrionAsyncSession = async_scoped_session(
-    sessionmaker(
-        engine,
-        future=True,
-        expire_on_commit=False,
-        class_=AsyncSession,
-    ),
-    scopefunc=current_task,
-)
+def get_engine(connection_url: str = None, echo: bool = None) -> sa.engine.Engine:
+    """Retrieves an async SQLAlchemy engine.
+
+    A new engine is created for each event loop and cached, so that
+    engines are not shared across loops.
+
+    Args:
+        connection_url ([type], optional): The database connection string.
+            Defaults to the value in Prefect's settings.
+        echo ([type], optional): [description]. Whether to echo SQL sent
+            to the database. Defaults to the value in Prefect's settings.
+
+    Returns:
+        sa.engine.Engine: a SQLAlchemy engine
+    """
+    if connection_url is None:
+        connection_url = settings.orion.database.connection_url.get_secret_value()
+    if echo is None:
+        echo = settings.orion.database.echo
+
+    loop = get_event_loop()
+    cache_key = (loop, connection_url, echo)
+    if cache_key not in ENGINES:
+        ENGINES[cache_key] = create_async_engine(connection_url, echo=echo)
+    return ENGINES[cache_key]
+
+
+def get_session_factory(
+    bind: Union[sa.engine.Engine, sa.engine.Connection] = None,
+) -> sa.ext.asyncio.scoping.async_scoped_session:
+    """Retrieves a SQLAlchemy session factory for the provided bind.
+    The session factory is cached for each event loop.
+
+    Args:
+        engine (Union[sa.engine.Engine, sa.engine.Connection], optional): An
+            async SQLAlchemy engine or connection. If none is
+            provided, `get_engine()` is called to recover one.
+
+    Returns:
+        sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
+    """
+    if bind is None:
+        bind = get_engine()
+
+    loop = get_event_loop()
+    cache_key = (loop, bind)
+    if cache_key not in SESSION_FACTORIES:
+        # create session factory
+        session_factory = sessionmaker(
+            bind,
+            future=True,
+            expire_on_commit=False,
+            class_=AsyncSession,
+        )
+
+        # create session factory with async scoping
+        SESSION_FACTORIES[cache_key] = async_scoped_session(
+            session_factory, scopefunc=current_task
+        )
+
+    return SESSION_FACTORIES[cache_key]
 
 
 @listens_for(sa.engine.Engine, "engine_connect", once=True)
@@ -139,7 +186,7 @@ class Timestamp(TypeDecorator):
     def process_result_value(self, value, dialect):
         # retrieve timestamps in their native timezone (or UTC)
         if value is not None:
-            return pendulum.instance(value)
+            return pendulum.instance(value).in_timezone("utc")
 
 
 class Pydantic(TypeDecorator):
@@ -290,7 +337,8 @@ class Base(object):
     __mapper_args__ = {"eager_defaults": True}
 
 
-async def reset_db(engine=engine):
+async def reset_db(engine=None):
+    engine = engine or get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
