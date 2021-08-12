@@ -92,9 +92,9 @@ class Flow:
         from prefect.tasks import Task
 
         flow_run_context = FlowRunContext.get()
-        is_subflow = flow_run_context is not None
-        parent_flow_run_id = flow_run_context.flow_run_id if is_subflow else None
-        executor = flow_run_context.executor if is_subflow else self.executor
+        is_nested_run = flow_run_context is not None
+        parent_flow_run_id = flow_run_context.flow_run_id if is_nested_run else None
+        executor = flow_run_context.executor if is_nested_run else self.executor
 
         if TaskRunContext.get():
             raise RuntimeError(
@@ -113,7 +113,7 @@ class Flow:
                 task=Task(name=self.name, fn=lambda _: ...),
                 flow_run_id=parent_flow_run_id,
             )
-            if is_subflow
+            if is_nested_run
             else None
         )
 
@@ -126,7 +126,7 @@ class Flow:
         executor_context = (
             executor.start(flow_run_id=flow_run_id, orion_client=client)
             # The executor is already started if this is a subflow
-            if not is_subflow
+            if not is_nested_run
             else nullcontext()
         )
 
@@ -141,7 +141,7 @@ class Flow:
                     context=context, call_args=args, call_kwargs=kwargs
                 )
 
-        if is_subflow and terminal_state.is_completed():
+        if is_nested_run and terminal_state.is_completed():
             # Since a subflow does not wait for all of its futures before exiting, we
             # wait for any returned futures to complete before setting the final state
             # of the flow
