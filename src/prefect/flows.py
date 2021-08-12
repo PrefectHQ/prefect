@@ -89,7 +89,7 @@ class Flow:
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext, TaskRunContext
-        from prefect.tasks import task
+        from prefect.tasks import Task
 
         flow_run_context = FlowRunContext.get()
         is_subflow = flow_run_context is not None
@@ -110,7 +110,8 @@ class Flow:
         # Generate a fake task as a placeholder if this is a subflow
         parent_task_run_id = (
             client.create_task_run(
-                task=task(lambda: ...), flow_run_id=parent_flow_run_id
+                task=Task(name=self.name, fn=lambda _: ...),
+                flow_run_id=parent_flow_run_id,
             )
             if is_subflow
             else None
