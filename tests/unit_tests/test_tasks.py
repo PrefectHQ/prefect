@@ -343,3 +343,40 @@ class TestTaskCaching:
 
         assert second_state.data == first_state.data
         assert third_state.data == first_state.data
+
+
+class TestCacheFunctionBuiltins:
+    def test_task_input_hash_within_flows(self):
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(2).result(), foo(1).result()
+
+        flow_future = bar()
+        first_state, second_state, third_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+        assert first_state.data != second_state.data
+        assert first_state.data == third_state.data
+
+    def test_task_input_hash_between_flows(self):
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return x
+
+        @flow
+        def bar(x):
+            return foo(x).result()
+
+        first_state = bar(1).result().data
+        second_state = bar(2).result().data
+        third_state = bar(1).result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+        assert first_state.data != second_state.data
+        assert first_state.data == third_state.data
