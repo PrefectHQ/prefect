@@ -40,6 +40,7 @@ async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowR
 
 async def read_flow_runs(
     session: sa.orm.Session,
+    flow_id: UUID = None,
     offset: int = 0,
     limit: int = 10,
 ) -> List[orm.FlowRun]:
@@ -47,13 +48,23 @@ async def read_flow_runs(
 
     Args:
         session (sa.orm.Session): A database session
+        flow_id (UUID): a flow_id
         offset (int): Query offset
         limit(int): Query limit
 
     Returns:
         List[orm.FlowRun]: flow runs
     """
-    query = select(orm.FlowRun).offset(offset).limit(limit).order_by(orm.FlowRun.id)
+    filter_by = {}
+    if flow_id:
+        filter_by["flow_id"] = flow_id
+    query = (
+        select(orm.FlowRun)
+        .filter_by(**filter_by)
+        .offset(offset)
+        .limit(limit)
+        .order_by(orm.FlowRun.id)
+    )
     result = await session.execute(query)
     return result.scalars().unique().all()
 

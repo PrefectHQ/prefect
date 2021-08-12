@@ -63,7 +63,7 @@ class TestReadFlows:
         assert len(response.json()) == 2
 
     async def test_read_flows_applies_limit(self, flows, client):
-        response = await client.get("/flows/?limit=1")
+        response = await client.get("/flows/", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -71,7 +71,7 @@ class TestReadFlows:
         # right now this works because flows are ordered by name
         # by default, when ordering is actually implemented, this test
         # should be re-written
-        response = await client.get("/flows/?offset=1")
+        response = await client.get("/flows/", params=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-2"
