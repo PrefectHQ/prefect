@@ -107,15 +107,13 @@ class Flow:
 
         client = OrionClient()
 
-        # Generate a fake task as a placeholder if this is a subflow
-        parent_task_run_id = (
+        parent_task_run_id = None
+        if is_nested_run:
+            # Generate a fake task in the parent as a placeholder to point to the child
             client.create_task_run(
                 task=Task(name=self.name, fn=lambda _: ...),
                 flow_run_id=parent_flow_run_id,
             )
-            if is_nested_run
-            else None
-        )
 
         flow_run_id = client.create_flow_run(
             self, parameters=parameters, parent_task_run_id=parent_task_run_id
