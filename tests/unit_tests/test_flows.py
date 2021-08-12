@@ -152,7 +152,7 @@ class TestFlowCall:
         assert state.is_failed() if error else state.is_completed()
         assert state.data is error
 
-    def test_subflow_call(self):
+    def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
         def child(x, y, z):
             return x + y + z
@@ -176,3 +176,27 @@ class TestFlowCall:
         assert child_flow_run.flow_run_details.is_subflow
         assert child_flow_run.flow_run_details.parent_task_run_id is not None
         assert child_flow_run.flow_version == child.version
+
+    def test_subflow_call_with_returned_task(self):
+        from prefect.tasks import task
+
+        @task
+        def compute(x, y, z):
+            return x + y + z
+
+        @flow(version="foo")
+        def child(x, y, z):
+            return compute(x, y, z)  # resolved to data automatically
+
+        @flow(version="bar")
+        def parent(x, y=2, z=3):
+            return child(x, y, z)
+
+        parent_future = parent(1, 2)
+        assert isinstance(parent_future, PrefectFuture)
+        assert parent_future.result().is_completed()
+
+        child_future = parent_future.result().data
+        assert isinstance(child_future, PrefectFuture)
+        assert child_future.result().is_completed()
+        assert child_future.result().data == 6

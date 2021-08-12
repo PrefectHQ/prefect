@@ -1,12 +1,12 @@
 import inspect
 from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
-
+from contextlib import nullcontext
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient
 from prefect.executors import BaseExecutor, SynchronousExecutor
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, resolve_futures
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
@@ -92,7 +92,9 @@ class Flow:
         from prefect.tasks import task
 
         flow_run_context = FlowRunContext.get()
-        is_subflow = True if flow_run_context else False
+        is_subflow = flow_run_context is not None
+        parent_flow_run_id = flow_run_context.flow_run_id if is_subflow else None
+        executor = flow_run_context.executor if is_subflow else self.executor
 
         if TaskRunContext.get():
             raise RuntimeError(
@@ -100,31 +102,34 @@ class Flow:
                 "flow in a flow?"
             )
 
-        if is_subflow:
-            subflow_task_future = task(self._start_flow_run)(*args, **kwargs)
-            # Unpack the subflow task future into a the flow future
-            return subflow_task_future.result().data
-
-        return self._start_flow_run(*args, **kwargs)
-
-    def _start_flow_run(self, *args, **kwargs) -> PrefectFuture:
-        from prefect.context import FlowRunContext, TaskRunContext
-
-        task_context = TaskRunContext.get()
-        parent_task_run_id = task_context.task_run_id if task_context else None
         # Generate dict of passed parameters
         parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
 
         client = OrionClient()
+
+        # Generate a fake task as a placeholder if this is a subflow
+        parent_task_run_id = (
+            client.create_task_run(
+                task=task(lambda: ...), flow_run_id=parent_flow_run_id
+            )
+            if is_subflow
+            else None
+        )
+
         flow_run_id = client.create_flow_run(
             self, parameters=parameters, parent_task_run_id=parent_task_run_id
         )
 
         client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
 
-        with self.executor.start(
-            flow_run_id=flow_run_id, orion_client=client
-        ) as executor:
+        executor_context = (
+            executor.start(flow_run_id=flow_run_id, orion_client=client)
+            # The executor is already started if this is a subflow
+            if not is_subflow
+            else nullcontext()
+        )
+
+        with executor_context:
             with FlowRunContext(
                 flow_run_id=flow_run_id,
                 flow=self,
@@ -135,16 +140,21 @@ class Flow:
                     context=context, call_args=args, call_kwargs=kwargs
                 )
 
-        # Mark the flow as completed _after_ the executor has shutdown so all tasks are
-        # resolved
-        context.client.set_flow_run_state(
+        if is_subflow and terminal_state.is_completed():
+            # Since a subflow does not wait for all of its futures before exiting, we
+            # wait for any returned futures to complete before setting the final state
+            # of the flow
+            terminal_state.data = resolve_futures(terminal_state.data)
+
+        # Update the flow to the terminal state
+        client.set_flow_run_state(
             context.flow_run_id,
             state=terminal_state,
         )
 
         # Return a fake future that is already resolved to `state`
         return PrefectFuture(
-            flow_run_id=flow_run_id,
+            flow_run_id=context.flow_run_id,
             client=client,
             executor=executor,
             _result=terminal_state,
