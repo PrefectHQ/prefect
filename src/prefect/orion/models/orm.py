@@ -267,8 +267,10 @@ def add_flow_run_subflow_index(target, connection, **kw):
         FlowRun.__table__.append_constraint(
             sa.Index(
                 "ix_flow_run_flow_run_details_subflow",
-                sa.text("(flow_run_details ->> 'parent_task_run_id')::UUID"),
-                postgresql_where=sa.text("flow_run_details ->> 'is_subflow' IS TRUE"),
+                sa.text("((flow_run_details ->> 'parent_task_run_id')::UUID)"),
+                postgresql_where=sa.text(
+                    "(flow_run_details ->> 'is_subflow')::BOOLEAN IS TRUE"
+                ),
             )
         )
 
@@ -297,8 +299,10 @@ def add_task_run_subflow_index(target, connection, **kw):
         TaskRun.__table__.append_constraint(
             sa.Index(
                 "ix_task_run_task_run_details_subflow",
-                sa.text("(task_run_details ->> 'subflow_run_id')::UUID"),
-                postgresql_where=sa.text("task_run_details ->> 'is_subflow' IS TRUE"),
+                sa.text("((task_run_details ->> 'subflow_run_id')::UUID)"),
+                postgresql_where=sa.text(
+                    "(task_run_details ->> 'is_subflow')::BOOLEAN IS TRUE"
+                ),
             )
         )
 
