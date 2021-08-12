@@ -25,15 +25,35 @@ class SQLAlchemyPydanticModel(DBBase):
     data_list = sa.Column(Pydantic(List[PydanticModel]))
 
 
+class SQLAlchemyTimestampModel(DBBase):
+    __tablename__ = "_test_timestamp_model"
+
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+    ts = sa.Column(Timestamp)
+
+
+@pytest.fixture(autouse=True)
+async def create_database_models(database_session):
+    """
+    Add the models defined in this file to the database for the duration of one unit test
+    """
+    conn = await database_session.connection()
+    await conn.run_sync(DBBase.metadata.create_all)
+    try:
+        yield
+    finally:
+        await conn.run_sync(DBBase.metadata.drop_all)
+
+
 class TestPydantic:
-    @pytest.fixture(autouse=True, scope="class")
-    async def create_models(self, database_engine):
-        async with database_engine.begin() as conn:
-            await conn.run_sync(DBBase.metadata.create_all)
-            try:
-                yield
-            finally:
-                await conn.run_sync(DBBase.metadata.drop_all)
+    @pytest.fixture(autouse=True)
+    async def create_models(self, database_session):
+        conn = await database_session.connection()
+        await conn.run_sync(DBBase.metadata.create_all)
+        try:
+            yield
+        finally:
+            await conn.run_sync(DBBase.metadata.drop_all)
 
     async def test_write_to_Pydantic(self, database_session):
         p_model = PydanticModel(x=100)
@@ -100,30 +120,14 @@ class TestPydantic:
             await database_session.flush()
 
 
-class SQLAlchemyTimestampModel(DBBase):
-    __tablename__ = "_test_timestamp_model"
-
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    ts = sa.Column(Timestamp)
-
-
 class TestTimestamp:
-    @pytest.fixture(autouse=True, scope="class")
-    async def create_models(self, database_engine):
-        async with database_engine.begin() as conn:
-            await conn.run_sync(DBBase.metadata.create_all)
-            try:
-                yield
-            finally:
-                await conn.run_sync(DBBase.metadata.drop_all)
-
     async def test_error_if_naive_timestamp_passed(self, database_session):
         model = SQLAlchemyTimestampModel(ts=datetime.datetime(2000, 1, 1))
         database_session.add(model)
         with pytest.raises(sa.exc.StatementError, match="(must have a timezone)"):
             await database_session.flush()
 
-    async def test_timestamp_converted_to_utc(self, database_session):
+    async def test_timestamp_converted_to_utc(self, database_session, database_engine):
         model = SQLAlchemyTimestampModel(
             ts=datetime.datetime(2000, 1, 1, tzinfo=pendulum.timezone("EST"))
         )
@@ -136,5 +140,4 @@ class TestTimestamp:
         query = await database_session.execute(sa.select(SQLAlchemyTimestampModel))
         results = query.scalars().all()
         assert results[0].ts == model.ts
-        # when this test is run against SQLite, the timestamp will be returned in UTC
         assert results[0].ts.tzinfo == pendulum.timezone("UTC")

@@ -5,7 +5,8 @@ from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api.dependencies import get_session
 from prefect.orion.api.server import app
-from prefect.orion.utilities.database import Base, OrionAsyncSession
+from prefect.orion.utilities.database import Base, get_session_factory, get_engine
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture(scope="package", autouse=True)
@@ -17,7 +18,6 @@ async def setup_db(database_engine):
         # reset database before integration tests run
         async with database_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
         yield
 
     finally:
@@ -32,15 +32,37 @@ async def database_session(database_engine):
     each test, the session is rolled back to restore the original database
     condition and avoid carrying over state.
     """
-    async with OrionAsyncSession() as session:
+    session_factory = get_session_factory(bind=database_engine)
+    async with session_factory() as session:
 
-        app.dependency_overrides[get_session] = lambda: session
+        async def get_nested_shared_session():
+            """Create a nested session that can safely be rolled back inside a
+            unit test
+            """
+            nested = await session.begin_nested()
+            try:
+                yield session
+            except Exception as exc:
+                await nested.rollback()
+                raise exc
+
+        app.dependency_overrides[get_session] = get_nested_shared_session
 
         try:
             yield session
         finally:
+            # reset the dependencies
             app.dependency_overrides = {}
+            # rollback all changes
             await session.rollback()
+
+
+@pytest.fixture(autouse=True)
+def mock_asgi_client(monkeypatch, database_engine):
+    if database_engine.dialect.name == "postgresql":
+        monkeypatch.setattr(
+            "prefect.client._ASGIClient", lambda app, **kw: TestClient(app)
+        )
 
 
 @pytest.fixture
