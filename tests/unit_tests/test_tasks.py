@@ -229,38 +229,8 @@ class TestTaskCaching:
         assert second_state.name == "Completed"
         assert second_state.data == first_state.data
 
-    def test_repeated_calls_within_flow_run_is_cached_when_using_input_hash(self):
-        @task(cache_key_fn=task_input_hash)
-        def foo(x):
-            return x
-
-        @flow
-        def bar():
-            return foo(1).result(), foo(1).result()
-
-        flow_future = bar()
-        first_state, second_state = flow_future.result().data
-        assert first_state.name == "Completed"
-        assert second_state.name == "Cached"
-        assert second_state.data == first_state.data
-
-    def test_repeated_calls_in_separate_flow_runs_is_cached_when_using_input_hash(self):
-        @task(cache_key_fn=task_input_hash)
-        def foo(x):
-            return x
-
-        @flow
-        def bar():
-            return foo(1).result()
-
-        first_state = bar().result().data
-        second_state = bar().result().data
-        assert first_state.name == "Completed"
-        assert second_state.name == "Cached"
-        assert second_state.data == first_state.data
-
-    def test_repeated_calls_with_different_args_is_not_cached_when_using_input_hash(self):
-        @task(cache_key_fn=task_input_hash)
+    def test_cache_hits_within_flows_are_cached(self):
+        @task(cache_key_fn=lambda *_: "hit")
         def foo(x):
             return x
 
@@ -271,8 +241,68 @@ class TestTaskCaching:
         flow_future = bar()
         first_state, second_state = flow_future.result().data
         assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+    def test_cache_hits_between_flows_are_cached(self):
+        @task(cache_key_fn=lambda *_: "hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar(x):
+            return foo(x).result()
+
+        first_state = bar(1).result().data
+        second_state = bar(2).result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+    def test_cache_misses_arent_cached(self):
+
+        # this hash fn won't return the same value twice
+        def mutating_key(*_, tally=[]):
+            tally.append("x")
+            return "call tally:" + "".join(tally)
+
+        @task(cache_key_fn=mutating_key)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(1).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
         assert second_state.name == "Completed"
-        assert second_state.data != first_state.data
+
+    def test_cache_key_fn_inputs_are_stable(self):
+        def stringed_inputs(context, args):
+            return str(args)
+
+        @task(cache_key_fn=stringed_inputs)
+        def foo(a, b, c=3):
+            return a + b + c
+
+        @flow
+        def bar():
+            return (
+                foo(1, 2, 3).result(),
+                foo(1, b=2).result(),
+                foo(c=3, a=1, b=2).result(),
+            )
+
+        flow_future = bar()
+        first_state, second_state, third_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert third_state.name == "Cached"
+
+        assert second_state.data == first_state.data
+        assert third_state.data == first_state.data
 
     def test_repeated_task_call_with_custom_cache_fn_is_cached(self):
         # Always return a cache match
