@@ -154,7 +154,7 @@ class Flow:
 
         # Return a fake future that is already resolved to `state`
         return PrefectFuture(
-            flow_run_id=context.flow_run_id,
+            flow_run_id=flow_run_id,
             client=client,
             executor=executor,
             _result=terminal_state,
