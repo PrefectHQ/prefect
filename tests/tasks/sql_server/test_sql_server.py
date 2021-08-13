@@ -28,12 +28,14 @@ class TestSqlServerExecute:
         cursor = MagicMock(spec=pyodbc.Cursor)
         connection = MagicMock(spec=pyodbc.Connection, cursor=cursor)
         sql_server_module_connect_method = MagicMock(return_value=connection)
-        sql_server_connector_module = MagicMock(connect=sql_server_module_connect_method)
+        sql_server_connector_module = MagicMock(
+            connect=sql_server_module_connect_method
+        )
 
         monkeypatch.setattr(
             "prefect.tasks.sql_server.sql_server.pyodbc", sql_server_connector_module
         )
-                
+
         task = SqlServerExecute(db_name="test", user="test", host="test")
         task.run(query="test_query", data=("test_data1", "test_data2"))
 
@@ -42,7 +44,7 @@ class TestSqlServerExecute:
             assert args == ("test_query", ("test_data1", "test_data2"))
             # kwargs must be an empty dict because .execute() can't take kwargs
             assert kwargs == dict()
-            
+
 
 class TestSqlServerExecuteMany:
     def test_construction(self):
