@@ -173,8 +173,7 @@ class TestFlowCall:
         child_flow_run = OrionClient().read_flow_run(child_future.run_id)
         assert child_flow_run.id == child_future.run_id
         assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
-        assert child_flow_run.flow_run_details.is_subflow
-        assert child_flow_run.flow_run_details.parent_task_run_id is not None
+        assert child_flow_run.parent_task_run_id is not None
         assert child_flow_run.flow_version == child.version
 
     def test_subflow_call_with_returned_task(self):
