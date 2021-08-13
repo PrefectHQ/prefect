@@ -2,17 +2,14 @@ import itertools
 import sys
 import time
 import threading
-from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pendulum
 import pytest
 
 import prefect
-from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.engine.result import Result
-from prefect.engine.results import PrefectResult, SecretResult
+from prefect.engine.results import PrefectResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
@@ -24,7 +21,6 @@ from prefect.engine.state import (
     Queued,
     Retrying,
     Running,
-    Scheduled,
     Skipped,
     Success,
     TimedOut,
@@ -486,7 +482,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
         monkeypatch.setattr("prefect.client.Client", Client)
         monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", Client)
         monkeypatch.setattr("prefect.engine.cloud.flow_runner.Client", Client)
-        monkeypatch.setattr("prefect.utilities.threaded_heartbeat.Client", MagicMock())
+        monkeypatch.setattr("prefect.utilities.executors.Client", MagicMock())
         monkeypatch.setattr("prefect.cli.heartbeat.Client", MagicMock())
         prefect.utilities.logging.prefect_logger.handlers[-1].client = Client()
 
