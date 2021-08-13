@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix backwards compatibility for flows without a `terminal_state_handler` - [#4695](https://github.com/PrefectHQ/prefect/pull/4695)"

@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import random
 import re
 import time
 import uuid
@@ -280,6 +281,7 @@ class Client:
         }
 
         # Update the file, including a comment blurb
+        self._auth_file.parent.mkdir(parents=True, exist_ok=True)
         self._auth_file.write_text(
             "# This file is auto-generated and should not be manually edited\n"
             "# Update the Prefect config or use the CLI to login instead\n\n"
@@ -313,7 +315,7 @@ class Client:
         if prefect.config.backend == "cloud":
             if self._api_token and not self.api_key:
                 # Backwards compatibility for API tokens
-                if not self._tenant_id and self._api_token:
+                if not self._tenant_id:
                     self._init_tenant()
 
                 # Should be set by `_init_tenant()` but we will not guarantee it
@@ -483,9 +485,23 @@ class Client:
                 try:
                     self.login_to_tenant(tenant_id=self._tenant_id)
                 except AuthorizationError:
-                    # if an authorization error is raised, then the token is invalid and should
-                    # be cleared
-                    self.logout_from_tenant()
+                    # Either the token is invalid _or_ it is not USER scoped. Try
+                    # pulling the correct tenant id from the API
+                    try:
+                        result = self.graphql({"query": {"tenant": {"id"}}})
+                        tenants = result["data"]["tenant"]
+                        # TENANT or RUNNER scoped tokens should have a single tenant
+                        if len(tenants) != 1:
+                            raise ValueError(
+                                "Failed to authorize with Prefect Cloud. "
+                                f"Could not log in to tenant {self._tenant_id!r}. "
+                                f"Found available tenants: {tenants}"
+                            )
+                        self._tenant_id = tenants[0].id
+                    except AuthorizationError:
+                        # On failure, we've just been given an invalid token and should
+                        # delete the auth information from disk
+                        self.logout_from_tenant()
 
         # This code should now be superceded by the `tenant_id` property but will remain
         # here for backwards compat until API tokens are removed entirely
@@ -688,13 +704,34 @@ class Client:
         retries = requests.packages.urllib3.util.retry.Retry(
             total=retry_total,
             backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
+            status_forcelist=[500, 502, 503, 504],
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
             session=session, method=method, url=url, params=params, headers=headers
         )
+
+        # custom logic when encountering an API rate limit:
+        # each time we encounter a rate limit, we sleep for
+        # 3 minutes + random amount, where the random amount
+        # is uniformly sampled from (0, 10 * 2 ** rate_limit_counter)
+        # up to (0, 640), at which point an error is raised if the limit
+        # is still being hit
+        rate_limited = response.status_code == 429
+        iter_count = 1
+        while rate_limited:
+            jitter = random.random() * 10 * (2 ** iter_count)
+            naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
+            self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
+            time.sleep(naptime)
+            response = self._send_request(
+                session=session, method=method, url=url, params=params, headers=headers
+            )
+            rate_limited = response.status_code == 429
+            iter_count += 1
+            if iter_count > 6:
+                raise ClientError("Rate limit encountered during execution.")
 
         # parse the response
         try:
@@ -1198,7 +1235,10 @@ class Client:
 
         # Search for matching cloud API because we can't guarantee that the backend config is set
         using_cloud_api = ".prefect.io" in prefect.config.cloud.api
-        tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
+        # Only use the "old" `as_user` logic if using an api token
+        tenant_slug = self.get_default_tenant_slug(
+            as_user=(as_user and using_cloud_api and self._api_token is not None)
+        )
 
         # For various API versions parse out `api-` for direct UI link
         base_url = (
@@ -1213,13 +1253,14 @@ class Client:
 
         return "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
 
-    def get_default_tenant_slug(self, as_user: bool = True) -> str:
+    def get_default_tenant_slug(self, as_user: bool = False) -> str:
         """
         Get the default tenant slug for the currently authenticated user
 
         Args:
-            - as_user (bool, optional): whether this query is being made from a USER scoped token;
-                defaults to `True`. Only used internally for queries made from RUNNERs
+            - as_user (bool, optional):
+                whether this query is being made from a USER scoped token;
+                defaults to `False`. Only relevant when using an API token.
 
         Returns:
             - str: the slug of the current default tenant for this user
@@ -1229,7 +1270,7 @@ class Client:
                 "query": {"user": {"default_membership": {"tenant": "slug"}}}
             }  # type: dict
         else:
-            query = {"query": {"tenant": {"slug"}}}
+            query = {"query": {"tenant": {"id", "slug"}}}
 
         res = self.graphql(query)
 
@@ -1237,7 +1278,17 @@ class Client:
             user = res.get("data").user[0]
             slug = user.default_membership.tenant.slug
         else:
-            slug = res.get("data").tenant[0].slug
+            tenants = res["data"]["tenant"]
+            for tenant in tenants:
+                # Return the slug if it matches the current tenant id OR if there is no
+                # current tenant id we are using a RUNNER API token so we'll return
+                # the first (and only) tenant
+                if tenant.id == self.tenant_id or self.tenant_id is None:
+                    return tenant.slug
+            raise ValueError(
+                f"Failed to find current tenant {self.tenant_id!r} in result {res}"
+            )
+
         return slug
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
@@ -1486,7 +1537,11 @@ class Client:
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=True)
+        self.graphql(
+            mutation,
+            raise_on_error=True,
+            headers={"X-PREFECT-HEARTBEAT-ID": flow_run_id},
+        )
 
     def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
@@ -1496,7 +1551,6 @@ class Client:
 
         Args:
             - task_run_id (str): the task run ID to heartbeat
-
         """
         mutation = {
             "mutation": {

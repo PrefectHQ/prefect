@@ -39,6 +39,8 @@ class DockerAgent(Agent):
     Agent which deploys flow runs locally as Docker containers. Information on using the
     Docker Agent can be found at https://docs.prefect.io/orchestration/agents/docker.html
 
+    This agent requires Docker v20.10.0+
+
     Environment variables may be set on the agent to be provided to each flow run's container:
     ```
     prefect agent docker start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
@@ -48,6 +50,7 @@ class DockerAgent(Agent):
     ```
     prefect agent docker start --base-url "tcp://0.0.0.0:2375"
     ```
+
 
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
@@ -395,10 +398,17 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(image))
 
-        host_config = {"auto_remove": True}  # type: dict
+        host_config = {
+            "auto_remove": True,
+            # Compatibility for linux -- https://github.com/docker/cli/issues/2290
+            "extra_hosts": {"host.docker.internal": "host-gateway"},
+        }  # type: dict
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
+        if run_config is not None and run_config.host_config:
+            # The host_config passed from the run_config will overwrite defaults
+            host_config.update(run_config.host_config)
 
         networking_config = None
         # At the time of creation, you can only connect a container to a single network,

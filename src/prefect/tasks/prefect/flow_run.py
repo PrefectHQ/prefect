@@ -139,7 +139,7 @@ def create_flow_run(
         scheduled_start_time=scheduled_start_time,
     )
 
-    run_url = client.get_cloud_url("flow-run", flow_run_id)
+    run_url = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
     logger.info(f"Created flow run {run_name_dsp!r}: {run_url}")
     return flow_run_id
 

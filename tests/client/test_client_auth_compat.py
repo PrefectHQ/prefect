@@ -476,6 +476,78 @@ class TestTenantAuth:
         settings = client._load_local_settings()
         assert "active_tenant_id" not in settings
 
+    def test_client_infers_correct_tenant_if_a_token_is_not_user_scoped(
+        self, patch_posts, cloud_api
+    ):
+        patch_posts(
+            [
+                # First, raise an UNAUTHENTICATED error
+                {
+                    "errors": [
+                        {
+                            "message": "",
+                            "locations": [],
+                            "path": ["tenant"],
+                            "extensions": {"code": "UNAUTHENTICATED"},
+                        }
+                    ]
+                },
+                # Then, return a tenant id
+                {"data": {"tenant": [{"id": "tenant-id"}]}},
+            ]
+        )
+
+        # create a client just so we can use its settings methods to store settings
+        disk_tenant = str(uuid.uuid4())
+        client = Client()
+        client._save_local_settings(
+            dict(api_token="API_TOKEN", active_tenant_id=disk_tenant)
+        )
+
+        # this initialization will fail to login to the active tenant then load the
+        # correct tenant from the API
+        client = Client(api_token="API_TOKEN")
+        client._init_tenant()
+        assert client._tenant_id == "tenant-id"
+
+        # Disk is unchanged
+        settings = client._load_local_settings()
+        assert settings["active_tenant_id"] == disk_tenant
+
+    @pytest.mark.parametrize("tenants", ([], [{"id": "1"}, {"id": "2"}]))
+    def test_client_throws_error_during_inference_if_non_single_tenant_is_returned(
+        self, patch_posts, cloud_api, tenants
+    ):
+        patch_posts(
+            [
+                # First, raise an UNAUTHENTICATED error
+                {
+                    "errors": [
+                        {
+                            "message": "",
+                            "locations": [],
+                            "path": ["tenant"],
+                            "extensions": {"code": "UNAUTHENTICATED"},
+                        }
+                    ]
+                },
+                # Then, return tenant ids
+                {"data": {"tenant": tenants}},
+            ]
+        )
+
+        # create a client just so we can use its settings methods to store settings
+        client = Client()
+        client._save_local_settings(
+            dict(api_token="API_TOKEN", active_tenant_id=str(uuid.uuid4()))
+        )
+
+        # this initialization will fail to login to the active tenant then load the
+        # correct tenant from the API
+        client = Client(api_token="API_TOKEN")
+        with pytest.raises(ValueError, match="Failed to authorize"):
+            client._init_tenant()
+
 
 class TestPassingHeadersAndTokens:
     def test_headers_are_passed_to_get(self, monkeypatch, cloud_api):

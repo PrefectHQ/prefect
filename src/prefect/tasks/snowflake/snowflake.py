@@ -1,5 +1,6 @@
 from pathlib import Path
 import snowflake.connector as sf
+from snowflake.connector.cursor import SnowflakeCursor
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -26,6 +27,8 @@ class SnowflakeQuery(Task):
             in query string
         - autocommit (bool, optional): set to True to autocommit, defaults to None, which
             takes snowflake AUTOCOMMIT parameter
+        - cursor_type (SnowflakeCursor, optional): specify the type of database
+            cursor to use for the query, defaults to SnowflakeCursor
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -43,6 +46,7 @@ class SnowflakeQuery(Task):
         query: str = None,
         data: tuple = None,
         autocommit: bool = None,
+        cursor_type: SnowflakeCursor = SnowflakeCursor,
         **kwargs
     ):
         self.account = account
@@ -56,6 +60,7 @@ class SnowflakeQuery(Task):
         self.query = query
         self.data = data
         self.autocommit = autocommit
+        self.cursor_type = cursor_type
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -70,6 +75,7 @@ class SnowflakeQuery(Task):
         "query",
         "data",
         "autocommit",
+        "cursor_type",
     )
     def run(
         self,
@@ -84,6 +90,7 @@ class SnowflakeQuery(Task):
         query: str = None,
         data: tuple = None,
         autocommit: bool = None,
+        cursor_type: SnowflakeCursor = SnowflakeCursor,
     ):
         """
         Task run method. Executes a query against snowflake database.
@@ -105,6 +112,8 @@ class SnowflakeQuery(Task):
                 in query string
             - autocommit (bool, optional): set to True to autocommit, defaults to None, which
                 takes snowflake AUTOCOMMIT parameter
+            - cursor_type (SnowflakeCursor, optional): specify the type of database
+                cursor to use for the query, defaults to SnowflakeCursor
 
         Returns:
             - List[List]: output of cursor.fetchall()
@@ -147,7 +156,7 @@ class SnowflakeQuery(Task):
         # context manager automatically rolls back failed transactions
         try:
             with conn:
-                with conn.cursor() as cursor:
+                with conn.cursor(cursor_type) as cursor:
                     executed = cursor.execute(query, params=data).fetchall()
             conn.close()
             return executed
@@ -162,6 +171,8 @@ class SnowflakeQueriesFromFile(Task):
     """
     Task for executing queries loaded from a file against a Snowflake database.
     Return a list containings the results of the queries.
+
+    Note that using execute_string() is vulnerable to SQL injection.
 
     Args:
         - account (str, optional): snowflake account name, see snowflake connector
@@ -178,6 +189,8 @@ class SnowflakeQueriesFromFile(Task):
         - file_path (str, optional): file path to load query from
         - autocommit (bool, optional): set to True to autocommit, defaults to None, which
             takes snowflake AUTOCOMMIT parameter
+        - cursor_type (SnowflakeCursor, optional): specify the type of database
+            cursor to use for the query, defaults to SnowflakeCursor
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -194,6 +207,7 @@ class SnowflakeQueriesFromFile(Task):
         warehouse: str = None,
         file_path: str = None,
         autocommit: bool = None,
+        cursor_type: SnowflakeCursor = SnowflakeCursor,
         **kwargs
     ):
         self.account = account
@@ -206,6 +220,7 @@ class SnowflakeQueriesFromFile(Task):
         self.warehouse = warehouse
         self.file_path = file_path
         self.autocommit = autocommit
+        self.cursor_type = cursor_type
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -219,6 +234,7 @@ class SnowflakeQueriesFromFile(Task):
         "warehouse",
         "file_path",
         "autocommit",
+        "cursor_type",
     )
     def run(
         self,
@@ -232,6 +248,7 @@ class SnowflakeQueriesFromFile(Task):
         warehouse: str = None,
         file_path: str = None,
         autocommit: bool = None,
+        cursor_type: SnowflakeCursor = SnowflakeCursor,
     ):
         """
         Task run method. Executes a query against snowflake database.
@@ -251,6 +268,8 @@ class SnowflakeQueriesFromFile(Task):
             - file_path (str, optional): file path to load query from
             - autocommit (bool, optional): set to True to autocommit, defaults to None, which
                 takes snowflake AUTOCOMMIT parameter
+            - cursor_type (SnowflakeCursor, optional): specify the type of database
+                cursor to use for the query, defaults to SnowflakeCursor
 
         Returns:
             - List[List]: containing the results of the different queries executed
@@ -299,7 +318,7 @@ class SnowflakeQueriesFromFile(Task):
 
             with conn:
                 result = []
-                cursor_list = conn.execute_string(query)
+                cursor_list = conn.execute_string(query, cursor_class=cursor_type)
 
                 for cursor in cursor_list:
                     result.append(cursor.fetchall())

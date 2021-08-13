@@ -1,5 +1,6 @@
 import datetime
 import json
+from pathlib import Path
 import uuid
 from unittest.mock import MagicMock
 
@@ -84,6 +85,10 @@ class TestClientAuthentication:
         assert client._tenant_id == "DISK_TENANT"
 
     def test_client_save_auth_to_disk(self):
+
+        # Ensure saving is robust to a missing directory
+        Path(prefect.context.config.home_dir).rmdir()
+
         client = Client(api_key="KEY", tenant_id="ID")
         client.save_auth_to_disk()
 
@@ -1644,13 +1649,47 @@ def test_get_default_tenant_slug_as_user(patch_post):
         }
     ):
         client = Client()
-        slug = client.get_default_tenant_slug()
+        slug = client.get_default_tenant_slug(as_user=True)
 
         assert slug == "tslug"
 
 
 def test_get_default_tenant_slug_not_as_user(patch_post):
-    response = {"data": {"tenant": [{"slug": "tslug"}]}}
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
+
+    patch_post(response)
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "cloud.tenant_id": "tenant-id",
+            "backend": "cloud",
+        }
+    ):
+        client = Client()
+        slug = client.get_default_tenant_slug(as_user=False)
+
+        assert slug == "tslug"
+
+
+def test_get_default_tenant_slug_not_as_user_with_no_tenant_id(patch_post):
+    # Generally, this would occur when using a RUNNER API token
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "firstslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
 
     patch_post(response)
 
@@ -1662,9 +1701,10 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         }
     ):
         client = Client()
+        client._tenant_id = None  # Ensure tenant id is not set
         slug = client.get_default_tenant_slug(as_user=False)
 
-        assert slug == "tslug"
+        assert slug == "firstslug"
 
 
 def test_get_cloud_url_as_user(patch_post, cloud_api):
@@ -1683,26 +1723,33 @@ def test_get_cloud_url_as_user(patch_post, cloud_api):
     ):
         client = Client()
 
-        url = client.get_cloud_url(subdirectory="flow", id="id")
+        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=True)
         assert url == "http://cloud.prefect.io/tslug/flow/id"
 
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2")
+        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=True)
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
 def test_get_cloud_url_not_as_user(patch_post, cloud_api):
-    response = {"data": {"tenant": [{"slug": "tslug"}]}}
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
 
     patch_post(response)
 
     with set_temporary_config(
         {
             "cloud.api": "http://api.prefect.io",
-            "cloud.auth_token": "secret_token",
             "backend": "cloud",
         }
     ):
         client = Client()
+        client._tenant_id = "tenant-id"
 
         url = client.get_cloud_url(subdirectory="flow", id="id", as_user=False)
         assert url == "http://cloud.prefect.io/tslug/flow/id"

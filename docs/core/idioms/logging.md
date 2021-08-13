@@ -1,3 +1,4 @@
+
 # Logging configuration and usage
 
 Prefect natively ships with a default logger configured to handle the management of logs. More information on logging in Prefect can be found in the [logging concept document](/core/concepts/logging.html).
@@ -59,7 +60,7 @@ class MyTask(prefect.Task):
 Tasks also provide an optional argument to toggle the logging of stdout—`log_stdout`. This means that, if enabled, anytime you send output to stdout (such as `print()`) it will be logged using the Prefect logger. This option is disabled by default because this option [might not be suitable](https://docs.python.org/3/library/contextlib.html#contextlib.redirect_stdout) for certain types of tasks.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 
@@ -71,7 +72,7 @@ flow = Flow("log-stdout", tasks=[my_task])
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 

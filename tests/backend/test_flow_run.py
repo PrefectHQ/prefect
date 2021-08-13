@@ -75,6 +75,14 @@ TASK_RUN_DATA_RUNNING = {
     "serialized_state": Running(message="state-2").serialize(),
     "flow_run_id": "flow_run_id-2",
 }
+TASK_RUN_DATA_RUNNING_NOW_FINISHED = {
+    "id": "task-run-id-2",
+    "name": "name-2",
+    "task": {"id": "task-id-2", "slug": "task-slug-2"},
+    "map_index": "map_index-2",
+    "serialized_state": Success(message="state-1").serialize(),
+    "flow_run_id": "flow_run_id-2",
+}
 
 
 def test_flow_run_view_query_for_flow_run_raises_bad_responses(patch_post):
@@ -193,6 +201,26 @@ def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
     ] == TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)
 
 
+def test_flow_run_view_get_all_task_runs(patch_post, patch_posts):
+    patch_posts(
+        [
+            {"data": {"flow_run": [FLOW_RUN_DATA_1]}},
+            {"data": {"task_run": [TASK_RUN_DATA_FINISHED]}},
+        ]
+    )
+    flow_run = FlowRunView.from_flow_run_id("fake-id")
+
+    patch_post({"data": {"task_run": [TASK_RUN_DATA_FINISHED, TASK_RUN_DATA_RUNNING]}})
+    tr = flow_run.get_all_task_runs()
+    assert len(flow_run._cached_task_runs) == 1
+    assert len(tr) == 2
+
+    patch_post({"data": {"task_run": [TASK_RUN_DATA_RUNNING_NOW_FINISHED]}})
+    tr = flow_run.get_all_task_runs()
+    assert len(flow_run._cached_task_runs) == 2
+    assert len(tr) == 2
+
+
 def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     patch_posts(
         [
@@ -253,7 +281,7 @@ def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
 
 def test_check_for_compatible_agents_no_agents_returned(patch_post):
     patch_post(
-        {"data": {"agents": []}},
+        {"data": {"agent": []}},
     )
 
     result = check_for_compatible_agents([])
@@ -264,7 +292,7 @@ def test_check_for_compatible_agents_healthy_without_matching_labels(patch_post)
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -285,7 +313,7 @@ def test_check_for_compatible_agents_no_healthy_no_matching_unhealthy(patch_post
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -306,7 +334,7 @@ def test_check_for_compatible_agents_matching_labels_in_single_unhealthy(patch_p
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -329,7 +357,7 @@ def test_check_for_compatible_agents_matching_labels_in_multiple_unhealthy(patch
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -356,7 +384,7 @@ def test_check_for_compatible_agents_matching_labels_in_single_healthy(patch_pos
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -379,7 +407,7 @@ def test_check_for_compatible_agents_matching_labels_in_multiple_unhealthy(patch
     patch_post(
         {
             "data": {
-                "agents": [
+                "agent": [
                     {
                         "id": "id-1",
                         "name": "name-1",
@@ -440,14 +468,14 @@ def test_watch_flow_run(monkeypatch):
         # Assert that we get the agent warning a couple times then update the state
         if i == 0:
             assert log.message == (
-                "It has been 15 seconds and your flow run has not started. "
+                "It has been 15 seconds and your flow run has not been submitted by an agent. "
                 "Helpful agent message."
             )
             assert log.level == logging.WARNING
 
         elif i == 1:
             assert log.message == (
-                "It has been 50 seconds and your flow run has not started. "
+                "It has been 50 seconds and your flow run has not been submitted by an agent. "
                 "Helpful agent message."
             )
 

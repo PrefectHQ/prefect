@@ -87,7 +87,7 @@ When possible we recommend using the `~/.aws/config` file, but
 also work:
 
 :::: tabs
-::: tab "Config file"
+::: tab Config file
 
 ```toml
 # ~/.aws/config
@@ -98,7 +98,7 @@ region=...
 ```
 
 :::
-::: tab "Environment Variables"
+::: tab Environment Variables
 
 ```bash
 export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=...
@@ -154,7 +154,7 @@ common settings. This supports pulling images from ECR and enables using
 CloudWatch logs. The full policy is below:
 
 :::: tabs
-::: tab "Execution Role Policy"
+::: tab Execution Role Policy
 ```json
 {
   "Version": "2012-10-17",
@@ -175,7 +175,7 @@ CloudWatch logs. The full policy is below:
 }
 ```
 :::
-::: tab "Agent Role Policy"
+::: tab Agent Role Policy
 ```json
 {
     "Version": "2012-10-17",
@@ -215,7 +215,7 @@ CloudWatch logs. The full policy is below:
 }
 ```
 :::
-::: tab "Prefect Tasks Role Policy"
+::: tab Prefect Tasks Role Policy
 ```
 Depends on AWS API calls your Prefect tasks make. For example, if your Prefect task make calls to DynamoDB, you need to attach a policy with DynamoDB permissions to the task role, and provide this role to `task-role-arn` option in ECSRun config or prefect ecs agent.
 ```
