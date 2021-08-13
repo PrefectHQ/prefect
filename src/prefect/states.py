@@ -82,8 +82,12 @@ def all_completed(states: Union[State, Iterable[State]]) -> State:
     return State(data=states, type=new_state_type, message=statestats.short_message())
 
 
-def is_statelike(obj: Any) -> bool:
-    if isinstance(obj, State):
-        return True
+def is_state(obj: Any) -> bool:
+    return isinstance(obj, State)
+
+
+def is_state_iterable(obj: Any):
     if isinstance(obj, IterableABC) and obj:
-        return is_statelike(obj[0])
+        return all([is_state(o) for o in obj])
+    else:
+        return False
