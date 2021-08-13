@@ -8,6 +8,7 @@ from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.utilities.hashing import file_hash
+from prefect.orion.schemas.states import StateType, State
 
 
 class TestFlow:
@@ -139,7 +140,7 @@ class TestFlowCall:
             raise future.result().data
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
-    def test_state_reflects_result_of_run(self, error):
+    def test_final_state_reflects_exceptions_during_run(self, error):
         @flow(version="test")
         def foo():
             if error:
@@ -151,6 +152,21 @@ class TestFlowCall:
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
         assert state.data is error
+
+    def test_final_state_respects_returned_state(sel):
+        @flow(version="test")
+        def foo():
+            return State(
+                type=StateType.FAILED, message="Test returned state", data=True
+            )
+
+        future = foo()
+        state = future.result()
+
+        # Assert the final state is correct
+        assert state.is_failed()
+        assert state.data is True
+        assert state.message == "Test returned state"
 
     def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
