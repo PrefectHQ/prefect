@@ -2,7 +2,8 @@
 Contains methods for working with `State` objects defined by the Orion schema at
 `prefect.orion.schemas.states`
 """
-from typing import Union, Iterable, Dict
+from typing import Union, Iterable, Dict, Any
+from collections.abc import Iterable as IterableABC
 
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.collections import ensure_iterable
@@ -79,3 +80,10 @@ def all_completed(states: Union[State, Iterable[State]]) -> State:
     )
 
     return State(data=states, type=new_state_type, message=statestats.short_message())
+
+
+def is_statelike(obj: Any) -> bool:
+    if isinstance(obj, State):
+        return True
+    if isinstance(obj, IterableABC) and obj:
+        return is_statelike(obj[0])
