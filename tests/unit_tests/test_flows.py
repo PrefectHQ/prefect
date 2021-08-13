@@ -159,19 +159,19 @@ class TestFlowCall:
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
-            return child(x, y, z)
+            future = child(x, y, z)
+            return future.run_id, future.result()
 
         parent_future = parent(1, 2)
         assert isinstance(parent_future, PrefectFuture)
         assert parent_future.result().is_completed()
 
-        child_future = parent_future.result().data
-        assert isinstance(child_future, PrefectFuture)
-        assert child_future.result().is_completed()
-        assert child_future.result().data == 6
+        child_run_id, child_state = parent_future.result().data
+        assert child_state.is_completed()
+        assert child_state.data == 6
 
-        child_flow_run = OrionClient().read_flow_run(child_future.run_id)
-        assert child_flow_run.id == child_future.run_id
+        child_flow_run = OrionClient().read_flow_run(child_run_id)
+        assert child_flow_run.id == child_run_id
         assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert child_flow_run.flow_run_details.is_subflow
         assert child_flow_run.flow_run_details.parent_task_run_id is not None
@@ -186,7 +186,7 @@ class TestFlowCall:
 
         @flow(version="foo")
         def child(x, y, z):
-            return compute(x, y, z)  # resolved to data automatically
+            return compute(x, y, z)
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
@@ -196,7 +196,7 @@ class TestFlowCall:
         assert isinstance(parent_future, PrefectFuture)
         assert parent_future.result().is_completed()
 
-        child_future = parent_future.result().data
-        assert isinstance(child_future, PrefectFuture)
-        assert child_future.result().is_completed()
-        assert child_future.result().data == 6
+        child_state = parent_future.result().data
+        assert child_state.is_completed()
+        child_task_state = child_state.data
+        assert child_task_state.data == 6

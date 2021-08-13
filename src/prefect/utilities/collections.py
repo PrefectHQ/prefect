@@ -1,5 +1,5 @@
-from collections.abc import Iterable as IterableABC
-
+from collections.abc import Sequence, Set
+from pydantic import BaseModel
 from typing import TypeVar, Mapping, Tuple, Any, Union, Iterable
 
 T = TypeVar("T")
@@ -57,6 +57,6 @@ def flatdict_to_dict(dct: Mapping[Tuple[T, ...], Any]) -> Mapping[T, Any]:
 
 
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
-    if isinstance(obj, IterableABC):
+    if isinstance(obj, Sequence) or isinstance(obj, Set):
         return obj
     return [obj]
