@@ -3,6 +3,7 @@ from collections.abc import Iterator as IteratorABC
 from unittest.mock import Mock
 from dataclasses import fields, is_dataclass
 from typing import Any, Callable, Optional, TYPE_CHECKING
+from functools import partial
 from uuid import UUID
 
 from prefect.client import OrionClient
@@ -78,6 +79,9 @@ def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to
     execution to complete. `resolve_fn` can be passed to convert `PrefectFutures` into
     futures native to another executor.
     """
+    # Ensure that the `resolve_fn` is passed on recursive calls
+    recurse = partial(resolve_futures, resolve_fn=resolve_fn)
+
     if isinstance(expr, PrefectFuture):
         return resolve_fn(expr)
 
@@ -92,14 +96,14 @@ def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to
     # resolved futures
 
     if typ in (list, tuple, set):
-        return typ([resolve_futures(o) for o in expr])
+        return typ([recurse(o) for o in expr])
 
     if typ in (dict, OrderedDict):
-        return typ([[resolve_futures(k), resolve_futures(v)] for k, v in expr.items()])
+        return typ([[recurse(k), recurse(v)] for k, v in expr.items()])
 
     if is_dataclass(expr) and not isinstance(expr, type):
         return typ(
-            **{f.name: resolve_futures(getattr(expr, f.name)) for f in fields(expr)},
+            **{f.name: recurse(getattr(expr, f.name)) for f in fields(expr)},
         )
 
     # If not a supported type, just return it

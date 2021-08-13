@@ -3,7 +3,7 @@ from typing import List
 import pydantic
 import pytest
 
-from prefect import flow
+from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
@@ -168,6 +168,57 @@ class TestFlowCall:
         assert state.data is True
         assert state.message == "Test returned state"
 
+    def test_flow_state_reflects_returned_task_run_state(self):
+        exc = ValueError("Test")
+
+        @task
+        def fail():
+            raise exc
+
+        @flow(version="test")
+        def foo():
+            return fail()
+
+        flow_state = foo().result()
+
+        assert flow_state.is_failed()
+        assert flow_state.message == "1/1 states failed."
+
+        # The task run state is returned as the data of the flow state
+        task_run_state = flow_state.data
+        assert isinstance(task_run_state, State)
+        assert task_run_state.is_failed()
+        assert task_run_state.data is exc
+
+    def test_flow_state_reflects_returned_multiple_task_run_states(self):
+        exc = ValueError("Test")
+
+        @task
+        def fail():
+            raise exc
+
+        @task
+        def fail():
+            raise exc
+
+        @task
+        def succeed():
+            return True
+
+        @flow(version="test")
+        def foo():
+            return fail(), fail(), succeed()
+
+        flow_state = foo().result()
+        assert flow_state.is_failed()
+        assert flow_state.message == "2/3 states failed."
+
+        # The task run states are attached as a tuple
+        first, second, third = flow_state.data
+        assert first.is_failed()
+        assert second.is_failed()
+        assert third.is_completed()
+
     def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
         def child(x, y, z):
@@ -194,8 +245,6 @@ class TestFlowCall:
         assert child_flow_run.flow_version == child.version
 
     def test_subflow_call_with_returned_task(self):
-        from prefect.tasks import task
-
         @task
         def compute(x, y, z):
             return x + y + z
