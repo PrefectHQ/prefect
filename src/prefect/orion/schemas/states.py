@@ -72,6 +72,9 @@ class State(APIBaseModel):
     def is_cancelled(self):
         return self.type == StateType.CANCELLED
 
+    def is_finished(self):
+        return self.is_cancelled() or self.is_completed() or self.is_failed()
+
 
 def Completed(**kwargs) -> State:
     """Convenience function for creating `Completed` states.
