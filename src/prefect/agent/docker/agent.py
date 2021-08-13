@@ -289,6 +289,7 @@ class DockerAgent(Agent):
                 # no internal container path given, assume the host path is the same as the
                 # internal path
                 external = internal
+
             host_spec[external] = {
                 "bind": internal,
                 "mode": mode,
@@ -333,15 +334,16 @@ class DockerAgent(Agent):
                             mode
                         )
                     )
-            else:
-                if not external:
-                    # no internal container path given, assume the host path is the same as the
-                    # internal path
-                    external = internal
-                host_spec[external] = {
-                    "bind": internal,
-                    "mode": mode,
-                }
+
+            if not external:
+                # no internal container path given, assume the host path is the same as the
+                # internal path
+                external = internal
+
+            host_spec[external] = {
+                "bind": internal,
+                "mode": mode,
+            }
 
         return named_volumes, container_mount_paths, host_spec
 
