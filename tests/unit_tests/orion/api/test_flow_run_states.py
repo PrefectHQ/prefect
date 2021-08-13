@@ -54,7 +54,9 @@ class TestReadFlowRunStateById:
 
 class TestReadFlowRunStateByFlowRunId:
     async def test_read_flow_run_state(self, flow_run, flow_run_states, client):
-        response = await client.get(f"/flow_run_states/?flow_run_id={flow_run.id}")
+        response = await client.get(
+            "/flow_run_states/", params=dict(flow_run_id=flow_run.id)
+        )
         assert response.status_code == 200
         response_state_ids = {state["id"] for state in response.json()}
         assert response_state_ids == set([str(state.id) for state in flow_run_states])

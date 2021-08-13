@@ -1,12 +1,15 @@
 from typing import List
 from uuid import UUID
-
+import logging
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
+from prefect.utilities.logging import get_logger
+
+logger = get_logger("orion.api")
 
 router = OrionRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
@@ -15,11 +18,37 @@ router = OrionRouter(prefix="/flow_runs", tags=["Flow Runs"])
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     session: sa.orm.Session = Depends(dependencies.get_session),
+    response: Response = None,
 ) -> schemas.core.FlowRun:
     """
     Create a flow run
     """
-    return await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+    nested = await session.begin_nested()
+    try:
+        result = await models.flow_runs.create_flow_run(
+            session=session, flow_run=flow_run
+        )
+        response.status_code = status.HTTP_201_CREATED
+        return result
+    except sa.exc.IntegrityError as exc:
+        # try to load a flow run with the same idempotency key
+        await nested.rollback()
+        stmt = await session.execute(
+            sa.select(models.orm.FlowRun).filter_by(
+                flow_id=flow_run.flow_id,
+                idempotency_key=flow_run.idempotency_key,
+            )
+        )
+        result = stmt.scalar()
+
+        # if nothing was returned, then the integrity error was caused by violating
+        # a constraint other than the idempotency key. The most probable one is
+        # that a primary key was provided that already exists in the database.
+        if not result:
+            msg = "Could not create flow run due to database constraint violations."
+            logger.error(msg, exc_info=True)
+            raise ValueError(msg)
+        return result
 
 
 @router.get("/{id}")
@@ -40,6 +69,7 @@ async def read_flow_run(
 
 @router.get("/")
 async def read_flow_runs(
+    flow_id: UUID = None,
     offset: int = 0,
     limit: int = 10,
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -48,7 +78,10 @@ async def read_flow_runs(
     Query for flow runs
     """
     return await models.flow_runs.read_flow_runs(
-        session=session, offset=offset, limit=limit
+        session=session,
+        flow_id=flow_id,
+        offset=offset,
+        limit=limit,
     )
 
 
