@@ -31,7 +31,6 @@ def all_completed(states: Union[State, Iterable[State]]) -> State:
 def result_to_state(
     result: Any, upstream_rule: Callable[[Iterable[State]], State] = all_completed
 ) -> State:
-
     # States returned directly are respected without applying a rule
     if is_state(result):
         return result
