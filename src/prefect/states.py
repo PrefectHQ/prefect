@@ -29,7 +29,7 @@ def all_completed(states: Union[State, Iterable[State]]) -> State:
 
 
 def result_to_state(
-    result: Any, upstream_rule: Callable[[Iterable[State]], State] = all_completed
+    result: Any, state_rule: Callable[[Iterable[State]], State] = all_completed
 ) -> State:
     # States returned directly are respected without applying a rule
     if is_state(result):
@@ -40,7 +40,7 @@ def result_to_state(
 
     # If we still have states, apply the rule to get a result
     if is_state(result) or is_state_iterable(result):
-        return upstream_rule(result)
+        return state_rule(result)
 
     # Otherwise, they just gave data and this is a completed result
     return State(type=StateType.COMPLETED, data=result)
