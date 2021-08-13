@@ -24,7 +24,7 @@ async def database_engine():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-        yield
+        yield engine
 
     finally:
         # tear down the databse
@@ -37,5 +37,6 @@ async def database_engine():
 
 @pytest.fixture
 async def database_session(database_engine):
-    session = get_session_factory(engine=database_engine)
-    yield session()
+    session_factory = get_session_factory(bind=database_engine)
+    async with session_factory() as session:
+        yield session

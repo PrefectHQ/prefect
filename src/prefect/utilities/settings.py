@@ -18,11 +18,6 @@ class DatabaseSettings(BaseSettings):
 
     connection_url: SecretStr = "sqlite+aiosqlite:///:memory:"
     echo: bool = False
-    poolclass: Literal[None, "NullPool"] = None
-
-    def get_poolclass(self) -> Optional[sqlalchemy.pool.Pool]:
-        if self.poolclass == "NullPool":
-            return sqlalchemy.pool.NullPool
 
 
 class OrionSettings(BaseSettings):
