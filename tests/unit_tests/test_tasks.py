@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from prefect import flow
 from prefect.tasks import task
-from prefect.orion.schemas.states import State
+from prefect.orion.schemas.states import State, StateType
 from prefect.client import OrionClient
 
 
@@ -34,7 +34,7 @@ class TestTaskCall:
         assert task_state.data == 1
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
-    def test_state_reflects_result_of_run(self, error):
+    def test_final_state_reflects_exceptions_during_run(self, error):
         @task
         def bar():
             if error:
@@ -50,6 +50,25 @@ class TestTaskCall:
         # Assert the final state is correct
         assert task_state.is_failed() if error else task_state.is_completed()
         assert task_state.data is error
+
+    def test_final_task_state_respects_returned_state(sel):
+        @task
+        def bar():
+            return State(
+                type=StateType.FAILED, message="Test returned state", data=True
+            )
+
+        @flow(version="test")
+        def foo():
+            return bar()
+
+        flow_future = foo()
+        task_state = flow_future.result().data
+
+        # Assert the final state is correct
+        assert task_state.is_failed()
+        assert task_state.data is True
+        assert task_state.message == "Test returned state"
 
     def test_task_runs_correctly_populate_dynamic_keys(self):
         @task
