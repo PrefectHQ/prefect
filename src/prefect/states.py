@@ -18,14 +18,17 @@ def all_completed(states: Union[State, Iterable[State]]) -> State:
     The input states will be placed in the `data` attribute. The new state will be given
     a message summarizing the input states.
     """
-    statestats = StateStats(ensure_iterable(states))
+    input_states = states
+    states = StateSet(ensure_iterable(states))
 
     # Determine the new state type
     new_state_type = (
-        StateType.COMPLETED if statestats.all_are_completed() else StateType.FAILED
+        StateType.COMPLETED if states.all_are_completed() else StateType.FAILED
     )
 
-    return State(data=states, type=new_state_type, message=statestats.short_message())
+    # TODO: We may actually want to set the data to a `StateSet` object and just allow
+    #       it to be unpacked into a tuple and such so users can interact with it
+    return State(data=input_states, type=new_state_type, message=states.short_message())
 
 
 def result_to_state(
@@ -57,7 +60,7 @@ def is_state_iterable(obj: Any):
         return False
 
 
-class StateStats:
+class StateSet:
     def __init__(self, states: Iterable[State]) -> None:
         self.states = states
         self.type_counts = self._get_type_counts(states)
