@@ -4,6 +4,7 @@ Contains methods for working with `State` objects defined by the Orion schema at
 """
 from typing import Iterable, Dict, Any
 from collections.abc import Iterable as IterableABC
+from collections import Counter
 
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.collections import ensure_iterable
@@ -111,12 +112,7 @@ class StateSet:
 
     @staticmethod
     def _get_type_counts(states: Iterable[State]) -> Dict[StateType, int]:
-        type_counts = {state_type: 0 for state_type in StateType.__members__.values()}
-
-        for state in states:
-            type_counts[state.type] += 1
-
-        return type_counts
+        return Counter(state.type for state in states)
 
     @staticmethod
     def _get_not_final_count(states: Iterable[State]) -> int:
