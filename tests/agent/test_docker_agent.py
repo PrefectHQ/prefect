@@ -898,7 +898,7 @@ def test_docker_agent_is_named_volume_win32(monkeypatch, api, path, result):
             ["some-name:/ctr/path"],
             ["some-name"],
             ["/ctr/path"],
-            {},
+            {"some-name": {"bind": "/ctr/path", "mode": "rw"}},
         ),
         (
             # multiple volumes
@@ -912,6 +912,7 @@ def test_docker_agent_is_named_volume_win32(monkeypatch, api, path, result):
             {
                 "/another/path": {"bind": "/ctr/path2", "mode": "ro"},
                 "/some/path": {"bind": "/ctr/path1", "mode": "rw"},
+                "some-name": {"bind": "/ctr/path3", "mode": "rw"},
             },
         ),
     ],
@@ -961,7 +962,7 @@ def test_docker_agent_parse_volume_spec_unix(
             ["some-name:/ctr/path"],
             ["some-name"],
             ["/ctr/path"],
-            {},
+            {"some-name": {"bind": "/ctr/path", "mode": "rw"}},
         ),
         (
             # multiple volumes
@@ -975,6 +976,7 @@ def test_docker_agent_parse_volume_spec_unix(
             {
                 "D:\\another\\path": {"bind": "/ctr/path2", "mode": "ro"},
                 "C:\\some\\path": {"bind": "/ctr/path1", "mode": "rw"},
+                "some-name": {"bind": "/ctr/path3", "mode": "rw"},
             },
         ),
     ],
