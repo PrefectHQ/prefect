@@ -135,12 +135,15 @@ class APIBaseModel(PrefectBaseModel):
     created: datetime.datetime = Field(None, repr=False)
     updated: datetime.datetime = Field(None, repr=False)
 
-    def copy(self):
+    def copy(self, *, update: dict = None, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
         database again. The ID is cleared and the timestamps are refreshed.
         """
-        return super().copy(
-            exclude={"id"},
-            update={"created": pendulum.now(), "updated": pendulum.now()},
-        )
+        update = update or dict()
+
+        update.setdefault("id", None)
+        update.setdefault("created", pendulum.now())
+        update.setdefault("updated", pendulum.now())
+
+        return super().copy(update=update, **kwargs)

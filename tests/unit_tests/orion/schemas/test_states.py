@@ -1,5 +1,7 @@
 import pytest
 import pendulum
+from uuid import uuid4
+
 from prefect.orion.schemas.states import State, StateType, AwaitingRetry, Retrying
 
 
@@ -16,6 +18,17 @@ class TestState:
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING)
         assert state.timestamp > dt
+
+    def test_state_copy_creates_insertable_object(self):
+        dt = pendulum.now("UTC")
+        state = State(
+            type=StateType.RUNNING, timestamp=dt, id=uuid4(), created=dt, updated=dt
+        )
+        new_state = state.copy()
+        assert new_state.id is None
+        assert new_state.timestamp > dt
+        assert new_state.created > dt
+        assert new_state.updated > dt
 
 
 class TestStateTypeFunctions:
