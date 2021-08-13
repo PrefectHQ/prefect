@@ -127,7 +127,7 @@ class TestTimestamp:
         with pytest.raises(sa.exc.StatementError, match="(must have a timezone)"):
             await database_session.flush()
 
-    async def test_timestamp_converted_to_utc(self, database_session, database_engine):
+    async def test_timestamp_converted_to_utc(self, database_session):
         model = SQLAlchemyTimestampModel(
             ts=datetime.datetime(2000, 1, 1, tzinfo=pendulum.timezone("EST"))
         )
