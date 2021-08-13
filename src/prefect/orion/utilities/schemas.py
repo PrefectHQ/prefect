@@ -1,9 +1,10 @@
-import datetime
-from uuid import UUID, uuid4
 import copy
-
+import datetime
 import json
 from typing import List
+from uuid import UUID, uuid4
+
+import pendulum
 from pydantic import BaseModel, Field
 
 from prefect import settings
@@ -133,3 +134,13 @@ class APIBaseModel(PrefectBaseModel):
     id: UUID = Field(default_factory=uuid4)
     created: datetime.datetime = Field(None, repr=False)
     updated: datetime.datetime = Field(None, repr=False)
+
+    def copy(self):
+        """
+        Copying API models should return an object that could be inserted into the
+        database again. The ID is cleared and the timestamps are refreshed.
+        """
+        return super().copy(
+            exclude={"id"},
+            update={"created": pendulum.now(), "updated": pendulum.now()},
+        )
