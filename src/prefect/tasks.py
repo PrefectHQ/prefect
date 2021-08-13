@@ -11,7 +11,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import stable_hash, to_qualified_name
-from prefect.states import result_to_state
+from prefect.states import return_val_to_state
 
 
 def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -113,7 +113,7 @@ class Task:
                     data=exc,
                 )
             else:
-                terminal_state = result_to_state(result)
+                terminal_state = return_val_to_state(result)
 
             state = propose_state(client, task_run_id, terminal_state)
 
