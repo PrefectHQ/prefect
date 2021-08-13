@@ -10,6 +10,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
+from prefect.states import all_completed, is_statelike
 
 if TYPE_CHECKING:
     from prefect.context import FlowRunContext
@@ -79,6 +80,7 @@ class Flow:
                 data=exc,
             )
         else:
+            result = 
             state = State(
                 type=StateType.COMPLETED,
                 message="Flow run completed.",
