@@ -7,11 +7,10 @@ from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.executors import BaseExecutor, SynchronousExecutor
-from prefect.futures import PrefectFuture, resolve_futures
+from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
-from prefect.orion.states import return_val_to_state
 
 if TYPE_CHECKING:
     from prefect.context import FlowRunContext
