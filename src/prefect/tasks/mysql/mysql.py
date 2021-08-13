@@ -9,6 +9,7 @@ from typing import Any, Callable, Union
 class MySQLExecute(Task):
     """
     Task for executing a query against a MySQL database.
+
     Args:
         - db_name (str): name of MySQL database
         - user (str): user name used to authenticate
@@ -74,6 +75,7 @@ class MySQLExecute(Task):
     ) -> int:
         """
         Task run method. Executes a query against MySQL database.
+
         Args:
             - db_name (str): name of MySQL database
             - user (str): user name used to authenticate
@@ -94,24 +96,16 @@ class MySQLExecute(Task):
         Raises:
             - pymysql.MySQLError
         """
-        if not db_name:
-            raise ValueError("A db_name must be provided")
-        if not user:
-            raise ValueError("A user must be provided")
-        if not password:
-            raise ValueError("A password must be provided")
-        if not host:
-            raise ValueError("A host must be provided")
         if not query:
             raise ValueError("A query string must be provided")
 
         conn = pymysql.connect(
-            host=host,
-            user=user,
-            password=password,
-            db=db_name,
-            charset=charset,
-            port=port,
+            host=self.host,
+            user=self.user,
+            password=self.password,
+            db=self.db_name,
+            charset=self.charset,
+            port=self.port,
             ssl=ssl,
         )
 
@@ -134,6 +128,7 @@ class MySQLExecute(Task):
 class MySQLFetch(Task):
     """
     Task for fetching results of query from MySQL database.
+
     Args:
         - db_name (str): name of MySQL database
         - user (str): user name used to authenticate
@@ -219,6 +214,7 @@ class MySQLFetch(Task):
     ) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
+
         Args:
             - db_name (str): name of MySQL database
             - user (str): user name used to authenticate
@@ -245,14 +241,6 @@ class MySQLFetch(Task):
         Raises:
             - pymysql.MySQLError
         """
-        if not db_name:
-            raise ValueError("A db_name must be provided")
-        if not user:
-            raise ValueError("A user must be provided")
-        if not password:
-            raise ValueError("A password must be provided")
-        if not host:
-            raise ValueError("A host must be provided")
         if not query:
             raise ValueError("A query string must be provided")
 
@@ -282,14 +270,14 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(
-            host=host,
-            user=user,
-            password=password,
-            db=db_name,
-            charset=charset,
-            port=port,
-            ssl=ssl,
+            host=self.host,
+            user=self.user,
+            password=self.password,
+            db=self.db_name,
+            charset=self.charset,
+            port=self.port,
             cursorclass=cursor_class,
+            ssl=ssl,
         )
 
         try:
