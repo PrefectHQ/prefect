@@ -2,11 +2,60 @@
 Contains methods for working with `State` objects defined by the Orion schema at
 `prefect.orion.schemas.states`
 """
-from typing import Union, Iterable, Dict, Any
+from typing import Union, Iterable, Dict, Any, Callable
 from collections.abc import Iterable as IterableABC
 
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.collections import ensure_iterable
+from prefect.futures import resolve_futures, future_to_state
+
+
+def all_completed(states: Union[State, Iterable[State]]) -> State:
+    """
+    If all of the given states are COMPLETED return a new COMPLETED state; otherwise,
+    return a FAILED state.
+
+    The input states will be placed in the `data` attribute. The new state will be given
+    a message summarizing the input states.
+    """
+    statestats = StateStats(ensure_iterable(states))
+
+    # Determine the new state type
+    new_state_type = (
+        StateType.COMPLETED if statestats.all_are_completed() else StateType.FAILED
+    )
+
+    return State(data=states, type=new_state_type, message=statestats.short_message())
+
+
+def result_to_state(
+    result: Any, upstream_rule: Callable[[Iterable[State]], State] = all_completed
+) -> State:
+
+    # States returned directly are respected without applying a rule
+    if is_state(result):
+        return result
+
+    # Ensure any futures are resolved
+    result = resolve_futures(result, resolve_fn=future_to_state)
+
+    # If we still have states, apply the rule to get a result
+    if is_state(result) or is_state_iterable(result):
+        return upstream_rule(result)
+
+    # Otherwise, they just gave data and this is a completed result
+    return State(type=StateType.COMPLETED, data=result)
+
+
+def is_state(obj: Any) -> bool:
+    return isinstance(obj, State)
+
+
+def is_state_iterable(obj: Any):
+    if isinstance(obj, IterableABC) and obj:
+        return all([is_state(o) for o in obj])
+    else:
+        return False
 
 
 class StateStats:
@@ -61,33 +110,4 @@ class StateStats:
 
     @staticmethod
     def _get_unfinished_count(states: Iterable[State]) -> int:
-        return int(sum(map(lambda state: state.is_final(), states)))
-
-
-def all_completed(states: Union[State, Iterable[State]]) -> State:
-    """
-    If all of the given states are COMPLETED return a new COMPLETED state; otherwise,
-    return a FAILED state.
-
-    The input states will be placed in the `data` attribute. The new state will be given
-    a message summarizing the input states.
-    """
-    statestats = StateStats(ensure_iterable(states))
-
-    # Determine the new state type
-    new_state_type = (
-        StateType.COMPLETED if statestats.all_are_completed() else StateType.FAILED
-    )
-
-    return State(data=states, type=new_state_type, message=statestats.short_message())
-
-
-def is_state(obj: Any) -> bool:
-    return isinstance(obj, State)
-
-
-def is_state_iterable(obj: Any):
-    if isinstance(obj, IterableABC) and obj:
-        return all([is_state(o) for o in obj])
-    else:
-        return False
+        return int(sum(map(lambda state: state.is_finished(), states)))

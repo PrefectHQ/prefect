@@ -63,6 +63,10 @@ def future_to_data(future: PrefectFuture) -> Any:
     return future.result().data
 
 
+def future_to_state(future: PrefectFuture) -> Any:
+    return future.result()
+
+
 def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to_data):
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
