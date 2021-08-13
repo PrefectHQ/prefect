@@ -1,0 +1,81 @@
+"""
+Contains methods for working with `State` objects defined by the Orion schema at
+`prefect.orion.schemas.states`
+"""
+from typing import Union, Iterable, Dict
+
+from prefect.orion.schemas.states import State, StateType
+from prefect.utilities.collections import ensure_iterable
+
+
+class StateStats:
+    def __init__(self, states: Iterable[State]) -> None:
+        self.states = states
+        self.type_counts = self._get_type_counts(states)
+        self.total_count = len(states)
+        self.unfinished_count = self._get_unfinished_count(states)
+
+    @property
+    def fail_count(self):
+        return self.type_counts[StateType.FAILED]
+
+    def all_are_completed(self) -> bool:
+        return self.type_counts[StateType.COMPLETED] == self.total_count
+
+    def any_are_failed(self) -> bool:
+        return self.type_counts[StateType.FAILED] > 0
+
+    def any_are_unfinished(self) -> bool:
+        return self.unfinished_count > 0
+
+    def short_message(self) -> str:
+        if self.all_are_completed():
+            return "All states completed."
+        elif self.any_are_failed():
+            return f"{self.fail_count}/{self.total_count} states failed."
+        elif self.any_are_unfinished():
+            return f"{self.unfinished_count}/{self.total_count} states were unfinished."
+        else:
+            # Short message is not implemented for this case so return the long message
+            return self.summary_message()
+
+    def summary_message(self) -> str:
+        message = f"Of a total of {self.total_count} states,"
+        count_messages = []
+        for state_type, count in self.type_counts:
+            if not count:
+                continue
+            count_messages.append(f"{count} states were {state_type.value!r}")
+        message += ", ".join(count_messages)
+        return message + "."
+
+    @staticmethod
+    def _get_type_counts(states: Iterable[State]) -> Dict[StateType, int]:
+        type_counts = {state_type: 0 for state_type in StateType.__members__.values()}
+
+        for state in states:
+            type_counts[state.type] += 1
+
+        return type_counts
+
+    @staticmethod
+    def _get_unfinished_count(states: Iterable[State]) -> int:
+        return int(sum(map(lambda state: state.is_final(), states)))
+
+
+def all_completed(states: Union[State, Iterable[State]]) -> State:
+    """
+    If all of the given states are COMPLETED return a new COMPLETED state; otherwise,
+    return a FAILED state.
+
+    The input states will be placed in the `data` attribute. The new state will be given
+    a message summarizing the input states.
+    """
+    statestats = StateStats(ensure_iterable(states))
+
+    # Determine the new state type
+    new_state_type = (
+        StateType.COMPLETED if statestats.all_are_completed() else StateType.FAILED
+    )
+
+    return State(data=states, type=new_state_type, message=statestats.short_message())
