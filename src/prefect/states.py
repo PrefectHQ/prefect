@@ -65,7 +65,7 @@ class StateSet:
         self.states = states
         self.type_counts = self._get_type_counts(states)
         self.total_count = len(states)
-        self.unfinished_count = self._get_unfinished_count(states)
+        self.not_final_count = self._get_not_final_count(states)
 
     @property
     def fail_count(self):
@@ -77,16 +77,16 @@ class StateSet:
     def any_are_failed(self) -> bool:
         return self.type_counts[StateType.FAILED] > 0
 
-    def any_are_unfinished(self) -> bool:
-        return self.unfinished_count > 0
+    def any_not_final(self) -> bool:
+        return self.not_final_count > 0
 
     def short_message(self) -> str:
         if self.all_are_completed():
             return "All states completed."
         elif self.any_are_failed():
             return f"{self.fail_count}/{self.total_count} states failed."
-        elif self.any_are_unfinished():
-            return f"{self.unfinished_count}/{self.total_count} states were unfinished."
+        elif self.any_not_final():
+            return f"{self.not_final_count}/{self.total_count} states were unfinished."
         else:
             # Short message is not implemented for this case so return the long message
             return self.summary_message()
@@ -111,5 +111,5 @@ class StateSet:
         return type_counts
 
     @staticmethod
-    def _get_unfinished_count(states: Iterable[State]) -> int:
-        return int(sum(map(lambda state: state.is_finished(), states)))
+    def _get_not_final_count(states: Iterable[State]) -> int:
+        return int(sum(map(lambda state: state.is_final(), states)))
