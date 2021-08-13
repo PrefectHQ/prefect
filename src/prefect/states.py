@@ -55,9 +55,10 @@ def return_val_to_state(result: Any) -> State:
             message = "All states completed."
         elif states.any_failed():
             message = f"{states.fail_count}/{states.total_count} states failed."
-        elif states.any_not_final():
+        elif not states.all_final():
             message = (
-                f"{states.not_final_count}/{states.total_count} states were unfinished."
+                f"{states.not_final_count}/{states.total_count} states did not reach a "
+                "final state."
             )
         else:
             message = "Given states: " + states.counts_message()
@@ -98,8 +99,8 @@ class StateSet:
     def any_failed(self) -> bool:
         return self.type_counts[StateType.FAILED] > 0
 
-    def any_not_final(self) -> bool:
-        return self.not_final_count > 0
+    def all_final(self) -> bool:
+        return self.not_final_count == self.total_count
 
     def counts_message(self) -> str:
         count_messages = [f"total={self.total_count}"]
