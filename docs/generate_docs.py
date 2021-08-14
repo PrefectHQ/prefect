@@ -334,13 +334,14 @@ def format_subheader(obj, level=1, in_table=False):
     if inspect.isclass(obj):
         header = "## {}\n".format(obj.__name__)
     elif not in_table:
-        header = "##" + "#" * level
+        header = "##" + ("#" * level) + " {}\n".format(obj.__name__)
     else:
         header = "|"
     is_class = '<p class="prefect-sig">class </p>' if inspect.isclass(obj) else ""
     class_name = f'<p class="prefect-class">{create_absolute_path(obj)}</p>'
     div_class = "class-sig" if is_class else "method-sig"
-    div_tag = f"<div class='{div_class}' id='{slugify(create_absolute_path(obj))}'>"
+    block_id = slugify(create_absolute_path(obj)) or obj.__name__
+    div_tag = f"<div class='{div_class}' id='{'method' + block_id if block_id[0] is '-' else block_id}'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig
