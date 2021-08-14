@@ -93,9 +93,9 @@ class Flow:
         from prefect.tasks import Task
 
         flow_run_context = FlowRunContext.get()
-        is_nested_run = flow_run_context is not None
-        parent_flow_run_id = flow_run_context.flow_run_id if is_nested_run else None
-        executor = flow_run_context.executor if is_nested_run else self.executor
+        is_subflow_run = flow_run_context is not None
+        parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
+        executor = flow_run_context.executor if is_subflow_run else self.executor
 
         if TaskRunContext.get():
             raise RuntimeError(
@@ -109,8 +109,8 @@ class Flow:
         client = OrionClient()
 
         parent_task_run_id: Optional[UUID] = None
-        if is_nested_run:
-            # Generate a fake task in the parent as a placeholder to point to the child
+        if is_subflow_run:
+            # Generate a task in the parent flow run to represent the result of the subflow run
             parent_task_run_id = client.create_task_run(
                 task=Task(name=self.name, fn=lambda _: ...),
                 flow_run_id=parent_flow_run_id,
@@ -124,8 +124,8 @@ class Flow:
 
         executor_context = (
             executor.start(flow_run_id=flow_run_id, orion_client=client)
-            # The executor is already started if this is a subflow
-            if not is_nested_run
+            # The executor is already started if this is a subflow run
+            if not is_subflow_run
             else nullcontext()
         )
 
@@ -140,8 +140,8 @@ class Flow:
                     context=context, call_args=args, call_kwargs=kwargs
                 )
 
-        if is_nested_run and terminal_state.is_completed():
-            # Since a subflow does not wait for all of its futures before exiting, we
+        if is_subflow_run and terminal_state.is_completed():
+            # Since a subflow run does not wait for all of its futures before exiting, we
             # wait for any returned futures to complete before setting the final state
             # of the flow
             terminal_state.data = resolve_futures(terminal_state.data)
