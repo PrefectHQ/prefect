@@ -76,11 +76,11 @@ class TestCreateFlowRun:
         assert flow_run
 
     async def test_create_flow_run_with_subflow_information(
-        self, flow, client, database_session
+        self, flow, task_run, client, database_session
     ):
         flow_run_data = dict(
             flow_id=str(flow.id),
-            flow_run_details=dict(is_subflow=True, parent_task_run_id=str(uuid4())),
+            parent_task_run_id=str(task_run.id),
             flow_version="0.1",
         )
         response = await client.post("/flow_runs/", json=flow_run_data)
@@ -88,11 +88,7 @@ class TestCreateFlowRun:
         flow_run = await models.flow_runs.read_flow_run(
             session=database_session, flow_run_id=response.json()["id"]
         )
-        assert flow_run.flow_run_details.is_subflow
-        assert (
-            str(flow_run.flow_run_details.parent_task_run_id)
-            == flow_run_data["flow_run_details"]["parent_task_run_id"]
-        )
+        assert flow_run.parent_task_run_id == task_run.id
 
 
 class TestReadFlowRun:
