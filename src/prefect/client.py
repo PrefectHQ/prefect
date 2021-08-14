@@ -87,10 +87,7 @@ class OrionClient:
             parameters=parameters,
             context=context,
             tags=list(tags),
-            flow_run_details=schemas.core.FlowRunDetails(
-                is_subflow=parent_task_run_id is not None,
-                parent_task_run_id=parent_task_run_id,
-            ),
+            parent_task_run_id=parent_task_run_id,
         )
 
         response = self.post("/flow_runs/", json=flow_run_data.json_dict())
