@@ -73,8 +73,8 @@ def run_with_heartbeat(
             configured_heartbeat = threaded_heartbeat(self.flow_run_id)
         elif prefect.context.config.heartbeat_mode == "process":
             configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
-        # because the threaded heartbeat mode is experimental the future, let's not catch configuration
-        # error with `else` -- stale configuration should break tests
+        # because the threaded heartbeat mode is experimental and may change in the future,
+        # let's not catch configuration error with `else` -- stale configuration should break tests
 
         with configured_heartbeat:
             return runner_method(self, *args, **kwargs)
