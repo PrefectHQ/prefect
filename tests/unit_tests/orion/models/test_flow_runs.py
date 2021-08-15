@@ -16,6 +16,35 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
 
+    async def test_create_flow_run_has_no_default_state(self, flow, database_session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+        )
+        assert flow_run.flow_id == flow.id
+        assert flow_run.state is None
+
+    async def test_create_flow_run_with_state(self, flow, database_session):
+        state_id = uuid4()
+        flow_run = await models.flow_runs.create_flow_run(
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    id=state_id, type="RUNNING", name="My Running State"
+                ),
+            ),
+        )
+        assert flow_run.flow_id == flow.id
+        assert flow_run.state.id == state_id
+
+        query = await database_session.execute(
+            sa.select(models.orm.FlowRunState).filter_by(id=state_id)
+        )
+        result = query.scalar()
+        assert result.id == state_id
+        assert result.name == "My Running State"
+
     async def test_create_multiple_flow_runs(self, flow, database_session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=database_session,

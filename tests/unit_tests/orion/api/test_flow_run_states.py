@@ -59,7 +59,9 @@ class TestReadFlowRunStateById:
 
 
 class TestReadFlowRunStateByFlowRunId:
-    async def test_read_flow_run_state(self, flow_run, flow_run_states, client):
+    async def test_read_flow_run_state(
+        self, flow_run, flow_run_states, client, database_session
+    ):
         response = await client.get(
             "/flow_run_states/", params=dict(flow_run_id=flow_run.id)
         )

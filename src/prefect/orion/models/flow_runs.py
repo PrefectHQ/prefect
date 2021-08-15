@@ -4,13 +4,14 @@ import sqlalchemy as sa
 from sqlalchemy import select, delete
 
 from prefect.orion.models import orm
-from prefect.orion import schemas
+from prefect.orion import schemas, models
 
 
 async def create_flow_run(
     session: sa.orm.Session, flow_run: schemas.actions.FlowRunCreate
 ) -> orm.FlowRun:
-    """Creates a new flow run
+    """Creates a new flow run. If the provided flow run has a state attached, it
+    will also be created.
 
     Args:
         session (sa.orm.Session): a database session
@@ -19,9 +20,13 @@ async def create_flow_run(
     Returns:
         orm.FlowRun: the newly-created flow run
     """
-    model = orm.FlowRun(**flow_run.dict(shallow=True), state=None)
+    model = orm.FlowRun(**flow_run.dict(shallow=True, exclude={"state"}), state=None)
     session.add(model)
     await session.flush()
+    if flow_run.state:
+        await models.flow_run_states.create_flow_run_state(
+            session=session, flow_run_id=model.id, state=flow_run.state
+        )
     return model
 
 

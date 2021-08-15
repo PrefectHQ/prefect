@@ -12,7 +12,6 @@ FlowCreate = Flow.subclass(
 FlowRunCreate = FlowRun.subclass(
     name="FlowRunCreate",
     include_fields=[
-        "id",
         "flow_id",
         "flow_version",
         "parameters",
@@ -21,6 +20,7 @@ FlowRunCreate = FlowRun.subclass(
         "flow_run_details",
         "parent_task_run_id",
         "idempotency_key",
+        "state",
     ],
 )
 
@@ -51,5 +51,6 @@ TaskRunCreate = TaskRun.subclass(
         "task_inputs",
         "upstream_task_run_ids",
         "task_run_details",
+        "state",
     ],
 )
