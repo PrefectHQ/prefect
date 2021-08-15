@@ -3,10 +3,12 @@ import threading
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List
 from uuid import UUID
 from contextlib import contextmanager
+from multiprocessing import current_process
 
 import pydantic
 import httpx
 
+import prefect
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 
@@ -16,9 +18,16 @@ if TYPE_CHECKING:
 
 
 class OrionClient:
-    def __init__(self, http_client: httpx.Client = None) -> None:
-        # If not given an httpx client, create one that connects to an ephemeral app
-        self._client = http_client or _ASGIClient(app=orion_app)
+    def __init__(
+        self, host: str = prefect.settings.orion_host, httpx_settings: dict = None
+    ) -> None:
+        httpx_settings = httpx_settings or {}
+
+        if host:
+            self._client = httpx.Client(base_url=host, **httpx_settings)
+        else:
+            # Create an ephemeral app client
+            self._client = _ASGIClient(app=orion_app, httpx_settings=httpx_settings)
 
     def post(self, route: str, **kwargs) -> httpx.Response:
         response = self._client.post(route, **kwargs)
@@ -63,7 +72,7 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         extra_tags: Iterable[str] = None,
-        parent_task_run_id: str = None,
+        parent_task_run_id: UUID = None,
     ) -> UUID:
         tags = set(flow.tags).union(extra_tags or [])
         parameters = parameters or {}
@@ -136,6 +145,10 @@ class OrionClient:
             task_key=task.task_key,
             dynamic_key=task.dynamic_key,
             tags=list(tags),
+            empirical_policy=schemas.core.TaskRunPolicy(
+                max_retries=task.retries,
+                retry_delay_seconds=task.retry_delay_seconds,
+            ),
         )
 
         response = self.post("/task_runs/", json=task_run_data.json_dict())
@@ -181,55 +194,24 @@ class OrionClient:
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
 
-class _ASGIClient:
+class _ThreadedEventLoop:
     """
-    Creates a synchronous wrapper for calling an ASGI application's routes using
-    temporary `httpx.AsyncClient` instances and an event loop in a thread.
+    Spawns an event loop in a daemonic thread.
+
+    Creating a new event loop that runs in a child thread prevents us from throwing
+    exceptions when there is already an event loop in the main thread and prevents
+    synchronous code in the main thread from blocking the event loop from executing.
+
+    These _cannot_ be shared across processes. We use an `EVENT_LOOPS` global to ensure
+    that there is a single instance available per process.
     """
 
-    def __init__(self, app) -> None:
-        self._thread, self._event_loop = self._create_threaded_event_loop()
-        self.app = app
-
-    @contextmanager
-    def _httpx_client(self):
-        """
-        Creates a temporary httpx.AsyncClient and clean up on exit
-
-        Since this client is created per request, we are forfeiting the benefits of
-        a long-lived HTTP session. However, since this is only intended to be used with
-        an ASGI application running in-process, there should not be a meaningful change
-        in performance.
-        """
-        client = httpx.AsyncClient(app=self.app, base_url="http://ephemeral")
-        try:
-            yield client
-        finally:
-            self._run_coro(client.aclose())
-
-    # httpx.Client methods -------------------------------------------------------------
-
-    def get(self, route: str, **kwargs: Any) -> httpx.Response:
-        with self._httpx_client() as client:
-            return self._run_coro(client.get(route, **kwargs))
-
-    def post(self, route: str, **kwargs: Any) -> httpx.Response:
-        with self._httpx_client() as client:
-            return self._run_coro(client.post(route, **kwargs))
-
-    # Event loop management ------------------------------------------------------------
+    def __init__(self) -> None:
+        self._thread, self._loop = self._create_threaded_event_loop()
 
     def _create_threaded_event_loop(
         self,
     ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
-        """
-        Spawns an event loop in a daemonic thread.
-
-        Creating a new event loop that runs in a child thread prevents us from throwing
-        exceptions when there is already an event loop in the main thread and prevents
-        synchronous code in the main thread from blocking the event loop from executing.
-        """
-
         def start_loop(loop):
             asyncio.set_event_loop(loop)
             loop.run_forever()
@@ -241,17 +223,76 @@ class _ASGIClient:
 
         return t, loop
 
-    def _run_coro(self, coro):
-        if not self._event_loop:
+    def run_coro(self, coro):
+        if not self._loop:
             raise ValueError("Event loop has not been created.")
-        if not self._event_loop.is_running():
+        if not self._loop.is_running():
             raise ValueError("Event loop is not running.")
 
-        future = asyncio.run_coroutine_threadsafe(coro, loop=self._event_loop)
+        future = asyncio.run_coroutine_threadsafe(coro, loop=self._loop)
         result = future.result()
 
         return result
 
     def __del__(self):
-        if self._event_loop.is_running():
-            self._event_loop.stop()
+        if self._loop and self._loop.is_running():
+            self._loop.stop()
+
+
+# Mapping of PID to a lazily instantiated shared event-loop per process
+EVENT_LOOPS: Dict[int, _ThreadedEventLoop] = {}
+
+
+def _get_process_event_loop():
+    """
+    Get or create a `_ThreadedEventLoop` for the current process
+    """
+    pid = current_process().pid
+    if pid not in EVENT_LOOPS:
+        EVENT_LOOPS[pid] = _ThreadedEventLoop()
+
+    return EVENT_LOOPS[pid]
+
+
+class _ASGIClient:
+    """
+    Creates a synchronous wrapper for calling an ASGI application's routes using
+    temporary `httpx.AsyncClient` instances.
+
+    Requires a `_ThreadedEventLoop` to submit async work without blocking the main
+    thread.
+    """
+
+    def __init__(self, app, httpx_settings: dict) -> None:
+        self._event_loop = _get_process_event_loop()
+        self.app = app
+        self.httpx_settings = httpx_settings
+
+    @contextmanager
+    def _httpx_client(self):
+        """
+        Creates a temporary httpx.AsyncClient and cleans up on exit by explicitly
+        running `aclose()` since we cannot use `async with` in a synchronous context.
+
+        Since this client is created per request, we are forfeiting the benefits of
+        a long-lived HTTP session. However, since this is only intended to be used with
+        an ASGI application running in-process, there should not be a meaningful change
+        in performance.
+        """
+        client = httpx.AsyncClient(
+            app=self.app, base_url="http://ephemeral", **self.httpx_settings
+        )
+        try:
+            yield client
+        finally:
+            self._event_loop.run_coro(client.aclose())
+
+    # httpx.Client methods -------------------------------------------------------------
+
+    def get(self, route: str, **kwargs: Any) -> httpx.Response:
+        with self._httpx_client() as client:
+            return self._event_loop.run_coro(client.get(route, **kwargs))
+
+    def post(self, route: str, **kwargs: Any) -> httpx.Response:
+        with self._httpx_client() as client:
+            return self._event_loop.run_coro(client.post(route, **kwargs))

@@ -1,3 +1,5 @@
+import datetime
+import pendulum
 from uuid import UUID
 from typing import List
 import sqlalchemy as sa
@@ -6,13 +8,14 @@ from sqlalchemy.sql.functions import mode
 
 from prefect.orion.models import orm
 from prefect.orion import schemas, models
-from prefect.orion.schemas.states import RunDetails
+from prefect.orion.schemas import states
 
 
 async def create_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
     state: schemas.actions.StateCreate,
+    apply_orchestration_rules: bool = True,
 ) -> orm.TaskRunState:
     """Creates a new task run state
 
@@ -24,30 +27,50 @@ async def create_task_run_state(
     Returns:
         orm.TaskRunState: the newly-created task run state
     """
-    # carry over RunDetails from the most recent state
-    run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
-    if run and run.state is not None:
-        run_details = run.state.run_details
-        run_details.previous_state_id = run.state.id
-    else:
-        run_details = RunDetails()
 
-    # ensure task run id is accurate in state details
+    # load the task run
+    run = await models.task_runs.read_task_run(
+        session=session,
+        task_run_id=task_run_id,
+    )
+
+    if not run:
+        raise ValueError(f"Invalid task run: {task_run_id}")
+
+    from_state = run.state.as_state() if run.state else None
+
+    # --- apply retry logic
+    if apply_orchestration_rules:
+        if (
+            from_state
+            and from_state.type == states.StateType.RUNNING
+            and state.type == states.StateType.FAILED
+            and run.state.run_details.run_count <= run.empirical_policy.max_retries
+        ):
+            state = states.AwaitingRetry(
+                scheduled_time=pendulum.now("UTC").add(
+                    seconds=run.empirical_policy.retry_delay_seconds
+                ),
+                message=state.message,
+                data=state.data,
+            )
+
+    # update the state details
+    state.run_details = states.update_run_details(from_state=from_state, to_state=state)
+    state.state_details.flow_run_id = run.flow_run_id
     state.state_details.task_run_id = task_run_id
 
     # create the new task run state
     new_task_run_state = orm.TaskRunState(
-        **state.dict(exclude={"data", "state_details"}),
         task_run_id=task_run_id,
-        run_details=run_details,
-        state_details=state.state_details
+        **dict(state),
     )
     session.add(new_task_run_state)
     await session.flush()
 
-    # refresh the ORM model to eagerly load relationships
+    # update the ORM model state
     if run is not None:
-        await session.refresh(run)
+        run.state = new_task_run_state
 
     return new_task_run_state
 

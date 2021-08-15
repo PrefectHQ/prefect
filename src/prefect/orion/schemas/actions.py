@@ -12,13 +12,14 @@ FlowCreate = Flow.subclass(
 FlowRunCreate = FlowRun.subclass(
     name="FlowRunCreate",
     include_fields=[
+        "id",
         "flow_id",
         "flow_version",
         "parameters",
-        "parent_task_run_id",
         "context",
         "tags",
-        "flow_run_metadata",
+        "flow_run_details",
+        "parent_task_run_id",
         "idempotency_key",
     ],
 )
@@ -32,6 +33,7 @@ StateCreate = State.subclass(
         "message",
         "data",
         "state_details",
+        "run_details",
     ],
 )
 
@@ -48,6 +50,6 @@ TaskRunCreate = TaskRun.subclass(
         "tags",
         "task_inputs",
         "upstream_task_run_ids",
-        "task_run_metadata",
+        "task_run_details",
     ],
 )
