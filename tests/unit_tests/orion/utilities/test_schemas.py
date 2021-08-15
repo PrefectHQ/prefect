@@ -114,3 +114,35 @@ class TestClassmethodSubclass:
         assert Child.__name__ == "Child"
         assert Child(x=1)
         assert not hasattr(Child(x=1), "y")
+
+
+class TestNestedDict:
+    @pytest.fixture()
+    def nested(self):
+        class Child(pydantic.BaseModel):
+            z: int
+
+        class Parent(PrefectBaseModel):
+            x: int
+            y: Child
+
+        return Parent(x=1, y=Child(z=2))
+
+    def test_full_dict(self, nested):
+        assert nested.dict() == {"x": 1, "y": {"z": 2}}
+        assert isinstance(nested.dict()["y"], dict)
+
+    def test_simple_dict(self, nested):
+        assert dict(nested) == {"x": 1, "y": nested.y}
+        assert isinstance(dict(nested)["y"], pydantic.BaseModel)
+
+    def test_shallow_true(self, nested):
+        assert dict(nested) == nested.dict(shallow=True)
+        assert isinstance(nested.dict(shallow=True)["y"], pydantic.BaseModel)
+
+    def test_kwargs_respected(self, nested):
+        deep = nested.dict(include={"y"})
+        shallow = nested.dict(include={"y"}, shallow=True)
+        assert isinstance(deep["y"], dict)
+        assert isinstance(shallow["y"], pydantic.BaseModel)
+        assert deep == shallow == {"y": {"z": 2}}

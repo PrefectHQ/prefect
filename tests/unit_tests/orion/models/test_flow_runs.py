@@ -100,7 +100,8 @@ class TestCreateFlowRun:
 
     async def test_create_flow_run_succeeds(self, flow, database_session):
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=dict(flow_id=flow.id, flow_version="0.1")
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
         )
         assert flow_run.flow_id == flow.id
         assert flow_run.flow_version == "0.1"
@@ -111,7 +112,7 @@ class TestReadFlowRun:
         # create a flow run to read
         flow_run = await models.flow_runs.create_flow_run(
             session=database_session,
-            flow_run=dict(flow_id=flow.id),
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
 
         read_flow_run = await models.flow_runs.read_flow_run(
@@ -137,7 +138,8 @@ class TestReadFlowRuns:
         )
 
         flow_run_1 = await models.flow_runs.create_flow_run(
-            session=database_session, flow_run=dict(flow_id=flow.id)
+            session=database_session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=database_session,
@@ -176,7 +178,7 @@ class TestDeleteFlowRun:
         # create a flow run to delete
         flow_run = await models.flow_runs.create_flow_run(
             session=database_session,
-            flow_run=dict(flow_id=flow.id),
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
         )
 
         assert await models.flow_runs.delete_flow_run(
