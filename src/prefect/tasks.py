@@ -1,12 +1,38 @@
 import inspect
+import time
 from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from typing import Any, Callable, Dict, Iterable, Tuple, Union
 from uuid import UUID
 
-from prefect.utilities.hashing import stable_hash, to_qualified_name
-from prefect.futures import PrefectFuture, resolve_futures
+import pendulum
+
 from prefect.client import OrionClient
+from prefect.futures import PrefectFuture
+from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateType
+from prefect.utilities.hashing import stable_hash, to_qualified_name
+
+
+def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
+    """
+    TODO: Consider rolling this behavior into the `Client` state update method once we
+          understand how we want to handle ABORT cases
+    """
+    response = client.set_task_run_state(
+        task_run_id,
+        state=state,
+    )
+    if response.status == SetStateStatus.ACCEPT:
+        if response.details.state_details:
+            state.state_details = response.details.state_details
+        return state
+
+    if response.status == SetStateStatus.ABORT:
+        raise RuntimeError("ABORT is not yet handled")
+
+    server_state = response.details.state
+
+    return server_state
 
 
 class Task:
@@ -20,6 +46,8 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
+        retries: int = 0,
+        retry_delay_seconds: Union[float, int] = 0,
     ):
         if not fn:
             raise TypeError("__init__() missing 1 required argument: 'fn'")
@@ -46,6 +74,12 @@ class Task:
 
         self.dynamic_key = 0
 
+        # TaskRunPolicy settings
+        # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
+        #       validate that the user passes positive numbers here
+        self.retries = retries
+        self.retry_delay_seconds = retry_delay_seconds
+
     def _run(
         self,
         task_run_id: UUID,
@@ -57,33 +91,46 @@ class Task:
 
         client = OrionClient()
 
-        client.set_task_run_state(task_run_id, State(type=StateType.RUNNING))
+        # Transition from `PENDING` -> `RUNNING`
+        state = propose_state(client, task_run_id, State(type=StateType.RUNNING))
 
-        try:
-            with TaskRunContext(
-                task_run_id=task_run_id,
-                flow_run_id=flow_run_id,
-                task=self,
-                client=client,
-            ):
-                result = self.fn(*call_args, **call_kwargs)
-        except Exception as exc:
-            state = State(
-                type=StateType.FAILED,
-                message="Task run encountered an exception.",
-                data=exc,
-            )
-        else:
-            state = State(
-                type=StateType.COMPLETED,
-                message="Task run completed.",
-                data=result,
-            )
+        # Only run the task if we enter a `RUNNING` state
+        while state.is_running():
 
-        client.set_task_run_state(
-            task_run_id,
-            state=state,
-        )
+            try:
+                with TaskRunContext(
+                    task_run_id=task_run_id,
+                    flow_run_id=flow_run_id,
+                    task=self,
+                    client=client,
+                ):
+                    result = self.fn(*call_args, **call_kwargs)
+            except Exception as exc:
+                terminal_state = State(
+                    type=StateType.FAILED,
+                    message="Task run encountered an exception.",
+                    data=exc,
+                )
+            else:
+                terminal_state = State(
+                    type=StateType.COMPLETED,
+                    message="Task run completed.",
+                    data=result,
+                )
+
+            state = propose_state(client, task_run_id, terminal_state)
+
+            if state.is_scheduled():  # Received a retry from the backend
+                start_time = pendulum.instance(state.state_details.scheduled_time)
+                wait_time = start_time.diff(abs=False).in_seconds() * -1
+                print(f"Task is scheduled to run again {start_time.diff_for_humans()}")
+                if wait_time > 0:
+                    print(f"Sleeping for {wait_time}s...")
+                    time.sleep(wait_time)
+
+                state = propose_state(
+                    client, task_run_id, State(type=StateType.RUNNING)
+                )
 
         return state
 
@@ -109,24 +156,20 @@ class Task:
             task_run_id, State(type=StateType.PENDING)
         )
 
-        callback = flow_run_context.executor.submit(
+        future = flow_run_context.executor.submit(
+            task_run_id,
             self._run,
             task_run_id=task_run_id,
             flow_run_id=flow_run_context.flow_run_id,
-            call_args=resolve_futures(args),
-            call_kwargs=resolve_futures(kwargs),
+            call_args=args,
+            call_kwargs=kwargs,
         )
 
         # Increment the dynamic_key so future task calls are distinguishable from this
         # task run
         self.dynamic_key += 1
 
-        return PrefectFuture(
-            flow_run_id=flow_run_context.flow_run_id,
-            task_run_id=task_run_id,
-            client=flow_run_context.client,
-            wait_callback=callback,
-        )
+        return future
 
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):

@@ -7,6 +7,9 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
+from prefect.utilities.logging import get_logger
+
+logger = get_logger("orion.api")
 
 router = OrionRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
@@ -42,10 +45,9 @@ async def create_flow_run(
         # a constraint other than the idempotency key. The most probable one is
         # that a primary key was provided that already exists in the database.
         if not result:
-            logging.error(exc)
-            raise ValueError(
-                "Could not create flow run due to database constraint violations."
-            )
+            msg = "Could not create flow run due to database constraint violations."
+            logger.error(msg, exc_info=True)
+            raise ValueError(msg)
         return result
 
 
@@ -109,14 +111,30 @@ async def set_flow_run_state(
     """Set a flow run state, invoking any orchestration rules."""
 
     # create the state
-    await models.flow_run_states.create_flow_run_state(
+    new_state = await models.flow_run_states.create_flow_run_state(
         session=session, flow_run_id=flow_run_id, state=state
     )
     # set the 201 because a new state was created
     response.status_code = status.HTTP_201_CREATED
 
-    # indicate the state was accepted
-    return schemas.responses.SetStateResponse(
-        status=schemas.responses.SetStateStatus.ACCEPT,
-        new_state=None,
-    )
+    # if the set state has the same type as the provided state, it was accepted,
+    # though its details may have been updated
+    if new_state.type == state.type:
+
+        # indicate the state was accepted
+        return schemas.responses.SetStateResponse(
+            status=schemas.responses.SetStateStatus.ACCEPT,
+            details=dict(
+                run_details=new_state.run_details,
+                state_details=new_state.state_details,
+            ),
+        )
+
+    # otherwise the requested transition was rejected
+    else:
+
+        # send the new state
+        return schemas.responses.SetStateResponse(
+            status=schemas.responses.SetStateStatus.REJECT,
+            details=dict(state=new_state),
+        )

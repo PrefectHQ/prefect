@@ -3,6 +3,9 @@
 Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
+from pathlib import Path
+
+
 from pydantic import BaseSettings, Field, SecretStr
 
 
@@ -26,6 +29,14 @@ class OrionSettings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
 
 
+class LoggingSettings(BaseSettings):
+    class Config:
+        env_prefix = "PREFECT_LOGGING_"
+        frozen = True
+
+    settings_path: Path = Path("~/.prefect/logging.yml").expanduser()
+
+
 class Settings(BaseSettings):
     class Config:
         env_prefix = "PREFECT_"
@@ -36,10 +47,13 @@ class Settings(BaseSettings):
     test_mode: bool = False
 
     # logging
-    logging_level: str = "INFO"
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)
 
     # orion
     orion: OrionSettings = Field(default_factory=OrionSettings)
+
+    # the connection url for an orion instance
+    orion_host: str = None
 
 
 settings = Settings()

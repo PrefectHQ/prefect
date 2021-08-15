@@ -1,3 +1,4 @@
+from enum import Enum
 import pydantic
 import json
 import re
@@ -7,6 +8,7 @@ from asyncio import current_task
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column
+import sqlalchemy
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.event import listens_for
 from sqlalchemy.ext.asyncio import (
@@ -51,13 +53,27 @@ OrionAsyncSession = get_session_factory(engine)
 
 
 @listens_for(sa.engine.Engine, "engine_connect", once=True)
-def create_in_memory_sqlite_objects(conn, named=True):
-    """The first time a connection is made to an engine, we check if it's an
-    in-memory sqlite database. If so, we create all Orion tables as a convenience
+def setup_sqlite(conn, named=True):
+    """The first time a connection is made to a sqlite engine:
+    - we check if it's an in-memory sqlite database and create all Orion tables
+      as a convenience
+    - we enable sqlite foreign keys
     to the user."""
     if conn.engine.url.get_backend_name() == "sqlite":
+        # enable foreign keys
+        cursor = conn.connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+        # create tables
         if conn.engine.url.database in (":memory:", None):
             Base.metadata.create_all(conn.engine)
+
+
+@compiles(sa.JSON, "postgresql")
+def compile_json_as_jsonb_postgres(type_, compiler, **kw):
+    """Compiles the generic SQLAlchemy JSON type as JSONB on postgres"""
+    return "JSONB"
 
 
 class UUIDDefault(FunctionElement):
@@ -113,7 +129,7 @@ class Timestamp(TypeDecorator):
     Note: this should still be instantiated as Timestamp(timezone=True)
     """
 
-    impl = sa.TIMESTAMP
+    impl = sa.TIMESTAMP(timezone=True)
     cache_ok = True
 
     def process_bind_param(self, value, dialect):
@@ -228,7 +244,7 @@ def now(element, compiler, **kwargs):
     """
     Generates the current timestamp in standard SQL
     """
-    return sa.func.now()
+    return "CURRENT_TIMESTAMP"
 
 
 @as_declarative()
