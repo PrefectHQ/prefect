@@ -35,69 +35,69 @@ class TestPydantic:
             finally:
                 await conn.run_sync(DBBase.metadata.drop_all)
 
-    async def test_write_to_Pydantic(self, database_session):
+    async def test_write_to_Pydantic(self, session):
         p_model = PydanticModel(x=100)
         s_model = SQLAlchemyPydanticModel(data=p_model)
-        database_session.add(s_model)
-        await database_session.flush()
+        session.add(s_model)
+        await session.flush()
 
         # clear cache
-        database_session.expire_all()
+        session.expire_all()
 
-        query = await database_session.execute(sa.select(SQLAlchemyPydanticModel))
+        query = await session.execute(sa.select(SQLAlchemyPydanticModel))
         results = query.scalars().all()
         assert len(results) == 1
         assert isinstance(results[0].data, PydanticModel)
         assert results[0].data.y < pendulum.now("UTC")
 
-    async def test_write_dict_to_Pydantic(self, database_session):
+    async def test_write_dict_to_Pydantic(self, session):
         p_model = PydanticModel(x=100)
         s_model = SQLAlchemyPydanticModel(data=p_model.dict())
-        database_session.add(s_model)
-        await database_session.flush()
+        session.add(s_model)
+        await session.flush()
 
         # clear cache
-        database_session.expire_all()
+        session.expire_all()
 
-        query = await database_session.execute(sa.select(SQLAlchemyPydanticModel))
+        query = await session.execute(sa.select(SQLAlchemyPydanticModel))
         results = query.scalars().all()
         assert len(results) == 1
         assert isinstance(results[0].data, PydanticModel)
 
-    async def test_nullable_Pydantic(self, database_session):
+    async def test_nullable_Pydantic(self, session):
         s_model = SQLAlchemyPydanticModel(data=None)
-        database_session.add(s_model)
-        await database_session.flush()
+        session.add(s_model)
+        await session.flush()
 
         # clear cache
-        database_session.expire_all()
+        session.expire_all()
 
-        query = await database_session.execute(sa.select(SQLAlchemyPydanticModel))
+        query = await session.execute(sa.select(SQLAlchemyPydanticModel))
         results = query.scalars().all()
         assert len(results) == 1
         assert results[0].data is None
 
-    async def test_generic_model(self, database_session):
+    async def test_generic_model(self, session):
         p_model = PydanticModel(x=100)
         s_model = SQLAlchemyPydanticModel(data_list=[p_model])
-        database_session.add(s_model)
-        await database_session.flush()
+        session.add(s_model)
+        await session.flush()
 
         # clear cache
-        database_session.expire_all()
+        session.expire_all()
 
-        query = await database_session.execute(sa.select(SQLAlchemyPydanticModel))
+        query = await session.execute(sa.select(SQLAlchemyPydanticModel))
         results = query.scalars().all()
         assert len(results) == 1
         assert isinstance(results[0].data_list[0], PydanticModel)
         assert results[0].data_list == [p_model]
 
-    async def test_generic_model_validates(self, database_session):
+    async def test_generic_model_validates(self, session):
         p_model = PydanticModel(x=100)
         s_model = SQLAlchemyPydanticModel(data_list=p_model)
-        database_session.add(s_model)
+        session.add(s_model)
         with pytest.raises(sa.exc.StatementError, match="(validation error)"):
-            await database_session.flush()
+            await session.flush()
 
 
 class SQLAlchemyTimestampModel(DBBase):
@@ -117,23 +117,23 @@ class TestTimestamp:
             finally:
                 await conn.run_sync(DBBase.metadata.drop_all)
 
-    async def test_error_if_naive_timestamp_passed(self, database_session):
+    async def test_error_if_naive_timestamp_passed(self, session):
         model = SQLAlchemyTimestampModel(ts=datetime.datetime(2000, 1, 1))
-        database_session.add(model)
+        session.add(model)
         with pytest.raises(sa.exc.StatementError, match="(must have a timezone)"):
-            await database_session.flush()
+            await session.flush()
 
-    async def test_timestamp_converted_to_utc(self, database_session):
+    async def test_timestamp_converted_to_utc(self, session):
         model = SQLAlchemyTimestampModel(
             ts=datetime.datetime(2000, 1, 1, tzinfo=pendulum.timezone("EST"))
         )
-        database_session.add(model)
-        await database_session.flush()
+        session.add(model)
+        await session.flush()
 
         # clear cache
-        database_session.expire_all()
+        session.expire_all()
 
-        query = await database_session.execute(sa.select(SQLAlchemyTimestampModel))
+        query = await session.execute(sa.select(SQLAlchemyTimestampModel))
         results = query.scalars().all()
         assert results[0].ts == model.ts
         # when this test is run against SQLite, the timestamp will be returned in UTC
