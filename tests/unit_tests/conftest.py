@@ -82,6 +82,7 @@ async def flow_run_states(database_session, flow_run):
     scheduled_state = schemas.actions.StateCreate(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
+        state_details=dict(scheduled_time=pendulum.now("UTC").subtract(seconds=1)),
     )
     scheduled_flow_run_state = await models.flow_run_states.create_flow_run_state(
         session=database_session,

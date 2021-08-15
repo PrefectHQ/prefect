@@ -1,4 +1,3 @@
-from prefect.orion.schemas.core import APIBaseModel
 import datetime
 from enum import auto
 from typing import Any, Optional
@@ -8,7 +7,7 @@ import pendulum
 from pydantic import Field, validator
 
 from prefect.orion.utilities.enum import AutoEnum
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
 
 
 class StateType(AutoEnum):
