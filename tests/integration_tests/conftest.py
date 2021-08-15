@@ -24,6 +24,6 @@ async def setup_db(database_engine):
 
 
 @pytest.fixture
-async def database_session(database_engine):
+async def session(database_engine):
     OrionSession = get_session_factory(database_engine)
     yield OrionSession()

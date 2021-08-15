@@ -9,16 +9,16 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture
-async def populate(database_session, tests_dir):
+async def populate(session, tests_dir):
 
     with open(tests_dir.joinpath("scripts", "populate_database.sql"), "r") as sql_file:
         raw_sql = sql_file.read().rstrip()
         stmts = raw_sql.split(";")
 
-        async with database_session.begin():
+        async with session.begin():
             for stmt in stmts:
                 if stmt:
-                    await database_session.execute(sa.text(stmt))
+                    await session.execute(sa.text(stmt))
 
 
 def test():
