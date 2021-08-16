@@ -238,7 +238,7 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
-    async def _on_scheduler_message(self, op, message):
+    async def _on_scheduler_message(self, op: str, message: dict) -> None:
         if op == "add":
             for worker in message.get("workers", ()):
                 self.logger.debug("Worker %s added", worker)
