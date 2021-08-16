@@ -74,7 +74,7 @@ class State(APIBaseModel):
 
     def is_final(self):
         return self.is_cancelled() or self.is_completed() or self.is_failed()
-    
+
     def copy(self, *, update: dict = None, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
