@@ -238,6 +238,13 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
+    async def _on_scheduler_message(self, op, message):
+        if op == "add":
+            for worker in message.get("workers", ()):
+                self.logger.debug("Worker %s added", worker)
+        elif op == "remove":
+            self.logger.debug("Worker %s removed", message)
+
     async def _watch_dask_events(self) -> None:
         scheduler_comm = None
         comm = None
@@ -260,11 +267,7 @@ class DaskExecutor(Executor):
                 except OSError:
                     break
                 for op, msg in msgs:
-                    if op == "add":
-                        for worker in msg.get("workers", ()):
-                            self.logger.debug("Worker %s added", worker)
-                    elif op == "remove":
-                        self.logger.debug("Worker %s removed", msg)
+                    await self._on_scheduler_message(op, msg)
         except asyncio.CancelledError:
             pass
         except Exception:
