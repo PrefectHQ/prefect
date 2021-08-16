@@ -75,7 +75,7 @@ async def create_task_run_state(
     # create the new task run state
     new_task_run_state = orm.TaskRunState(
         task_run_id=task_run_id,
-        **dict(state),
+        **state.dict(shallow=True),
     )
     session.add(new_task_run_state)
     await session.flush()

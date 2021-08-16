@@ -1,4 +1,6 @@
-from typing import TypeVar, Mapping, Tuple, Any
+from collections.abc import Sequence, Set
+from pydantic import BaseModel
+from typing import TypeVar, Mapping, Tuple, Any, Union, Iterable
 
 T = TypeVar("T")
 
@@ -52,3 +54,9 @@ def flatdict_to_dict(dct: Mapping[Tuple[T, ...], Any]) -> Mapping[T, Any]:
         current_dict[key_tuple[-1]] = value
 
     return result
+
+
+def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
+    if isinstance(obj, Sequence) or isinstance(obj, Set):
+        return obj
+    return [obj]
