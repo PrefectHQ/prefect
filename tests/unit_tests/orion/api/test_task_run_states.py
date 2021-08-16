@@ -3,7 +3,7 @@ from prefect.orion import models, schemas
 
 
 class TestCreateTaskRunState:
-    async def test_create_task_run_state(self, task_run, client, database_session):
+    async def test_create_task_run_state(self, task_run, client, session):
         task_run_state_data = {
             "task_run_id": str(task_run.id),
             "state": schemas.actions.StateCreate(type="RUNNING").dict(
@@ -15,12 +15,12 @@ class TestCreateTaskRunState:
         assert response.json()["id"]
 
         task_run_state = await models.task_run_states.read_task_run_state(
-            session=database_session, task_run_state_id=response.json()["id"]
+            session=session, task_run_state_id=response.json()["id"]
         )
         assert task_run_state.task_run_id == task_run.id
 
     async def test_create_task_run_state_requires_task_run_id(
-        self, task_run, client, database_session
+        self, task_run, client, session
     ):
         task_run_state_data = {
             "task_run_id": None,
