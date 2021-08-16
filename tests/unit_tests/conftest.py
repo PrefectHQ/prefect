@@ -59,6 +59,15 @@ async def database_session(database_engine):
 
 @pytest.fixture(autouse=True)
 def mock_asgi_client(monkeypatch, database_engine):
+    """
+    The ASGIClient runs in a different event loop, which means it can't easily
+    access the shared database session when running against postgresql (sqlite
+    works fine), because the postgresql connections can't be shared across
+    loops. To work around this, we replace it with the fastapi TestClient for
+    postgres unit tests only. The TestClient is a (much slower) implementation
+    of the ASGIClient that exposes ASGI applications but doesn't require a
+    separate event loop.
+    """
     if database_engine.dialect.name == "postgresql":
         monkeypatch.setattr(
             "prefect.client._ASGIClient", lambda app, **kw: TestClient(app)
