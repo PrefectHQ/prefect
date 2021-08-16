@@ -102,9 +102,7 @@ def test_set_then_read_task_run_state():
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
-    states = client.read_task_run_states(task_run_id)
-    assert len(states) == 1
-    state = states[-1]
-    assert isinstance(state, schemas.states.State)
-    assert state.type == schemas.states.StateType.COMPLETED
-    assert state.message == "Test!"
+    run = client.read_task_run(task_run_id)
+    assert isinstance(run.state, schemas.states.State)
+    assert run.state.type == schemas.states.StateType.COMPLETED
+    assert run.state.message == "Test!"
