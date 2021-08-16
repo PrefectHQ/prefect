@@ -6,7 +6,7 @@ from prefect.orion.schemas import responses, states, actions
 
 
 class TestCreateFlowRun:
-    async def test_create_flow_run(self, flow, client, database_session):
+    async def test_create_flow_run(self, flow, client, session):
         flow_run_data = {"flow_id": str(flow.id)}
         response = await client.post("/flow_runs/", json=flow_run_data)
         assert response.status_code == 201
@@ -14,11 +14,11 @@ class TestCreateFlowRun:
         assert response.json()["id"]
 
         flow_run = await models.flow_runs.read_flow_run(
-            session=database_session, flow_run_id=response.json()["id"]
+            session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.flow_id == flow.id
 
-    async def test_create_multiple_flow_runs(self, flow, client, database_session):
+    async def test_create_multiple_flow_runs(self, flow, client, session):
         response1 = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
         response2 = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
         assert response1.status_code == 201
@@ -27,14 +27,14 @@ class TestCreateFlowRun:
         assert response2.json()["flow_id"] == str(flow.id)
         assert response1.json()["id"] != response2.json()["id"]
 
-        result = await database_session.execute(
+        result = await session.execute(
             sa.select(models.orm.FlowRun.id).filter_by(flow_id=flow.id)
         )
         ids = result.scalars().all()
         assert {response1.json()["id"], response2.json()["id"]} == {str(i) for i in ids}
 
     async def test_create_flow_run_with_idempotency_key_recovers_original_flow_run(
-        self, flow, client, database_session
+        self, flow, client, session
     ):
         flow_run_data = {"flow_id": str(flow.id), "idempotency_key": "test-key"}
         response1 = await client.post("/flow_runs/", json=flow_run_data)
@@ -45,11 +45,11 @@ class TestCreateFlowRun:
         assert response1.json()["id"] == response2.json()["id"]
 
     async def test_create_flow_run_with_idempotency_key_across_multiple_flows(
-        self, flow, client, database_session
+        self, flow, client, session
     ):
         flow2 = models.orm.Flow(name="another flow")
-        database_session.add(flow2)
-        await database_session.flush()
+        session.add(flow2)
+        await session.flush()
 
         response1 = await client.post(
             "/flow_runs/", json={"flow_id": str(flow.id), "idempotency_key": "test-key"}
@@ -64,7 +64,7 @@ class TestCreateFlowRun:
         assert response1.json()["id"] != response2.json()["id"]
 
     async def test_create_flow_run_with_subflow_information(
-        self, flow, task_run, client, database_session
+        self, flow, task_run, client, session
     ):
         flow_run_data = dict(
             flow_id=str(flow.id),
@@ -73,29 +73,29 @@ class TestCreateFlowRun:
         response = await client.post("/flow_runs/", json=flow_run_data)
 
         flow_run = await models.flow_runs.read_flow_run(
-            session=database_session, flow_run_id=response.json()["id"]
+            session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.parent_task_run_id == task_run.id
 
-    async def test_create_flow_run_without_state(self, flow, client, database_session):
+    async def test_create_flow_run_without_state(self, flow, client, session):
         flow_run_data = dict(
             flow_id=str(flow.id),
         )
         response = await client.post("/flow_runs/", json=flow_run_data)
         flow_run = await models.flow_runs.read_flow_run(
-            session=database_session, flow_run_id=response.json()["id"]
+            session=session, flow_run_id=response.json()["id"]
         )
         assert str(flow_run.id) == response.json()["id"]
         assert flow_run.state is None
 
-    async def test_create_flow_run_with_state(self, flow, client, database_session):
+    async def test_create_flow_run_with_state(self, flow, client, session):
         flow_run_data = dict(
             flow_id=str(flow.id),
             state=states.State(type="RUNNING").dict(json_compatible=True),
         )
         response = await client.post("/flow_runs/", json=flow_run_data)
         flow_run = await models.flow_runs.read_flow_run(
-            session=database_session, flow_run_id=response.json()["id"]
+            session=session, flow_run_id=response.json()["id"]
         )
         assert str(flow_run.id) == response.json()["id"]
         assert str(flow_run.state.id) == flow_run_data["state"]["id"]
@@ -110,10 +110,10 @@ class TestReadFlowRun:
         assert response.json()["id"] == str(flow_run.id)
         assert response.json()["flow_id"] == str(flow.id)
 
-    async def test_read_flow_run_with_state(self, flow_run, client, database_session):
+    async def test_read_flow_run_with_state(self, flow_run, client, session):
         state_id = uuid4()
         await models.flow_run_states.create_flow_run_state(
-            session=database_session,
+            session=session,
             flow_run_id=flow_run.id,
             state=states.State(id=state_id, type="RUNNING"),
         )
@@ -128,22 +128,22 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, flow, database_session):
+    async def flow_runs(self, flow, session):
         flow_2 = await models.flows.create_flow(
-            session=database_session,
+            session=session,
             flow=actions.FlowCreate(name="another-test"),
         )
 
         flow_run_1 = await models.flow_runs.create_flow_run(
-            session=database_session,
+            session=session,
             flow_run=actions.FlowRunCreate(flow_id=flow.id),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
-            session=database_session,
+            session=session,
             flow_run=actions.FlowRunCreate(flow_id=flow.id),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
-            session=database_session,
+            session=session,
             flow_run=actions.FlowRunCreate(flow_id=flow_2.id),
         )
         return [flow_run_1, flow_run_2, flow_run_3]
@@ -170,14 +170,14 @@ class TestReadFlowRuns:
 
 
 class TestDeleteFlowRuns:
-    async def test_delete_flow_runs(self, flow_run, client, database_session):
+    async def test_delete_flow_runs(self, flow_run, client, session):
         # delete the flow run
         response = await client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == 204
 
         # make sure it's deleted
         run = await models.flow_runs.read_flow_run(
-            session=database_session, flow_run_id=flow_run.id
+            session=session, flow_run_id=flow_run.id
         )
         assert run is None
         response = await client.get(f"/flow_runs/{flow_run.id}")
@@ -189,7 +189,7 @@ class TestDeleteFlowRuns:
 
 
 class TestSetFlowRunState:
-    async def test_set_flow_run_state(self, flow_run, client, database_session):
+    async def test_set_flow_run_state(self, flow_run, client, session):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(type="RUNNING", name="Test State"),
@@ -200,7 +200,7 @@ class TestSetFlowRunState:
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         run = await models.flow_runs.read_flow_run(
-            session=database_session, flow_run_id=flow_run.id
+            session=session, flow_run_id=flow_run.id
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"

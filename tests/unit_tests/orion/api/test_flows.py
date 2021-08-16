@@ -5,14 +5,14 @@ from prefect.orion import models
 
 
 class TestCreateFlow:
-    async def test_create_flow(self, database_session, client):
+    async def test_create_flow(self, session, client):
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
         assert response.status_code == 201
         assert response.json()["name"] == "my-flow"
         flow_id = response.json()["id"]
 
-        flow = await models.flows.read_flow(session=database_session, flow_id=flow_id)
+        flow = await models.flows.read_flow(session=session, flow_id=flow_id)
         assert str(flow.id) == flow_id
 
     async def test_create_flow_populates_and_returned_created(self, client):

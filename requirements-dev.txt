@@ -4,3 +4,4 @@ pytest
 pytest-asyncio
 flake8
 pytest-env
+requests
