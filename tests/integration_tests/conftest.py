@@ -36,7 +36,7 @@ async def database_engine():
 
 
 @pytest.fixture
-async def database_session(database_engine):
+async def session(database_engine):
     session_factory = get_session_factory(bind=database_engine)
     async with session_factory() as session:
         yield session
