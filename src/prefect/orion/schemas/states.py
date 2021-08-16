@@ -72,6 +72,15 @@ class State(APIBaseModel):
     def is_cancelled(self):
         return self.type == StateType.CANCELLED
 
+    def copy(self, *, update: dict = None, **kwargs):
+        """
+        Copying API models should return an object that could be inserted into the
+        database again. The 'timestamp' is reset using the default factory.
+        """
+        update = update or {}
+        update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
+        return super().copy(update=update, **kwargs)
+
 
 def Completed(**kwargs) -> State:
     """Convenience function for creating `Completed` states.
