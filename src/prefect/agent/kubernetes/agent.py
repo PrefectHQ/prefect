@@ -771,6 +771,7 @@ class KubernetesAgent(Agent):
         backend: str = None,
         key: str = None,
         tenant_id: str = None,
+        agent_config_id: str = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -805,6 +806,8 @@ class KubernetesAgent(Agent):
                 with Prefect Cloud
             - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
                 set, the default tenant associated with the API key will be used.
+            - agent_config_id (str, optional): An agent config id to link to for health
+                check automations
 
         Returns:
             - str: A string representation of the generated YAML
@@ -834,6 +837,10 @@ class KubernetesAgent(Agent):
             os.path.join(os.path.dirname(__file__), "deployment.yaml"), "r"
         ) as deployment_file:
             deployment = yaml.safe_load(deployment_file)
+
+        cmd_args = deployment["spec"]["template"]["spec"]["containers"][0]["args"]
+        if agent_config_id:
+            cmd_args[0] += f" --agent-config-id {agent_config_id}"
 
         agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 

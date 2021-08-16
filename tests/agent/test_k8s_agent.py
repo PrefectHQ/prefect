@@ -573,6 +573,23 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
     assert agent_env[-1]["value"] == json.dumps(env_vars)
 
 
+@pytest.mark.parametrize("agent_config_id", [None, "foobar"])
+def test_k8s_agent_generate_deployment_yaml_agent_config_id(
+    monkeypatch, cloud_api, agent_config_id
+):
+    agent = KubernetesAgent()
+    deployment = yaml.safe_load(
+        agent.generate_deployment_yaml(agent_config_id=agent_config_id)
+    )
+
+    cmd_args = deployment["spec"]["template"]["spec"]["containers"][0]["args"]
+
+    if agent_config_id:
+        assert cmd_args == ["prefect agent kubernetes start --agent-config-id foobar"]
+    else:
+        assert cmd_args == ["prefect agent kubernetes start"]
+
+
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
     c = MagicMock()
     monkeypatch.setattr("prefect.agent.agent.Client", c)
