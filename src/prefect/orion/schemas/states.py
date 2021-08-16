@@ -75,10 +75,10 @@ class State(APIBaseModel):
     def copy(self, *, update: dict = None, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
-        database again. The timestamp is excluded so it is refreshed.
+        database again. The 'timestamp' is reset using the default factory.
         """
         update = update or {}
-        update.setdefault("timestamp", self.__fields__["timestamp"].default_factory())
+        update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(update=update, **kwargs)
 
 
