@@ -7,7 +7,7 @@ import sqlalchemy as sa
 
 
 class TestCreateTaskRun:
-    async def test_create_task_run(self, flow_run, client, database_session):
+    async def test_create_task_run(self, flow_run, client, session):
         task_run_data = {"flow_run_id": str(flow_run.id), "task_key": "my-task-key"}
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == 201
@@ -15,13 +15,11 @@ class TestCreateTaskRun:
         assert response.json()["id"]
 
         task_run = await models.task_runs.read_task_run(
-            session=database_session, task_run_id=response.json()["id"]
+            session=session, task_run_id=response.json()["id"]
         )
         assert task_run.flow_run_id == flow_run.id
 
-    async def test_create_task_run_gracefully_upserts(
-        self, flow_run, client, database_session
-    ):
+    async def test_create_task_run_gracefully_upserts(self, flow_run, client, session):
         # create a task run
         task_run_data = {
             "flow_run_id": str(flow_run.id),
@@ -100,14 +98,14 @@ class TestReadTaskRuns:
 
 
 class TestDeleteTaskRuns:
-    async def test_delete_task_runs(self, task_run, client, database_session):
+    async def test_delete_task_runs(self, task_run, client, session):
         # delete the task run
         response = await client.delete(f"/task_runs/{task_run.id}")
         assert response.status_code == 204
 
         # make sure it's deleted
         run = await models.task_runs.read_task_run(
-            session=database_session, task_run_id=task_run.id
+            session=session, task_run_id=task_run.id
         )
         assert run is None
         response = await client.get(f"/task_runs/{task_run.id}")
@@ -119,7 +117,7 @@ class TestDeleteTaskRuns:
 
 
 class TestSetTaskRunState:
-    async def test_set_task_run_state(self, task_run, client, database_session):
+    async def test_set_task_run_state(self, task_run, client, session):
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
             json=dict(type="RUNNING", name="Test State"),
@@ -131,22 +129,20 @@ class TestSetTaskRunState:
         assert api_response.details.run_details.run_count == 1
 
         run = await models.task_runs.read_task_run(
-            session=database_session, task_run_id=task_run.id
+            session=session, task_run_id=task_run.id
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
 
-    async def test_failed_becomes_awaiting_retry(
-        self, task_run, client, database_session
-    ):
+    async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
         # copy to trigger ORM updates
         task_run.empirical_policy = task_run.empirical_policy.copy()
         task_run.empirical_policy.max_retries = 1
-        await database_session.flush()
+        await session.flush()
 
         await models.task_run_states.create_task_run_state(
-            session=database_session,
+            session=session,
             task_run_id=task_run.id,
             state=states.State(type="RUNNING"),
         )
