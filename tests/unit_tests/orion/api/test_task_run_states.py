@@ -1,5 +1,3 @@
-import pytest
-import pendulum
 from uuid import uuid4
 from prefect.orion import models, schemas
 
@@ -42,12 +40,12 @@ class TestBackendCachingLogic:
         first_task_run_state_data = schemas.actions.StateCreate(
             type="COMPLETED",
             state_details={"cache_key": "cache-hit"},
-        ).json_dict()
+        ).dict(json_compatible=True)
 
         second_task_run_state_data = schemas.actions.StateCreate(
             type="RUNNING",
             state_details={"cache_key": "cache-hit"},
-        ).json_dict()
+        ).dict(json_compatible=True)
 
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state", json=first_task_run_state_data
