@@ -61,11 +61,13 @@ class DremioFetch(Task):
     Task for fetching results of a query using Dremio Query Engine.
 
     Args:
-        - user (str): user name used to authenticate
+        - username (str): user name used to authenticate
         - password (str): password used to authenticate
-        - host (str): Dremio host address
-        - port (int, optional): port used to connect to FlightClient, defaults to 32010 if not
+        - hostname (str): Dremio host address
+        - flightport (int, optional): port used to connect to FlightClient, defaults to 32010 if not
             provided
+        - tls (bool): connect to the server endpoint with an encrypted TLS connection
+        - certs (str): path to a certificate
         - query (str, optional): query to execute against Dremio
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
