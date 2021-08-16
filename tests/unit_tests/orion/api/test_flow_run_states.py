@@ -8,7 +8,9 @@ class TestCreateFlowRunState:
     async def test_create_flow_run_state(self, flow_run, client, session):
         flow_run_state_data = {
             "flow_run_id": str(flow_run.id),
-            "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
+            "state": schemas.actions.StateCreate(type="RUNNING").dict(
+                json_compatible=True
+            ),
         }
 
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
@@ -25,7 +27,9 @@ class TestCreateFlowRunState:
     ):
         flow_run_state_data = {
             "flow_run_id": None,
-            "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
+            "state": schemas.actions.StateCreate(type="RUNNING").dict(
+                json_compatible=True
+            ),
         }
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
         assert response.status_code == 422
@@ -37,7 +41,9 @@ class TestReadFlowRunStateById:
         # create a flow run state to read
         flow_run_state_data = {
             "flow_run_id": str(flow_run.id),
-            "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
+            "state": schemas.actions.StateCreate(type="RUNNING").dict(
+                json_compatible=True
+            ),
         }
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
 
