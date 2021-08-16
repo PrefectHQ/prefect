@@ -17,7 +17,7 @@
 # Here's an example of a PR that adds an enhancement
 
 enhancement:
-  - "Add a _on_scheduler_message callback to the DaskExecutor - [#4874](https://github.com/PrefectHQ/prefect/pull/4874)"
+  - "Add a on_worker_status_changed callback to the DaskExecutor - [#4874](https://github.com/PrefectHQ/prefect/pull/4874)"
 
 contributor:
   - "[Tom Forbes](https://github.com/orf)"
