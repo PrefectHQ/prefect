@@ -1,5 +1,10 @@
-import pytest
+import datetime
+from uuid import UUID, uuid4
+
+import pendulum
 import pydantic
+import pytest
+
 from prefect.orion.utilities.schemas import PrefectBaseModel, pydantic_subclass
 
 
@@ -146,3 +151,42 @@ class TestNestedDict:
         assert isinstance(deep["y"], dict)
         assert isinstance(shallow["y"], pydantic.BaseModel)
         assert deep == shallow == {"y": {"z": 2}}
+
+
+class TestJsonCompatibleDict:
+    class Model(PrefectBaseModel):
+
+        x: UUID
+        y: datetime.datetime
+
+    @pytest.fixture()
+    def nested(self):
+        class Child(pydantic.BaseModel):
+            z: UUID
+
+        class Parent(PrefectBaseModel):
+            x: UUID
+            y: Child
+
+        return Parent(x=uuid4(), y=Child(z=uuid4()))
+
+    def test_json_compatible_and_nested_errors(self):
+        model = self.Model(x=uuid4(), y=pendulum.now())
+        with pytest.raises(ValueError, match="(only be applied to the entire object)"):
+            model.dict(json_compatible=True, shallow=True)
+
+    def test_json_compatible(self):
+        model = self.Model(x=uuid4(), y=pendulum.now())
+        d1 = model.dict()
+        d2 = model.dict(json_compatible=True)
+
+        assert isinstance(d1["x"], UUID) and d1["x"] == model.x
+        assert isinstance(d2["x"], str) and d2["x"] == str(model.x)
+
+        assert isinstance(d1["y"], datetime.datetime) and d1["y"] == model.y
+        assert isinstance(d2["y"], str) and d2["y"] == str(model.y)
+
+    def test_json_applies_to_nested(self, nested):
+        d1 = nested.dict(json_compatible=True)
+        assert isinstance(d1["x"], str) and d1["x"] == str(nested.x)
+        assert isinstance(d1["y"]["z"], str) and d1["y"]["z"] == str(nested.y.z)

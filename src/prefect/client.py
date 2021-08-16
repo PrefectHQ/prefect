@@ -53,7 +53,7 @@ class OrionClient:
             tags=flow.tags,
             parameters=flow.parameters,
         )
-        response = self.post("/flows/", json=flow_data.json_dict())
+        response = self.post("/flows/", json=flow_data.dict(json_compatible=True))
 
         flow_id = response.json().get("id")
         if not flow_id:
@@ -90,7 +90,9 @@ class OrionClient:
             parent_task_run_id=parent_task_run_id,
         )
 
-        response = self.post("/flow_runs/", json=flow_run_data.json_dict())
+        response = self.post(
+            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+        )
         flow_run_id = response.json().get("id")
         if not flow_run_id:
             raise Exception(f"Malformed response: {response}")
@@ -116,11 +118,11 @@ class OrionClient:
 
         # Attempt to serialize the given data
         try:
-            state_data_json = state_data.json_dict()
+            state_data_json = state_data.dict(json_compatible=True)
         except TypeError:
             # Drop the user data
             state_data.data = None
-            state_data_json = state_data.json_dict()
+            state_data_json = state_data.dict(json_compatible=True)
 
         response = self.post(
             f"/flow_runs/{flow_run_id}/set_state",
@@ -151,7 +153,9 @@ class OrionClient:
             ),
         )
 
-        response = self.post("/task_runs/", json=task_run_data.json_dict())
+        response = self.post(
+            "/task_runs/", json=task_run_data.dict(json_compatible=True)
+        )
         task_run_id = response.json().get("id")
         if not task_run_id:
             raise Exception(f"Malformed response: {response}")
@@ -177,11 +181,11 @@ class OrionClient:
 
         # Attempt to serialize the given data
         try:
-            state_data_json = state_data.json_dict()
+            state_data_json = state_data.dict(json_compatible=True)
         except TypeError:
             # Drop the user data
             state_data.data = None
-            state_data_json = state_data.json_dict()
+            state_data_json = state_data.dict(json_compatible=True)
 
         response = self.post(
             f"/task_runs/{task_run_id}/set_state",
