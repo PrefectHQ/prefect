@@ -143,8 +143,8 @@ class APIBaseModel(PrefectBaseModel):
         """
         update = update or dict()
 
-        update.setdefault("id", self.__fields__["id"].default())
-        update.setdefault("created", self.__fields__["created"].default())
-        update.setdefault("updated", self.__fields__["updated"].default())
+        update.setdefault("id", self.__fields__["id"].get_default())
+        update.setdefault("created", self.__fields__["created"].get_default())
+        update.setdefault("updated", self.__fields__["updated"].get_default())
 
         return super().copy(update=update, **kwargs)
