@@ -111,19 +111,55 @@ class PrefectBaseModel(BaseModel):
             exclude_fields=exclude_fields,
         )
 
-    def json_dict(self, *args, **kwargs) -> dict:
-        """Returns a dict of JSON-compatible values, equivalent
-        to `json.loads(self.json())`.
+    def dict(
+        self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
+    ) -> dict:
+        """Returns a representation of the model as a Python dictionary.
 
-        `self.dict()` returns Python-native types, including UUIDs
-        and datetimes; `self.json()` returns a JSON string. This
-        method is useful when we require a JSON-compatible Python
-        object.
+        For more information on this distinction please see
+        https://pydantic-docs.helpmanual.io/usage/exporting_models/#dictmodel-and-iteration
+
+
+        Args:
+            shallow (bool, optional): If True (default), nested Pydantic fields
+                are also coerced to dicts. If false, they are left as Pydantic
+                models.
+            json_compatible (bool, optional): if True, objects are converted
+                into json-compatible representations, similar to calling
+                `json.loads(self.json())`. Not compatible with shallow=True.
 
         Returns:
-            dict: a JSON-compatible dict
+            dict
         """
-        return json.loads(self.json(*args, **kwargs))
+
+        if json_compatible and shallow:
+            raise ValueError(
+                "`json_compatible` can only be applied to the entire object."
+            )
+
+        # return a json-compatible representation of the object
+        elif json_compatible:
+            return json.loads(self.json(*args, **kwargs))
+
+        # if shallow wasn't requested, return the standard pydantic behavior
+        elif not shallow:
+            return super().dict(*args, **kwargs)
+
+        # if no options were requested, return simple dict transformation
+        # to apply shallow conversion
+        elif not args and not kwargs:
+            return dict(self)
+
+        # if options like include/exclude were provided, perform
+        # a full dict conversion then overwrite with any shallow
+        # differences
+        else:
+            deep_dict = super().dict(*args, **kwargs)
+            shallow_dict = dict(self)
+            for k, v in list(deep_dict.items()):
+                if isinstance(v, dict) and isinstance(shallow_dict[k], BaseModel):
+                    deep_dict[k] = shallow_dict[k]
+            return deep_dict
 
 
 class APIBaseModel(PrefectBaseModel):
