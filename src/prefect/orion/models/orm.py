@@ -130,6 +130,11 @@ class FlowRun(Base):
         default=core.FlowRunDetails,
         nullable=False,
     )
+    parent_task_run_id = Column(
+        UUID(),
+        ForeignKey("task_run.id", ondelete="cascade", use_alter=True),
+        index=True,
+    )
 
     # the current state of a run is found by a "top-n-per group" query that
     # includes two joins:
@@ -254,63 +259,3 @@ class TaskRun(Base):
             unique=True,
         ),
     )
-
-
-def add_flow_run_subflow_index(target, connection, **kw):
-    """Adds a partial index on the `parent_task_run_id` key of the
-    `flow_run_details` column, using dialect-specific syntax. This function is
-    called once the dialect is known via SQLAlchemy's event listening system.
-    """
-    if connection.dialect.name == "sqlite":
-        FlowRun.__table__.append_constraint(
-            sa.Index(
-                "ix_flow_run_flow_run_details_subflow",
-                sa.text("json_extract(flow_run_details, '$.parent_task_run_id')"),
-                sqlite_where=sa.text(
-                    "json_extract(flow_run_details, '$.is_subflow') IS TRUE"
-                ),
-            )
-        )
-    elif connection.dialect.name == "postgresql":
-        FlowRun.__table__.append_constraint(
-            sa.Index(
-                "ix_flow_run_flow_run_details_subflow",
-                sa.text("(flow_run_details ->> 'parent_task_run_id')::UUID"),
-                postgresql_where=sa.text("flow_run_details ->> 'is_subflow' IS TRUE"),
-            )
-        )
-
-
-sa.event.listen(
-    FlowRun.__table__, "before_create", add_flow_run_subflow_index, once=True
-)
-
-
-def add_task_run_subflow_index(target, connection, **kw):
-    """Adds a partial index on the `subflow_run_id` key of the
-    `task_run_details` column, using dialect-specific syntax. This function is
-    called once the dialect is known via SQLAlchemy's event listening system.
-    """
-    if connection.dialect.name == "sqlite":
-        TaskRun.__table__.append_constraint(
-            sa.Index(
-                "ix_task_run_task_run_details_subflow",
-                sa.text("json_extract(task_run_details, '$.subflow_run_id')"),
-                sqlite_where=sa.text(
-                    "json_extract(task_run_details, '$.is_subflow') IS TRUE"
-                ),
-            )
-        )
-    elif connection.dialect.name == "postgresql":
-        TaskRun.__table__.append_constraint(
-            sa.Index(
-                "ix_task_run_task_run_details_subflow",
-                sa.text("(task_run_details ->> 'subflow_run_id')::UUID"),
-                postgresql_where=sa.text("task_run_details ->> 'is_subflow' IS TRUE"),
-            )
-        )
-
-
-sa.event.listen(
-    TaskRun.__table__, "before_create", add_task_run_subflow_index, once=True
-)

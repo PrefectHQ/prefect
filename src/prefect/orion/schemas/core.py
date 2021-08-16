@@ -15,8 +15,7 @@ class Flow(APIBaseModel):
 
 
 class FlowRunDetails(PrefectBaseModel):
-    is_subflow: bool = True
-    parent_task_run_id: UUID = None
+    pass
 
 
 class FlowRun(APIBaseModel):
@@ -29,11 +28,11 @@ class FlowRun(APIBaseModel):
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     flow_run_details: FlowRunDetails = Field(default_factory=FlowRunDetails)
+    parent_task_run_id: UUID = None
 
 
 class TaskRunDetails(PrefectBaseModel):
-    is_subflow: bool = False
-    subflow_run_id: UUID = None
+    pass
 
 
 class TaskRunPolicy(PrefectBaseModel):
