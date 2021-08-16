@@ -7,7 +7,7 @@ from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.executors import BaseExecutor, SynchronousExecutor
-from prefect.futures import PrefectFuture, resolve_futures
+from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
@@ -80,11 +80,7 @@ class Flow:
                 data=exc,
             )
         else:
-            state = State(
-                type=StateType.COMPLETED,
-                message="Flow run completed.",
-                data=result,
-            )
+            state = return_val_to_state(result)
 
         return state
 
