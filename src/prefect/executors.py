@@ -198,7 +198,9 @@ class DaskExecutor(BaseExecutor):
         if not self._client:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        args, kwargs = resolve_futures((args, kwargs), resolve_fn=self._get_dask_future)
+        args, kwargs = resolve_futures(
+            (args, kwargs), resolve_fn=self._get_data_from_future
+        )
 
         self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
 
@@ -210,7 +212,23 @@ class DaskExecutor(BaseExecutor):
         )
 
     def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
+        """
+        Retrieve the dask future corresponding to a prefect future
+
+        The dask future is for the `run_fn` which should return a `State`
+        """
         return self._futures[prefect_future.run_id]
+
+    def _get_data_from_future(
+        self, prefect_future: PrefectFuture
+    ) -> "distributed.Future":
+        """
+        Generate a dask future corresponding to a prefect future that will retrieve the
+        data from the resulting state
+        """
+        dask_state_future = self._get_dask_future(prefect_future)
+        data_future = self._client.submit(getattr, dask_state_future, "data")
+        return data_future
 
     def wait(
         self,

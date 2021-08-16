@@ -20,7 +20,7 @@ async def create_task_run(
     Returns:
         orm.TaskRun: the newly-created flow run
     """
-    model = orm.TaskRun(**dict(task_run), state=None)
+    model = orm.TaskRun(**task_run.dict(shallow=True), state=None)
     session.add(model)
     await session.flush()
     return model

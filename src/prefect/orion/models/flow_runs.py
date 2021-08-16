@@ -19,7 +19,7 @@ async def create_flow_run(
     Returns:
         orm.FlowRun: the newly-created flow run
     """
-    model = orm.FlowRun(**dict(flow_run), state=None)
+    model = orm.FlowRun(**flow_run.dict(shallow=True), state=None)
     session.add(model)
     await session.flush()
     return model
