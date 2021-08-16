@@ -3,11 +3,12 @@ from typing import List
 import pydantic
 import pytest
 
-from prefect import flow
+from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.utilities.hashing import file_hash
+from prefect.orion.schemas.states import StateType, State
 
 
 class TestFlow:
@@ -139,7 +140,7 @@ class TestFlowCall:
             raise future.result().data
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
-    def test_state_reflects_result_of_run(self, error):
+    def test_final_state_reflects_exceptions_during_run(self, error):
         @flow(version="test")
         def foo():
             if error:
@@ -152,6 +153,72 @@ class TestFlowCall:
         assert state.is_failed() if error else state.is_completed()
         assert state.data is error
 
+    def test_final_state_respects_returned_state(sel):
+        @flow(version="test")
+        def foo():
+            return State(
+                type=StateType.FAILED, message="Test returned state", data=True
+            )
+
+        future = foo()
+        state = future.result()
+
+        # Assert the final state is correct
+        assert state.is_failed()
+        assert state.data is True
+        assert state.message == "Test returned state"
+
+    def test_flow_state_reflects_returned_task_run_state(self):
+        exc = ValueError("Test")
+
+        @task
+        def fail():
+            raise exc
+
+        @flow(version="test")
+        def foo():
+            return fail()
+
+        flow_state = foo().result()
+
+        assert flow_state.is_failed()
+        assert flow_state.message == "1/1 states failed."
+
+        # The task run state is returned as the data of the flow state
+        task_run_state = flow_state.data
+        assert isinstance(task_run_state, State)
+        assert task_run_state.is_failed()
+        assert task_run_state.data is exc
+
+    def test_flow_state_reflects_returned_multiple_task_run_states(self):
+        exc = ValueError("Test")
+
+        @task
+        def fail():
+            raise exc
+
+        @task
+        def fail():
+            raise exc
+
+        @task
+        def succeed():
+            return True
+
+        @flow(version="test")
+        def foo():
+            return fail(), fail(), succeed()
+
+        flow_state = foo().result()
+        assert flow_state.is_failed()
+        assert flow_state.message == "2/3 states failed."
+
+        # The task run states are attached as a tuple
+        first, second, third = flow_state.data
+        assert first.is_failed()
+        assert second.is_failed()
+        assert third.is_completed()
+
     def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
         def child(x, y, z):
@@ -159,33 +226,31 @@ class TestFlowCall:
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
-            return child(x, y, z)
+            future = child(x, y, z)
+            return future.run_id, future.result()
 
         parent_future = parent(1, 2)
         assert isinstance(parent_future, PrefectFuture)
         assert parent_future.result().is_completed()
 
-        child_future = parent_future.result().data
-        assert isinstance(child_future, PrefectFuture)
-        assert child_future.result().is_completed()
-        assert child_future.result().data == 6
+        child_run_id, child_state = parent_future.result().data
+        assert child_state.is_completed()
+        assert child_state.data == 6
 
-        child_flow_run = OrionClient().read_flow_run(child_future.run_id)
-        assert child_flow_run.id == child_future.run_id
+        child_flow_run = OrionClient().read_flow_run(child_run_id)
+        assert child_flow_run.id == child_run_id
         assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert child_flow_run.parent_task_run_id is not None
         assert child_flow_run.flow_version == child.version
 
     def test_subflow_call_with_returned_task(self):
-        from prefect.tasks import task
-
         @task
         def compute(x, y, z):
             return x + y + z
 
         @flow(version="foo")
         def child(x, y, z):
-            return compute(x, y, z)  # resolved to data automatically
+            return compute(x, y, z)
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
@@ -195,7 +260,7 @@ class TestFlowCall:
         assert isinstance(parent_future, PrefectFuture)
         assert parent_future.result().is_completed()
 
-        child_future = parent_future.result().data
-        assert isinstance(child_future, PrefectFuture)
-        assert child_future.result().is_completed()
-        assert child_future.result().data == 6
+        child_state = parent_future.result().data
+        assert child_state.is_completed()
+        child_task_state = child_state.data
+        assert child_task_state.data == 6
