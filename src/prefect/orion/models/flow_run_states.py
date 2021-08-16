@@ -42,7 +42,7 @@ async def create_flow_run_state(
     # create the new flow run state
     new_flow_run_state = orm.FlowRunState(
         flow_run_id=flow_run_id,
-        **dict(state),
+        **state.dict(shallow=True),
     )
     session.add(new_flow_run_state)
     await session.flush()
