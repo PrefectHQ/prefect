@@ -138,13 +138,13 @@ class APIBaseModel(PrefectBaseModel):
     def copy(self, *, update: dict = None, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
-        database again. The 'id' is set to a new UUID and the database generated
-        'created' and 'updated' fields are cleared.
+        database again. The 'id', 'created', and 'updated' fields are restored to their
+        default values.
         """
         update = update or dict()
 
-        update.setdefault("id", uuid4())
-        update.setdefault("created", None)
-        update.setdefault("updated", None)
+        update.setdefault("id", self.__fields__["id"].default())
+        update.setdefault("created", self.__fields__["created"].default())
+        update.setdefault("updated", self.__fields__["updated"].default())
 
         return super().copy(update=update, **kwargs)
