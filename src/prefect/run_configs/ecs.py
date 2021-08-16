@@ -23,10 +23,13 @@ class ECSRun(RunConfig):
 
     Args:
         - task_definition (dict, optional): An in-memory task definition spec
-            to use. See the [ECS.Client.register_task_definition][3] docs for
-            more information on task definitions. Note that this definition
-            will be stored directly in Prefect Cloud/Server - use
-            `task_definition_path` instead if you wish to avoid this.
+            to use. The flow will be executed in a container named `flow` - if
+            a container named `flow` isn't part of the task definition, Prefect
+            will add a new container with that name.  See the
+            [ECS.Client.register_task_definition][1] docs for more information
+            on task definitions. Note that this definition will be stored
+            directly in Prefect Cloud/Server - use `task_definition_path`
+            instead if you wish to avoid this.
         - task_definition_path (str, optional): Path to a task definition spec
             to use. If a local path (no file scheme, or a `file`/`local`
             scheme), the task definition will be loaded on initialization and
@@ -36,7 +39,8 @@ class ECSRun(RunConfig):
             `agent` (for paths local to the runtime agent)).
         - task_definition_arn (str, optional): A pre-registered task definition
             ARN to use (either `family`, `family:version`, or a full task
-            definition ARN).
+            definition ARN). This task definition must include a container
+            named `flow` (which will be used to run the flow).
         - image (str, optional): The image to use for this task. If not
             provided, will be either inferred from the flow's storage (if using
             `Docker` storage), or use the default configured on the agent.
@@ -54,6 +58,9 @@ class ECSRun(RunConfig):
         - task_role_arn (str, optional): The name or full ARN for the IAM role
             to use for this task. If not provided, the default on the agent
             will be used (if configured).
+        - execution_role_arn (str, optional): The execution role ARN to use
+            when registering a task definition for this task. If not provided,
+            the default on the agent will be used (if configured).
         - run_task_kwargs (dict, optional): Additional keyword arguments to
             pass to `run_task` when starting this task. See the
             [ECS.Client.run_task][3] docs for more information.
@@ -108,10 +115,11 @@ ecs.html#ECS.Client.run_task
         cpu: Union[int, str] = None,
         memory: Union[int, str] = None,
         task_role_arn: str = None,
+        execution_role_arn: str = None,
         run_task_kwargs: dict = None,
         labels: Iterable[str] = None,
     ) -> None:
-        super().__init__(labels=labels)
+        super().__init__(env=env, labels=labels)
 
         if (
             sum(
@@ -127,6 +135,12 @@ ecs.html#ECS.Client.run_task
                 "Can only provide one of `task_definition`, `task_definition_path`, "
                 "or `task_definition_arn`"
             )
+        if task_definition_arn is not None and image is not None:
+            raise ValueError(
+                "Cannot provide both `task_definition_arn` and `image`, since an ECS "
+                "task's `image` can only be configured as part of the task definition"
+            )
+
         if task_definition_path is not None:
             parsed = parse_path(task_definition_path)
             if parsed.scheme == "file":
@@ -143,8 +157,8 @@ ecs.html#ECS.Client.run_task
         self.task_definition_path = task_definition_path
         self.task_definition_arn = task_definition_arn
         self.image = image
-        self.env = env
         self.cpu = cpu
         self.memory = memory
         self.task_role_arn = task_role_arn
+        self.execution_role_arn = execution_role_arn
         self.run_task_kwargs = run_task_kwargs

@@ -65,7 +65,7 @@ from typing import Any, Optional
 
 import prefect
 from prefect.client.client import Client
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 
 
 class Secret:
@@ -136,6 +136,10 @@ class Secret:
         try:
             value = secrets[self.name]
         except KeyError:
+            if prefect.config.backend != "cloud":
+                raise ValueError(
+                    'Local Secret "{}" was not found.'.format(self.name)
+                ) from None
             if prefect.context.config.cloud.use_local_secrets is False:
                 try:
                     result = self.client.graphql(

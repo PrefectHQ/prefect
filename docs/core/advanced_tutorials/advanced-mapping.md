@@ -253,7 +253,7 @@ If you are following along and executing the code locally, it is recommended you
 :::
 
 ```python
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 executor = DaskExecutor()
 
@@ -316,7 +316,7 @@ from prefect import unmapped
 with flow:
     db = create_db()
     ep_script = create_episode_script.map(episode=dialogue)
-    final = insert_episode.map(ep_script, upstream_tasks=[unmapped(db)])
+    final = insert_episode.map(script=ep_script, upstream_tasks=[unmapped(db)])
 ```
 
 ::: tip task.map()

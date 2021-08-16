@@ -5,9 +5,9 @@ import prefect
 import pytest
 from botocore.exceptions import ClientError
 from prefect import Flow, config
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 from prefect.environments import FargateTaskEnvironment
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -25,18 +25,6 @@ def test_create_fargate_task_environment_with_executor():
     executor = LocalDaskExecutor()
     environment = FargateTaskEnvironment(executor=executor)
     assert environment.executor is executor
-
-
-def test_create_fargate_task_environment_with_deprecated_executor_kwargs():
-    with set_temporary_config(
-        {"engine.executor.default_class": "prefect.engine.executors.LocalDaskExecutor"}
-    ):
-        with pytest.warns(UserWarning, match="executor_kwargs"):
-            environment = FargateTaskEnvironment(
-                executor_kwargs={"scheduler": "synchronous"}
-            )
-    assert isinstance(environment.executor, LocalDaskExecutor)
-    assert environment.executor.scheduler == "synchronous"
 
 
 def test_create_fargate_task_environment_labels():
@@ -235,7 +223,7 @@ def test_setup_definition_exists(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -286,7 +274,7 @@ def test_setup_definition_changed(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -341,7 +329,7 @@ def test_validate_definition_not_changed_when_env_out_of_order(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -397,7 +385,7 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -433,7 +421,7 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -571,7 +559,7 @@ def test_validate_definition_not_changed_when_names_are_in_arn(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": str(config.logging.extra_loggers),
@@ -666,7 +654,7 @@ def test_setup_definition_register(monkeypatch):
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                 {
                     "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                     "value": "[]",
@@ -713,7 +701,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
                 {
                     "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                     "value": "[]",

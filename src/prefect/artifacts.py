@@ -1,6 +1,8 @@
+import time
 from typing import Optional
 
 from prefect import context, Client
+from prefect.exceptions import ClientError
 
 
 def _running_with_backend() -> bool:
@@ -12,6 +14,27 @@ def _running_with_backend() -> bool:
         - bool: if `_running_with_backend` is set in context
     """
     return bool(context.get("running_with_backend"))
+
+
+def _create_task_run_artifact(kind: str, data: dict) -> str:
+    client = Client()
+    task_run_id = context.get("task_run_id")
+    # XXX: there's a race condition in the cloud backend for mapped tasks where
+    # the task run lookup might fail temporarily. This should last a few
+    # seconds max, for now we retry a few times.
+    retries = 5
+    while True:
+        try:
+            return client.create_task_run_artifact(
+                task_run_id=task_run_id, kind=kind, data=data
+            )
+        except ClientError as exc:
+            # If it's a not found error and we still have retries left, retry
+            if "not found" in str(exc).lower() and retries:
+                time.sleep(1)
+                retries -= 1
+                continue
+            raise
 
 
 def create_link(link: str) -> Optional[str]:
@@ -26,11 +49,7 @@ def create_link(link: str) -> Optional[str]:
     """
     if not _running_with_backend():
         return None
-
-    client = Client()
-    return client.create_task_run_artifact(
-        task_run_id=context.get("task_run_id"), kind="link", data={"link": link}
-    )
+    return _create_task_run_artifact("link", {"link": link})
 
 
 def update_link(task_run_artifact_id: str, link: str) -> None:
@@ -63,13 +82,7 @@ def create_markdown(markdown: str) -> Optional[str]:
     """
     if not _running_with_backend():
         return None
-
-    client = Client()
-    return client.create_task_run_artifact(
-        task_run_id=context.get("task_run_id"),
-        kind="markdown",
-        data={"markdown": markdown},
-    )
+    return _create_task_run_artifact("markdown", {"markdown": markdown})
 
 
 def update_markdown(task_run_artifact_id: str, markdown: str) -> None:

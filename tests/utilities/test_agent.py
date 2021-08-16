@@ -1,8 +1,8 @@
 import pytest
 
 from prefect.environments import LocalEnvironment
-from prefect.environments.storage import Docker, Local
-from prefect.run_configs import KubernetesRun
+from prefect.storage import Docker, Local
+from prefect.run_configs import KubernetesRun, LocalRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.graphql import GraphQLResult
 
@@ -62,7 +62,8 @@ def test_get_flow_image_raises_on_missing_info():
         get_flow_image(flow_run=flow_run)
 
 
-def test_get_flow_image_run_config_docker_storage():
+@pytest.mark.parametrize("run_config", [KubernetesRun(), LocalRun(), None])
+def test_get_flow_image_run_config_docker_storage(run_config):
     flow_run = GraphQLResult(
         {
             "flow": GraphQLResult(
@@ -70,10 +71,10 @@ def test_get_flow_image_run_config_docker_storage():
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "run_config": KubernetesRun().serialize(),
                     "id": "id",
                 }
             ),
+            "run_config": run_config.serialize() if run_config else None,
             "id": "id",
         }
     )
@@ -81,24 +82,31 @@ def test_get_flow_image_run_config_docker_storage():
     assert image == "test/name:tag"
 
 
+@pytest.mark.parametrize("run_config", [KubernetesRun(), LocalRun(), None])
 @pytest.mark.parametrize("version", ["0.13.0", "0.10.0+182.g385a32514.dirty", None])
-def test_get_flow_image_run_config_default_value_from_core_version(version):
+@pytest.mark.parametrize("default", [None, "default-value"])
+def test_get_flow_image_run_config_default(run_config, version, default):
     flow_run = GraphQLResult(
         {
             "flow": GraphQLResult(
                 {
                     "core_version": version,
                     "storage": Local().serialize(),
-                    "run_config": KubernetesRun().serialize(),
                     "id": "id",
                 }
             ),
+            "run_config": run_config.serialize() if run_config else None,
             "id": "id",
         }
     )
-    image = get_flow_image(flow_run)
-    expected_version = version.split("+")[0] if version else "latest"
-    assert image == f"prefecthq/prefect:all_extras-{expected_version}"
+    if default is None:
+        expected_version = version.split("+")[0] if version else "latest"
+        expected = f"prefecthq/prefect:{expected_version}"
+    else:
+        expected = default
+
+    image = get_flow_image(flow_run, default=default)
+    assert image == expected
 
 
 def test_get_flow_image_run_config_image_on_RunConfig():
@@ -107,10 +115,10 @@ def test_get_flow_image_run_config_image_on_RunConfig():
             "flow": GraphQLResult(
                 {
                     "storage": Local().serialize(),
-                    "run_config": KubernetesRun(image="myfancyimage").serialize(),
                     "id": "id",
                 }
             ),
+            "run_config": KubernetesRun(image="myfancyimage").serialize(),
             "id": "id",
         }
     )

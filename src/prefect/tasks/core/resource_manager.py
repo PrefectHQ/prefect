@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Union, Set, overload
+from typing import Any, Callable, Dict, Union, Set, Optional, overload
 
 import prefect
 from prefect import Task, Flow
@@ -28,7 +28,7 @@ class ResourceSetupTask(Task):
 class ResourceCleanupTask(Task):
     """Cleanup a resource with its resource manager"""
 
-    def run(self, mgr: Any, resource: Any) -> None:
+    def run(self, mgr: Any, resource: Any = None) -> None:
         mgr.cleanup(resource)
 
 
@@ -67,7 +67,11 @@ class ResourceContext:
     """
 
     def __init__(
-        self, init_task: Task, setup_task: Task, cleanup_task: Task, flow: Flow
+        self,
+        init_task: Task,
+        setup_task: Optional[Task],
+        cleanup_task: Task,
+        flow: Flow,
     ):
         self.init_task = init_task
         self.setup_task = setup_task
@@ -88,7 +92,7 @@ class ResourceContext:
             )
         self._tasks.add(task)
 
-    def __enter__(self) -> Task:
+    def __enter__(self) -> Optional[Task]:
         self.__prev_resource = prefect.context.get("resource")
         prefect.context.update(resource=self)
         return self.setup_task
@@ -106,13 +110,15 @@ class ResourceContext:
             # the resource cleanup should be set as a downstream task.
             upstream = self._flow.upstream_tasks(child)
             if (
-                not self._tasks.intersection(upstream)
+                self.setup_task is not None
+                and not self._tasks.intersection(upstream)
                 and self.setup_task not in upstream
             ):
                 child.set_upstream(self.setup_task, flow=self._flow)
             downstream = self._flow.downstream_tasks(child)
             if (
-                not self._tasks.intersection(downstream)
+                self.cleanup_task is not None
+                and not self._tasks.intersection(downstream)
                 and self.cleanup_task not in downstream
             ):
                 child.set_downstream(self.cleanup_task, flow=self._flow)
@@ -212,11 +218,18 @@ class ResourceManager:
             *args, flow=flow, **kwargs
         )
 
-        setup_task = ResourceSetupTask(**self.setup_task_kwargs)(init_task, flow=flow)
-
-        cleanup_task = ResourceCleanupTask(**self.cleanup_task_kwargs)(
-            init_task, setup_task, flow=flow
-        )
+        if hasattr(self.resource_class, "setup"):
+            setup_task = ResourceSetupTask(**self.setup_task_kwargs)(
+                init_task, flow=flow
+            )
+            cleanup_task = ResourceCleanupTask(**self.cleanup_task_kwargs)(
+                init_task, setup_task, flow=flow
+            )
+        else:
+            setup_task = None
+            cleanup_task = ResourceCleanupTask(**self.cleanup_task_kwargs)(
+                init_task, flow=flow
+            )
 
         return ResourceContext(init_task, setup_task, cleanup_task, flow)
 
@@ -257,18 +270,19 @@ def resource_manager(
     """A decorator for creating a `ResourceManager` object.
 
     Used as a context manager, `ResourceManager` objects create tasks to setup
-    and cleanup temporary objects used within a block of tasks.  Examples might
-    include temporary Dask/Spark clusters, Docker containers, etc...
+    and/or cleanup temporary objects used within a block of tasks.  Examples
+    might include temporary Dask/Spark clusters, Docker containers, etc...
 
-    Through usage a ResourceManager object adds three tasks to the graph:
+    Through usage a ResourceManager object adds up to three tasks to the graph:
         - A `init` task, which returns an object that meets the `ResourceManager`
-          protocol. This protocol requires two methods:
+          protocol. This protocol contains two methods:
             * `setup(self) -> resource`: A method for creating the resource.
-                The return value from this will available to user tasks.
+                The return value from this will available to user tasks. If no
+                setup is required, the `setup` method may be left undefined.
             * `cleanup(self, resource) -> None`: A method for cleaning up the
-                resource.  This takes the return value from `setup` and
-                shouldn't return anything.
-        - A `setup` task, which calls the `setup` method on the `ResourceManager`
+                resource. This takes the return value from `setup` (or `None`
+                if no `setup` method) and shouldn't return anything.
+        - A `setup` task, which calls the optional `setup` method on the `ResourceManager`
         - A `cleanup` task, which calls the `cleanup` method on the `ResourceManager`.
 
     Args:
@@ -278,7 +292,7 @@ def resource_manager(
         - init_task_kwargs (dict, optional): keyword arguments that will be
             passed to the `Task` constructor for the `init` task.
         - setup_task_kwargs (dict, optional): keyword arguments that will be
-            passed to the `Task` constructor for the `setup` task.
+            passed to the `Task` constructor for the optional `setup` task.
         - cleanup_task_kwargs (dict, optional): keyword arguments that will be
             passed to the `Task` constructor for the `cleanup` task.
 

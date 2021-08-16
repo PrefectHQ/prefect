@@ -9,16 +9,16 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
    <img src="https://images.ctfassets.net/gm98wzqotmnx/3Ufcb7yYqcXBDlAhJ30gce/c237bb3254190795b30bf734f3cbc1d4/prefect-logo-full-gradient.svg" width="500" style="max-width: 500px;">
    <p class="description">Don't Panic.</p>
     <div class="action">
-        <button class="action-button">
-            <router-link to="core/">
+        <router-link to="core/">
+            <button class="action-button"  to="core/">
                 Core Workflow Engine
-            </router-link>
-        </button>
-        <button class="action-button">
-            <router-link to="orchestration/">
+            </button>
+         </router-link>
+        <router-link to="orchestration/">
+            <button class="action-button">
                 Orchestration & API
-            </router-link>
-        </button>
+            </button>
+        </router-link>
     </div>
 </div>
 
@@ -54,7 +54,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://prefect-slackin.herokuapp.com/)!
+Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://www.prefect.io/slack)!
 
 ### Hello, world! 👋
 
@@ -72,6 +72,6 @@ with Flow("My First Flow") as flow:
     say_hello(name)
 
 
-flow.run(name='world') # "Hello, world!" 
-flow.run(name='Marvin') # "Hello, Marvin!" 
+flow.run(name='world') # "Hello, world!"
+flow.run(name='Marvin') # "Hello, Marvin!"
 ```

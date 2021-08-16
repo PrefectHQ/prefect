@@ -23,14 +23,14 @@ For example, to configure a flow to use `Docker` storage:
 
 ```python
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 with Flow("example", storage=Docker()) as flow:
     ...
 ```
 
-For more information on the different `Storage` types, see
-[Storage](./storage.md).
+For more information on the different `Storage` types, see the
+[Storage docs](./storage.md).
 
 ## Run Configuration
 
@@ -39,7 +39,7 @@ For more information on the different `Storage` types, see
 a Local Agent, `DockerRun` pairs with a Docker Agent, ...). The options
 available on a `RunConfig` depend on the type, but generally include options
 for setting environment variables, configuring resources (CPU/memory), or
-selecting a docker image to use (if not using `Docker` storage). 
+selecting a [docker image](./docker.md) to use (if not using `Docker` storage). 
 
 For example, to configure a flow to run on Kubernetes:
 
@@ -56,32 +56,29 @@ For more information on the different `RunConfig` types, see the
 
 ## Executor
 
-A flow's `Executor` is responsible for running tasks in a flow. The default
-[LocalExecutor](/api/latest/engine/executors.md#local) executes all tasks
-locally in a single thread. For parallel execution you can switch to the
-[LocalDaskExecutor](/api/latest/engine/executors.md#localdaskexecutor) to run
-using local threads or processes. There's also the
-[DaskExecutor](/api/latest/engine/executors.md#daskexecutor) for larger flow
-runs where distributed execution is necessary.
+A flow's `Executor` is responsible for executing tasks in a flow run. There are
+several different options, each with different performance characteristics.
+Choosing a good executor configuration can greatly improve your flow's
+performance.
 
-To configure an executor on a flow, you can specify it as part of the
-constructor, or set it as the `executor` attribute later before calling
-`flow.register`. For example, to configure a flow to use a `LocalDaskExecutor`:
+A flow's `executor` is configured on the flow itself. For example, to configure
+a flow to use a `LocalDaskExecutor`:
 
 ```python
 from prefect import Flow
-from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 
-# Set executor as part of the constructor
 with Flow("example", executor=LocalDaskExecutor()) as flow:
     ...
-
-# OR set executor as an attribute later
-with Flow("example") as flow:
-    ...
-
-flow.executor = LocalDaskExecutor()
 ```
 
-For more information on the different `Executor` types, see the
-[Executor docs](/api/latest/engine/executors.md).
+For more information on the different `Executor` options, see the
+[Executor docs](./executors.md)
+
+
+## Next steps
+
+Hopefully you have an understanding of how to configure your flow for deployment with the Prefect backend. Take a look at some related docs next:
+
+- Before you can run your configured flow, it needs to be registered with the backend; check out the [flow registration documentation](/orchestration/concepts/flows.md#registration)
+- To run your registered flow, you need to create flow runs; check out [the flow run documentation](/orchestration/flow_run/overview.md)

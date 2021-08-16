@@ -1,6 +1,6 @@
 # Configuring Docker Storage
 
-This recipe is for configuring your Flow's [Docker storage object](/api/latest/environments/storage.html#docker) to handle potentially complicated non-Python dependencies. This is useful to understand for Flows which rely on complex environments to run successfully; for example if your Flow uses:
+This recipe is for configuring your Flow's [Docker storage object](/api/latest/storage.html#docker) to handle potentially complicated non-Python dependencies. This is useful to understand for Flows which rely on complex environments to run successfully; for example if your Flow uses:
 - database drivers
 - reliance on C bindings for file-types such as HDF files
 - special environment variables
@@ -17,7 +17,7 @@ Then you most likely will need to configure the Docker image in which your Flow 
 As a motivating example, let's consider the case where we have an ETL Flow that talks to a Microsoft SQL Server Database through [`pyodbc`](https://github.com/mkleehammer/pyodbc).  The first thing you might notice is that this introduces a dependency on a Python package that is not required by Prefect.  To ensure such a requirement is always added into your Flow's Docker image, we can use the `python_dependencies` keyword argument:
 
 ```python
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 # Create our Docker storage object
 storage = Docker(registry_url="gcr.io/dev/", python_dependencies=["pyodbc"])
@@ -77,7 +77,7 @@ Note that you don't necessarily need to push your custom base image to a registr
 
 The `base_image` pattern above is maximally useful when you register multiple Flows that share a common set of dependencies.  However, as of Prefect 0.7.2 you don't have to build an intermediate image to configure your Flow's storage!  Using the above example, we can avoid the intermediate step by storing the `Dockerfile` and pointing to its location using the `dockerfile` keyword argument:
 ```python
-from prefect.environments.storage import Docker
+from prefect.storage import Docker
 
 # Create our Docker storage object
 storage = Docker(registry_url="gcr.io/dev/",

@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+from box import Box
 
 import pytest
 
@@ -40,6 +41,15 @@ def successful_job_status():
     job_status.status.failed = None
     job_status.status.succeeded = 1
     return job_status
+
+
+@pytest.fixture
+def read_pod_logs(monkeypatch):
+    read_pod_logs = MagicMock(return_value=None)
+    monkeypatch.setattr(
+        "prefect.tasks.kubernetes.pod.ReadNamespacedPodLogs.__init__", read_pod_logs
+    )
+    return read_pod_logs
 
 
 class TestCreateNamespacedJobTask:
@@ -447,6 +457,11 @@ class TestRunNamespacedJobTask:
         with pytest.raises(ValueError):
             task.run(body=None)
 
+    def test_invalid_log_level_raises_error(self, kube_secret):
+        task = RunNamespacedJob()
+        with pytest.raises(ValueError):
+            task.run(body={"test": "test"}, log_level="invalid")
+
     def test_body_value_is_replaced(
         self, kube_secret, api_client, successful_job_status
     ):
@@ -607,3 +622,54 @@ class TestRunNamespacedJobTask:
         )
 
         assert api_client.delete_namespaced_job.call_count == 0
+
+    def test_run_with_logging(
+        self, kube_secret, api_client, successful_job_status, read_pod_logs
+    ):
+        api_client.read_namespaced_job_status = MagicMock(
+            return_value=successful_job_status
+        )
+
+        api_client.list_namespaced_pod = MagicMock(
+            return_value=MagicMock(
+                items=[
+                    Box(
+                        {
+                            "metadata": {"name": "test-pod"},
+                            "status": {"phase": "Running"},
+                        }
+                    )
+                ]
+            )
+        )
+
+        task = RunNamespacedJob(
+            body={"metadata": {"name": "success"}}, log_level="info"
+        )
+        task.run()
+
+        assert api_client.create_namespaced_job.call_count == 1
+        assert api_client.create_namespaced_job.call_args[1]["namespace"] == "default"
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
+            "metadata": {"name": "success"}
+        }
+
+        assert api_client.read_namespaced_job_status.call_count == 1
+        assert api_client.read_namespaced_job_status.call_args[1]["name"] == "success"
+        assert (
+            api_client.read_namespaced_job_status.call_args[1]["namespace"] == "default"
+        )
+
+        assert api_client.list_namespaced_pod.call_count == 1
+        assert api_client.list_namespaced_pod.call_args[1]["label_selector"].startswith(
+            "controller-uid="
+        )
+        assert api_client.list_namespaced_pod.call_args[1]["namespace"] == "default"
+
+        assert read_pod_logs.call_count == 1
+        assert read_pod_logs.call_args[1]["pod_name"] == "test-pod"
+        assert read_pod_logs.call_args[1]["namespace"] == "default"
+
+        assert api_client.delete_namespaced_job.call_count == 1
+        assert api_client.delete_namespaced_job.call_args[1]["name"] == "success"
+        assert api_client.delete_namespaced_job.call_args[1]["namespace"] == "default"

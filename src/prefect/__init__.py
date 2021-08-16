@@ -8,6 +8,9 @@ from prefect.client import Client
 import prefect.schedules
 import prefect.triggers
 import prefect.environments
+import prefect.storage
+import prefect.executors
+import prefect.engine.executors  # deprecated
 import prefect.artifacts
 
 from prefect.core import Task, Flow, Parameter
@@ -21,6 +24,7 @@ from prefect.utilities.edges import mapped, unmapped, flatten
 
 import prefect.serialization
 import prefect.agent
+import prefect.backend
 
 from ._version import get_versions
 

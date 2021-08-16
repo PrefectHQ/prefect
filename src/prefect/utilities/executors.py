@@ -15,6 +15,7 @@ from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Mapping
 
 import prefect
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.logging import get_logger
 
 if TYPE_CHECKING:
@@ -49,12 +50,16 @@ def run_with_heartbeat(
                     #   which does not release the GIL would prevent the heartbeat thread from
                     #   firing
                     # - using multiprocessing.Process would release the GIL but a subprocess
-                    #   cannot be spawned from a deamonic subprocess, and Dask sometimes will
+                    #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
                     #   submit tasks to run within daemonic subprocesses
                     current_env = dict(os.environ).copy()
                     auth_token = prefect.context.config.cloud.get("auth_token")
+                    api_key = prefect.context.config.cloud.get("api_key")
+                    tenant_id = prefect.context.config.cloud.get("tenant_id")
                     api_url = prefect.context.config.cloud.get("api")
                     current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
+                    current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
+                    current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
                     current_env.setdefault("PREFECT__CLOUD__API", api_url)
                     clean_env = {k: v for k, v in current_env.items() if v is not None}
                     p = subprocess.Popen(
@@ -75,6 +80,7 @@ def run_with_heartbeat(
                     msg = "Heartbeat process died with exit code {}".format(exit_code)
                     self.logger.error(msg)
                 p.kill()
+                p.wait()
 
     return inner
 
@@ -96,7 +102,7 @@ def run_with_thread_timeout(
         - args (Sequence): arguments to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
-            `TimeoutError`, represented as an integer in seconds
+            `TaskTimeoutSignal`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.executors.run_with_thread_timeout` namespace will be created.
         - name (str): an optional name to attach to logs for this function run, defaults
@@ -107,7 +113,7 @@ def run_with_thread_timeout(
         - the result of `fn(*args, **kwargs)`
 
     Raises:
-        - TimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutSignal: if function execution exceeds the allowed timeout
         - ValueError: if run from outside the main thread
     """
     logger = logger or get_logger()
@@ -118,7 +124,7 @@ def run_with_thread_timeout(
         return fn(*args, **kwargs)
 
     def error_handler(signum, frame):  # type: ignore
-        raise TimeoutError("Execution timed out.")
+        raise TaskTimeoutSignal("Execution timed out.")
 
     try:
         # Set the signal handler for alarms
@@ -173,11 +179,35 @@ def multiprocessing_safe_run_and_retrieve(
         with prefect.context(context):
             logger.debug(f"{name}: Executing...")
             return_val = fn(*args, **kwargs)
+            logger.debug(f"{name}: Execution successful.")
     except Exception as exc:
         return_val = exc
+        logger.error(
+            f"{name}: Encountered a {type(exc).__name__}, "
+            f"returning details as a result..."
+        )
+
+    try:
+        pickled_val = cloudpickle.dumps(return_val)
+    except Exception as exc:
+        err_msg = (
+            f"Failed to pickle result of type {type(return_val).__name__!r} with "
+            f'exception: "{type(exc).__name__}: {str(exc)}". This timeout handler "'
+            "requires your function return value to be serializable with `cloudpickle`."
+        )
+        logger.error(f"{name}: {err_msg}")
+        pickled_val = cloudpickle.dumps(RuntimeError(err_msg))
 
     logger.debug(f"{name}: Passing result back to main process...")
-    queue.put(cloudpickle.dumps(return_val))
+
+    try:
+        queue.put(pickled_val)
+    except Exception:
+        logger.error(
+            f"{name}: Failed to put result in queue to main process!",
+            exc_info=True,
+        )
+        raise
 
 
 def run_with_multiprocess_timeout(
@@ -197,7 +227,7 @@ def run_with_multiprocess_timeout(
         - args (Sequence): arguments to pass to the function
         - kwargs (Mapping): keyword arguments to pass to the function
         - timeout (int): the length of time to allow for execution before raising a
-            `TimeoutError`, represented as an integer in seconds
+            `TaskTimeoutSignal`, represented as an integer in seconds
         - logger (Logger): an optional logger to use. If not passed, a logger for the
             `prefect.` namespace will be created.
         - name (str): an optional name to attach to logs for this function run, defaults
@@ -209,7 +239,7 @@ def run_with_multiprocess_timeout(
 
     Raises:
         - AssertionError: if run from a daemonic process
-        - TimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutSignal: if function execution exceeds the allowed timeout
     """
     logger = logger or get_logger()
     name = name or f"Function '{fn.__name__}'"
@@ -252,7 +282,7 @@ def run_with_multiprocess_timeout(
             raise result
         return result
     else:
-        raise TimeoutError(f"Execution timed out for {name}.")
+        raise TaskTimeoutSignal(f"Execution timed out for {name}.")
 
 
 def run_task_with_timeout(
@@ -267,7 +297,7 @@ def run_task_with_timeout(
     The exact implementation varies depending on whether this function is being
     run in the main thread or a non-daemonic subprocess.  If this is run from a
     daemonic subprocess or on Windows, the task is run in a `ThreadPoolExecutor`
-    and only a soft timeout is enforced, meaning a `TimeoutError` is raised at the
+    and only a soft timeout is enforced, meaning a `TaskTimeoutSignal` is raised at the
     appropriate time but the task continues running in the background.
 
     The task is passed instead of a function so we can give better logs and messages.
@@ -287,7 +317,7 @@ def run_task_with_timeout(
         - the result of `f(*args, **kwargs)`
 
     Raises:
-        - TimeoutError: if function execution exceeds the allowed timeout
+        - TaskTimeoutSignal: if function execution exceeds the allowed timeout
     """
     logger = logger or get_logger()
     name = prefect.context.get("task_full_name", task.name)
@@ -361,7 +391,7 @@ def run_task_with_timeout(
     try:
         return fut.result(timeout=task.timeout)
     except FutureTimeout as exc:
-        raise TimeoutError(
+        raise TaskTimeoutSignal(
             f"Execution timed out but was executed {soft_timeout_reason} and will "
             "continue to run in the background."
         ) from exc
@@ -425,7 +455,7 @@ def prepare_upstream_states_for_mapping(
     state: "State",
     upstream_states: "Dict[Edge, State]",
     mapped_children: "Dict[Task, list]",
-    executor: "prefect.engine.executors.Executor",
+    executor: "prefect.executors.Executor",
 ) -> list:
     """
     If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
@@ -553,7 +583,7 @@ def flatten_upstream_state(upstream_state: "State") -> "State":
 
 def flatten_mapped_children(
     mapped_children: List["State"],
-    executor: "prefect.engine.executors.Executor",
+    executor: "prefect.executors.Executor",
 ) -> List["State"]:
     counts = executor.wait(
         [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]

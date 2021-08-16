@@ -2,7 +2,6 @@ import pytest
 
 import prefect
 from prefect import Flow, Task, task, Parameter
-from prefect.engine.result import NoResult
 from prefect.engine.state import Skipped, Success
 from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch, case
 from prefect.tasks.control_flow.conditional import CompareValue
@@ -378,16 +377,24 @@ class TestFilterTask:
 
     def test_default_filter_func_filters_noresults_and_exceptions(self):
         task = FilterTask()
-        res = task.run([NoResult, NoResult, 0, 1, 5, "", ValueError()])
+        res = task.run([None, 0, 1, 5, "", ValueError()])
         assert len(res) == 4
         assert res == [0, 1, 5, ""]
 
     def test_filter_func_can_be_changed(self):
         task = FilterTask(filter_func=lambda r: r != 5)
         exc = ValueError()
-        res = task.run([NoResult, NoResult, 0, 1, 5, "", exc])
-        assert len(res) == 6
-        assert res == [NoResult, NoResult, 0, 1, "", exc]
+        res = task.run([None, 0, 1, 5, "", exc])
+        assert len(res) == 5
+        assert res == [None, 0, 1, "", exc]
+
+    def test_log_func(self, caplog):
+        task = FilterTask(
+            filter_func=lambda r: r != 5,
+            log_func=lambda x: f"Valid Values: {','.join([str(y) for y in x])}",
+        )
+        task.run([1, 2, 3, 4, 5, 6, 7])
+        assert "Valid Values: 1,2,3,4,6,7" in caplog.text
 
 
 @task

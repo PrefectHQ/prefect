@@ -4,6 +4,7 @@ import copy
 import functools
 import hashlib
 import inspect
+import itertools
 import json
 import os
 import tempfile
@@ -27,7 +28,6 @@ from typing import (
     Union,
 )
 
-import cloudpickle
 import pendulum
 from mypy_extensions import TypedDict
 from slugify import slugify
@@ -37,13 +37,12 @@ import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.core.task import Task
-from prefect.engine.executors import Executor
-from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import ResultHandler
-from prefect.engine.results import ResultHandlerResult
+from prefect.executors import Executor
+from prefect.engine.result import Result
+from prefect.engine.state import State
 from prefect.environments import Environment
-from prefect.environments.storage import Storage, get_default_storage_class
-from prefect.run_configs import RunConfig
+from prefect.storage import Storage, get_default_storage_class
+from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities import diagnostics, logging
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
@@ -116,23 +115,21 @@ class Flow:
     Args:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
-        - executor (prefect.engine.executors.Executor, optional): The executor that the flow
+        - executor (prefect.executors.Executor, optional): The executor that the flow
            should use. If `None`, the default executor configured in the runtime environment
            will be used.
-        - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
+        - environment (prefect.environments.Environment, optional, DEPRECATED): The environment
+           that the flow should be run in.
         - run_config (prefect.run_configs.RunConfig, optional): The runtime
            configuration to use when deploying this flow.
-        - storage (prefect.environments.storage.Storage, optional): The unit of storage
+        - storage (prefect.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks that determine the final
             state of a flow
-        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to
-            retrieve and store task results during execution
-        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
-            retrieving and storing state results during execution
+        - result (Result, optional): the result instance used to retrieve and store
+            task results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -147,6 +144,13 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
+        -  terminal_state_handler (Callable, optional): A state handler that can be used to
+            inspect or modify the final state of the flow run. Expects a callable with signature
+            `handler(flow: Flow, state: State, reference_task_states: Set[State]) -> Optional[State]`,
+            where `flow` is the current Flow, `state` is the current state of the Flow run, and
+            `reference_task_states` is set of states for all reference tasks in the flow. It should
+            return either a new state for the flow run, or `None` (in which case the existing
+            state will be used).
     """
 
     def __init__(
@@ -163,8 +167,10 @@ class Flow:
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         validate: bool = None,
-        result_handler: Optional[ResultHandler] = None,
         result: Optional[Result] = None,
+        terminal_state_handler: Optional[
+            Callable[["Flow", State, Set[State]], Optional[State]]
+        ] = None,
     ):
         self._cache = {}  # type: dict
 
@@ -175,23 +181,18 @@ class Flow:
         self.logger = logging.get_logger(self.name)
         self.schedule = schedule
         self.executor = executor
-        self.environment = environment or prefect.environments.LocalEnvironment()
+        self.environment = environment
         self.run_config = run_config
         self.storage = storage
-        if result_handler:
-            warnings.warn(
-                "Result Handlers are deprecated; please use the new style Result classes instead.",
-                stacklevel=2,
-            )
-            self.result = ResultHandlerResult.from_result_handler(
-                result_handler
-            )  # type: Optional[Result]
-        else:
-            self.result = result
+        self.result = result
+        self.terminal_state_handler = terminal_state_handler
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
-        self.slugs = dict()  # type: Dict[Task, str]
+        self._slug_counters = collections.defaultdict(
+            cast(Callable, functools.partial(itertools.count, 1))
+        )  # type: Dict[str, Iterator[int]]
+        self.slugs = {}  # type: Dict[Task, str]
         self.constants = collections.defaultdict(
             dict
         )  # type: Dict[Task, Dict[str, Any]]
@@ -246,6 +247,7 @@ class Flow:
         new.constants = self.constants.copy()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
+        new.slugs = self.slugs.copy()
         new.set_reference_tasks(self._reference_tasks)
         return new
 
@@ -415,10 +417,13 @@ class Flow:
 
     @cache
     def _default_reference_tasks(self) -> Set[Task]:
-        from prefect.tasks.core.resource_manager import ResourceCleanupTask
+        from prefect.tasks.core.resource_manager import (
+            ResourceInitTask,
+            ResourceCleanupTask,
+        )
 
-        # Select all tasks that aren't ResourceCleanupTasks and have no
-        # downstream dependencies that aren't ResourceCleanupTasks
+        # Select all tasks that aren't a ResourceInitTask/ResourceCleanupTask
+        # and have no downstream dependencies that aren't ResourceCleanupTasks
         #
         # Note: this feels a bit gross, since it special cases a certain
         # subclass inside the flow runner. If this behavior expands to other
@@ -427,7 +432,7 @@ class Flow:
         return {
             t
             for t in self.tasks
-            if not isinstance(t, ResourceCleanupTask)
+            if not isinstance(t, (ResourceInitTask, ResourceCleanupTask))
             and not any(
                 t
                 for t in self.downstream_tasks(t)
@@ -498,12 +503,14 @@ class Flow:
         Returns:
             - str: the corresponding slug
         """
-        slug_bases = []
-        for t in self.tasks:
-            slug_bases.append(f"{t.name}-" + "-".join(sorted(t.tags)))
-        new_slug = f"{task.name}-" + "-".join(sorted(task.tags))
-        index = slug_bases.count(new_slug)
-        return f"{new_slug}{'' if new_slug.endswith('-') else '-'}{index + 1}"
+        parts = [task.name]
+        parts.extend(sorted(task.tags))
+        prefix = "-".join(parts)
+        while True:
+            ind = next(self._slug_counters[prefix])
+            slug = f"{prefix}-{ind}"
+            if slug not in self.slugs.values():
+                return slug
 
     def add_task(self, task: Task) -> Task:
         """
@@ -680,7 +687,11 @@ class Flow:
         return edges
 
     def update(
-        self, flow: "Flow", merge_parameters: bool = False, validate: bool = None
+        self,
+        flow: "Flow",
+        merge_parameters: bool = False,
+        validate: bool = None,
+        merge_reference_tasks: bool = False,
     ) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow.
@@ -689,10 +700,12 @@ class Flow:
 
         Args:
             - flow (Flow): A flow which is used to update this flow.
-            - merge_parameters (bool, False): If `True`, duplicate paramaeters are replaced
+            - merge_parameters (bool, False): If `True`, duplicate parameters are replaced
                 with parameters from the provided flow. Defaults to `False`.
                 If `True`, validate will also be set to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
+            - merge_reference_tasks(bool, False): If `True`, add reference tasks from the provided
+                flow to the current flow reference tasks set.
 
         Returns:
             - None
@@ -718,6 +731,11 @@ class Flow:
                     flattened=edge.flattened,
                     validate=validate,
                 )
+
+        if merge_reference_tasks:
+            self.set_reference_tasks(
+                self.reference_tasks().union(flow.reference_tasks())
+            )
 
         self.constants.update(flow.constants or {})
 
@@ -865,15 +883,26 @@ class Flow:
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
         if root_tasks:
+            # double check all root tasks exist in the flow
+            for task in root_tasks:
+                if task not in self.tasks:
+                    raise ValueError(
+                        "Task {t} was not found in Flow {f}".format(t=task, f=self)
+                    )
+
             tasks = set(root_tasks)
             seen = set()  # type: Set[Task]
+
+            # compute the downstream edges dict once, this method uses
+            # @cached but validation is expensive for large flows
+            downstream_edges = self.all_downstream_edges()
 
             # while the set of tasks is different from the seen tasks...
             while tasks.difference(seen):
                 # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
                     # add its downstream tasks to the task list
-                    tasks.update(self.downstream_tasks(t))
+                    tasks.update({e.downstream_task for e in downstream_edges[t]})
                     # mark it as seen
                     seen.add(t)
         else:
@@ -882,6 +911,11 @@ class Flow:
         # build the list of sorted tasks
         remaining_tasks = list(tasks)
         sorted_tasks = []
+
+        # compute the upstream edges dict once, this method uses
+        # @cached but validation is expensive for large flows
+        upstream_edges = self.all_upstream_edges()
+
         while remaining_tasks:
             # mark the flow as cyclic unless we prove otherwise
             cyclic = True
@@ -889,7 +923,8 @@ class Flow:
             # iterate over each remaining task
             for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
-                for upstream_task in self.upstream_tasks(task):
+                upstream_tasks = {e.upstream_task for e in upstream_edges[task]}
+                for upstream_task in upstream_tasks:
                     # if the upstream task is also remaining, it means it
                     # hasn't been sorted, so we can't sort this task either
                     if upstream_task in remaining_tasks:
@@ -1243,9 +1278,9 @@ class Flow:
             **kwargs,
         )
 
-        # state always should return a dict of tasks. If it's NoResult (meaning the run was
+        # state always should return a dict of tasks. If it's empty (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state._result == NoResult:
+        if not state._result:
             state.result = {}
         elif isinstance(state.result, Exception):
             self.logger.error(
@@ -1514,13 +1549,15 @@ class Flow:
             - fpath (str): either the absolute filepath where your Flow will be loaded from,
                 or the name of the Flow you wish to load
         """
+        from prefect.utilities.storage import flow_from_bytes_pickle
+
         if not os.path.isabs(fpath):
             path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
             fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
                 slugify(fpath)
             )  # type: ignore
         with open(str(fpath), "rb") as f:
-            return cloudpickle.load(f)
+            return flow_from_bytes_pickle(f.read())
 
     def save(self, fpath: str = None) -> str:
         """
@@ -1534,6 +1571,8 @@ class Flow:
         Returns:
             - str: the full location the Flow was saved to
         """
+        from prefect.utilities.storage import flow_to_bytes_pickle
+
         if fpath is None:
             path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
             fpath = Path(  # type: ignore
@@ -1544,12 +1583,16 @@ class Flow:
             assert fpath is not None  # mypy assert
             fpath.parent.mkdir(exist_ok=True, parents=True)
         with open(str(fpath), "wb") as f:
-            cloudpickle.dump(self, f)
+            f.write(flow_to_bytes_pickle(self))
 
         return str(fpath)
 
     def run_agent(
-        self, token: str = None, show_flow_logs: bool = False, log_to_cloud: bool = True
+        self,
+        token: str = None,
+        show_flow_logs: bool = False,
+        log_to_cloud: bool = None,
+        api_key: str = None,
     ) -> None:
         """
         Runs a Cloud agent for this Flow in-process.
@@ -1557,20 +1600,30 @@ class Flow:
         Args:
             - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
                 will default to the token found in `config.cloud.agent.auth_token`
+                DEPRECATED.
             - show_flow_logs (bool, optional): a boolean specifying whether the agent should
                 re-route Flow run logs to stdout; defaults to `False`
             - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should
-                be sent to Prefect Cloud; defaults to `True`
+                be sent to Prefect Cloud; defaults to `None` which uses the config value
+            - api_key (str, optional): A Prefect Cloud API key to authenticate with.
+                If not set, the default will be pulled from the `Client`
         """
         temp_config = {
             "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
-            "logging.log_to_cloud": log_to_cloud,
+            "cloud.api_key": api_key or prefect.config.cloud.get("api_key"),
+            "cloud.send_flow_run_logs": (
+                log_to_cloud
+                if log_to_cloud is not None
+                else prefect.config.cloud.send_flow_run_logs
+            ),
         }
         with set_temporary_config(temp_config):
             if self.run_config is not None:
                 labels = list(self.run_config.labels or ())
-            else:
+            elif self.environment is not None:
                 labels = list(self.environment.labels or ())
+            else:
+                labels = []
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
@@ -1597,7 +1650,7 @@ class Flow:
                 prior to serialization; defaults to `True`
             - labels (List[str], optional): a list of labels to add to this Flow's environment;
                 useful for associating Flows with individual Agents; see
-                http://docs.prefect.io/orchestration/agents/overview.html#flow-affinity-labels
+                http://docs.prefect.io/orchestration/agents/overview.html#labels
             - set_schedule_active (bool, optional): if `False`, will set the schedule to
                 inactive in the database to prevent auto-scheduling runs (if the Flow has a
                 schedule).  Defaults to `True`. This can be changed later.
@@ -1637,8 +1690,27 @@ class Flow:
             )
             return None
 
+        if (
+            self.environment is not None
+            and self.run_config is None
+            and self.executor is not None
+        ):
+            warnings.warn(
+                "This flow is using the deprecated `flow.environment` based configuration, "
+                "but has `flow.executor` set.\n\n"
+                "This executor will be *not* be used at runtime.\n\n"
+                "Please transition to the `flow.run_config` based system instead to "
+                "make use of setting `flow.executor`. "
+                "See https://docs.prefect.io/orchestration/flow_config/overview.html "
+                "for more information.",
+                stacklevel=2,
+            )
+
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
+
+        if self.environment is None and self.run_config is None:
+            self.run_config = UniversalRun()
 
         # add auto-labels for various types of storage
         for obj in [self.environment, self.run_config]:
@@ -1646,7 +1718,7 @@ class Flow:
                 obj.labels.update(self.storage.labels)
                 obj.labels.update(labels or ())
 
-        # register the flow with a default result handler if one not provided
+        # register the flow with a default result if one not provided
         if not self.result:
             self.result = self.storage.result
 

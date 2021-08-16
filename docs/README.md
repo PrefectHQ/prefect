@@ -18,7 +18,7 @@
     <a href="https://hub.docker.com/r/prefecthq/prefect">
         <img src="https://img.shields.io/docker/pulls/prefecthq/prefect.svg?color=%2327B1FF&logoColor=%234D606E">
     </a>
-    <a href="https://prefect-slackin.herokuapp.com/">
+    <a href="https://www.prefect.io/slack">
         <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20slack&color=27b1ff&style=flat">
     </a>
 </p>
@@ -70,7 +70,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://prefect-slackin.herokuapp.com/)!
+Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://www.prefect.io/slack)!
 
 ### Hello, world! 👋
 

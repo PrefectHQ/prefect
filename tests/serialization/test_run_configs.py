@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun
+from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun, UniversalRun
 from prefect.serialization.run_config import RunConfigSchema, RunConfigSchemaBase
 
 
@@ -10,6 +10,16 @@ def test_serialized_run_config_sorts_labels():
         "b",
         "c",
     ]
+
+
+@pytest.mark.parametrize(
+    "config", [UniversalRun(), UniversalRun(env={"FOO": "BAR"}, labels=["a", "b"])]
+)
+def test_serialize_universal_run(config):
+    msg = RunConfigSchema().dump(config)
+    config2 = RunConfigSchema().load(msg)
+    assert (config.env) == config2.env
+    assert sorted(config.labels) == sorted(config2.labels)
 
 
 @pytest.mark.parametrize(
@@ -24,7 +34,10 @@ def test_serialized_run_config_sorts_labels():
             cpu_request="500m",
             memory_limit="4G",
             memory_request="2G",
+            service_account_name="my-account",
+            image_pull_secrets=["secret-1", "secret-2"],
             labels=["a", "b"],
+            image_pull_policy="Always",
         ),
         KubernetesRun(
             job_template={
@@ -39,6 +52,7 @@ def test_serialize_kubernetes_run(config):
     msg = RunConfigSchema().dump(config)
     config2 = RunConfigSchema().load(msg)
     assert sorted(config.labels) == sorted(config2.labels)
+
     fields = [
         "job_template",
         "job_template_path",
@@ -48,6 +62,9 @@ def test_serialize_kubernetes_run(config):
         "cpu_request",
         "memory_limit",
         "memory_request",
+        "service_account_name",
+        "image_pull_secrets",
+        "image_pull_policy",
     ]
     for field in fields:
         assert getattr(config, field) == getattr(config2, field)
@@ -104,6 +121,7 @@ def test_serialize_docker_run(config):
             cpu="1 vcpu",
             memory="1 GB",
             task_role_arn="my-task-role",
+            execution_role_arn="execution-role",
             run_task_kwargs={"overrides": {"taskRoleArn": "example"}},
             labels=["a", "b"],
         ),
@@ -133,6 +151,7 @@ def test_serialize_ecs_run(config):
         "cpu",
         "memory",
         "task_role_arn",
+        "execution_role_arn",
         "run_task_kwargs",
     ]
     for field in fields:

@@ -1,5 +1,0 @@
-enhancement:
-  - "Add a new Client function `delete_project` - [#3728](https://github.com/PrefectHQ/prefect/pull/3728)"
-
-contributor:
-  - "[Faris ALSaleem](https://github.com/FarisALSaleem)" 

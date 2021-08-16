@@ -2,8 +2,10 @@ import time
 
 import click
 
+import prefect
 from prefect import config
 from prefect.client import Client
+from prefect.utilities.logging import get_logger
 
 
 @click.group(hidden=True)
@@ -89,10 +91,32 @@ def flow_run(id, num):
     """
 
     client = Client()
+    logger = get_logger("heartbeat")
     iter_count = 0
 
-    while iter_count < (num or 1):
-        client.update_flow_run_heartbeat(id)  # type: ignore
-        if num:
-            iter_count += 1
-        time.sleep(config.cloud.heartbeat_interval)
+    # Ensure that logs are sent to the backend since this is typically called without
+    # console stdout/err
+    with prefect.context({"flow_run_id": id, "running_with_backend": True}):
+
+        try:  # Log signal-like exceptions that cannot be ignored
+
+            while iter_count < (num or 1):
+
+                try:  # Ignore (but log) client exceptions
+                    client.update_flow_run_heartbeat(id)
+                except Exception as exc:
+                    logger.error(
+                        f"Failed to send heartbeat with exception: {exc!r}",
+                        exc_info=True,
+                    )
+
+                if num:
+                    iter_count += 1
+                time.sleep(config.cloud.heartbeat_interval)
+
+        except BaseException as exc:
+            logger.error(
+                f"Heartbeat process encountered terminal exception: {exc!r}",
+                exc_info=True,
+            )
+            raise

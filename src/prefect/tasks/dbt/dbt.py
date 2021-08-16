@@ -10,6 +10,9 @@ class DbtShellTask(ShellTask):
     """
     Task for running dbt commands. It will create a profiles.yml file prior to running dbt commands.
 
+    This task inherits all configuration options from the
+    [ShellTask](https://docs.prefect.io/api/latest/tasks/shell.html#shelltask).
+
     Args:
         - command (string, optional): dbt command to be executed; can also be
             provided post-initialization by calling this task instance
@@ -42,7 +45,7 @@ class DbtShellTask(ShellTask):
     Example:
         ```python
         from prefect import Flow
-        from ccde.prefect.tasks.dbt import DbtShellTask
+        from prefect.tasks.dbt import DbtShellTask
 
         with Flow(name="dbt_flow") as f:
             task = DbtShellTask(

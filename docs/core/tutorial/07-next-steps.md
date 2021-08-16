@@ -66,7 +66,7 @@ In this tutorial we could have gone one step further and asked for fetching all 
 
 ## Ready-made Task Library
 
-Within our tutorial `Tasks` were always user-provided functions, however, Prefect provides a [library of ready-made `Tasks`](/core/task_library/). Here's an example `Flow` that uses `ShellTasks` to run arbitrary commands:
+Within our tutorial `Tasks` were always user-provided functions, however, Prefect provides a [library of ready-made `Tasks`](/core/task_library/overview.html). Here's an example `Flow` that uses `ShellTasks` to run arbitrary commands:
 
 ```python{2,4,7-9}
 from prefect import Flow
