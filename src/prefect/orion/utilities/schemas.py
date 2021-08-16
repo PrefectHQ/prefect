@@ -125,6 +125,44 @@ class PrefectBaseModel(BaseModel):
         """
         return json.loads(self.json(*args, **kwargs))
 
+    def dict(self, *args, shallow: bool = False, **kwargs) -> dict:
+        """Returns a representation of the model as a Python dictionary.
+        Identical to calling `model.dict()` unless
+        `shallow=True` in which case the behavior is equivalent
+        to calling `dict(model)` because the raw field values are returned
+        and the dict coercion does not recurse into nested Pydantic models.
+
+        For more information on this distinction please see
+        https://pydantic-docs.helpmanual.io/usage/exporting_models/#dictmodel-and-iteration
+
+
+        Args:
+            shallow (bool, optional): If True, nested Pydantic fields
+                are also coerced to dicts.
+
+        Returns:
+            dict
+        """
+        # standard pydantic behavior
+        if not shallow:
+            return super().dict(*args, **kwargs)
+
+        # if no options were requested, return simple dict transformation
+        # to apply shallow conversion
+        elif not args and not kwargs:
+            return dict(self)
+
+        # if options like include/exclude were provided, perform
+        # a full dict conversion then overwrite with any shallow
+        # differences
+        else:
+            deep_dict = super().dict(*args, **kwargs)
+            shallow_dict = dict(self)
+            for k, v in list(deep_dict.items()):
+                if isinstance(v, dict) and isinstance(shallow_dict[k], BaseModel):
+                    deep_dict[k] = shallow_dict[k]
+            return deep_dict
+
 
 class APIBaseModel(PrefectBaseModel):
     class Config:

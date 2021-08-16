@@ -23,7 +23,7 @@ async def create_flow(
         sqlalchemy.exc.IntegrityError: if a flow with the same name already exists
 
     """
-    flow = orm.Flow(**dict(flow))
+    flow = orm.Flow(**flow.dict(shallow=True))
     session.add(flow)
     await session.flush()
     return flow
