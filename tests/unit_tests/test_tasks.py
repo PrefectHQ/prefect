@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from prefect import flow
 from prefect.tasks import task
-from prefect.futures import PrefectFuture
+from prefect.orion.schemas.states import State, StateType
 from prefect.client import OrionClient
 
 
@@ -26,15 +26,15 @@ class TestTaskCall:
         @flow
         def bar():
             return foo(1)
-            # Returns a future so we can run assertions outside of the flow context
+            # Returns a future which is coerced resolved on return into a `State`
 
         flow_future = bar()
-        task_future = flow_future.result().data
-        assert isinstance(task_future, PrefectFuture)
-        assert task_future.result().data == 1
+        task_state = flow_future.result().data
+        assert isinstance(task_state, State)
+        assert task_state.data == 1
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
-    def test_state_reflects_result_of_run(self, error):
+    def test_final_state_reflects_exceptions_during_run(self, error):
         @task
         def bar():
             if error:
@@ -45,12 +45,30 @@ class TestTaskCall:
             return bar()
 
         flow_future = foo()
-        task_future = flow_future.result().data
-        state = task_future.result()
+        task_state = flow_future.result().data
 
         # Assert the final state is correct
-        assert state.is_failed() if error else state.is_completed()
-        assert state.data is error
+        assert task_state.is_failed() if error else task_state.is_completed()
+        assert task_state.data is error
+
+    def test_final_task_state_respects_returned_state(sel):
+        @task
+        def bar():
+            return State(
+                type=StateType.FAILED, message="Test returned state", data=True
+            )
+
+        @flow(version="test")
+        def foo():
+            return bar()
+
+        flow_future = foo()
+        task_state = flow_future.result().data
+
+        # Assert the final state is correct
+        assert task_state.is_failed()
+        assert task_state.data is True
+        assert task_state.message == "Test returned state"
 
     def test_task_runs_correctly_populate_dynamic_keys(self):
         @task
@@ -59,15 +77,13 @@ class TestTaskCall:
 
         @flow(version="test")
         def foo():
-            return bar(), bar()
+            return bar().run_id, bar().run_id
 
         flow_future = foo()
-        task_futures = [item for item in flow_future.result().data]
+        task_run_ids = flow_future.result().data
 
         orion_client = OrionClient()
-        task_runs = [
-            orion_client.read_task_run(task_run.run_id) for task_run in task_futures
-        ]
+        task_runs = [orion_client.read_task_run(run_id) for run_id in task_run_ids]
 
         # Assert dynamic key is set correctly
         assert task_runs[0].dynamic_key == "0"
@@ -87,8 +103,8 @@ class TestTaskCall:
             return bar(foo(1))
 
         flow_future = test_flow()
-        task_future = flow_future.result().data
-        assert task_future.result().data == 2
+        task_state = flow_future.result().data
+        assert task_state.data == 2
 
     @pytest.mark.parametrize("always_fail", [True, False])
     def test_task_respects_retry_count(self, always_fail):
@@ -108,24 +124,23 @@ class TestTaskCall:
 
         @flow
         def test_flow():
-            return flaky_function()
+            future = flaky_function()
+            return future.run_id, future.result()
 
         flow_future = test_flow()
-        task_future = flow_future.result().data
+        task_run_id, task_run_state = flow_future.result().data
 
         if always_fail:
-            state = task_future.result()
-            assert state.is_failed()
-            assert state.data is exc
+            assert task_run_state.is_failed()
+            assert task_run_state.data is exc
             assert mock.call_count == 4
         else:
-            state = task_future.result()
-            assert state.is_completed()
-            assert state.data is True
+            assert task_run_state.is_completed()
+            assert task_run_state.data is True
             assert mock.call_count == 4
 
         client = OrionClient()
-        states = client.read_task_run_states(task_future.run_id)
+        states = client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",
@@ -152,18 +167,18 @@ class TestTaskCall:
 
         @flow
         def test_flow():
-            return flaky_function()
+            future = flaky_function()
+            return future.run_id, future.result()
 
         flow_future = test_flow()
-        task_future = flow_future.result().data
+        task_run_id, task_run_state = flow_future.result().data
 
-        state = task_future.result()
-        assert state.is_completed()
-        assert state.data is True
+        assert task_run_state.is_completed()
+        assert task_run_state.data is True
         assert mock.call_count == 2
 
         client = OrionClient()
-        states = client.read_task_run_states(task_future.run_id)
+        states = client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",
@@ -189,10 +204,11 @@ class TestTaskCall:
 
         @flow
         def test_flow():
-            return flaky_function()
+            future = flaky_function()
+            return future.run_id
 
         flow_future = test_flow()
-        task_future = flow_future.result().data
+        task_run_id = flow_future.result().data
 
         assert sleep.call_count == 1
         # due to rounding, the expected sleep time will be less than 43 seconds
@@ -200,7 +216,7 @@ class TestTaskCall:
         assert 40 < sleep.call_args[0][0] < 43
 
         client = OrionClient()
-        states = client.read_task_run_states(task_future.run_id)
+        states = client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",

@@ -1,5 +1,3 @@
-import sys
-
 import pytest
 
 from prefect import task, flow
@@ -25,7 +23,7 @@ def get_test_flow():
         a = task_a()
         b = task_b()
         c = task_c(b)
-        return a.result(), b.result(), c.result()
+        return a, b, c
 
     return test_flow
 
@@ -45,9 +43,6 @@ def test_flow_run_by_executor(executor):
 
     future = test_flow()
     state = future.result()
-
-    if state.is_failed():
-        raise state.data
 
     assert state.is_completed()
     return_data = state.data
