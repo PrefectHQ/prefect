@@ -1,5 +1,6 @@
 import inspect
 import time
+import datetime
 from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Tuple, Union
 from uuid import UUID
@@ -57,6 +58,7 @@ class Task:
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
+        cache_expiration: datetime.timedelta = None,
         retries: int = 0,
         retry_delay_seconds: Union[float, int] = 0,
     ):
@@ -85,6 +87,7 @@ class Task:
 
         self.dynamic_key = 0
         self.cache_key_fn = cache_key_fn
+        self.cache_expiration = cache_expiration
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -120,7 +123,10 @@ class Task:
             client,
             task_run_id,
             State(
-                type=StateType.RUNNING, state_details=StateDetails(cache_key=cache_key)
+                type=StateType.RUNNING,
+                state_details=StateDetails(
+                    cache_key=cache_key,
+                ),
             ),
         )
 
@@ -144,8 +150,13 @@ class Task:
             else:
                 terminal_state = return_val_to_state(result)
 
-                # for COMPLETED tasks, add the cache key
+                # for COMPLETED tasks, add the cache key and expiration
                 if terminal_state.is_completed():
+                    terminal_state.state_details.cache_expiration = (
+                        (pendulum.now("utc") + self.cache_expiration)
+                        if self.cache_expiration
+                        else None
+                    )
                     terminal_state.state_details.cache_key = cache_key
 
             state = propose_state(client, task_run_id, terminal_state)
