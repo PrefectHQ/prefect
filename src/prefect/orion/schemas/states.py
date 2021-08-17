@@ -25,6 +25,7 @@ class StateDetails(PrefectBaseModel):
     task_run_id: UUID = None
     scheduled_time: datetime.datetime = None
     cache_key: str = None
+    cache_expiration: datetime.datetime = None
 
 
 class RunDetails(PrefectBaseModel):
