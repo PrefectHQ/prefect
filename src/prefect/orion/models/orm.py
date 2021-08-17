@@ -109,6 +109,23 @@ class TaskRunState(Base):
         return states.State.from_orm(self)
 
 
+class TaskRunStateCache(Base):
+    cache_key = Column(String, nullable=False)
+    cache_expiration = Column(
+        Timestamp(timezone=True),
+        nullable=True,
+    )
+    task_run_state_id = Column(UUID(), nullable=False)
+
+    __table_args__ = (
+        sa.Index(
+            "ix_cache_key_created_desc",
+            cache_key,
+            sa.desc("created"),
+        ),
+    )
+
+
 frs = aliased(FlowRunState, name="frs")
 trs = aliased(TaskRunState, name="trs")
 

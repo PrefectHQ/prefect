@@ -1,7 +1,7 @@
 import datetime
 import pendulum
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 import sqlalchemy as sa
 from sqlalchemy import select, delete
 from sqlalchemy.sql.functions import mode
@@ -55,6 +55,15 @@ async def create_task_run_state(
                 data=state.data,
             )
 
+        if state.type == states.StateType.RUNNING and state.state_details.cache_key:
+            # Check for cached states matching the cache key
+            cached_state = await get_cached_task_run_state(
+                session, state.state_details.cache_key
+            )
+            if cached_state:
+                state = cached_state.as_state().copy()
+                state.name = "Cached"
+
     # update the state details
     state.run_details = states.update_run_details(from_state=from_state, to_state=state)
     state.state_details.flow_run_id = run.flow_run_id
@@ -67,6 +76,10 @@ async def create_task_run_state(
     )
     session.add(new_task_run_state)
     await session.flush()
+
+    # Add the new task state to the cache if a key was provided
+    if state.type == states.StateType.COMPLETED and state.state_details.cache_key:
+        await cache_task_run_state(session, new_task_run_state)
 
     # update the ORM model state
     if run is not None:
@@ -127,3 +140,38 @@ async def delete_task_run_state(
         delete(orm.TaskRunState).where(orm.TaskRunState.id == task_run_state_id)
     )
     return result.rowcount > 0
+
+
+async def get_cached_task_run_state(
+    session: sa.orm.Session, cache_key: str
+) -> Optional[orm.TaskRunState]:
+    task_run_state_id = (
+        select(orm.TaskRunStateCache.task_run_state_id)
+        .filter(
+            sa.and_(
+                orm.TaskRunStateCache.cache_key == cache_key,
+                sa.or_(
+                    orm.TaskRunStateCache.cache_expiration.is_(None),
+                    orm.TaskRunStateCache.cache_expiration < pendulum.now("utc"),
+                ),
+            ),
+        )
+        .order_by(orm.TaskRunStateCache.created.desc())
+        .limit(1)
+    ).scalar_subquery()
+    query = select(orm.TaskRunState).filter(orm.TaskRunState.id == task_run_state_id)
+    result = await session.execute(query)
+    return result.scalar()
+
+
+async def cache_task_run_state(
+    session: sa.orm.Session, state: orm.TaskRunState
+) -> None:
+    # create the new task run state
+    new_cache_item = orm.TaskRunStateCache(
+        cache_key=state.state_details.cache_key,
+        cache_expiration=None,
+        task_run_state_id=state.id,
+    )
+    session.add(new_cache_item)
+    await session.flush()

@@ -1,8 +1,9 @@
 import pytest
+from itertools import repeat
 from unittest.mock import MagicMock
 
 from prefect import flow
-from prefect.tasks import task
+from prefect.tasks import task, task_input_hash
 from prefect.orion.schemas.states import State, StateType
 from prefect.client import OrionClient
 
@@ -106,6 +107,8 @@ class TestTaskCall:
         task_state = flow_future.result().data
         assert task_state.data == 2
 
+
+class TestTaskRetries:
     @pytest.mark.parametrize("always_fail", [True, False])
     def test_task_respects_retry_count(self, always_fail):
         mock = MagicMock()
@@ -225,3 +228,171 @@ class TestTaskCall:
             "Running",
             "Completed",
         ]
+
+
+class TestTaskCaching:
+    def test_repeated_task_call_within_flow_is_not_cached_by_default(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(1).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert second_state.data == first_state.data
+
+    def test_cache_hits_within_flows_are_cached(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(2).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+    def test_many_repeated_cache_hits_within_flows_cached(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            foo(1)
+            calls = repeat(foo(1), 5)
+            return [call.result() for call in calls]
+
+        flow_future = bar()
+        states = flow_future.result().data
+        assert all(state.name == "Cached" for state in states)
+
+    def test_cache_hits_between_flows_are_cached(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar(x):
+            return foo(x).result()
+
+        first_state = bar(1).result()
+        second_state = bar(2).result()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+    def test_cache_misses_arent_cached(self):
+
+        # this hash fn won't return the same value twice
+        def mutating_key(*_, tally=[]):
+            tally.append("x")
+            return "call tally:" + "".join(tally)
+
+        @task(cache_key_fn=mutating_key)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(1).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+
+    def test_cache_key_fn_context(self):
+        def stringed_context(context, args):
+            return str(context.flow_run_id)
+
+        @task(cache_key_fn=stringed_context)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo("something").result(), foo("different").result()
+
+        first_future = bar()
+        first_state, second_state = first_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+        second_future = bar()
+        third_state, fourth_state = second_future.result().data
+        assert third_state.name == "Completed"
+        assert fourth_state.name == "Cached"
+        assert fourth_state.data == first_state.data
+
+    def test_cache_key_fn_arg_inputs_are_stable(self):
+        def stringed_inputs(context, args):
+            return str(args)
+
+        @task(cache_key_fn=stringed_inputs)
+        def foo(a, b, c=3):
+            return a + b + c
+
+        @flow
+        def bar():
+            return (
+                foo(1, 2, 3).result(),
+                foo(1, b=2).result(),
+                foo(c=3, a=1, b=2).result(),
+            )
+
+        flow_future = bar()
+        first_state, second_state, third_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert third_state.name == "Cached"
+
+        assert second_state.data == first_state.data
+        assert third_state.data == first_state.data
+
+
+class TestCacheFunctionBuiltins:
+    def test_task_input_hash_within_flows(self):
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(2).result(), foo(1).result()
+
+        flow_future = bar()
+        first_state, second_state, third_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+        assert first_state.data != second_state.data
+        assert first_state.data == third_state.data
+
+    def test_task_input_hash_between_flows(self):
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return x
+
+        @flow
+        def bar(x):
+            return foo(x).result()
+
+        first_state = bar(1).result()
+        second_state = bar(2).result()
+        third_state = bar(1).result()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+        assert first_state.data != second_state.data
+        assert first_state.data == third_state.data
