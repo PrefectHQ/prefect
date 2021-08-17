@@ -1,4 +1,5 @@
 import pytest
+import datetime
 from itertools import repeat
 from unittest.mock import MagicMock
 
@@ -359,6 +360,42 @@ class TestTaskCaching:
 
         assert second_state.data == first_state.data
         assert third_state.data == first_state.data
+
+    def test_cache_key_hits_with_future_expiration_are_cached(self):
+        @task(
+            cache_key_fn=lambda *_: "cache hit",
+            cache_expiration=datetime.timedelta(seconds=5),
+        )
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(2).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.data == first_state.data
+
+    def test_cache_key_hits_with_past_expiration_are_not_cached(self):
+        @task(
+            cache_key_fn=lambda *_: "cache hit",
+            cache_expiration=datetime.timedelta(seconds=-5),
+        )
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1).result(), foo(2).result()
+
+        flow_future = bar()
+        first_state, second_state = flow_future.result().data
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert second_state.data != first_state.data
 
 
 class TestCacheFunctionBuiltins:
