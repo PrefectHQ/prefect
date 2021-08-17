@@ -52,3 +52,8 @@ class TaskRun(APIBaseModel):
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
+
+
+class Deployment(APIBaseModel):
+    name: str
+    flow_id: UUID

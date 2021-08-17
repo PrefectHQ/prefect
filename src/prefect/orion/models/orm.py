@@ -276,3 +276,10 @@ class TaskRun(Base):
             unique=True,
         ),
     )
+
+
+class Deployment(Base):
+    name = Column(String, nullable=False)
+    flow_id = Column(UUID, ForeignKey("flow.id"), nullable=False, index=True)
+
+    flow = relationship(Flow, lazy="joined")
