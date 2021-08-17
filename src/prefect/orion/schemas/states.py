@@ -23,6 +23,7 @@ class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
     scheduled_time: datetime.datetime = None
+    cache_key: str = None
 
 
 class RunDetails(PrefectBaseModel):
