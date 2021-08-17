@@ -68,11 +68,11 @@ def run_with_heartbeat(
                 exc_info=True,
             )
 
-        if not use_heartbeat or (prefect.context.config.heartbeat_mode == "off"):
+        if not use_heartbeat or (prefect.context.config.cloud.heartbeat_mode == "off"):
             configured_heartbeat = no_heartbeat()
-        elif prefect.context.config.heartbeat_mode == "thread":
+        elif prefect.context.config.cloud.heartbeat_mode == "thread":
             configured_heartbeat = threaded_heartbeat(self.flow_run_id)
-        elif prefect.context.config.heartbeat_mode == "process":
+        elif prefect.context.config.cloud.heartbeat_mode == "process":
             configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
         # because the threaded heartbeat mode is experimental and may change in the future,
         # let's not catch configuration error with `else` -- stale configuration should break tests

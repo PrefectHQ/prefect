@@ -36,7 +36,6 @@ def cloud_settings(cloud_api):
         {
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
-            "heartbeat_mode": "off",
         }
     ):
         yield
@@ -335,7 +334,7 @@ def test_client_is_always_called_even_during_failures(client):
 
 @pytest.mark.parametrize("heartbeat", ["process", "thread"])
 def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch, heartbeat):
-    with set_temporary_config({"heartbeat_mode": heartbeat}):
+    with set_temporary_config({"cloud.heartbeat_mode": heartbeat}):
         client = MagicMock(graphql=MagicMock(side_effect=SyntaxError))
         monkeypatch.setattr(
             "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
@@ -353,7 +352,7 @@ def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch, heartbeat)
 @pytest.mark.parametrize("heartbeat", ["process", "thread"])
 @pytest.mark.parametrize("setting_available", [True, False])
 def test_flow_runner_heartbeat_sets_command(monkeypatch, setting_available, heartbeat):
-    with set_temporary_config({"heartbeat_mode": heartbeat}):
+    with set_temporary_config({"cloud.heartbeat_mode": heartbeat}):
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
@@ -381,7 +380,7 @@ def test_flow_runner_heartbeat_sets_command(monkeypatch, setting_available, hear
 
 @pytest.mark.parametrize("heartbeat", ["process", "thread"])
 def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch, heartbeat):
-    with set_temporary_config({"heartbeat_mode": heartbeat}):
+    with set_temporary_config({"cloud.heartbeat_mode": heartbeat}):
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
@@ -453,7 +452,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     settings which were present on the original machine are respected in the remote job, reflected
     here by having the CloudHandler called during logging and the special values present in context.
     """
-    with set_temporary_config({"heartbeat_mode": heartbeat}):
+    with set_temporary_config({"cloud.heartbeat_mode": heartbeat}):
         from prefect.engine.flow_runner import run_task
 
         def my_run_task(*args, **kwargs):
