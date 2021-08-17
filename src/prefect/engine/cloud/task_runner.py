@@ -364,20 +364,9 @@ class CloudTaskRunner(TaskRunner):
                 naptime = max(
                     (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
                 )
-                for _ in range(int(naptime) // 30):
-                    # send heartbeat every 30 seconds to let API know task run is still alive
-                    self.client.update_task_run_heartbeat(
-                        task_run_id=prefect.context.get("task_run_id")
-                    )
-                    naptime -= 30
-                    time.sleep(30)
 
                 if naptime > 0:
                     time.sleep(naptime)  # ensures we don't start too early
-
-                self.client.update_task_run_heartbeat(
-                    task_run_id=prefect.context.get("task_run_id")
-                )
 
                 end_state = super().run(
                     state=end_state,

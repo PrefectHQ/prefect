@@ -29,44 +29,6 @@ def heartbeat():
     "--id",
     "-i",
     required=True,
-    help="The ID of the task run to heartbeat.",
-    hidden=True,
-)
-@click.option(
-    "--num",
-    "-n",
-    type=int,
-    help="The number of times to heartbeat; if not provided, will heartbeat for forever.",
-    hidden=True,
-)
-def task_run(id, num):
-    """
-    Send heartbeats back to the Prefect API for a given task run ID.
-
-    \b
-    Options:
-        --id, -i                TEXT        The id of a task run to send heartbeats for [required]
-        --num, -n               TEXT        The number of times to send a heartbeat [required]
-
-    \b
-    If num is not provided, the heartbeat will be sent indefinitely.
-    """
-
-    client = Client()
-    iter_count = 0
-
-    while iter_count < (num or 1):
-        client.update_task_run_heartbeat(id)  # type: ignore
-        if num:
-            iter_count += 1
-        time.sleep(config.cloud.heartbeat_interval)
-
-
-@heartbeat.command(hidden=True)
-@click.option(
-    "--id",
-    "-i",
-    required=True,
     help="The ID of the flow run to heartbeat.",
     hidden=True,
 )
@@ -91,7 +53,7 @@ def flow_run(id, num):
     """
 
     client = Client()
-    logger = get_logger("heartbeat")
+    logger = get_logger("subprocess_heartbeat")
     iter_count = 0
 
     # Ensure that logs are sent to the backend since this is typically called without

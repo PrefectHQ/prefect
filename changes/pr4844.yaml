@@ -1,0 +1,2 @@
+enhancement:
+  - "Add ability to configure threaded heartbeats - [#4844](https://github.com/PrefectHQ/prefect/pull/4844)"
