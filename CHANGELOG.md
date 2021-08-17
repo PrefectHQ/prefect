@@ -14,7 +14,7 @@ Released on August 17, 2021.
 - Improve behavior when API rate limits are encountered - [#4852](https://github.com/PrefectHQ/prefect/pull/4852)
 - Allow custom git clone url for `Git` storage - [#4870](https://github.com/PrefectHQ/cloud/pull/4870)
 - Add `on_worker_status_changed` callback to the `DaskExecutor` - [#4874](https://github.com/PrefectHQ/prefect/pull/4874)
-- Add `--agent-config-id` to `prefect agent <kubernetes|local> install - [#4876](https://github.com/PrefectHQ/prefect/pull/4876)
+- Add `--agent-config-id` to `prefect agent <kubernetes|local> install` - [#4876](https://github.com/PrefectHQ/prefect/pull/4876)
 
 ### Task Library
 
