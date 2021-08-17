@@ -119,11 +119,9 @@ class TaskRunStateCache(Base):
 
     __table_args__ = (
         sa.Index(
-            "ix_cache_key_cache_expiration_created_desc",
+            "ix_cache_key_created_desc",
             cache_key,
-            cache_expiration,
             sa.desc("created"),
-            unique=True,
         ),
     )
 
