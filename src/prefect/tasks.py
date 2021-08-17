@@ -12,6 +12,7 @@ from prefect.futures import PrefectFuture, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateType, StateDetails
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
+from prefect.utilities.callables import get_call_parameters
 
 
 def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -112,11 +113,12 @@ class Task:
             client=client,
         )
 
-        # Bind the arguments to the function to get a dict of arg -> value
-        bound_signature = inspect.signature(self.fn).bind(*call_args, **call_kwargs)
-        bound_signature.apply_defaults()
-        arguments = bound_signature.arguments
-        cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
+        # Get a dict of arg -> value for generating the cache key
+        parameters = get_call_parameters(self.fn, call_args, call_kwargs)
+
+        cache_key = (
+            self.cache_key_fn(context, parameters) if self.cache_key_fn else None
+        )
 
         # Transition from `PENDING` -> `RUNNING`
         state = propose_state(
