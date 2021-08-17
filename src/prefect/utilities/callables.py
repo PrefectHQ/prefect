@@ -6,7 +6,8 @@ def get_call_parameters(
     fn: Callable, call_args: Tuple[Any, ...], call_kwargs: Dict[str, Any]
 ) -> OrderedDict[str, Any]:
     """
-    Bind a call to a function to get parameter/value mapping
+    Bind a call to a function to get parameter/value mapping. Default values on the
+    signature will be included if not overriden.
 
     Will throw an exception if the arguments/kwargs are not valid for the function
     """
