@@ -9,7 +9,7 @@ Released on August 17, 2021.
 - Add a getting started section with a quick start guide for both core and orchestration sections - [#4734](https://github.com/PrefectHQ/prefect/pull/4734)
 ### Enhancements
 
-- Expose Snowflake cursor type to SnowflakeQuery task arguments #4786(https://github.com/PrefectHQ/prefect/issues/4786)
+- Expose Snowflake cursor type to SnowflakeQuery task arguments [#4786](https://github.com/PrefectHQ/prefect/issues/4786)
 - Add ability to use threaded flow heartbeats - [#4844](https://github.com/PrefectHQ/prefect/pull/4844)
 - Improve behavior when API rate limits are encountered - [#4852](https://github.com/PrefectHQ/prefect/pull/4852)
 - Allow custom git clone url for `Git` storage - [#4870](https://github.com/PrefectHQ/cloud/pull/4870)
