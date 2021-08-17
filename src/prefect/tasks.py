@@ -7,7 +7,7 @@ from uuid import UUID
 import pendulum
 
 from prefect.client import OrionClient
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import stable_hash, to_qualified_name
@@ -112,11 +112,7 @@ class Task:
                     data=exc,
                 )
             else:
-                terminal_state = State(
-                    type=StateType.COMPLETED,
-                    message="Task run completed.",
-                    data=result,
-                )
+                terminal_state = return_val_to_state(result)
 
             state = propose_state(client, task_run_id, terminal_state)
 
