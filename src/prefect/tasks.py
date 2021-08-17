@@ -144,6 +144,10 @@ class Task:
             else:
                 terminal_state = return_val_to_state(result)
 
+                # for COMPLETED tasks, add the cache key
+                if terminal_state.is_completed():
+                    terminal_state.state_details.cache_key = cache_key
+
             state = propose_state(client, task_run_id, terminal_state)
 
             if state.is_scheduled():  # Received a retry from the backend
