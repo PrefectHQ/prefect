@@ -19,6 +19,7 @@ from logging import Logger
 import prefect
 from prefect import config
 from prefect.client import Client
+from prefect.configuration import to_environment_variables
 from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.logging import get_logger
 from typing import (
@@ -111,14 +112,17 @@ def subprocess_heartbeat(heartbeat_cmd: List[str], logger: Logger) -> Iterator[N
         #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
         #   submit tasks to run within daemonic subprocesses
         current_env = dict(os.environ).copy()
-        auth_token = prefect.context.config.cloud.get("auth_token")
-        api_key = prefect.context.config.cloud.get("api_key")
-        tenant_id = prefect.context.config.cloud.get("tenant_id")
-        api_url = prefect.context.config.cloud.get("api")
-        current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
-        current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
-        current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
-        current_env.setdefault("PREFECT__CLOUD__API", api_url)
+        current_env.update(
+            to_environment_variables(
+                prefect.context.config,
+                include={
+                    "cloud.auth_token",
+                    "cloud.api_key",
+                    "cloud.tenant_id",
+                    "cloud.api",
+                },
+            )
+        )
         clean_env = {k: v for k, v in current_env.items() if v is not None}
         p = subprocess.Popen(
             heartbeat_cmd,
