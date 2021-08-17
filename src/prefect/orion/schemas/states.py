@@ -1,6 +1,5 @@
 from prefect.orion.schemas.core import APIBaseModel
 import datetime
-from enum import auto
 from typing import Any, Optional
 from uuid import UUID
 
@@ -12,12 +11,12 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 class StateType(AutoEnum):
-    SCHEDULED = auto()
-    PENDING = auto()
-    RUNNING = auto()
-    COMPLETED = auto()
-    FAILED = auto()
-    CANCELLED = auto()
+    SCHEDULED = AutoEnum.auto()
+    PENDING = AutoEnum.auto()
+    RUNNING = AutoEnum.auto()
+    COMPLETED = AutoEnum.auto()
+    FAILED = AutoEnum.auto()
+    CANCELLED = AutoEnum.auto()
 
 
 class StateDetails(PrefectBaseModel):
