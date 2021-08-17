@@ -2,7 +2,7 @@ import pytest
 from uuid import uuid4
 import pendulum
 from prefect.orion import models, schemas
-from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.states import StateType, State
 
 
 class TestCreateFlowRunState:
@@ -10,7 +10,7 @@ class TestCreateFlowRunState:
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert flow_run_state.name == "Running"
         assert flow_run_state.type == StateType.RUNNING
@@ -23,13 +23,13 @@ class TestCreateFlowRunState:
         trs = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="SCHEDULED"),
+            state=State(type="SCHEDULED"),
         )
 
         trs2 = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert trs2.run_details.previous_state_id == trs.id
 
@@ -37,7 +37,7 @@ class TestCreateFlowRunState:
         trs = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="SCHEDULED"),
+            state=State(type="SCHEDULED"),
         )
 
         assert trs.run_details.start_time is None
@@ -46,7 +46,7 @@ class TestCreateFlowRunState:
         trs2 = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert trs2.run_details.start_time == trs2.timestamp
         assert trs2.run_details.run_count == 1
@@ -56,7 +56,7 @@ class TestCreateFlowRunState:
         trs3 = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert trs3.run_details.start_time == trs2.timestamp
         assert trs3.run_details.run_count == 2
@@ -73,7 +73,7 @@ class TestReadFlowRunState:
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
 
         read_flow_run_state = await models.flow_run_states.read_flow_run_state(
@@ -114,7 +114,7 @@ class TestDeleteFlowRunState:
         flow_run_state = await models.flow_run_states.create_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
 
         assert await models.flow_run_states.delete_flow_run_state(

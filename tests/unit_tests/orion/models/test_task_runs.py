@@ -5,9 +5,7 @@ from prefect.orion import models, schemas
 
 class TestCreateTaskRun:
     async def test_create_task_run_succeeds(self, flow_run, session):
-        fake_task_run = schemas.actions.TaskRunCreate(
-            flow_run_id=flow_run.id, task_key="my-key"
-        )
+        fake_task_run = schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key")
         task_run = await models.task_runs.create_task_run(
             session=session, task_run=fake_task_run
         )
@@ -31,13 +29,13 @@ class TestReadTaskRun:
 class TestReadTaskRuns:
     @pytest.fixture
     async def task_runs(self, flow_run, session):
-        fake_task_run_0 = schemas.actions.TaskRunCreate(
+        fake_task_run_0 = schemas.core.TaskRun(
             flow_run_id=flow_run.id, task_key="my-key"
         )
         task_run_0 = await models.task_runs.create_task_run(
             session=session, task_run=fake_task_run_0
         )
-        fake_task_run_1 = schemas.actions.TaskRunCreate(
+        fake_task_run_1 = schemas.core.TaskRun(
             flow_run_id=flow_run.id, task_key="my-key-2"
         )
         task_run_1 = await models.task_runs.create_task_run(

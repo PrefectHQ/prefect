@@ -10,7 +10,7 @@ class TestCreateTaskRunState:
         task_run_state = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert task_run_state.name == "Running"
         assert task_run_state.type == StateType.RUNNING
@@ -23,13 +23,13 @@ class TestCreateTaskRunState:
         trs = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="SCHEDULED"),
+            state=State(type="SCHEDULED"),
         )
 
         trs2 = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert trs2.run_details.previous_state_id == trs.id
 
@@ -37,7 +37,7 @@ class TestCreateTaskRunState:
         trs = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="SCHEDULED"),
+            state=State(type="SCHEDULED"),
         )
 
         assert trs.run_details.start_time is None
@@ -46,7 +46,7 @@ class TestCreateTaskRunState:
         trs2 = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert trs2.run_details.start_time == trs2.timestamp
         assert trs2.run_details.run_count == 1
@@ -56,7 +56,7 @@ class TestCreateTaskRunState:
         trs3 = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
         assert trs3.run_details.start_time == trs2.timestamp
         assert trs3.run_details.run_count == 2
@@ -117,7 +117,7 @@ class TestReadTaskRunState:
         task_run_state = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
 
         read_task_run_state = await models.task_run_states.read_task_run_state(
@@ -158,7 +158,7 @@ class TestDeleteTaskRunState:
         task_run_state = await models.task_run_states.create_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=schemas.actions.StateCreate(type="RUNNING"),
+            state=State(type="RUNNING"),
         )
 
         assert await models.task_run_states.delete_task_run_state(

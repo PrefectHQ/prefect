@@ -7,14 +7,12 @@ from prefect.orion.models import orm
 from prefect.orion import schemas
 
 
-async def create_flow(
-    session: sa.orm.Session, flow: schemas.actions.FlowCreate
-) -> orm.Flow:
+async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.Flow:
     """Creates a new flow
 
     Args:
         session (sa.orm.Session): a database session
-        flow (schemas.actions.FlowCreate): a flow model
+        flow (schemas.core.Flow): a flow model
 
     Returns:
         orm.Flow: the newly-created flow
