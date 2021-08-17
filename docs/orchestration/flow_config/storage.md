@@ -284,6 +284,20 @@ storage = Git(
 )
 ```
 
+`Git` storage will attempt to build the correct git clone url based on the parameters provided. Users can override this logic and provide their git clone url directly.
+
+To use a custom git clone url, first create a Secret containing the url. Next, specify the name of the secret when creating your `Git` storage class.
+
+```python
+# example using Azure devops url
+# using a secret named 'MY_REPO_CLONE_URL' with value 'https://<username>:<personal_access_token>@dev.azure.com/<organization>/<project>/_git/<repo>'
+
+storage = Git(
+    path="flows/my_flow.py",
+    git_clone_url_secret_name="MY_REPO_CLONE_URL" # use the value of this secret to clone the repository
+)
+```
+
 :::tip Git Deploy Keys
 To use `Git` storage with Deploy Keys, ensure your environment is configured to use Deploy Keys. Then, create a `Git` storage class with `use_ssh=True`.
 
