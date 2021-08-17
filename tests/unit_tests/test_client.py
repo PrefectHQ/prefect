@@ -1,9 +1,13 @@
+from dataclasses import dataclass
 from uuid import UUID
+
+import pytest
+from pydantic import BaseModel
 
 import prefect
 from prefect import flow
-from prefect.tasks import task
 from prefect.orion import schemas
+from prefect.tasks import task
 
 
 def test_create_then_read_flow():
@@ -108,3 +112,33 @@ def test_set_then_read_task_run_state():
     assert isinstance(state, schemas.states.State)
     assert state.type == schemas.states.StateType.COMPLETED
     assert state.message == "Test!"
+
+
+@dataclass
+class ExDataClass:
+    x: int
+
+
+class ExPydanticModel(BaseModel):
+    x: int
+
+
+@pytest.mark.parametrize(
+    "send_obj",
+    [
+        "hello",
+        7,
+        ExDataClass(x=1),
+        ExPydanticModel(x=0),
+    ],
+)
+def test_send_then_retrieve_data(send_obj):
+    client = prefect.client.OrionClient()
+    datadoc = client.send_data(send_obj)
+
+    assert isinstance(datadoc, schemas.data.DataDocument)
+    assert isinstance(datadoc.id, UUID)
+    assert datadoc.blob is not None
+
+    retrieved_obj = client.retrieve_data(datadoc.id)
+    assert retrieved_obj == send_obj

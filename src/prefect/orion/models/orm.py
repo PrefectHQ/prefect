@@ -3,7 +3,7 @@ import sqlalchemy as sa
 from sqlalchemy import JSON, Column, String, join, ForeignKey
 from sqlalchemy.orm import aliased, relationship
 
-from prefect.orion.schemas import core, states
+from prefect.orion.schemas import core, states, data
 from prefect.orion.utilities.database import (
     UUID,
     Base,
@@ -94,7 +94,7 @@ class TaskRunState(Base):
         default=states.RunDetails,
         nullable=False,
     )
-    data = Column(JSON)
+    data = Column(JSON, nullable=True)
 
     __table_args__ = (
         sa.Index(
@@ -276,3 +276,11 @@ class TaskRun(Base):
             unique=True,
         ),
     )
+
+
+class DataDocument(Base):
+    path = Column(String, nullable=False)
+    serializer = Column(String, nullable=True)
+    name = Column(String, nullable=False)
+    tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    blob = Column(sa.BINARY, nullable=True)

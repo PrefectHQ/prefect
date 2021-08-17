@@ -9,6 +9,20 @@ from typing import Optional
 import sqlalchemy
 from pydantic import BaseSettings, Field, SecretStr
 from typing_extensions import Literal
+from typing import Set
+
+
+class DataLocationSettings(BaseSettings):
+    class Config:
+        env_prefix = "PREFECT_ORION_DATA_"
+        frozen = True
+
+    name: str = "DEFAULT"
+    # TODO: We cannot import the `DataScheme` from `schemas` here because it is a
+    #       circular import
+    scheme: str = "INLINE"
+    base_path: str = ""
+    credential_name: str = None
 
 
 class DatabaseSettings(BaseSettings):
@@ -29,6 +43,8 @@ class OrionSettings(BaseSettings):
     # using `default_factory` avoids instantiating the default value until the parent
     # settings class is instantiated
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+
+    data: DataLocationSettings = Field(default_factory=DataLocationSettings)
 
 
 class LoggingSettings(BaseSettings):
