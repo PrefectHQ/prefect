@@ -137,8 +137,7 @@ def subprocess_heartbeat(heartbeat_cmd: List[str], logger: Logger) -> Iterator[N
         if p is not None:
             exit_code = p.poll()
             if exit_code is not None:
-                msg = "Heartbeat process died with exit code {}".format(exit_code)
-                logger.error(msg)
+                logger.error(f"Heartbeat process died with exit code {exit_code}")
             p.kill()
             p.wait()
 
