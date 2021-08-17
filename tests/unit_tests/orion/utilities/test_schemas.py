@@ -5,7 +5,11 @@ import pendulum
 import pydantic
 import pytest
 
-from prefect.orion.utilities.schemas import PrefectBaseModel, pydantic_subclass
+from prefect.orion.utilities.schemas import (
+    APIBaseModel,
+    PrefectBaseModel,
+    pydantic_subclass,
+)
 
 
 class TestExtraForbidden:
@@ -190,3 +194,24 @@ class TestJsonCompatibleDict:
         d1 = nested.dict(json_compatible=True)
         assert isinstance(d1["x"], str) and d1["x"] == str(nested.x)
         assert isinstance(d1["y"]["z"], str) and d1["y"]["z"] == str(nested.y.z)
+
+
+class CopyOnValidationChild(APIBaseModel):
+    x: int
+
+
+class CopyOnValidationParent(APIBaseModel):
+    x: int
+    child: CopyOnValidationChild
+
+
+def test_assignment_preserves_ids():
+    child_id = uuid4()
+    parent_id = uuid4()
+    child = CopyOnValidationChild(id=child_id, x=1)
+    parent = CopyOnValidationParent(id=parent_id, x=1, child=child)
+    assert child.id == child_id
+    assert parent.id == parent_id
+    # without the copy_on_model_validation = False flag
+    # this test would fail
+    assert parent.child.id == child_id

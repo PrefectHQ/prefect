@@ -86,6 +86,13 @@ class PrefectBaseModel(BaseModel):
         # catch unintentional errors; otherwise they are ignored.
         extra = "forbid" if settings.test_mode else "ignore"
 
+        # prevent Pydantic from copying nested models on
+        # validation, otherwise APIBaseModel.copy() is run
+        # which resets fields like `id`
+        # https://github.com/samuelcolvin/pydantic/pull/2193
+        # TODO: remove once this is the default in pydantic>=2.0
+        copy_on_model_validation = False
+
     @classmethod
     def subclass(
         cls,
