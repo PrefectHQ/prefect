@@ -161,6 +161,7 @@ class GitSchema(BaseStorageSchema):
     flow_name = fields.String(allow_none=True)
     git_token_secret_name = fields.String(allow_none=True)
     git_token_username = fields.String(allow_none=True)
+    git_clone_url_secret_name = fields.String(allow_none=True)
     branch_name = fields.String(allow_none=True)
     tag = fields.String(allow_none=True)
     commit = fields.String(allow_none=True)
