@@ -1,12 +1,15 @@
 import asyncio
 import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List
+import base64
+import pickle
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List, Set
 from uuid import UUID
 from contextlib import contextmanager
 from multiprocessing import current_process
 
 import pydantic
 import httpx
+import cloudpickle
 
 import prefect
 from prefect.orion import schemas
@@ -102,6 +105,42 @@ class OrionClient:
     def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
+
+    def send_data(
+        self, obj: Any, serializer=cloudpickle, name: str = None, tags: Set[str] = None
+    ) -> schemas.data.DataDocument:
+
+        try:
+            obj_bytes = serializer.dumps(obj)
+        except pickle.PicklingError:
+            # Patch for https://github.com/cloudpipe/cloudpickle/issues/408
+            obj_bytes = pickle.dumps(obj)
+
+        create_datadoc = schemas.actions.DataDocumentCreate(
+            blob=base64.encodebytes(obj_bytes),
+            serializer=serializer.__name__,
+            name=name,
+            tags=tags,
+        )
+
+        response = self.post(
+            f"/data",
+            json=create_datadoc.dict(json_compatible=True),
+        )
+        return schemas.data.DataDocument.parse_obj(response.json())
+
+    def retrieve_data(
+        self,
+        datadoc_id: UUID,
+    ) -> Any:
+
+        response = self.get(f"/data/{datadoc_id}")
+        datadoc = schemas.data.DataDocument.parse_obj(response.json())
+
+        # TODO: Actually resolve the serializer from the datadoc
+        serializer = cloudpickle
+
+        return serializer.loads(base64.decodebytes(datadoc.blob))
 
     def set_flow_run_state(
         self,

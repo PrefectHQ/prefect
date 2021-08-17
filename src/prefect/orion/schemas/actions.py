@@ -3,6 +3,7 @@ Reduced schemas for accepting API actions
 """
 from prefect.orion.schemas.core import Flow, FlowRun, TaskRun
 from prefect.orion.schemas.states import State
+from prefect.orion.schemas.data import DataDocument
 
 FlowCreate = Flow.subclass(
     name="FlowCreate",
@@ -51,5 +52,15 @@ TaskRunCreate = TaskRun.subclass(
         "task_inputs",
         "upstream_task_run_ids",
         "task_run_details",
+    ],
+)
+
+DataDocumentCreate = DataDocument.subclass(
+    name="DataDocumentCreate",
+    include_fields=[
+        "name",
+        "tags",
+        "blob",
+        "serializer",
     ],
 )
