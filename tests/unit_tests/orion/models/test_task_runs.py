@@ -15,11 +15,9 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
         assert task_run.task_key == "my-key"
 
-    async def test_create_flow_run_has_no_default_state(
-        self, flow_run, database_session
-    ):
+    async def test_create_flow_run_has_no_default_state(self, flow_run, session):
         task_run = await models.task_runs.create_task_run(
-            session=database_session,
+            session=session,
             task_run=schemas.actions.TaskRunCreate(
                 flow_run_id=flow_run.id, task_key="my-key"
             ),
@@ -27,10 +25,10 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
         assert task_run.state is None
 
-    async def test_create_task_run_with_state(self, flow_run, database_session):
+    async def test_create_task_run_with_state(self, flow_run, session):
         state_id = uuid4()
         task_run = await models.task_runs.create_task_run(
-            session=database_session,
+            session=session,
             task_run=schemas.actions.TaskRunCreate(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
@@ -42,7 +40,7 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
         assert task_run.state.id == state_id
 
-        query = await database_session.execute(
+        query = await session.execute(
             sa.select(models.orm.TaskRunState).filter_by(id=state_id)
         )
         result = query.scalar()

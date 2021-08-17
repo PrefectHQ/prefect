@@ -1,3 +1,4 @@
+import pydantic
 import pytest
 import pendulum
 from uuid import uuid4, UUID
@@ -9,6 +10,12 @@ class TestState:
     def test_state_takes_name_from_type(self):
         state = State(type=StateType.RUNNING)
         assert state.name == "Running"
+
+    def test_state_raises_validation_error_for_invalid_type(self):
+        with pytest.raises(
+            pydantic.ValidationError, match="(value is not a valid enumeration member)"
+        ):
+            State(type="Running")
 
     def test_state_custom_name(self):
         state = State(type=StateType.RUNNING, name="My Running State")
