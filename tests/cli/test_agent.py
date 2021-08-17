@@ -185,7 +185,7 @@ def test_agent_local_install(monkeypatch, use_token):
     command.extend(
         (
             "-l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
-            "-p path1 -p path2 --show-flow-logs"
+            "-p path1 -p path2 --show-flow-logs --agent-config-id foo"
         ).split()
     )
 
@@ -197,6 +197,7 @@ def test_agent_local_install(monkeypatch, use_token):
         "env_vars": {"KEY1": "VALUE1", "KEY2": "VALUE2"},
         "import_paths": ["path1", "path2"],
         "show_flow_logs": True,
+        "agent_config_id": "foo",
     }
 
     if use_token:
@@ -234,7 +235,7 @@ def test_agent_kubernetes_install(monkeypatch, use_token):
             "--latest --image-pull-secrets secret-test --mem-request mem_req "
             "--mem-limit mem_lim --cpu-request cpu_req --cpu-limit cpu_lim "
             "--image-pull-policy custom_policy --service-account-name svc_name "
-            "-b backend-test"
+            "-b backend-test --agent-config-id foo"
         ).split()
     )
 
@@ -256,6 +257,7 @@ def test_agent_kubernetes_install(monkeypatch, use_token):
         "image_pull_policy": "custom_policy",
         "service_account_name": "svc_name",
         "backend": "backend-test",
+        "agent_config_id": "foo",
     }
 
     if use_token:
