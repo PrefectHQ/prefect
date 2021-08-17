@@ -285,8 +285,8 @@ class TestTaskCaching:
         def bar(x):
             return foo(x).result()
 
-        first_state = bar(1).result().data
-        second_state = bar(2).result().data
+        first_state = bar(1).result()
+        second_state = bar(2).result()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
@@ -388,9 +388,9 @@ class TestCacheFunctionBuiltins:
         def bar(x):
             return foo(x).result()
 
-        first_state = bar(1).result().data
-        second_state = bar(2).result().data
-        third_state = bar(1).result().data
+        first_state = bar(1).result()
+        second_state = bar(2).result()
+        third_state = bar(1).result()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
