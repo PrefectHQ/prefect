@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 
 
 class AutoEnum(Enum):
@@ -11,10 +11,17 @@ class AutoEnum(Enum):
     Example:
             >>> from enum import auto
             >>> class MyEnum(AutoEnum):
-            ...     red = auto() # equivalent to red = 'red'
-            ...     blue = auto() # equivalent to blue = 'blue'
+            ...     red = AutoEnum.auto() # equivalent to red = 'red'
+            ...     blue = AutoEnum.auto() # equivalent to blue = 'blue'
             ...
     """
 
     def _generate_next_value_(name, start, count, last_values):
         return name
+
+    @staticmethod
+    def auto():
+        """
+        Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
+        """
+        return auto()
