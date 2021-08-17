@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix binding of named volumes to flow containers with Docker agent - [#4800](https://github.com/PrefectHQ/prefect/pull/4800)"

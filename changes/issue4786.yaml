@@ -1,5 +1,0 @@
-enhancement:
-  - "Expose Snowflake cursor type to SnowflakeQuery task arguments #4786(https://github.com/PrefectHQ/prefect/issues/4786)"
-
-contributor:
-  - "[Austen Bouza](https://github.com/austen-bouza)"
