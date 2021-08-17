@@ -146,10 +146,7 @@ class Task:
         task_run_id = flow_run_context.client.create_task_run(
             task=self,
             flow_run_id=flow_run_context.flow_run_id,
-        )
-
-        flow_run_context.client.set_task_run_state(
-            task_run_id, State(type=StateType.PENDING)
+            state=State(type=StateType.PENDING),
         )
 
         future = flow_run_context.executor.submit(
