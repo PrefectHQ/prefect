@@ -4,15 +4,17 @@
 
 Released on August 17, 2021.
 
+### Docs
+
+- Add a getting started section with a quick start guide for both core and orchestration sections - [#4734](https://github.com/PrefectHQ/prefect/pull/4734)
 ### Enhancements
 
 - Expose Snowflake cursor type to SnowflakeQuery task arguments #4786(https://github.com/PrefectHQ/prefect/issues/4786)
-- Add ability to configure threaded heartbeats - [#4844](https://github.com/PrefectHQ/prefect/pull/4844)
-- Improved behavior when API rate limits are encountered - [#4852](https://github.com/PrefectHQ/prefect/pull/4852)
+- Add ability to use threaded flow heartbeats - [#4844](https://github.com/PrefectHQ/prefect/pull/4844)
+- Improve behavior when API rate limits are encountered - [#4852](https://github.com/PrefectHQ/prefect/pull/4852)
 - Allow custom git clone url for `Git` storage - [#4870](https://github.com/PrefectHQ/cloud/pull/4870)
-- Add a on_worker_status_changed callback to the DaskExecutor - [#4874](https://github.com/PrefectHQ/prefect/pull/4874)
+- Add `on_worker_status_changed` callback to the `DaskExecutor` - [#4874](https://github.com/PrefectHQ/prefect/pull/4874)
 - Add `--agent-config-id` to `prefect agent <kubernetes|local> install - [#4876](https://github.com/PrefectHQ/prefect/pull/4876)
-- Add a getting started section with a quick start guide for both core and orchestration sections - [#4734](https://github.com/PrefectHQ/prefect/pull/4734)
 
 ### Task Library
 
@@ -21,7 +23,8 @@ Released on August 17, 2021.
 ### Fixes
 
 - Fix binding of named volumes to flow containers with Docker agent - [#4800](https://github.com/PrefectHQ/prefect/pull/4800)
-- Fix importerror typo in dropbox module - [#4855](https://github.com/PrefectHQ/prefect/pull/4855)
+- Fix `ImportError` typo in dropbox module - [#4855](https://github.com/PrefectHQ/prefect/pull/4855)
+- Fix default safe char for gitlab storage repo path - [#4828](https://github.com/PrefectHQ/prefect/pull/4828)
 
 ### Contributors
 
@@ -29,6 +32,7 @@ Released on August 17, 2021.
 - [David Zucker](https://github.com/davzucky)
 - [Jacob Dawang](https://github.com/jdawang)
 - [Tom Forbes](https://github.com/orf)
+- [Mat](https://github.com/matmiad)
 
 ## 0.15.3 <Badge text="beta" type="success" />
 
