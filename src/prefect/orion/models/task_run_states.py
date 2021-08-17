@@ -61,10 +61,7 @@ async def create_task_run_state(
                 session, state.state_details.cache_key
             )
             if cached_state:
-                state = cached_state.as_state()
-                state.id = None  # Drop the id to avoid collision with the cached state
-                state.created = None
-                state.timestamp = pendulum.now()
+                state = cached_state.as_state().copy()
                 state.name = "Cached"
 
     # update the state details
