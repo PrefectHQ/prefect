@@ -35,7 +35,7 @@ class TestCreateTaskRunState:
 
 class TestBackendCachingLogic:
     async def test_set_and_retrieve_cached_task_run_state(
-        self, task_run, client, database_session
+        self, task_run, client, session
     ):
         first_task_run_state_data = schemas.actions.StateCreate(
             type="COMPLETED",
