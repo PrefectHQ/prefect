@@ -35,7 +35,19 @@ Where necessary, flow runs without submitted or running task runs will be resche
 
 ## Zombie Killer
 
-The `Zombie Killer` service is responsible for handling zombies, which Prefect defines as tasks that claim to be running but haven't updated their heartbeat in the past 2 minutes. It's possible for the system kernel to terminate the heartbeat process prematurely and trigger the `Zombie Killer`. To circumvent this, try configuring `Prefect` to run the heartbeat in a thread.
+The `Zombie Killer` service is responsible for handling zombies, which Prefect defines as tasks that claim to be running but haven't updated their heartbeat in the past 2 minutes (Prefect Cloud) or 10 minutes (Prefect Server).
+
+### How is it useful?
+
+Zombies are tasks that started running but -- for some reason -- are no longer in communication with the API. Since Prefect is usually able to capture errors in code, the most common reason for a zombie is an unexpected infrastructure event in the execution cluster: a node failure, loss of internet, or other catastrophic error. Zombie tasks prevent flow progress: downstream tasks won't start while they believe an upstream dependency is running. Therefore, when the Zombie Killer detects a zombie, it marks the task failed so that execution can continue.
+
+### How does it work?
+
+Periodically, the Zombie Killer queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
+
+### Heartbeat configuration
+
+It's possible for the system kernel to terminate the heartbeat process prematurely and trigger the `Zombie Killer`. To circumvent this, try configuring `Prefect` to run the heartbeat in a thread.
 
 The heartbeat can be configured by adding a line to `config.toml` in the `[cloud]` section
 ```
@@ -48,14 +60,6 @@ Additionally, this can be set using the `run_config`
 from prefect.run_configs import UniversalRun
 flow.run_config = UniversalRun(env={"PREFECT__CLOUD__HEARTBEAT_MODE": "thread"})
 ```
-
-### How is it useful?
-
-Zombies are tasks that started running but -- for some reason -- are no longer in communication with the API. Since Prefect is usually able to capture errors in code, the most common reason for a zombie is an unexpected infrastructure event in the execution cluster: a node failure, loss of internet, or other catastrophic error. Zombie tasks prevent flow progress: downstream tasks won't start while they believe an upstream dependency is running. Therefore, when the Zombie Killer detects a zombie, it marks the task failed so that execution can continue.
-
-### How does it work?
-
-Periodically, the Zombie Killer queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
 
 ## Towel
 
