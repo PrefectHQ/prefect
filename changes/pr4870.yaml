@@ -1,2 +1,0 @@
-enhancement:
-  - "Allow custom git clone url for `Git` storage - [#4870](https://github.com/PrefectHQ/cloud/pull/4870)"
