@@ -54,6 +54,6 @@ The `--reload` flag will automatically reload when changes are made the source f
 
 ### Step 4: Interacting with the Orion REST API
 
-The Orion server features interactive documentation, which will **actually make requests against the server and trigger databse changes**.
+The Orion server features interactive documentation, which will **actually make requests against the server and trigger database changes**.
 
 After starting the server, navigate to `localhost:8000/docs`. On this page, you'll find documentation of requests and responses for all endpoints. The docs also pre-populate example data you can use to test out requests.
