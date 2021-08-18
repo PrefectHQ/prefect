@@ -132,21 +132,21 @@ class DremioFetch(Task):
 
         if tls:
             # Connect to the server endpoint with an encrypted TLS connection.
-            print("[INFO] Enabling TLS connection")
+            self.logger.debug("Enabling TLS connection")
             scheme = "grpc+tls"
             if certs:
-                print("[INFO] Trusted certificates provided")
+                self.logger.debug("Trusted certificates provided")
                 # TLS certificates are provided in a list of connection arguments.
                 with open(certs, "rb") as root_certs:
                     connection_args["tls_root_certs"] = root_certs.read()
             else:
-                print(
-                    """[ERROR] Trusted certificates must be provided to establish a TLS connection."""
+                self.logger.error(
+                    "Trusted certificates must be provided to establish a TLS connection"
                 )
                 sys.exit()
         else:
-            print(
-                "[WARNING] You are not using a secure conncetion. Consider setting tls=True"
+            self.logger.info(
+                "You are not using a secure connection. Consider setting tls=True"
             )
 
         # Two WLM settings can be provided upon initial authneitcation
@@ -170,34 +170,21 @@ class DremioFetch(Task):
         bearer_token = client.authenticate_basic_token(
             username, password, initial_options
         )
-        print("[INFO] Authentication was successful. Token is valid for 30 hours.")
-
-        flight_desc = flight.FlightDescriptor.for_command(query)
-        print("[INFO] Query: ", query)
-
-        # In addition to the bearer token, a query context can also
-        # be provided as an entry of FlightCallOptions.
-        # options = flight.FlightCallOptions(headers=[
-        #     bearer_token,
-        #     (b'schema', b'test.schema')
-        # ])
+        self.logger.debug("Authentication was successful. Token is valid for 30 hours.")
 
         # Retrieve the schema of the result set.
         options = flight.FlightCallOptions(headers=[bearer_token])
-        schema = client.get_schema(flight_desc, options)
-        print("[INFO] GetSchema was successful")
-        print("[INFO] Schema: ", schema)
 
         # Get the FlightInfo message to retrieve the Ticket corresponding
         # to the query result set.
         flight_info = client.get_flight_info(
             flight.FlightDescriptor.for_command(query), options
         )
-        print("[INFO] GetFlightInfo was successful")
+        self.logger.debug("GetFlightInfo was successful")
 
         # Retrieve the result set as a stream of Arrow record batches.
         reader = client.do_get(flight_info.endpoints[0].ticket, options)
-        print("[INFO] Reading query results from Dremio")
+        self.logger.debug("Reading query results from Dremio")
 
         # batches of data reduce the number of calls to the server
 
@@ -209,4 +196,5 @@ class DremioFetch(Task):
             except StopIteration:
                 break
         data = pa.Table.from_batches(batches)
+
         return data.to_pydict()
