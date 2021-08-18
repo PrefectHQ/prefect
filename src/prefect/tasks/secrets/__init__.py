@@ -5,5 +5,5 @@ The base implementation uses Prefect Cloud secrets, but users are encouraged to 
 class for interacting with other secret providers. Secrets always use a special kind of result handler that
 prevents the persistence of sensitive information.
 """
-from .base import SecretBase, PrefectSecret, Secret
+from .base import SecretBase, PrefectSecret
 from .env_var import EnvVarSecret

@@ -1,25 +1,15 @@
 # Naming task runs based on inputs
 
-Tasks in Prefect provide a way for dynamically naming task runs based on the inputs provided to them from
-upstream tasks. This is accomplished by providing a callable to the `task_run_name` kwarg on the task.
-The callable has the option to use values from not only task inputs but also everything available in
-[context](/api/latest/utilities/context.html) during the run. This mechanism operates in a similar
-fashion to how
-[result targets are templated](/core/concepts/persistence.html#output-caching-based-on-a-file-target).
-Providing a callable task run name is a great way to help identify errors that may occur in a flow, for
-example, easily showing which mapped task failed based on the input it received.
+Tasks in Prefect provide a way for dynamically naming task runs based on the inputs provided to them from upstream tasks. Creating a dynamic task run name is a great way to help identify errors that may occur in a flow, for example, easily showing which mapped task failed based on the input it received. See [the page on templating](/core/concepts/templating.html) for details on how dynamically templated names work.
 
 ::: warning Backend Only
-This feature only works when running in the context of an [API backend](/orchestration/) run using
-something like the [Prefect Server](/orchestration/server/overview.html) or
-[Prefect Cloud](https://cloud.prefect.io).
+This feature only works when running in the context of an [API backend](/orchestration/) run using something like the [Prefect Server](/orchestration/server/overview.html) or [Prefect Cloud](https://cloud.prefect.io).
 :::
 
-In the example snippet below we have a flow that maps over a set of data returned from an upstream task
-and (for demonstration purposes) it raises an error when it receives the `demo` string as an input.
+In the example snippet below we have a flow that maps over a set of data returned from an upstream task and (for demonstration purposes) it raises an error when it receives the `demo` string as an input.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 
@@ -38,7 +28,7 @@ with Flow("task_run_names") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 
@@ -63,18 +53,16 @@ compute.set_upstream(vals, flow=flow, key="val", mapped=True)
 
 ![task runs no names](/idioms/task_runs_no_names.png)
 
-In the image above we can identify that one of our mapped children tasks failed however we are unable to
-identify exactly which task failed based on this information alone. This is where providing a callable to
-the task's `task_run_name` kwarg comes in handy.
+In the image above we can identify that one of our mapped children tasks failed however we are unable to identify exactly which task failed based on this information alone. This is where providing a template to the task's `task_run_name` kwarg comes in handy.
 
 ```python
-task_run_name=lambda **kwargs: f"{kwargs['val']}"
+task_run_name="{val}"
 ```
 
-This callable will template the task run's name based on the `val` input it receives:
+The backend will template the task run's name based on the `val` input it receives:
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python{7}
 from prefect import task, Flow
 
@@ -82,7 +70,7 @@ from prefect import task, Flow
 def get_values():
     return ["value", "test", "demo"]
 
-@task(task_run_name=lambda **kwargs: f"{kwargs['val']}")
+@task(task_run_name="{val}")
 def compute(val):
     if val == "demo":
         raise ValueError("Nope!")
@@ -93,7 +81,7 @@ with Flow("task_run_names") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python{15}
 from prefect import Task, Flow
 
@@ -109,7 +97,7 @@ class Compute(Task):
 flow = Flow("task_run_names")
 
 vals = GetValues()
-compute = Compute(task_run_name=lambda **kwargs: f"{kwargs['val']}")
+compute = Compute(task_run_name="{val}")
 
 compute.set_upstream(vals, flow=flow, key="val", mapped=True)
 ```

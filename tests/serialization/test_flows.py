@@ -162,18 +162,18 @@ def test_reference_tasks():
 
 
 def test_serialize_container_environment():
-    storage = prefect.environments.storage.Docker(
+    storage = prefect.storage.Docker(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
     deserialized = FlowSchema().load(
         FlowSchema().dump(Flow(name="test", storage=storage))
     )
-    assert isinstance(deserialized.storage, prefect.environments.storage.Docker)
+    assert isinstance(deserialized.storage, prefect.storage.Docker)
     assert deserialized.storage.registry_url == storage.registry_url
 
 
 def test_deserialize_serialized_flow_after_build(tmpdir):
-    flow = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow = Flow(name="test", storage=prefect.storage.Local(tmpdir))
     serialized_flow = flow.serialize(build=True)
     deserialized = FlowSchema().load(serialized_flow)
     assert isinstance(deserialized, Flow)

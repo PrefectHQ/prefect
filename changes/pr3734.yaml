@@ -1,5 +1,0 @@
-task:
-  - "Add task to fetch data from Dremio - [#3734](https://github.com/PrefectHQ/prefect/pull/3734)"
-
-contributor:
-  - "[Klemen Strojan](https://github.com/strojank)"

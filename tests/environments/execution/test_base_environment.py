@@ -7,7 +7,7 @@ import prefect
 from prefect import Flow
 from prefect.environments import Environment
 from prefect.environments.execution import load_and_run_flow
-from prefect.environments.storage import Docker, Local, Storage
+from prefect.storage import Docker, Local, Storage
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 

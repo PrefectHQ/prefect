@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import warnings
 from ast import literal_eval
 from typing import Iterable
 import uuid
@@ -15,9 +16,14 @@ from prefect.utilities.graphql import GraphQLResult
 
 class FargateAgent(Agent):
     """
-    Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
-    long as the proper access configuration variables are set.  Information on using the
-    Fargate Agent can be found at https://docs.prefect.io/orchestration/agents/fargate.html
+    Agent which deploys flow runs as tasks using Fargate.
+
+    DEPRECATED: The Fargate agent is deprecated, please transition to using the
+    ECS agent instead.
+
+    This agent can run anywhere as long as the proper access configuration
+    variables are set.  Information on using the Fargate Agent can be found at
+    https://docs.prefect.io/orchestration/agents/fargate.html
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -108,7 +114,7 @@ class FargateAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
@@ -130,6 +136,11 @@ class FargateAgent(Agent):
             agent_address=agent_address,
             no_cloud_logs=no_cloud_logs,
         )
+
+        if not kwargs.pop("_called_from_cli", False):
+            warnings.warn(
+                "`FargateAgent` is deprecated, please transition to using `ECSAgent` instead"
+            )
 
         from boto3 import client as boto3_client
         from boto3 import resource as boto3_resource
@@ -454,8 +465,6 @@ class FargateAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         # create copies of kwargs to apply overrides as needed
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
@@ -601,6 +610,10 @@ class FargateAgent(Agent):
                 "command": ["/bin/sh", "-c", flow_run_command],
                 "environment": [
                     {
+                        "name": "PREFECT__BACKEND",
+                        "value": config.backend,
+                    },
+                    {
                         "name": "PREFECT__CLOUD__API",
                         "value": config.cloud.api or "https://api.prefect.io",
                     },
@@ -610,7 +623,7 @@ class FargateAgent(Agent):
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {
-                        "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                        "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
                         "value": str(self.log_to_cloud).lower(),
                     },
                     {"name": "PREFECT__LOGGING__LEVEL", "value": config.logging.level},
@@ -621,6 +634,10 @@ class FargateAgent(Agent):
                     {
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
+                    },
+                    {
+                        "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                        "value": str(self.log_to_cloud).lower(),
                     },
                 ],
                 "essential": True,

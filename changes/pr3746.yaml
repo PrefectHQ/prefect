@@ -1,2 +1,0 @@
-enhancement:
-  - "Add the image used for a flow-run to the flow run environment as `prefect.context.image` - [#3746](https://github.com/PrefectHQ/prefect/pull/3746)"

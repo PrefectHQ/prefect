@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import sys
 import time
 import threading
 from datetime import timedelta
@@ -11,13 +12,7 @@ import pytest
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import (
-    ConstantResultHandler,
-    JSONResultHandler,
-    ResultHandler,
-    SecretResultHandler,
-)
+from prefect.engine.result import Result
 from prefect.engine.results import PrefectResult, SecretResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
@@ -36,9 +31,8 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +49,9 @@ def cloud_settings(cloud_api):
 @pytest.fixture()
 def client(monkeypatch):
     cloud_client = MagicMock(
-        get_flow_run_info=MagicMock(return_value=MagicMock(state=None, parameters={})),
+        get_flow_run_info=MagicMock(
+            return_value=MagicMock(state=Pending(), parameters={})
+        ),
         set_flow_run_state=MagicMock(
             side_effect=lambda flow_run_id, version, state: state
         ),
@@ -250,39 +246,53 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(
     assert states == [Running(), Success(result={})]
 
 
-def test_flow_runner_loads_parameters_from_cloud(monkeypatch):
+def test_flow_runner_initializes_context_from_cloud(monkeypatch):
+    from prefect.client.client import FlowRunInfoResult, ProjectInfo
 
     flow = prefect.Flow(name="test")
-    get_flow_run_info = MagicMock(return_value=MagicMock(parameters={"a": 1}))
-    set_flow_run_state = MagicMock()
+    scheduled_start_time = pendulum.parse("19860920")
+    get_flow_run_info = MagicMock(
+        return_value=FlowRunInfoResult(
+            id="my-flow-run-id",
+            name="my-flow-run-name",
+            flow_id="my-flow-id",
+            version=1,
+            task_runs=[],
+            state=Pending(),
+            scheduled_start_time=scheduled_start_time,
+            project=ProjectInfo(id="my-project-id", name="my-project-name"),
+            parameters={"p1": 1, "p2": 2},
+            context={"c1": 1, "c2": 2},
+        )
+    )
     client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=MagicMock()
     )
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     res = CloudFlowRunner(flow=flow).initialize_run(
-        state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
+        state=Pending(),
+        task_states={},
+        context={"c2": "two", "c3": 3},
+        task_contexts={},
+        parameters={"p2": "two", "p3": 3},
     )
 
-    assert res.context["parameters"]["a"] == 1
+    assert res.context["flow_id"] == "my-flow-id"
+    assert res.context["flow_run_id"] == "my-flow-run-id"
+    assert res.context["flow_run_version"] == 1
+    assert res.context["flow_run_name"] == "my-flow-run-name"
+    assert res.context["scheduled_start_time"] == scheduled_start_time
+    assert res.context["project_name"] == "my-project-name"
+    assert res.context["project_id"] == "my-project-id"
 
-
-def test_flow_runner_loads_context_from_cloud(monkeypatch):
-    flow = prefect.Flow(name="test")
-    get_flow_run_info = MagicMock(return_value=MagicMock(context={"a": 1}))
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert res.context["a"] == 1
+    # Explicitly provided parameters override those in cloud
+    assert res.context["parameters"] == {"p1": 1, "p2": "two", "p3": 3}
+    # Explicitly provided context overridden by cloud
+    assert res.context["c1"] == 1
+    assert res.context["c2"] == 2
+    assert res.context["c3"] == 3
 
 
 def test_flow_runner_puts_running_with_backend_in_context(client):
@@ -294,68 +304,6 @@ def test_flow_runner_puts_running_with_backend_in_context(client):
     res = CloudFlowRunner(flow=flow).run()
 
     assert res.is_successful()
-
-
-def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
-    flow = prefect.Flow(name="test")
-    date = pendulum.parse("19860920")
-    get_flow_run_info = MagicMock(
-        return_value=MagicMock(context={}, scheduled_start_time=date)
-    )
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=None, task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert "scheduled_start_time" in res.context
-    assert isinstance(res.context["scheduled_start_time"], datetime.datetime)
-    assert res.context["scheduled_start_time"].strftime("%Y-%m-%d") == "1986-09-20"
-
-
-def test_flow_runner_puts_flow_run_name_in_context(monkeypatch):
-    flow = prefect.Flow(name="test")
-
-    # we can't pass a `name` argument to a mock
-    # https://docs.python.org/3/library/unittest.mock.html#mock-names-and-the-name-attribute
-    info_mock = MagicMock(context={})
-    info_mock.name = "flow run name"
-    get_flow_run_info = MagicMock(return_value=info_mock)
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=None, task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert res.context["flow_run_name"] == "flow run name"
-
-
-def test_flow_runner_prioritizes_user_context_over_default_context(monkeypatch):
-    flow = prefect.Flow(name="test")
-    get_flow_run_info = MagicMock(return_value=MagicMock(context={"today": "is a day"}))
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
-    res = CloudFlowRunner(flow=flow).initialize_run(
-        state=None, task_states={}, context={}, task_contexts={}, parameters={}
-    )
-
-    assert "today" in res.context
-    assert res.context["today"] == "is a day"
 
 
 def test_client_is_always_called_even_during_failures(client):
@@ -420,7 +368,15 @@ def test_flow_runner_heartbeat_sets_command(monkeypatch, setting_available):
         res = runner._heartbeat()
 
     assert res is True
-    assert runner.heartbeat_cmd == ["prefect", "heartbeat", "flow-run", "-i", "foo"]
+    assert runner.heartbeat_cmd == [
+        sys.executable,
+        "-m",
+        "prefect",
+        "heartbeat",
+        "flow-run",
+        "-i",
+        "foo",
+    ]
 
 
 def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch):
@@ -470,7 +426,7 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     def downstream(l):
         return l ** 2
 
-    with prefect.Flow(name="looping", result_handler=JSONResultHandler()) as f:
+    with prefect.Flow(name="looping", result=PrefectResult()) as f:
         inter = looper(10)
         final = downstream(inter)
 
@@ -498,16 +454,11 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     def my_run_task(*args, **kwargs):
         with prefect.utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False, "cloud.auth_token": ""}
+            {"cloud.send_flow_run_logs": False, "cloud.auth_token": ""}
         ):
             return run_task(*args, **kwargs)
 
-    calls = []
-
     class Client(MagicMock):
-        def write_run_logs(self, *args, **kwargs):
-            calls.append(args)
-
         def set_task_run_state(self, *args, **kwargs):
             return kwargs.get("state")
 
@@ -519,6 +470,9 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
                 id="flow_run_id",
                 task_runs=[MagicMock(task_slug="log_stuff-1", id="TESTME")],
             )
+
+        def get_task_run_info(self, *args, **kwargs):
+            return MagicMock(id="TESTME")
 
     monkeypatch.setattr("prefect.engine.flow_runner.run_task", my_run_task)
     monkeypatch.setattr("prefect.client.Client", Client)
@@ -537,31 +491,36 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     with prefect.utilities.configuration.set_temporary_config(
         {
-            "logging.log_to_cloud": True,
+            "cloud.send_flow_run_logs": True,
             "special_key": 42,
             "cloud.auth_token": "original",
         }
     ):
         # captures config at init
         flow = prefect.Flow("test", tasks=[log_stuff])
-        flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
+
+        # Pretend that this is a 'backend' flow run so logs are emitted to cloud
+        with prefect.context(running_with_backend=True):
+            flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
 
-    time.sleep(0.75)
-    logs = [log for call in calls for log in call[0]]
+    # LOG_MANAGER.enqueue is mocked out in `no_cloud_logs` in conftest.py
+    logs = [
+        c[0][0] for c in prefect.utilities.logging.LOG_MANAGER.enqueue.call_args_list
+    ]
     assert len(logs) >= 5  # actual number of logs
 
-    loggers = [c["name"] for c in logs]
-    assert set(loggers) == {
+    loggers = {l["name"] for l in logs}
+    assert loggers == {
         "prefect.CloudTaskRunner",
         "prefect.CloudFlowRunner",
         "prefect.log_stuff",
     }
 
-    task_run_ids = [c["task_run_id"] for c in logs if c["task_run_id"]]
-    assert set(task_run_ids) == {"TESTME"}
+    task_run_ids = {c["task_run_id"] for c in logs if c["task_run_id"]}
+    assert task_run_ids == {"TESTME"}
 
 
 class TestCloudFlowRunnerQueuedState:
@@ -653,7 +612,7 @@ def test_flowrunner_handles_version_lock_error(monkeypatch):
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
-    client.set_flow_run_state.side_effect = VersionLockError()
+    client.set_flow_run_state.side_effect = VersionLockMismatchSignal()
 
     flow = prefect.Flow(name="test")
     runner = CloudFlowRunner(flow=flow)
@@ -766,7 +725,7 @@ class TestCloudFlowRunnerCancellation:
         with set_temporary_config(
             {
                 "cloud.check_cancellation_interval": 0.1,
-                "logging.log_to_cloud": True,
+                "cloud.send_flow_run_logs": True,
                 "special_key": 42,
             }
         ):

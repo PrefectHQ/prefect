@@ -2,8 +2,9 @@
 
 ::: warning
 Flows configured with environments are being deprecated - we recommend users
-transition to using "Run Configs" instead. See
-[the documentation](/orchestration/flow_config/overview.md) for more information.
+transition to using "Run Configs" instead. See [flow
+configuration](/orchestration/flow_config/overview.md) and [upgrading
+tips](/orchestration/flow_config/upgrade.md) for more information.
 :::
 
 [[toc]]
@@ -92,7 +93,7 @@ that were created.
 from dask_cloudprovider import FargateCluster
 
 from prefect import Flow, Parameter, task
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 cluster = FargateCluster(
     image="prefecthq/prefect:latest",
@@ -162,7 +163,7 @@ simplifies dependency management and avoids the need for separately distributing
 to Dask workers.
 
 Following creation of the Dask cluster, the Flow will be run using the
-[Dask Executor](/api/latest/engine/executors.html#daskexecutor) pointed
+[Dask Executor](/api/latest/executors.html#daskexecutor) pointed
 to the newly-created Dask cluster. All Task execution will take place on the
 Dask workers.
 

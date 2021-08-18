@@ -26,7 +26,7 @@ class TestInitialization:
         )
         client = MagicMock()
         jira = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
+        monkeypatch.setattr("jira.JIRA", jira)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
@@ -53,7 +53,7 @@ class TestInitialization:
         task = JiraServiceDeskTask(issue_type=10010)
         client = MagicMock()
         jira = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
+        monkeypatch.setattr("jira.JIRA", jira)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
@@ -71,7 +71,7 @@ class TestInitialization:
         task = JiraServiceDeskTask(service_desk_id="4", issue_type=10010)
         client = MagicMock()
         jira = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
+        monkeypatch.setattr("jira.JIRA", jira)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(

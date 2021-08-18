@@ -1,13 +1,14 @@
 import datetime
 import json
+from threading import RLock
 
 import pendulum
+import cloudpickle
 import pytest
 
 import prefect
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import Result, NoResult
 from prefect.engine.results import PrefectResult
-from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cancelled,
     Cached,
@@ -32,7 +33,6 @@ from prefect.engine.state import (
     ValidationFailed,
     _MetaState,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -61,8 +61,6 @@ class TestCreateStates:
     def test_create_state_with_kwarg_result_arg(self, cls):
         state = cls(result=1)
         assert isinstance(state._result, Result)
-        assert state._result.safe_value is NoResult
-        assert state._result.result_handler is None
         assert state.result == 1
         assert state.message is None
         assert isinstance(state._result, Result)
@@ -91,6 +89,7 @@ class TestCreateStates:
     def test_create_state_with_positional_message_arg(self, cls):
         state = cls("i am a string")
         assert state.message == "i am a string"
+        assert state.result is None
         assert state._result == NoResult
 
     @pytest.mark.parametrize("cls", all_states)
@@ -269,44 +268,6 @@ def test_serialize_and_deserialize_on_mixed_cached_state():
     assert new_state._result.location == json.dumps(dict(hi=5, bye=6))
     assert new_state.cached_result_expiration == state.cached_result_expiration
     assert new_state.cached_inputs == dict.fromkeys(["x", "p"], PrefectResult())
-
-
-def test_serialize_and_deserialize_on_safe_cached_state():
-    safe = SafeResult("99", result_handler=JSONResultHandler())
-    safe_dct = SafeResult(dict(hi=5, bye=6), result_handler=JSONResultHandler())
-    now = pendulum.now("utc")
-    state = Cached(
-        cached_inputs=dict(x=safe, p=safe),
-        result=safe_dct,
-        cached_result_expiration=now,
-    )
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Cached)
-    assert new_state.color == state.color
-    assert new_state.result == dict(hi=5, bye=6)
-    assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == state.cached_inputs
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
-def test_serialization_of_cached_inputs_with_safe_values(cls):
-    safe5 = SafeResult(5, result_handler=JSONResultHandler())
-    state = cls(cached_inputs=dict(hi=safe5, bye=safe5))
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == state.cached_inputs
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
-def test_serialization_of_cached_inputs_with_unsafe_values(cls):
-    unsafe5 = PrefectResult(value=5)
-    state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == dict(hi=PrefectResult(), bye=PrefectResult())
 
 
 def test_state_equality():
@@ -712,3 +673,79 @@ def test_n_map_states():
 
     state = Mapped(map_states=[1, 2], n_map_states=4)
     assert state.n_map_states == 4
+
+
+def test_init_with_falsey_value():
+    state = Success(result={})
+    assert state.result == {}
+
+
+def test_state_pickle():
+    class Data:
+        def __init__(self, foo: int = 1, bar: str = "") -> None:
+            self.foo = foo
+            self.bar = bar
+
+        def __eq__(self, o: object) -> bool:
+            return o.bar == self.bar and o.foo == self.foo
+
+    state = State(message="message", result=Data(bar="bar"))
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    assert state.message == new_state.message  # message not included in __eq__
+    assert state == new_state
+
+
+def test_state_pickle_with_unpicklable_result_raises():
+    state = State(result=RLock())  # An unpickable result type
+    with pytest.raises(TypeError, match="pickle"):
+        cloudpickle.dumps(state)
+
+
+def test_state_pickle_with_unpicklable_result_raises_when_not_from_cloudpickle():
+    # This test covers the case where the exception during pickle does not come from
+    # cloudpickle
+    class AtypicalUnpickableData:
+        def __getstate__(self):
+            raise TypeError("Foo!")
+
+    state = State(result=AtypicalUnpickableData())
+    with pytest.raises(TypeError, match="Foo"):
+        cloudpickle.dumps(state)
+
+
+def test_state_pickle_with_exception():
+    state = State(result=Exception("foo"))
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    assert isinstance(new_state.result, Exception)
+    assert new_state.result.args == ("foo",)
+
+
+def test_state_pickle_with_unpicklable_exception_converts_to_repr():
+    class UnpicklableException(Exception):
+        def __init__(self, *args) -> None:
+            self.lock = RLock()
+            super().__init__(*args)
+
+    state = State(result=UnpicklableException())
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    # Get the pickle error directly -- this is robust to changes across python versions
+    pickle_exc = None
+    try:
+        cloudpickle.dumps(UnpicklableException())
+    except Exception as exc:
+        pickle_exc = exc
+
+    # Cast to a string
+    assert isinstance(new_state.result, str)
+    # Includes the repr of our exception result
+    assert repr(UnpicklableException()) in new_state.result
+    # Includes context for the exception
+    assert "The following exception could not be pickled" in new_state.result
+    # Includes pickle error
+    assert repr(pickle_exc) in new_state.result
+
+    # Does not alter the original object
+    assert isinstance(state.result, UnpicklableException)

@@ -54,7 +54,7 @@ def say_hello():
 with Flow("Run Me") as flow:
     h = say_hello()
 
-from prefect.engine.executors import DaskExecutor
+from prefect.executors import DaskExecutor
 
 executor = DaskExecutor(address="tcp://localhost:8786")
 flow.run(executor=executor)
@@ -63,7 +63,7 @@ flow.run(executor=executor)
 This `DaskExecutor` will connect to a Dask scheduler over the address `tcp://localhost:8786` and begin submitting work to be executed on Dask workers.
 
 :::tip Dynamic Scheduler
-If no scheduler `address` is specified for the `DaskExecutor` than an in-process scheduler will be created and torn down upon completion. See the [DaskExecutor API Documentation](/api/latest/engine/executors.html#daskexecutor) for more information.
+If no scheduler `address` is specified for the `DaskExecutor` than an in-process scheduler will be created and torn down upon completion. See the [DaskExecutor API Documentation](/api/latest/executors.html#daskexecutor) for more information.
 :::
 
 :::warning LocalDaskExecutor vs DaskExecutor

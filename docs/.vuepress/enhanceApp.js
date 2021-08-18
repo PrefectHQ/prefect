@@ -3,7 +3,7 @@
 export default ({ Vue, router }) => {
   // Vue.use(vClickOutside)
 
-  if (window.location.hash) {
+  if (window && window.location && window.location.hash) {
     document.onreadystatechange = () => {
       if (document.readyState == 'complete') {
         scrollToHash(window.location, Vue)
@@ -15,18 +15,24 @@ export default ({ Vue, router }) => {
 
   router.options.scrollBehavior = (to, from, savedPosition) => {
     if (savedPosition) {
-      return window.scrollTo({
-        top: savedPosition.y,
-        behavior: 'smooth'
-      })
+      return (
+        window &&
+        window.scrollTo({
+          top: savedPosition.y,
+          behavior: 'smooth'
+        })
+      )
     } else if (to.hash) {
       scrollToHash(to, Vue)
       return false
     } else {
-      return window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      })
+      return (
+        window &&
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        })
+      )
     }
   }
 
@@ -52,10 +58,13 @@ function scrollToHash(to, Vue) {
   const targetElement = document.querySelector(to.hash)
 
   if (targetElement) {
-    return window.scrollTo({
-      top: getElementPosition(targetElement).y,
-      behavior: 'smooth'
-    })
+    return (
+      window &&
+      window.scrollTo({
+        top: getElementPosition(targetElement).y,
+        behavior: 'smooth'
+      })
+    )
   }
 }
 
