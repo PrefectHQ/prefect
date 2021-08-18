@@ -8,7 +8,7 @@ import pendulum
 from pydantic import Field, validator
 
 from prefect.orion.utilities.enum import AutoEnum
-from prefect.orion.utilities.schemas import PrefectBaseModel, IDBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
 
 
 class StateType(AutoEnum):
@@ -38,7 +38,7 @@ class RunDetails(PrefectBaseModel):
     last_run_time: datetime.datetime = None
 
 
-class State(IDBaseModel):
+class State(ORMBaseModel):
     type: StateType
     name: str = None
     timestamp: datetime.datetime = Field(
