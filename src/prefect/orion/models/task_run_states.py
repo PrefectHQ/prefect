@@ -6,8 +6,10 @@ from typing import List, Optional
 from uuid import UUID
 
 from prefect.orion import schemas, models
+from prefect.orion.orchestration import core_policy
 from prefect.orion.models import orm
 from prefect.orion.schemas import states
+from prefect.orion.schemas.states import StateType
 
 
 async def create_task_run_state(
@@ -28,10 +30,7 @@ async def create_task_run_state(
     """
 
     # load the task run
-    run = await models.task_runs.read_task_run(
-        session=session,
-        task_run_id=task_run_id,
-    )
+    run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
 
     if not run:
         raise ValueError(f"Invalid task run: {task_run_id}")
@@ -39,7 +38,7 @@ async def create_task_run_state(
     initial_state = run.state.as_state() if run.state else None
 
     if apply_orchestration_rules:
-        orchestration_rules = [RetryPotentialFailures, CacheRetrieval, CacheInsertion]
+        orchestration_rules = core_policy.transition_rules(initial_state.type if initial_state else None, state.type)
     else:
         orchestration_rules = []
 
@@ -47,7 +46,13 @@ async def create_task_run_state(
 
     # create the new task run state
     async with contextlib.AsyncExitStack() as stack:
-        context = {'initial_state': initial_state, 'proposed_state': state, 'run': run, 'session': session, 'task_run_id': task_run_id}
+        context = {
+            'initial_state': initial_state,
+            'proposed_state': state,
+            'run': run,
+            'session': session,
+            'task_run_id': task_run_id
+        }
 
         for rule in orchestration_rules:
             context = await stack.enter_async_context(rule(context))
@@ -178,10 +183,11 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         raise NotImplementedError
 
 
+@core_policy.register([StateType.PENDING], [StateType.RUNNING])
 class CacheRetrieval(BaseOrchestrationRule):
     async def before_transition(self):
         context = self.context
-        if context['proposed_state'].type == states.StateType.RUNNING and context['proposed_state'].state_details.cache_key:
+        if context['proposed_state'].state_details.cache_key:
             # Check for cached states matching the cache key
             cached_state = await get_cached_task_run_state(
                 context['session'], context['proposed_state'].state_details.cache_key
@@ -194,25 +200,22 @@ class CacheRetrieval(BaseOrchestrationRule):
         pass
 
 
+@core_policy.register([StateType.RUNNING], [StateType.COMPLETED])
 class CacheInsertion(BaseOrchestrationRule):
     async def before_transition(self):
         pass
 
     async def after_transition(self):
         context = self.context
-        if context['proposed_state'].type == states.StateType.COMPLETED and context['proposed_state'].state_details.cache_key:
+        if context['proposed_state'].state_details.cache_key:
             await cache_task_run_state(context['session'], context['validated_state'])
 
 
+@core_policy.register([StateType.RUNNING], [StateType.FAILED])
 class RetryPotentialFailures(BaseOrchestrationRule):
     async def before_transition(self):
         context = self.context
-        if (
-            context['initial_state']
-            and context['initial_state'].type == states.StateType.RUNNING
-            and context['proposed_state'].type == states.StateType.FAILED
-            and context['run'].state.run_details.run_count <= context['run'].empirical_policy.max_retries
-        ):
+        if context['run'].state.run_details.run_count <= context['run'].empirical_policy.max_retries:
             context['proposed_state'] = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
                     seconds=context['run'].empirical_policy.retry_delay_seconds
@@ -228,7 +231,10 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 class UpdateRunDetails(BaseOrchestrationRule):
     async def before_transition(self):
         context = self.context
-        context['proposed_state'].run_details = states.update_run_details(from_state=context['initial_state'], to_state=context['proposed_state'])
+        context['proposed_state'].run_details = states.update_run_details(
+            from_state=context['initial_state'],
+            to_state=context['proposed_state']
+        )
 
     async def after_transition(self):
         pass
