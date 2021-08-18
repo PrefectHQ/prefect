@@ -7,16 +7,16 @@ from prefect.orion.models import orm
 
 
 @pytest.fixture
-async def many_flow_run_states(flow, database_session):
+async def many_flow_run_states(flow, session):
     """Creates 5 flow runs, each with 5 states. The data payload of each state is an integer 0-4"""
 
     # clear all other flow runs
-    await database_session.execute(sa.delete(orm.FlowRun))
-    await database_session.execute(sa.delete(orm.FlowRunState))
+    await session.execute(sa.delete(orm.FlowRun))
+    await session.execute(sa.delete(orm.FlowRunState))
 
     for _ in range(5):
         flow_run = await models.flow_runs.create_flow_run(
-            session=database_session,
+            session=session,
             flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version=1),
         )
 
@@ -32,21 +32,21 @@ async def many_flow_run_states(flow, database_session):
             for i in range(5)
         ]
 
-        database_session.add_all(states)
-    await database_session.flush()
+        session.add_all(states)
+    await session.flush()
 
 
 @pytest.fixture
-async def many_task_run_states(flow_run, database_session):
+async def many_task_run_states(flow_run, session):
     """Creates 5 task runs, each with 5 states. The data payload of each state is an integer 0-4"""
 
     # clear all other task runs
-    await database_session.execute(sa.delete(orm.TaskRun))
-    await database_session.execute(sa.delete(orm.TaskRunState))
+    await session.execute(sa.delete(orm.TaskRun))
+    await session.execute(sa.delete(orm.TaskRunState))
 
     for _ in range(5):
         task_run = await models.task_runs.create_task_run(
-            session=database_session,
+            session=session,
             task_run=schemas.actions.TaskRunCreate(
                 flow_run_id=flow_run.id, task_key="test-task"
             ),
@@ -64,13 +64,13 @@ async def many_task_run_states(flow_run, database_session):
             for i in range(5)
         ]
 
-        database_session.add_all(states)
-    await database_session.flush()
+        session.add_all(states)
+    await session.flush()
 
 
 class TestFlowRun:
     async def test_flow_run_state_relationship_retrieves_current_state(
-        self, many_flow_run_states, database_session
+        self, many_flow_run_states, session
     ):
 
         # full query for most recent states
@@ -93,7 +93,7 @@ class TestFlowRun:
             )
             .filter(frs_alias.id == None)
         )
-        result = await database_session.execute(query)
+        result = await session.execute(query)
         objs = result.all()
 
         # assert that our handcrafted query picked up all the FINAL states
@@ -104,29 +104,29 @@ class TestFlowRun:
         assert all([o[0].state.id == o[1] for o in objs])
 
     async def test_flow_run_state_relationship_query_matches_current_data(
-        self, many_flow_run_states, database_session
+        self, many_flow_run_states, session
     ):
         query_4 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(orm.FlowRunState.data == 4)
+            orm.FlowRun.state.has(sa.cast(orm.FlowRunState.data, sa.Integer) == 4)
         )
-        result_4 = await database_session.execute(query_4)
+        result_4 = await session.execute(query_4)
         # all flow runs have data == 4
         assert len(result_4.all()) == 5
 
     async def test_flow_run_state_relationship_query_doesnt_match_old_data(
-        self, many_flow_run_states, database_session
+        self, many_flow_run_states, session
     ):
         query_3 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(orm.FlowRunState.data == 3)
+            orm.FlowRun.state.has(sa.cast(orm.FlowRunState.data, sa.Integer) == 3)
         )
-        result_3 = await database_session.execute(query_3)
+        result_3 = await session.execute(query_3)
         # no flow runs have data == 3
         assert len(result_3.all()) == 0
 
 
 class TestTaskRun:
     async def test_task_run_state_relationship_retrieves_current_state(
-        self, many_task_run_states, database_session
+        self, many_task_run_states, session
     ):
 
         # full query for most recent states
@@ -149,7 +149,7 @@ class TestTaskRun:
             )
             .filter(frs_alias.id == None)
         )
-        result = await database_session.execute(query)
+        result = await session.execute(query)
         objs = result.all()
 
         # assert that our handcrafted query picked up all the FINAL states
@@ -160,21 +160,21 @@ class TestTaskRun:
         assert all([o[0].state.id == o[1] for o in objs])
 
     async def test_task_run_state_relationship_query_matches_current_data(
-        self, many_task_run_states, database_session
+        self, many_task_run_states, session
     ):
         query_4 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.data == 4)
+            orm.TaskRun.state.has(sa.cast(orm.TaskRunState.data, sa.Integer) == 4)
         )
-        result_4 = await database_session.execute(query_4)
+        result_4 = await session.execute(query_4)
         # all task runs have data == 4
         assert len(result_4.all()) == 5
 
     async def test_task_run_state_relationship_query_doesnt_match_old_data(
-        self, many_task_run_states, database_session
+        self, many_task_run_states, session
     ):
         query_3 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.data == 3)
+            orm.TaskRun.state.has(sa.cast(orm.TaskRunState.data, sa.Integer) == 3)
         )
-        result_3 = await database_session.execute(query_3)
+        result_3 = await session.execute(query_3)
         # no task runs have data == 3
         assert len(result_3.all()) == 0

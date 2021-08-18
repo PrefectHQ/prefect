@@ -1,9 +1,10 @@
-import datetime
-from uuid import UUID, uuid4
 import copy
-
+import datetime
 import json
 from typing import List
+from uuid import UUID, uuid4
+
+import pendulum
 from pydantic import BaseModel, Field
 
 from prefect import settings
@@ -85,6 +86,13 @@ class PrefectBaseModel(BaseModel):
         # catch unintentional errors; otherwise they are ignored.
         extra = "forbid" if settings.test_mode else "ignore"
 
+        # prevent Pydantic from copying nested models on
+        # validation, otherwise APIBaseModel.copy() is run
+        # which resets fields like `id`
+        # https://github.com/samuelcolvin/pydantic/pull/2193
+        # TODO: remove once this is the default in pydantic>=2.0
+        copy_on_model_validation = False
+
     @classmethod
     def subclass(
         cls,
@@ -111,40 +119,38 @@ class PrefectBaseModel(BaseModel):
             exclude_fields=exclude_fields,
         )
 
-    def json_dict(self, *args, **kwargs) -> dict:
-        """Returns a dict of JSON-compatible values, equivalent
-        to `json.loads(self.json())`.
-
-        `self.dict()` returns Python-native types, including UUIDs
-        and datetimes; `self.json()` returns a JSON string. This
-        method is useful when we require a JSON-compatible Python
-        object.
-
-        Returns:
-            dict: a JSON-compatible dict
-        """
-        return json.loads(self.json(*args, **kwargs))
-
-    def dict(self, *args, shallow: bool = False, **kwargs) -> dict:
+    def dict(
+        self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
+    ) -> dict:
         """Returns a representation of the model as a Python dictionary.
-        Identical to calling `model.dict()` unless
-        `shallow=True` in which case the behavior is equivalent
-        to calling `dict(model)` because the raw field values are returned
-        and the dict coercion does not recurse into nested Pydantic models.
 
         For more information on this distinction please see
         https://pydantic-docs.helpmanual.io/usage/exporting_models/#dictmodel-and-iteration
 
 
         Args:
-            shallow (bool, optional): If True, nested Pydantic fields
-                are also coerced to dicts.
+            shallow (bool, optional): If True (default), nested Pydantic fields
+                are also coerced to dicts. If false, they are left as Pydantic
+                models.
+            json_compatible (bool, optional): if True, objects are converted
+                into json-compatible representations, similar to calling
+                `json.loads(self.json())`. Not compatible with shallow=True.
 
         Returns:
             dict
         """
-        # standard pydantic behavior
-        if not shallow:
+
+        if json_compatible and shallow:
+            raise ValueError(
+                "`json_compatible` can only be applied to the entire object."
+            )
+
+        # return a json-compatible representation of the object
+        elif json_compatible:
+            return json.loads(self.json(*args, **kwargs))
+
+        # if shallow wasn't requested, return the standard pydantic behavior
+        elif not shallow:
             return super().dict(*args, **kwargs)
 
         # if no options were requested, return simple dict transformation
@@ -171,3 +177,17 @@ class APIBaseModel(PrefectBaseModel):
     id: UUID = Field(default_factory=uuid4)
     created: datetime.datetime = Field(None, repr=False)
     updated: datetime.datetime = Field(None, repr=False)
+
+    def copy(self, *, update: dict = None, **kwargs):
+        """
+        Copying API models should return an object that could be inserted into the
+        database again. The 'id', 'created', and 'updated' fields are restored to their
+        default values.
+        """
+        update = update or dict()
+
+        update.setdefault("id", self.__fields__["id"].get_default())
+        update.setdefault("created", self.__fields__["created"].get_default())
+        update.setdefault("updated", self.__fields__["updated"].get_default())
+
+        return super().copy(update=update, **kwargs)
