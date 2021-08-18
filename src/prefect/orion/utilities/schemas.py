@@ -1,7 +1,7 @@
 import copy
 import datetime
 import json
-from typing import List
+from typing import List, Any, Set
 from uuid import UUID, uuid4
 
 import pendulum
@@ -87,7 +87,7 @@ class PrefectBaseModel(BaseModel):
         extra = "forbid" if settings.test_mode else "ignore"
 
         # prevent Pydantic from copying nested models on
-        # validation, otherwise APIBaseModel.copy() is run
+        # validation, otherwise ORMBaseModel.copy() is run
         # which resets fields like `id`
         # https://github.com/samuelcolvin/pydantic/pull/2193
         # TODO: remove once this is the default in pydantic>=2.0
@@ -118,6 +118,21 @@ class PrefectBaseModel(BaseModel):
             include_fields=include_fields,
             exclude_fields=exclude_fields,
         )
+
+    def _copy_reset_fields(self) -> Set[str]:
+        """A set of field names that are reset when the PrefectBaseModel is copied.
+        These fields are also disregarded for equality comparisons.
+        """
+        return set()
+
+    def __eq__(self, other: Any) -> bool:
+        copy_dict = self.dict(exclude=self._copy_reset_fields())
+        if isinstance(other, PrefectBaseModel):
+            return copy_dict == other.dict(exclude=other._copy_reset_fields())
+        if isinstance(other, BaseModel):
+            return copy_dict == other.dict()
+        else:
+            return copy_dict == other
 
     def dict(
         self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
@@ -169,25 +184,43 @@ class PrefectBaseModel(BaseModel):
                     deep_dict[k] = shallow_dict[k]
             return deep_dict
 
+    def copy(self, *, update: dict = None, **kwargs):
+        """
+        When an IDBaseModel is copied, it generates a new ID for the copy.
+        """
+        update = update or dict()
+        for field in self._copy_reset_fields():
+            update.setdefault(field, self.__fields__[field].get_default())
+        return super().copy(update=update, **kwargs)
 
-class APIBaseModel(PrefectBaseModel):
+
+class IDBaseModel(PrefectBaseModel):
+    """
+    A PrefectBaseModel with an auto-generated UUID ID value.
+
+    The ID is reset on copy() and not included in equality comparisons.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+
+    def _copy_reset_fields(self) -> Set[str]:
+        return super()._copy_reset_fields().union({"id"})
+
+
+class ORMBaseModel(IDBaseModel):
+    """
+    A PrefectBaseModel with an auto-generated UUID ID value and created /
+    updated timestamps, intended for compatibility with our standard ORM models.
+
+    The ID, created, and updated fields are reset on copy() and not included in
+    equality comparisons.
+    """
+
     class Config:
         orm_mode = True
 
-    id: UUID = Field(default_factory=uuid4)
     created: datetime.datetime = Field(None, repr=False)
     updated: datetime.datetime = Field(None, repr=False)
 
-    def copy(self, *, update: dict = None, **kwargs):
-        """
-        Copying API models should return an object that could be inserted into the
-        database again. The 'id', 'created', and 'updated' fields are restored to their
-        default values.
-        """
-        update = update or dict()
-
-        update.setdefault("id", self.__fields__["id"].get_default())
-        update.setdefault("created", self.__fields__["created"].get_default())
-        update.setdefault("updated", self.__fields__["updated"].get_default())
-
-        return super().copy(update=update, **kwargs)
+    def _copy_reset_fields(self) -> Set[str]:
+        return super()._copy_reset_fields().union({"created", "update"})
