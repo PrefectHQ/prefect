@@ -18,6 +18,7 @@ FlowRunCreate = schemas.core.FlowRun.subclass(
     include_fields=[
         "id",
         "flow_id",
+        "deployment_id",
         "flow_version",
         "parameters",
         "context",
