@@ -73,6 +73,7 @@ class OrionClient:
         context: dict = None,
         extra_tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
+        state: schemas.states.State = None,
     ) -> UUID:
         tags = set(flow.tags).union(extra_tags or [])
         parameters = parameters or {}
@@ -88,6 +89,7 @@ class OrionClient:
             context=context,
             tags=list(tags),
             parent_task_run_id=parent_task_run_id,
+            state=state,
         )
 
         response = self.post(
@@ -139,6 +141,7 @@ class OrionClient:
         task: "Task",
         flow_run_id: UUID,
         extra_tags: Iterable[str] = None,
+        state: schemas.states.State = None,
     ) -> UUID:
         tags = set(task.tags).union(extra_tags or [])
 
@@ -151,6 +154,7 @@ class OrionClient:
                 max_retries=task.retries,
                 retry_delay_seconds=task.retry_delay_seconds,
             ),
+            state=state,
         )
 
         response = self.post(
