@@ -6,8 +6,9 @@ import pydantic
 import pytest
 
 from prefect.orion.utilities.schemas import (
-    APIBaseModel,
+    ORMBaseModel,
     PrefectBaseModel,
+    IDBaseModel,
     pydantic_subclass,
 )
 
@@ -196,11 +197,11 @@ class TestJsonCompatibleDict:
         assert isinstance(d1["y"]["z"], str) and d1["y"]["z"] == str(nested.y.z)
 
 
-class CopyOnValidationChild(APIBaseModel):
+class CopyOnValidationChild(ORMBaseModel):
     x: int
 
 
-class CopyOnValidationParent(APIBaseModel):
+class CopyOnValidationParent(ORMBaseModel):
     x: int
     child: CopyOnValidationChild
 
@@ -215,3 +216,23 @@ def test_assignment_preserves_ids():
     # without the copy_on_model_validation = False flag
     # this test would fail
     assert parent.child.id == child_id
+
+
+class TestEqualityExcludedFields:
+    def test_idbasemodel_equality(self):
+        class X(IDBaseModel):
+            x: int
+
+        assert X(id=uuid4(), x=1) == X(id=uuid4(), x=1)
+        assert X(id=uuid4(), x=1) != X(id=uuid4(), x=2)
+
+    def test_ormbasemodel_equality(self):
+        class X(ORMBaseModel):
+            x: int
+
+        x1 = X(id=uuid4(), created=pendulum.now(), x=1)
+        x2 = X(id=uuid4(), created=pendulum.now().add(hours=1), x=1)
+        x3 = X(id=uuid4(), created=pendulum.now().subtract(hours=1), x=2)
+        assert x1 == x2
+        assert x1.created != x2.created
+        assert x1 != x3
