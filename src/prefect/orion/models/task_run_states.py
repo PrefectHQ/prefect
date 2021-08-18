@@ -56,6 +56,19 @@ async def cache_retrieval(context):
     yield context
 
 
+@contextlib.asynccontextmanager
+async def update_run_details(context):
+    context['proposed_state'].run_details = states.update_run_details(from_state=context['initial_state'], to_state=context['proposed_state'])
+    yield context
+
+
+@contextlib.asynccontextmanager
+async def update_state_details(context):
+    context['proposed_state'].state_details.flow_run_id = context['run'].flow_run_id
+    context['proposed_state'].state_details.task_run_id = context['task_run_id']
+    yield context
+
+
 async def create_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
@@ -85,20 +98,15 @@ async def create_task_run_state(
     initial_state = run.state.as_state() if run.state else None
 
     if apply_orchestration_rules:
-        orchestration_rules = [retry_attempted_failures, cache_retrieval, cache_insertion]
+        orchestration_rules = [retry_attempted_failures, cache_retrieval, cache_insertion, update_run_details, update_state_details]
     else:
         orchestration_rules = [no_orchestration]
 
     # create the new task run state
     async with contextlib.AsyncExitStack() as stack:
-        context = {'initial_state': initial_state, 'proposed_state': state, 'run': run, 'session': session}
+        context = {'initial_state': initial_state, 'proposed_state': state, 'run': run, 'session': session, 'task_run_id': task_run_id}
         for rule in orchestration_rules:
             context = await stack.enter_async_context(rule(context))
-
-        # update the state details
-        context['proposed_state'].run_details = states.update_run_details(from_state=initial_state, to_state=context['proposed_state'])
-        context['proposed_state'].state_details.flow_run_id = context['run'].flow_run_id
-        context['proposed_state'].state_details.task_run_id = task_run_id
 
         validated_state = orm.TaskRunState(
             task_run_id=task_run_id,
