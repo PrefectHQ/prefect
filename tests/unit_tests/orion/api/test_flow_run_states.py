@@ -5,10 +5,12 @@ from prefect.orion import models, schemas
 
 
 class TestCreateFlowRunState:
-    async def test_create_flow_run_state(self, flow_run, client, database_session):
+    async def test_create_flow_run_state(self, flow_run, client, session):
         flow_run_state_data = {
             "flow_run_id": str(flow_run.id),
-            "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
+            "state": schemas.actions.StateCreate(type="RUNNING").dict(
+                json_compatible=True
+            ),
         }
 
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
@@ -16,16 +18,18 @@ class TestCreateFlowRunState:
         assert response.json()["id"]
 
         flow_run_state = await models.flow_run_states.read_flow_run_state(
-            session=database_session, flow_run_state_id=response.json()["id"]
+            session=session, flow_run_state_id=response.json()["id"]
         )
         assert flow_run_state.flow_run_id == flow_run.id
 
     async def test_create_flow_run_state_requires_flow_run_id(
-        self, flow_run, client, database_session
+        self, flow_run, client, session
     ):
         flow_run_state_data = {
             "flow_run_id": None,
-            "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
+            "state": schemas.actions.StateCreate(type="RUNNING").dict(
+                json_compatible=True
+            ),
         }
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
         assert response.status_code == 422
@@ -37,7 +41,9 @@ class TestReadFlowRunStateById:
         # create a flow run state to read
         flow_run_state_data = {
             "flow_run_id": str(flow_run.id),
-            "state": schemas.actions.StateCreate(type="RUNNING").json_dict(),
+            "state": schemas.actions.StateCreate(type="RUNNING").dict(
+                json_compatible=True
+            ),
         }
         response = await client.post("/flow_run_states/", json=flow_run_state_data)
 

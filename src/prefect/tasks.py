@@ -1,16 +1,16 @@
 import inspect
 import time
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Iterable, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Tuple, Union
 from uuid import UUID
 
 import pendulum
 
 from prefect.client import OrionClient
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
-from prefect.orion.schemas.states import State, StateType
-from prefect.utilities.hashing import stable_hash, to_qualified_name
+from prefect.orion.schemas.states import State, StateType, StateDetails
+from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
 
 def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -35,6 +35,14 @@ def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State
     return server_state
 
 
+if TYPE_CHECKING:
+    from prefect.context import TaskRunContext
+
+
+def task_input_hash(context: "TaskRunContext", arguments: Dict[str, Any]):
+    return hash_objects(context.task.fn, arguments)
+
+
 class Task:
     """
     Base class representing Prefect worktasks.
@@ -46,6 +54,9 @@ class Task:
         fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
+        cache_key_fn: Callable[
+            ["TaskRunContext", Dict[str, Any]], Optional[str]
+        ] = None,
         retries: int = 0,
         retry_delay_seconds: Union[float, int] = 0,
     ):
@@ -73,6 +84,7 @@ class Task:
         )
 
         self.dynamic_key = 0
+        self.cache_key_fn = cache_key_fn
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -90,9 +102,27 @@ class Task:
         from prefect.context import TaskRunContext
 
         client = OrionClient()
+        context = TaskRunContext(
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            task=self,
+            client=client,
+        )
+
+        # Bind the arguments to the function to get a dict of arg -> value
+        bound_signature = inspect.signature(self.fn).bind(*call_args, **call_kwargs)
+        bound_signature.apply_defaults()
+        arguments = bound_signature.arguments
+        cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
 
         # Transition from `PENDING` -> `RUNNING`
-        state = propose_state(client, task_run_id, State(type=StateType.RUNNING))
+        state = propose_state(
+            client,
+            task_run_id,
+            State(
+                type=StateType.RUNNING, state_details=StateDetails(cache_key=cache_key)
+            ),
+        )
 
         # Only run the task if we enter a `RUNNING` state
         while state.is_running():
@@ -112,11 +142,11 @@ class Task:
                     data=exc,
                 )
             else:
-                terminal_state = State(
-                    type=StateType.COMPLETED,
-                    message="Task run completed.",
-                    data=result,
-                )
+                terminal_state = return_val_to_state(result)
+
+                # for COMPLETED tasks, add the cache key
+                if terminal_state.is_completed():
+                    terminal_state.state_details.cache_key = cache_key
 
             state = propose_state(client, task_run_id, terminal_state)
 
