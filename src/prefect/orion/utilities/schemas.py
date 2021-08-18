@@ -119,16 +119,21 @@ class PrefectBaseModel(BaseModel):
             exclude_fields=exclude_fields,
         )
 
-    def _copy_reset_fields(self) -> Set[str]:
+    def _reset_fields(self) -> Set[str]:
         """A set of field names that are reset when the PrefectBaseModel is copied.
         These fields are also disregarded for equality comparisons.
         """
         return set()
 
     def __eq__(self, other: Any) -> bool:
-        copy_dict = self.dict(exclude=self._copy_reset_fields())
+        """Equaltiy operator that ignores the resettable fields of the PrefectBaseModel.
+
+        NOTE: this equality operator will only be applied if the PrefectBaseModel is
+        the left-hand operand. This is a limitation of Python.
+        """
+        copy_dict = self.dict(exclude=self._reset_fields())
         if isinstance(other, PrefectBaseModel):
-            return copy_dict == other.dict(exclude=other._copy_reset_fields())
+            return copy_dict == other.dict(exclude=other._reset_fields())
         if isinstance(other, BaseModel):
             return copy_dict == other.dict()
         else:
@@ -189,7 +194,7 @@ class PrefectBaseModel(BaseModel):
         When an IDBaseModel is copied, it generates a new ID for the copy.
         """
         update = update or dict()
-        for field in self._copy_reset_fields():
+        for field in self._reset_fields():
             update.setdefault(field, self.__fields__[field].get_default())
         return super().copy(update=update, **kwargs)
 
@@ -203,8 +208,8 @@ class IDBaseModel(PrefectBaseModel):
 
     id: UUID = Field(default_factory=uuid4)
 
-    def _copy_reset_fields(self) -> Set[str]:
-        return super()._copy_reset_fields().union({"id"})
+    def _reset_fields(self) -> Set[str]:
+        return super()._reset_fields().union({"id"})
 
 
 class ORMBaseModel(IDBaseModel):
@@ -222,5 +227,5 @@ class ORMBaseModel(IDBaseModel):
     created: datetime.datetime = Field(None, repr=False)
     updated: datetime.datetime = Field(None, repr=False)
 
-    def _copy_reset_fields(self) -> Set[str]:
-        return super()._copy_reset_fields().union({"created", "update"})
+    def _reset_fields(self) -> Set[str]:
+        return super()._reset_fields().union({"created", "updated"})
