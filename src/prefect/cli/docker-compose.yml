@@ -9,7 +9,7 @@ services:
   postgres:
     image: "postgres:11"
     ports:
-      - "${POSTGRES_HOST_IP:-127.0.0.1}:${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -35,7 +35,7 @@ services:
   hasura:
     image: "hasura/graphql-engine:v1.3.3"
     ports:
-      - "${HASURA_HOST_IP:-127.0.0.1}:${HASURA_HOST_PORT:-3000}:3000"
+      - "127.0.0.1:${HASURA_HOST_PORT:-3000}:3000"
     command: "graphql-engine serve"
     environment:
       HASURA_GRAPHQL_DATABASE_URL: ${DB_CONNECTION_URL}
@@ -59,7 +59,7 @@ services:
   graphql:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
     ports:
-      - "${GRAPHQL_HOST_IP:-127.0.0.1}:${GRAPHQL_HOST_PORT:-4201}:4201"
+      - "127.0.0.1:${GRAPHQL_HOST_PORT:-4201}:4201"
     command: bash -c "${PREFECT_SERVER_DB_CMD} && python src/prefect_server/services/graphql/server.py"
     environment:
       PREFECT_SERVER_DB_CMD: ${PREFECT_SERVER_DB_CMD:-"echo 'DATABASE MIGRATIONS SKIPPED'"}
