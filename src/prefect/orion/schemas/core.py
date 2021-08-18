@@ -20,6 +20,7 @@ class FlowRunDetails(PrefectBaseModel):
 
 class FlowRun(APIBaseModel):
     flow_id: UUID
+    deployment_id: UUID = None
     flow_version: str = Field(None, example="1.0")
     parameters: dict = Field(default_factory=dict)
     idempotency_key: str = None
