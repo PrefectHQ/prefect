@@ -25,6 +25,36 @@ async def cache_insertion(context):
         await cache_task_run_state(context['session'], context['validated_state'])
 
 
+@contextlib.asynccontextmanager
+async def retry_attempted_failures(context):
+    if (
+        context['initial_state']
+        and context['initial_state'].type == states.StateType.RUNNING
+        and context['proposed_state'].type == states.StateType.FAILED
+        and context['run'].state.run_details.run_count <= context['run'].empirical_policy.max_retries
+    ):
+        context['proposed_state'] = states.AwaitingRetry(
+            scheduled_time=pendulum.now("UTC").add(
+                seconds=context['run'].empirical_policy.retry_delay_seconds
+            ),
+            message=context['proposed_state'].message,
+            data=context['proposed_state'].data,
+        )
+    yield context
+
+
+@contextlib.asynccontextmanager
+async def cache_retrieval(context):
+    if context['proposed_state'].type == states.StateType.RUNNING and context['proposed_state'].state_details.cache_key:
+        # Check for cached states matching the cache key
+        cached_state = await get_cached_task_run_state(
+            context['session'], context['proposed_state'].state_details.cache_key
+        )
+        if cached_state:
+            context['proposed_state'] = cached_state.as_state().copy()
+            context['proposed_state'].name = "Cached"
+    yield context
+
 
 async def create_task_run_state(
     session: sa.orm.Session,
@@ -52,52 +82,27 @@ async def create_task_run_state(
     if not run:
         raise ValueError(f"Invalid task run: {task_run_id}")
 
-    from_state = run.state.as_state() if run.state else None
+    initial_state = run.state.as_state() if run.state else None
 
     if apply_orchestration_rules:
-        orchestration_rules = [cache_insertion]
+        orchestration_rules = [retry_attempted_failures, cache_retrieval, cache_insertion]
     else:
         orchestration_rules = [no_orchestration]
 
-    # --- apply retry logic
-    if apply_orchestration_rules:
-        if (
-            from_state
-            and from_state.type == states.StateType.RUNNING
-            and state.type == states.StateType.FAILED
-            and run.state.run_details.run_count <= run.empirical_policy.max_retries
-        ):
-            state = states.AwaitingRetry(
-                scheduled_time=pendulum.now("UTC").add(
-                    seconds=run.empirical_policy.retry_delay_seconds
-                ),
-                message=state.message,
-                data=state.data,
-            )
-
-        if state.type == states.StateType.RUNNING and state.state_details.cache_key:
-            # Check for cached states matching the cache key
-            cached_state = await get_cached_task_run_state(
-                session, state.state_details.cache_key
-            )
-            if cached_state:
-                state = cached_state.as_state().copy()
-                state.name = "Cached"
-
-    # update the state details
-    state.run_details = states.update_run_details(from_state=from_state, to_state=state)
-    state.state_details.flow_run_id = run.flow_run_id
-    state.state_details.task_run_id = task_run_id
-
     # create the new task run state
     async with contextlib.AsyncExitStack() as stack:
-        context = {'proposed_state': state, 'session': session}
+        context = {'initial_state': initial_state, 'proposed_state': state, 'run': run, 'session': session}
         for rule in orchestration_rules:
             context = await stack.enter_async_context(rule(context))
 
+        # update the state details
+        context['proposed_state'].run_details = states.update_run_details(from_state=initial_state, to_state=context['proposed_state'])
+        context['proposed_state'].state_details.flow_run_id = context['run'].flow_run_id
+        context['proposed_state'].state_details.task_run_id = task_run_id
+
         validated_state = orm.TaskRunState(
             task_run_id=task_run_id,
-            **state.dict(shallow=True),
+            **context['proposed_state'].dict(shallow=True),
         )
         session.add(validated_state)
         context['validated_state'] = validated_state
