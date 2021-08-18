@@ -16,7 +16,6 @@ DeploymentCreate = schemas.core.Deployment.subclass(
 FlowRunCreate = schemas.core.FlowRun.subclass(
     name="FlowRunCreate",
     include_fields=[
-        "id",
         "flow_id",
         "deployment_id",
         "flow_version",
@@ -26,6 +25,7 @@ FlowRunCreate = schemas.core.FlowRun.subclass(
         "flow_run_details",
         "parent_task_run_id",
         "idempotency_key",
+        "state",
     ],
 )
 
@@ -56,5 +56,6 @@ TaskRunCreate = schemas.core.TaskRun.subclass(
         "task_inputs",
         "upstream_task_run_ids",
         "task_run_details",
+        "state",
     ],
 )

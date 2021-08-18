@@ -113,10 +113,11 @@ class Flow:
             )
 
         flow_run_id = client.create_flow_run(
-            self, parameters=parameters, parent_task_run_id=parent_task_run_id
+            self,
+            parameters=parameters,
+            parent_task_run_id=parent_task_run_id,
+            state=State(type=StateType.PENDING),
         )
-
-        client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
 
         executor_context = (
             executor.start(flow_run_id=flow_run_id, orion_client=client)

@@ -82,8 +82,7 @@ async def create_task_run_state(
         await cache_task_run_state(session, new_task_run_state)
 
     # update the ORM model state
-    if run is not None:
-        run.state = new_task_run_state
+    run.state = new_task_run_state
 
     return new_task_run_state
 
