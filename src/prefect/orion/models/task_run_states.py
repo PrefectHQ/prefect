@@ -13,11 +13,6 @@ from prefect.orion.schemas import states
 
 
 @contextlib.asynccontextmanager
-async def no_orchestration(context):
-    yield context
-
-
-@contextlib.asynccontextmanager
 async def cache_insertion(context):
     yield context
     # Add the new task state to the cache if a key was provided
@@ -98,18 +93,24 @@ async def create_task_run_state(
     initial_state = run.state.as_state() if run.state else None
 
     if apply_orchestration_rules:
-        orchestration_rules = [retry_attempted_failures, cache_retrieval, cache_insertion, update_run_details, update_state_details]
+        orchestration_rules = [retry_attempted_failures, cache_retrieval, cache_insertion]
     else:
-        orchestration_rules = [no_orchestration]
+        orchestration_rules = []
+
+    global_rules = [update_run_details, update_state_details]
 
     # create the new task run state
     async with contextlib.AsyncExitStack() as stack:
         context = {'initial_state': initial_state, 'proposed_state': state, 'run': run, 'session': session, 'task_run_id': task_run_id}
+
         for rule in orchestration_rules:
             context = await stack.enter_async_context(rule(context))
 
+        for rule in global_rules:
+            context = await stack.enter_async_context(rule(context))
+
         validated_state = orm.TaskRunState(
-            task_run_id=task_run_id,
+            task_run_id=context['task_run_id'],
             **context['proposed_state'].dict(shallow=True),
         )
         session.add(validated_state)
