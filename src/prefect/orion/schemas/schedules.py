@@ -1,7 +1,7 @@
 from uuid import UUID
 import pytz
 import datetime
-from typing import List, Set, Union
+from typing import List, Set, Union, Dict, Any
 
 import pendulum
 from croniter import croniter
@@ -12,7 +12,7 @@ from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
 MAX_ITERATIONS = 10000
 
 
-class ScheduleFilters(PrefectBaseModel):
+class ClockFilters(PrefectBaseModel):
     """A collection of filters that can be applied to a date. Each filter
     is defined as an inclusive set of dates or times: candidate dates
     will pass the filter if they match all of the supplied criteria.
@@ -77,7 +77,7 @@ class ScheduleFilters(PrefectBaseModel):
         return True
 
 
-class ScheduleAdjustments(PrefectBaseModel):
+class ClockAdjustments(PrefectBaseModel):
     """Adjusts a candidate date by modifying it to meet the supplied criteria."""
 
     advance_to_next_weekday: bool = False
@@ -95,14 +95,14 @@ class ScheduleAdjustments(PrefectBaseModel):
         return dt
 
 
-class IntervalSchedule(PrefectBaseModel):
+class IntervalClock(PrefectBaseModel):
 
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
 
-    filters = ScheduleFilters()
-    adjustments = ScheduleAdjustments()
+    filters = ClockFilters()
+    adjustments = ClockAdjustments()
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
@@ -128,7 +128,7 @@ class IntervalSchedule(PrefectBaseModel):
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
-        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the clock. Up to 10,000 candidate dates are checked
         following the start date.
 
         Args:
@@ -195,17 +195,17 @@ class IntervalSchedule(PrefectBaseModel):
         return dates
 
 
-class CronSchedule(PrefectBaseModel):
+class CronClock(PrefectBaseModel):
     """
-    Cron schedule
+    Cron clock
 
-    NOTE: If the timezone is a DST-observing one, then the schedule will adjust
+    NOTE: If the timezone is a DST-observing one, then the clock will adjust
     itself appropriately. Cron's rules for DST are based on clock times, not
-    intervals. This means that an hourly cron schedule will fire on every new
+    intervals. This means that an hourly cron clock will fire on every new
     clock hour, not every elapsed hour; for example, when clocks are set back
-    this will result in a two-hour pause as the schedule will fire *the first
+    this will result in a two-hour pause as the clock will fire *the first
     time* 1am is reached and *the first time* 2am is reached, 120 minutes later.
-    Longer schedules, such as one that fires at 9am every morning, will
+    Longer clocks, such as one that fires at 9am every morning, will
     automatically adjust for DST.
 
     Args:
@@ -244,7 +244,7 @@ class CronSchedule(PrefectBaseModel):
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
-        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the clock. Up to 10,000 candidate dates are checked
         following the start date.
 
         Args:
@@ -313,14 +313,7 @@ class CronSchedule(PrefectBaseModel):
         return dates
 
 
-class Schedule(APIBaseModel):
-    flow_id: UUID
-    schedule: Union[IntervalSchedule, CronSchedule]
-    type: str = None
+class Schedule(PrefectBaseModel):
+    clock: Union[IntervalClock, CronClock]
+    parameter_defaults: Dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
-
-    @validator("type", always=True)
-    def set_schedule_type(cls, v):
-        if v is not None:
-            raise ValueError("Type can not be customized")
-        return type(cls.schedule).__name__
