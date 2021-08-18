@@ -7,6 +7,7 @@ from uuid import UUID
 
 from prefect.orion import schemas, models
 from prefect.orion.orchestration import core_policy
+from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES
 from prefect.orion.models import orm
 from prefect.orion.schemas import states
 from prefect.orion.schemas.states import StateType
@@ -166,6 +167,9 @@ async def cache_task_run_state(
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
+    FROM_STATES = []
+    TO_STATES = []
+
     def __init__(self, context):
         self.context = context
 
@@ -183,8 +187,11 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         raise NotImplementedError
 
 
-@core_policy.register([StateType.PENDING], [StateType.RUNNING])
+@core_policy.register
 class CacheRetrieval(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [StateType.RUNNING]
+
     async def before_transition(self):
         context = self.context
         if context['proposed_state'].state_details.cache_key:
@@ -200,8 +207,11 @@ class CacheRetrieval(BaseOrchestrationRule):
         pass
 
 
-@core_policy.register([StateType.RUNNING], [StateType.COMPLETED])
+@core_policy.register
 class CacheInsertion(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [StateType.COMPLETED]
+
     async def before_transition(self):
         pass
 
@@ -211,8 +221,11 @@ class CacheInsertion(BaseOrchestrationRule):
             await cache_task_run_state(context['session'], context['validated_state'])
 
 
-@core_policy.register([StateType.RUNNING], [StateType.FAILED])
+@core_policy.register
 class RetryPotentialFailures(BaseOrchestrationRule):
+    FROM_STATES = [StateType.RUNNING]
+    TO_STATES = [StateType.FAILED]
+
     async def before_transition(self):
         context = self.context
         if context['run'].state.run_details.run_count <= context['run'].empirical_policy.max_retries:
