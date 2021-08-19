@@ -4,7 +4,6 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import schemas
-from prefect.orion.schemas.data import DataScheme
 from prefect.orion.data import get_instance_data_location, write_datadoc_blob
 from prefect.orion.models import orm
 
@@ -24,14 +23,14 @@ async def create_data_document(
     # Retrieve the data location
     dataloc = get_instance_data_location()
 
-    # Generate defaults / derived values
+    # Generate a path to store the data at
     datadoc = schemas.data.DataDocument(**datadoc.dict(shallow=True), id=uuid4())
     datadoc.name = datadoc.name or datadoc.id.hex
     datadoc.path = f"{dataloc.base_path}/{datadoc.name}"
 
     # If not storing the data inline, write to the external location and drop the blob
     # from the database record
-    if dataloc.scheme != DataScheme.INLINE:
+    if dataloc.scheme != "inline":
         # TODO: Submit this write to a background worker so we can return before
         #       waiting for the data to be written
         await write_datadoc_blob(datadoc, dataloc)

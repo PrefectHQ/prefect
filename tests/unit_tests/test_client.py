@@ -142,3 +142,9 @@ def test_send_then_retrieve_data(send_obj):
 
     retrieved_obj = client.retrieve_data(datadoc.id)
     assert retrieved_obj == send_obj
+
+
+def test_send_with_name(send_obj):
+    client = prefect.client.OrionClient()
+    datadoc = client.send_data("hello", name="doc_name")
+    assert datadoc.name == "doc_name"

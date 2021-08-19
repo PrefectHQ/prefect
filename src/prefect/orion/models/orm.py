@@ -281,6 +281,6 @@ class TaskRun(Base):
 class DataDocument(Base):
     path = Column(String, nullable=False)
     serializer = Column(String, nullable=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False)  # TODO: Decide if this can be nullable
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     blob = Column(sa.BINARY, nullable=True)

@@ -1,5 +1,5 @@
 from prefect.orion.data import write_datadoc_blob, read_datadoc_blob
-from prefect.orion.schemas.data import DataDocument, DataLocation, DataScheme
+from prefect.orion.schemas.data import DataDocument, DataLocation
 
 
 class TestWriteDataDoc:
@@ -7,7 +7,7 @@ class TestWriteDataDoc:
         assert (
             await write_datadoc_blob(
                 DataDocument(path="foo", blob=b"foo"),
-                DataLocation(scheme=DataScheme.INLINE, name="test"),
+                DataLocation(scheme="inline", name="test"),
             )
             is False
         )
@@ -16,7 +16,7 @@ class TestWriteDataDoc:
         assert (
             await write_datadoc_blob(
                 DataDocument(path=str(tmpdir.join("test")), blob=b"data"),
-                DataLocation(scheme=DataScheme.FILE, name="test"),
+                DataLocation(scheme="file", name="test"),
             )
             is True
         )
@@ -28,7 +28,7 @@ class TestReadDataDoc:
     async def test_read_with_inline_scheme_returns_doc_blob(self):
         blob = await read_datadoc_blob(
             DataDocument(path="foo", blob=b"data"),
-            DataLocation(scheme=DataScheme.INLINE, name="test"),
+            DataLocation(scheme="inline", name="test"),
         )
         assert blob == b"data"
 
@@ -39,6 +39,6 @@ class TestReadDataDoc:
 
         blob = await read_datadoc_blob(
             DataDocument(path=str(tmpdir.join("test"))),
-            DataLocation(scheme=DataScheme.FILE, name="test"),
+            DataLocation(scheme="file", name="test"),
         )
         assert blob == b"data"
