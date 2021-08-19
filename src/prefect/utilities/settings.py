@@ -17,11 +17,9 @@ class DataLocationSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_DATA_"
         frozen = True
 
-    name: str = "DEFAULT"
-    # TODO: We cannot import the `DataScheme` from `schemas` here because it is a
-    #       circular import
-    scheme: str = "INLINE"
-    base_path: str = ""
+    name: str = "default"
+    scheme: str = "db"
+    base_path: str = "/tmp"
     credential_name: str = None
 
 

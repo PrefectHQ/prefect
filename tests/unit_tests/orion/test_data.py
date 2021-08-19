@@ -3,11 +3,11 @@ from prefect.orion.schemas.data import DataDocument, DataLocation
 
 
 class TestWriteDataDoc:
-    async def test_write_with_inline_scheme_is_noop(self):
+    async def test_write_with_db_scheme_is_noop(self):
         assert (
             await write_datadoc_blob(
                 DataDocument(path="foo", blob=b"foo"),
-                DataLocation(scheme="inline", name="test"),
+                DataLocation(scheme="db", name="test"),
             )
             is False
         )
@@ -25,10 +25,10 @@ class TestWriteDataDoc:
 
 
 class TestReadDataDoc:
-    async def test_read_with_inline_scheme_returns_doc_blob(self):
+    async def test_read_with_db_scheme_returns_doc_blob(self):
         blob = await read_datadoc_blob(
             DataDocument(path="foo", blob=b"data"),
-            DataLocation(scheme="inline", name="test"),
+            DataLocation(scheme="db", name="test"),
         )
         assert blob == b"data"
 
