@@ -45,34 +45,33 @@ async def create_task_run_state(
     # create the new task run state
     async with contextlib.AsyncExitStack() as stack:
         context = {
-            'initial_state': initial_state,
-            'proposed_state': state,
-            'run': run,
-            'session': session,
-            'task_run_id': task_run_id,
-            'rule_signature': [],
-            'finalization_signature': [],
+            "initial_state": initial_state,
+            "proposed_state": state,
+            "run": run,
+            "session": session,
+            "task_run_id": task_run_id,
+            "rule_signature": [],
+            "finalization_signature": [],
         }
 
         for rule in orchestration_rules:
-            context = await stack.enter_async_context(rule(context, *proposed_transition))
+            context = await stack.enter_async_context(
+                rule(context, *proposed_transition)
+            )
 
         for rule in global_rules:
-            context = await stack.enter_async_context(rule(context, *proposed_transition))
+            context = await stack.enter_async_context(
+                rule(context, *proposed_transition)
+            )
 
         validated_state = orm.TaskRunState(
-            task_run_id=context['task_run_id'],
-            **context['proposed_state'].dict(shallow=True),
+            task_run_id=context["task_run_id"],
+            **context["proposed_state"].dict(shallow=True),
         )
         session.add(validated_state)
         await session.flush()
-        context['validated_state'] = validated_state
+        context["validated_state"] = validated_state
         await stack.aclose()
-
-    # update the ORM model state
-    if run is not None:
-        run.state = validated_state
-
     return validated_state
 
 

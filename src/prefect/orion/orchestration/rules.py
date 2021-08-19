@@ -15,26 +15,70 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     FROM_STATES = []
     TO_STATES = []
+    ALWAYS_VALID = False
+    NEVER_FIZZLE = False
 
     def __init__(self, context, from_state, to_state):
         self.context = context
         self.from_state = from_state
         self.to_state = to_state
+        self._invalid = None
+        self._fizzled = None
 
     async def __aenter__(self):
-        await self.before_transition()
-        self.context['rule_signature'].append(self.__class__)
+        if await self.invalid():
+            pass
+        else:
+            await self.before_transition()
+            self.context["rule_signature"].append(self.__class__)
         return self.context
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.after_transition()
-        self.context['finalization_signature'].append(self.__class__)
+        if await self.invalid():
+            pass
+        elif await self.fizzled():
+            await self.cleanup()
+        else:
+            await self.after_transition()
+            self.context["finalization_signature"].append(self.__class__)
 
     async def before_transition(self):
         raise NotImplementedError
 
     async def after_transition(self):
         raise NotImplementedError
+
+    async def cleanup(self):
+        raise NotImplementedError
+
+    async def invalid(self):
+        if self.ALWAYS_VALID:
+            return False
+        elif self._invalid is None:
+            self._invalid = await self.invalid_transition()
+        return self._invalid
+
+    async def fizzled(self):
+        if self.NEVER_FIZZLE:
+            return False
+        elif await self.invalid() and self._fizzled is None:
+            self._fizzled = False
+        elif self._fizzled is None:
+            self._fizzled = await self.invalid_transition()
+        return self._fizzled
+
+    async def invalid_transition(self):
+        initial_state = (
+            None
+            if self.context["initial_state"] is None
+            else self.context["initial_state"].type
+        )
+        proposed_state = (
+            None
+            if self.context["proposed_state"] is None
+            else self.context["proposed_state"].type
+        )
+        return (self.from_state != initial_state) or (self.to_state != proposed_state)
 
 
 @core_policy.register
@@ -44,16 +88,19 @@ class CacheRetrieval(BaseOrchestrationRule):
 
     async def before_transition(self):
         context = self.context
-        if context['proposed_state'].state_details.cache_key:
+        if context["proposed_state"].state_details.cache_key:
             # Check for cached states matching the cache key
             cached_state = await get_cached_task_run_state(
-                context['session'], context['proposed_state'].state_details.cache_key
+                context["session"], context["proposed_state"].state_details.cache_key
             )
             if cached_state:
-                context['proposed_state'] = cached_state.as_state().copy()
-                context['proposed_state'].name = "Cached"
+                context["proposed_state"] = cached_state.as_state().copy()
+                context["proposed_state"].name = "Cached"
 
     async def after_transition(self):
+        pass
+
+    async def cleanup(self):
         pass
 
 
@@ -67,8 +114,8 @@ class CacheInsertion(BaseOrchestrationRule):
 
     async def after_transition(self):
         context = self.context
-        if context['proposed_state'].state_details.cache_key:
-            await cache_task_run_state(context['session'], context['validated_state'])
+        if context["proposed_state"].state_details.cache_key:
+            await cache_task_run_state(context["session"], context["validated_state"])
 
 
 @core_policy.register
@@ -78,16 +125,22 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 
     async def before_transition(self):
         context = self.context
-        if context['run'].state.run_details.run_count <= context['run'].empirical_policy.max_retries:
-            context['proposed_state'] = states.AwaitingRetry(
+        if (
+            context["run"].state.run_details.run_count
+            <= context["run"].empirical_policy.max_retries
+        ):
+            context["proposed_state"] = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
-                    seconds=context['run'].empirical_policy.retry_delay_seconds
+                    seconds=context["run"].empirical_policy.retry_delay_seconds
                 ),
-                message=context['proposed_state'].message,
-                data=context['proposed_state'].data,
+                message=context["proposed_state"].message,
+                data=context["proposed_state"].data,
             )
 
     async def after_transition(self):
+        pass
+
+    async def cleanup(self):
         pass
 
 
@@ -95,15 +148,21 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 class UpdateRunDetails(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
+    ALWAYS_VALID = True
+    NEVER_FIZZLE = True
 
     async def before_transition(self):
         context = self.context
-        context['proposed_state'].run_details = states.update_run_details(
-            from_state=context['initial_state'],
-            to_state=context['proposed_state']
+        context["proposed_state"].run_details = states.update_run_details(
+            from_state=context["initial_state"], to_state=context["proposed_state"]
         )
 
     async def after_transition(self):
+        context = self.context
+        if context["run"] is not None:
+            context["run"].state = context["validated_state"]
+
+    async def cleanup(self):
         pass
 
 
@@ -111,13 +170,18 @@ class UpdateRunDetails(BaseOrchestrationRule):
 class UpdateStateDetails(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
+    ALWAYS_VALID = True
+    NEVER_FIZZLE = True
 
     async def before_transition(self):
         context = self.context
-        context['proposed_state'].state_details.flow_run_id = context['run'].flow_run_id
-        context['proposed_state'].state_details.task_run_id = context['task_run_id']
+        context["proposed_state"].state_details.flow_run_id = context["run"].flow_run_id
+        context["proposed_state"].state_details.task_run_id = context["task_run_id"]
 
     async def after_transition(self):
+        pass
+
+    async def cleanup(self):
         pass
 
 
