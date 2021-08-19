@@ -15,8 +15,6 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     FROM_STATES = []
     TO_STATES = []
-    ALWAYS_VALID = False
-    NEVER_FIZZLE = False
 
     def __init__(self, context, from_state, to_state):
         self.context = context
@@ -52,16 +50,12 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         raise NotImplementedError
 
     async def invalid(self):
-        if self.ALWAYS_VALID:
-            return False
-        elif self._invalid is None:
+        if self._invalid is None:
             self._invalid = await self.invalid_transition()
         return self._invalid
 
     async def fizzled(self):
-        if self.NEVER_FIZZLE:
-            return False
-        elif await self.invalid() and self._fizzled is None:
+        if not await self.invalid() and self._fizzled is None:
             self._fizzled = False
         elif self._fizzled is None:
             self._fizzled = await self.invalid_transition()
@@ -79,6 +73,31 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             else self.context["proposed_state"].type
         )
         return (self.from_state != initial_state) or (self.to_state != proposed_state)
+
+
+class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
+    FROM_STATES = []
+    TO_STATES = []
+
+    def __init__(self, context, from_state, to_state):
+        self.context = context
+        self.from_state = from_state
+        self.to_state = to_state
+
+    async def __aenter__(self):
+        await self.before_transition()
+        self.context["rule_signature"].append(self.__class__)
+        return self.context
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.after_transition()
+        self.context["finalization_signature"].append(self.__class__)
+
+    async def before_transition(self):
+        raise NotImplementedError
+
+    async def after_transition(self):
+        raise NotImplementedError
 
 
 @core_policy.register
@@ -117,6 +136,9 @@ class CacheInsertion(BaseOrchestrationRule):
         if context["proposed_state"].state_details.cache_key:
             await cache_task_run_state(context["session"], context["validated_state"])
 
+    async def cleanup(self):
+        pass
+
 
 @core_policy.register
 class RetryPotentialFailures(BaseOrchestrationRule):
@@ -145,11 +167,9 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 
 
 @global_policy.register
-class UpdateRunDetails(BaseOrchestrationRule):
+class UpdateRunDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
-    ALWAYS_VALID = True
-    NEVER_FIZZLE = True
 
     async def before_transition(self):
         context = self.context
@@ -167,11 +187,9 @@ class UpdateRunDetails(BaseOrchestrationRule):
 
 
 @global_policy.register
-class UpdateStateDetails(BaseOrchestrationRule):
+class UpdateStateDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
-    ALWAYS_VALID = True
-    NEVER_FIZZLE = True
 
     async def before_transition(self):
         context = self.context
