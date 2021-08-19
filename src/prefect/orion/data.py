@@ -32,4 +32,6 @@ async def read_datadoc_blob(datadoc: DataDocument, dataloc: DataLocation) -> byt
         return datadoc.blob
 
     with fsspec.open(datadoc.path) as fp:
-        return fp.read()
+        blob = fp.read()
+
+    return blob
