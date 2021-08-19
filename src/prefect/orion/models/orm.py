@@ -1,16 +1,12 @@
+from typing import List, Union
+
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, String, join, ForeignKey
+from sqlalchemy import JSON, Column, ForeignKey, String, join
 from sqlalchemy.orm import aliased, relationship
 
-from prefect.orion.schemas import core, states
-from prefect.orion.utilities.database import (
-    UUID,
-    Base,
-    Now,
-    Pydantic,
-    Timestamp,
-)
+from prefect.orion.schemas import core, schedules, states
+from prefect.orion.utilities.database import UUID, Base, Now, Pydantic, Timestamp
 from prefect.orion.utilities.functions import ParameterSchema
 
 
@@ -27,7 +23,7 @@ class Flow(Base):
 
 class FlowRunState(Base):
     # this column isn't explicitly indexed because it is included in
-    # the unique compound index on (task_run_id, timestamp)
+    # the unique compound index on (flow_run_id, timestamp)
     flow_run_id = Column(
         UUID(), ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
     )
@@ -190,6 +186,16 @@ class FlowRun(Base):
         lazy="joined",
     )
 
+    @classmethod
+    def state_filter(cls, state_types: List[states.StateType]):
+        """
+        Helper function that returns a SQLAlchemy expression for filtering runs by their state
+        """
+        if len(state_types) == 1:
+            return cls.state.has(FlowRunState.type == state_types[0])
+        else:
+            return cls.state.has(FlowRunState.type.in_(state_types))
+
     # unique index on flow id / idempotency key
     __table__args__ = sa.Index(
         "ix_flow_run_flow_id_idempotency_key",
@@ -268,6 +274,16 @@ class TaskRun(Base):
         lazy="joined",
     )
 
+    @classmethod
+    def state_filter(cls, state_types: List[states.StateType]):
+        """
+        Helper function that returns a SQLAlchemy expression for filtering runs by their state
+        """
+        if len(state_types) == 1:
+            return cls.state.has(TaskRunState.type == state_types[0])
+        else:
+            return cls.state.has(TaskRunState.type.in_(state_types))
+
     __table_args__ = (
         sa.Index(
             "ix_task_run_flow_run_id_task_key_dynamic_key",
@@ -282,5 +298,6 @@ class TaskRun(Base):
 class Deployment(Base):
     name = Column(String, nullable=False)
     flow_id = Column(UUID, ForeignKey("flow.id"), nullable=False, index=True)
+    schedules = Column(Pydantic(List[schedules.Schedule]))
 
     flow = relationship(Flow, lazy="joined")

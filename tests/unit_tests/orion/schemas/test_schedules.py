@@ -10,6 +10,7 @@ from prefect.orion.schemas.schedules import (
     IntervalClock,
     ClockAdjustments,
     ClockFilters,
+    Schedule,
 )
 
 
@@ -102,69 +103,69 @@ class TestIntervalClock:
         "start_date",
         [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
     )
-    def test_get_dates_from_start_date(self, start_date):
+    async def test_get_dates_from_start_date(self, start_date):
         clock = IntervalClock(
             interval=timedelta(days=1), anchor_date=datetime(2021, 1, 1)
         )
-        dates = clock.get_dates(n=5, start=start_date)
+        dates = await clock.get_dates(n=5, start=start_date)
         assert dates == [start_date.add(days=i) for i in range(5)]
 
     @pytest.mark.parametrize(
         "end_date",
         [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
     )
-    def test_get_dates_until_end_date(self, end_date):
+    async def test_get_dates_until_end_date(self, end_date):
         clock = IntervalClock(
             interval=timedelta(days=1), anchor_date=datetime(2021, 1, 1)
         )
 
-        dates = clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
+        dates = await clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
         assert len(dates) == (end_date - datetime(2018, 1, 1)).days + 1
 
-    def test_default_n_is_one_without_end_date(self):
+    async def test_default_n_is_one_without_end_date(self):
         clock = IntervalClock(
             interval=timedelta(days=1), anchor_date=datetime(2021, 1, 1)
         )
 
-        dates = clock.get_dates(start=datetime(2018, 1, 1, 6))
+        dates = await clock.get_dates(start=datetime(2018, 1, 1, 6))
         assert dates == [datetime(2018, 1, 2)]
 
     @pytest.mark.parametrize(
         "start_date",
         [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
     )
-    def test_get_dates_from_start_date_with_timezone(self, start_date):
+    async def test_get_dates_from_start_date_with_timezone(self, start_date):
         clock = IntervalClock(interval=timedelta(days=1), timezone="EST")
-        dates = clock.get_dates(n=5, start=start_date)
+        dates = await clock.get_dates(n=5, start=start_date)
         assert dates == [start_date.add(days=i).set(tz="EST") for i in range(5)]
 
     @pytest.mark.parametrize("n", [1, 2, 5])
-    def test_get_n_dates(self, n):
+    async def test_get_n_dates(self, n):
         clock = IntervalClock(interval=timedelta(days=1))
-        assert len(clock.get_dates(n=n)) == n
+        assert len(await clock.get_dates(n=n)) == n
 
-    def test_get_dates_from_anchor(self):
+    async def test_get_dates_from_anchor(self):
         clock = IntervalClock(
             interval=timedelta(days=1), anchor_date=datetime(2020, 2, 2, 23, 35)
         )
-        dates = clock.get_dates(n=5, start=datetime(2021, 7, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 7, 1))
         assert dates == [datetime(2021, 7, 1, 23, 35).add(days=i) for i in range(5)]
 
-    def test_get_dates_from_future_anchor(self):
+    async def test_get_dates_from_future_anchor(self):
         clock = IntervalClock(
             interval=timedelta(hours=17), anchor_date=datetime(2030, 2, 2, 5, 24)
         )
-        dates = clock.get_dates(n=5, start=datetime(2021, 7, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 7, 1))
         assert dates == [
             datetime(2021, 7, 1, 7, 24).add(hours=i * 17) for i in range(5)
         ]
 
-    def test_months_filter(self):
+    async def test_months_filter(self):
         clock = IntervalClock(
             interval=timedelta(days=10),
             filters=dict(months=[1, 3]),
         )
-        dates = clock.get_dates(n=10, start=datetime(2020, 1, 1))
+        dates = await clock.get_dates(n=10, start=datetime(2020, 1, 1))
         assert dates == [
             datetime(2020, 1, 1),
             datetime(2020, 1, 11),
@@ -178,7 +179,7 @@ class TestIntervalClock:
             datetime(2021, 1, 15),
         ]
 
-    def test_days_of_month_filter(self):
+    async def test_days_of_month_filter(self):
         clock = IntervalClock(
             interval=timedelta(days=1),
             filters=dict(
@@ -186,7 +187,7 @@ class TestIntervalClock:
                 days_of_month=[1, 5],
             ),
         )
-        dates = clock.get_dates(n=5, start=datetime(2021, 2, 2))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 2, 2))
         assert dates == [
             datetime(2021, 2, 5),
             datetime(2021, 4, 1),
@@ -195,12 +196,12 @@ class TestIntervalClock:
             datetime(2021, 6, 5),
         ]
 
-    def test_negative_days_of_month_filter(self):
+    async def test_negative_days_of_month_filter(self):
         clock = IntervalClock(
             interval=timedelta(days=1),
             filters=dict(days_of_month=[1, -5]),
         )
-        dates = clock.get_dates(n=8, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=8, start=datetime(2021, 1, 1))
         assert dates == [
             datetime(2021, 1, 1),
             datetime(2021, 1, 27),
@@ -212,13 +213,13 @@ class TestIntervalClock:
             datetime(2021, 4, 26),
         ]
 
-    def test_days_of_week_filter(self):
+    async def test_days_of_week_filter(self):
         clock = IntervalClock(
             interval=timedelta(days=1),
             anchor_date=datetime(2021, 1, 1, 12),
             filters=dict(days_of_week=[2, 4]),
         )
-        dates = clock.get_dates(n=5, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
         assert dates == [
             datetime(2021, 1, 1, 12),
             datetime(2021, 1, 6, 12),
@@ -227,12 +228,12 @@ class TestIntervalClock:
             datetime(2021, 1, 15, 12),
         ]
 
-    def test_hours_of_day_filter(self):
+    async def test_hours_of_day_filter(self):
         clock = IntervalClock(
             interval=timedelta(hours=1),
             filters=dict(hours_of_day=[11, 12, 13]),
         )
-        dates = clock.get_dates(n=5, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
         assert dates == [
             datetime(2021, 1, 1, 11),
             datetime(2021, 1, 1, 12),
@@ -241,12 +242,12 @@ class TestIntervalClock:
             datetime(2021, 1, 2, 12),
         ]
 
-    def test_minutes_of_hour_filter(self):
+    async def test_minutes_of_hour_filter(self):
         clock = IntervalClock(
             interval=timedelta(minutes=5),
             filters=dict(minutes_of_hour=list(range(0, 15))),
         )
-        dates = clock.get_dates(n=5, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
         assert dates == [
             datetime(2021, 1, 1, 0),
             datetime(2021, 1, 1, 0, 5),
@@ -274,53 +275,53 @@ class TestCronClock:
     every_day = "0 0 * * *"
     every_hour = "0 * * * *"
 
-    def test_every_day(self):
+    async def test_every_day(self):
         clock = CronClock(cron=self.every_day)
-        dates = clock.get_dates(n=5, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
         assert dates == [datetime(2021, 1, 1).add(days=i) for i in range(5)]
         assert all(d.tz.name == "UTC" for d in dates)
 
-    def test_every_hour(self):
+    async def test_every_hour(self):
         clock = CronClock(cron=self.every_hour)
-        dates = clock.get_dates(n=5, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
         assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
         assert all(d.tz.name == "UTC" for d in dates)
 
-    def test_every_day_with_timezone(self):
+    async def test_every_day_with_timezone(self):
         clock = CronClock(cron=self.every_hour, timezone="EST")
-        dates = clock.get_dates(n=5, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
         assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
         assert all(d.tz.name == "EST" for d in dates)
 
-    def test_every_day_with_timezone_start(self):
+    async def test_every_day_with_timezone_start(self):
         clock = CronClock(cron=self.every_hour)
-        dates = clock.get_dates(n=5, start=datetime(2021, 1, 1).in_tz("EST"))
+        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1).in_tz("EST"))
         assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
         assert all(d.tz.name == "EST" for d in dates)
 
-    def test_n(self):
+    async def test_n(self):
         clock = CronClock(cron=self.every_day)
-        dates = clock.get_dates(n=10, start=datetime(2021, 1, 1))
+        dates = await clock.get_dates(n=10, start=datetime(2021, 1, 1))
         assert dates == [datetime(2021, 1, 1).add(days=i) for i in range(10)]
 
-    def test_start_date(self):
+    async def test_start_date(self):
         start_date = datetime(2025, 5, 5)
         clock = CronClock(cron=self.every_day)
-        dates = clock.get_dates(n=10, start=start_date)
+        dates = await clock.get_dates(n=10, start=start_date)
         assert dates == [start_date.add(days=i) for i in range(10)]
 
     @pytest.mark.parametrize(
         "end_date",
         [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2022, 3, 3)],
     )
-    def test_get_dates_until_end_date(self, end_date):
+    async def test_get_dates_until_end_date(self, end_date):
         clock = CronClock(cron=self.every_day)
-        dates = clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
+        dates = await clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
         assert len(dates) == (end_date - datetime(2018, 1, 1)).days + 1
 
-    def test_default_n_is_one_without_end_date(self):
+    async def test_default_n_is_one_without_end_date(self):
         clock = CronClock(cron=self.every_day)
-        dates = clock.get_dates(start=datetime(2018, 1, 1, 6))
+        dates = await clock.get_dates(start=datetime(2018, 1, 1, 6))
         assert dates == [datetime(2018, 1, 2)]
 
 
@@ -332,7 +333,7 @@ class TestIntervalClockDaylightSavingsTime:
     survives.
     """
 
-    def test_interval_schedule_always_has_the_right_offset(self):
+    async def test_interval_schedule_always_has_the_right_offset(self):
         """
         Tests the situation where a long duration has passed since the start date that crosses a DST boundary;
         for very short intervals this occasionally could result in "next" scheduled times that are in the past by one hour.
@@ -346,46 +347,48 @@ class TestIntervalClockDaylightSavingsTime:
         s = IntervalClock(
             interval=timedelta(minutes=1, seconds=15), anchor_date=anchor_date
         )
-        dates = s.get_dates(n=4, start=current_date)
+        dates = await s.get_dates(n=4, start=current_date)
         assert all(d > current_date for d in dates)
 
-    def test_interval_schedule_hourly_daylight_savings_time_forward_with_UTC(self):
+    async def test_interval_schedule_hourly_daylight_savings_time_forward_with_UTC(
+        self,
+    ):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
         dt = datetime(2018, 3, 10, 23, tz="America/New_York")
         s = IntervalClock(interval=timedelta(hours=1))
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
         # skip 2am
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
         # constant hourly clock in utc time
         assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
 
-    def test_interval_schedule_hourly_daylight_savings_time_forward(self):
+    async def test_interval_schedule_hourly_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
         dt = datetime(2018, 3, 10, 23, tz="America/New_York")
         s = IntervalClock(interval=timedelta(hours=1), timezone="America/New_York")
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
         # skip 2am
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
         # constant hourly clock in utc time
         assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
 
-    def test_interval_schedule_hourly_daylight_savings_time_backward(self):
+    async def test_interval_schedule_hourly_daylight_savings_time_backward(self):
         """
         11/4/2018, at 2am, America/New_York switched clocks back an hour.
         """
         dt = datetime(2018, 11, 3, 23, tz="America/New_York")
         s = IntervalClock(interval=timedelta(hours=1), timezone="America/New_York")
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
         # repeat the 1am run in local time
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 1, 2]
         # runs every hour UTC
         assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 6, 7]
 
-    def test_interval_schedule_daily_start_daylight_savings_time_forward(self):
+    async def test_interval_schedule_daily_start_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
 
@@ -393,13 +396,13 @@ class TestIntervalClockDaylightSavingsTime:
         """
         dt = datetime(2018, 3, 8, 9, tz="America/New_York")
         s = IntervalClock(interval=timedelta(days=1), anchor_date=dt)
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
         # constant 9am start
         assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
         # utc time shifts
         assert [d.in_tz("UTC").hour for d in dates] == [14, 14, 14, 13, 13]
 
-    def test_interval_schedule_daily_start_daylight_savings_time_backward(self):
+    async def test_interval_schedule_daily_start_daylight_savings_time_backward(self):
         """
         On 11/4/2018, at 2am, America/New_York switched clocks back an hour.
 
@@ -407,7 +410,7 @@ class TestIntervalClockDaylightSavingsTime:
         """
         dt = datetime(2018, 11, 1, 9, tz="America/New_York")
         s = IntervalClock(interval=timedelta(days=1), anchor_date=dt)
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
         # constant 9am start
         assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
         assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
@@ -418,46 +421,48 @@ class TestCronClockDaylightSavingsTime:
     Tests that DST boundaries are respected
     """
 
-    def test_cron_schedule_hourly_daylight_savings_time_forward_ignored_with_UTC(self):
+    async def test_cron_schedule_hourly_daylight_savings_time_forward_ignored_with_UTC(
+        self,
+    ):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
         dt = datetime(2018, 3, 10, 23, tz="America/New_York")
         s = CronClock(cron="0 * * * *", timezone="America/New_York")
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
 
         # skip 2am
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
         # constant hourly clock in utc time
         assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
 
-    def test_cron_schedule_hourly_daylight_savings_time_forward(self):
+    async def test_cron_schedule_hourly_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
         dt = datetime(2018, 3, 10, 23, tz="America/New_York")
         s = CronClock(cron="0 * * * *", timezone="America/New_York")
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
 
         # skip 2am
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
         # constant hourly clock in utc time
         assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
 
-    def test_cron_schedule_hourly_daylight_savings_time_backward(self):
+    async def test_cron_schedule_hourly_daylight_savings_time_backward(self):
         """
         11/4/2018, at 2am, America/New_York switched clocks back an hour.
         """
         dt = datetime(2018, 11, 3, 23, tz="America/New_York")
         s = CronClock(cron="0 * * * *", timezone="America/New_York")
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
 
         # repeat the 1am run in local time
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
         # runs every hour UTC
         assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 6, 7, 8]
 
-    def test_cron_schedule_daily_start_daylight_savings_time_forward(self):
+    async def test_cron_schedule_daily_start_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
 
@@ -465,14 +470,14 @@ class TestCronClockDaylightSavingsTime:
         """
         dt = datetime(2018, 3, 8, 9, tz="America/New_York")
         s = CronClock(cron="0 9 * * *", timezone="America/New_York")
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
 
         # constant 9am start
         assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
         # utc time shifts
         assert [d.in_tz("UTC").hour for d in dates] == [14, 14, 14, 13, 13]
 
-    def test_cron_schedule_daily_start_daylight_savings_time_backward(self):
+    async def test_cron_schedule_daily_start_daylight_savings_time_backward(self):
         """
         On 11/4/2018, at 2am, America/New_York switched clocks back an hour.
 
@@ -480,8 +485,17 @@ class TestCronClockDaylightSavingsTime:
         """
         dt = datetime(2018, 11, 1, 9, tz="America/New_York")
         s = CronClock(cron="0 9 * * *", timezone="America/New_York")
-        dates = s.get_dates(n=5, start=dt)
+        dates = await s.get_dates(n=5, start=dt)
 
         # constant 9am start
         assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
         assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
+
+
+class TestSchedule:
+    def test_create_schedule(self):
+        clock = IntervalClock(interval=timedelta(days=1))
+        s = Schedule(clock=clock)
+        assert s.clock is clock
+        assert s.is_active
+        assert s.parameters == {}

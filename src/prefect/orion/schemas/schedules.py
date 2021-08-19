@@ -1,13 +1,16 @@
-from uuid import UUID
-import pytz
+import asyncio
 import datetime
 from typing import List, Set, Union, Dict, Any
+from typing import List, Set, Union
+from uuid import UUID
 
 import pendulum
+import pytz
 from croniter import croniter
 from pendulum.tz.timezone import Timezone
 from pydantic import Field, conint, validator
-from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
+
+from prefect.orion.utilities.schemas import APIBaseModel, PrefectBaseModel
 
 MAX_ITERATIONS = 10000
 
@@ -122,7 +125,7 @@ class IntervalClock(PrefectBaseModel):
             raise ValueError("Specify an anchor date or a timezone, but not both.")
         return v or pendulum.datetime(2020, 1, 1, tz=values.get("timezone") or "UTC")
 
-    def get_dates(
+    async def get_dates(
         self,
         n: int = None,
         start: datetime.datetime = None,
@@ -192,6 +195,9 @@ class IntervalClock(PrefectBaseModel):
 
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
 
+            # yield event loop control
+            await asyncio.sleep(0)
+
         return dates
 
 
@@ -238,7 +244,7 @@ class CronClock(PrefectBaseModel):
             raise ValueError(f'Invalid cron string: "{v}"')
         return v
 
-    def get_dates(
+    async def get_dates(
         self,
         n: int = None,
         start: datetime.datetime = None,
@@ -310,10 +316,13 @@ class CronClock(PrefectBaseModel):
 
             counter += 1
 
+            # yield event loop control
+            await asyncio.sleep(0)
+
         return dates
 
 
-class Schedule(PrefectBaseModel):
+class Schedule(APIBaseModel):
     clock: Union[IntervalClock, CronClock]
-    parameter_defaults: Dict[str, Any] = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
