@@ -16,15 +16,19 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     FROM_STATES = []
     TO_STATES = []
 
-    def __init__(self, context):
+    def __init__(self, context, from_state, to_state):
         self.context = context
+        self.from_state = from_state
+        self.to_state = to_state
 
     async def __aenter__(self):
         await self.before_transition()
+        self.context['rule_signature'].append(self.__class__)
         return self.context
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.after_transition()
+        self.context['finalization_signature'].append(self.__class__)
 
     async def before_transition(self):
         raise NotImplementedError
