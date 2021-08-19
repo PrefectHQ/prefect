@@ -28,9 +28,9 @@ async def create_data_document(
     datadoc.name = datadoc.name or datadoc.id.hex
     datadoc.path = f"{dataloc.base_path}/{datadoc.name}"
 
-    # If not storing the data inline, write to the external location and drop the blob
-    # from the database record
-    if dataloc.scheme != "inline":
+    # If not storing the data in the database, write to the external location and
+    # drop the blob from the database object
+    if dataloc.scheme != "db":
         # TODO: Submit this write to a background worker so we can return before
         #       waiting for the data to be written
         await write_datadoc_blob(datadoc, dataloc)

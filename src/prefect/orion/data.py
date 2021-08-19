@@ -18,7 +18,7 @@ def get_instance_data_location() -> DataLocation:
 
 async def write_datadoc_blob(datadoc: DataDocument, dataloc: DataLocation) -> bool:
     # Write the data document to the given location...
-    if dataloc.scheme == "inline":
+    if dataloc.scheme == "db":
         return False
 
     with fsspec.open(datadoc.path, mode="wb") as fp:
@@ -28,7 +28,7 @@ async def write_datadoc_blob(datadoc: DataDocument, dataloc: DataLocation) -> bo
 
 
 async def read_datadoc_blob(datadoc: DataDocument, dataloc: DataLocation) -> bytes:
-    if dataloc.scheme == "inline":
+    if dataloc.scheme == "db":
         return datadoc.blob
 
     with fsspec.open(datadoc.path) as fp:

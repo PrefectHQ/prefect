@@ -10,7 +10,16 @@ class TestCreateDataDocument:
             datadoc=schemas.actions.DataDocumentCreate(blob=b"hello"),
         )
         assert datadoc.blob == b"hello"
-        assert datadoc.path == "/" + datadoc.id.hex
+        assert datadoc.path == "/tmp/" + datadoc.id.hex
+
+    async def test_create_data_document_with_name(self, session):
+        datadoc = await models.data.create_data_document(
+            session=session,
+            datadoc=schemas.actions.DataDocumentCreate(blob=b"hello", name="foo"),
+        )
+        assert datadoc.name == "foo"
+        assert datadoc.blob == b"hello"
+        assert datadoc.path == "/tmp/foo"
 
     async def test_create_multiple_datadocs(self, session):
         datadoc_1 = await models.data.create_data_document(
