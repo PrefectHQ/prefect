@@ -1,19 +1,12 @@
 from datetime import datetime
-from typing import Set
-from enum import Enum
+from typing import Set, Literal
 
 from prefect.orion.utilities.schemas import APIBaseModel
 
 
-class DataScheme(Enum):
-    S3 = "s3"
-    FILE = "file"
-    INLINE = "inline"  # The blob remains on the data document at all times
-
-
 class DataLocation(APIBaseModel):
     name: str
-    scheme: DataScheme
+    scheme: Literal["s3", "file", "inline"] = "inline"
     base_path: str = ""
     tags: Set[str] = None
     is_healthy: bool = False
