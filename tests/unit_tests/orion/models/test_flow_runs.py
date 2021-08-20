@@ -125,13 +125,18 @@ class TestCreateFlowRun:
 
         assert flow_run.id != flow_run_2.id
 
-    async def test_create_flow_run_succeeds(self, flow, session):
+    async def test_create_flow_run_with_deployment_id(self, flow, session):
+
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(name="", flow_id=flow.id),
+        )
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
         assert flow_run.flow_id == flow.id
-        assert flow_run.flow_version == "0.1"
+        assert flow_run.deployment_id == deployment.id
 
 
 class TestReadFlowRun:

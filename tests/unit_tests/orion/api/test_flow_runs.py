@@ -2,7 +2,7 @@ import sqlalchemy as sa
 import pytest
 from uuid import uuid4
 from prefect.orion import models
-from prefect.orion.schemas import responses, states, actions
+from prefect.orion.schemas import responses, states, actions, core
 
 
 class TestCreateFlowRun:
@@ -100,6 +100,22 @@ class TestCreateFlowRun:
         assert str(flow_run.id) == response.json()["id"]
         assert str(flow_run.state.id) == flow_run_data["state"]["id"]
         assert flow_run.state.type.value == flow_run_data["state"]["type"]
+
+    async def test_create_flow_run_with_deployment_id(self, flow, client, session):
+
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=core.Deployment(name="", flow_id=flow.id),
+        )
+
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id, deployment_id=deployment.id
+            ).dict(json_compatible=True),
+        )
+
+        assert response.json()["deployment_id"] == str(deployment.id)
 
 
 class TestReadFlowRun:
