@@ -118,7 +118,7 @@ class OrionClient:
 
         create_datadoc = schemas.actions.DataDocumentCreate(
             blob=base64.encodebytes(obj_bytes),
-            serializer=serializer.__name__,
+            format=serializer.__name__,
             name=name,
             tags=tags,
         )
@@ -138,7 +138,10 @@ class OrionClient:
         datadoc = schemas.data.DataDocument.parse_obj(response.json())
 
         # TODO: Actually resolve the serializer from the datadoc
-        serializer = cloudpickle
+        if datadoc.format == "cloudpickle":
+            serializer = cloudpickle
+        else:
+            raise ValueError(f"Unknown data format {datadoc.format!r}")
 
         return serializer.loads(base64.decodebytes(datadoc.blob))
 
