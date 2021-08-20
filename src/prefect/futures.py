@@ -49,14 +49,15 @@ class PrefectFuture:
 
     def get_state(self) -> State:
         method = (
-            self._client.read_task_run_states
+            self._client.read_task_run
             if self.task_run_id
-            else self._client.read_flow_run_states
+            else self._client.read_flow_run
         )
-        states = method(self.run_id)
-        if not states:
-            raise RuntimeError("Future has no associated state in the server.")
-        return states[-1]
+        run = method(self.run_id)
+
+        if not run:
+            raise RuntimeError("Future has no associated run in the server.")
+        return run.state
 
     def __hash__(self) -> int:
         return hash(self.run_id)

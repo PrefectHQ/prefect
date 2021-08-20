@@ -63,23 +63,12 @@ class TestCreateFlowRun:
         assert response2.status_code == 201
         assert response1.json()["id"] != response2.json()["id"]
 
-    async def test_create_flow_run_with_provided_id(self, flow, client, session):
-        flow_run_data = dict(flow_id=str(flow.id), id=str(uuid4()), flow_version="0.1")
-        response = await client.post("/flow_runs/", json=flow_run_data)
-        assert response.json()["id"] == flow_run_data["id"]
-
-        flow_run = await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=flow_run_data["id"]
-        )
-        assert flow_run
-
     async def test_create_flow_run_with_subflow_information(
         self, flow, task_run, client, session
     ):
         flow_run_data = dict(
             flow_id=str(flow.id),
             parent_task_run_id=str(task_run.id),
-            flow_version="0.1",
         )
         response = await client.post("/flow_runs/", json=flow_run_data)
 
@@ -87,6 +76,30 @@ class TestCreateFlowRun:
             session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.parent_task_run_id == task_run.id
+
+    async def test_create_flow_run_without_state(self, flow, client, session):
+        flow_run_data = dict(
+            flow_id=str(flow.id),
+        )
+        response = await client.post("/flow_runs/", json=flow_run_data)
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=response.json()["id"]
+        )
+        assert str(flow_run.id) == response.json()["id"]
+        assert flow_run.state is None
+
+    async def test_create_flow_run_with_state(self, flow, client, session):
+        flow_run_data = dict(
+            flow_id=str(flow.id),
+            state=states.State(type="RUNNING").dict(json_compatible=True),
+        )
+        response = await client.post("/flow_runs/", json=flow_run_data)
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=response.json()["id"]
+        )
+        assert str(flow_run.id) == response.json()["id"]
+        assert str(flow_run.state.id) == flow_run_data["state"]["id"]
+        assert flow_run.state.type.value == flow_run_data["state"]["type"]
 
     async def test_create_flow_run_with_deployment_id(self, flow, client, session):
 
@@ -112,6 +125,17 @@ class TestReadFlowRun:
         assert response.status_code == 200
         assert response.json()["id"] == str(flow_run.id)
         assert response.json()["flow_id"] == str(flow.id)
+
+    async def test_read_flow_run_with_state(self, flow_run, client, session):
+        state_id = uuid4()
+        await models.flow_run_states.create_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=states.State(id=state_id, type="RUNNING"),
+        )
+        response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert flow_run.state.type.value == "RUNNING"
+        assert flow_run.state.id == state_id
 
     async def test_read_flow_run_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/flow_runs/{uuid4()}")
