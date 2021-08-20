@@ -38,7 +38,7 @@ To migrate the database, run the following two lines in a python repl
 
 ```python
 import prefect, asyncio
-asyncio.run(prefect.orion.utilities.database.reset_db())
+asyncio.run(prefect.orion.utilities.database.create_db())
 ```
 
 Note that for SQLite in-memory databases, models are created automatically.
