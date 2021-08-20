@@ -70,6 +70,8 @@ async def create_task_run_state(
         await session.flush()
         context.validated_state = validated_state
         await stack.aclose()
+        if run is not None:
+            run.state = validated_state
     return validated_state
 
 

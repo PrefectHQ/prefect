@@ -271,9 +271,7 @@ class UpdateRunDetails(BaseUniversalRule):
         return entry_context
 
     async def after_transition(self, exit_context):
-        if exit_context["run"] is not None:
-            exit_context["run"].state = exit_context["validated_state"]
-        return exit_context
+        pass
 
 
 @global_policy.register
