@@ -55,6 +55,6 @@ class TaskRun(ORMBaseModel):
     task_run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
 
 
-class Deployment(APIBaseModel):
+class Deployment(ORMBaseModel):
     name: str
     flow_id: UUID
