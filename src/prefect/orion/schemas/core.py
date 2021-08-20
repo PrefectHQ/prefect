@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from prefect.orion.schemas import states
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
 
@@ -30,6 +31,7 @@ class FlowRun(ORMBaseModel):
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     flow_run_details: FlowRunDetails = Field(default_factory=FlowRunDetails)
     parent_task_run_id: UUID = None
+    state: states.State = None
 
 
 class TaskRunDetails(PrefectBaseModel):
@@ -53,6 +55,7 @@ class TaskRun(ORMBaseModel):
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
+    state: states.State = None
 
 
 class Deployment(ORMBaseModel):

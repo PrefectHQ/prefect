@@ -1,4 +1,3 @@
-from prefect.orion.schemas.core import ORMBaseModel
 import datetime
 from typing import Any, Optional
 from uuid import UUID
@@ -51,7 +50,10 @@ class State(ORMBaseModel):
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
         """If a name is not provided, use the type"""
-        if v is None:
+
+        # if type is not in values it means it didn't pass its own
+        # validation check and an error will be raised
+        if v is None and "type" in values:
             v = values.get("type").value.capitalize()
         return v
 
