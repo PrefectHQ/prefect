@@ -4,14 +4,15 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion import schemas
+from prefect.orion import schemas, models
 from prefect.orion.models import orm
 
 
 async def create_task_run(
     session: sa.orm.Session, task_run: schemas.core.TaskRun
 ) -> orm.TaskRun:
-    """Creates a new task run
+    """Creates a new task run. If the provided task run has a state attached, it
+    will also be created.
 
     Args:
         session (sa.orm.Session): a database session
@@ -20,9 +21,13 @@ async def create_task_run(
     Returns:
         orm.TaskRun: the newly-created flow run
     """
-    model = orm.TaskRun(**task_run.dict(shallow=True), state=None)
+    model = orm.TaskRun(**task_run.dict(shallow=True, exclude={"state"}), state=None)
     session.add(model)
     await session.flush()
+    if task_run.state:
+        await models.task_run_states.create_task_run_state(
+            session=session, task_run_id=model.id, state=task_run.state
+        )
     return model
 
 
