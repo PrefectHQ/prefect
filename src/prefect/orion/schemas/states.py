@@ -9,7 +9,6 @@ from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
 
 
-
 class StateType(AutoEnum):
     SCHEDULED = AutoEnum.auto()
     PENDING = AutoEnum.auto()
