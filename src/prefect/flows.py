@@ -11,6 +11,7 @@ from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.callables import get_call_parameters
 
 if TYPE_CHECKING:
     from prefect.context import FlowRunContext
@@ -100,7 +101,7 @@ class Flow:
             )
 
         # Generate dict of passed parameters
-        parameters = inspect.signature(self.fn).bind_partial(*args, **kwargs).arguments
+        parameters = get_call_parameters(self.fn, args, kwargs)
 
         client = OrionClient()
 
@@ -113,10 +114,11 @@ class Flow:
             )
 
         flow_run_id = client.create_flow_run(
-            self, parameters=parameters, parent_task_run_id=parent_task_run_id
+            self,
+            parameters=parameters,
+            parent_task_run_id=parent_task_run_id,
+            state=State(type=StateType.PENDING),
         )
-
-        client.set_flow_run_state(flow_run_id, State(type=StateType.PENDING))
 
         executor_context = (
             executor.start(flow_run_id=flow_run_id, orion_client=client)
