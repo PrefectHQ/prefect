@@ -1,20 +1,23 @@
 """
 Reduced schemas for accepting API actions
 """
-from prefect.orion.schemas.core import Flow, FlowRun, TaskRun
-from prefect.orion.schemas.states import State
-from prefect.orion.schemas.data import DataDocument
+from prefect.orion import schemas
 
-FlowCreate = Flow.subclass(
+FlowCreate = schemas.core.Flow.subclass(
     name="FlowCreate",
     include_fields=["name", "tags", "parameters"],
 )
 
-FlowRunCreate = FlowRun.subclass(
+DeploymentCreate = schemas.core.Deployment.subclass(
+    name="DeploymentCreate",
+    include_fields=["name", "flow_id"],
+)
+
+FlowRunCreate = schemas.core.FlowRun.subclass(
     name="FlowRunCreate",
     include_fields=[
-        "id",
         "flow_id",
+        "deployment_id",
         "flow_version",
         "parameters",
         "context",
@@ -22,10 +25,11 @@ FlowRunCreate = FlowRun.subclass(
         "flow_run_details",
         "parent_task_run_id",
         "idempotency_key",
+        "state",
     ],
 )
 
-StateCreate = State.subclass(
+StateCreate = schemas.states.State.subclass(
     name="StateCreate",
     include_fields=[
         "type",
@@ -38,7 +42,7 @@ StateCreate = State.subclass(
     ],
 )
 
-TaskRunCreate = TaskRun.subclass(
+TaskRunCreate = schemas.core.TaskRun.subclass(
     name="TaskRunCreate",
     include_fields=[
         "flow_run_id",
@@ -52,10 +56,11 @@ TaskRunCreate = TaskRun.subclass(
         "task_inputs",
         "upstream_task_run_ids",
         "task_run_details",
+        "state",
     ],
 )
 
-DataDocumentCreate = DataDocument.subclass(
+DataDocumentCreate = schemas.data.DataDocument.subclass(
     name="DataDocumentCreate",
     include_fields=[
         "name",

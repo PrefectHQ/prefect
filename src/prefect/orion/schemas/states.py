@@ -1,4 +1,3 @@
-from prefect.orion.schemas.core import APIBaseModel
 import datetime
 from typing import Any, Optional
 from uuid import UUID
@@ -7,7 +6,7 @@ import pendulum
 from pydantic import Field, validator
 
 from prefect.orion.utilities.enum import AutoEnum
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
 
 
 class StateType(AutoEnum):
@@ -37,7 +36,7 @@ class RunDetails(PrefectBaseModel):
     last_run_time: datetime.datetime = None
 
 
-class State(APIBaseModel):
+class State(ORMBaseModel):
     type: StateType
     name: str = None
     timestamp: datetime.datetime = Field(
@@ -51,7 +50,10 @@ class State(APIBaseModel):
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
         """If a name is not provided, use the type"""
-        if v is None:
+
+        # if type is not in values it means it didn't pass its own
+        # validation check and an error will be raised
+        if v is None and "type" in values:
             v = values.get("type").value.capitalize()
         return v
 
