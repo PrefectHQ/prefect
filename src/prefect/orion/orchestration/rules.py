@@ -1,7 +1,7 @@
 import contextlib
 import pendulum
 import sqlalchemy as sa
-from pydantic import BaseModel, Field 
+from pydantic import BaseModel, Field
 from pydantic.typing import Optional
 from sqlalchemy import select
 from typing import Optional, Any
@@ -19,8 +19,8 @@ class OrchestrationContext(BaseModel):
     initial_state: Optional[states.State]
     proposed_state: states.State
     validated_state: Optional[states.State]
-    session: Any
-    run: schemas.core.TaskRun
+    session: Any # no validator for sa.orm.Session
+    run: Any # Optional[schemas.core.TaskRun] doesn't work for some reason
     task_run_id: UUID
     rule_signature: list[str] = Field(default_factory=list)
     finalization_signature: list[str] = Field(default_factory=list)
@@ -35,7 +35,10 @@ class OrchestrationContext(BaseModel):
 
     @property
     def run_details(self):
-        return self.run.state.run_details
+        try:
+            return self.run.state.run_details
+        except AttributeError:
+            return None
 
     @property
     def run_settings(self):
@@ -47,6 +50,7 @@ class OrchestrationContext(BaseModel):
             'initial_state_type': self.initial_state_type,
             'proposed_state': self.proposed_state,
             'proposed_state_type': self.proposed_state_type,
+            'session': self.session,
             'run_details': self.run_details,
             'run_settings': self.run_settings,
         }
@@ -57,22 +61,11 @@ class OrchestrationContext(BaseModel):
             'initial_state_type': self.initial_state_type,
             'proposed_state': self.proposed_state,
             'proposed_state_type': self.proposed_state_type,
+            'session': self.session,
             'validated_state': self.validated_state,
             'run_details': self.run_details,
             'run_settings': self.run_settings,
         }
-
-    def global_entry_context(self):
-        ctx = self.entry_context()
-        ctx.update('run', self.run)
-        ctx.update('task_run_id', self.task_run_id)
-        return ctx
-
-    def global_exit_context(self):
-        ctx = self.exit_context()
-        ctx.update('run', self.run)
-        ctx.update('task_run_id', self.task_run_id)
-        return ctx
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
@@ -90,14 +83,14 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if await self.invalid():
             pass
         else:
-            entry_context = context.entry_context()
+            entry_context = self.context.entry_context()
             proposed_state = await self.before_transition(**entry_context)
             self.context.proposed_state = proposed_state
             self.context.rule_signature.append(self.__class__)
         return self.context
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        exit_context = context.exit_context()
+        exit_context = self.context.exit_context()
         if await self.invalid():
             pass
         elif await self.fizzled():
@@ -151,22 +144,18 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         self.to_state = to_state
 
     async def __aenter__(self):
-        entry_context = self.context.global_entry_context()
-        ctx_update = await self.before_transition(**entry_context)
-        self.context = self.context.copy(update=ctx_update)
+        await self.before_transition()
         self.context.rule_signature.append(self.__class__)
         return self.context
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        exit_context = self.context.global_exit_context()
-        ctx_update = await self.after_transition(**exit_context)
-        self.context = self.context.copy(update=ctx_update)
+        await self.after_transition()
         self.context.finalization_signature.append(self.__class__)
 
-    async def before_transition(self, **kwargs):
+    async def before_transition(self):
         raise NotImplementedError
 
-    async def after_transition(self, **kwargs):
+    async def after_transition(self, exc_type, exc_value, traceback):
         raise NotImplementedError
 
 
@@ -201,7 +190,7 @@ class CacheInsertion(BaseOrchestrationRule):
     async def before_transition(self, proposed_state, **kwargs):
         return proposed_state
 
-    async def after_transition(self, proposed_state, validated_state, **kwargs):
+    async def after_transition(self, proposed_state, validated_state, session, **kwargs):
         if proposed_state.state_details.cache_key:
             await cache_task_run_state(session, validated_state)
 
@@ -237,18 +226,14 @@ class UpdateRunDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
-    async def before_transition(self, initial_state, proposed_state, **kwargs):
-        proposed_state.run_details = states.update_run_details(
-            from_state=initial_state, to_state=proposed_state
+    async def before_transition(self):
+        self.context.proposed_state.run_details = states.update_run_details(
+            from_state=self.context.initial_state, to_state=self.context.proposed_state
         )
-        ctx_update = {"proposed_state": proposed_state}
-        return ctx_update
 
-    async def after_transition(self, validated_state, run, **kwargs):
-        if run is not None:
-            run.state = validated_state
-        ctx_update = {"run": run}
-        return ctx_update
+    async def after_transition(self):
+        if self.context.run is not None:
+            self.context.run.state = self.context.validated_state
 
 
 @global_policy.register
@@ -256,13 +241,11 @@ class UpdateStateDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
-    async def before_transition(self, proposed_state, task_run_id, **kwargs):
-        proposed_state.state_details.flow_run_id = run.flow_run_id
-        proposed_state.state_details.task_run_id = task_run_id
-        ctx_update = {"proposed_state": proposed_state}
-        return ctx_update
+    async def before_transition(self):
+        self.context.proposed_state.state_details.flow_run_id = self.context.run.flow_run_id
+        self.context.proposed_state.state_details.task_run_id = self.context.task_run_id
 
-    async def after_transition(self, **kwargs):
+    async def after_transition(self):
         pass
 
 
