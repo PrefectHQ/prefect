@@ -9,14 +9,14 @@ from prefect.orion.models import orm
 
 
 async def create_task_run(
-    session: sa.orm.Session, task_run: schemas.actions.TaskRunCreate
+    session: sa.orm.Session, task_run: schemas.core.TaskRun
 ) -> orm.TaskRun:
     """Creates a new task run. If the provided task run has a state attached, it
     will also be created.
 
     Args:
         session (sa.orm.Session): a database session
-        task_run (schemas.actions.TaskRunCreate): a task run model
+        task_run (schemas.core.TaskRun): a task run model
 
     Returns:
         orm.TaskRun: the newly-created flow run
