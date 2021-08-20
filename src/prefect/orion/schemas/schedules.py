@@ -10,7 +10,7 @@ from croniter import croniter
 from pendulum.tz.timezone import Timezone
 from pydantic import Field, conint, validator
 
-from prefect.orion.utilities.schemas import APIBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
 
 MAX_ITERATIONS = 10000
 
@@ -322,7 +322,7 @@ class CronClock(PrefectBaseModel):
         return dates
 
 
-class Schedule(APIBaseModel):
+class Schedule(IDBaseModel):
     clock: Union[IntervalClock, CronClock]
     parameters: Dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
