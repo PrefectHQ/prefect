@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock
 
 from prefect.orion.data import write_blob, read_blob, resolve_orion_datadoc
-from prefect.orion.schemas.data import DataDocument, DataLocation
+from prefect.orion.schemas.data import DataDocument
 
 
 class TestReadWriteBlob:

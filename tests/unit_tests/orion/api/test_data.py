@@ -8,7 +8,6 @@ from prefect.orion.schemas.data import DataDocument
 
 @pytest.fixture
 def tmpdir_dataloc_settings(tmpdir, monkeypatch):
-    old_settings = settings
     new_settings = settings.copy(deep=True).dict()
     new_settings["orion"]["data"] = DataLocationSettings(
         scheme="file",

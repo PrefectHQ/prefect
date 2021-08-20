@@ -5,3 +5,4 @@ pytest-asyncio
 flake8
 pytest-env
 requests
+asyncmock; python_version < '3.8'
