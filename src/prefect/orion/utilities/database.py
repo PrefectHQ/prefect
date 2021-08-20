@@ -337,8 +337,13 @@ class Base(object):
     __mapper_args__ = {"eager_defaults": True}
 
 
-async def reset_db(engine=None):
+async def create_db(engine=None):
+    engine = engine or get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def drop_db(engine=None):
     engine = engine or get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
