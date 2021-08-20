@@ -59,13 +59,3 @@ TaskRunCreate = schemas.core.TaskRun.subclass(
         "state",
     ],
 )
-
-DataDocumentCreate = schemas.data.DataDocument.subclass(
-    name="DataDocumentCreate",
-    include_fields=[
-        "name",
-        "tags",
-        "blob",
-        "format",
-    ],
-)

@@ -1,39 +1,55 @@
-from uuid import UUID
-import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Path, Body, Response, status
+from pathlib import PosixPath
+from uuid import uuid4
+from fastapi import Response, status
 
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+from prefect.orion.data import (
+    get_instance_data_location,
+    resolve_orion_datadoc,
+    write_blob,
+)
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/data", tags=["Data Documents"])
 
 
-@router.post("/")
-async def create_data_document(
-    datadoc: schemas.actions.DataDocumentCreate,
+@router.post("/put")
+async def create_orion_datadoc(
+    datadoc: DataDocument,
     response: Response,
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.data.DataDocument:
+) -> DataDocument:
     """
-    Create a data document
+    Exchange a data document for an Orion data document
     """
-    nested = await session.begin_nested()
-    # TODO: Determine how to handle failure? What failure cases are there?
-    datadoc = await models.data.create_data_document(session=session, datadoc=datadoc)
+    # Retrieve the configured data location
+    dataloc = get_instance_data_location()
+
+    # Generate a path to write the data
+    path = str(PosixPath(dataloc.base_path).joinpath(uuid4().hex).absolute())
+
+    # Write the datadoc as a blob to `path`
+    await write_blob(datadoc.json().encode(), dataloc.scheme, path)
+
+    # Generate a new datadoc with the location
+    loc_datadoc = DataDocument(encoding=dataloc.scheme, blob=path.encode())
+
+    # Return an Orion datadoc to show that it should be resolved by GET /data
+    orion_datadoc = DataDocument(encoding="orion", blob=loc_datadoc.json().encode())
+
     response.status_code = status.HTTP_201_CREATED
-    return datadoc
+    return orion_datadoc
 
 
-@router.get("/{id}")
-async def read_data_document(
-    datadoc_id: UUID = Path(..., description="The data document id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.data.DataDocument:
+@router.post("/get")
+async def get_user_datadoc(datadoc: DataDocument) -> DataDocument:
     """
-    Get a data document by id
+    Resolve a data document that Orion is responsible for into the original data
+    document provided by the user
     """
-    data = await models.data.read_data_document(session=session, datadoc_id=datadoc_id)
-    if not data:
-        raise HTTPException(status_code=404, detail="Data document not found")
-    return data
+    if datadoc.encoding != "orion":
+        raise ValueError(
+            f"Invalid encoding: {datadoc.encoding!r}. Only 'orion' data documents can "
+            "be retrieved from the Orion API."
+        )
+
+    return await resolve_orion_datadoc(datadoc)
