@@ -7,10 +7,10 @@ from pydantic import Field
 from prefect.orion import schemas
 from prefect.orion.schemas import states
 from prefect.orion.utilities.functions import ParameterSchema
-from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
 
 
-class Flow(APIBaseModel):
+class Flow(ORMBaseModel):
     name: str = Field(..., example="my-flow")
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     parameters: ParameterSchema = Field(default_factory=ParameterSchema)
@@ -21,7 +21,7 @@ class FlowRunDetails(PrefectBaseModel):
     schedule_id: UUID = None
 
 
-class FlowRun(APIBaseModel):
+class FlowRun(ORMBaseModel):
     flow_id: UUID
     deployment_id: UUID = None
     flow_version: str = Field(None, example="1.0")
@@ -45,7 +45,7 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay_seconds: float = 0
 
 
-class TaskRun(APIBaseModel):
+class TaskRun(ORMBaseModel):
     flow_run_id: UUID
     task_key: str
     dynamic_key: str = None
@@ -60,7 +60,7 @@ class TaskRun(APIBaseModel):
     state: states.State = None
 
 
-class Deployment(APIBaseModel):
+class Deployment(ORMBaseModel):
     name: str
     flow_id: UUID
     schedules: List[schemas.schedules.Schedule] = Field(default_factory=list)
