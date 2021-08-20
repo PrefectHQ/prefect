@@ -1,5 +1,6 @@
 import inspect
 import time
+import datetime
 from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Tuple, Union
 from uuid import UUID
@@ -11,6 +12,7 @@ from prefect.futures import PrefectFuture, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateType, StateDetails
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
+from prefect.utilities.callables import get_call_parameters
 
 
 def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -57,6 +59,7 @@ class Task:
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
+        cache_expiration: datetime.timedelta = None,
         retries: int = 0,
         retry_delay_seconds: Union[float, int] = 0,
     ):
@@ -85,6 +88,7 @@ class Task:
 
         self.dynamic_key = 0
         self.cache_key_fn = cache_key_fn
+        self.cache_expiration = cache_expiration
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -109,18 +113,22 @@ class Task:
             client=client,
         )
 
-        # Bind the arguments to the function to get a dict of arg -> value
-        bound_signature = inspect.signature(self.fn).bind(*call_args, **call_kwargs)
-        bound_signature.apply_defaults()
-        arguments = bound_signature.arguments
-        cache_key = self.cache_key_fn(context, arguments) if self.cache_key_fn else None
+        # Get a dict of arg -> value for generating the cache key
+        parameters = get_call_parameters(self.fn, call_args, call_kwargs)
+
+        cache_key = (
+            self.cache_key_fn(context, parameters) if self.cache_key_fn else None
+        )
 
         # Transition from `PENDING` -> `RUNNING`
         state = propose_state(
             client,
             task_run_id,
             State(
-                type=StateType.RUNNING, state_details=StateDetails(cache_key=cache_key)
+                type=StateType.RUNNING,
+                state_details=StateDetails(
+                    cache_key=cache_key,
+                ),
             ),
         )
 
@@ -144,8 +152,13 @@ class Task:
             else:
                 terminal_state = return_val_to_state(result)
 
-                # for COMPLETED tasks, add the cache key
+                # for COMPLETED tasks, add the cache key and expiration
                 if terminal_state.is_completed():
+                    terminal_state.state_details.cache_expiration = (
+                        (pendulum.now("utc") + self.cache_expiration)
+                        if self.cache_expiration
+                        else None
+                    )
                     terminal_state.state_details.cache_key = cache_key
 
             state = propose_state(client, task_run_id, terminal_state)
