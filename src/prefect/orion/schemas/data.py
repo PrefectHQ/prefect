@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Set, Literal
+from typing import Set
+from typing_extensions import Literal
 
 from prefect.orion.utilities.schemas import ORMBaseModel
 
