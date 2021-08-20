@@ -1,5 +1,4 @@
 from typing import Union
-from enum import auto
 
 from prefect.orion.schemas.states import State, RunDetails, StateDetails
 from prefect.orion.utilities.enum import AutoEnum
@@ -7,9 +6,9 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 class SetStateStatus(AutoEnum):
-    ACCEPT = auto()
-    REJECT = auto()
-    ABORT = auto()
+    ACCEPT = AutoEnum.auto()
+    REJECT = AutoEnum.auto()
+    ABORT = AutoEnum.auto()
 
 
 class SetStateAcceptDetails(PrefectBaseModel):

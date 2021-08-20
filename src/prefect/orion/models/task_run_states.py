@@ -152,7 +152,7 @@ async def get_cached_task_run_state(
                 orm.TaskRunStateCache.cache_key == cache_key,
                 sa.or_(
                     orm.TaskRunStateCache.cache_expiration.is_(None),
-                    orm.TaskRunStateCache.cache_expiration < pendulum.now("utc"),
+                    orm.TaskRunStateCache.cache_expiration > pendulum.now("utc"),
                 ),
             ),
         )
@@ -170,7 +170,7 @@ async def cache_task_run_state(
     # create the new task run state
     new_cache_item = orm.TaskRunStateCache(
         cache_key=state.state_details.cache_key,
-        cache_expiration=None,
+        cache_expiration=state.state_details.cache_expiration,
         task_run_state_id=state.id,
     )
     session.add(new_cache_item)
