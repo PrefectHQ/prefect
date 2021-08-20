@@ -1,23 +1,17 @@
-from datetime import datetime
-from typing import Set
 from typing_extensions import Literal
 
-from prefect.orion.utilities.schemas import ORMBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
-class DataLocation(ORMBaseModel):
+DataSchemes = Literal["s3", "file"]
+
+
+class DataLocation(PrefectBaseModel):
     name: str
-    scheme: Literal["s3", "file", "db"] = "db"
+    scheme: DataSchemes = "file"
     base_path: str = "/tmp"
-    tags: Set[str] = None
-    is_healthy: bool = False
-    last_health_check: datetime = None
-    credential_name: str = None
 
 
-class DataDocument(ORMBaseModel):
-    path: str = None
-    format: str = None
-    name: str = None
-    tags: Set[str] = None
-    blob: bytes = None
+class DataDocument(PrefectBaseModel):
+    encoding: str
+    blob: bytes

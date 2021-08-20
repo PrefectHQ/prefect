@@ -279,14 +279,6 @@ class TaskRun(Base):
     )
 
 
-class DataDocument(Base):
-    path = Column(String, nullable=False)
-    format = Column(String, nullable=True)
-    name = Column(String, nullable=False)  # TODO: Decide if this can be nullable
-    tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    blob = Column(sa.BINARY, nullable=True)
-
-
 class Deployment(Base):
     name = Column(String, nullable=False)
     flow_id = Column(UUID, ForeignKey("flow.id"), nullable=False, index=True)

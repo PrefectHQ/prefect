@@ -4,12 +4,7 @@ Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
 from pathlib import Path
-from typing import Optional
-
-import sqlalchemy
 from pydantic import BaseSettings, Field, SecretStr
-from typing_extensions import Literal
-from typing import Set
 
 
 class DataLocationSettings(BaseSettings):
@@ -18,9 +13,8 @@ class DataLocationSettings(BaseSettings):
         frozen = True
 
     name: str = "default"
-    scheme: str = "db"
+    scheme: str = "file"
     base_path: str = "/tmp"
-    credential_name: str = None
 
 
 class DatabaseSettings(BaseSettings):
