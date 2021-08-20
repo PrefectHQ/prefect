@@ -61,6 +61,6 @@ DataDocumentCreate = DataDocument.subclass(
         "name",
         "tags",
         "blob",
-        "serializer",
+        "format",
     ],
 )

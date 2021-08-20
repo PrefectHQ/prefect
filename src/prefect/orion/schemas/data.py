@@ -16,7 +16,7 @@ class DataLocation(APIBaseModel):
 
 class DataDocument(APIBaseModel):
     path: str = None
-    serializer: str = None
+    format: str = None
     name: str = None
     tags: Set[str] = None
     blob: bytes = None
