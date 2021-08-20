@@ -19,7 +19,7 @@ class OrchestrationContext(PrefectBaseModel):
     proposed_state: states.State
     validated_state: Optional[states.State]
     session: Any  # no validator for sa.orm.Session
-    run: Any  # Optional[schemas.core.TaskRun] doesn't work for some reason
+    run: Any  # Optional[schemas.core.TaskRun]
     task_run_id: UUID
     rule_signature: list[str] = Field(default_factory=list)
     finalization_signature: list[str] = Field(default_factory=list)
@@ -44,46 +44,35 @@ class OrchestrationContext(PrefectBaseModel):
         return self.run.empirical_policy
 
     def entry_context(self):
-        return {
-            "initial_state": self.initial_state,
-            "initial_state_type": self.initial_state_type,
-            "proposed_state": self.proposed_state,
-            "proposed_state_type": self.proposed_state_type,
-            "session": self.session,
-            "run_details": self.run_details,
-            "run_settings": self.run_settings,
-        }
+        return (
+            self.initial_state,
+            self.proposed_state,
+            {
+                "initial_state_type": self.initial_state_type,
+                "proposed_state_type": self.proposed_state_type,
+                "session": self.session,
+                "run": self.run,
+                "run_details": self.run_details,
+                "run_settings": self.run_settings,
+                "task_run_id": self.task_run_id,
+            },
+        )
 
     def exit_context(self):
-        return {
-            "initial_state": self.initial_state,
-            "initial_state_type": self.initial_state_type,
-            "proposed_state": self.proposed_state,
-            "proposed_state_type": self.proposed_state_type,
-            "session": self.session,
-            "validated_state": self.validated_state,
-            "run_details": self.run_details,
-            "run_settings": self.run_settings,
-        }
-
-    def global_entry_context(self):
-        ctx = self.entry_context()
-        ctx.update({"run": self.run})
-        ctx.update({"task_run_id": self.task_run_id})
-        return ctx
-
-    def global_exit_context(self):
-        ctx = self.exit_context()
-        ctx.update({"run": self.run})
-        ctx.update({"task_run_id": self.task_run_id})
-        return ctx
-
-    def update(self, update_dict):
-        for k, v in update_dict.items():
-            try:
-                self.__setattr__(k, v)
-            except ValueError:
-                pass
+        return (
+            self.initial_state,
+            self.proposed_state,
+            {
+                "initial_state_type": self.initial_state_type,
+                "proposed_state_type": self.proposed_state_type,
+                "session": self.session,
+                "validated_state": self.validated_state,
+                "run": self.run,
+                "run_details": self.run_details,
+                "run_settings": self.run_settings,
+                "task_run_id": self.task_run_id,
+            },
+        )
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
@@ -102,7 +91,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             pass
         else:
             entry_context = self.context.entry_context()
-            proposed_state = await self.before_transition(entry_context)
+            proposed_state = await self.before_transition(*entry_context)
             await self.update_state(proposed_state)
             self.context.rule_signature.append(self.__class__)
         return self.context
@@ -112,18 +101,20 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if await self.invalid():
             pass
         elif await self.fizzled():
-            await self.cleanup(**exit_context)
+            await self.cleanup(*exit_context)
         else:
-            await self.after_transition(exit_context)
+            await self.after_transition(*exit_context)
             self.context.finalization_signature.append(self.__class__)
 
-    async def before_transition(self, entry_context) -> states.State:
+    async def before_transition(
+        self, initial_state, proposed_state, context
+    ) -> states.State:
         raise NotImplementedError
 
-    async def after_transition(self, exit_context) -> None:
+    async def after_transition(self, initial_state, proposed_state, context) -> None:
         raise NotImplementedError
 
-    async def cleanup(self, exit_context) -> None:
+    async def cleanup(self, initial_state, proposed_state, context) -> None:
         raise NotImplementedError
 
     async def invalid(self):
@@ -155,7 +146,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         # if the rule modified the proposed state, it should not fizzle
         if self.context.proposed_state_type != proposed_state.type:
             self.to_state = proposed_state.type
-        self.context.update({"proposed_state": proposed_state})
+        self.context.proposed_state = proposed_state
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
@@ -168,22 +159,21 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         self.to_state = to_state
 
     async def __aenter__(self):
-        global_entry_context = self.context.global_entry_context()
-        context_update = await self.before_transition(global_entry_context)
-        self.context.update(context_update)
+        entry_context = self.context.entry_context()
+        proposed_state = await self.before_transition(*entry_context)
+        self.context.proposed_state = proposed_state
         self.context.rule_signature.append(self.__class__)
         return self.context
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        global_exit_context = self.context.global_exit_context()
-        context_update = await self.after_transition(global_exit_context)
-        self.context.update(context_update)
+        exit_context = self.context.exit_context()
+        await self.after_transition(*exit_context)
         self.context.finalization_signature.append(self.__class__)
 
-    async def before_transition(self):
+    async def before_transition(self, initial_state, proposed_state, context):
         raise NotImplementedError
 
-    async def after_transition(self, exc_type, exc_value, traceback):
+    async def after_transition(self, initial_state, proposed_state, context):
         raise NotImplementedError
 
 
@@ -192,9 +182,8 @@ class CacheRetrieval(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.RUNNING]
 
-    async def before_transition(self, entry_context):
-        proposed_state = entry_context["proposed_state"]
-        session = entry_context["session"]
+    async def before_transition(self, initial_state, proposed_state, context):
+        session = context["session"]
         if proposed_state.state_details.cache_key:
             # Check for cached states matching the cache key
             cached_state = await get_cached_task_run_state(
@@ -205,10 +194,10 @@ class CacheRetrieval(BaseOrchestrationRule):
                 proposed_state.name = "Cached"
         return proposed_state
 
-    async def after_transition(self, exit_context):
+    async def after_transition(self, initial_state, proposed_state, context):
         pass
 
-    async def cleanup(self, exit_context):
+    async def cleanup(self, initial_state, proposed_state, context):
         pass
 
 
@@ -217,18 +206,16 @@ class CacheInsertion(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.COMPLETED]
 
-    async def before_transition(self, entry_context):
-        proposed_state = entry_context["proposed_state"]
+    async def before_transition(self, initial_state, proposed_state, context):
         return proposed_state
 
-    async def after_transition(self, exit_context):
-        proposed_state = exit_context["proposed_state"]
-        validated_state = exit_context["validated_state"]
-        session = exit_context["session"]
+    async def after_transition(self, initial_state, proposed_state, context):
+        validated_state = context["validated_state"]
+        session = context["session"]
         if proposed_state.state_details.cache_key:
             await cache_task_run_state(session, validated_state)
 
-    async def cleanup(self, exit_context):
+    async def cleanup(initial_state, proposed_state, context):
         pass
 
 
@@ -237,10 +224,9 @@ class RetryPotentialFailures(BaseOrchestrationRule):
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = [states.StateType.FAILED]
 
-    async def before_transition(self, entry_context):
-        proposed_state = entry_context["proposed_state"]
-        run_details = entry_context["run_details"]
-        run_settings = entry_context["run_settings"]
+    async def before_transition(self, initial_state, proposed_state, context):
+        run_details = context["run_details"]
+        run_settings = context["run_settings"]
         if run_details.run_count <= run_settings.max_retries:
             proposed_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
@@ -251,10 +237,10 @@ class RetryPotentialFailures(BaseOrchestrationRule):
             )
         return proposed_state
 
-    async def after_transition(self, exit_context):
+    async def after_transition(self, initial_state, proposed_state, context):
         pass
 
-    async def cleanup(self, exit_context):
+    async def cleanup(self, initial_state, proposed_state, context):
         pass
 
 
@@ -263,14 +249,14 @@ class UpdateRunDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
-    async def before_transition(self, entry_context):
-        entry_context["proposed_state"].run_details = states.update_run_details(
-            from_state=entry_context["initial_state"],
-            to_state=entry_context["proposed_state"],
+    async def before_transition(self, initial_state, proposed_state, context):
+        proposed_state.run_details = states.update_run_details(
+            from_state=initial_state,
+            to_state=proposed_state,
         )
-        return entry_context
+        return proposed_state
 
-    async def after_transition(self, exit_context):
+    async def after_transition(self, initial_state, proposed_state, context):
         pass
 
 
@@ -279,17 +265,13 @@ class UpdateStateDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
-    async def before_transition(self, entry_context):
-        entry_context["proposed_state"].state_details.flow_run_id = entry_context[
-            "run"
-        ].flow_run_id
-        entry_context["proposed_state"].state_details.task_run_id = entry_context[
-            "task_run_id"
-        ]
-        return entry_context
+    async def before_transition(self, initial_state, proposed_state, context):
+        proposed_state.state_details.flow_run_id = context["run"].flow_run_id
+        proposed_state.state_details.task_run_id = context["task_run_id"]
+        return proposed_state
 
-    async def after_transition(self, exit_context):
-        return exit_context
+    async def after_transition(self, initial_state, proposed_state, context):
+        pass
 
 
 async def get_cached_task_run_state(
