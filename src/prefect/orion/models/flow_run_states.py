@@ -12,14 +12,14 @@ from prefect.orion.schemas import states
 async def create_flow_run_state(
     session: sa.orm.Session,
     flow_run_id: UUID,
-    state: schemas.actions.StateCreate,
+    state: schemas.states.State,
 ) -> orm.FlowRunState:
     """Creates a new flow run state
 
     Args:
         session (sa.orm.Session): a database session
         flow_run_id (str): the flow run id
-        state (schemas.actions.StateCreate): a flow run state model
+        state (schemas.states.State): a flow run state model
 
     Returns:
         orm.FlowRunState: the newly-created flow run state

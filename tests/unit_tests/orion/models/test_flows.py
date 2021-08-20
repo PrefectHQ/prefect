@@ -9,7 +9,7 @@ from prefect.orion import models, schemas
 class TestCreateFlow:
     async def test_create_flow_succeeds(self, session):
         flow = await models.flows.create_flow(
-            session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+            session=session, flow=schemas.core.Flow(name="my-flow")
         )
         assert flow.name == "my-flow"
         assert flow.id
@@ -17,7 +17,7 @@ class TestCreateFlow:
     async def test_create_flow_raises_if_already_exists(self, session):
         # create a flow
         flow = await models.flows.create_flow(
-            session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+            session=session, flow=schemas.core.Flow(name="my-flow")
         )
         assert flow.name == "my-flow"
         assert flow.id
@@ -27,7 +27,7 @@ class TestCreateFlow:
         with pytest.raises(sa.exc.IntegrityError):
             await models.flows.create_flow(
                 session=session,
-                flow=schemas.actions.FlowCreate(name="my-flow"),
+                flow=schemas.core.Flow(name="my-flow"),
             )
 
 
@@ -35,7 +35,7 @@ class TestReadFlow:
     async def test_read_flow(self, session):
         # create a flow to read
         flow = await models.flows.create_flow(
-            session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+            session=session, flow=schemas.core.Flow(name="my-flow")
         )
         assert flow.name == "my-flow"
 
@@ -52,7 +52,7 @@ class TestReadFlowByName:
     async def test_read_flow(self, session):
         # create a flow to read
         flow = await models.flows.create_flow(
-            session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+            session=session, flow=schemas.core.Flow(name="my-flow")
         )
         assert flow.name == "my-flow"
 
@@ -73,10 +73,10 @@ class TestReadFlows:
     @pytest.fixture
     async def flows(self, session):
         flow_1 = await models.flows.create_flow(
-            session=session, flow=schemas.actions.FlowCreate(name="my-flow-1")
+            session=session, flow=schemas.core.Flow(name="my-flow-1")
         )
         flow_2 = await models.flows.create_flow(
-            session=session, flow=schemas.actions.FlowCreate(name="my-flow-2")
+            session=session, flow=schemas.core.Flow(name="my-flow-2")
         )
         return [flow_1, flow_2]
 
@@ -105,7 +105,7 @@ class TestDeleteFlow:
     async def test_delete_flow(self, session):
         # create a flow to delete
         flow = await models.flows.create_flow(
-            session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+            session=session, flow=schemas.core.Flow(name="my-flow")
         )
         assert flow.name == "my-flow"
 
