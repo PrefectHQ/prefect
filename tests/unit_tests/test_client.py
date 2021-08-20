@@ -124,7 +124,7 @@ class ExPydanticModel(BaseModel):
 
 
 @pytest.mark.parametrize(
-    "send_obj",
+    "put_obj",
     [
         "hello",
         7,
@@ -132,20 +132,20 @@ class ExPydanticModel(BaseModel):
         ExPydanticModel(x=0),
     ],
 )
-def test_send_then_retrieve_data(send_obj):
+def test_put_then_retrieve_object(put_obj):
     client = prefect.client.OrionClient()
-    datadoc = client.send_data(send_obj)
+    datadoc = client.put_object(put_obj)
 
     assert isinstance(datadoc, schemas.data.DataDocument)
     assert isinstance(datadoc.id, UUID)
     assert datadoc.blob is not None
 
-    retrieved_obj = client.retrieve_data(datadoc.id)
-    assert retrieved_obj == send_obj
+    retrieved_obj = client.get_object(datadoc.id)
+    assert retrieved_obj == put_obj
 
 
-def test_send_with_name():
+def test_put_with_name():
     client = prefect.client.OrionClient()
-    datadoc = client.send_data("hello", name="doc_name")
+    datadoc = client.put_object("hello", name="doc_name")
     assert datadoc.name == "doc_name"
     assert datadoc.path.endswith(datadoc.name)

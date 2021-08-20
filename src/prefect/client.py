@@ -106,7 +106,7 @@ class OrionClient:
         response = self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
 
-    def send_data(
+    def put_object(
         self, obj: Any, serializer=cloudpickle, name: str = None, tags: Set[str] = None
     ) -> schemas.data.DataDocument:
 
@@ -129,7 +129,7 @@ class OrionClient:
         )
         return schemas.data.DataDocument.parse_obj(response.json())
 
-    def retrieve_data(
+    def get_object(
         self,
         datadoc_id: UUID,
     ) -> Any:
