@@ -20,6 +20,7 @@ class FlowRunDetails(PrefectBaseModel):
 
 class FlowRun(ORMBaseModel):
     flow_id: UUID
+    deployment_id: UUID = None
     flow_version: str = Field(None, example="1.0")
     parameters: dict = Field(default_factory=dict)
     idempotency_key: str = None
@@ -52,3 +53,8 @@ class TaskRun(ORMBaseModel):
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
+
+
+class Deployment(ORMBaseModel):
+    name: str
+    flow_id: UUID
