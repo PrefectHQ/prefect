@@ -114,7 +114,7 @@ COMMON_SERVER_OPTIONS = [
     ),
     click.option(
         "--expose",
-        help="Make the UI and Core  to listen on all interfaces",
+        help="Make the UI and Core server listen on all interfaces",
         is_flag=True,
         hidden=True,
     ),
@@ -280,7 +280,7 @@ def setup_compose_env(
         DB_CONNECTION_URL=db_connection_url,
         GRAPHQL_HOST_PORT=str(graphql_port),
         UI_HOST_PORT=str(ui_port),
-        UI_HOST_IP='0.0.0.0' if expose else config.server.ui.host_ip,
+        UI_HOST_IP="0.0.0.0" if expose else config.server.ui.host_ip,
         # Pass the Core version so the Server API can return it
         PREFECT_CORE_VERSION=prefect.__version__,
         # Set the server image tag
@@ -293,7 +293,7 @@ def setup_compose_env(
         PREFECT_API_URL=f"http://graphql:{graphql_port}{config.server.graphql.path}",
         PREFECT_API_HEALTH_URL=f"http://graphql:{graphql_port}/health",
         APOLLO_HOST_PORT=str(server_port),
-        APOLLO_HOST_IP='0.0.0.0' if expose  else config.server.host_ip,
+        APOLLO_HOST_IP="0.0.0.0" if expose else config.server.host_ip,
         PREFECT_SERVER__TELEMETRY__ENABLED=(
             "true" if config.server.telemetry.enabled is True else "false"
         ),
