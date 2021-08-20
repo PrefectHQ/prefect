@@ -169,15 +169,8 @@ def test_put_then_retrieve_object(put_obj):
     datadoc = client.put_object(put_obj)
 
     assert isinstance(datadoc, schemas.data.DataDocument)
-    assert isinstance(datadoc.id, UUID)
-    assert datadoc.blob is not None
+    assert datadoc.encoding == "orion"
+    assert datadoc.blob is not None  # Orion has given some sort of data
 
-    retrieved_obj = client.get_object(datadoc.id)
+    retrieved_obj = client.get_object(datadoc)
     assert retrieved_obj == put_obj
-
-
-def test_put_with_name():
-    client = prefect.client.OrionClient()
-    datadoc = client.put_object("hello", name="doc_name")
-    assert datadoc.name == "doc_name"
-    assert datadoc.path.endswith(datadoc.name)
