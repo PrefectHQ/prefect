@@ -118,34 +118,35 @@ class OrionClient:
             # Patch for https://github.com/cloudpipe/cloudpickle/issues/408
             obj_bytes = pickle.dumps(obj)
 
-        create_datadoc = schemas.actions.DataDocumentCreate(
+        user_datadoc = schemas.data.DataDocument(
             blob=base64.encodebytes(obj_bytes),
-            format=serializer.__name__,
-            name=name,
-            tags=tags,
+            encoding=serializer.__name__,
         )
 
         response = self.post(
-            f"/data",
-            json=create_datadoc.dict(json_compatible=True),
+            f"/data/put",
+            json=user_datadoc.dict(json_compatible=True),
         )
         return schemas.data.DataDocument.parse_obj(response.json())
 
     def get_object(
         self,
-        datadoc_id: UUID,
+        orion_datadoc: schemas.data.DataDocument,
     ) -> Any:
 
-        response = self.get(f"/data/{datadoc_id}")
-        datadoc = schemas.data.DataDocument.parse_obj(response.json())
+        response = self.post(
+            f"/data/get",
+            json=orion_datadoc.dict(json_compatible=True),
+        )
+        user_datadoc = schemas.data.DataDocument.parse_obj(response.json())
 
         # TODO: Actually resolve the serializer from the datadoc
-        if datadoc.format == "cloudpickle":
+        if user_datadoc.encoding == "cloudpickle":
             serializer = cloudpickle
         else:
-            raise ValueError(f"Unknown data format {datadoc.format!r}")
+            raise ValueError(f"Unknown datadoc encoding {user_datadoc.encoding!r}")
 
-        return serializer.loads(base64.decodebytes(datadoc.blob))
+        return serializer.loads(base64.decodebytes(user_datadoc.blob))
 
     def set_flow_run_state(
         self,
