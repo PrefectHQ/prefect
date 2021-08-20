@@ -4,11 +4,12 @@ from uuid import UUID
 
 from pydantic import Field
 
+from prefect.orion.schemas import states
 from prefect.orion.utilities.functions import ParameterSchema
-from prefect.orion.utilities.schemas import PrefectBaseModel, APIBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
 
 
-class Flow(APIBaseModel):
+class Flow(ORMBaseModel):
     name: str = Field(..., example="my-flow")
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     parameters: ParameterSchema = Field(default_factory=ParameterSchema)
@@ -18,8 +19,9 @@ class FlowRunDetails(PrefectBaseModel):
     pass
 
 
-class FlowRun(APIBaseModel):
+class FlowRun(ORMBaseModel):
     flow_id: UUID
+    deployment_id: UUID = None
     flow_version: str = Field(None, example="1.0")
     parameters: dict = Field(default_factory=dict)
     idempotency_key: str = None
@@ -29,6 +31,7 @@ class FlowRun(APIBaseModel):
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     flow_run_details: FlowRunDetails = Field(default_factory=FlowRunDetails)
     parent_task_run_id: UUID = None
+    state: states.State = None
 
 
 class TaskRunDetails(PrefectBaseModel):
@@ -40,7 +43,7 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay_seconds: float = 0
 
 
-class TaskRun(APIBaseModel):
+class TaskRun(ORMBaseModel):
     flow_run_id: UUID
     task_key: str
     dynamic_key: str = None
@@ -52,3 +55,9 @@ class TaskRun(APIBaseModel):
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
+    state: states.State = None
+
+
+class Deployment(ORMBaseModel):
+    name: str
+    flow_id: UUID

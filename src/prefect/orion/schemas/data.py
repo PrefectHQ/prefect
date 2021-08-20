@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Set, Literal
 
-from prefect.orion.utilities.schemas import APIBaseModel
+from prefect.orion.utilities.schemas import ORMBaseModel
 
 
-class DataLocation(APIBaseModel):
+class DataLocation(ORMBaseModel):
     name: str
     scheme: Literal["s3", "file", "db"] = "db"
     base_path: str = "/tmp"
@@ -14,7 +14,7 @@ class DataLocation(APIBaseModel):
     credential_name: str = None
 
 
-class DataDocument(APIBaseModel):
+class DataDocument(ORMBaseModel):
     path: str = None
     format: str = None
     name: str = None
