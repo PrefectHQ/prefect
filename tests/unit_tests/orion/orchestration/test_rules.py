@@ -1,11 +1,14 @@
 import contextlib
 import pytest
 import pendulum
+import random
+from itertools import permutations
 from unittest.mock import MagicMock
 from uuid import UUID
 
 from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
+    BaseUniversalRule,
     OrchestrationContext,
 )
 from prefect.orion import schemas, models
@@ -233,7 +236,9 @@ class TestBaseOrchestrationRule:
 
             # mutating the proposed state inside the context will fizzle the rule
             mutated_state = proposed_state.copy()
-            mutated_state.type = states.StateType.COMPLETED
+            mutated_state.type = random.choice(
+                list(set(states.StateType) - {*intended_transition})
+            )
             if mutating_state == "initial":
                 ctx.initial_state = mutated_state
             elif mutating_state == "proposed":
@@ -258,7 +263,12 @@ class TestBaseOrchestrationRule:
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
                 mutated_state = proposed_state.copy()
-                mutated_state.type = initial_state_type
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
                 before_transition_hook()
                 return mutated_state
 
@@ -297,7 +307,14 @@ class TestBaseOrchestrationRule:
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
-    async def test_nested_valid_rules_fire_hooks(self, session, task_run):
+    @pytest.mark.parametrize(
+        "intended_transition",
+        random.choices(list(permutations(states.StateType, 2)), k=3),
+        ids=lambda args: f"rand: {args[0].name} => {args[1].name}",
+    )
+    async def test_nested_valid_rules_fire_hooks(
+        self, session, task_run, intended_transition
+    ):
         side_effects = 0
         first_before_hook = MagicMock()
         second_before_hook = MagicMock()
@@ -342,9 +359,7 @@ class TestBaseOrchestrationRule:
                 cleanup_step()
 
         # both rules are valid
-        initial_state_type = states.StateType.PENDING
-        proposed_state_type = states.StateType.RUNNING
-        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state_type, proposed_state_type = intended_transition
         initial_state = (
             await create_task_run_state(session, task_run, initial_state_type)
         ).as_state()
@@ -401,7 +416,14 @@ class TestBaseOrchestrationRule:
         assert second_after_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
-    async def test_complex_nested_rules_interact_sensibly(self, session, task_run):
+    @pytest.mark.parametrize(
+        "intended_transition",
+        random.choices(list(permutations(states.StateType, 2)), k=3),
+        ids=lambda args: f"rand: {args[0].name} => {args[1].name}",
+    )
+    async def test_complex_nested_rules_interact_sensibly(
+        self, session, task_run, intended_transition
+    ):
         side_effects = 0
         first_before_hook = MagicMock()
         mutator_before_hook = MagicMock()
@@ -438,7 +460,12 @@ class TestBaseOrchestrationRule:
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
                 mutated_state = proposed_state.copy()
-                mutated_state.type = initial_state_type
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
                 mutator_before_hook()
                 return mutated_state
 
@@ -466,9 +493,7 @@ class TestBaseOrchestrationRule:
                 invalid_cleanup()
 
         # all rules start valid
-        initial_state_type = states.StateType.PENDING
-        proposed_state_type = states.StateType.RUNNING
-        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state_type, proposed_state_type = intended_transition
         initial_state = (
             await create_task_run_state(session, task_run, initial_state_type)
         ).as_state()
@@ -542,3 +567,104 @@ class TestBaseOrchestrationRule:
 
         # because all fizzled rules cleaned up and invalid rules never fire, side-effects have been undone
         assert side_effects == 0
+
+
+class TestBaseUniversalRule:
+    async def test_universal_rules_are_context_managers(self, session, task_run):
+        side_effect = 0
+
+        class IllustrativeUniversalRule(BaseUniversalRule):
+            # Like OrchestrationRules, UniversalRules are context managers, but stateless.
+            # They fire on every transition, and don't care if the intended transition is modified
+            # thus, they do not have a cleanup step.
+
+            # UniversalRules are typically used for essential bookkeeping
+
+            # a before-transition hook that fires upon entering the rule
+            async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
+                return proposed_state
+
+            # an after-transition hook that fires after a state is validated and committed to the DB
+            async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
+
+        intended_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+        initial_state_type, proposed_state_type = intended_transition
+        initial_state = (
+            await create_task_run_state(session, task_run, initial_state_type)
+        ).as_state()
+        proposed_state = initial_state.copy()
+        proposed_state.type = proposed_state_type
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=MagicMock(),
+            run=MagicMock(),
+            task_run_id=UUID(int=42),
+        )
+
+        rule_as_context_manager = IllustrativeUniversalRule(ctx, *intended_transition)
+        context_call = MagicMock()
+
+        # rules govern logic by being used as a context manager
+        async with rule_as_context_manager as ctx:
+            context_call()
+
+        assert context_call.call_count == 1
+        assert side_effect == 2
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        random.choices(list(permutations(states.StateType, 2)), k=3),
+        ids=lambda args: f"rand: {args[0].name} => {args[1].name}",
+    )
+    async def test_universal_rules_always_fire(
+        self, session, task_run, intended_transition
+    ):
+        side_effect = 0
+        before_hook = MagicMock()
+        after_hook = MagicMock()
+
+        class IllustrativeUniversalRule(BaseUniversalRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
+                before_hook()
+                return proposed_state
+
+            async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
+                after_hook()
+
+        initial_state_type, proposed_state_type = intended_transition
+        initial_state = (
+            await create_task_run_state(session, task_run, initial_state_type)
+        ).as_state()
+        proposed_state = initial_state.copy()
+        proposed_state.type = proposed_state_type
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=MagicMock(),
+            run=MagicMock(),
+            task_run_id=UUID(int=42),
+        )
+
+        universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
+
+        async with universal_rule as ctx:
+            mutated_state = proposed_state.copy()
+            mutated_state.type = random.choice(
+                list(set(states.StateType) - set(intended_transition))
+            )
+            ctx.initial_state = mutated_state
+
+        assert side_effect == 2
+        assert before_hook.call_count == 1
+        assert after_hook.call_count == 1
