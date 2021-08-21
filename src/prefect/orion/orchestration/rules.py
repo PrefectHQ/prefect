@@ -140,7 +140,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         return (self.from_state != initial_state) or (self.to_state != proposed_state)
 
     async def update_state(self, proposed_state):
-        # if the rule modified the proposed state, it should not fizzle
+        # if a rule modifies the proposed state, it should not fizzle itself
         if self.context.proposed_state_type != proposed_state.type:
             self.to_state = proposed_state.type
         self.context.proposed_state = proposed_state

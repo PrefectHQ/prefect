@@ -401,23 +401,26 @@ class TestBaseOrchestrationRule:
             assert mutator_before_hook.call_count == 1
             assert invalid_before_hook.call_count == 0
 
-        # after closing all contexts, the first rule fizzles and cleans up
-        assert await first_rule.invalid() is False
-        assert await first_rule.fizzled() is True
-        assert first_before_hook.call_count == 1
-        assert first_after_hook.call_count == 0
-        assert cleanup_after_fizzling.call_count == 1
+        # an ExitStack exits contexts in the reverse order in which they were called
 
-        # the rule responsible for mutation remains valid
+        # once invalid always invalid--the invalid rule fires no hooks at all
+        assert await invalidated_rule.invalid() is True
+        assert await invalidated_rule.fizzled() is False
+        assert invalid_before_hook.call_count == 0
+        assert invalid_after_hook.call_count == 0
+        assert invalid_cleanup.call_count == 0
+
+        # the rule responsible for the mutation "knows about" the change to the proposed state, and remains valid
         assert await mutator_rule.invalid() is False
         assert await mutator_rule.fizzled() is False
         assert mutator_before_hook.call_count == 1
         assert mutator_after_hook.call_count == 1
         assert mutator_cleanup.call_count == 0
 
-        # the invalid rule fires no hooks at all
-        assert await invalidated_rule.invalid() is True
-        assert await invalidated_rule.fizzled() is False
-        assert invalid_before_hook.call_count == 0
-        assert invalid_after_hook.call_count == 0
-        assert invalid_cleanup.call_count == 0
+        # the first rule did not expect the proposed state to change, so the rule fizzles
+        # instead of firing the after-transition hook, the rule cleans up after itself
+        assert await first_rule.invalid() is False
+        assert await first_rule.fizzled() is True
+        assert first_before_hook.call_count == 1
+        assert first_after_hook.call_count == 0
+        assert cleanup_after_fizzling.call_count == 1
