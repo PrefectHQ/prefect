@@ -29,6 +29,59 @@ async def create_task_run_state(
 
 
 class TestBaseOrchestrationRule:
+    async def test_orchestration_rules_are_context_managers(self, session, task_run):
+
+        side_effect = 0
+
+        class IllustrativeRule(BaseOrchestrationRule):
+            # we implement rules by inheriting from `BaseOrchestrationRule`
+            # in order to do so, we need to define three methods:
+
+            # a before-transition hook that fires upon entering the rule
+            # this method returns a proposed state, and is the only opportunity for a rule
+            # to modify the state transition
+            async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
+                return proposed_state
+
+            # an after-transition hook that fires after a state is validated and committed to the DB
+            async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
+
+            # the cleanup step allows a rule to revert side-effects caused
+            # by the before-transition hook in case the transition does not complete
+            async def cleanup(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect -= 1
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = (
+            await create_task_run_state(session, task_run, initial_state_type)
+        ).as_state()
+        proposed_state = initial_state.copy()
+        proposed_state.type = proposed_state_type
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=MagicMock(),
+            run=MagicMock(),
+            task_run_id=UUID(int=42),
+        )
+
+        rule_as_context_manager = IllustrativeRule(ctx, *intended_transition)
+        context_call = MagicMock()
+
+        # rules govern logic by being used as a context manager
+        async with rule_as_context_manager as ctx:
+            context_call()
+
+        assert context_call.call_count == 1
+
     async def test_valid_rules_fire_before_and_after_transitions(
         self, session, task_run
     ):
@@ -66,7 +119,7 @@ class TestBaseOrchestrationRule:
         )
 
         minimal_rule = MinimalRule(ctx, *intended_transition)
-        async with minimal_rule as _:
+        async with minimal_rule as ctx:
             pass
         assert await minimal_rule.invalid() is False
         assert await minimal_rule.fizzled() is False
@@ -110,8 +163,11 @@ class TestBaseOrchestrationRule:
             task_run_id=UUID(int=42),
         )
 
+        # each rule receives a context as an argument and yields it back after
+        # entering its context--this way we can thread a common context
+        # through a series of nested rules
         minimal_rule = MinimalRule(ctx, *intended_transition)
-        async with minimal_rule as _:
+        async with minimal_rule as ctx:
             pass
         assert await minimal_rule.invalid() is True
         assert await minimal_rule.fizzled() is False
@@ -125,19 +181,29 @@ class TestBaseOrchestrationRule:
     async def test_fizzled_rules_fire_before_hooks_then_cleanup(
         self, session, task_run, mutating_state
     ):
+        side_effect = 0
         before_transition_hook = MagicMock()
         after_transition_hook = MagicMock()
         cleanup_step = MagicMock()
 
-        class MinimalRule(BaseOrchestrationRule):
+        class FizzlingRule(BaseOrchestrationRule):
+            # the before transition hook causes a side-effect
             async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
                 before_transition_hook()
                 return proposed_state
 
             async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect += 1
                 after_transition_hook()
 
+            # the cleanup step allows a rule to revert side-effects caused
+            # by the before-transition hook in the event of a fizzle
             async def cleanup(self, initial_state, proposed_state, context):
+                nonlocal side_effect
+                side_effect -= 1
                 cleanup_step()
 
         # this rule seems valid because the initial and proposed states match the intended transition
@@ -159,8 +225,12 @@ class TestBaseOrchestrationRule:
             task_run_id=UUID(int=42),
         )
 
-        minimal_rule = MinimalRule(ctx, *intended_transition)
-        async with minimal_rule as _:
+        fizzling_rule = FizzlingRule(ctx, *intended_transition)
+        async with fizzling_rule as ctx:
+
+            # within the context, only the before-hook has fired and we can observe the side-effect
+            assert side_effect == 1
+
             # mutating the proposed state inside the context will fizzle the rule
             mutated_state = proposed_state.copy()
             mutated_state.type = states.StateType.COMPLETED
@@ -168,10 +238,11 @@ class TestBaseOrchestrationRule:
                 ctx.initial_state = mutated_state
             elif mutating_state == "proposed":
                 ctx.proposed_state = mutated_state
-        assert await minimal_rule.invalid() is False
-        assert await minimal_rule.fizzled() is True
 
-        # fizzled fire on entry, but have an opportunity to clean up side effects
+        # outside of the context the rule will have fizzled and the side effect was cleaned up
+        assert side_effect == 0
+        assert await fizzling_rule.invalid() is False
+        assert await fizzling_rule.fizzled() is True
         assert before_transition_hook.call_count == 1
         assert after_transition_hook.call_count == 0
         assert cleanup_step.call_count == 1
@@ -216,7 +287,7 @@ class TestBaseOrchestrationRule:
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
-        async with mutating_rule as _:
+        async with mutating_rule as ctx:
             pass
         assert await mutating_rule.invalid() is False
         assert await mutating_rule.fizzled() is False
@@ -227,32 +298,47 @@ class TestBaseOrchestrationRule:
         assert cleanup_step.call_count == 0
 
     async def test_nested_valid_rules_fire_hooks(self, session, task_run):
+        side_effects = 0
         first_before_hook = MagicMock()
         second_before_hook = MagicMock()
         first_after_hook = MagicMock()
         second_after_hook = MagicMock()
         cleanup_step = MagicMock()
 
+        # both of the rules produce side-effects on entry and exit, which we can test for
+
         class FirstMinimalRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 first_before_hook()
                 return proposed_state
 
             async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 first_after_hook()
 
             async def cleanup(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects -= 1
                 cleanup_step()
 
         class SecondMinimalRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 second_before_hook()
                 return proposed_state
 
             async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 second_after_hook()
 
             async def cleanup(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects -= 1
                 cleanup_step()
 
         # both rules are valid
@@ -273,7 +359,13 @@ class TestBaseOrchestrationRule:
             task_run_id=UUID(int=42),
         )
 
+        # an ExitStack is a python builtin contstruction that allows us to
+        # nest an arbitrary number of contexts (and therefore, rules), in this test
+        # we'll enter the contexts one by one so we can follow what's happening
         async with contextlib.AsyncExitStack() as stack:
+            # each rule receives a context as an argument and yields it back after
+            # entering its context--this way we can thread a common context
+            # through a series of nested rules
             first_rule = FirstMinimalRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(first_rule)
 
@@ -301,16 +393,16 @@ class TestBaseOrchestrationRule:
         assert await second_rule.fizzled() is False
 
         # both the first and second after hooks fired after exiting the contexts
-        # none of the rules fizzled, so the cleanup step is never called
+        # none of the rules fizzled, so the cleanup step is never called and side-effects are preserved
+        assert side_effects == 4
         assert first_before_hook.call_count == 1
         assert first_after_hook.call_count == 1
         assert second_before_hook.call_count == 1
         assert second_after_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
-    async def test_complex_policy_invalidates_unnecessary_rules(
-        self, session, task_run
-    ):
+    async def test_complex_nested_rules_interact_sensibly(self, session, task_run):
+        side_effects = 0
         first_before_hook = MagicMock()
         mutator_before_hook = MagicMock()
         invalid_before_hook = MagicMock()
@@ -321,15 +413,25 @@ class TestBaseOrchestrationRule:
         mutator_cleanup = MagicMock()
         invalid_cleanup = MagicMock()
 
+        # some of the rules produce side-effects on entry and exit, but also clean up on fizzling
+        # because one of the rules modifies the intended transition and itself doesn't produce side-effects
+        # we should see no side effects after exiting the rule contexts
+
         class FirstMinimalRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 first_before_hook()
                 return proposed_state
 
             async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 first_after_hook()
 
             async def cleanup(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects -= 1
                 cleanup_after_fizzling()
 
         class StateMutatingRule(BaseOrchestrationRule):
@@ -348,13 +450,19 @@ class TestBaseOrchestrationRule:
 
         class InvalidatedRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 invalid_before_hook()
                 return proposed_state
 
             async def after_transition(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects += 1
                 invalid_after_hook()
 
             async def cleanup(self, initial_state, proposed_state, context):
+                nonlocal side_effects
+                side_effects -= 1
                 invalid_cleanup()
 
         # all rules start valid
@@ -375,6 +483,9 @@ class TestBaseOrchestrationRule:
             task_run_id=UUID(int=42),
         )
 
+        # an ExitStack is a python builtin contstruction that allows us to
+        # nest an arbitrary number of contexts (and therefore, rules), in this test
+        # we'll enter the contexts one by one so we can follow what's happening
         async with contextlib.AsyncExitStack() as stack:
             first_rule = FirstMinimalRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(first_rule)
@@ -401,6 +512,10 @@ class TestBaseOrchestrationRule:
             assert mutator_before_hook.call_count == 1
             assert invalid_before_hook.call_count == 0
 
+            # since no rules have had a chance to clean up, we can still
+            # observe the side-effect produced by the first rule
+            assert side_effects == 1
+
         # an ExitStack exits contexts in the reverse order in which they were called
 
         # once invalid always invalid--the invalid rule fires no hooks at all
@@ -424,3 +539,6 @@ class TestBaseOrchestrationRule:
         assert first_before_hook.call_count == 1
         assert first_after_hook.call_count == 0
         assert cleanup_after_fizzling.call_count == 1
+
+        # because all fizzled rules cleaned up and invalid rules never fire, side-effects have been undone
+        assert side_effects == 0
