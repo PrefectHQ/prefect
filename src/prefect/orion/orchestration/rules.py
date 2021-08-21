@@ -123,7 +123,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         return self._invalid
 
     async def fizzled(self):
-        if not await self.invalid() and self._fizzled is None:
+        if (await self.invalid()) and self._fizzled is None:
             self._fizzled = False
         elif self._fizzled is None:
             self._fizzled = await self.invalid_transition()
