@@ -84,7 +84,6 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.from_state = from_state
         self.to_state = to_state
         self._invalid = None
-        self._fizzled = None
 
     async def __aenter__(self):
         if await self.invalid():
@@ -123,11 +122,9 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         return self._invalid
 
     async def fizzled(self):
-        if (await self.invalid()) and self._fizzled is None:
-            self._fizzled = False
-        elif self._fizzled is None:
-            self._fizzled = await self.invalid_transition()
-        return self._fizzled
+        if await self.invalid():
+            return False
+        return await self.invalid_transition()
 
     async def invalid_transition(self):
         initial_state = (
