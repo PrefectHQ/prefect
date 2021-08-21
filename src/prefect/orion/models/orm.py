@@ -134,6 +134,9 @@ class FlowRun(Base):
     flow_id = Column(
         UUID(), ForeignKey("flow.id", ondelete="cascade"), nullable=False, index=True
     )
+    deployment_id = Column(
+        UUID(), ForeignKey("deployment.id", ondelete="set null"), index=True
+    )
     flow_version = Column(String)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = Column(String)
@@ -182,7 +185,6 @@ class FlowRun(Base):
             FlowRun.id == FlowRunState.flow_run_id,
             frs.id.is_(None),
         ),
-        foreign_keys=[FlowRunState.flow_run_id],
         uselist=False,
         viewonly=True,
         lazy="joined",
@@ -261,7 +263,6 @@ class TaskRun(Base):
             TaskRun.id == TaskRunState.task_run_id,
             trs.id.is_(None),
         ),
-        foreign_keys=[TaskRunState.task_run_id],
         uselist=False,
         viewonly=True,
         lazy="joined",
@@ -276,3 +277,10 @@ class TaskRun(Base):
             unique=True,
         ),
     )
+
+
+class Deployment(Base):
+    name = Column(String, nullable=False)
+    flow_id = Column(UUID, ForeignKey("flow.id"), nullable=False, index=True)
+
+    flow = relationship(Flow, lazy="joined")

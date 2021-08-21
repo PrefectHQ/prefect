@@ -82,7 +82,7 @@ class TestDecorator:
 class TestFlowCall:
     def test_call_creates_flow_run_and_runs(self):
         @flow(version="test")
-        def foo(x, y=2, z=3):
+        def foo(x, y=3, z=3):
             return x + y + z
 
         future = foo(1, 2)
@@ -93,12 +93,12 @@ class TestFlowCall:
 
         flow_run = OrionClient().read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
-        assert flow_run.parameters == {"x": 1, "y": 2}
+        assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
     def test_call_creates_ephemeral_instance(self):
         @flow(version="test")
-        def foo(x, y=2, z=3):
+        def foo(x, y=3, z=3):
             return x + y + z
 
         future = foo(1, 2)
@@ -109,7 +109,7 @@ class TestFlowCall:
 
         flow_run = OrionClient().read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
-        assert flow_run.parameters == {"x": 1, "y": 2}
+        assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
     def test_call_coerces_parameter_types(self):
