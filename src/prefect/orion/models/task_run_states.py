@@ -13,7 +13,7 @@ from prefect.orion.models import orm
 async def create_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
-    state: schemas.actions.StateCreate,
+    state: schemas.states.State,
     apply_orchestration_rules: bool = True,
 ) -> orm.TaskRunState:
     """Creates a new task run state
@@ -21,7 +21,7 @@ async def create_task_run_state(
     Args:
         session (sa.orm.Session): a database session
         task_run_id (str): the task run id
-        state (schemas.actions.StateCreate): a task run state model
+        state (schemas.states.State): a task run state model
 
     Returns:
         orm.TaskRunState: the newly-created task run state
