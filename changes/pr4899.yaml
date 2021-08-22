@@ -1,0 +1,5 @@
+fix:
+  - "Fix k8s job spec generation when using run config - [#4899](https://github.com/PrefectHQ/prefect/pull/4899)"
+
+contributor:
+  - "[Aaron Gee-Clough](https://github.com/g-clef)"
