@@ -689,7 +689,7 @@ class KubernetesAgent(Agent):
             container["imagePullPolicy"] = run_config.image_pull_policy
 
         # Set flow run command
-        container["args"] = get_flow_run_command(flow_run).split()
+        container["args"] = get_flow_run_command(flow_run)
 
         # Populate environment variables from the following sources,
         # with precedence:
