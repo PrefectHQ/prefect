@@ -42,6 +42,7 @@ async def create_task_run_state(
         orchestration_rules = []
 
     global_rules = global_policy.transition_rules(*intended_transition)
+
     context = OrchestrationContext(
         initial_state=initial_state,
         proposed_state=state,
@@ -70,6 +71,7 @@ async def create_task_run_state(
         await session.flush()
         context.validated_state = validated_state
         await stack.aclose()
+
     if run is not None:
         run.state = validated_state
     return validated_state
