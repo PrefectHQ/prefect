@@ -3,7 +3,7 @@ import pendulum
 import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy import select
-from typing import Optional, Any
+from typing import Optional, Any, List
 from uuid import UUID
 
 from prefect.orion.models import orm
@@ -21,8 +21,8 @@ class OrchestrationContext(PrefectBaseModel):
     session: Any  # no validator for sa.orm.Session
     run: Any  # Optional[schemas.core.TaskRun]
     task_run_id: UUID
-    rule_signature: list[str] = Field(default_factory=list)
-    finalization_signature: list[str] = Field(default_factory=list)
+    rule_signature: List[str] = Field(default_factory=list)
+    finalization_signature: List[str] = Field(default_factory=list)
 
     @property
     def initial_state_type(self):
