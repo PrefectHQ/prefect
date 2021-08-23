@@ -1,3 +1,4 @@
+import datetime
 import pendulum
 import pytest
 
@@ -143,3 +144,17 @@ async def task_run_states(session, task_run):
         state=running_state,
     )
     return [scheduled_task_run_state, running_task_run_state]
+
+
+@pytest.fixture
+async def deployment(session, flow):
+    schedule = schemas.schedules.Schedule(
+        clock=schemas.schedules.IntervalClock(interval=datetime.timedelta(days=1))
+    )
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment", flow_id=flow.id, schedules=[schedule]
+        ),
+    )
+    return deployment
