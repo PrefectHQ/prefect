@@ -50,13 +50,13 @@ class TestBaseOrchestrationRule:
                 return proposed_state
 
             # an after-transition hook that fires after a state is validated and committed to the DB
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effect
                 side_effect += 1
 
             # the cleanup step allows a rule to revert side-effects caused
             # by the before-transition hook in case the transition does not complete
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 nonlocal side_effect
                 side_effect -= 1
 
@@ -98,10 +98,10 @@ class TestBaseOrchestrationRule:
                 before_transition_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 cleanup_step()
 
         # rules are valid if the initial and proposed state always match the intended transition
@@ -143,10 +143,10 @@ class TestBaseOrchestrationRule:
                 before_transition_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 cleanup_step()
 
         # a rule is invalid if it is applied on initial and proposed states that do not match the intended transition
@@ -198,14 +198,14 @@ class TestBaseOrchestrationRule:
                 before_transition_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effect
                 side_effect += 1
                 after_transition_hook()
 
             # the cleanup step allows a rule to revert side-effects caused
             # by the before-transition hook in the event of a fizzle
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 nonlocal side_effect
                 side_effect -= 1
                 cleanup_step()
@@ -273,10 +273,10 @@ class TestBaseOrchestrationRule:
                 before_transition_hook()
                 return mutated_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 cleanup_step()
 
         # this rule seems valid because the initial and proposed states match the intended transition
@@ -332,12 +332,12 @@ class TestBaseOrchestrationRule:
                 first_before_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects += 1
                 first_after_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects -= 1
                 cleanup_step()
@@ -349,12 +349,12 @@ class TestBaseOrchestrationRule:
                 second_before_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects += 1
                 second_after_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects -= 1
                 cleanup_step()
@@ -447,12 +447,12 @@ class TestBaseOrchestrationRule:
                 first_before_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects += 1
                 first_after_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects -= 1
                 cleanup_after_fizzling()
@@ -470,10 +470,10 @@ class TestBaseOrchestrationRule:
                 mutator_before_hook()
                 return mutated_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 mutator_after_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 mutator_cleanup()
 
         class InvalidatedRule(BaseOrchestrationRule):
@@ -483,12 +483,12 @@ class TestBaseOrchestrationRule:
                 invalid_before_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects += 1
                 invalid_after_hook()
 
-            async def cleanup(self, initial_state, proposed_state, context):
+            async def cleanup(self, initial_state, validated_state, context):
                 nonlocal side_effects
                 side_effects -= 1
                 invalid_cleanup()
@@ -588,7 +588,7 @@ class TestBaseUniversalRule:
                 return proposed_state
 
             # an after-transition hook that fires after a state is validated and committed to the DB
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effect
                 side_effect += 1
 
@@ -637,7 +637,7 @@ class TestBaseUniversalRule:
                 before_hook()
                 return proposed_state
 
-            async def after_transition(self, initial_state, proposed_state, context):
+            async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effect
                 side_effect += 1
                 after_hook()
