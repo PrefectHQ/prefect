@@ -1,17 +1,21 @@
-import pytz
+import asyncio
 import datetime
-from typing import List, Set
+from typing import List, Set, Union, Dict, Any
+from typing import List, Set, Union
+from uuid import UUID
 
 import pendulum
+import pytz
 from croniter import croniter
 from pendulum.tz.timezone import Timezone
 from pydantic import Field, conint, validator
-from prefect.orion.utilities.schemas import PrefectBaseModel
 
-__all__ = ["IntervalSchedule", "CronSchedule"]
+from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
+
+MAX_ITERATIONS = 10000
 
 
-class ScheduleFilters(PrefectBaseModel):
+class ClockFilters(PrefectBaseModel):
     """A collection of filters that can be applied to a date. Each filter
     is defined as an inclusive set of dates or times: candidate dates
     will pass the filter if they match all of the supplied criteria.
@@ -76,7 +80,7 @@ class ScheduleFilters(PrefectBaseModel):
         return True
 
 
-class ScheduleAdjustments(PrefectBaseModel):
+class ClockAdjustments(PrefectBaseModel):
     """Adjusts a candidate date by modifying it to meet the supplied criteria."""
 
     advance_to_next_weekday: bool = False
@@ -94,14 +98,14 @@ class ScheduleAdjustments(PrefectBaseModel):
         return dt
 
 
-class IntervalSchedule(PrefectBaseModel):
+class IntervalClock(PrefectBaseModel):
 
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
 
-    filters = ScheduleFilters()
-    adjustments = ScheduleAdjustments()
+    filters = ClockFilters()
+    adjustments = ClockAdjustments()
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
@@ -121,22 +125,32 @@ class IntervalSchedule(PrefectBaseModel):
             raise ValueError("Specify an anchor date or a timezone, but not both.")
         return v or pendulum.datetime(2020, 1, 1, tz=values.get("timezone") or "UTC")
 
-    def get_dates(
-        self, n: int, start: datetime.datetime = None
+    async def get_dates(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
-        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the clock. Up to 10,000 candidate dates are checked
         following the start date.
 
         Args:
             n (int): The number of dates to generate
             start (datetime.datetime, optional): The first returned date will be on or after
                 this date. Defaults to None.
+            end (datetime.datetime, optional): The maximum scheduled date to return
 
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
             start = pendulum.now(self.timezone or "UTC")
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
 
         # compute the offset between the anchor date and the start date to jump to the next date
         offset = (
@@ -163,34 +177,41 @@ class IntervalSchedule(PrefectBaseModel):
         counter = 0
         dates = []
 
-        # don't exceed 10000 candidates
-        while len(dates) < n and counter < 10000:
+        while True:
 
             # check filters
             if self.filters.apply_filters(next_date):
                 next_date = self.adjustments.apply_adjustments(next_date)
+                # if the end date was exceeded, exit
+                if end and next_date > end:
+                    break
                 dates.append(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
 
             counter += 1
 
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
 
-            # next_date += self.interval
+            # yield event loop control
+            await asyncio.sleep(0)
 
         return dates
 
 
-class CronSchedule(PrefectBaseModel):
+class CronClock(PrefectBaseModel):
     """
-    Cron schedule
+    Cron clock
 
-    NOTE: If the timezone is a DST-observing one, then the schedule will adjust
+    NOTE: If the timezone is a DST-observing one, then the clock will adjust
     itself appropriately. Cron's rules for DST are based on clock times, not
-    intervals. This means that an hourly cron schedule will fire on every new
+    intervals. This means that an hourly cron clock will fire on every new
     clock hour, not every elapsed hour; for example, when clocks are set back
-    this will result in a two-hour pause as the schedule will fire *the first
+    this will result in a two-hour pause as the clock will fire *the first
     time* 1am is reached and *the first time* 2am is reached, 120 minutes later.
-    Longer schedules, such as one that fires at 9am every morning, will
+    Longer clocks, such as one that fires at 9am every morning, will
     automatically adjust for DST.
 
     Args:
@@ -223,22 +244,34 @@ class CronSchedule(PrefectBaseModel):
             raise ValueError(f'Invalid cron string: "{v}"')
         return v
 
-    def get_dates(
-        self, n: int, start: datetime.datetime = None
+    async def get_dates(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
-        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the clock. Up to 10,000 candidate dates are checked
         following the start date.
 
         Args:
             n (int): The number of dates to generate
             start (datetime.datetime, optional): The first returned date will be on or after
-                this date. Defaults to None.
+                this date. Defaults to the current date.
+            end (datetime.datetime, optional): No returned date will exceed this date.
 
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
         if start is None:
             start = pendulum.now(self.timezone or "UTC")
+
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
+
         elif self.timezone:
             start = start.in_tz(self.timezone)
 
@@ -267,10 +300,29 @@ class CronSchedule(PrefectBaseModel):
         dates = []
         counter = 0
 
-        while len(dates) < n and counter < 10000:
+        while True:
+
             next_date = pendulum.instance(cron.get_next(datetime.datetime))
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+            # check for duplicates; weird things can happen with DST and cron
             if next_date not in dates:
                 dates.append(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
+
             counter += 1
 
+            # yield event loop control
+            await asyncio.sleep(0)
+
         return dates
+
+
+class Schedule(IDBaseModel):
+    clock: Union[IntervalClock, CronClock]
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    is_active: bool = True
