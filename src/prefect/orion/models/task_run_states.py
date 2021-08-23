@@ -34,7 +34,7 @@ async def create_task_run_state(
         raise ValueError(f"Invalid task run: {task_run_id}")
 
     initial_state = run.state.as_state() if run.state else None
-    intended_transition = (initial_state.type if initial_state else None, state.type)
+    intended_transition = (initial_state.type if initial_state else None), state.type
 
     if apply_orchestration_rules:
         orchestration_rules = core_policy.transition_rules(*intended_transition)
@@ -51,7 +51,7 @@ async def create_task_run_state(
         task_run_id=task_run_id,
     )
 
-    # create the new task run state
+    # apply orchestration rules and create the new task run state
     async with contextlib.AsyncExitStack() as stack:
         for rule in orchestration_rules:
             context = await stack.enter_async_context(
@@ -70,7 +70,6 @@ async def create_task_run_state(
         session.add(validated_state)
         await session.flush()
         context.validated_state = validated_state
-        await stack.aclose()
 
     if run is not None:
         run.state = validated_state

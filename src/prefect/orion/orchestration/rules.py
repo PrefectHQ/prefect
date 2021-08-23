@@ -37,7 +37,7 @@ class OrchestrationContext(PrefectBaseModel):
         try:
             return self.run.state.run_details
         except AttributeError:
-            return
+            return None
 
     @property
     def flow_run_id(self):
@@ -92,7 +92,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
     async def __aenter__(self):
         if await self.invalid():
-            return
+            pass
         else:
             entry_context = self.context.entry_context()
             proposed_state = await self.before_transition(*entry_context)
@@ -103,7 +103,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     async def __aexit__(self, exc_type, exc_value, traceback):
         exit_context = self.context.exit_context()
         if await self.invalid():
-            return
+            pass
         elif await self.fizzled():
             await self.cleanup(*exit_context)
         else:
@@ -116,10 +116,10 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         return proposed_state
 
     async def after_transition(self, initial_state, validated_state, context) -> None:
-        return
+        pass
 
     async def cleanup(self, initial_state, validated_state, context) -> None:
-        return
+        pass
 
     async def invalid(self):
         if self._not_fizzleable is None:
@@ -132,17 +132,19 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         return await self.invalid_transition()
 
     async def invalid_transition(self):
-        initial_state = (
+        initial_state_type = (
             None
             if self.context.initial_state is None
             else self.context.initial_state.type
         )
-        proposed_state = (
+        proposed_state_type = (
             None
             if self.context.proposed_state is None
             else self.context.proposed_state.type
         )
-        return (self.from_state != initial_state) or (self.to_state != proposed_state)
+        return (self.from_state != initial_state_type) or (
+            self.to_state != proposed_state_type
+        )
 
     async def update_state(self, proposed_state):
         # if a rule modifies the proposed state, it should not fizzle itself
