@@ -1,5 +1,6 @@
 from typing import Any
 
+from dateutil import rrule
 from marshmallow import fields, post_dump, post_load
 
 import prefect
@@ -89,6 +90,65 @@ class DatesClockSchema(ObjectSchema):
     labels = fields.List(fields.Str(), allow_none=True)
 
 
+class RRuleSchema(ObjectSchema):
+    class Meta:
+        object_class = rrule.rrule
+
+    _freq = fields.Integer(required=True)
+    _dtstart = DateTimeTZ(allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> rrule.rrule:
+        data["freq"] = data.pop("_freq")
+        data["dtstart"] = data.pop("_dtstart")
+        base_obj = super().create_object(data, **kwargs)
+        return base_obj
+
+
+class RRuleSetSchema(ObjectSchema):
+    class Meta:
+        object_class = rrule.rruleset
+
+    _rrule = fields.List(fields.Nested(RRuleSchema))
+    _rdate = fields.List(DateTimeTZ)
+    _exrule = fields.List(fields.Nested(RRuleSchema))
+    _exdate = fields.List(DateTimeTZ)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> rrule.rruleset:
+        rrs = rrule.rruleset()
+        for rr in data["_rrule"]:
+            rrs.rrule(rr)
+        for dt in data["_rdate"]:
+            rrs.rdate(dt)
+        for exrr in data["_exrule"]:
+            rrs.exrule(exrr)
+        for exdt in data["_exdate"]:
+            rrs.exdate(exdt)
+        return rrs
+
+
+class RRuleBaseSchema(OneOfSchema):
+    # map class name to schema
+    type_schemas = {
+        "rrule": RRuleSchema,
+        "rruleset": RRuleSetSchema,
+    }
+
+
+class RRuleClockSchema(ObjectSchema):
+    class Meta:
+        object_class = prefect.schedules.clocks.RRuleClock
+
+    rrule_obj = fields.Nested(RRuleBaseSchema, required=True)
+    start_date = DateTimeTZ(allow_none=True)
+    end_date = DateTimeTZ(allow_none=True)
+    parameter_defaults = fields.Dict(
+        key=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
+    labels = fields.List(fields.Str(), allow_none=True)
+
+
 class ClockSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -99,6 +159,7 @@ class ClockSchema(OneOfSchema):
         "IntervalClock": IntervalClockSchema,
         "CronClock": CronClockSchema,
         "DatesClock": DatesClockSchema,
+        "RRuleClock": RRuleClockSchema,
     }
 
 

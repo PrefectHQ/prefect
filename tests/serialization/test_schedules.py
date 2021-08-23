@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pendulum
 import pytest
+from dateutil import rrule
 
 import prefect
 from prefect import __version__
@@ -10,7 +11,7 @@ from prefect.schedules import adjustments, clocks, filters, schedules
 from prefect.serialization.schedule import ScheduleSchema
 
 
-def serialize_and_deserialize(schedule: schedules.Schedule):
+def serialize_and_deserialize(schedule: schedules.Schedule) -> schedules.Schedule:
     schema = ScheduleSchema()
     return schema.load(json.loads(json.dumps(schema.dump(schedule))))
 
@@ -120,6 +121,22 @@ def test_interval_clocks_with_exactly_one_minute_intervals_can_be_serialized():
     assert t2.next(1, after=pendulum.datetime(2019, 1, 1)) == [
         pendulum.datetime(2019, 1, 1, 0, 1)
     ]
+
+
+def test_serialize_rrule_clocks():
+    start = pendulum.datetime(2020, 1, 1)
+    rr = rrule.rrule(rrule.DAILY)
+    s = schedules.Schedule(
+        clocks=[clocks.RRuleClock(rrule_obj=rrule.rrule(rrule.DAILY, start))]
+    )
+    t = schedules.Schedule(
+        clocks=[clocks.RRuleClock(rrule_obj=rrule.rrule(rrule.MINUTELY, start))]
+    )
+    print(json.dumps(ScheduleSchema().dump(s)))
+    s2 = serialize_and_deserialize(s)
+    t2 = serialize_and_deserialize(t)
+    assert s2.next(1, after=start) == [pendulum.datetime(2020, 1, 2, 0, 0)]
+    assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 0, 1)]
 
 
 def test_serialize_multiple_clocks():
