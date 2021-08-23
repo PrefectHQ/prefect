@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from prefect.orion import schemas
 from prefect.orion.schemas import states
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
@@ -16,7 +17,8 @@ class Flow(ORMBaseModel):
 
 
 class FlowRunDetails(PrefectBaseModel):
-    pass
+    auto_scheduled: bool = False
+    schedule_id: UUID = None
 
 
 class FlowRun(ORMBaseModel):
@@ -61,3 +63,4 @@ class TaskRun(ORMBaseModel):
 class Deployment(ORMBaseModel):
     name: str
     flow_id: UUID
+    schedules: List[schemas.schedules.Schedule] = Field(default_factory=list)
