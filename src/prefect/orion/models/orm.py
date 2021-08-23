@@ -152,7 +152,6 @@ class FlowRun(Base):
             "task_run.id",
             ondelete="cascade",
             use_alter=True,
-            name="fk_flow_run_parent_task_run_id",
         ),
         index=True,
     )
