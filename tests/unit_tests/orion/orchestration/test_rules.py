@@ -16,8 +16,9 @@ from prefect.orion.schemas import states
 
 
 async def create_task_run_state(
-    session, task_run, state_type: schemas.actions.StateCreate, state_details=dict()
+    session, task_run, state_type: schemas.actions.StateCreate, state_details=None
 ):
+    state_details = dict() if state_details is None else state_details
     new_state = schemas.actions.StateCreate(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
