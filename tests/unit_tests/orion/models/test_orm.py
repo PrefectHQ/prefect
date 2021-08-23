@@ -123,6 +123,25 @@ class TestFlowRun:
         # no flow runs have data == 3
         assert len(result_3.all()) == 0
 
+    async def test_flow_run_state_relationship_type_filter_selects_current_state(
+        self, flow, many_flow_run_states, session
+    ):
+        # the flow runs are most recently in a pending state
+        match_query = sa.select(sa.func.count(orm.FlowRun.id)).filter(
+            orm.FlowRun.flow_id == flow.id,
+            orm.FlowRun.state_filter([schemas.states.StateType.PENDING]),
+        )
+        result = await session.execute(match_query)
+        assert result.scalar() == 5
+
+        # no flow run is in a running state
+        miss_query = sa.select(sa.func.count(orm.FlowRun.id)).filter(
+            orm.FlowRun.flow_id == flow.id,
+            orm.FlowRun.state_filter([schemas.states.StateType.RUNNING]),
+        )
+        result = await session.execute(miss_query)
+        assert result.scalar() == 0
+
 
 class TestTaskRun:
     async def test_task_run_state_relationship_retrieves_current_state(
@@ -178,3 +197,22 @@ class TestTaskRun:
         result_3 = await session.execute(query_3)
         # no task runs have data == 3
         assert len(result_3.all()) == 0
+
+    async def test_task_run_state_relationship_type_filter_selects_current_state(
+        self, flow_run, many_task_run_states, session
+    ):
+        # the task runs are most recently in a pending state
+        match_query = sa.select(sa.func.count(orm.TaskRun.id)).filter(
+            orm.TaskRun.flow_run_id == flow_run.id,
+            orm.TaskRun.state_filter([schemas.states.StateType.PENDING]),
+        )
+        result = await session.execute(match_query)
+        assert result.scalar() == 5
+
+        # no task run is in a running state
+        miss_query = sa.select(sa.func.count(orm.TaskRun.id)).filter(
+            orm.TaskRun.flow_run_id == flow_run.id,
+            orm.TaskRun.state_filter([schemas.states.StateType.RUNNING]),
+        )
+        result = await session.execute(miss_query)
+        assert result.scalar() == 0
