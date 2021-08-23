@@ -34,7 +34,7 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 )
 
 MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 5_000_000  # 5 MB - max total batch size for log messages
+MAX_BATCH_LOG_LENGTH = 4_000_000  # 4 MB - max total batch size for log messages
 
 
 class LogManager:
