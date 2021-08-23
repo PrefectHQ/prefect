@@ -8,7 +8,8 @@ from uuid import UUID
 
 from prefect.orion.models import orm
 from prefect.orion.orchestration import core_policy, global_policy
-from prefect.orion.schemas import states
+from prefect.orion.schemas import states, core
+from prefect.orion.models import orm
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
@@ -19,7 +20,7 @@ class OrchestrationContext(PrefectBaseModel):
     proposed_state: states.State
     validated_state: Optional[states.State]
     session: Any  # no validator for sa.orm.Session
-    run: Any  # Optional[schemas.core.TaskRun]
+    run: Optional[core.TaskRun]
     task_run_id: UUID
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)

@@ -73,8 +73,8 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         rule_as_context_manager = IllustrativeRule(ctx, *intended_transition)
@@ -118,8 +118,8 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         minimal_rule = MinimalRule(ctx, *intended_transition)
@@ -163,8 +163,8 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         # each rule receives a context as an argument and yields it back after
@@ -225,8 +225,8 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         fizzling_rule = FizzlingRule(ctx, *intended_transition)
@@ -293,8 +293,8 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -371,8 +371,8 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         # an ExitStack is a python builtin contstruction that allows us to
@@ -505,8 +505,8 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         # an ExitStack is a python builtin contstruction that allows us to
@@ -604,8 +604,8 @@ class TestBaseUniversalRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         rule_as_context_manager = IllustrativeUniversalRule(ctx, *intended_transition)
@@ -653,8 +653,8 @@ class TestBaseUniversalRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=MagicMock(),
-            run=MagicMock(),
-            task_run_id=UUID(int=42),
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
         )
 
         universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
