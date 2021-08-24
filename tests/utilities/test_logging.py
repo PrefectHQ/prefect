@@ -1,6 +1,5 @@
 import contextlib
 import datetime
-import json
 import logging
 import time
 from unittest.mock import MagicMock
@@ -8,322 +7,263 @@ from unittest.mock import MagicMock
 import click
 import pytest
 
+import prefect
 from prefect import context, utilities
+from prefect.utilities.logging import (
+    CloudHandler,
+    LogManager,
+    temporary_logger_config,
+    get_logger,
+)
+
+
+@pytest.fixture
+def log_manager(monkeypatch):
+    log_manager = LogManager()
+    Client = MagicMock()
+    monkeypatch.setattr(log_manager, "enqueue", MagicMock(wraps=log_manager.enqueue))
+    monkeypatch.setattr(prefect, "Client", Client)
+    monkeypatch.setattr(utilities.logging, "LOG_MANAGER", log_manager)
+    try:
+        yield log_manager
+    finally:
+        log_manager.stop()
+
+
+@pytest.fixture
+def logger(log_manager):
+    # Clean logger for every test run
+    with utilities.configuration.set_temporary_config(
+        {
+            "logging.level": "INFO",
+            "cloud.logging_heartbeat": 0.25,
+            "cloud.send_flow_run_logs": True,
+        }
+    ):
+        logger = utilities.logging.configure_logging(testing=True)
+        # Enable logs to the backend by pretending this is during a run
+        with prefect.context(running_with_backend=True):
+            yield logger
+        logger.handlers.clear()
 
 
 def test_root_logger_level_responds_to_config():
-    try:
-        with utilities.configuration.set_temporary_config({"logging.level": "DEBUG"}):
-            assert (
-                utilities.logging.configure_logging(testing=True).level == logging.DEBUG
-            )
+    with utilities.configuration.set_temporary_config({"logging.level": "DEBUG"}):
+        assert utilities.logging.configure_logging(testing=True).level == logging.DEBUG
 
-        with utilities.configuration.set_temporary_config({"logging.level": "WARNING"}):
-            assert (
-                utilities.logging.configure_logging(testing=True).level
-                == logging.WARNING
-            )
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+    with utilities.configuration.set_temporary_config({"logging.level": "WARNING"}):
+        assert (
+            utilities.logging.configure_logging(testing=True).level == logging.WARNING
+        )
 
 
 @pytest.mark.parametrize("datefmt", ["%Y", "%Y -- %D"])
 def test_root_logger_datefmt_responds_to_config(caplog, datefmt):
-    try:
-        with utilities.configuration.set_temporary_config({"logging.datefmt": datefmt}):
-            logger = utilities.logging.configure_logging(testing=True)
-            logger.error("badness")
-            logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert logs[0].asctime == datetime.datetime.now().strftime(datefmt)
-    finally:
-        # reset root_logger
+    with utilities.configuration.set_temporary_config({"logging.datefmt": datefmt}):
         logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+        logger.error("badness")
+        logs = [r for r in caplog.records if r.levelname == "ERROR"]
+        assert logs[0].asctime == datetime.datetime.now().strftime(datefmt)
 
 
-def test_remote_handler_is_configured_for_cloud():
-    try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger = utilities.logging.configure_logging(testing=True)
-            assert hasattr(logger.handlers[-1], "client")
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+def test_root_logger_has_cloud_handler(logger):
+    assert logger.handlers
+    assert any(isinstance(h, CloudHandler) for h in logger.handlers)
 
 
 def test_diagnostic_logger_has_no_cloud_handler():
-    try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger = utilities.logging.create_diagnostic_logger(name="diagnostic-test")
-            assert logger.handlers
-            assert all(
-                [
-                    not isinstance(h, utilities.logging.CloudHandler)
-                    for h in logger.handlers
-                ]
-            )
-    finally:
-        # reset logger
-        logger = utilities.logging.create_diagnostic_logger(name="diagnostic-test")
-        logger.handlers = []
+    logger = utilities.logging.create_diagnostic_logger(name="diagnostic-test")
+    assert logger.handlers
+    assert not any(isinstance(h, CloudHandler) for h in logger.handlers)
 
 
-def test_remote_handler_captures_errors_and_logs_them(caplog, monkeypatch):
-    try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True, "cloud.auth_token": None}
-        ):
-            logger = utilities.logging.configure_logging(testing=True)
-            assert hasattr(logger.handlers[-1], "client")
-            logger.handlers[-1].client = MagicMock()
-            child_logger = logger.getChild("sub-test")
-            child_logger.critical("this should raise an error in the handler")
-
-            time.sleep(1.5)  # wait for batch upload to occur
-            critical_logs = [r for r in caplog.records if r.levelname == "CRITICAL"]
-            assert len(critical_logs) == 2
-
-            assert (
-                "Failed to write log with error"
-                in [
-                    log.message for log in critical_logs if log.name == "CloudHandler"
-                ].pop()
-            )
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+def test_cloud_handler_emit_noop_if_cloud_logging_disabled(logger, log_manager):
+    with utilities.configuration.set_temporary_config(
+        {"cloud.send_flow_run_logs": False}
+    ):
+        logger.info("testing")
+    assert not log_manager.enqueue.called
+    assert log_manager.client is None
+    assert log_manager.thread is None
 
 
-def test_remote_handler_captures_tracebacks(caplog, monkeypatch):
-    monkeypatch.setattr("prefect.client.Client", MagicMock)
-    client = MagicMock()
-    try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger = utilities.logging.configure_logging(testing=True)
-            assert hasattr(logger.handlers[-1], "client")
-            logger.handlers[-1].client = client
-
-            child_logger = logger.getChild("sub-test")
-            try:
-                ## informative comment
-                1 + "2"
-            except:
-                child_logger.exception("unexpected error")
-
-            time.sleep(0.75)
-            error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) >= 1
-
-            cloud_logs = client.write_run_logs.call_args[0][0]
-            assert len(cloud_logs) == 1
-            logged_msg = cloud_logs[0]["message"]
-            assert "TypeError" in logged_msg
-            assert '1 + "2"' in logged_msg
-            assert "unexpected error" in logged_msg
-
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+def test_cloud_handler_emit_noop_if_cloud_logging_disabled_deprecated(
+    logger, log_manager
+):
+    with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
+        logger.info("testing")
+    assert not log_manager.enqueue.called
+    assert log_manager.client is None
+    assert log_manager.thread is None
 
 
-def test_cloud_handler_formats_messages_and_removes_args(caplog, monkeypatch):
-    monkeypatch.setattr("prefect.client.Client", MagicMock)
-    client = MagicMock()
-    try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger = utilities.logging.configure_logging(testing=True)
-            assert hasattr(logger.handlers[-1], "client")
-            logger.handlers[-1].client = client
-
-            child_logger = logger.getChild("sub-test")
-            child_logger.info("Here's a number: %d", 42)
-
-            time.sleep(0.75)
-
-            cloud_logs = client.write_run_logs.call_args[0][0]
-            assert len(cloud_logs) == 1
-            assert cloud_logs[0]["message"] == "Here's a number: 42"
-            assert "args" not in cloud_logs[0]["info"]
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+def test_cloud_handler_emit_noop_if_below_log_level(logger, log_manager):
+    logger.debug("testing")
+    assert not log_manager.enqueue.called
+    assert log_manager.client is None
+    assert log_manager.thread is None
 
 
-def test_cloud_handler_emit_responds_to_config(caplog, monkeypatch):
-    monkeypatch.setattr("prefect.client.Client", MagicMock)
-    client = MagicMock()
-    try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True, "logging.level": "DEBUG"}
-        ):
-            logger = utilities.logging.configure_logging(testing=True)
-            assert hasattr(logger.handlers[-1], "client")
-            logger.handlers[-1].client = client
-
-            child_logger = logger.getChild("sub-test")
-
-            with utilities.configuration.set_temporary_config(
-                {"logging.log_to_cloud": True, "logging.level": "INFO"}
-            ):
-                child_logger.debug("heres a log")
-
-            time.sleep(0.75)
-
-            assert not client.write_run_logs.called
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manager):
+    # Log level in context is higher than log level of logger
+    assert logger.level == logging.INFO
+    with utilities.configuration.set_temporary_config({"logging.level": "WARNING"}):
+        logger.info("testing")
+    assert not log_manager.enqueue.called
+    assert log_manager.client is None
+    assert log_manager.thread is None
 
 
-def test_remote_handler_ships_json_payloads(caplog, monkeypatch):
-    monkeypatch.setattr("prefect.client.Client", MagicMock)
-    client = MagicMock()
-    try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger = utilities.logging.configure_logging(testing=True)
-            assert hasattr(logger.handlers[-1], "client")
-            logger.handlers[-1].client = client
+def test_cloud_handler_emit_warns_and_truncates_long_messages(
+    monkeypatch, logger, log_manager, caplog
+):
+    # Smaller value for testing
+    monkeypatch.setattr(prefect.utilities.logging, "MAX_LOG_LENGTH", 100)
 
-            child_logger = logger.getChild("sub-test")
-            try:
-                ## informative comment
-                f = lambda x: x + "2"
-                f(1)
-            except:
-                child_logger.exception("unexpected error")
-
-            time.sleep(0.75)
-            error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) >= 1
-
-            cloud_logs = client.write_run_logs.call_args[0][0]
-            assert len(cloud_logs) == 1
-            info = cloud_logs[0]["info"]
-            assert json.loads(json.dumps(info))
-
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
+    logger.info("h" * 120)
+    # warning about truncating long messages
+    assert any(
+        r.getMessage().startswith("Received a log message of 120 bytes")
+        for r in caplog.records
+    )
+    assert log_manager.enqueue.call_count == 2
+    assert log_manager.enqueue.call_args_list[0][0][0]["message"].startswith(
+        "Received a log message of 120 bytes"
+    )
+    # Truncated log message
+    assert log_manager.enqueue.call_args_list[1][0][0]["message"] == "h" * 100
 
 
-def test_cloud_handler_responds_to_config(caplog, monkeypatch):
-    calls = []
+@pytest.mark.parametrize(
+    "flow_run_id, task_run_id",
+    [("flow-run-id", "task-run-id"), ("flow-run-id", None), (None, None)],
+)
+def test_cloud_handler_emit_json_spec(logger, log_manager, flow_run_id, task_run_id):
+    with prefect.context(flow_run_id=flow_run_id, task_run_id=task_run_id):
+        logger.info("testing %d %s", 1, "hello")
 
-    class Client:
-        def write_run_logs(self, *args, **kwargs):
-            calls.append(1)
+    log = log_manager.enqueue.call_args[0][0]
 
-    monkeypatch.setattr("prefect.client.Client", Client)
-    try:
-        logger = utilities.logging.configure_logging(testing=True)
-        cloud_handler = logger.handlers[-1]
-        assert isinstance(cloud_handler, utilities.logging.CloudHandler)
+    # Timestamp set on log
+    timestamp = log.pop("timestamp")
+    assert isinstance(timestamp, str)
 
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False}
-        ):
-            logger.critical("testing")
+    # Remaining fields are deterministic
+    assert log == {
+        "message": "testing 1 hello",
+        "flow_run_id": flow_run_id,
+        "task_run_id": task_run_id,
+        "name": logger.name,
+        "level": "INFO",
+    }
 
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger.critical("testing")
 
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False}
-        ):
-            logger.critical("testing")
+@pytest.mark.parametrize(
+    "flow_run_id, task_run_id",
+    [("flow-run-id", "task-run-id"), ("flow-run-id", None), (None, None)],
+)
+def test_cloud_handler_emit_json_spec_exception(
+    logger, log_manager, flow_run_id, task_run_id
+):
+    with prefect.context(flow_run_id=flow_run_id, task_run_id=task_run_id):
+        try:
+            1 / 0
+        except Exception:
+            logger.exception("An error occurred:")
+
+    log = log_manager.enqueue.call_args[0][0]
+
+    # Timestamp set on log
+    timestamp = log.pop("timestamp")
+    assert isinstance(timestamp, str)
+
+    message = log.pop("message")
+    assert "An error occurred:" in message
+    assert "1 / 0" in message
+    assert "ZeroDivisionError" in message
+
+    # Remaining fields are deterministic
+    assert log == {
+        "flow_run_id": flow_run_id,
+        "task_run_id": task_run_id,
+        "name": logger.name,
+        "level": "ERROR",
+    }
+
+
+def test_log_manager_startup_and_shutdown(logger, log_manager):
+    heartbeat = 5
+    with utilities.configuration.set_temporary_config(
+        {"cloud.logging_heartbeat": heartbeat}
+    ):
+        # On creation, neither thread or client are initialized
+        assert log_manager.client is None
+        assert log_manager.thread is None
+
+        # After enqueue, thread and client are started
+        logger.info("testing")
+        assert log_manager.client is not None
+        assert log_manager.thread is not None
+
+        client = log_manager.client
+
+        # Calling `_on_shutdown` (which calls stop) will flush the queue and
+        # cleanup resources
+        start = time.time()
+        log_manager._on_shutdown()
+        assert log_manager.queue.empty()
+        assert client.write_run_logs.called
+        assert log_manager.client is None
+        assert log_manager.thread is None
+        end = time.time()
+        assert end - start < heartbeat
+
+        # Calling `stop` is idempotent
+        log_manager.stop()
+
+
+def test_log_manager_batches_logs(logger, log_manager, monkeypatch):
+    monkeypatch.setattr(prefect.utilities.logging, "MAX_BATCH_LOG_LENGTH", 100)
+    # Fill up log queue with multiple logs exceeding the total batch length
+    for i in range(10):
+        logger.info(str(i) * 50)
+    time.sleep(0.5)
+
+    assert log_manager.queue.empty()
+    messages = [
+        l["message"]
+        for call in log_manager.client.write_run_logs.call_args_list
+        for l in call[0][0]
+    ]
+    assert messages == [f"{i}" * 50 for i in range(10)]
+    assert log_manager.client.write_run_logs.call_count == 5
+
+
+def test_log_manager_warns_and_retries_on_client_error(
+    logger, log_manager, monkeypatch
+):
+    first_call = True
+
+    def write_run_logs(*args, **kwargs):
+        nonlocal first_call
+        if first_call:
+            first_call = False
+            raise ValueError("Oh no!")
+
+    log_manager.ensure_started()
+    log_manager.client.write_run_logs = MagicMock(wraps=write_run_logs)
+
+    with pytest.warns(UserWarning, match="Failed to write logs with error:"):
+        logger.info("testing")
 
         time.sleep(0.75)
-        assert len(calls) == 1
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
 
-
-def test_cloud_handler_removes_bad_logs_from_queue_and_logs_error(caplog, monkeypatch):
-    calls = []
-
-    class Client:
-        def write_run_logs(self, *args, **kwargs):
-            calls.append(dict(args=args, kwargs=kwargs))
-
-    monkeypatch.setattr("prefect.client.Client", Client)
-    try:
-        logger = utilities.logging.configure_logging(testing=True)
-        cloud_handler = logger.handlers[-1]
-        assert isinstance(cloud_handler, utilities.logging.CloudHandler)
-
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger.critical("one")
-            logger.critical(b"two")
-            logger.critical("three")
-
-        time.sleep(0.75)
-        assert len(calls) == 1
-        msgs = [c["message"] for c in calls[0]["args"][0]]
-
-        assert msgs[0] == "one"
-        assert "is not JSON serializable" in msgs[1]
-        assert msgs[2] == "three"
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
-
-
-def test_cloud_handler_client_error(caplog, monkeypatch):
-    class Client:
-        def write_run_logs(self, *args, **kwargs):
-            raise utilities.exceptions.ClientError("Error")
-
-    monkeypatch.setattr("prefect.client.Client", Client)
-    try:
-        logger = utilities.logging.configure_logging(testing=True)
-        cloud_handler = logger.handlers[-1]
-        assert isinstance(cloud_handler, utilities.logging.CloudHandler)
-
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
-            logger.critical("one")
-    finally:
-        # reset root_logger
-        logger = utilities.logging.configure_logging(testing=True)
-        logger.handlers = []
-
-
-def test_make_error_log(caplog):
-
-    with context({"flow_run_id": "f_id", "task_run_id": "t_id"}):
-        log = utilities.logging.CloudHandler()._make_error_log("test_message")
-        assert log["flow_run_id"] == "f_id"
-        assert log["timestamp"]
-        assert log["name"] == "CloudHandler"
-        assert log["message"] == "test_message"
-        assert log["level"] == "CRITICAL"
-        assert log["info"] == {}
+    assert log_manager.client.write_run_logs.call_count == 2
+    for call in log_manager.client.write_run_logs.call_args_list:
+        logs = call[0][0]
+        assert isinstance(logs, list)
+        assert len(logs) == 1
+        assert logs[0]["message"] == "testing"
 
 
 def test_get_logger_returns_root_logger():
@@ -493,3 +433,59 @@ def test_redirect_to_log_is_textwriter(caplog):
     assert logs == ["There is color on this line\n", "Standard\n"]
 
     log_stdout.flush()
+
+
+def test_temporary_config_sets_and_resets(caplog):
+    with temporary_logger_config(
+        level=logging.CRITICAL,
+        stream_fmt="%(message)s",
+        stream_datefmt="%H:%M:%S",
+    ):
+        logger = get_logger()
+        assert logger.level == logging.CRITICAL
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                assert handler.formatter._fmt == "%(message)s"
+                assert handler.formatter.datefmt == "%H:%M:%S"
+        logger.info("Info log not shown")
+        logger.critical("Critical log shown")
+
+    logger.info("Info log shown")
+    for handler in logger.handlers:
+        handler.flush()
+
+    output = caplog.text
+    assert "Info log not shown" not in output
+    assert "Critical log shown" in output
+    assert "Info log shown" in output
+
+    assert logger.level == logging.DEBUG
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            assert handler.formatter._fmt != "%(message)s"
+            assert handler.formatter.datefmt != "%H:%M:%S"
+
+
+@pytest.mark.parametrize("level", [logging.CRITICAL, None])
+@pytest.mark.parametrize("stream_fmt", ["%(message)s", None])
+@pytest.mark.parametrize("stream_datefmt", ["%H:%M:%S", None])
+def test_temporary_config_does_not_require_all_args(
+    caplog, level, stream_fmt, stream_datefmt
+):
+    with temporary_logger_config(
+        level=level,
+        stream_fmt=stream_fmt,
+        stream_datefmt=stream_datefmt,
+    ):
+        pass
+
+
+def test_temporary_config_resets_on_exception(caplog):
+    with pytest.raises(ValueError):
+        with temporary_logger_config(
+            level=logging.CRITICAL,
+        ):
+            raise ValueError()
+
+    logger = get_logger()
+    assert logger.level == logging.DEBUG

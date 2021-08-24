@@ -6,32 +6,19 @@ automatically be applied when users apply the `@task` decorator.
 """
 
 from typing import Any, Callable
+from functools import update_wrapper
 
 import prefect
 
 
-class _DocProxy(object):
-    """A descriptor that proxies through the docstring for the wrapped task as
-    the docstring for a `FunctionTask` instance."""
-
-    def __init__(self, cls_doc):
-        self._cls_doc = cls_doc
-
-    def __get__(self, obj, cls):
-        if obj is None:
-            return self._cls_doc
-        else:
-            return getattr(obj.run, "__doc__", None) or self._cls_doc
-
-
 class FunctionTask(prefect.Task):
-    __doc__ = _DocProxy(
-        """A convenience Task for functionally creating Task instances with
+    """A convenience Task for functionally creating Task instances with
     arbitrary callable `run` methods.
 
     Args:
         - fn (callable): the function to be the task's `run` method
-        - name (str, optional): the name of this task
+        - name (str, optional): the name of this task; if not provided it is inferred
+            as the function name
         - **kwargs: keyword arguments that will be passed to the Task
             constructor
 
@@ -47,26 +34,17 @@ class FunctionTask(prefect.Task):
         result = task(42)
     ```
     """
-    )
 
     def __init__(self, fn: Callable, name: str = None, **kwargs: Any):
         if not callable(fn):
-            raise TypeError("fn must be callable.")
+            raise TypeError("`fn` must be callable")
 
-        # set the name from the fn
+        # Set the Prefect name from the function
         if name is None:
             name = getattr(fn, "__name__", type(self).__name__)
 
-        prefect.core.task._validate_run_signature(fn)  # type: ignore
+        prefect.core.task._validate_run_signature(fn)
         self.run = fn
+        update_wrapper(self, fn)
 
         super().__init__(name=name, **kwargs)
-
-    def __getattr__(self, k):
-        if k == "__wrapped__":
-            return self.run
-        raise AttributeError(
-            f"'FunctionTask' object has no attribute {k}."
-            " Did you call this object within a function that should have been"
-            "decorated with @prefect.task?"
-        )

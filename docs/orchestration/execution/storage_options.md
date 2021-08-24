@@ -13,8 +13,8 @@ As of Prefect version `0.9.0` every storage option except for `Docker` and `GitH
 
 Version `0.12.0` introduces a new way to store flows using the various cloud storage options (S3, GCS, Azure) and then in turn run them using Agents which orchestrate containerized environments. For more information see [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
 
-Version `0.12.5` introduces file-based storage for all storage options. For more information see the
-[Using file based flow storage idiom](/core/idioms/file-based.html).
+Version `0.12.5` introduces script-based storage for all storage options. For more information see the
+[Using script based flow storage idiom](/core/idioms/script-based.html).
 
 ## Local
 
@@ -114,7 +114,7 @@ GCS Storage uses Google Cloud credentials the same way as the standard [google.c
 
 [GitHub Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files.
 
-For a detailed look on how to use GitHub storage visit the [Using file based storage](/core/idioms/file-based.html) idiom.
+For a detailed look on how to use GitHub storage visit the [Using script based storage](/core/idioms/script-based.html) idiom.
 
 :::tip GitHub Credentials
 GitHub storage uses a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) for authenticating with repositories.
@@ -124,7 +124,7 @@ GitHub storage uses a [personal access token](https://help.github.com/en/github/
 
 [GitLab Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitLab repository as `.py` files.
 
-Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to GitLab as well.
+Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to GitLab as well.
 
 :::tip GitLab Credentials
 GitLab storage uses a [personal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for authenticating with repositories.
@@ -138,7 +138,7 @@ GitLab server users can point the `host` argument to their personal GitLab insta
 
 [Bitbucket Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
 
-Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well.
+Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to Bitbucket as well.
 
 :::tip Bitbucket Credentials
 Bitbucket storage uses a [personal access token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html) for authenticating with repositories.

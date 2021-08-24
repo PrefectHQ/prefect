@@ -1,5 +1,4 @@
-import os
-
+import sys
 import pytest
 import yaml
 
@@ -19,6 +18,7 @@ def test_no_args():
     assert config.service_account_name is None
     assert config.image_pull_secrets is None
     assert config.labels == set()
+    assert config.image_pull_policy is None
 
 
 def test_labels():
@@ -48,10 +48,9 @@ def test_local_job_template_path(tmpdir, scheme):
     if scheme is None:
         job_template_path = path
     else:
-        # With a scheme, unix-style slashes are required
-        job_template_path = f"{scheme}://" + os.path.splitdrive(path)[1].replace(
-            "\\", "/"
-        )
+        if sys.platform == "win32":
+            pytest.skip("Schemes are not supported on win32")
+        job_template_path = f"{scheme}://" + path
 
     with open(path, "w") as f:
         yaml.safe_dump(job_template, f)
@@ -100,3 +99,14 @@ def test_service_account_name_and_image_pull_secrets():
     # Ensure falsey-lists aren't converted to `None`.
     config = KubernetesRun(image_pull_secrets=[])
     assert config.image_pull_secrets == []
+
+
+@pytest.mark.parametrize("image_pull_policy", ["Always", "IfNotPresent", "Never"])
+def test_image_pull_policy_valid_value(image_pull_policy):
+    config = KubernetesRun(image_pull_policy=image_pull_policy)
+    assert config.image_pull_policy == image_pull_policy
+
+
+def test_image_pull_policy_invalid_value():
+    with pytest.raises(ValueError):
+        KubernetesRun(image_pull_policy="WrongPolicy")

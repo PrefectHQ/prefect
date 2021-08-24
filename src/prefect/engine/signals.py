@@ -7,7 +7,7 @@ in states.
 from typing import Type
 
 from prefect.engine import state
-from prefect.utilities.exceptions import PrefectError
+from prefect.exceptions import PrefectSignal
 
 
 def signal_from_state(state: state.State) -> Type["PrefectStateSignal"]:
@@ -36,10 +36,11 @@ def signal_from_state(state: state.State) -> Type["PrefectStateSignal"]:
         raise ValueError(f"No signal matches the provided state: {state}") from None
 
 
-class ENDRUN(Exception):
+class ENDRUN(PrefectSignal):
     """
     An ENDRUN exception is used to indicate that _all_ state processing should
-    stop. The pipeline result should be the state contained in the exception.
+    stop for a given task. An ENDRUN exception with a Failed state will not retry
+    the task. The pipeline result should be the state contained in the exception.
 
     Args:
         - state (State): the state that should be used as the result of the Runner's run
@@ -50,7 +51,7 @@ class ENDRUN(Exception):
         super().__init__()
 
 
-class PrefectStateSignal(PrefectError):
+class PrefectStateSignal(PrefectSignal):
     """
     Create a new PrefectStateSignal object.
 

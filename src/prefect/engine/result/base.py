@@ -23,10 +23,16 @@ is `None`.
 import copy
 import pendulum
 import uuid
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
+
+
+# Subclass of `NotImplementedError` to make it easier to distinguish this error
+# in consuming code
+class ResultNotImplementedError(NotImplementedError):
+    """Indicates a Result feature isn't implemented"""
 
 
 class Result:
@@ -39,9 +45,6 @@ class Result:
 
     Args:
         - value (Any, optional): the value of the result
-        - validators (Iterable[Callable], optional): Iterable of validation
-            functions to apply to the result to ensure it is `valid`.
-        - run_validators (bool): Whether the result value should be validated.
         - location (Union[str, Callable], optional): Possibly templated location
             to be used for saving the result to the destination. If a callable
             function is provided, it should have signature `callable(**kwargs) ->
@@ -57,14 +60,10 @@ class Result:
     def __init__(
         self,
         value: Any = None,
-        validators: Iterable[Callable] = None,
-        run_validators: bool = True,
         location: str = None,
         serializer: Serializer = None,
     ):
         self.value = value
-        self.validators = validators
-        self.run_validators = run_validators
         if serializer is None:
             serializer = PickleSerializer()
         self.serializer = serializer
@@ -105,35 +104,6 @@ class Result:
         new.value = value
         return new
 
-    def validate(self) -> bool:
-        """
-        Run any validator functions associated with this result and return whether the result
-        is valid or not.  All individual validator functions must return True for this method
-        to return True.  Emits a warning log if run_validators isn't true, and proceeds to run
-        validation functions anyway.
-
-
-        Returns:
-            - bool: whether or not the Result passed all validation functions
-        """
-        if not self.run_validators:
-            self.logger.warning(
-                "A Result's validate method has been called, but its run_validators "
-                "attribute is False. Prefect will not honor the validators without "
-                "run_validators=True, so please change it if you expect validation "
-                "to occur automatically for this Result in your pipeline."
-            )
-
-        if self.validators:
-            for validation_fn in self.validators:
-                is_valid = validation_fn(self)
-                if not is_valid:
-                    # once a validator is found to be false, this result is invalid
-                    return False
-
-        # if all validators passed or we had none, this result is valid
-        return True
-
     def copy(self) -> "Result":
         """
         Return a copy of the current result object.
@@ -171,8 +141,6 @@ class Result:
         """
         Checks whether the target result exists.
 
-        Does not validate whether the result is `valid`, only that it is present.
-
         Args:
             - location (str, optional): Location of the result in the specific result target.
                 If provided, will check whether the provided location exists;
@@ -182,7 +150,7 @@ class Result:
         Returns:
             - bool: whether or not the target result exists.
         """
-        raise NotImplementedError(
+        raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
             "see https://docs.prefect.io/core/concepts/results.html"
@@ -198,7 +166,7 @@ class Result:
         Returns:
             - Any: The value saved to the result.
         """
-        raise NotImplementedError(
+        raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
             "see https://docs.prefect.io/core/concepts/results.html"
@@ -217,7 +185,7 @@ class Result:
         Returns:
             - Result: a new result object with the appropriately formatted location destination
         """
-        raise NotImplementedError(
+        raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
             "see https://docs.prefect.io/core/concepts/results.html"

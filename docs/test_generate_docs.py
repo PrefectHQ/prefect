@@ -1,8 +1,11 @@
+import glob
 import inspect
+import os
 import re
 import sys
 import textwrap
 from functools import partial, wraps
+from unittest.mock import MagicMock
 
 import pytest
 from toolz import curry
@@ -23,6 +26,7 @@ try:
         get_call_signature,
         get_class_methods,
         patch_imports,
+        build_example,
         VALID_DOCSTRING_SECTIONS,
     )
 
@@ -35,6 +39,8 @@ except ImportError:
 
 
 pytest.mark.skipif(sys.version_info < (3, 6))
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 def consistency_check(obj, obj_name):
@@ -370,6 +376,8 @@ def test_consistency_of_function_docs(fn):
     "obj", [obj for page in OUTLINE for obj, _ in page.get("classes", [])]
 )
 def test_consistency_of_class_docs(obj):
+    if isinstance(obj, MagicMock):
+        pytest.skip("Mocked classes from optional requirements cannot be checked")
     consistency_check(obj, f"{obj.__module__}.{obj.__name__}")
 
 
@@ -481,3 +489,8 @@ def test_section_headers_are_properly_formatted(obj):
             assert (
                 False
             ), f"{obj.__module__}.{obj.__qualname__} has a poorly formatted '{section}' header"
+
+
+@pytest.mark.parametrize("path", glob.glob(os.path.join(ROOT, "examples", "*.py")))
+def test_example(path):
+    build_example(path)

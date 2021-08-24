@@ -1,4 +1,4 @@
-from typing import Iterable, Set  # noqa
+from typing import Iterable, Set, Any  # noqa
 
 import prefect
 
@@ -11,12 +11,14 @@ class RunConfig:
     specific agent backend.
 
     Args:
+        - env (dict, optional): Additional environment variables to set
         - labels (Iterable[str], optional): an iterable of labels to apply to this
             run config. Labels are string identifiers used by Prefect Agents
             for selecting valid flow runs when polling for work
     """
 
-    def __init__(self, labels: Iterable[str] = None):
+    def __init__(self, env: dict = None, labels: Iterable[str] = None):
+        self.env = env
         self.labels = set(labels) if labels else set()  # Set[str]
 
     def serialize(self) -> dict:
@@ -28,6 +30,12 @@ class RunConfig:
         """
         schema = prefect.serialization.run_config.RunConfigSchema()
         return schema.dump(self)
+
+    def __eq__(self, other: Any) -> Any:
+        """This equality check is _only_ exposed for testing"""
+        if not isinstance(other, RunConfig):
+            return NotImplemented
+        return self.serialize() == other.serialize()
 
 
 class UniversalRun(RunConfig):
@@ -41,6 +49,7 @@ class UniversalRun(RunConfig):
     between agent types without any config changes.
 
     Args:
+        - env (dict, optional): Additional environment variables to set
         - labels (Iterable[str], optional): an iterable of labels to apply to this
             run config. Labels are string identifiers used by Prefect Agents
             for selecting valid flow runs when polling for work
@@ -56,6 +65,6 @@ class UniversalRun(RunConfig):
     Configure additional labels:
 
     ```python
-    flow.run_config = UniversalRun(labels=["label-1", "label-2"])
+    flow.run_config = UniversalRun(env={"SOME_VAR": "value"}, labels=["label-1", "label-2"])
     ```
     """

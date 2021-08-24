@@ -9,7 +9,6 @@ You can use these task library tasks to interact with your Great Expectations ch
 Prefect flow.
 """
 from typing import Optional
-import warnings
 
 import prefect
 from prefect import Task
@@ -57,9 +56,11 @@ class RunGreatExpectationsValidation(Task):
         batch_kwargs = get_batch_kwargs(datasource_name, dataset)
 
         expectation_suite_name = Parameter("expectation_suite_name")
+        prev_run_row_count = 100  # can be taken eg. from Prefect KV store
         validation_task(
             batch_kwargs=batch_kwargs,
             expectation_suite_name=expectation_suite_name,
+            evaluation_parameters=dict(prev_run_row_count=prev_run_row_count)
         )
 
     flow.run(
@@ -95,7 +96,12 @@ class RunGreatExpectationsValidation(Task):
         - disable_markdown_artifact (bool, optional): toggle the posting of a markdown artifact from
             this tasks. Defaults to `False`.
         - validation_operator (str, optional): configure the actions to be executed after running
-            validation. Defaults to `action_list_operator`.
+            validation. Defaults to `action_list_operator`
+        - evaluation_parameters (Optional[dict], optional): the evaluation parameters to use when
+            running validation. For more information, see
+            [example](https://docs.prefect.io/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
+            and
+            [docs](https://docs.greatexpectations.io/en/latest/reference/core_concepts/evaluation_parameters.html).
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -112,6 +118,7 @@ class RunGreatExpectationsValidation(Task):
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
         validation_operator: str = "action_list_operator",
+        evaluation_parameters: Optional[dict] = None,
         **kwargs
     ):
         self.checkpoint_name = checkpoint_name
@@ -125,6 +132,7 @@ class RunGreatExpectationsValidation(Task):
         self.run_info_at_end = run_info_at_end
         self.disable_markdown_artifact = disable_markdown_artifact
         self.validation_operator = validation_operator
+        self.evaluation_parameters = evaluation_parameters
 
         super().__init__(**kwargs)
 
@@ -140,6 +148,7 @@ class RunGreatExpectationsValidation(Task):
         "run_info_at_end",
         "disable_markdown_artifact",
         "validation_operator",
+        "evaluation_parameters",
     )
     def run(
         self,
@@ -154,6 +163,7 @@ class RunGreatExpectationsValidation(Task):
         run_info_at_end: bool = True,
         disable_markdown_artifact: bool = False,
         validation_operator: str = "action_list_operator",
+        evaluation_parameters: Optional[dict] = None,
     ):
         """
         Task run method.
@@ -180,11 +190,16 @@ class RunGreatExpectationsValidation(Task):
                 task. Defaults to `True`.
             - disable_markdown_artifact (bool, optional): toggle the posting of a markdown artifact from
                 this tasks. Defaults to `False`.
+            - evaluation_parameters (Optional[dict], optional): the evaluation parameters to use when
+                running validation. For more information, see
+                [example](https://docs.prefect.io/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
+                and
+                [docs](https://docs.greatexpectations.io/en/latest/reference/core_concepts/evaluation_parameters.html).
             - validation_operator (str, optional): configure the actions to be executed after running
                 validation. Defaults to `action_list_operator`.
 
         Raises:
-            - 'signals.VALIDATIONFAIL' if the validation was not a success
+            - 'signals.FAIL' if the validation was not a success
 
         Returns:
             - result
@@ -245,6 +260,7 @@ class RunGreatExpectationsValidation(Task):
             validation_operator,
             assets_to_validate=assets_to_validate,
             run_id={"run_name": run_name or prefect.context.get("task_slug")},
+            evaluation_parameters=evaluation_parameters,
         )
 
         # Generate artifact markdown
@@ -270,110 +286,5 @@ class RunGreatExpectationsValidation(Task):
 
         if results.success is False:
             raise signals.FAIL(result=results)
-
-        return results
-
-
-class RunGreatExpectationsCheckpoint(Task):
-    """
-    DEPRECATED
-
-    Task for running a Great Expectations checkpoint. For this task to run properly, it must be
-    run above your great_expectations directory or configured with the `context_root_dir` for
-    your great_expectations directory on the local file system of the worker process.
-
-    Args:
-        - checkpoint_name (str): the name of the checkpoint; should match the filename of the
-            checkpoint without .py
-        - context_root_dir (str): the absolute or relative path to the directory holding your
-            `great_expectations.yml`
-        - runtime_environment (dict): a dictionary of great expectation config key-value pairs
-            to overwrite your config in `great_expectations.yml`
-        - run_name (str): the name of this Great Expectation validation run; defaults to the
-            task slug
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
-    """
-
-    def __init__(
-        self,
-        checkpoint_name: str = None,
-        context_root_dir: str = None,
-        runtime_environment: dict = {},
-        run_name: str = None,
-        **kwargs
-    ):
-        warnings.warn(
-            "DEPRECATED: `RunGreatExpectationsCheckpoint` task is deprecated, please use "
-            "`RunGreatExpectationsValidation` instead",
-            UserWarning,
-            stacklevel=2,
-        )
-
-        self.checkpoint_name = checkpoint_name
-        self.context_root_dir = context_root_dir
-        self.runtime_environment = runtime_environment
-        self.run_name = run_name
-
-        super().__init__(**kwargs)
-
-    @defaults_from_attrs(
-        "checkpoint_name", "context_root_dir", "runtime_environment", "run_name"
-    )
-    def run(
-        self,
-        checkpoint_name: str = None,
-        context_root_dir: str = None,
-        runtime_environment: dict = {},
-        run_name: str = None,
-        **kwargs
-    ):
-        """
-        Task run method.
-
-        Args:
-            - checkpoint_name (str): the name of the checkpoint; should match the filename of
-                the checkpoint without .py
-            - context_root_dir (str): the absolute or relative path to the directory holding
-                your `great_expectations.yml`
-            - runtime_environment (dict): a dictionary of great expectation config key-value
-                pairs to overwrite your config in `great_expectations.yml`
-            - run_name (str): the name of this  Great Expectation validation run; defaults to
-                the task slug
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
-
-        Raises:
-            - 'signals.VALIDATIONFAIL' if the validation was not a success
-        Returns:
-            - result
-                ('great_expectations.validation_operators.types.validation_operator_result.ValidationOperatorResult'):
-                The Great Expectations metadata returned from the validation
-
-        """
-
-        if checkpoint_name is None:
-            raise ValueError("You must provide the checkpoint name.")
-
-        context = ge.DataContext(
-            context_root_dir=context_root_dir, runtime_environment=runtime_environment
-        )
-        checkpoint = context.get_checkpoint(checkpoint_name)
-
-        batches_to_validate = []
-        for batch in checkpoint["batches"]:
-            batch_kwargs = batch["batch_kwargs"]
-            for suite_name in batch["expectation_suite_names"]:
-                suite = context.get_expectation_suite(suite_name)
-                batch = context.get_batch(batch_kwargs, suite)
-                batches_to_validate.append(batch)
-
-        results = context.run_validation_operator(
-            checkpoint["validation_operator_name"],
-            assets_to_validate=batches_to_validate,
-            run_id={"run_name": prefect.context.get("task_slug")},
-        )
-
-        if results.success is False:
-            raise signals.VALIDATIONFAIL(result=results)
 
         return results

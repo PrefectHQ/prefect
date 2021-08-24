@@ -46,6 +46,7 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.tasks import pause_task
 
 
@@ -130,6 +131,24 @@ def test_task_that_raises_success_is_marked_success():
 def test_task_that_has_an_error_is_marked_fail():
     task_runner = TaskRunner(task=ErrorTask())
     assert isinstance(task_runner.run(), Failed)
+
+
+def test_task_with_error_has_helpful_messages(caplog):
+    task_runner = TaskRunner(task=ErrorTask())
+    state = task_runner.run()
+    assert state.is_failed()
+    exc_repr = (
+        # Support py3.6 exception reprs
+        "ValueError('custom-error-message',)"
+        if sys.version_info < (3, 7)
+        else "ValueError('custom-error-message')"
+    )
+    assert state.message == f"Error during execution of task: {exc_repr}"
+    assert "ValueError: custom-error-message" in caplog.text
+    assert "Traceback" in caplog.text  # Traceback should be included
+    assert (
+        "Task 'ErrorTask': Exception encountered during task execution!" in caplog.text
+    )
 
 
 def test_task_that_raises_fail_is_marked_fail():
@@ -343,7 +362,7 @@ def test_timeout_actually_stops_execution():
 
     assert state.is_failed()
     assert isinstance(state, TimedOut)
-    assert isinstance(state.result, TimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_can_handle_timeouts_by_default():
@@ -354,7 +373,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
-    assert isinstance(state.result, TimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_handles_secrets():
@@ -428,6 +447,23 @@ class TestInitializeRun:
             assert "resume" not in ctx
             result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
+
+    def test_task_runner_puts_resume_in_context_if_paused_start_time_elapsed(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc")), context=ctx
+            )
+            assert result.context.resume is True
+
+    def test_task_runner_ignores_resume_in_context_if_paused_start_time_in_future(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            result = TaskRunner(Task()).initialize_run(
+                state=Paused(start_time=pendulum.now("utc").add(seconds=10)),
+                context=ctx,
+            )
+            assert "resume" not in ctx
 
     def test_task_runner_puts_checkpointing_in_context(self):
         with prefect.context() as ctx:
@@ -1123,6 +1159,20 @@ class TestRunTaskStep:
                 state=None, upstream_states={edge: Success(result=Result(2))}
             )
         assert new_state.is_successful()
+        assert new_state._result.location == "3"
+
+    def test_raised_success_state_is_checkpointed(self):
+        @prefect.task(checkpoint=True, result=PrefectResult())
+        def fn(x):
+            raise prefect.engine.signals.SUCCESS("custom-message", result=x + 1)
+
+        edge = Edge(Task(), fn, key="x")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state.message == "custom-message"
         assert new_state._result.location == "3"
 
     def test_result_formatting_with_checkpointing(self, tmpdir):
