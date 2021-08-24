@@ -46,7 +46,7 @@ def create_datadoc(encoding: str, data: D) -> "DataDocument[D]":
     """
     Create an encoded data document given an object
     """
-    return get_datadoc_subclass(encoding).create(data)
+    return get_datadoc_subclass(encoding).create(data, encoding=encoding)
 
 
 def get_datadoc_subclass(encoding: str) -> Type["DataDocument"]:
@@ -84,6 +84,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     def create(cls: Type[T], data: D, encoding: str = None) -> T:
         if encoding is None:
             encoding = cls.__fields__["encoding"].get_default()
+            # It is still possible for this to be null if there is no default
 
         if encoding not in cls.supported_encodings():
             raise ValueError(f"Unsupported encoding for {cls.__name__!r}: {encoding!r}")
