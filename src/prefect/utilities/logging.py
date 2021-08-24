@@ -10,6 +10,7 @@ When running locally, log levels and message formatting are set via your Prefect
 """
 import atexit
 import logging
+import json
 import sys
 import threading
 import time
@@ -34,7 +35,10 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 )
 
 MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 4_000_000  # 4 MB - max total batch size for log messages
+MAX_BATCH_LOG_LENGTH = 3_999_000  # max total batch size for log messages
+                                  # 4 MB = 5 MB (backend limit)
+                                  #      - 1 MB (MAX_LOG_LENGTH)
+                                  #      - 1 kB (serialisation overhead)
 
 
 class LogManager:
@@ -106,9 +110,11 @@ class LogManager:
         cont = True
         while cont:
             try:
-                while self.pending_length < MAX_BATCH_LOG_LENGTH:
+                # ensuring extra 200 bytes of free batch size for the
+                # log dict properties beside the message with MAX_LOG_LENGTH.
+                while self.pending_length + 200 < MAX_BATCH_LOG_LENGTH:
                     log = self.queue.get_nowait()
-                    self.pending_length += len(log.get("message", ""))
+                    self.pending_length += len(json.dumps(log))
                     self.pending_logs.append(log)
             except Empty:
                 cont = False
