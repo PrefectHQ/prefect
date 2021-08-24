@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import json
 import logging
 import time
 from unittest.mock import MagicMock
@@ -14,6 +15,8 @@ from prefect.utilities.logging import (
     LogManager,
     temporary_logger_config,
     get_logger,
+    MAX_LOG_LENGTH,
+    MAX_BATCH_LOG_LENGTH,
 )
 
 
@@ -222,8 +225,17 @@ def test_log_manager_startup_and_shutdown(logger, log_manager):
         log_manager.stop()
 
 
+def test_limits_match_backend():
+    MAX_BACKEND_BATCH_LOG_LENGTH = 5_000_000
+    GRAPHQL_OVERHEAD = 1_000
+    assert (
+        MAX_BATCH_LOG_LENGTH + MAX_LOG_LENGTH + GRAPHQL_OVERHEAD
+        <= MAX_BACKEND_BATCH_LOG_LENGTH
+    )
+
+
 def test_log_manager_batches_logs(logger, log_manager, monkeypatch):
-    monkeypatch.setattr(prefect.utilities.logging, "MAX_BATCH_LOG_LENGTH", 100)
+    monkeypatch.setattr(prefect.utilities.logging, "MAX_BATCH_LOG_LENGTH", 400)
     # Fill up log queue with multiple logs exceeding the total batch length
     for i in range(10):
         logger.info(str(i) * 50)
@@ -236,7 +248,12 @@ def test_log_manager_batches_logs(logger, log_manager, monkeypatch):
         for l in call[0][0]
     ]
     assert messages == [f"{i}" * 50 for i in range(10)]
-    assert log_manager.client.write_run_logs.call_count == 5
+    assert log_manager.client.write_run_logs.call_count == 10
+
+    for upload in log_manager.client.write_run_logs.call_args_list:
+        log_entries = [log_entry for log_entry in upload[0][0]]
+        payload = json.dumps(log_entries)
+        assert len(payload) <= 400, payload
 
 
 def test_log_manager_warns_and_retries_on_client_error(
