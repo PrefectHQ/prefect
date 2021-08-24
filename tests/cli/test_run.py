@@ -832,3 +832,7 @@ def test_run_cloud_with_schedule_fails():
 
     assert result.exit_code == 1
     assert "Error: Received a local only flag for a non-local flow" in result.output
+
+    result = CliRunner().invoke(run, ["--name", "fake-run-name", "--schedule"])
+    assert result.exit_code == 1
+    assert "Error: Received a local only flag for a non-local flow" in result.output
