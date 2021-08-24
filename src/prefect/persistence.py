@@ -16,20 +16,10 @@ class JSONDataDocument(DataDocument[Any]):
 
     @staticmethod
     def decode(blob: bytes) -> Any:
-        data = json.loads(blob.decode())
-        if isinstance(data, dict) and data.get("__pydantic__"):
-            data = import_object(data["model"]).parse_raw(data["data"])
-        return data
+        return json.loads(blob.decode())
 
     @staticmethod
     def encode(data: Any) -> bytes:
-        if isinstance(data, pydantic.BaseModel):
-            # Allow encoding pydantic models as JSON
-            data = {
-                "__pydantic__": True,
-                "model": get_import_name(type(data)),
-                "data": data.json(),
-            }
         return json.dumps(data).encode()
 
 
