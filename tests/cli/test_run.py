@@ -812,19 +812,23 @@ def test_run_cloud_execute_respects_no_logs(cloud_mocks):
     assert "LOG MESSAGE" not in result.output
 
 
-def test_run_local_respects_schedule(hello_world_flow_file, caplog):
-    def scheduled_run():
-        return CliRunner().invoke(run, ["--path", hello_world_flow_file, "--schedule"])
+def test_run_local_with_schedule(monkeypatch):
+    mock_flow = MagicMock()
 
-    with pytest.raises(TaskTimeoutSignal):
-        run_with_thread_timeout(scheduled_run, timeout=3)
+    def mock_get_flow_from_path_or_module(*args, **kwargs):
+        return mock_flow
 
-    assert "Waiting for next scheduled run at" in caplog.text
+    monkeypatch.setattr(
+        "prefect.cli.run.get_flow_from_path_or_module",
+        mock_get_flow_from_path_or_module,
+    )
+    CliRunner().invoke(run, ["--path", hello_world_flow_file, "--schedule"])
+
+    mock_flow.run.assert_called_once_with(parameters={}, run_on_schedule=True)
 
 
-def test_run_local_defaults_to_no_schedule(hello_world_flow_file, caplog):
-    result = CliRunner().invoke(run, ["--path", hello_world_flow_file])
+def test_run_cloud_with_schedule_fails():
+    result = CliRunner().invoke(run, ["--id", "fake-run-id", "--schedule"])
 
-    assert not result.exit_code
-    assert "Hello World" in caplog.text
-    assert "Flow run succeeded" in result.output
+    assert result.exit_code == 1
+    assert "Error: Received a local only flag for a non-local flow" in result.output
