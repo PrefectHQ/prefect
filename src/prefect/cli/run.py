@@ -569,6 +569,12 @@ def run(
         )
     params_dict = {**file_params, **cli_params}
 
+    if schedule and flow_or_group_id:
+        raise ClickException(
+            "Received a local only flag for a non-local flow; "
+            "cannot specify both `--schedule` and `--id`"
+        )
+
     # Local flow run -------------------------------------------------------------------
 
     if path or module:
